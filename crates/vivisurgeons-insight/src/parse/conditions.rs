@@ -240,7 +240,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         |p| {
             p.words("that spell 's mana cost or that ability 's activation cost contains")?;
             p.tok(&Tok::Sym("X".into()))?;
-            Some(Condition::CostHasX(Objects { quant: Quant::Antecedent, filter: Filter { kind: Some(Noun::SpellOrAbility), ..Filter::default() } }))
+            Some(Condition::CostHasX(Objects { quant: Quant::Unresolved(Hint::Antecedent), filter: Filter { kind: Some(Noun::SpellOrAbility), ..Filter::default() } }))
         },
         // "you gained life this turn", "an opponent searched their library
         // this turn".
@@ -406,7 +406,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         |p| {
             p.words("none of")?;
             let those = objects(p)?;
-            if those.quant != Quant::Antecedent { return None; }
+            if those.quant != Quant::Unresolved(Hint::Antecedent) { return None; }
             p.words("attacked you")?;
             Some(none_attacked_you(those))
         },
@@ -822,14 +822,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
 /// effect casts ("that card") against the spell the trigger saw.
 pub(crate) fn two_spells_same_mana_value() -> Condition {
     let card = Objects {
-        quant: Quant::Antecedent,
+        quant: Quant::Unresolved(Hint::Antecedent),
         filter: Filter {
             kind: Some(Noun::Card),
             ..Filter::default()
         },
     };
     let spell = Objects {
-        quant: Quant::Triggering,
+        quant: Quant::Unresolved(Hint::Triggering),
         filter: Filter {
             kind: Some(Noun::Spell),
             ..Filter::default()

@@ -641,9 +641,7 @@ fn share_with_kinds(
     // "a Plains card or a creature card … from among the cards milled this
     // way": where the cards are picked from is a zone too.
     let zone = match last.posts.last() {
-        Some(q @ (Post::In(_) | Post::FromAmong(_) | Post::FromAmongThem))
-            if all_cards && posts.is_empty() =>
-        {
+        Some(q @ (Post::In(_) | Post::FromAmong(_))) if all_cards && posts.is_empty() => {
             Some(q.clone())
         }
         _ => None,
@@ -1007,7 +1005,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| { p.words("put onto the battlefield with")?; objects(p).map(|o| Post::PutOntoBattlefieldWith(Box::new(o))) },
         |p| {
             p.one_of(&["from among them", "from among those cards", "among them"])?;
-            (!p.in_value).then_some(Post::FromAmongThem)
+            (!p.in_value).then(Post::pool)
         },
         // "cards exiled with it": "it" is the object whose ability exiled
         // them, which on a card's own text is the card (CR 607.2a).
@@ -1066,7 +1064,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             let mut o = objects(p)?;
             // "from among the nonland permanents they control": who controls
             // them says which they are, so "the" points back to nothing.
-            if o.quant == Quant::Antecedent && o.filter.posts.iter().any(|q| matches!(q, Post::Controller(_))) {
+            if o.quant == Quant::Unresolved(Hint::Antecedent) && o.filter.posts.iter().any(|q| matches!(q, Post::Controller(_))) {
                 o.quant = Quant::All;
             }
             Some(Post::FromAmong(Box::new(o)))
@@ -1333,7 +1331,7 @@ fn posts_one(p: &mut P, counter: bool) -> Option<Vec<Post>> {
         |p| {
             p.words("with the same name as")?;
             let mut o = pronoun(p)?;
-            if o.quant != Quant::Antecedent || !matches!(o.filter.posts.last(), Some(Post::In(_))) {
+            if o.quant != Quant::Unresolved(Hint::Antecedent) || !matches!(o.filter.posts.last(), Some(Post::In(_))) {
                 return None;
             }
             let zone = o.filter.posts.pop()?;
@@ -1467,7 +1465,7 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             // of those cards": what the earlier choice left of the cards
             // looked at, which `Rest` says ([the-other]); a reference back
             // would be the card just chosen.
-            let bare = Objects { quant: Quant::Antecedent, filter: Filter { kind: Some(Noun::Card), ..Filter::default() } };
+            let bare = Objects { quant: Quant::Unresolved(Hint::Antecedent), filter: Filter { kind: Some(Noun::Card), ..Filter::default() } };
             if among == bare {
                 return Some(Objects { quant: Quant::Unresolved(Hint::Rest), filter: Filter::default() });
             }
@@ -1486,22 +1484,22 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             Some(Objects { quant: Quant::N(n), filter: Filter { kind: Some(Noun::Card), posts: vec![Post::In(Zone::TopOfLibrary(w))], ..Filter::default() } })
         },
         // "each of those creatures": the earlier noun, each one.
-        |p| { p.words("each of")?; let o = pronoun(p)?; (o.quant == Quant::Antecedent).then_some(o) },
+        |p| { p.words("each of")?; let o = pronoun(p)?; (o.quant == Quant::Unresolved(Hint::Antecedent)).then_some(o) },
         |p| p.words("the rest").map(|_| Objects { quant: Quant::Unresolved(Hint::Rest), filter: Filter::default() }),
         |p| p.one_of(&["the other", "the others"]).map(|_| Objects { quant: Quant::Unresolved(Hint::Rest), filter: Filter::default() }),
         // "twice that many of each of those kinds of counters": the counters
         // an event named, kind by kind.
         |p| p.words("each of those kinds of counters").map(|_| Objects {
-            quant: Quant::Antecedent,
+            quant: Quant::Unresolved(Hint::Antecedent),
             filter: Filter { kind: Some(Noun::Counter(None)), ..Filter::default() },
         }),
         // "Put both cards onto the battlefield": the two just named.
-        |p| { p.word("both")?; let f = filter(p)?; Some(Objects { quant: Quant::Both, filter: f }) },
+        |p| { p.word("both")?; let f = filter(p)?; Some(Objects { quant: Quant::Unresolved(Hint::Both), filter: f }) },
         |p| {
             p.words("up to")?;
             let n = amount(p)?;
             p.words("of them")?;
-            Some(Objects { quant: Quant::UpTo(n), filter: Filter { posts: vec![Post::FromAmongThem], ..Filter::default() } })
+            Some(Objects { quant: Quant::UpTo(n), filter: Filter { posts: vec![Post::pool()], ..Filter::default() } })
         },
         |p| {
             let n = amount_a(p)?;
@@ -1509,7 +1507,7 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             // A bare number names the cards just found: "put one onto the
             // battlefield" is one of them ([one-of-them]).
             if !of_them && !matches!(p.peek_word(), Some("onto" | "into" | "on")) { return None; }
-            Some(Objects { quant: Quant::N(n), filter: Filter { posts: vec![Post::FromAmongThem], ..Filter::default() } })
+            Some(Objects { quant: Quant::N(n), filter: Filter { posts: vec![Post::pool()], ..Filter::default() } })
         },
         // Spinerock Tyrant: "you may copy it. If you do, those spells gain
         // wither": the spell copied and its copy (a copy of a spell is a
@@ -1518,7 +1516,7 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             let copied = p.t[..p.i].iter().any(|t| matches!(t, Tok::Word(w) if w == "copy"));
             p.words("those spells")?;
             copied.then(|| Objects {
-                quant: Quant::OriginalAndCopies,
+                quant: Quant::Unresolved(Hint::OriginalAndCopies),
                 filter: Filter { kind: Some(Noun::Spell), ..Filter::default() },
             })
         },
@@ -1547,11 +1545,11 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
                 // ability exiled (CR 702.167c), linked as Isochron Scepter's.
                 Some(Marked::Exiled) if f.posts.iter().any(|q| matches!(q, Post::UsedToCraft(_))) => {
                     f.posts.insert(0, Post::Marked(Marked::Exiled));
-                    return Some(Objects { quant: Quant::Linked, filter: f });
+                    return Some(Objects { quant: Quant::Unresolved(Hint::Linked), filter: f });
                 }
                 Some(Marked::Exiled) if !p.spell && !exiled_earlier(&p.t[..start]) => {
                     f.posts.insert(0, Post::ExiledWith(Box::new(self_ref())));
-                    return Some(Objects { quant: Quant::Linked, filter: f });
+                    return Some(Objects { quant: Quant::Unresolved(Hint::Linked), filter: f });
                 }
                 // Dance of Many's "When this enchantment leaves the
                 // battlefield, exile the token": a token its linked ability
@@ -1563,7 +1561,7 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
                     && !created_earlier(&p.t[..start]) =>
                 {
                     f.posts.insert(0, Post::CreatedWith(Box::new(self_ref())));
-                    return Some(Objects { quant: Quant::Linked, filter: f });
+                    return Some(Objects { quant: Quant::Unresolved(Hint::Linked), filter: f });
                 }
                 Some(m) => f.posts.insert(0, Post::Marked(m)),
                 // Balustrade Spy's "reveals cards … until they reveal a land
@@ -1578,7 +1576,7 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
                 }
                 None => {}
             }
-            Some(Objects { quant: Quant::Antecedent, filter: f })
+            Some(Objects { quant: Quant::Unresolved(Hint::Antecedent), filter: f })
         },
         |p| { p.word("enchanted")?; let f = filter(p)?; Some(with_others(Quant::Enchanted, f)) },
         |p| { p.word("equipped")?; let f = filter(p)?; Some(with_others(Quant::Equipped, f)) },
@@ -1793,7 +1791,7 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             if !matches!(quant, Quant::AtLeast(_) | Quant::AtMost(_) | Quant::N(_)) { return None; }
             p.word("of")?;
             let among = pronoun(p)?;
-            (among.quant == Quant::Antecedent).then(|| Objects {
+            (among.quant == Quant::Unresolved(Hint::Antecedent)).then(|| Objects {
                 quant,
                 filter: Filter { posts: vec![Post::FromAmong(Box::new(among))], ..Filter::default() },
             })

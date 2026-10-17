@@ -55,7 +55,7 @@ cost: {1}{U}{B}
 > Whenever a player attacks you, you may attach this Aura to that player.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } })) }])
 = BROKE at "," after: whenever you attack enchanted player
-= Triggered { trigger: When(PlayerAttacks { who: APlayer, at: Some(You) }), effect: [May { who: You, then: [Attach { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(PlayerAttacks { who: APlayer, at: Some(You) }), effect: [May { who: You, then: [Attach { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } } }] }], limits: [] }
 
 ## Benalish Cavalry
 face: Benalish Cavalry

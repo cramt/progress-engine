@@ -209,6 +209,22 @@ kept in the tree. Before the fix, a discarded word still counted as a success.
 The numbers did not move, which is what a change that only keeps information
 should do.
 
+## References are binders
+
+"Destroy target creature. Its controller gains 2 life": the tree binds
+the target once and names it twice. Every object a reference points back
+at is a binder: `Ability::Let` for what is fixed as the ability is put on
+the stack or triggers (targets, the trigger's object, what a cost names),
+`Effect::With` for what comes to exist as it resolves (a card searched
+for, a token), and a `ForEach`'s object. A reference is `Bound(i)`, the
+binder `i` places out among those in scope; `Introduced(i)` marks where
+the text says the object in full. Golden files print each binder's name
+beside it (`Bound(0) /* target */`). `SEMANTICS.md`'s [backref] and
+[binders] rows give the rules; `tests/backref.rs` checks every reference
+in the corpus names a binder in scope its words fit. Of 8638 references,
+68.8% have one object they can mean and 30.4% several, where the nearest
+that fits is taken, as a bare "it" always was; 58 have none.
+
 ## The lint
 
 The round trip catches a tree that lost a word. It does not catch a tree
@@ -219,7 +235,7 @@ each in text order (`src/walk.rs`):
 
 | Kind | What it finds | Corpus |
 |---|---|---|
-| dangling-antecedent | "it", "that creature" with nothing named before it in the ability. A card drawn, milled or looked at counts, and so does an earlier paragraph of the same spell that named something or did not parse (CR 608.2c) | 9 |
+| unresolved-reference | "it", "that creature" that no object said before it fits, so the tree points it at nothing (`Quant::Unresolved`). Every other reference names the binder of the object it means ([binders]): a target, a card drawn, milled or looked at, an earlier paragraph's object (CR 608.2c), a linked ability's (CR 607.2a). "Those players" and "those counters" are no objects and are not counted | 59 |
 | dangling-that-player | "that player" with no player before it. A player named by the trigger ("deals combat damage to a player", "each player's upkeep") or by an owner's zone counts, and the player of the same effect does ([that-player-in-effect]) | 2 |
 | self-comparison | both sides of a comparison the same expression | 0 |
 | spell-in-zone | a spell in a zone other than the stack (CR 112.1) | 0 |

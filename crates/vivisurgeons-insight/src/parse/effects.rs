@@ -375,7 +375,7 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
             // "that's attacking that opponent" (Combat Calligrapher): the
             // player the trigger saw attacked, a player and not an object.
             Some(Recipient::Objects(o))
-                if o.quant == Quant::Antecedent
+                if o.quant == Quant::Unresolved(Hint::Antecedent)
                     && o.filter.kind == Some(Noun::Opponent)
                     && o.filter.alts.is_empty()
                     && o.filter.posts.is_empty() =>
@@ -466,7 +466,7 @@ pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
         |p| {
             p.words("can't block")?;
             let o = objects(p)?;
-            matches!(o.quant, Quant::SelfRef | Quant::Antecedent).then_some(Restriction::CantBlockObject(o))
+            matches!(o.quant, Quant::SelfRef | Quant::Unresolved(Hint::Antecedent)).then_some(Restriction::CantBlockObject(o))
         },
         |p| { p.words("can't block")?; filter(p).map(Restriction::CantBlockAny) },
         |p| p.words("can't block").map(|_| Restriction::CantBlock),
@@ -966,7 +966,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         |p| {
             p.word("put")?;
             let mut those = objects(p)?;
-            if those.quant != Quant::Antecedent || !matches!(those.filter.kind, Some(Noun::Counter(_))) { return None; }
+            if those.quant != Quant::Unresolved(Hint::Antecedent) || !matches!(those.filter.kind, Some(Noun::Counter(_))) { return None; }
             let on = match those.filter.posts.pop() { Some(Post::On(o)) => *o, _ => return None };
             Some(Effect::PutThoseCounters { those, on })
         },
@@ -982,7 +982,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 |p| p.word("it's").map(|_| antecedent()),
                 |p| {
                     let w = objects(p)?;
-                    if w.quant != Quant::Antecedent { return None; }
+                    if w.quant != Quant::Unresolved(Hint::Antecedent) { return None; }
                     p.word("is")?;
                     Some(w)
                 },
@@ -1165,7 +1165,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         // "Those tokens plus an additional Food token are created instead".
         |p| {
             let those = pronoun(p)?;
-            if those.quant != Quant::Antecedent { return None; }
+            if those.quant != Quant::Unresolved(Hint::Antecedent) { return None; }
             p.word("plus")?;
             let (n, token) = extra_token(p)?;
             p.words("are created")?;
@@ -1175,7 +1175,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let who = subject_player(p);
             p.verb("create")?;
             let those = pronoun(p)?;
-            if those.quant != Quant::Antecedent { return None; }
+            if those.quant != Quant::Unresolved(Hint::Antecedent) { return None; }
             p.word("plus")?;
             let (n, token) = extra_token(p)?;
             Some(Effect::CreateThosePlus { by: Actor::Player(who), those, n, token })
@@ -1188,7 +1188,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let n = amount(p)?;
             p.word("of")?;
             let those = pronoun(p)?;
-            if those.quant != Quant::Antecedent { return None; }
+            if those.quant != Quant::Unresolved(Hint::Antecedent) { return None; }
             Some(Effect::CreateThose { by: Actor::Player(who), n, those })
         },
         |p| {
@@ -1499,7 +1499,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             // "shuffle it into your library from your graveyard" (Yidaro): where
             // the card is, said after the library.
             if let Some(z) = p.attempt(|p| { p.word("from")?; zone(p) }) {
-                if !what.filter.posts.is_empty() || !matches!(what.quant, Quant::SelfRef | Quant::Antecedent) { return None; }
+                if !what.filter.posts.is_empty() || !matches!(what.quant, Quant::SelfRef | Quant::Unresolved(Hint::Antecedent)) { return None; }
                 what.filter.posts.push(Post::In(z));
             }
             Some(Effect::ShuffleInto { who, what })
@@ -1538,7 +1538,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             // "the creature cards in target opponent's hand" is every one
             // there, not a reference back, which `objects` would make it.
             let zoned = what.filter.posts.iter().any(|q| matches!(q, Post::In(_)));
-            if what.quant == Quant::Antecedent && zoned {
+            if what.quant == Quant::Unresolved(Hint::Antecedent) && zoned {
                 return None;
             }
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
@@ -1667,7 +1667,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let n = amount(p)?;
             p.word("of")?;
             let those = pronoun(p)?;
-            if those.quant != Quant::Antecedent || !matches!(those.filter.kind, Some(Noun::Counter(_))) { return None; }
+            if those.quant != Quant::Unresolved(Hint::Antecedent) || !matches!(those.filter.kind, Some(Noun::Counter(_))) { return None; }
             p.word("on")?;
             let on = objects(p)?;
             Some(Effect::PutThose { by: Actor::Player(who), n, those, on })
@@ -1749,6 +1749,8 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                     // The last pick's own post read the "from among" said
                     // once for all of them.
                     let among = match picks.last_mut()?.posts.pop()? {
+                        // "from among them" names no pool of its own.
+                        p if p.is_pool() => return None,
                         Post::FromAmong(o) => *o,
                         _ => return None,
                     };
@@ -2594,7 +2596,7 @@ pub(super) fn recipient(p: &mut P) -> Option<Recipient> {
             if player_simple(p)? != Player::That { return None; }
             p.word("or")?;
             let f = filter(p)?;
-            Some(Recipient::Or(vec![Recipient::Player(Player::That), Recipient::Objects(Objects { quant: Quant::Antecedent, filter: f })]))
+            Some(Recipient::Or(vec![Recipient::Player(Player::That), Recipient::Objects(Objects { quant: Quant::Unresolved(Hint::Antecedent), filter: f })]))
         },
         // "that player or a planeswalker they control".
         |p| {
@@ -2669,7 +2671,7 @@ pub(super) fn prevent(p: &mut P) -> Option<Effect> {
             // ([continued-subject]).
             by: Some(match o.quant {
                 Quant::Target { .. } => Objects {
-                    quant: Quant::Antecedent,
+                    quant: Quant::Unresolved(Hint::Antecedent),
                     ..o
                 },
                 _ => o,

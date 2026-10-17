@@ -13,8 +13,9 @@ use crate::walk::{Visitor, Walk};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Kind {
-    /// "it", "that creature" with no object said before it in the ability.
-    DanglingAntecedent,
+    /// "it", "that creature" that no object said before it fits, so it
+    /// points at nothing: `Quant::Unresolved` of an object ([backref]).
+    UnresolvedReference,
     /// "that player" with no player said before it in the ability.
     DanglingThatPlayer,
     /// Both sides of a comparison are the same expression.
@@ -43,7 +44,7 @@ pub enum Kind {
 
 impl Kind {
     pub const ALL: [Kind; 11] = [
-        Kind::DanglingAntecedent,
+        Kind::UnresolvedReference,
         Kind::DanglingThatPlayer,
         Kind::SelfComparison,
         Kind::SpellInZone,
@@ -58,7 +59,7 @@ impl Kind {
 
     pub fn name(self) -> &'static str {
         match self {
-            Kind::DanglingAntecedent => "dangling-antecedent",
+            Kind::UnresolvedReference => "unresolved-reference",
             Kind::DanglingThatPlayer => "dangling-that-player",
             Kind::SelfComparison => "self-comparison",
             Kind::SpellInZone => "spell-in-zone",
@@ -304,9 +305,15 @@ impl Visitor for Lint {
     }
 
     fn enter(&mut self, o: &mut Objects) -> bool {
-        // A reference back no introducer fits ([backref]).
-        if matches!(o.quant, Quant::Unresolved(_)) {
-            self.out.push(Kind::DanglingAntecedent);
+        // A reference back no introducer fits ([backref]); "those players",
+        // "those counters" are no objects and point at none yet.
+        if matches!(o.quant, Quant::Unresolved(_))
+            && !matches!(
+                o.filter.kind,
+                Some(Noun::Player | Noun::Opponent | Noun::Counter(_))
+            )
+        {
+            self.out.push(Kind::UnresolvedReference);
         }
         let at_trigger = self.triggering_spell && self.at_trigger.contains(&self.decl);
         self.decl += 1;
@@ -318,7 +325,7 @@ impl Visitor for Lint {
             self.players += 1;
         }
         filter(&o.filter, &mut self.out);
-        if (o.quant == Quant::Triggering || at_trigger)
+        if (o.quant == Quant::Unresolved(Hint::Triggering) || at_trigger)
             && self.triggering_spell
             && permanent_state(&o.filter)
         {
@@ -432,7 +439,10 @@ impl Visitor for Lint {
             self.out.push(Kind::SelfComparison);
         }
         if let Condition::Is { what, filter: f } = c {
-            if what.quant == Quant::Triggering && self.triggering_spell && permanent_state(f) {
+            if what.quant == Quant::Unresolved(Hint::Triggering)
+                && self.triggering_spell
+                && permanent_state(f)
+            {
                 self.out.push(Kind::StateOfTriggeringSpell);
             }
             self.is_state = permanent_state(f);
@@ -459,7 +469,11 @@ fn stat_of(stat: Stat, a: &Amount) -> Option<&Objects> {
 fn singular(o: &Objects) -> bool {
     matches!(
         o.quant,
-        Quant::SelfRef | Quant::Granter | Quant::Triggering | Quant::Enchanted | Quant::Equipped
+        Quant::SelfRef
+            | Quant::Granter
+            | Quant::Unresolved(Hint::Triggering)
+            | Quant::Enchanted
+            | Quant::Equipped
     ) || o.quant
         == (Quant::Target {
             n: Amount::N(1),
@@ -758,24 +772,28 @@ mod tests {
             then: vec![],
         }]);
         assert_eq!(kinds(compare), [Kind::SelfComparison]);
-        // "Whenever you cast a spell, if it's tapped, …"
-        let spell = Ability::Triggered {
-            trigger: Trigger::When(Box::new(Event::Casts {
-                who: Player::You,
-                what: objects(Quant::One, vec![], Some(Noun::Spell), vec![]),
-            })),
-            effect: vec![Effect::If {
-                order: ClauseOrder::Leading,
-                cond: Condition::Is {
-                    what: objects(Quant::Triggering, vec![], None, vec![]),
-                    filter: Filter {
-                        alts: vec![vec![Adj::State(State::Tapped)]],
-                        ..Filter::default()
+        // "Whenever you cast a spell, if it's tapped, …": the spell bound
+        // as the ability triggers, said in the trigger and tested after.
+        let spell = Ability::Let {
+            bind: vec![objects(Quant::One, vec![], Some(Noun::Spell), vec![])],
+            ability: Box::new(Ability::Triggered {
+                trigger: Trigger::When(Box::new(Event::Casts {
+                    who: Player::You,
+                    what: objects(Quant::Introduced(0), vec![], None, vec![]),
+                })),
+                effect: vec![Effect::If {
+                    order: ClauseOrder::Leading,
+                    cond: Condition::Is {
+                        what: objects(Quant::Bound(0), vec![], None, vec![]),
+                        filter: Filter {
+                            alts: vec![vec![Adj::State(State::Tapped)]],
+                            ..Filter::default()
+                        },
                     },
-                },
-                then: vec![],
-            }],
-            limits: vec![],
+                    then: vec![],
+                }],
+                limits: vec![],
+            }),
         };
         assert_eq!(kinds(spell), [Kind::StateOfTriggeringSpell]);
         // "Target creature fights itself."
@@ -797,7 +815,7 @@ mod tests {
             what: objects(Quant::Unresolved(Hint::Antecedent), vec![], None, vec![]),
             no_regen: false,
         }]);
-        assert_eq!(kinds(it), [Kind::DanglingAntecedent]);
+        assert_eq!(kinds(it), [Kind::UnresolvedReference]);
         let that = Ability::Spell(vec![Effect::LoseLife {
             who: Player::That,
             n: Amount::N(1),

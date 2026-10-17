@@ -2131,24 +2131,29 @@ pub fn ability(a: &Ability) -> Out {
     struct Said;
     impl crate::walk::Visitor for Said {
         fn enter(&mut self, o: &mut Objects) -> bool {
-            // "from among them": a pool said by pronoun ([backref]).
-            for p in &mut o.filter.posts {
-                if let Post::FromAmong(x) = p {
-                    if x.filter == Filter::default()
-                        && matches!(
-                            x.quant,
-                            Quant::BackRef { .. }
-                                | Quant::LinkedBackRef { .. }
-                                | Quant::BackRefs(_)
-                                | Quant::Unresolved(_)
-                                | Quant::Bound(_)
-                                | Quant::LinkedBound { .. }
-                                | Quant::Bounds(_)
-                        )
-                    {
-                        *p = Post::FromAmongThem;
+            // "from among them": a pool said by pronoun ([backref]), in each
+            // kind of object the filter allows.
+            let mut f = Some(&mut o.filter);
+            while let Some(filter) = f {
+                for p in &mut filter.posts {
+                    if let Post::FromAmong(x) = p {
+                        if x.filter == Filter::default()
+                            && matches!(
+                                x.quant,
+                                Quant::BackRef { .. }
+                                    | Quant::LinkedBackRef { .. }
+                                    | Quant::BackRefs(_)
+                                    | Quant::Unresolved(_)
+                                    | Quant::Bound(_)
+                                    | Quant::LinkedBound { .. }
+                                    | Quant::Bounds(_)
+                            )
+                        {
+                            *p = Post::pool();
+                        }
                     }
                 }
+                f = filter.or.as_deref_mut();
             }
             // What a linked ability exiled is "exiled with ~" as well as
             // "the exiled card" (CR 607.2a).
@@ -2170,33 +2175,35 @@ pub fn ability(a: &Ability) -> Out {
                     .iter()
                     .any(|p| matches!(p, Post::UsedToCraft(_)))
             {
-                o.quant = Quant::Antecedent;
+                o.quant = Quant::Unresolved(Hint::Antecedent);
             }
             // A pointer is said as the reference it is: "it", "that
             // creature", "the rest", "both cards" ([backref]).
             match o.quant {
                 Quant::Unresolved(Hint::Rest) => o.quant = Quant::Rest { of: 0 },
-                Quant::Unresolved(Hint::Both) => o.quant = Quant::Both,
+                // "from among them" keeps its pool, which `posts` says.
+                Quant::Unresolved(Hint::Pool) => {}
+                Quant::Unresolved(Hint::Both) => {}
                 Quant::BackRef { .. }
                 | Quant::LinkedBackRef { .. }
                 | Quant::Unresolved(_)
                 | Quant::Bound(_)
-                | Quant::LinkedBound { .. } => o.quant = Quant::Antecedent,
+                | Quant::LinkedBound { .. } => o.quant = Quant::Unresolved(Hint::Antecedent),
                 _ => {}
             }
             if matches!(
                 o.quant,
-                Quant::Triggering
-                    | Quant::BeforeEach
-                    | Quant::ClauseObject
-                    | Quant::Listed
+                Quant::Unresolved(Hint::Triggering)
+                    | Quant::Unresolved(Hint::BeforeEach)
+                    | Quant::Unresolved(Hint::ClauseObject)
+                    | Quant::Unresolved(Hint::Listed)
                     | Quant::Itself
-                    | Quant::Created
+                    | Quant::Unresolved(Hint::Created)
                     | Quant::SourceOf(_)
-                    | Quant::Linked
-                    | Quant::OriginalAndCopies
+                    | Quant::Unresolved(Hint::Linked)
+                    | Quant::Unresolved(Hint::OriginalAndCopies)
             ) {
-                o.quant = Quant::Antecedent;
+                o.quant = Quant::Unresolved(Hint::Antecedent);
             }
             // "the top card of each player's library" says the count once,
             // the possessive making it one per library.
@@ -3563,7 +3570,7 @@ fn possessive_of(o: &mut Out, x: &Objects) {
 }
 
 fn is_bare_antecedent(x: &Objects) -> bool {
-    x.quant == Quant::Antecedent && x.filter == Filter::default()
+    x.quant == Quant::Unresolved(Hint::Antecedent) && x.filter == Filter::default()
 }
 
 /// The card itself with nothing more said, which the text may name or
@@ -3818,10 +3825,10 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::NthEachTurn { .. }
         | Quant::NthDuringTurns { .. }
         | Quant::NthOfGame { .. }
-        | Quant::Triggering
+        | Quant::Unresolved(Hint::Triggering)
         | Quant::Last
         | Quant::Next => Num::Sg,
-        Quant::WithAllOthers(_) | Quant::Both => Num::Pl,
+        Quant::WithAllOthers(_) | Quant::Unresolved(Hint::Both) => Num::Pl,
         // "your commander", "your commanders": a partner pair is two.
         Quant::Possessive(_) => Num::Any,
         Quant::All
@@ -3836,17 +3843,17 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::Additional
         | Quant::WithOthers(_)
         | Quant::SelfAnd(_)
-        | Quant::OriginalAndCopies => Num::Pl,
+        | Quant::Unresolved(Hint::OriginalAndCopies) => Num::Pl,
         // "one or more creatures … deals": the verb may agree with "one".
-        Quant::Antecedent
-        | Quant::BeforeEach
-        | Quant::ClauseObject
-        | Quant::Listed
+        Quant::Unresolved(Hint::Antecedent)
+        | Quant::Unresolved(Hint::BeforeEach)
+        | Quant::Unresolved(Hint::ClauseObject)
+        | Quant::Unresolved(Hint::Listed)
         | Quant::Itself
-        | Quant::Created
+        | Quant::Unresolved(Hint::Created)
         | Quant::ThisAbility
         | Quant::SourceOf(_)
-        | Quant::Linked
+        | Quant::Unresolved(Hint::Linked)
         | Quant::Other
         | Quant::OneOrMore
         // Prototype pointers: said as the reference they replace.
@@ -3874,7 +3881,7 @@ fn obj_num(x: &Objects) -> Num {
 fn of_those(o: &mut Out, f: &Filter, n: Num) {
     if let ([], None, [Post::FromAmong(among)], None) = (&f.alts[..], &f.kind, &f.posts[..], &f.or)
     {
-        if among.quant == Quant::Antecedent
+        if among.quant == Quant::Unresolved(Hint::Antecedent)
             || (among.quant == Quant::Each && among.filter.posts == [Post::Marked(Marked::Chosen)])
         {
             o.w("of");
@@ -3891,7 +3898,7 @@ fn of_those(o: &mut Out, f: &Filter, n: Num) {
 fn each_objects(o: &mut Out, x: &Objects) {
     match x.quant {
         Quant::Plural => filter(o, &x.filter, Num::Sg),
-        Quant::Antecedent => {
+        Quant::Unresolved(Hint::Antecedent) => {
             o.w("of");
             objects(o, x);
         }
@@ -3920,7 +3927,7 @@ fn objects(o: &mut Out, x: &Objects) {
             objects_plain(
                 o,
                 &Objects {
-                    quant: Quant::Antecedent,
+                    quant: Quant::Unresolved(Hint::Antecedent),
                     filter: Filter {
                         posts: vec![],
                         ..f.clone()
@@ -3973,7 +3980,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         // round trip learns to say what it points at.
         Quant::BackRefs(ps) | Quant::Bounds(ps) => {
             let said = Objects {
-                quant: Quant::Antecedent,
+                quant: Quant::Unresolved(Hint::Antecedent),
                 filter: f.clone(),
             };
             let those = out(|o| objects_plain(o, &said));
@@ -3989,13 +3996,12 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         }
         Quant::BackRef { .. }
         | Quant::LinkedBackRef { .. }
-        | Quant::Unresolved(_)
         | Quant::Bound(_)
         | Quant::Introduced(_)
         | Quant::LinkedBound { .. }
         | Quant::Made => {
             let said = Objects {
-                quant: Quant::Antecedent,
+                quant: Quant::Unresolved(Hint::Antecedent),
                 filter: f.clone(),
             };
             objects_plain(o, &said);
@@ -4089,7 +4095,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             filter_q(o, f, n, true);
         }
         Quant::N(k) => {
-            if f.kind.is_none() && f.alts.is_empty() && f.posts == [Post::FromAmongThem] {
+            if f.kind.is_none() && f.alts.is_empty() && matches!(&f.posts[..], [p] if p.is_pool()) {
                 amount(o, k);
                 syn::one_of_them(o);
                 return;
@@ -4150,7 +4156,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             // "one of those creatures", never "a of".
             if matches!(
                 (&f.alts[..], &f.kind, &f.posts[..]),
-                ([], None, [Post::FromAmong(_)])
+                ([], None, [p @ Post::FromAmong(_)]) if !p.is_pool()
             ) {
                 amount(o, k);
             } else {
@@ -4173,7 +4179,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         Quant::UpTo(k) => {
             o.w("up to");
             amount(o, k);
-            if f.kind.is_none() && f.alts.is_empty() && f.posts == [Post::FromAmongThem] {
+            if f.kind.is_none() && f.alts.is_empty() && matches!(&f.posts[..], [p] if p.is_pool()) {
                 o.w("of them");
                 return;
             }
@@ -4193,7 +4199,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         }
         // Said only in a comparison ("lesser mana value") or as "other",
         // which render no object; elsewhere it is "that one".
-        Quant::Triggering => {
+        Quant::Unresolved(Hint::Triggering) => {
             syn::that(o);
             filter(o, f, n);
         }
@@ -4206,7 +4212,13 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             posts(o, &f.posts, n);
         }
         Quant::ThisAbility if *f == Filter::default() => syn::this_ability(o),
-        Quant::Both => {
+        Quant::Unresolved(Hint::Rest) => {
+            syn::the_rest(o);
+            filter(o, f, n);
+        }
+        // A pool alone: "them" ([backref]).
+        Quant::Unresolved(Hint::Pool) => syn::it(o),
+        Quant::Unresolved(Hint::Both) => {
             o.w("both");
             filter(o, f, Num::Pl);
         }
@@ -4218,26 +4230,26 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             },
         ),
         // Said as any reference back is.
-        Quant::BeforeEach
-        | Quant::ClauseObject
-        | Quant::Listed
+        Quant::Unresolved(Hint::BeforeEach)
+        | Quant::Unresolved(Hint::ClauseObject)
+        | Quant::Unresolved(Hint::Listed)
         | Quant::Itself
-        | Quant::Created
+        | Quant::Unresolved(Hint::Created)
         | Quant::ThisAbility
         | Quant::SourceOf(_)
-        | Quant::Linked
-        | Quant::OriginalAndCopies => objects_plain(
+        | Quant::Unresolved(Hint::Linked)
+        | Quant::Unresolved(Hint::OriginalAndCopies) => objects_plain(
             o,
             &Objects {
-                quant: Quant::Antecedent,
+                quant: Quant::Unresolved(Hint::Antecedent),
                 filter: f.clone(),
             },
         ),
-        Quant::Antecedent if *f == Filter::default() => {
+        Quant::Unresolved(Hint::Antecedent) if *f == Filter::default() => {
             syn::each_of(o);
             syn::it(o);
         }
-        Quant::Antecedent
+        Quant::Unresolved(Hint::Antecedent)
             if *f
                 == (Filter {
                     kind: Some(Noun::Counter(None)),
@@ -4246,7 +4258,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         {
             syn::those_counters(o)
         }
-        Quant::Antecedent => match f.posts.first() {
+        Quant::Unresolved(Hint::Antecedent) => match f.posts.first() {
             // "the exiled card", "the nonland cards exiled this way".
             Some(Post::Marked(m)) => {
                 let before = out(|o| {
@@ -4332,7 +4344,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         Quant::Rest { .. }
             if matches!(
                 (&f.alts[..], &f.kind, &f.posts[..]),
-                ([], None, [Post::FromAmong(_)])
+                ([], None, [p @ Post::FromAmong(_)]) if !p.is_pool()
             ) =>
         {
             if let [Post::FromAmong(x)] = &f.posts[..] {
@@ -5101,6 +5113,7 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 _ => o.add(that),
             }
         }
+        p if p.is_pool() => syn::from_among_them(o),
         Post::FromAmong(x) => from_among(o, x),
         Post::Greatest { stat, or_tied } => {
             o.w("with the greatest");
@@ -5146,7 +5159,6 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             player(o, p);
             o.verb("cast", player_num(p));
         }
-        Post::FromAmongThem => syn::from_among_them(o),
         Post::ExiledWith(x) if x.quant == Quant::SelfRef => {
             o.w("exiled with");
             let named = out(|o| objects(o, x));
@@ -5715,6 +5727,8 @@ fn cant_be_regenerated(o: &mut Out, what: &[&Objects]) {
 fn zone_post(q: &Post) -> Option<Post> {
     match q {
         Post::In(z) | Post::CastFrom(z) => Some(Post::In(z.clone())),
+        // "from among them" names no zone.
+        p if p.is_pool() => None,
         Post::FromAmong(_) => Some(q.clone()),
         _ => None,
     }
@@ -5893,7 +5907,7 @@ fn target_in_delayed(c: &Choice, s: &Step, then: &[Effect]) -> Option<Effect> {
                 Effect::Destroy { what, .. } => what,
                 e => e.sole_object_mut()?,
             };
-            if x.quant != Quant::Antecedent {
+            if x.quant != Quant::Unresolved(Hint::Antecedent) {
                 return None;
             }
             *x = t.clone();
@@ -5993,7 +6007,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
             {
                 if let Some(x) = it.sole_object_mut() {
                     *x = Objects {
-                        quant: Quant::Antecedent,
+                        quant: Quant::Unresolved(Hint::Antecedent),
                         filter: Filter::default(),
                     };
                 }
@@ -6520,7 +6534,7 @@ fn only_color_chosen_by(o: &mut Out, w: &Player) {
 /// target `a` chose, referred back to ([continued-subject]).
 fn same_subject(a: &Objects, b: &Objects) -> bool {
     a == b
-        || b.quant == Quant::Antecedent
+        || b.quant == Quant::Unresolved(Hint::Antecedent)
             && matches!(a.quant, Quant::Target { .. })
             && a.filter == b.filter
 }
@@ -6723,7 +6737,7 @@ fn recipient(o: &mut Out, r: &Recipient) {
                 filter(o, &x.filter, Num::Sg);
             }
             [Recipient::Player(Player::That), Recipient::Objects(x)]
-                if x.quant == Quant::Antecedent =>
+                if x.quant == Quant::Unresolved(Hint::Antecedent) =>
             {
                 o.w("that player or");
                 filter(o, &x.filter, Num::Sg);
@@ -7394,7 +7408,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             subj(o, who, "sacrifice", cx);
             match who {
                 Player::ControllerOf(x) | Player::OwnerOf(x)
-                    if **x == *what && x.quant == Quant::Antecedent =>
+                    if **x == *what && x.quant == Quant::Unresolved(Hint::Antecedent) =>
                 {
                     let named = out(|o| objects(o, what));
                     syn::again_it(o, named);
@@ -8714,7 +8728,12 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                     }
                     // "the base power and toughness of other creatures you
                     // control": a group is said with "of".
-                    if both && !matches!(what.quant, Quant::SelfRef | Quant::Antecedent) {
+                    if both
+                        && !matches!(
+                            what.quant,
+                            Quant::SelfRef | Quant::Unresolved(Hint::Antecedent)
+                        )
+                    {
                         o.w("the base power and toughness of");
                         objects(o, what);
                     } else {
@@ -9076,7 +9095,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 effect(o, inner, cx);
                 syn::joiner(o, false);
                 let what = Objects {
-                    quant: Quant::Antecedent,
+                    quant: Quant::Unresolved(Hint::Antecedent),
                     filter: Filter::default(),
                 };
                 effect(
@@ -11841,11 +11860,13 @@ fn condition(o: &mut Out, c: &Condition) {
         }
         // "the two spells have the same mana value" (Powerbalance).
         Condition::Has { what, cmp }
-            if matches!(what.quant, Quant::Antecedent | Quant::ClauseObject)
-                && what.filter.kind == Some(Noun::Card)
+            if matches!(
+                what.quant,
+                Quant::Unresolved(Hint::Antecedent) | Quant::Unresolved(Hint::ClauseObject)
+            ) && what.filter.kind == Some(Noun::Card)
                 && cmp.stat == Stat::ManaValue
                 && cmp.op == Op::Eq
-                && matches!(&cmp.value, Amount::ManaValueOf(x) if matches!(x.quant, Quant::Triggering | Quant::Antecedent)
+                && matches!(&cmp.value, Amount::ManaValueOf(x) if matches!(x.quant, Quant::Unresolved(Hint::Triggering) | Quant::Unresolved(Hint::Antecedent))
                     && x.filter.kind == Some(Noun::Spell)) =>
         {
             o.w("the two spells have the same mana value");
@@ -12173,7 +12194,7 @@ fn not_condition(o: &mut Out, c: &Condition) {
         // "none of those creatures attacked you" (Firemane Commando).
         Condition::Is { what, filter }
             if what.quant == Quant::AtLeast(Amount::N(1))
-                && matches!(&what.filter.posts[..], [Post::FromAmong(_)])
+                && matches!(&what.filter.posts[..], [p @ Post::FromAmong(_)] if !p.is_pool())
                 && matches!(&filter.posts[..], [Post::AttackingAnyOf(r)]
                     if r[..] == [Recipient::Player(Player::You)]) =>
         {
@@ -12272,10 +12293,10 @@ fn not_condition(o: &mut Out, c: &Condition) {
             let pronoun = what.filter == Filter::default()
                 && matches!(
                     what.quant,
-                    Quant::Antecedent
-                        | Quant::Triggering
+                    Quant::Unresolved(Hint::Antecedent)
+                        | Quant::Unresolved(Hint::Triggering)
                         | Quant::SelfRef
-                        | Quant::ClauseObject
+                        | Quant::Unresolved(Hint::ClauseObject)
                         | Quant::Itself
                 );
             if pronoun {

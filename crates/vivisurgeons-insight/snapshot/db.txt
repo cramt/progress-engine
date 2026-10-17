@@ -242,7 +242,7 @@ cost: {3}{B}{R}{G}
 > Flying
 > Whenever Darigaaz deals combat damage to a player, you may pay {2}{R}. If you do, choose a color, then that player reveals their hand and Darigaaz deals damage to the player equal to the number of cards of that color revealed this way.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2", "R"]))] }] }, IfYouDo([Choose(Color), RevealHand(That), Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [OfThatColor, Marked(Revealed)], or: None } }), to: [Objects(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })] }])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2", "R"]))] }] }, IfYouDo([Choose(Color), RevealHand(That), Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [OfThatColor, Marked(Revealed)], or: None } }), to: [Objects(Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })] }])], limits: [] }
 
 ## Dark Hatchling
 face: Dark Hatchling

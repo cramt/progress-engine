@@ -98,14 +98,6 @@ pub enum Kind {
 /// Whether an object is a reference back, and what kind.
 pub fn reference(o: &Objects) -> Option<Kind> {
     Some(match o.quant {
-        Quant::Antecedent | Quant::BeforeEach => Kind::Text(Hint::Antecedent),
-        Quant::ClauseObject => Kind::Text(Hint::ClauseObject),
-        Quant::Created => Kind::Text(Hint::Created),
-        Quant::Listed => Kind::Text(Hint::Listed),
-        Quant::Both => Kind::Text(Hint::Both),
-        Quant::Triggering => Kind::Text(Hint::Triggering),
-        Quant::OriginalAndCopies => Kind::Text(Hint::OriginalAndCopies),
-        Quant::Linked => Kind::Text(Hint::Linked),
         Quant::Unresolved(h) => Kind::Text(h),
         Quant::Itself => Kind::Itself,
         Quant::BackRef { .. } => Kind::BackRef,
@@ -236,20 +228,10 @@ enum Role {
     Skip,
 }
 
-/// Which part of an object a reference is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Slot {
-    /// The object's quant.
-    Quant,
-    /// Its `FromAmongThem` post: the pool it is chosen from.
-    Pool,
-}
-
 #[derive(Clone, Debug)]
 struct Ev {
     /// The object's index in walk order, if the event is one.
     decl: Option<usize>,
-    slot: Slot,
     role: Role,
     obj: Option<Objects>,
     token: Option<Token>,
@@ -450,13 +432,7 @@ impl Collect {
             .copied()
     }
 
-    fn new_ev(
-        &mut self,
-        decl: Option<usize>,
-        slot: Slot,
-        role: Role,
-        obj: Option<Objects>,
-    ) -> usize {
+    fn new_ev(&mut self, decl: Option<usize>, role: Role, obj: Option<Objects>) -> usize {
         let verb = self.cur_verb();
         let in_trigger = match self.nested.last() {
             Some((k, n)) => *k == "Triggered" && *n == 0 && !self.effect_in_ability(),
@@ -474,7 +450,6 @@ impl Collect {
             && decl.is_some();
         self.evs.push(Ev {
             decl,
-            slot,
             role,
             obj,
             token: None,
@@ -529,23 +504,7 @@ impl Visitor for Collect {
         } else {
             Role::Skip
         };
-        let id = self.new_ev(Some(decl), Slot::Quant, role.clone(), Some(o.clone()));
-        // "from among them": a reference to a pool, read before the new
-        // choice the same object introduces.
-        if o.filter.posts.contains(&Post::FromAmongThem) {
-            let r = self.new_ev(
-                Some(decl),
-                Slot::Pool,
-                Role::Ref(Kind::Text(Hint::Pool)),
-                // The pool is said "them": its own words say nothing of it.
-                Some(Objects {
-                    quant: Quant::Unresolved(Hint::Pool),
-                    filter: Filter::default(),
-                }),
-            );
-            let parent = self.here();
-            self.frames[parent].items.push(Item::Ev(r));
-        }
+        let id = self.new_ev(Some(decl), role.clone(), Some(o.clone()));
         if matches!(role, Role::Ref(_) | Role::SelfMention | Role::OutOfScope) {
             let parent = self.here();
             self.frames[parent].items.push(Item::Ev(id));
@@ -656,7 +615,7 @@ impl Visitor for Collect {
             _ => Trail::No,
         };
         if introduces(Node::Effect(e), self.place()) {
-            let ev = self.new_ev(None, Slot::Quant, Role::Made, None);
+            let ev = self.new_ev(None, Role::Made, None);
             self.evs[ev].verb = made(e).expect("introduces");
             self.evs[ev].token = token_of(e);
             self.evs[ev].top_effect = top;
@@ -1009,7 +968,7 @@ pub fn analyse(lines: &[(Option<&Ability>, bool)], type_line: &str) -> Analysis 
             }
             // A keyword that introduces: its card, before anything else.
             for _ in 0..c.keywords {
-                let ev = c.new_ev(None, Slot::Quant, Role::Made, None);
+                let ev = c.new_ev(None, Role::Made, None);
                 c.evs[ev].verb = "Exile".into();
                 c.frames[0].items.insert(0, Item::Ev(ev));
             }
@@ -1470,7 +1429,7 @@ fn resolve_one(
                         o.filter
                             .posts
                             .iter()
-                            .any(|p| matches!(p, Post::FromAmongThem | Post::FromAmong(_)))
+                            .any(|p| matches!(p, Post::FromAmong(_)))
                             || matches!(
                                 o.quant,
                                 Quant::One
@@ -1703,8 +1662,6 @@ impl Analysis {
 pub struct LinePlan {
     /// Object (in walk order) to its new quant.
     quants: std::collections::BTreeMap<usize, Quant>,
-    /// Each `FromAmongThem` in walk order, the pool it points at.
-    pools: Vec<Quant>,
 }
 
 /// A reference's new quant, from what it resolved to.
@@ -1743,7 +1700,6 @@ impl Analysis {
     /// Each line's rewrite, in the order of the lines given.
     pub fn plan(&self) -> Vec<LinePlan> {
         let mut plans: Vec<LinePlan> = (0..self.lines.len()).map(|_| LinePlan::default()).collect();
-        let mut pools: Vec<Vec<(usize, Quant)>> = vec![Vec::new(); self.lines.len()];
         for r in &self.resolved {
             let e = &self.lines[r.line].c.evs[r.ev];
             let Some(o) = &e.obj else {
@@ -1752,16 +1708,7 @@ impl Analysis {
             let (Some(decl), Some(q)) = (e.decl, new_quant(r, o)) else {
                 continue;
             };
-            match e.slot {
-                Slot::Quant => {
-                    plans[r.line].quants.insert(decl, q);
-                }
-                Slot::Pool => pools[r.line].push((decl, q)),
-            }
-        }
-        for (plan, mut ps) in plans.iter_mut().zip(pools) {
-            ps.sort_by_key(|p| p.0);
-            plan.pools = ps.into_iter().map(|p| p.1).collect();
+            plans[r.line].quants.insert(decl, q);
         }
         plans
     }
@@ -1823,29 +1770,7 @@ impl LinePlan {
                 true
             }
         }
-        struct Pools<'a>(std::slice::Iter<'a, Quant>);
-        impl Visitor for Pools<'_> {
-            fn enter(&mut self, o: &mut Objects) -> bool {
-                for p in &mut o.filter.posts {
-                    if *p == Post::FromAmongThem {
-                        if let Some(q) = self.0.next() {
-                            *p = Post::FromAmong(Box::new(Objects {
-                                quant: q.clone(),
-                                filter: Filter::default(),
-                            }));
-                        }
-                    }
-                }
-                true
-            }
-            fn ability(&mut self, _: &mut Ability) -> bool {
-                true
-            }
-        }
         a.walk(&mut Quants(0, self));
-        if !self.pools.is_empty() {
-            a.walk(&mut Pools(self.pools.iter()));
-        }
     }
 }
 
@@ -2063,7 +1988,6 @@ pub fn fits(r: &Objects, b: &Objects) -> bool {
     r.filter.posts.retain(|p| !matches!(p, Post::Marked(_)));
     let e = Ev {
         decl: None,
-        slot: Slot::Quant,
         role: Role::Intro,
         obj: Some(b.clone()),
         token: None,

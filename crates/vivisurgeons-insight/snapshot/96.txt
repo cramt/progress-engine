@@ -655,7 +655,7 @@ face: Monsoon
 type: Enchantment
 cost: {2}{R}{G}
 > At the beginning of each player's end step, tap all untapped Islands that player controls and this enchantment deals X damage to the player, where X is the number of Islands tapped this way.
-= Triggered { trigger: At(EndStep(Each)), effect: [Where { then: [Tap(Objects { quant: All, filter: Filter { alts: [[State(Untapped), Subtype("island")]], kind: None, posts: [Controller(That)], or: None } }), Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })] }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [Marked(Tapped)], or: None } }) }], limits: [] }
+= Triggered { trigger: At(EndStep(Each)), effect: [Where { then: [Tap(Objects { quant: All, filter: Filter { alts: [[State(Untapped), Subtype("island")]], kind: None, posts: [Controller(That)], or: None } }), Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })] }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [Marked(Tapped)], or: None } }) }], limits: [] }
 
 ## Nadier's Nightblade
 face: Nadier's Nightblade

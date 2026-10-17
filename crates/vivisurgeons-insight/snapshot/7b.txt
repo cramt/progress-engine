@@ -894,7 +894,7 @@ cost: {1}{U}{U}
 > As this creature enters, choose a player.
 > This creature has protection from the chosen player.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(Player)] }])
-= Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "protection", param: Some(Objects(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Player), posts: [Marked(Chosen)], or: None } })) }], per: None }])
+= Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "protection", param: Some(Objects(Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Player), posts: [Marked(Chosen)], or: None } })) }], per: None }])
 
 ## Twins of Maurer Estate
 face: Twins of Maurer Estate

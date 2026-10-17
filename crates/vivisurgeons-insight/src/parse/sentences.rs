@@ -404,7 +404,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             if !p.ahead("\"") { return None; }
             let what = objects(p)?;
             // "they become 3/3 blue Bird creatures": plural, not read here.
-            if p.peek_word() != Some("becomes") && what.quant == Quant::Antecedent { return None; }
+            if p.peek_word() != Some("becomes") && what.quant == Quant::Unresolved(Hint::Antecedent) { return None; }
             p.verb("become")?;
             p.attempt(|p| p.one_of(&["a", "an"]));
             let pt = p.attempt(|p| match p.peek()? { Tok::Pt(pt) if !pt.signed => { let pt = *pt; p.bump(); Some(pt) } _ => None });
@@ -842,7 +842,7 @@ pub(super) fn target_before_delayed(e: &Effect) -> Option<Vec<Effect>> {
     let mut inner = inner.clone();
     let choice = if let Some(x) = crate::ast::delayed_target_mut(&mut inner) {
         let t = x.clone();
-        x.quant = Quant::Antecedent;
+        x.quant = Quant::Unresolved(Hint::Antecedent);
         x.filter = Filter::default();
         Choice::Objects(t)
     } else if let Effect::Draw {
@@ -1013,7 +1013,7 @@ pub(super) fn continue_target(es: &mut [Effect]) {
     for e in rest.iter_mut() {
         if let Some(w) = object_subject_mut(e) {
             if *w == o {
-                w.quant = Quant::Antecedent;
+                w.quant = Quant::Unresolved(Hint::Antecedent);
             }
         }
     }
@@ -1145,6 +1145,7 @@ fn play_and_cast_from(a: &mut Effect, b: &Effect) {
     };
     let zone_of = |q: &Post| match q {
         Post::In(z) | Post::CastFrom(z) => Some(Post::In(z.clone())),
+        p if p.is_pool() => None,
         Post::FromAmong(_) => Some(q.clone()),
         _ => None,
     };
@@ -1216,7 +1217,7 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         {
             *source = v.last().and_then(object_subject_of).map(|mut o| {
                 if matches!(o.quant, Quant::Target { .. }) {
-                    o.quant = Quant::Antecedent;
+                    o.quant = Quant::Unresolved(Hint::Antecedent);
                 }
                 o
             });
@@ -1625,7 +1626,7 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
             let didnt_put = matches!(
                 s.first(),
                 Some(Effect::If { cond: Condition::Not(c), .. })
-                    if matches!(&**c, Condition::ThisWay(e) if matches!(&**e, Event::Puts { what, .. } if what.quant == Quant::Antecedent))
+                    if matches!(&**c, Condition::ThisWay(e) if matches!(&**e, Event::Puts { what, .. } if what.quant == Quant::Unresolved(Hint::Antecedent)))
             ) && branch.iter().any(|e| {
                 brings_in(e)
                     && !matches!(
@@ -1707,7 +1708,7 @@ fn new_targets_after(v: &mut Vec<Effect>) {
     while i < v.len() {
         let about_copy = matches!(&v[i], Effect::May { who: Player::You, then }
             if matches!(then.as_slice(), [Effect::ChooseNewTargets(o)]
-                if o.quant == Quant::Antecedent
+                if o.quant == Quant::Unresolved(Hint::Antecedent)
                     && o.filter == Filter { kind: Some(Noun::Copy), ..Filter::default() }));
         // "copy target spell, then return it to its owner's hand. You may
         // choose new targets for the copy" (Narset's Reversal): past a move
@@ -1849,7 +1850,7 @@ fn controllers_of_each(e: &Effect) -> Option<Objects> {
         return None;
     };
     let its = Objects {
-        quant: Quant::Antecedent,
+        quant: Quant::Unresolved(Hint::Antecedent),
         filter: Filter::default(),
     };
     (then.first().and_then(subject_of) == Some(Player::ControllerOf(Box::new(its))))
@@ -1944,7 +1945,12 @@ fn makes_copy(e: &Effect) -> bool {
 /// it (CR 400.7), so "you may exile it. You may play that card from exile
 /// this turn" plays a card that is there only if you exiled it.
 fn brings_in(e: &Effect) -> bool {
-    let new = |x: &Objects| !matches!(x.quant, Quant::Antecedent | Quant::SelfRef);
+    let new = |x: &Objects| {
+        !matches!(
+            x.quant,
+            Quant::Unresolved(Hint::Antecedent) | Quant::SelfRef
+        )
+    };
     match e {
         Effect::Move {
             what,
@@ -1996,7 +2002,12 @@ fn acts_on_target(e: &Effect) -> bool {
 /// creature", or a definite "the token", "that card": an object an earlier
 /// clause named. "If the token isn't a creature, …" says it in the "if".
 fn refers_back(e: &Effect) -> bool {
-    let it = |x: &Objects| matches!(x.quant, Quant::Antecedent | Quant::Listed);
+    let it = |x: &Objects| {
+        matches!(
+            x.quant,
+            Quant::Unresolved(Hint::Antecedent) | Quant::Unresolved(Hint::Listed)
+        )
+    };
     match e {
         // "If it's a land card, you may put it onto the battlefield. If you
         // don't put the card onto the battlefield, put it into your hand":
@@ -2072,12 +2083,13 @@ fn refers_back(e: &Effect) -> bool {
 /// "Put the rest …" stays outside ([branch-owns-new-object]).
 fn casts_from_among_them(e: &Effect) -> bool {
     fn back(x: &Objects) -> bool {
-        matches!(x.quant, Quant::Antecedent | Quant::Listed)
-            || x.filter.posts.iter().any(|p| match p {
-                Post::FromAmongThem => true,
-                Post::FromAmong(o) => back(o),
-                _ => false,
-            })
+        matches!(
+            x.quant,
+            Quant::Unresolved(Hint::Antecedent | Hint::Listed | Hint::Pool)
+        ) || x.filter.posts.iter().any(|p| match p {
+            Post::FromAmong(o) => back(o),
+            _ => false,
+        })
     }
     match e {
         Effect::Cast { what, .. } => back(what),
@@ -2091,7 +2103,9 @@ fn casts_from_among_them(e: &Effect) -> bool {
 /// The earlier object an "if it's …" or "if it isn't …" tests.
 fn tested(c: &Condition) -> Option<&Objects> {
     match c {
-        Condition::Is { what, .. } if what.quant == Quant::Antecedent => Some(what),
+        Condition::Is { what, .. } if what.quant == Quant::Unresolved(Hint::Antecedent) => {
+            Some(what)
+        }
         Condition::Not(c) => tested(c),
         _ => None,
     }
@@ -2100,7 +2114,9 @@ fn tested(c: &Condition) -> Option<&Objects> {
 /// Whether an effect is said of a bare "it", so continues the last one's
 /// target.
 fn continues_target(e: &Effect) -> bool {
-    let it = |x: &Objects| x.quant == Quant::Antecedent && x.filter == Filter::default();
+    let it = |x: &Objects| {
+        x.quant == Quant::Unresolved(Hint::Antecedent) && x.filter == Filter::default()
+    };
     match e {
         Effect::Becomes { what, .. }
         | Effect::Modify { what, .. }
@@ -2210,7 +2226,7 @@ fn source_of_ability(v: &mut [Effect]) {
     };
     let types = source(&v[k]).expect("found above");
     let ability = Objects {
-        quant: Quant::Antecedent,
+        quant: Quant::Unresolved(Hint::Antecedent),
         filter: Filter {
             kind: Some(Noun::Ability),
             ..Filter::default()
@@ -2227,7 +2243,7 @@ fn source_of_ability(v: &mut [Effect]) {
         let [Effect::Destroy { what, .. }] = &mut then[..] else {
             continue;
         };
-        let named = what.quant == Quant::Antecedent
+        let named = what.quant == Quant::Unresolved(Hint::Antecedent)
             && what.filter
                 == Filter {
                     alts: vec![types.clone()],
@@ -2271,14 +2287,14 @@ fn listed(before: &[Effect], after: &mut [Effect]) {
                 return false;
             }
             match o.quant {
-                Quant::Antecedent => o.quant = Quant::Listed,
+                Quant::Unresolved(Hint::Antecedent) => o.quant = Quant::Unresolved(Hint::Listed),
                 // "one of those cards".
                 _ => {
                     self.done = true;
                     for p in &mut o.filter.posts {
                         if let Post::FromAmong(x) = p {
-                            if x.quant == Quant::Antecedent {
-                                x.quant = Quant::Listed;
+                            if x.quant == Quant::Unresolved(Hint::Antecedent) {
+                                x.quant = Quant::Unresolved(Hint::Listed);
                             }
                         }
                     }

@@ -316,7 +316,7 @@ pub(super) fn commander_identity(p: &mut P) -> Option<Palette> {
 
 pub(super) fn antecedent() -> Objects {
     Objects {
-        quant: Quant::Antecedent,
+        quant: Quant::Unresolved(Hint::Antecedent),
         filter: Filter::default(),
     }
 }

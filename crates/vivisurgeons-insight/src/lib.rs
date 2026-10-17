@@ -134,7 +134,7 @@ pub fn read_face_unresolved(face: &Face, card_name: &str) -> Vec<Line> {
 /// twelve of those tokens instead", CR 614.1a). It is a `Create` of that
 /// description ([those-tokens-described]).
 fn those_tokens(lines: &mut [Line]) {
-    use ast::{Actor, Effect, Noun, Objects, Player, Quant, Token};
+    use ast::{Actor, Effect, Hint, Noun, Objects, Player, Quant, Token};
     use walk::{Visitor, Walk};
     struct Those {
         last: Option<Token>,
@@ -174,8 +174,9 @@ fn those_tokens(lines: &mut [Line]) {
                     n,
                     those,
                 } if self.instead > 0
-                    && (those.quant == Quant::Created
-                        || those.quant == Quant::Antecedent && self.here_copy.is_some())
+                    && (those.quant == Quant::Unresolved(Hint::Created)
+                        || those.quant == Quant::Unresolved(Hint::Antecedent)
+                            && self.here_copy.is_some())
                     && those.filter.kind == Some(Noun::Token)
                     && those.filter.alts.is_empty()
                     && those.filter.posts.is_empty()
@@ -206,7 +207,7 @@ fn those_tokens(lines: &mut [Line]) {
                                 | Quant::AnyTarget { .. }
                         ) {
                             of = Objects {
-                                quant: Quant::Antecedent,
+                                quant: Quant::Unresolved(Hint::Antecedent),
                                 filter: ast::Filter::default(),
                             };
                         }
@@ -224,7 +225,7 @@ fn those_tokens(lines: &mut [Line]) {
                     by: Actor::Player(Player::You),
                     n,
                     those,
-                } if those.quant == Quant::Antecedent
+                } if those.quant == Quant::Unresolved(Hint::Antecedent)
                     && those.filter.kind == Some(Noun::Token)
                     && those.filter.alts.is_empty()
                     && those.filter.posts.is_empty()
@@ -991,7 +992,7 @@ mod tests {
             cards.filter.posts.clone()
         };
         let it = Box::new(Objects {
-            quant: Quant::Antecedent,
+            quant: Quant::Unresolved(Hint::Antecedent),
             filter: Filter::default(),
         });
         // CR 400.3: an object's graveyard is only ever its owner's.
@@ -1228,7 +1229,7 @@ mod tests {
     #[test]
     fn other_and_lesser_on_a_trigger_are_said_of_its_object() {
         let triggering = Objects {
-            quant: Quant::Triggering,
+            quant: Quant::Unresolved(Hint::Triggering),
             filter: Filter::default(),
         };
         let a = read(
@@ -1470,7 +1471,8 @@ mod tests {
             a.match_indices("quant: ")
                 .map(|(i, _)| {
                     a[i + 7..]
-                        .split([' ', ',', '('])
+                        .trim_start_matches("Unresolved(")
+                        .split([' ', ',', '(', ')'])
                         .next()
                         .unwrap()
                         .to_string()
@@ -1584,12 +1586,13 @@ mod tests {
         );
         // Both comparands and the countered spell are the spell cast.
         assert_eq!(
-            a.matches("SameNameAs(Objects { quant: Triggering").count(),
+            a.matches("SameNameAs(Objects { quant: Unresolved(Triggering)")
+                .count(),
             2,
             "{a}"
         );
         assert!(
-            a.contains("Counter { what: Objects { quant: Triggering"),
+            a.contains("Counter { what: Objects { quant: Unresolved(Triggering)"),
             "{a}"
         );
         // Several objects share it with one another.
@@ -2295,7 +2298,7 @@ mod round_nine_d {
         );
         let s = format!("{a:?}");
         assert!(
-            s.contains("then: [Modify { what: Objects { quant: Triggering"),
+            s.contains("then: [Modify { what: Objects { quant: Unresolved(Triggering)"),
             "{s}"
         );
         let a = read(
@@ -2303,14 +2306,20 @@ mod round_nine_d {
             "Create a 1/1 white Ally creature token. Put a +1/+1 counter on it for each creature your opponents control.",
         );
         let s = format!("{a:?}");
-        assert!(s.contains("on: Objects { quant: BeforeEach"), "{s}");
+        assert!(
+            s.contains("on: Objects { quant: Unresolved(BeforeEach)"),
+            "{s}"
+        );
         // Said first, "it" is the object of each pass.
         let a = read(
             "Sorcery",
             "For each creature you control, put a +1/+1 counter on it.",
         );
         let s = format!("{a:?}");
-        assert!(s.contains("on: Objects { quant: Antecedent"), "{s}");
+        assert!(
+            s.contains("on: Objects { quant: Unresolved(Antecedent)"),
+            "{s}"
+        );
     }
 
     /// Every bare "it" here is the card; none is `Antecedent`.
@@ -2338,7 +2347,10 @@ mod round_nine_d {
                 "Enchanted creature has \"{T}: Create X 1/1 red Elemental creature tokens with haste, where X is this creature's power. Exile them at the beginning of the next end step.\""
             )
         );
-        assert!(s.contains("Exile(Objects { quant: Created"), "{s}");
+        assert!(
+            s.contains("Exile(Objects { quant: Unresolved(Created)"),
+            "{s}"
+        );
         // "that spell" is the spell that targets, not the creature.
         let s = format!(
             "{:?}",
@@ -2357,12 +2369,12 @@ mod round_nine_d {
     #[test]
     fn other_is_other_than_the_object_it_is_said_against() {
         for (type_line, text, want) in [
-            ("Sorcery", "Target creature you control deals damage equal to its power to each other creature and each opponent.", "OtherThan(Objects { quant: Antecedent"),
+            ("Sorcery", "Target creature you control deals damage equal to its power to each other creature and each opponent.", "OtherThan(Objects { quant: Unresolved(Antecedent)"),
             ("Artifact", "Each creature gets +1/+1 for each other creature on the battlefield that shares at least one creature type with it.", "OtherThan(Objects { quant: Itself"),
-            ("Enchantment", "Whenever a nontoken creature you control enters, if it doesn't have the same name as another creature you control or a creature card in your graveyard, draw a card.", "quant: One, filter: Filter { alts: [[OtherThan(Objects { quant: Triggering"),
-            ("Legendary Creature — Elf", "Whenever another creature enters, its controller may draw a card if its power is greater than each other creature's power.", "OtherThan(Objects { quant: Triggering"),
-            ("Sorcery", "Each player chooses any number of creatures they control with total power 4 or less, then sacrifices all other creatures they control.", "OtherThan(Objects { quant: Antecedent"),
-            ("Sorcery", "Each player sacrifices a creature or planeswalker of their choice. If you sacrificed a permanent this way, you may return another permanent card from your graveyard to your hand.", "OtherThan(Objects { quant: Antecedent"),
+            ("Enchantment", "Whenever a nontoken creature you control enters, if it doesn't have the same name as another creature you control or a creature card in your graveyard, draw a card.", "quant: One, filter: Filter { alts: [[OtherThan(Objects { quant: Unresolved(Triggering)"),
+            ("Legendary Creature — Elf", "Whenever another creature enters, its controller may draw a card if its power is greater than each other creature's power.", "OtherThan(Objects { quant: Unresolved(Triggering)"),
+            ("Sorcery", "Each player chooses any number of creatures they control with total power 4 or less, then sacrifices all other creatures they control.", "OtherThan(Objects { quant: Unresolved(Antecedent)"),
+            ("Sorcery", "Each player sacrifices a creature or planeswalker of their choice. If you sacrificed a permanent this way, you may return another permanent card from your graveyard to your hand.", "OtherThan(Objects { quant: Unresolved(Antecedent)"),
         ] {
             let s = format!("{:?}", read(type_line, text));
             assert!(s.contains(want) && !s.contains("State(Other)"), "{text}\n{s}");

@@ -780,33 +780,6 @@ pub enum Quant {
     /// while "this creature" in the same quote is the creature that has
     /// the ability (`SelfRef`).
     Granter,
-    /// The object whose event triggered the ability: Valakut's "other
-    /// Mountains" are other than "that new one" (its ruling), and Orah's
-    /// "card with lesser mana value" is lesser than the Cleric that died.
-    Triggering,
-    /// "it", "them", "that creature", "those cards": an earlier noun. In
-    /// the clauses of a `ForEach`, the object of that pass ("For each
-    /// creature you control, put a +1/+1 counter on it").
-    Antecedent,
-    /// A reference back said before a trailing "for each", so an earlier
-    /// noun and never the object each pass counts: "put a +1/+1 counter on
-    /// it for each creature your opponents control" is the token created
-    /// before. Where the referent rule knows the object it is `Triggering`
-    /// or `SelfRef` instead ("it gets +1/+0 … for each other attacking
-    /// creature").
-    BeforeEach,
-    /// A reference back in an "if", "unless" or "as long as" said after its
-    /// clause: the one object that clause names, which the tree holds after
-    /// the condition. "Destroy target creature if it's tapped" tests the
-    /// target, not the spell that triggered the ability or an earlier
-    /// noun ([trailing-if]).
-    ClauseObject,
-    /// "Exile up to one target artifact you control and up to one target
-    /// creature you control. Then return them", "tap it and up to one target
-    /// creature …. They don't untap": every object a verb said once named
-    /// just before, which no one `Objects` names, so a bare `Antecedent`
-    /// would be the last of them alone ([listed-objects]).
-    Listed,
     /// Each one of a set in turn, said by "its" or "that creature": in a
     /// comparison an object is tested by ("creatures you control each with
     /// power greater than its base power" compares each creature with its
@@ -815,33 +788,14 @@ pub enum Quant {
     /// power"). Where the tree can tell, "each in turn" is this, never a
     /// bare `Antecedent`.
     Itself,
-    /// "Create a token that's a copy of …. Sacrifice it at the beginning of
-    /// the next end step", "Create two 1/1 … tokens. They gain haste": the
-    /// tokens the effect before created, which no `Objects` in the tree
-    /// names, so a bare `Antecedent` would point past them to the copied
-    /// creature.
-    Created,
     /// "Counter target activated ability from an artifact source and destroy
     /// that artifact if it's on the battlefield": the object that generated
     /// the ability (CR 113.7), which the ability named as its source.
     SourceOf(Box<Objects>),
-    /// "you may copy it. If you do, those spells gain wither": the spell the
-    /// effect before copied and its copies, each a spell (CR 707.10).
-    OriginalAndCopies,
-    /// "the exiled card", "the token" in an ability that exiled or created
-    /// nothing: the object a linked ability of this object exiled or
-    /// created (CR 607.1, 607.2a), which the filter's first post names
-    /// (`ExiledWith(SelfRef)`, `CreatedWith(SelfRef)`). No reference back:
-    /// nothing before it in the ability names it.
-    Linked,
     /// "This ability costs {1} less to activate if it targets a creature
     /// with power 3 or less": the ability the text is part of, which is no
     /// card (CR 113.1).
     ThisAbility,
-    /// "Put both cards onto the battlefield": the two objects the clauses
-    /// before it named, one each (Sword of Hearth and Home's exiled
-    /// creature card and the land card found), where "them" is one plural.
-    Both,
     Enchanted,
     Equipped,
     /// A bare plural: "Creatures you control get +1/+1".
@@ -964,6 +918,9 @@ pub enum Pointer {
 pub enum Hint {
     /// "it", "that creature": any earlier object that fits.
     Antecedent,
+    /// Said before a trailing "for each": an earlier object, never the
+    /// loop's.
+    BeforeEach,
     /// In a trailing condition: the one object its clause names
     /// ([trailing-if]).
     ClauseObject,
@@ -1212,7 +1169,6 @@ pub enum Post {
     /// was named by is no condition, as with `Quant::SelfRef`.
     OtherThanSelf,
     Cast(Player),
-    FromAmongThem,
     ExiledWith(Box<Objects>),
     /// "the exiled cards used to craft it": the cards exiled to pay the
     /// craft cost that put this permanent onto the battlefield (CR
@@ -2475,7 +2431,7 @@ impl Effect {
     /// new-targets sentence, which is still about the copy ([copy-new-targets]).
     pub fn moves_the_original(&self) -> bool {
         matches!(self, Effect::Move { what, .. }
-            if what.quant == Quant::Antecedent && what.filter == Filter::default())
+            if what.quant == Quant::Unresolved(Hint::Antecedent) && what.filter == Filter::default())
     }
 
     pub fn trailing_copy(&self) -> Option<bool> {
@@ -2845,7 +2801,7 @@ pub fn each_player_creates(es: &mut Vec<Effect>) {
     struct HasCreated(bool);
     impl crate::walk::Visitor for HasCreated {
         fn enter(&mut self, o: &mut Objects) -> bool {
-            self.0 |= o.quant == Quant::Created;
+            self.0 |= o.quant == Quant::Unresolved(Hint::Created);
             true
         }
     }
@@ -2902,7 +2858,7 @@ pub fn chosen_for_each_player(es: &mut [Effect]) {
     struct Those(Vec<Vec<Adj>>);
     impl crate::walk::Visitor for Those {
         fn enter(&mut self, o: &mut Objects) -> bool {
-            if o.quant == Quant::Antecedent
+            if o.quant == Quant::Unresolved(Hint::Antecedent)
                 && o.filter.posts.is_empty()
                 && o.filter.or.is_none()
                 && o.filter.alts == self.0
@@ -2968,7 +2924,10 @@ pub fn each_player_chose(es: &mut [Effect]) {
                 return false;
             }
             self.0 = true;
-            if o.quant == Quant::Antecedent && o.filter.posts.is_empty() && o.filter.or.is_none() {
+            if o.quant == Quant::Unresolved(Hint::Antecedent)
+                && o.filter.posts.is_empty()
+                && o.filter.or.is_none()
+            {
                 o.quant = Quant::Each;
                 o.filter.posts.push(Post::Marked(Marked::Chosen));
             }
@@ -3021,7 +2980,7 @@ pub fn choose_targets_listed(es: &mut [Effect]) -> bool {
     };
     for e in es[i + 1..].iter_mut() {
         match e {
-            Effect::FightEachOther(o) if o.quant == Quant::Antecedent => o.quant = Quant::Listed,
+            Effect::FightEachOther(o) if o.quant == Quant::Unresolved(Hint::Antecedent) => o.quant = Quant::Unresolved(Hint::Listed),
             Effect::Damage { to, .. }
                 if to
                     .iter()
@@ -4349,6 +4308,22 @@ pub const BASIC_LAND_TYPES: [&str; 5] = ["plains", "island", "swamp", "mountain"
 pub enum EachTurn {
     Turn,
     YourTurn,
+}
+
+impl Post {
+    /// "from among them", "among those cards": the pool a choice is made
+    /// from, said by pronoun, before it is a pointer ([backref]).
+    pub fn pool() -> Post {
+        Post::FromAmong(Box::new(Objects {
+            quant: Quant::Unresolved(Hint::Pool),
+            filter: Filter::default(),
+        }))
+    }
+
+    pub fn is_pool(&self) -> bool {
+        matches!(self, Post::FromAmong(x)
+            if x.quant == Quant::Unresolved(Hint::Pool) && x.filter == Filter::default())
+    }
 }
 
 impl Ability {

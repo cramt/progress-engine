@@ -805,7 +805,7 @@ fn those_counters(cond: &Condition, effect: &mut [Effect]) {
     };
     for e in effect {
         if let Effect::PutThoseCounters { those, .. } = e {
-            let bare = those.quant == Quant::Antecedent
+            let bare = those.quant == Quant::Unresolved(Hint::Antecedent)
                 && those.filter.posts.is_empty()
                 && those.filter.alts.is_empty()
                 && those.filter.kind == Some(Noun::Counter(kind.clone()));
@@ -851,7 +851,7 @@ fn about_the_trigger(t: &Trigger, mut cond: Option<&mut Condition>, effect: &mut
         return;
     };
     let triggering = || Objects {
-        quant: Quant::Triggering,
+        quant: Quant::Unresolved(Hint::Triggering),
         filter: Filter::default(),
     };
     if let Some(Condition::YouControl(counted)) = cond.as_deref_mut() {
@@ -899,7 +899,7 @@ fn about_the_trigger(t: &Trigger, mut cond: Option<&mut Condition>, effect: &mut
 /// comparison is with the trigger's spell ([lesser-mana-value]).
 fn lesser_than_the_trigger(effect: &mut [Effect]) {
     let triggering = || Objects {
-        quant: Quant::Triggering,
+        quant: Quant::Unresolved(Hint::Triggering),
         filter: Filter::default(),
     };
     let unnamed = |e: &Effect| matches!(e, Effect::RevealTop { .. });
@@ -1285,7 +1285,7 @@ struct Bare(Quant);
 
 impl Visitor for Bare {
     fn enter(&mut self, o: &mut Objects) -> bool {
-        if o.quant == Quant::Antecedent && o.filter == Filter::default() {
+        if o.quant == Quant::Unresolved(Hint::Antecedent) && o.filter == Filter::default() {
             o.quant = self.0.clone();
         }
         true
@@ -1312,9 +1312,9 @@ pub(super) fn after_clause(clause: &Effect, cond: &mut Condition) {
     // spell", the one object the clause names. The tree holds the condition
     // first, so a bare `Antecedent` there reached past "that spell" to the
     // revealed card, and the spell was compared with itself.
-    let back = one.quant == Quant::Antecedent && one.filter != Filter::default();
+    let back = one.quant == Quant::Unresolved(Hint::Antecedent) && one.filter != Filter::default();
     let to = if back {
-        Some(Quant::ClauseObject)
+        Some(Quant::Unresolved(Hint::ClauseObject))
     } else {
         clause_object(&one.quant)
     };
@@ -1329,7 +1329,7 @@ pub(super) fn after_clause(clause: &Effect, cond: &mut Condition) {
             // power": what a cost or an earlier verb marked keeps its own
             // referent; only the pronoun is the clause's object.
             let marked = o.filter.posts.iter().any(|p| matches!(p, Post::Marked(_)));
-            if o.quant == Quant::Antecedent && !marked {
+            if o.quant == Quant::Unresolved(Hint::Antecedent) && !marked {
                 o.quant = self.0.clone();
             }
             true
@@ -1370,8 +1370,8 @@ pub(super) struct BeforeEach;
 
 impl Visitor for BeforeEach {
     fn enter(&mut self, o: &mut Objects) -> bool {
-        if o.quant == Quant::Antecedent {
-            o.quant = Quant::BeforeEach;
+        if o.quant == Quant::Unresolved(Hint::Antecedent) {
+            o.quant = Quant::Unresolved(Hint::BeforeEach);
         }
         true
     }
@@ -1436,7 +1436,7 @@ fn sacrifice_it_is_the_card(toks: &[Tok], effect: &mut [Effect]) {
         fn enter(&mut self, o: &mut Objects) -> bool {
             match o.quant {
                 Quant::SelfRef => self.card = true,
-                Quant::All | Quant::Each | Quant::Plural | Quant::Antecedent => {}
+                Quant::All | Quant::Each | Quant::Plural | Quant::Unresolved(Hint::Antecedent) => {}
                 _ => self.singular = true,
             }
             true
@@ -1535,17 +1535,17 @@ fn refer(
     impl Visitor for Refer {
         fn enter(&mut self, o: &mut Objects) -> bool {
             let f = &o.filter;
-            let before_each = o.quant == Quant::BeforeEach;
+            let before_each = o.quant == Quant::Unresolved(Hint::BeforeEach);
             let (seen_new, seen_self) = match self.loops.last() {
                 Some(&said) if before_each => said,
                 _ => (self.seen_new, self.seen_self),
             };
             // "those counters", "the exiled card": not the trigger's object.
-            let referable = (o.quant == Quant::Antecedent || before_each)
+            let referable = (o.quant == Quant::Unresolved(Hint::Antecedent) || before_each)
                 && (f.posts.is_empty()
                     // "shuffle it into your library from your graveyard"
                     // (Yidaro): where the card is, not which card.
-                    || (o.quant == Quant::Antecedent
+                    || (o.quant == Quant::Unresolved(Hint::Antecedent)
                         && f.kind.is_none()
                         && f.alts.is_empty()
                         && matches!(&f.posts[..], [Post::In(Zone::Graveyard(Player::You))])))
@@ -1609,7 +1609,7 @@ fn refer(
                     .collect()
             };
             let mine = words(f);
-            let same_words = self.to == Quant::Triggering
+            let same_words = self.to == Quant::Unresolved(Hint::Triggering)
                 && !before_each
                 && f.kind == self.object.kind
                 && !mine.is_empty()
@@ -1618,7 +1618,7 @@ fn refer(
             // "you may reveal the top card of your library. If you do, counter
             // that spell" (Counterbalance): "that spell" when no spell was
             // named since the trigger's is still the trigger's.
-            let same_kind = self.to == Quant::Triggering
+            let same_kind = self.to == Quant::Unresolved(Hint::Triggering)
                 && !before_each
                 && spellish(&f.kind)
                 && f.kind == self.object.kind
@@ -1635,10 +1635,10 @@ fn refer(
                         s.filter.posts.push(p.clone());
                     }
                     s
-                } else if before_each && self.to == Quant::Antecedent {
+                } else if before_each && self.to == Quant::Unresolved(Hint::Antecedent) {
                     // No trigger object: still an earlier noun outside the loop.
                     Objects {
-                        quant: Quant::BeforeEach,
+                        quant: Quant::Unresolved(Hint::BeforeEach),
                         filter: o.filter.clone(),
                     }
                 } else {
@@ -1680,27 +1680,30 @@ fn refer(
                 .filter
                 .posts
                 .iter()
-                .any(|p| matches!(p, Post::FromAmong(x) if x.quant == Quant::Triggering));
+                .any(|p| matches!(p, Post::FromAmong(x) if x.quant == Quant::Unresolved(Hint::Triggering)));
             match o.quant {
                 Quant::SelfRef => self.self_pending = true,
                 // A loop over the trigger's objects names each in turn.
-                Quant::Triggering if self.loop_head == Some(self.depth) => {
+                Quant::Unresolved(Hint::Triggering) if self.loop_head == Some(self.depth) => {
                     self.seen_new = true;
                     self.tokens_only = false;
                 }
-                Quant::Triggering => {}
+                Quant::Unresolved(Hint::Triggering) => {}
                 // A trailing condition's "it": the clause's own object, said
                 // after it in the text, no noun of its own ([trailing-if]).
-                Quant::ClauseObject => {}
+                Quant::Unresolved(Hint::ClauseObject) => {}
                 _ if among_trigger => {}
                 // The tokens said again: still only tokens since the window
                 // closed.
-                Quant::Created => self.seen_new = true,
-                Quant::Antecedent if self.tokens_only && o.filter == Filter::default() => {}
+                Quant::Unresolved(Hint::Created) => self.seen_new = true,
+                Quant::Unresolved(Hint::Antecedent)
+                    if self.tokens_only && o.filter == Filter::default() => {}
                 // Only against a trigger's object: with none, "this land
                 // and a creature named Hanweir Garrison … exile them" names
                 // both.
-                _ if indefinite && self.in_cond > 0 && self.to != Quant::Antecedent => {}
+                _ if indefinite
+                    && self.in_cond > 0
+                    && self.to != Quant::Unresolved(Hint::Antecedent) => {}
                 _ => {
                     self.seen_new = true;
                     self.tokens_only = false;
@@ -1786,7 +1789,9 @@ fn refer(
                 source: Some(src), ..
             } = e
             {
-                if src.quant == Quant::Antecedent && src.filter == Filter::default() {
+                if src.quant == Quant::Unresolved(Hint::Antecedent)
+                    && src.filter == Filter::default()
+                {
                     // Which object, still said by pronoun.
                     if let Some(same) = &self.damage_source {
                         src.quant = same.quant.clone();
@@ -1816,7 +1821,7 @@ fn refer(
                 ..
             } = e
             {
-                if what.quant == Quant::Triggering {
+                if what.quant == Quant::Unresolved(Hint::Triggering) {
                     self.seen_new = true;
                     self.tokens_only = false;
                     let w: Vec<Adj> = kinds(&self.object).into_iter().cloned().collect();
@@ -1826,7 +1831,13 @@ fn refer(
             self.damage_source = match e {
                 Effect::Damage {
                     source: Some(src), ..
-                } if matches!(src.quant, Quant::SelfRef | Quant::Triggering) => Some(src.clone()),
+                } if matches!(
+                    src.quant,
+                    Quant::SelfRef | Quant::Unresolved(Hint::Triggering)
+                ) =>
+                {
+                    Some(src.clone())
+                }
                 _ => None,
             };
             // "copy it if you control an artifact, then copy it if you
@@ -1835,7 +1846,7 @@ fn refer(
             let copies_own = matches!(
                 e,
                 Effect::Copy { what, .. }
-                    if matches!(what.quant, Quant::SelfRef | Quant::Triggering)
+                    if matches!(what.quant, Quant::SelfRef | Quant::Unresolved(Hint::Triggering))
             );
             if !copies_own
                 && matches!(
@@ -1890,9 +1901,9 @@ fn refer(
         object: object.map(|o| o.filter.clone()).unwrap_or_default(),
         to: match object {
             Some(o) if o.quant == Quant::SelfRef => Quant::SelfRef,
-            Some(_) => Quant::Triggering,
+            Some(_) => Quant::Unresolved(Hint::Triggering),
             // No trigger: a first reference back stays one.
-            None => Quant::Antecedent,
+            None => Quant::Unresolved(Hint::Antecedent),
         },
         seen_self: card_named,
         self_pending: false,
@@ -1998,7 +2009,7 @@ fn other_than_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut 
         fn enter(&mut self, o: &mut Objects) -> bool {
             let like: Vec<&Adj> = self.0.iter().collect();
             let triggering = Objects {
-                quant: Quant::Triggering,
+                quant: Quant::Unresolved(Hint::Triggering),
                 filter: Filter::default(),
             };
             other_than(o, &triggering, Some(&like));
@@ -2024,11 +2035,13 @@ fn other_than_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut 
         if let Effect::Where { then, x: n } = x {
             if let [Effect::EntersWithCounters { what, .. }] = &then[..] {
                 // Read before the tokens are named `Created`.
-                if matches!(what.quant, Quant::Created | Quant::Antecedent)
-                    && what.filter.kind == Some(Noun::Token)
+                if matches!(
+                    what.quant,
+                    Quant::Unresolved(Hint::Created) | Quant::Unresolved(Hint::Antecedent)
+                ) && what.filter.kind == Some(Noun::Token)
                 {
                     let token = Objects {
-                        quant: Quant::Created,
+                        quant: Quant::Unresolved(Hint::Created),
                         filter: what.filter.clone(),
                     };
                     n.walk(&mut Than(token));
@@ -2064,7 +2077,7 @@ impl Visitor for OtherThanTheSource {
         };
         let than = match src.quant {
             Quant::SelfRef => return,
-            Quant::Triggering => src.clone(),
+            Quant::Unresolved(Hint::Triggering) => src.clone(),
             _ => antecedent(),
         };
         let like = kinds(&src.filter);
@@ -2216,11 +2229,15 @@ impl Visitor for MaySubject {
         // The may's subject as it was said, before the referent rule.
         let said = match who {
             Player::ControllerOf(o)
-                if o.quant != Quant::Antecedent && o.filter == Filter::default() =>
+                if o.quant != Quant::Unresolved(Hint::Antecedent)
+                    && o.filter == Filter::default() =>
             {
                 Player::ControllerOf(Box::new(antecedent()))
             }
-            Player::OwnerOf(o) if o.quant != Quant::Antecedent && o.filter == Filter::default() => {
+            Player::OwnerOf(o)
+                if o.quant != Quant::Unresolved(Hint::Antecedent)
+                    && o.filter == Filter::default() =>
+            {
                 Player::OwnerOf(Box::new(antecedent()))
             }
             _ => return,
@@ -2277,7 +2294,8 @@ impl Visitor for DelayedSameClause {
                 what,
             } = t
             {
-                let typed = x.quant == Quant::Antecedent && x.filter != Filter::default();
+                let typed =
+                    x.quant == Quant::Unresolved(Hint::Antecedent) && x.filter != Filter::default();
                 if typed && *what == antecedent() && x.filter != own.filter {
                     *what = (**x).clone();
                 }
@@ -2355,9 +2373,12 @@ impl Visitor for CreatedTokens {
             None => self.in_cond == 0,
             _ => false,
         };
-        let back = matches!(o.quant, Quant::Antecedent | Quant::BeforeEach);
+        let back = matches!(
+            o.quant,
+            Quant::Unresolved(Hint::Antecedent) | Quant::Unresolved(Hint::BeforeEach)
+        );
         if self.created.is_some() && back && bare && fits {
-            o.quant = Quant::Created;
+            o.quant = Quant::Unresolved(Hint::Created);
         }
         // "Create a 1/1 blue and red Otter creature token with prowess. If
         // this spell was cast from anywhere other than your hand, put a
@@ -2373,26 +2394,26 @@ impl Visitor for CreatedTokens {
             _ => false,
         };
         if self.created.is_some()
-            && o.quant == Quant::Antecedent
+            && o.quant == Quant::Unresolved(Hint::Antecedent)
             && typed
             && o.filter.kind.is_none()
             && o.filter.posts.is_empty()
             && o.filter.or.is_none()
             && self.in_cond == 0
         {
-            o.quant = Quant::Created;
+            o.quant = Quant::Unresolved(Hint::Created);
         }
         if self.tokens && back && bare && o.filter.kind == Some(Noun::Token) {
-            o.quant = Quant::Created;
+            o.quant = Quant::Unresolved(Hint::Created);
         }
         true
     }
     fn leave(&mut self, o: &mut Objects) {
-        if o.filter.kind == Some(Noun::Token) && o.quant != Quant::Created {
+        if o.filter.kind == Some(Noun::Token) && o.quant != Quant::Unresolved(Hint::Created) {
             self.tokens = false;
         }
         let in_cond_card = self.in_cond > 0 && o.quant == Quant::SelfRef;
-        if o.quant != Quant::Created && !in_cond_card {
+        if o.quant != Quant::Unresolved(Hint::Created) && !in_cond_card {
             self.created = None;
         }
     }
@@ -2424,9 +2445,10 @@ impl Visitor for CreatedTokens {
             Effect::PutCounters { on, .. }
                 if self.created.is_some()
                     && (*on == antecedent()
-                        || on.quant == Quant::BeforeEach && on.filter == Filter::default()) =>
+                        || on.quant == Quant::Unresolved(Hint::BeforeEach)
+                            && on.filter == Filter::default()) =>
             {
-                on.quant = Quant::Created;
+                on.quant = Quant::Unresolved(Hint::Created);
             }
             // "Create a 1/1 red Goblin creature token, then attach this
             // Equipment to it": the card named in the clause is not "it".
@@ -2435,7 +2457,7 @@ impl Visitor for CreatedTokens {
                     && what.quant == Quant::SelfRef
                     && *to == antecedent() =>
             {
-                to.quant = Quant::Created;
+                to.quant = Quant::Unresolved(Hint::Created);
             }
             Effect::Where { .. } => self.wheres.push((self.depth, None)),
             Effect::Otherwise(_) | Effect::IfYouDont(_) => {
@@ -2590,7 +2612,7 @@ impl Visitor for EachItself {
         }
         let theirs: Vec<&Adj> = kinds(&each.filter);
         let one = |x: &Objects| {
-            x.quant == Quant::Antecedent
+            x.quant == Quant::Unresolved(Hint::Antecedent)
                 && x.filter.posts.is_empty()
                 && x.filter.or.is_none()
                 && x.filter.kind.is_none()
@@ -2768,10 +2790,7 @@ impl Visitor for FromAmongAfterShares {
         let mut moved = Vec::new();
         for q in o.filter.posts.iter_mut() {
             if let Post::SharesType { with: Some(w), .. } = q {
-                if matches!(
-                    w.filter.posts.last(),
-                    Some(Post::FromAmongThem | Post::FromAmong(_))
-                ) {
+                if matches!(w.filter.posts.last(), Some(Post::FromAmong(_))) {
                     moved.extend(w.filter.posts.pop());
                 }
             }
@@ -2819,7 +2838,7 @@ impl Visitor for MeldListed {
             _ => return,
         };
         if *what == antecedent() {
-            what.quant = Quant::Listed;
+            what.quant = Quant::Unresolved(Hint::Listed);
         }
     }
 }
@@ -2965,7 +2984,7 @@ fn x_of_event(e: &Event, effect: &mut [Effect]) {
         fn amount(&mut self, a: &mut Amount) {
             if *a == Amount::X && self.0 == 0 {
                 *a = Amount::XOf(Box::new(Objects {
-                    quant: Quant::Triggering,
+                    quant: Quant::Unresolved(Hint::Triggering),
                     filter: Filter::default(),
                 }));
             }
@@ -2990,7 +3009,7 @@ fn clause_object(q: &Quant) -> Option<Quant> {
         | Quant::Equipped
         // "You may put the exiled card onto the battlefield if it's a
         // creature card" (The Creation of Avacyn).
-        | Quant::Linked => Some(Quant::ClauseObject),
+        | Quant::Unresolved(Hint::Linked) => Some(Quant::Unresolved(Hint::ClauseObject)),
         Quant::Each | Quant::All | Quant::Plural => Some(Quant::Itself),
         _ => None,
     }

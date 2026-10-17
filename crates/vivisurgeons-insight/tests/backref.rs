@@ -12,7 +12,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 
-use vivisurgeons_insight::ast::{Ability, Hint, Noun, Objects, Post, Quant};
+use vivisurgeons_insight::ast::{Ability, Hint, Objects, Quant};
 use vivisurgeons_insight::backref::{analyse, Kind};
 use vivisurgeons_insight::golden;
 use vivisurgeons_insight::walk::{Visitor, Walk};
@@ -103,31 +103,17 @@ fn every_pointer_lands_on_an_introducer_its_words_fit() {
     );
 }
 
-/// A reference the resolver should have made a pointer, if the tree holds
-/// one.
+/// A pointer counted back, if the tree holds one.
 fn old_form(a: &Ability) -> Option<String> {
+    // A pointer counted back is the resolver's step before binders; a tree
+    // `read_face` returns names binders.
     struct Old(Option<String>);
     impl Visitor for Old {
         fn enter(&mut self, o: &mut Objects) -> bool {
-            // "those players", "those counters": players and counters
-            // introduce nothing, so a reference to them is no pointer yet.
-            let not_object = matches!(
-                o.filter.kind,
-                Some(Noun::Player | Noun::Opponent | Noun::Counter(_))
+            let old = matches!(
+                o.quant,
+                Quant::BackRef { .. } | Quant::LinkedBackRef { .. } | Quant::BackRefs(_)
             );
-            let old = matches!(o.quant, Quant::Antecedent) && !not_object
-                || matches!(
-                    o.quant,
-                    Quant::BeforeEach
-                        | Quant::ClauseObject
-                        | Quant::Created
-                        | Quant::Listed
-                        | Quant::Both
-                        | Quant::Triggering
-                        | Quant::OriginalAndCopies
-                        | Quant::Linked
-                )
-                || o.filter.posts.contains(&Post::FromAmongThem);
             if old && self.0.is_none() {
                 self.0 = Some(format!("{:?}", o.quant));
             }

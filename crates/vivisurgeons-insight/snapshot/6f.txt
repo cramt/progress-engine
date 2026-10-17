@@ -19,7 +19,7 @@ cost: {1}{G}{W}
 > Whenever the Ring tempts you, if you chose a creature other than Aragorn as your Ring-bearer, put your choice of a counter from among first strike, vigilance, deathtouch, and lifelink on Aragorn.
 > Whenever you put one or more counters on Aragorn, put one of each of those kinds of counters on up to one other target creature.
 = BROKE at "," after: whenever the ring tempts you
-= Triggered { trigger: When(CountersPut { by: Some(Player(You)), n: AtLeast(N(1)), kind: None, on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [PutThose { by: Player(You), n: N(1), those: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [], or: None } }, on: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(CountersPut { by: Some(Player(You)), n: AtLeast(N(1)), kind: None, on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [PutThose { by: Player(You), n: N(1), those: Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Counter(None)), posts: [], or: None } }, on: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Archon of Absolution
 face: Archon of Absolution

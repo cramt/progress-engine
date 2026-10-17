@@ -734,7 +734,7 @@ face: Quiet Speculation
 type: Sorcery
 cost: {1}{U}
 > Search target player's library for up to three cards with flashback and put them into that player's graveyard. Then the player shuffles.
-= Spell([With { bind: [/* found */ Objects { quant: UpTo(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [WithKeyword("flashback")], or: None } }], then: [Search { who: You, zones: [Library(Target)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(That), tapped: false, transformed: false, under: None, order: None }, Action { by: Some(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } }), name: "shuffle", n: None }] }])
+= Spell([With { bind: [/* found */ Objects { quant: UpTo(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [WithKeyword("flashback")], or: None } }], then: [Search { who: You, zones: [Library(Target)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(That), tapped: false, transformed: false, under: None, order: None }, Action { by: Some(Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } }), name: "shuffle", n: None }] }])
 
 ## Rainbow Crow
 face: Rainbow Crow
