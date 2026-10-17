@@ -2394,6 +2394,13 @@ const COPY_ISNT: &[&str] = &[
 fn exception(p: &mut P) -> Option<Exception> {
     alt!(p;
         |p| {
+            p.word("its")?;
+            let stat = alt!(p; |p| p.word("power").map(|_| Stat::Power), |p| p.word("toughness").map(|_| Stat::Toughness))?;
+            p.words("is equal to")?;
+            let equal_to = measure(p)?;
+            Some(Exception::StatIs { stat, equal_to })
+        },
+        |p| {
             p.one_of(COPY_IS)?;
             p.one_of(&["a", "an"])?;
             let types = group(p)?;

@@ -3786,7 +3786,9 @@ fn obj_num(x: &Objects) -> Num {
 fn of_those(o: &mut Out, f: &Filter, n: Num) {
     if let ([], None, [Post::FromAmong(among)], None) = (&f.alts[..], &f.kind, &f.posts[..], &f.or)
     {
-        if among.quant == Quant::Antecedent {
+        if among.quant == Quant::Antecedent
+            || (among.quant == Quant::Each && among.filter.posts == [Post::Marked(Marked::Chosen)])
+        {
             o.w("of");
             objects(o, among);
             return;
@@ -4026,7 +4028,15 @@ fn objects_plain(o: &mut Out, x: &Objects) {
                     return;
                 }
             }
-            amount_a(o, k);
+            // "one of those creatures", never "a of".
+            if matches!(
+                (&f.alts[..], &f.kind, &f.posts[..]),
+                ([], None, [Post::FromAmong(_)])
+            ) {
+                amount(o, k);
+            } else {
+                amount_a(o, k);
+            }
             of_those(o, f, n);
         }
         Quant::OneOrMore => {
@@ -9904,6 +9914,16 @@ fn exceptions(o: &mut Out, es: &[Exception]) {
     for (i, e) in es.iter().enumerate() {
         list_sep(o, i, es.len(), "and");
         match e {
+            Exception::StatIs { stat, equal_to } => {
+                syn::its(o);
+                o.w(if *stat == Stat::Power {
+                    "power"
+                } else {
+                    "toughness"
+                });
+                o.w("is equal to");
+                measure(o, equal_to);
+            }
             Exception::AlsoIs(v) => {
                 syn::copy_is(o, false);
                 o.w("a");

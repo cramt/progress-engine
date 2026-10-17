@@ -445,7 +445,7 @@ cost: {9}
 > Prototype {2}{U}{U} — 3/3 (You may cast this spell with different mana cost, color, and size. It keeps its abilities and types.)
 > You may have this creature enter as a copy of an artifact or creature you control, except it's an artifact creature in addition to its other types, and its power and toughness are equal to this creature's power and toughness.
 = BROKE at "—" after: prototype {2} {U} {U}
-= BROKE at "power" after: you may have this creature enter as a copy of an artifact or creature you control , except it's an artifact creature in addition to its other types , and its
+= BROKE at "and" after: you may have this creature enter as a copy of an artifact or creature you control , except it's an artifact creature in addition to its other types , and its power
 
 ## Invasion of Mercadia // Kyren Flamewright
 face: Invasion of Mercadia

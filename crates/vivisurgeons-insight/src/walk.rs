@@ -1853,6 +1853,9 @@ impl Walk for Exception {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
         match self {
+            Exception::StatIs { equal_to, .. } => {
+                Walk::walk(equal_to, v);
+            }
             Exception::AlsoIs(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);

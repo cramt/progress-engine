@@ -2521,6 +2521,14 @@ pub enum Keeps {
 /// not (CR 707.9).
 #[derive(Clone, Debug, PartialEq)]
 pub enum Exception {
+    /// "except its power is equal to the total power of those creatures"
+    /// (Benthic Anomaly): a power or toughness the copy has in place of the
+    /// copied one, part of its copiable values (CR 707.9b).
+    StatIs {
+        /// Power or toughness.
+        stat: Stat,
+        equal_to: Amount,
+    },
     /// "it's an artifact in addition to its other types".
     AlsoIs(Vec<Adj>),
     /// "it isn't legendary", "the token isn't legendary".
@@ -2743,6 +2751,56 @@ pub fn each_player_creates(es: &mut Vec<Effect>) {
 /// `Marked(Chosen)`, as "Destroy each permanent chosen this way" says it. A
 /// bare `Antecedent` was the last player's choice alone
 /// ([each-player-chose]).
+/// "For each opponent, choose a creature that player controls. Create a
+/// token that's a copy of one of those creatures, except its power is equal
+/// to the total power of those creatures" (Benthic Anomaly): "those
+/// creatures" are every creature chosen in the loop, `Each` with
+/// `Marked(Chosen)`, not the last one alone ([each-player-chose]).
+pub fn chosen_for_each_player(es: &mut [Effect]) {
+    struct Those(Vec<Vec<Adj>>);
+    impl crate::walk::Visitor for Those {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if o.quant == Quant::Antecedent
+                && o.filter.posts.is_empty()
+                && o.filter.or.is_none()
+                && o.filter.alts == self.0
+            {
+                o.quant = Quant::Each;
+                o.filter.posts.push(Post::Marked(Marked::Chosen));
+            }
+            true
+        }
+    }
+    let Some(i) = es.iter().position(|e| {
+        matches!(e, Effect::ForEach { each, then }
+            if matches!(each.filter.kind, Some(Noun::Opponent | Noun::Player))
+                && matches!(&then[..], [Effect::Choose(Choice::Objects(_))]))
+    }) else {
+        return;
+    };
+    let Effect::ForEach { then, .. } = &es[i] else {
+        return;
+    };
+    let [Effect::Choose(Choice::Objects(x))] = &then[..] else {
+        return;
+    };
+    let mut v = Those(x.filter.alts.clone());
+    for e in &mut es[i + 1..] {
+        // "That creature's owner puts it …" (Tolarian Contempt): one
+        // creature at a time, said in the singular; left alone.
+        if matches!(
+            e,
+            Effect::Performed {
+                by: Player::OwnerOf(_) | Player::ControllerOf(_),
+                ..
+            }
+        ) {
+            continue;
+        }
+        crate::walk::Walk::walk(e, &mut v);
+    }
+}
+
 /// "For each non-Saga permanent, choose a counter on it. You may put an
 /// additional counter of that kind on that permanent." (The Caves of
 /// Androzani): the counter is chosen once per permanent, so what is done

@@ -2854,6 +2854,7 @@ pub fn parse_line(
                 crate::ast::each_player_creates(es);
                 crate::ast::each_player_chose(es);
                 crate::ast::counter_chosen_in_loop(es);
+                crate::ast::chosen_for_each_player(es);
                 if !crate::ast::choose_targets_listed(es) {
                     return Err(p.furthest);
                 }
