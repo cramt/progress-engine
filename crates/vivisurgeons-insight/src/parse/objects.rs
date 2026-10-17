@@ -849,6 +849,9 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         |p| p.one_of(&["that's blocking", "that are blocking"]).map(|_| Post::Blocking),
         |p| { p.words("other than")?; self_noun(p).map(|_| Post::OtherThanSelf) },
+        // "all cards exiled with this Vehicle except this card" (Mechtitan
+        // Core): the same exclusion ([except-self]).
+        |p| { p.word("except")?; self_noun(p).map(|_| Post::OtherThanSelf) },
         |p| p.words("of the chosen type").map(|_| Post::OfChosenType),
         |p| p.words("of that type").map(|_| Post::OfThatType),
         |p| p.words("of the chosen color").map(|_| Post::OfChosenColor),

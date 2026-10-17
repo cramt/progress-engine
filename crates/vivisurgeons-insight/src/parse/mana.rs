@@ -155,13 +155,13 @@ pub(super) fn keyword_action_phrase(p: &mut P) -> Option<String> {
 }
 
 pub(super) fn costs(p: &mut P) -> Option<Vec<Cost>> {
-    let mut v = vec![cost(p)?];
+    let mut v = cost_items(p)?;
     while let Some(c) = p.attempt(|p| {
         p.tok(&Tok::Comma)?;
         p.attempt(|p| p.word("and"));
-        cost(p)
+        cost_items(p)
     }) {
-        v.push(c);
+        v.extend(c);
     }
     // "{2} and sacrifice a creature" reads the same as a comma.
     if let Some(c) = p.attempt(|p| {
@@ -171,6 +171,30 @@ pub(super) fn costs(p: &mut P) -> Option<Vec<Cost>> {
         v.push(c);
     }
     Some(v)
+}
+
+/// One cost, or "exile this Vehicle and four other artifact creatures you
+/// control" (Mechtitan Core): the card and the others, one verb, two
+/// costs.
+fn cost_items(p: &mut P) -> Option<Vec<Cost>> {
+    if let Some(v) = p.attempt(|p| {
+        let make: fn(Objects) -> Cost = match p.peek_word()? {
+            "exile" => Cost::Exile,
+            "sacrifice" => Cost::Sacrifice,
+            _ => return None,
+        };
+        p.bump();
+        let me = objects(p)?;
+        if me.quant != Quant::SelfRef {
+            return None;
+        }
+        p.word("and")?;
+        let others = objects(p)?;
+        Some(vec![make(me), make(others)])
+    }) {
+        return Some(v);
+    }
+    cost(p).map(|c| vec![c])
 }
 
 /// A cost said with a gerund, after "by": "paying {3}{R} and exiling four

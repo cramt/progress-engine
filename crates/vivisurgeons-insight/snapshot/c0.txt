@@ -257,7 +257,7 @@ face: Emrakul's Evangel
 type: Creature — Human Horror
 cost: {2}{G}
 > {T}, Sacrifice this creature and any number of other non-Eldrazi creatures: Create a 3/2 colorless Eldrazi Horror creature token for each creature sacrificed this way.
-= BROKE at "number" after: {T} , sacrifice this creature and any
+= Activated { cost: [Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Sacrifice(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Other), Non("eldrazi"), Type("creature")]], kind: None, posts: [], or: None } })], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Colorless], types: ["eldrazi", "horror", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 
 ## Enigmatic Incarnation
 face: Enigmatic Incarnation

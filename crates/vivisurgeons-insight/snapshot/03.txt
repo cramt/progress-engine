@@ -1008,7 +1008,7 @@ cost: {B}{B}{B}
 > At the beginning of your end step, if you lost 2 or more life this turn, create a 2/2 black Zombie creature token.
 > {T}, Exile The Book of Vile Darkness and artifacts you control named Eye of Vecna and Hand of Vecna: Create Vecna, a legendary 8/8 black Zombie God creature token with indestructible and all triggered abilities of the exiled cards.
 = Triggered { trigger: InterveningIf(At(EndStep(Yours)), AmountIs { n: LifeLostThisTurn(You), op: Ge, value: N(2) }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= BROKE at "artifacts" after: {T} , exile ~ and
+= BROKE at "hand" after: {T} , exile ~ and artifacts you control named eye of vecna and
 
 ## The Unspeakable
 face: The Unspeakable

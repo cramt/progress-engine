@@ -845,7 +845,7 @@ cost: {1}{G}
 > Mill three cards. Then you may return a creature or land card from your graveyard to your hand.
 > Exile this card and two other cards named Say Its Name from your graveyard: Search your graveyard, hand, and/or library for a card named Altanak, the Thrice-Called and put it onto the battlefield. If you search your library this way, shuffle. Activate only as a sorcery.
 = Spell([Mill { who: You, n: N(3) }, May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }])
-= BROKE at ":" after: exile this card and two other cards named ~ from your graveyard
+= BROKE at "and/or" after: exile this card and two other cards named ~ from your graveyard : search your graveyard , hand ,
 
 ## Scourge Devil
 face: Scourge Devil

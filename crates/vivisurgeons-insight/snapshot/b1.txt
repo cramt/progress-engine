@@ -301,7 +301,7 @@ cost: {2}{B}
 > {B}{B}, {T}, Sacrifice this artifact and thirteen Blood tokens: Each opponent loses 13 life and you gain 13 life.
 = Triggered { trigger: When(Attacks(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["blood"], keywords: [], abilities: [], named: Some("blood"), attacking: None } }], limits: [] }
 = Activated { cost: [Mana(Mana(["B"])), Tap, PayLife(N(1))], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White, Black], types: ["vampire", "creature"], keywords: [Keyword { name: "lifelink", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
-= BROKE at "blood" after: {B} {B} , {T} , sacrifice this artifact and thirteen
+= Activated { cost: [Mana(Mana(["B", "B"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Sacrifice(Objects { quant: N(N(13)), filter: Filter { alts: [[Subtype("blood")]], kind: Some(Token), posts: [], or: None } })], effect: [LoseLife { who: EachOpponent, n: N(13) }, GainLife { who: You, n: N(13) }], limits: [] }
 
 ## Gloom Pangolin
 face: Gloom Pangolin

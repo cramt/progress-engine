@@ -1804,6 +1804,17 @@ mod syn {
         alt(o, vec![spelled, all]);
     }
 
+    /// Named rewrite [except-self]: "return all cards exiled with this
+    /// Vehicle except this card" (Mechtitan Core) is "other than this
+    /// card": the card itself left out.
+    pub fn other_than_self(o: &mut Out, me: Out) {
+        let mut other = of("other than");
+        other.add(me.clone());
+        let mut except = of("except");
+        except.add(me);
+        alt(o, vec![other, except]);
+    }
+
     /// Named rewrite [except-for]: "destroy all creatures except creatures
     /// chosen this way" (Unstable Glyphbridge) is "except for creatures
     /// chosen this way": the same exclusion, with or without "for".
@@ -2712,11 +2723,36 @@ fn mana(o: &mut Out, m: &Mana) {
 }
 
 fn costs(o: &mut Out, cs: &[Cost]) {
-    for (i, c) in cs.iter().enumerate() {
+    let mut i = 0;
+    while i < cs.len() {
         if i > 0 {
             syn::cost_sep(o);
         }
-        cost(o, c);
+        // "Exile this Vehicle and four other artifact creatures you
+        // control": one verb for the card and the others.
+        match (&cs[i], cs.get(i + 1)) {
+            (Cost::Exile(a), Some(Cost::Exile(b)))
+            | (Cost::Sacrifice(a), Some(Cost::Sacrifice(b)))
+                if a.quant == Quant::SelfRef =>
+            {
+                let both = out(|o| {
+                    cost(o, &cs[i]);
+                    o.w("and");
+                    objects(o, b);
+                });
+                let each = out(|o| {
+                    cost(o, &cs[i]);
+                    syn::cost_sep(o);
+                    cost(o, &cs[i + 1]);
+                });
+                syn::gapped(o, each, both);
+                i += 2;
+            }
+            (c, _) => {
+                cost(o, c);
+                i += 1;
+            }
+        }
     }
 }
 
@@ -4897,10 +4933,7 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         }
         Post::WithChosenName => o.w("with the chosen name"),
         Post::OfEachPermanentType => o.w("of each permanent type"),
-        Post::OtherThanSelf => {
-            o.w("other than");
-            objects(o, &self_ref());
-        }
+        Post::OtherThanSelf => syn::other_than_self(o, out(|o| objects(o, &self_ref()))),
         Post::Cast(Player::You) => o.w("you cast"),
         Post::Cast(p) => {
             player(o, p);

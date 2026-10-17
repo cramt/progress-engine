@@ -608,7 +608,7 @@ type: Legendary Land
 > {5}{B}{R}, {T}, Sacrifice Mount Doom and a legendary artifact: Choose up to two creatures, then destroy the rest. Activate only as a sorcery.
 = Activated { cost: [Tap, PayLife(N(1))], effect: [AddMana(Or([Mana(["B"]), Mana(["R"])]))], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "B", "R"])), Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }], limits: [] }
-= BROKE at "a" after: {5} {B} {R} , {T} , sacrifice ~ and
+= Activated { cost: [Mana(Mana(["5", "B", "R"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Type("artifact")]], kind: None, posts: [], or: None } })], effect: [Choose(Objects(Objects { quant: UpTo(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), Destroy { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }], limits: [SorcerySpeed] }
 
 ## Mystic Repeal
 face: Mystic Repeal

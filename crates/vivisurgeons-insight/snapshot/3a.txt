@@ -648,7 +648,7 @@ face: Magus of the Order
 type: Creature — Human Wizard
 cost: {2}{G}{G}
 > {G}, {T}, Sacrifice this creature and another green creature: Search your library for a green creature card, put it onto the battlefield, then shuffle.
-= BROKE at "green" after: {G} , {T} , sacrifice this creature and another
+= Activated { cost: [Mana(Mana(["G"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Sacrifice(Objects { quant: Another, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [], or: None } })], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
 
 ## Maze Sentinel
 face: Maze Sentinel
