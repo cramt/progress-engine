@@ -1030,6 +1030,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "metamorph-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chip-decklist",
+ "facet",
+ "facet-json",
+ "figue",
+ "metamorph-sheet",
+ "ureq",
+]
+
+[[package]]
+name = "metamorph-sheet"
+version = "0.1.0"
+dependencies = [
+ "pdf-writer",
+ "thiserror",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1122,6 +1143,18 @@ name = "pastey"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
+
+[[package]]
+name = "pdf-writer"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5e456864a7a304047bff84977dc6fb162bd956475d40ba50b2dcecaada7f753"
+dependencies = [
+ "bitflags",
+ "itoa",
+ "memchr",
+ "ryu",
+]
 
 [[package]]
 name = "percent-encoding"

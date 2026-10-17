@@ -106,7 +106,7 @@ pub struct Printing {
 }
 
 impl Printing {
-    pub(crate) fn parse(text: &str) -> Option<Printing> {
+    pub fn parse(text: &str) -> Option<Printing> {
         let (set, num) = text.split_once('/')?;
         let (set, num) = (set.trim(), num.trim());
         if set.is_empty() || num.is_empty() || num.contains('/') {

@@ -1,0 +1,20 @@
+[package]
+name = "metamorph-cli"
+description = "The Phyrexian Metamorph command line interface."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "metamorph"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+chip-decklist.workspace = true
+facet.workspace = true
+facet-json.workspace = true
+figue.workspace = true
+metamorph-sheet.workspace = true
+ureq.workspace = true
