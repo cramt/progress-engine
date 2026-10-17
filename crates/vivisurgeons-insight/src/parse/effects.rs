@@ -271,7 +271,7 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
         // "named Boulder that's tapped and attacking", "named Cadet, where
         // X is …": a relative clause or a definition after the name is no
         // part of it.
-        card_name(p, &["with", "that's", "that", "where"])
+        card_name(p, &["with", "that's", "that", "where", "attached"])
     });
     // Overlord of the Hauntwoods: "a … land token named Everywhere that is
     // every basic land type": the five subtypes (CR 205.3i).
@@ -586,10 +586,10 @@ fn effect_first(p: &mut P) -> Option<Effect> {
         |p| {
             let who = subject_player(p);
             p.verb("create")?;
-            let (n, token) = token(p)?;
+            let (n, token, name) = token_named(p)?;
             p.words("attached to")?;
             let to = objects(p)?;
-            Some(Effect::CreateAttached { who, n, token, to, name: None })
+            Some(Effect::CreateAttached { who, n, token, to, name })
         },
         // "double the value of X" (Unbound Flourishing): the spell's X.
         |p| {

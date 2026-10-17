@@ -1409,6 +1409,16 @@ pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
                 if token.abilities.is_empty() && token.keywords.is_empty() {
                     if let Some(a) = p.attempt(|p| { p.one_of(&["it has", "they have"])?; let a = quoted(p)?; p.end_sentence()?; Some(a) }) {
                         token.abilities.push(a);
+                    } else if let Some((k, a)) = p.attempt(|p| {
+                        // "The token has enchant creature and "Whenever …""
+                        // (Scriv, the Obligator): keywords too.
+                        p.one_of(&["the token has", "the tokens have"])?;
+                        let ka = super::keywords_then_quoted(p)?;
+                        p.end_sentence()?;
+                        Some(ka)
+                    }) {
+                        token.keywords = k;
+                        token.abilities = a;
                     }
                 }
             }
@@ -2228,7 +2238,7 @@ fn source_of_ability(v: &mut [Effect]) {
 /// The token the last effect creates, in the branch it ends with.
 fn last_token(e: &mut [Effect]) -> Option<&mut Token> {
     match e.last_mut()? {
-        Effect::Create { token, .. } => Some(token),
+        Effect::Create { token, .. } | Effect::CreateAttached { token, .. } => Some(token),
         Effect::May { then, .. } | Effect::IfYouDo(then) | Effect::If { then, .. } => {
             last_token(then)
         }

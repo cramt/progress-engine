@@ -1815,6 +1815,16 @@ mod syn {
         alt(o, vec![other, except]);
     }
 
+    /// "The token has enchant creature and "…"" (Scriv), "It has "…"": the
+    /// token just created, by its noun or a pronoun.
+    pub fn the_token(o: &mut Out, n: Num) {
+        if n == Num::Pl {
+            any_of(o, &["the tokens", "they"]);
+        } else {
+            any_of(o, &["the token", "it"]);
+        }
+    }
+
     /// Named rewrite [except-for]: "destroy all creatures except creatures
     /// chosen this way" (Unstable Glyphbridge) is "except for creatures
     /// chosen this way": the same exclusion, with or without "for".
@@ -9060,12 +9070,38 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             n,
             token: t,
             to,
-            ..
+            name,
         } => {
             subj(o, who, "create", cx);
-            token(o, n, t);
+            let bare = Token {
+                keywords: vec![],
+                abilities: vec![],
+                ..t.clone()
+            };
+            token(o, n, &bare);
+            if let Some(name) = name {
+                o.w("named");
+                o.w(name);
+            }
             o.w("attached to");
             objects(o, to);
+            // "… attached to target creature an opponent controls. The token
+            // has enchant creature and "…"" (Scriv): what it is created
+            // with, said after where it is.
+            if !t.keywords.is_empty() || !t.abilities.is_empty() {
+                o.tok(Tok::Period);
+                syn::the_token(o, amount_num(n));
+                o.verb("have", amount_num(n));
+                let items = t.keywords.len() + t.abilities.len();
+                for (i, k) in t.keywords.iter().enumerate() {
+                    list_sep(o, i, items, "and");
+                    keyword(o, k);
+                }
+                for (i, a) in t.abilities.iter().enumerate() {
+                    list_sep(o, t.keywords.len() + i, items, "and");
+                    quoted(o, a);
+                }
+            }
         }
         Effect::EmblemFor { who, abilities } => {
             player(o, who);
@@ -11811,6 +11847,13 @@ fn is_predicate(o: &mut Out, f: &Filter) {
 /// "if all lands on the battlefield are Islands": a plural subject's
 /// predicate noun is plural, with no article.
 fn is_predicate_of(o: &mut Out, f: &Filter, n: Num) {
+    // "if it's attacking one of your opponents": the post said as the
+    // predicate.
+    if let ([], None, [Post::AttackingPlayer(p)]) = (&f.alts[..], &f.kind, &f.posts[..]) {
+        o.w("attacking");
+        player(o, p);
+        return;
+    }
     if n == Num::Pl && has_noun(f) && f.posts.is_empty() {
         filter(o, f, Num::Pl);
     } else {
