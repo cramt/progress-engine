@@ -83,6 +83,12 @@ import type {
 const DRIVER = dirname(dirname(fileURLToPath(import.meta.url)));
 const REPO = resolve(DRIVER, "../../..");
 
+// The driver's own tree as this process loaded it. Taking in main can change
+// it, and node has already loaded the old code, so a batch never runs on it.
+const driverTree = (): Promise<string> =>
+  must("git", ["rev-parse", "HEAD:./"], { cwd: DRIVER });
+const loadedDriver = await driverTree();
+
 const { values: args } = parseArgs({
   options: {
     "state-dir": { type: "string", default: "/tmp/insight/driver" },
@@ -410,6 +416,12 @@ async function startBatch(batch: number): Promise<Started> {
   const pf = await preflight(REPO);
   if (pf.kind === "refused")
     return { kind: "stop", reason: { kind: "unsafe-git", reason: pf.reason } };
+  const merged = await driverTree();
+  if (merged !== loadedDriver)
+    return {
+      kind: "stop",
+      reason: { kind: "driver-updated", from: loadedDriver, to: merged },
+    };
   log(
     "baseline",
     `HEAD ${pf.head.slice(0, 7)}, in sync with origin/${branchName()}`,
@@ -942,6 +954,13 @@ function stopFor(state: State, ran: number): StopReason | null {
  */
 const NEEDS_HUMAN = 3;
 
+/**
+ * The exit status of a run that took in a main that changed the driver, before
+ * any work: whatever schedules it starts it again at once, on the new code.
+ * EX_TEMPFAIL from sysexits.h.
+ */
+const RERUN = 75;
+
 function needsHuman(r: StopReason): boolean {
   switch (r.kind) {
     case "max-batches":
@@ -952,6 +971,8 @@ function needsHuman(r: StopReason): boolean {
     case "all-pinned":
     case "unsafe-git":
       return true;
+    case "driver-updated":
+      return false;
   }
 }
 
@@ -969,6 +990,8 @@ function stopLine(r: StopReason): string {
       return "every milestone is pinned";
     case "unsafe-git":
       return `git: ${r.reason}`;
+    case "driver-updated":
+      return `main changed the driver (${r.from.slice(0, 7)} -> ${r.to.slice(0, 7)}); rerun on the new code`;
   }
 }
 
@@ -1032,6 +1055,7 @@ async function loop(): Promise<void> {
   if (stop.kind === "consecutive-failures" || stop.kind === "unsafe-git")
     escalate(null, "stop", stopLine(stop));
   if (needsHuman(stop)) process.exitCode = NEEDS_HUMAN;
+  if (stop.kind === "driver-updated") process.exitCode = RERUN;
   log(
     "stop",
     `${stopLine(stop)}; this run spent $${spentUsd.toFixed(2)}, lifetime $${state.lifetimeCostUsd.toFixed(2)}`,

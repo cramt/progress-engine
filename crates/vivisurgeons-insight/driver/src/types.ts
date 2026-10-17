@@ -173,7 +173,8 @@ export type StopReason =
   | { kind: "consecutive-failures"; count: number }
   | { kind: "milestone-ready"; milestone: string }
   | { kind: "all-pinned" }
-  | { kind: "unsafe-git"; reason: string };
+  | { kind: "unsafe-git"; reason: string }
+  | { kind: "driver-updated"; from: string; to: string };
 
 /** A batch interrupted mid-way, so a rerun picks it up where it stopped. */
 export type InFlight =

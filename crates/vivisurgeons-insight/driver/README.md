@@ -93,6 +93,9 @@ batches in a row (failed, unpushed or empty; rerun with `--reset-failures` after
 ready to pin, or a git state the driver won't reset. A stop that needs a human
 (the failures, a milestone to pin, every milestone pinned, git) exits 3, so a
 scheduler can tell it from a run that just used up its batches or budget.
+Taking in main before a batch can change the driver itself, which node loaded
+before the merge; then it stops before any work and exits 75, and the
+scheduler starts it again at once, on the new code.
 
 ## State (`--state-dir`, default `/tmp/insight/driver/`)
 
