@@ -148,7 +148,7 @@ type: Sorcery
 cost: {B}
 > Target creature gains deathtouch until end of turn and must be blocked this turn if able.
 > Flashback {G} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }, Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: MustBeBlocked, dur: ThisTurn }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: MustBeBlocked, dur: ThisTurn }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["G"]))])) }])
 
 ## Deathbringer Regent

@@ -527,7 +527,7 @@ face: Harrowing Journey
 type: Sorcery
 cost: {4}{B}
 > Target player draws three cards and loses 3 life.
-= Spell([Draw { who: Target, n: N(3) }, LoseLife { who: Target, n: N(3) }])
+= Spell([Draw { who: Target, n: N(3) }, LoseLife { who: That, n: N(3) }])
 
 ## Harvest Mage
 face: Harvest Mage

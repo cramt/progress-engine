@@ -722,7 +722,7 @@ face: Persecute
 type: Sorcery
 cost: {2}{B}{B}
 > Choose a color. Target player reveals their hand and discards all cards of that color.
-= Spell([Choose(Color), RevealHand(Target), Discard { who: Target, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [OfThatColor], or: None } }, random: false }])
+= Spell([Choose(Color), RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [OfThatColor], or: None } }, random: false }])
 
 ## Piercing Rays
 face: Piercing Rays

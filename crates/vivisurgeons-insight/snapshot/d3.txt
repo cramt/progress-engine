@@ -77,7 +77,7 @@ face: Atrocious Experiment
 type: Sorcery
 cost: {2}{B}
 > Target player mills two cards, draws two cards, and loses 2 life. (To mill a card, a player puts the top card of their library into their graveyard.)
-= Spell([Mill { who: Target, n: N(2) }, Draw { who: Target, n: N(2) }, LoseLife { who: Target, n: N(2) }])
+= Spell([Mill { who: Target, n: N(2) }, Draw { who: That, n: N(2) }, LoseLife { who: That, n: N(2) }])
 
 ## Ballynock Cohort
 face: Ballynock Cohort

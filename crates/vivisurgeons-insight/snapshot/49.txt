@@ -629,7 +629,7 @@ face: Reckless Scholar
 type: Creature — Human Wizard
 cost: {2}{U}
 > {T}: Target player draws a card, then discards a card.
-= Activated { cost: [Tap], effect: [Draw { who: Target, n: N(1) }, Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: Target, n: N(1) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
 
 ## Resolute Survivors
 face: Resolute Survivors

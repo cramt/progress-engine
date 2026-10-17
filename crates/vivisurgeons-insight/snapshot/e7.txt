@@ -516,7 +516,7 @@ face: Laquatus's Creativity
 type: Sorcery
 cost: {4}{U}
 > Target player draws cards equal to the number of cards in their hand, then discards that many cards.
-= Spell([Draw { who: Target, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }) }, Discard { who: Target, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: Target, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }) }, Discard { who: That, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
 
 ## Lashweed Lurker
 face: Lashweed Lurker

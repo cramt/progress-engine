@@ -370,7 +370,7 @@ type: Sorcery
 cost: {2}{B}
 > Target player draws two cards and loses 2 life.
 > Adamant — If at least three black mana was spent to cast this spell, create a Food token. (It's an artifact with "{2}, {T}, Sacrifice this token: You gain 3 life.")
-= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: Target, n: N(2) }])
+= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }])
 = BROKE at "spent" after: adamant — if at least three black mana was
 
 ## Forest Bear

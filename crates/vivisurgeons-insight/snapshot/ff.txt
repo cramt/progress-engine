@@ -68,7 +68,7 @@ face: Ashnod's Intervention
 type: Instant
 cost: {B}
 > Until end of turn, target creature gets +2/+0 and gains "When this creature dies or is put into exile from the battlefield, return it to its owner's hand."
-= Spell([During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: Permanent }, GrantAbility { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Or([Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Exile, from: Battlefield }])), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }, dur: Permanent }] }])
+= Spell([During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: Permanent }, GrantAbility { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Or([Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Exile, from: Battlefield }])), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }, dur: Permanent }] }])
 
 ## Battletide Alchemist
 face: Battletide Alchemist
@@ -204,7 +204,7 @@ cost: {3}{U}{U}
 > • Target player draws two cards, then discards a card.
 = Keywords([Keyword { name: "devoid", param: None }])
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["C"]))])) }])
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Modal { choose: Upgrade { base: One, cond: WasKicked, to: N(2), may: false }, modes: [[Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], [Draw { who: Target, n: N(2) }, Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Modal { choose: Upgrade { base: One, cond: WasKicked, to: N(2), may: false }, modes: [[Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], [Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }], limits: [] }
 
 ## Devastating Summons
 face: Devastating Summons
@@ -660,7 +660,7 @@ face: Ovinize
 type: Instant
 cost: {1}{U}
 > Until end of turn, target creature loses all abilities and has base power and toughness 0/1.
-= Spell([During { dur: UntilEndOfTurn, then: [Loses { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }], dur: Permanent }, Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), types: [], gains: [], keeps: OtherTypes, dur: Permanent }] }])
+= Spell([During { dur: UntilEndOfTurn, then: [Loses { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }], dur: Permanent }, Becomes { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), types: [], gains: [], keeps: OtherTypes, dur: Permanent }] }])
 
 ## Pacifism
 face: Pacifism

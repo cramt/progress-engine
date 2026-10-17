@@ -627,7 +627,7 @@ cost: {2}{G}
 > When Mikey & Mona enter, choose one or both. Each mode must target a different player.
 > • Target player chooses a creature they control and puts two +1/+1 counters on it.
 > • Target player returns a creature or land card from their graveyard to their hand.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: DifferentPlayers(OneOrBoth), modes: [[Performed { by: Target, effect: Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } })) }, Performed { by: Target, effect: PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } } }], [Performed { by: Target, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }]] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: DifferentPlayers(OneOrBoth), modes: [[Performed { by: Target, effect: Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } })) }, Performed { by: That, effect: PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } } }], [Performed { by: Target, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }]] }], limits: [] }
 
 ## Mind Spring
 face: Mind Spring
@@ -677,7 +677,7 @@ cost: {1}{B}{R}
 = BROKE at "the" after: casualty x .
 = Loyalty { change: N(1), effect: [Unless { effect: LoseLife { who: EachOpponent, n: N(2) }, who: That, cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("demon")], [Subtype("devil")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(2) }] }] }
 = Loyalty { change: N(-2), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["devil", "creature"], keywords: [], abilities: [Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }], named: None, attacking: None } }] }
-= Loyalty { change: N(-7), effect: [Draw { who: Target, n: N(7) }, LoseLife { who: Target, n: N(7) }] }
+= Loyalty { change: N(-7), effect: [Draw { who: Target, n: N(7) }, LoseLife { who: That, n: N(7) }] }
 
 ## Obsessive Skinner
 face: Obsessive Skinner

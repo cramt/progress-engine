@@ -574,7 +574,7 @@ face: Mental Agony
 type: Sorcery
 cost: {3}{B}
 > Target player discards two cards and loses 2 life.
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: Target, n: N(2) }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: That, n: N(2) }])
 
 ## Merrow Skyswimmer
 face: Merrow Skyswimmer

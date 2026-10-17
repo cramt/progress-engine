@@ -495,7 +495,7 @@ cost: {1}{U}{B}
 > {U}{B}, {T}: Create a 1/1 blue and black Zombie Wizard creature token.
 > {U}{U}{B}{B}: Target player loses X life and mills X cards, where X is the number of Zombies you control.
 = Activated { cost: [Mana(Mana(["U", "B"])), Tap], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Blue, Black], types: ["zombie", "wizard", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= Activated { cost: [Mana(Mana(["U", "U", "B", "B"]))], effect: [Where { then: [LoseLife { who: Target, n: X }, Mill { who: Target, n: X }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }) }], limits: [] }
+= Activated { cost: [Mana(Mana(["U", "U", "B", "B"]))], effect: [Where { then: [LoseLife { who: Target, n: X }, Mill { who: That, n: X }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }) }], limits: [] }
 
 ## Liesa, Forgotten Archangel
 face: Liesa, Forgotten Archangel

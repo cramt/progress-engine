@@ -474,7 +474,7 @@ face: Humble
 type: Instant
 cost: {1}{W}
 > Until end of turn, target creature loses all abilities and has base power and toughness 0/1.
-= Spell([During { dur: UntilEndOfTurn, then: [Loses { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }], dur: Permanent }, Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), types: [], gains: [], keeps: OtherTypes, dur: Permanent }] }])
+= Spell([During { dur: UntilEndOfTurn, then: [Loses { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }], dur: Permanent }, Becomes { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), types: [], gains: [], keeps: OtherTypes, dur: Permanent }] }])
 
 ## Insidious Will
 face: Insidious Will

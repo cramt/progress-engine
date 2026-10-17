@@ -840,7 +840,7 @@ face: Sign in Blood
 type: Sorcery
 cost: {B}{B}
 > Target player draws two cards and loses 2 life.
-= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: Target, n: N(2) }])
+= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }])
 
 ## Scrapbasket
 face: Scrapbasket

@@ -256,7 +256,7 @@ face: Cost of Brilliance
 type: Sorcery
 cost: {2}{B}
 > Target player draws two cards and loses 2 life. Put a +1/+1 counter on up to one target creature.
-= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: Target, n: N(2) }, PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }])
+= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }, PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }])
 
 ## Cover of Winter
 face: Cover of Winter

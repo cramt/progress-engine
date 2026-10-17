@@ -1032,7 +1032,7 @@ type: Sorcery
 cost: {2}{B}
 > Target player draws two cards and loses 2 life.
 > Fuse (You may cast one or both halves of this card from your hand.)
-= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: Target, n: N(2) }])
+= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }])
 = Keywords([Keyword { name: "fuse", param: None }])
 
 ## Toil // Trouble

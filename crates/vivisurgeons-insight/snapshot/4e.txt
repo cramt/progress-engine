@@ -117,7 +117,7 @@ face: Compelled Duel
 type: Sorcery
 cost: {1}{G}
 > Target creature gets +3/+3 until end of turn and must be blocked this turn if able.
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }, Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: MustBeBlocked, dur: ThisTurn }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: MustBeBlocked, dur: ThisTurn }])
 
 ## Courier's Briefcase
 face: Courier's Briefcase
@@ -558,7 +558,7 @@ face: Monumental Corruption
 type: Sorcery
 cost: {3}{B}{B}
 > Target player draws X cards and loses X life, where X is the number of artifacts you control.
-= Spell([Where { then: [Draw { who: Target, n: X }, LoseLife { who: Target, n: X }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }) }])
+= Spell([Where { then: [Draw { who: Target, n: X }, LoseLife { who: That, n: X }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }) }])
 
 ## Nettle Guard
 face: Nettle Guard

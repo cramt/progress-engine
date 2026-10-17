@@ -181,7 +181,7 @@ face: Careful Consideration
 type: Instant
 cost: {2}{U}{U}
 > Target player draws four cards, then discards three cards. If you cast this spell during your main phase, instead that player draws four cards, then discards two cards.
-= Spell([Draw { who: Target, n: N(4) }, Discard { who: Target, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Instead { cond: CastDuring(Main(Yours)), then: [Draw { who: That, n: N(4) }, Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([Draw { who: Target, n: N(4) }, Discard { who: That, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Instead { cond: CastDuring(Main(Yours)), then: [Draw { who: That, n: N(4) }, Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
 
 ## Chandra Nalaar
 face: Chandra Nalaar

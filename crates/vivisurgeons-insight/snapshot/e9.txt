@@ -21,7 +21,7 @@ face: Amnesia
 type: Sorcery
 cost: {3}{U}{U}{U}
 > Target player reveals their hand and discards all nonland cards.
-= Spell([RevealHand(Target), Discard { who: Target, what: Objects { quant: All, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }, random: false }])
 
 ## Apprentice Wizard
 face: Apprentice Wizard
@@ -1086,7 +1086,7 @@ type: Creature — Elemental Incarnation
 cost: {4}{U}
 > When this creature enters, target creature gains flying and "Whenever this creature deals combat damage to a player, draw that many cards" until end of turn.
 > Encore {7}{U}{U} ({7}{U}{U}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }, GrantAbility { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: ThatMany }], limits: [] }, dur: UntilEndOfTurn }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }, GrantAbility { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: ThatMany }], limits: [] }, dur: UntilEndOfTurn }], limits: [] }
 = Keywords([Keyword { name: "encore", param: Some(Cost([Mana(Mana(["7", "U", "U"]))])) }])
 
 ## Sylvan Awakening

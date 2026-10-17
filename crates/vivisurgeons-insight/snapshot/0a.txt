@@ -97,7 +97,7 @@ cost: {3}{B}{B}
 > Flying
 > At the beginning of your upkeep, target player draws a card and loses 1 life.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: At(Upkeep(Yours)), effect: [Draw { who: Target, n: N(1) }, LoseLife { who: Target, n: N(1) }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Draw { who: Target, n: N(1) }, LoseLife { who: That, n: N(1) }], limits: [] }
 
 ## Blossoming Defense
 face: Blossoming Defense
@@ -247,7 +247,7 @@ face: Davriel's Shadowfugue
 type: Sorcery
 cost: {3}{B}
 > Target player discards two cards and loses 2 life.
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: Target, n: N(2) }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: That, n: N(2) }])
 
 ## Dead-Iron Sledge
 face: Dead-Iron Sledge

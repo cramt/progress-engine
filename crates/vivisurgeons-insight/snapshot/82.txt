@@ -782,7 +782,7 @@ cost: {2}{B}
 > Gravestorm (When you cast this spell, copy it for each permanent put into a graveyard from the battlefield this turn.)
 > Target player draws a card and loses 1 life.
 = Keywords([Keyword { name: "gravestorm", param: None }])
-= Spell([Draw { who: Target, n: N(1) }, LoseLife { who: Target, n: N(1) }])
+= Spell([Draw { who: Target, n: N(1) }, LoseLife { who: That, n: N(1) }])
 
 ## Pale Bears
 face: Pale Bears
@@ -1247,7 +1247,7 @@ type: Creature — Human Assassin
 cost: {2}{B}
 > When this creature enters, you may sacrifice a creature. When you do, target player draws two cards and loses 2 life.
 > Plot {2}{B} (You may pay {2}{B} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }, WhenYouDo([Draw { who: Target, n: N(2) }, LoseLife { who: Target, n: N(2) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }, WhenYouDo([Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }])], limits: [] }
 = Keywords([Keyword { name: "plot", param: Some(Cost([Mana(Mana(["2", "B"]))])) }])
 
 ## Urbis Protector

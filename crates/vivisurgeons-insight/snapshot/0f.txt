@@ -112,7 +112,7 @@ type: Sorcery — Lesson
 cost: {3}{B}{B}
 > Target player draws two cards and loses 2 life.
 > Paradigm (Then exile this spell. After you first resolve a spell with this name, you may cast a copy of it from exile without paying its mana cost at the beginning of each of your first main phases.)
-= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: Target, n: N(2) }])
+= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }])
 = Keywords([Keyword { name: "paradigm", param: None }])
 
 ## Dragonmaster Outcast

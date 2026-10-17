@@ -111,7 +111,7 @@ type: Sorcery
 cost: {B}
 > Choose a nonland card name. Target player reveals their hand and discards all cards with that name.
 > Flashback—Sacrifice a creature. (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Choose(NonlandCardName), RevealHand(Target), Discard { who: Target, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }, random: false }])
+= Spell([Choose(NonlandCardName), RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }, random: false }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])) }])
 
 ## Callous Deceiver

@@ -216,7 +216,7 @@ fn object_list(p: &mut P) -> Option<Vec<Objects>> {
 }
 
 pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
-    alt!(p;
+    let v = alt!(p;
         // "you gain life and draw cards equal to its power", "You draw cards
         // and lose life equal to the number of counters removed this way":
         // one amount said once for both.
@@ -805,7 +805,10 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             }
             Some(vec![if v.len() == 1 { v.remove(0) } else { Effect::Or(v) }])
         },
-    )
+    );
+    let mut v = v?;
+    continue_target(&mut v);
+    Some(v)
 }
 
 /// "Destroy target blocking creature at end of combat", "Up to two other
@@ -938,6 +941,53 @@ pub(super) fn subject_of(e: &Effect) -> Option<Player> {
         | Effect::Performed { by: who, .. } => who.clone(),
         _ => return None,
     })
+}
+
+/// The object an effect's verb is said of, to change it.
+fn object_subject_mut(e: &mut Effect) -> Option<&mut Objects> {
+    match e {
+        Effect::Modify { what, .. }
+        | Effect::GrantAbility { what, .. }
+        | Effect::LoseAbility { what, .. }
+        | Effect::LoseKeywords { what, .. }
+        | Effect::Loses { what, .. }
+        | Effect::Restrict { what, .. }
+        | Effect::Becomes { what, .. }
+        | Effect::AlsoIs { what, .. } => Some(what),
+        Effect::Damage { source, .. } => source.as_mut(),
+        _ => None,
+    }
+}
+
+/// "Target player draws two cards and loses 2 life", "target creature
+/// loses all abilities and has base power and toughness 1/1": a target
+/// said once and continued by a second verb is the one target, chosen
+/// once, so every clause after the first refers back to it
+/// ([continued-subject]): the player is `That`, the object `Antecedent`.
+pub(super) fn continue_target(es: &mut [Effect]) {
+    let Some((first, rest)) = es.split_first_mut() else {
+        return;
+    };
+    if subject_of(first) == Some(Player::Target) {
+        for e in rest.iter_mut() {
+            if let Some(who @ Player::Target) = subject_mut(e) {
+                *who = Player::That;
+            }
+        }
+    }
+    let Some(o) = object_subject_mut(first).cloned() else {
+        return;
+    };
+    if !matches!(o.quant, Quant::Target { .. }) {
+        return;
+    }
+    for e in rest.iter_mut() {
+        if let Some(w) = object_subject_mut(e) {
+            if *w == o {
+                w.quant = Quant::Antecedent;
+            }
+        }
+    }
 }
 
 /// `subject_of`, to change it.
@@ -1117,8 +1167,11 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
                     })
         };
         let continues = p.peek_word().is_some_and(agrees);
+        // A continued target is the one chosen ([continued-subject]).
         let who = if continues {
-            v.last().and_then(subject_of)
+            v.last()
+                .and_then(subject_of)
+                .map(|w| if w == Player::Target { Player::That } else { w })
         } else {
             p.implied.clone()
         };
@@ -1134,7 +1187,12 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
             }),
         ) = (deals, c.first_mut())
         {
-            *source = v.last().and_then(object_subject_of);
+            *source = v.last().and_then(object_subject_of).map(|mut o| {
+                if matches!(o.quant, Quant::Target { .. }) {
+                    o.quant = Quant::Antecedent;
+                }
+                o
+            });
         }
         Some((joiner, c))
     }) {

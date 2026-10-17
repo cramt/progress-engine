@@ -1019,7 +1019,7 @@ type: Instant — Lesson
 cost: {4}{U}{U}
 > Target player draws two cards, then discards a card.
 > Airbend up to two target creatures. (To airbend a creature, exile it. While it's exiled, its owner may cast it for {2} rather than its mana cost.)
-= Spell([Draw { who: Target, n: N(2) }, Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
 = Spell([ActionOn { who: You, name: "airbend", what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }])
 
 ## Wild Jhovall

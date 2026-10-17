@@ -109,7 +109,7 @@ cost: {B}
 > Menace
 > At the beginning of your first main phase, you may sacrifice a creature. When you do, choose a nonland card name, then target player reveals their hand and discards all cards with that name.
 = Keywords([Keyword { name: "menace", param: None }])
-= Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }, WhenYouDo([Choose(NonlandCardName), RevealHand(Target), Discard { who: Target, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }, WhenYouDo([Choose(NonlandCardName), RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }, random: false }])], limits: [] }
 
 ## Candles of Leng
 face: Candles of Leng

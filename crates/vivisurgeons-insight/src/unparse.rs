@@ -3619,7 +3619,7 @@ fn subj(o: &mut Out, who: &Player, verb: &str, cx: &Cx) {
         };
         let alone = out(|o| o.verb(verb, alone_n));
         syn::subject(o, said, alone, after);
-    } else if cx.continues.as_ref() == Some(who) && (n != Num::Pl || *who != Player::You) {
+    } else if continues_player(cx, who) && (n != Num::Pl || *who != Player::You) {
         // "that player shuffles", "those players …, then shuffle": the
         // verb agrees with however the subject was said.
         let alone = out(|o| o.verb(verb, n));
@@ -5803,7 +5803,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
         if let (Some((w1, n1, v1, s1)), Some((w2, n2, v2, s2))) =
             (life_or_cards(e), es.get(i + 1).and_then(life_or_cards))
         {
-            if w1 == w2 && n1 == n2 && is_measure(&n1) {
+            if same_player(&w1, &w2) && n1 == n2 && is_measure(&n1) {
                 let next = out(|o| effect(o, &es[i + 1], &cx));
                 let each = out(|o| {
                     o.add(full.clone());
@@ -5851,7 +5851,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                         what: w,
                         ability,
                         dur: d2,
-                    } if w == what && d2 == d => Some(&**ability),
+                    } if same_subject(what, w) && d2 == d => Some(&**ability),
                     _ => None,
                 })
                 .collect(),
@@ -5910,7 +5910,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
             }),
         ) = (e, es.get(i + 1))
         {
-            if what == w2 && d == d2 && types.is_empty() && gains.is_empty() {
+            if same_subject(what, w2) && d == d2 && types.is_empty() && gains.is_empty() {
                 obj_subj(o, what, "lose");
                 lost_words(o, lost);
                 o.w("and");
@@ -5934,7 +5934,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                         what: w,
                         ability,
                         dur: d2,
-                    } if w == what && d2 == d => Some(&**ability),
+                    } if same_subject(what, w) && d2 == d => Some(&**ability),
                     _ => None,
                 })
                 .collect();
@@ -5987,7 +5987,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                         what: w,
                         ability,
                         dur: d2,
-                    } if w == what && d2 == d => Some(&**ability),
+                    } if same_subject(what, w) && d2 == d => Some(&**ability),
                     _ => None,
                 })
                 .collect();
@@ -6057,7 +6057,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
             }),
         ) = (e, es.get(i + 1))
         {
-            if what == w2 && d == d2 && !types.is_empty() && gains.is_empty() {
+            if same_subject(what, w2) && d == d2 && !types.is_empty() && gains.is_empty() {
                 obj_subj(o, what, "become");
                 o.w("a");
                 if let Some(pt) = pt {
@@ -6083,7 +6083,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                 Effect::Damage {
                     source: Some(s2), ..
                 },
-            ) if s1 == s2 => {
+            ) if same_subject(s1, s2) => {
                 let subject = out(|o| objects(o, s2));
                 let n = subject.0.len();
                 let pred = out(|o| o.0.extend(full.0.iter().skip(n).cloned()));
@@ -6096,7 +6096,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
             (
                 Some(Effect::Modify { what: w1, .. } | Effect::GrantAbility { what: w1, .. }),
                 Effect::GrantAbility { what: w2, .. },
-            ) if w1 == w2
+            ) if same_subject(w1, w2)
                 && !matches!(prev, Some(Effect::Modify { gains, .. }) if gains.is_empty()) =>
             {
                 let subject = out(|o| objects(o, w2));
@@ -6128,11 +6128,27 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
             }
             // "This creature gets +1/+0 until end of turn and deals 1 damage
             // to you": one object subject for both clauses.
-            (Some(p), e) if obj_subject(p).is_some() && obj_subject(p) == obj_subject(e) => {
+            (Some(p), e)
+                if obj_subject(p)
+                    .zip(obj_subject(e))
+                    .is_some_and(|(a, b)| same_subject(a, b)) =>
+            {
                 let subject = out(|o| objects(o, obj_subject(e).unwrap()));
                 let n = subject.0.len();
                 let pred = out(|o| o.0.extend(full.0.iter().skip(n).cloned()));
-                syn::subject(o, subject, pred.clone(), pred);
+                let joined = out(|o| syn::subject(o, subject, pred.clone(), pred));
+                if obj_subject(prev.unwrap()) == obj_subject(e) {
+                    o.add(joined);
+                } else {
+                    // A target referred back to may also be its own
+                    // sentence ("X target creatures can't be blocked this
+                    // turn. Until end of turn, those creatures gain …").
+                    let alone = out(|o| match lead_duration(e, &cx) {
+                        Some(lead) => syn::position(o, named_or_it.clone(), lead),
+                        None => o.add(named_or_it.clone()),
+                    });
+                    syn::position(o, joined, alone);
+                }
             }
             // "and you untap all lands you control": an instruction with
             // its "you" said.
@@ -6222,6 +6238,26 @@ fn says_no_player(e: &Effect) -> bool {
             | Effect::Choose(_)
             | Effect::PutCounters { .. }
     )
+}
+
+/// Whether `b` is the subject `a` said again: the same words, or the one
+/// target `a` chose, referred back to ([continued-subject]).
+fn same_subject(a: &Objects, b: &Objects) -> bool {
+    a == b
+        || b.quant == Quant::Antecedent
+            && matches!(a.quant, Quant::Target { .. })
+            && a.filter == b.filter
+}
+
+/// `same_subject` for players: "target player draws two cards and loses 2
+/// life" continues the target as `That`.
+fn same_player(a: &Player, b: &Player) -> bool {
+    a == b || *a == Player::Target && *b == Player::That
+}
+
+/// Whether `who` continues the last clause's subject.
+fn continues_player(cx: &Cx, who: &Player) -> bool {
+    cx.continues.as_ref().is_some_and(|c| same_player(c, who))
 }
 
 /// The object an effect's verb is said of, rendered first.
@@ -7864,7 +7900,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 o.w("have");
                 o.add(said);
                 o.add(rest(Num::Pl));
-            } else if cx.implied.as_ref() == Some(by) || cx.continues.as_ref() == Some(by) {
+            } else if cx.implied.as_ref() == Some(by) || continues_player(cx, by) {
                 syn::subject(o, said, rest(n), rest(n));
             } else {
                 o.add(said);

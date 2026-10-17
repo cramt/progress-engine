@@ -389,7 +389,7 @@ face: Horrifying Revelation
 type: Sorcery
 cost: {B}
 > Target player discards a card, then mills a card.
-= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Mill { who: Target, n: N(1) }])
+= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Mill { who: That, n: N(1) }])
 
 ## Host of the Hereafter
 face: Host of the Hereafter

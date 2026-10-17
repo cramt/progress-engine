@@ -394,7 +394,7 @@ face: Geth's Verdict
 type: Instant
 cost: {B}{B}
 > Target player sacrifices a creature of their choice and loses 1 life.
-= Spell([Sacrifice { who: Target, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, LoseLife { who: Target, n: N(1) }])
+= Spell([Sacrifice { who: Target, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, LoseLife { who: That, n: N(1) }])
 
 ## Ghastlord of Fugue
 face: Ghastlord of Fugue
@@ -723,7 +723,7 @@ face: Peer into the Abyss
 type: Sorcery
 cost: {4}{B}{B}{B}
 > Target player draws cards equal to half the number of cards in their library and loses half their life. Round up each time.
-= Spell([Draw { who: Target, n: Half { of: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Library(That))], or: None } }), round_up: true } }, LoseLife { who: Target, n: Half { of: LifeTotal(That), round_up: true } }])
+= Spell([Draw { who: Target, n: Half { of: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Library(That))], or: None } }), round_up: true } }, LoseLife { who: That, n: Half { of: LifeTotal(That), round_up: true } }])
 
 ## Plaxcaster Frogling
 face: Plaxcaster Frogling

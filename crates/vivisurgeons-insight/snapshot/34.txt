@@ -980,7 +980,7 @@ face: Thoughtcutter Agent
 type: Artifact Creature — Human Rogue
 cost: {U}{B}
 > {U}{B}, {T}: Target player loses 1 life and reveals their hand.
-= Activated { cost: [Mana(Mana(["U", "B"])), Tap], effect: [LoseLife { who: Target, n: N(1) }, RevealHand(Target)], limits: [] }
+= Activated { cost: [Mana(Mana(["U", "B"])), Tap], effect: [LoseLife { who: Target, n: N(1) }, RevealHand(That)], limits: [] }
 
 ## Thousand-legged Kami
 face: Thousand-legged Kami

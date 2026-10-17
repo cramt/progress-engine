@@ -265,7 +265,7 @@ face: Eldritch Pact
 type: Sorcery
 cost: {6}{B}
 > Target player draws X cards and loses X life, where X is the number of cards in their graveyard.
-= Spell([Where { then: [Draw { who: Target, n: X }, LoseLife { who: Target, n: X }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }) }])
+= Spell([Where { then: [Draw { who: Target, n: X }, LoseLife { who: That, n: X }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }) }])
 
 ## Elvish Piper
 face: Elvish Piper

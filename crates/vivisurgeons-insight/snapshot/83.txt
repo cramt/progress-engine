@@ -61,7 +61,7 @@ face: Ashnod's Cylix
 type: Artifact
 cost: {2}
 > {3}, {T}: Target player looks at the top three cards of their library, puts one of them back on top of their library, then exiles the rest.
-= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [LookAtTop { who: Target, whose: That, n: N(3) }, Performed { by: Target, effect: Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmongThem], or: None } }, from: None, to: TopOfLibrary(That), tapped: false, transformed: false, under: None, order: None } }, Performed { by: Target, effect: Exile(Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], limits: [] }
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [LookAtTop { who: Target, whose: That, n: N(3) }, Performed { by: That, effect: Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmongThem], or: None } }, from: None, to: TopOfLibrary(That), tapped: false, transformed: false, under: None, order: None } }, Performed { by: That, effect: Exile(Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], limits: [] }
 
 ## Ayumi, the Last Visitor
 face: Ayumi, the Last Visitor

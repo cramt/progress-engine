@@ -647,7 +647,7 @@ face: Painful Lesson
 type: Sorcery
 cost: {2}{B}
 > Target player draws two cards and loses 2 life.
-= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: Target, n: N(2) }])
+= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }])
 
 ## Plains
 face: Plains

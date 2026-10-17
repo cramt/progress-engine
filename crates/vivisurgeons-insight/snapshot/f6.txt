@@ -472,7 +472,7 @@ face: Lumengrid Augur
 type: Creature — Vedalken Wizard
 cost: {3}{U}
 > {1}, {T}: Target player draws a card, then discards a card. If that player discards an artifact card this way, untap this creature.
-= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Draw { who: Target, n: N(1) }, Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { cond: ThisWay(Discards { who: That, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } } }), then: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Draw { who: Target, n: N(1) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { cond: ThisWay(Discards { who: That, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } } }), then: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Magical Hack
 face: Magical Hack

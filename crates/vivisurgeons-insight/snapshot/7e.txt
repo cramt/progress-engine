@@ -151,7 +151,7 @@ face: Cease
 type: Instant
 cost: {1}{B/G}
 > Exile up to two target cards from a single graveyard. Target player gains 2 life and draws a card.
-= Spell([Exile(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(SingleGraveyard)], or: None } }), GainLife { who: Target, n: N(2) }, Draw { who: Target, n: N(1) }])
+= Spell([Exile(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(SingleGraveyard)], or: None } }), GainLife { who: Target, n: N(2) }, Draw { who: That, n: N(1) }])
 
 ## Cease // Desist
 face: Desist

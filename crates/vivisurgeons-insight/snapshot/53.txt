@@ -223,7 +223,7 @@ cost: {1}{U}{R}
 > +1: Target player draws two cards, then discards two cards.
 > −2: Gain control of target artifact.
 > −6: You get an emblem with "Whenever you cast a spell that targets one or more permanents, gain control of those permanents."
-= Loyalty { change: N(1), effect: [Draw { who: Target, n: N(2) }, Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Loyalty { change: N(1), effect: [Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
 = Loyalty { change: N(-2), effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, dur: Permanent }] }
 = Loyalty { change: N(-6), effect: [Emblem([Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Targets(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })], or: None } } }), effect: [GainControl { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, dur: Permanent }], limits: [] }])] }
 

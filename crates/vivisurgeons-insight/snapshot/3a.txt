@@ -1053,7 +1053,7 @@ face: Vault Plunderer
 type: Creature — Human Rogue
 cost: {2}{B}
 > When this creature enters, target player draws a card and loses 1 life.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: Target, n: N(1) }, LoseLife { who: Target, n: N(1) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: Target, n: N(1) }, LoseLife { who: That, n: N(1) }], limits: [] }
 
 ## Verdant Succession
 face: Verdant Succession

@@ -123,7 +123,7 @@ face: Blood Pact
 type: Instant
 cost: {2}{B}
 > Target player draws two cards and loses 2 life.
-= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: Target, n: N(2) }])
+= Spell([Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }])
 
 ## Boggart Brute
 face: Boggart Brute
@@ -1049,7 +1049,7 @@ cost: {2}{B}
 > Deathtouch
 > Boast — {1}{B}: Target player searches their library for a card, then shuffles and puts that card on top. (Activate only if this creature attacked this turn and only once each turn.)
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= KeywordOn { keyword: Boast, ability: Activated { cost: [Mana(Mana(["1", "B"]))], effect: [Search { who: Target, zones: [Library(That)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, and: [] }, Shuffle(Target), Performed { by: Target, effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None } }], limits: [] } }
+= KeywordOn { keyword: Boast, ability: Activated { cost: [Mana(Mana(["1", "B"]))], effect: [Search { who: Target, zones: [Library(That)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, and: [] }, Shuffle(That), Performed { by: That, effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None } }], limits: [] } }
 
 ## Verrak, Warped Sengir
 face: Verrak, Warped Sengir

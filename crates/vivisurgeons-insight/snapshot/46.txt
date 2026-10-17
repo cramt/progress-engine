@@ -378,7 +378,7 @@ cost: {B}
 > + {B}{B} — Target player draws three cards and loses 3 life.
 = Keywords([Keyword { name: "spree", param: None }])
 = Spree { cost: Mana(["2"]), effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, and: [] }, Shuffle(You), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None }] }
-= Spree { cost: Mana(["B", "B"]), effect: [Draw { who: Target, n: N(3) }, LoseLife { who: Target, n: N(3) }] }
+= Spree { cost: Mana(["B", "B"]), effect: [Draw { who: Target, n: N(3) }, LoseLife { who: That, n: N(3) }] }
 
 ## Ironclad Revolutionary
 face: Ironclad Revolutionary

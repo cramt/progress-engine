@@ -1149,7 +1149,7 @@ face: Tsabo's Decree
 type: Instant
 cost: {5}{B}
 > Choose a creature type. Target player reveals their hand and discards all creature cards of that type. Then destroy all creatures of that type that player controls. They can't be regenerated.
-= Spell([Choose(CreatureType), RevealHand(Target), Discard { who: Target, what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [OfThatType], or: None } }, random: false }, Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [OfThatType, Controller(That)], or: None } }, no_regen: true }])
+= Spell([Choose(CreatureType), RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [OfThatType], or: None } }, random: false }, Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [OfThatType, Controller(That)], or: None } }, no_regen: true }])
 
 ## Uchuulon
 face: Uchuulon

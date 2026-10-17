@@ -132,7 +132,7 @@ face: Damnable Pact
 type: Sorcery
 cost: {X}{B}{B}
 > Target player draws X cards and loses X life.
-= Spell([Draw { who: Target, n: X }, LoseLife { who: Target, n: X }])
+= Spell([Draw { who: Target, n: X }, LoseLife { who: That, n: X }])
 
 ## Darkslick Shores
 face: Darkslick Shores

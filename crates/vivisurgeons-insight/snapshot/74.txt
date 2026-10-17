@@ -911,7 +911,7 @@ cost: {2}{B}
 > Choose one —
 > • Target player draws two cards and loses 2 life.
 > • Target creature gets +2/+2 and gains lifelink until end of turn.
-= Spell([Modal { choose: One, modes: [[Draw { who: Target, n: N(2) }, LoseLife { who: Target, n: N(2) }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }]] }])
+= Spell([Modal { choose: One, modes: [[Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }]] }])
 
 ## Reward the Faithful
 face: Reward the Faithful

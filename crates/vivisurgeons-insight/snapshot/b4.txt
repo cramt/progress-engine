@@ -223,7 +223,7 @@ type: Sorcery
 cost: {U}
 > Target creature gets +1/+0 until end of turn and can't be blocked this turn.
 > Rebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }])
 = Keywords([Keyword { name: "rebound", param: None }])
 
 ## Dredge the Mire
@@ -529,7 +529,7 @@ face: Kiss of the Amesha
 type: Sorcery
 cost: {4}{W}{U}
 > Target player gains 7 life and draws two cards.
-= Spell([GainLife { who: Target, n: N(7) }, Draw { who: Target, n: N(2) }])
+= Spell([GainLife { who: Target, n: N(7) }, Draw { who: That, n: N(2) }])
 
 ## Lavakin Brawler
 face: Lavakin Brawler
@@ -651,7 +651,7 @@ face: Monomania
 type: Sorcery
 cost: {3}{B}{B}
 > Target player chooses a card in their hand and discards the rest.
-= Spell([Performed { by: Target, effect: Choose(Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } })) }, Discard { who: Target, what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, random: false }])
+= Spell([Performed { by: Target, effect: Choose(Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } })) }, Discard { who: That, what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, random: false }])
 
 ## Myojin of Seeing Winds
 face: Myojin of Seeing Winds
