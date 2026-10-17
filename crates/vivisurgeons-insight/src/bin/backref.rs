@@ -88,6 +88,9 @@ struct Ev {
     verb: String,
     in_amount: bool,
     in_cond: bool,
+    /// Inside a condition that only asks whether such objects exist ("if
+    /// you control a Human"), which names no object to point back at.
+    in_exist: bool,
     in_trigger: bool,
     /// Ancestor frames, outermost first.
     frames: Vec<usize>,
@@ -128,6 +131,7 @@ enum Item {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct Frame {
     kind: Fk,
     trail: Trail,
@@ -141,6 +145,7 @@ struct Frame {
 struct Config {
     intro_in_amount: bool,
     intro_in_cond: bool,
+    intro_in_exist: bool,
     flip: bool,
 }
 
@@ -165,6 +170,8 @@ struct Collect {
     /// recording (the validator's "the tree records the order" mode).
     trails: Vec<Trail>,
     force: Option<Vec<Trail>>,
+    /// Each nested ability open: its kind and how many effects it began.
+    nested: Vec<(&'static str, usize)>,
 }
 
 fn head(s: &str) -> String {
@@ -244,6 +251,10 @@ fn pseudo_verb(e: &Effect) -> Option<String> {
         Effect::Mill { .. } => "Mill".into(),
         Effect::Draw { .. } => "Draw".into(),
         Effect::Copy { .. } => "Copy".into(),
+        // A whole zone: the cards in it, which no `Objects` names.
+        Effect::ExileZone(_) => "ExileZone".into(),
+        Effect::DiscardHand(_) => "DiscardHand".into(),
+        Effect::RevealHand(_) => "RevealHand".into(),
         Effect::UntilFound { verb, .. } | Effect::DigUntilTotal { verb, .. } => {
             format!("UntilFound>{verb:?}+Reveal")
         }
@@ -308,6 +319,7 @@ impl Collect {
             players_that: 0,
             trails: Vec::new(),
             force: None,
+            nested: Vec::new(),
         }
     }
 
@@ -347,12 +359,16 @@ impl Collect {
                 _ => {}
             }
         }
-        if self.in_kind(Fk::Ability) {
-            return "@granted".into();
+        if let Some((k, n)) = self.nested.last() {
+            return if *k == "Triggered" && *n == 0 {
+                "@trigger".into()
+            } else {
+                "@granted".into()
+            };
         }
         match self.top_kind {
             "Triggered" if self.effects_open == 0 => "@trigger".into(),
-            "Activated" if self.effects_open == 0 => {
+            "Activated" | "Static" if self.effects_open == 0 && !self.cost_heads.is_empty() => {
                 let h = self
                     .cost_heads
                     .get(self.cost_seen)
@@ -362,6 +378,18 @@ impl Collect {
             }
             k => format!("@{k}"),
         }
+    }
+
+    /// An effect is open inside the innermost ability.
+    fn effect_in_ability(&self) -> bool {
+        for &f in self.stack.iter().rev() {
+            match self.frames[f].kind {
+                Fk::Effect => return true,
+                Fk::Ability => return false,
+                _ => {}
+            }
+        }
+        false
     }
 
     fn effect_frame(&self) -> Option<usize> {
@@ -374,10 +402,14 @@ impl Collect {
 
     fn new_ev(&mut self, decl: Option<usize>, role: Role, obj: Option<Objects>) -> usize {
         let verb = self.cur_verb();
-        let in_trigger = !self.in_kind(Fk::Ability)
-            && self.top_kind == "Triggered"
-            && self.effects_open == 0
-            && self.effect_frame().is_none();
+        let in_trigger = match self.nested.last() {
+            Some((k, n)) => *k == "Triggered" && *n == 0 && !self.effect_in_ability(),
+            None => {
+                self.top_kind == "Triggered"
+                    && self.effects_open == 0
+                    && self.effect_frame().is_none()
+            }
+        };
         let id = self.evs.len();
         self.evs.push(Ev {
             decl,
@@ -387,12 +419,34 @@ impl Collect {
             verb,
             in_amount: self.in_kind(Fk::Amount),
             in_cond: self.in_kind(Fk::Cond),
+            in_exist: self.stack.iter().any(|&f| {
+                self.frames[f].kind == Fk::Cond
+                    && EXISTENTIAL.contains(&self.frames[f].verb.as_str())
+            }),
             in_trigger,
             frames: self.stack.clone(),
             anc: self.obj_stack.clone(),
             effect_frame: self.effect_frame(),
         });
         id
+    }
+}
+
+/// Objects outside any effect or nested ability, as `Collect` counts
+/// cost objects.
+struct CountTop(usize, usize);
+impl Visitor for CountTop {
+    fn enter(&mut self, _: &mut Objects) -> bool {
+        if self.1 == 0 {
+            self.0 += 1;
+        }
+        true
+    }
+    fn effect(&mut self, _: &mut Effect) {
+        self.1 += 1;
+    }
+    fn effect_done(&mut self, _: &mut Effect) {
+        self.1 -= 1;
     }
 }
 
@@ -430,7 +484,7 @@ impl Visitor for Collect {
     fn enter(&mut self, o: &mut Objects) -> bool {
         let decl = self.decl;
         self.decl += 1;
-        let top_level_cost = self.top_kind == "Activated"
+        let top_level_cost = matches!(self.top_kind, "Activated" | "Static")
             && self.effects_open == 0
             && !self.in_kind(Fk::Ability)
             && self.effect_frame().is_none();
@@ -443,7 +497,10 @@ impl Visitor for Collect {
         } else if o.quant == Quant::SelfRef {
             Role::SelfMention
         } else if marked_how(&o.filter).is_some() && !not_object(&o.filter) {
-            Role::Ref(RefKind::Marked)
+            // "Choose a nonland card exiled this way", "for each card
+            // milled this way": a new object chosen from the marked ones,
+            // so it introduces; its pool is the reference (below).
+            Role::Intro
         } else if linked_post(&o.filter).is_some() {
             Role::Ref(RefKind::LinkedPost)
         } else if not_object(&o.filter) {
@@ -462,6 +519,10 @@ impl Visitor for Collect {
         let mut pre = Vec::new();
         if from_among {
             let r = self.new_ev(None, Role::Ref(RefKind::FromAmongThem), Some(o.clone()));
+            pre.push(Item::Ev(r));
+        }
+        if role == Role::Intro && marked_how(&o.filter).is_some() {
+            let r = self.new_ev(None, Role::Ref(RefKind::Marked), Some(o.clone()));
             pre.push(Item::Ev(r));
         }
         let parent = self.here();
@@ -503,12 +564,43 @@ impl Visitor for Collect {
                 };
                 if let Ability::Activated { cost, .. } = a {
                     for c in cost.iter() {
-                        let mut n = CountObjs(0);
+                        let mut n = CountTop(0, 0);
                         c.clone().walk(&mut n);
                         let h = head(&format!("{c:?}"));
                         for _ in 0..n.0 {
                             self.cost_heads.push(h.clone());
                         }
+                    }
+                }
+                // "As an additional cost to cast this spell, sacrifice a
+                // creature": the cost's verb, so "the sacrificed creature"
+                // in the next paragraph can find it.
+                if let Ability::Static(ss) = a {
+                    for st in ss.iter() {
+                        let costs: Vec<Cost> = match st {
+                            Static::AdditionalCost(c) | Static::OptionalAdditionalCost(c) => {
+                                c.clone()
+                            }
+                            _ => Vec::new(),
+                        };
+                        if costs.is_empty() {
+                            let mut n = CountTop(0, 0);
+                            st.clone().walk(&mut n);
+                            for _ in 0..n.0 {
+                                self.cost_heads.push(String::new());
+                            }
+                        }
+                        for c in costs {
+                            let mut n = CountTop(0, 0);
+                            c.clone().walk(&mut n);
+                            let h = head(&format!("{c:?}"));
+                            for _ in 0..n.0 {
+                                self.cost_heads.push(h.clone());
+                            }
+                        }
+                    }
+                    if self.cost_heads.iter().all(String::is_empty) {
+                        self.cost_heads.clear();
                     }
                 }
             }
@@ -517,18 +609,27 @@ impl Visitor for Collect {
         }
         self.push_frame(Fk::Ability, String::new(), false);
         self.ab_stack.push(true);
+        let k = match a {
+            Ability::Triggered { .. } => "Triggered",
+            _ => "Other",
+        };
+        self.nested.push((k, 0));
         true
     }
 
     fn ability_done(&mut self, _a: &mut Ability) {
         if self.ab_stack.pop() == Some(true) {
             self.pop_frame();
+            self.nested.pop();
         }
     }
 
     fn effect(&mut self, e: &mut Effect) {
-        if !self.in_kind(Fk::Ability) && self.effect_frame().is_none() {
-            self.effects_open += 1;
+        if !self.effect_in_ability() {
+            match self.nested.last_mut() {
+                Some((_, n)) => *n += 1,
+                None => self.effects_open += 1,
+            }
         }
         let is_if = matches!(e, Effect::If { .. });
         self.push_frame(Fk::Effect, verb_of(e), is_if);
@@ -574,8 +675,8 @@ impl Visitor for Collect {
         }
     }
 
-    fn condition(&mut self, _c: &mut Condition) {
-        self.push_frame(Fk::Cond, String::new(), false);
+    fn condition(&mut self, c: &mut Condition) {
+        self.push_frame(Fk::Cond, head(&format!("{c:?}")), false);
     }
     fn condition_done(&mut self, _c: &mut Condition) {
         self.pop_frame();
@@ -633,6 +734,27 @@ fn collect(a: &Ability, force: Option<Vec<Trail>>) -> Collect {
 }
 
 // ------------------------------------------------------------ compatibility
+
+const EXISTENTIAL: [&str; 18] = [
+    "YouControl",
+    "YouDontControl",
+    "PlayerControls",
+    "ControlsMore",
+    "AmountIs",
+    "Threshold",
+    "DidThisTurn",
+    "DidThisGame",
+    "ThereAre",
+    "HasMore",
+    "Total",
+    "PlayerHas",
+    "PlayerHasAtMost",
+    "PlayerHasFewerThan",
+    "ZoneHasCards",
+    "NthSpellThisTurn",
+    "AttackedWithThisTurn",
+    "AttackedWithThisCombat",
+];
 
 const CARD_TYPES: [&str; 10] = [
     "artifact",
@@ -770,6 +892,17 @@ fn compat(r: &Objects, e: &Ev) -> bool {
     {
         return false;
     }
+    let ctl = |f: &Filter| {
+        f.posts.iter().find_map(|p| match p {
+            Post::Controller(x) => Some(format!("{x:?}")),
+            _ => None,
+        })
+    };
+    if let (Some(a), Some(Some(b))) = (ctl(rf), e.obj.as_ref().map(|o| ctl(&o.filter))) {
+        if a != b {
+            return false;
+        }
+    }
     let (rt, rs) = type_words(rf);
     let (et, es) = match (&e.token, &e.obj) {
         (Some(t), _) => token_words(t),
@@ -800,6 +933,12 @@ fn self_compat(r: &Objects, type_line: &str) -> bool {
     if marked_how(rf).is_some() || linked_post(rf).is_some() {
         return false;
     }
+    // Oracle calls the card "this creature", "~" (CR 700.7): a reference
+    // with a noun ("that creature", "that card") is another object, and
+    // only a bare "it"/"its" can be the card.
+    if !rf.alts.is_empty() || rf.kind.is_some() {
+        return false;
+    }
     let (rt, rs) = type_words(rf);
     let types_ok = rt.is_empty() || rt.iter().any(|t| words.contains(t.as_str()));
     let subs_ok = rs.is_empty() || rs.iter().any(|t| words.contains(t.as_str()));
@@ -817,7 +956,7 @@ enum Target {
     Linked(usize, usize),
     /// The object whose filter the reference sits in.
     Enclosing(usize),
-    Set(Vec<(usize, usize)>),
+    Set(Vec<Target>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -835,6 +974,7 @@ struct Resolved {
     cands: Vec<Target>,
     pick: Option<Target>,
     /// For a BackRef pick: how many introducers were read before the ref.
+    #[allow(dead_code)]
     pos: usize,
     note: String,
     cross_line: bool,
@@ -848,9 +988,31 @@ struct LineData {
     die_row: bool,
 }
 
+/// "You gain life equal to target creature's power": a target is chosen
+/// as the spell is cast (CR 601.2c), so it is an object wherever said.
+fn targetish(e: &Ev) -> bool {
+    e.obj.as_ref().is_some_and(|o| {
+        matches!(
+            o.quant,
+            Quant::Target { .. }
+                | Quant::AnyTarget { .. }
+                | Quant::AnyOtherTarget
+                | Quant::AnyNumberOfTarget
+                | Quant::AnyNumberOfOtherTarget
+                | Quant::AnotherTarget
+                | Quant::SecondTarget
+                | Quant::OtherTarget { .. }
+        )
+    })
+}
+
 fn counts_as_intro(e: &Ev, cfg: Config) -> bool {
     match e.role {
-        Role::Intro => (cfg.intro_in_amount || !e.in_amount) && (cfg.intro_in_cond || !e.in_cond),
+        Role::Intro => {
+            (cfg.intro_in_amount || !e.in_amount || targetish(e))
+                && (cfg.intro_in_cond || !e.in_cond)
+                && (cfg.intro_in_exist || !e.in_exist)
+        }
         Role::Pseudo => true,
         _ => false,
     }
@@ -891,13 +1053,64 @@ fn line_intros(ld: &LineData, cfg: Config) -> Vec<usize> {
 }
 
 fn resolve_face(lds: &[LineData], type_line: &str, cfg: Config) -> Vec<Resolved> {
+    let mut out = resolve_pass(lds, type_line, cfg);
+    // A linked reference whose object the other ability names by a
+    // reference of its own (Wormfang Crab: "an opponent chooses a
+    // permanent … and exiles it"): that reference's pick.
+    let picks: Vec<(usize, String, Target)> = out
+        .iter()
+        .filter_map(|q| match &q.pick {
+            Some(t @ Target::Intro(..)) => {
+                Some((q.line, lds[q.line].c.evs[q.ev].verb.clone(), t.clone()))
+            }
+            _ => None,
+        })
+        .collect();
+    for r in out.iter_mut().filter(|r| r.class == Class::None) {
+        let o = lds[r.line].c.evs[r.ev].obj.clone().unwrap();
+        let want: Option<Box<dyn Fn(&str) -> bool>> =
+            match (linked_post(&o.filter), marked_how(&o.filter)) {
+                (Some(v), _) => Some(Box::new(move |x: &str| x.contains(v))),
+                (None, Some(h)) => Some(Box::new(move |x: &str| verb_matches(h, x))),
+                _ => None,
+            };
+        let Some(want) = want else { continue };
+        for (l, verb, t) in &picks {
+            if *l != r.line && want(verb) {
+                if let Target::Intro(a, b) = t {
+                    let t = Target::Linked(*a, *b);
+                    if !r.cands.contains(&t) {
+                        r.cands.push(t);
+                    }
+                }
+            }
+        }
+        if !r.cands.is_empty() {
+            r.class = if r.cands.len() == 1 {
+                Class::Determined
+            } else {
+                Class::Ambiguous
+            };
+            r.pick = Some(r.cands[0].clone());
+            r.note = "linked through the other ability's reference".into();
+        }
+    }
+    out
+}
+
+fn resolve_pass(lds: &[LineData], type_line: &str, cfg: Config) -> Vec<Resolved> {
     let mut out = Vec::new();
     let intros_per_line: Vec<Vec<usize>> = lds.iter().map(|l| line_intros(l, cfg)).collect();
     // Prior paragraphs of the same spell (CR 608.2c), or a die's rows.
     let mut prior: Vec<(usize, usize)> = Vec::new();
     let mut prior_self = false;
+    // A die's rows are alternatives: each continues the roll above them
+    // (CR 706.3a), none the row before it.
+    let mut roll: (Vec<(usize, usize)>, bool) = (Vec::new(), false);
     for (li, ld) in lds.iter().enumerate() {
-        if !ld.continues && !ld.die_row {
+        if ld.die_row {
+            (prior, prior_self) = roll.clone();
+        } else if !ld.continues {
             prior.clear();
             prior_self = false;
         }
@@ -905,24 +1118,46 @@ fn resolve_face(lds: &[LineData], type_line: &str, cfg: Config) -> Vec<Resolved>
             let mut intros: Vec<(usize, usize)> = if si == 0 { prior.clone() } else { Vec::new() };
             let base = intros.len();
             let mut self_at: Option<usize> = if si == 0 && prior_self { Some(0) } else { None };
-            let mut earlier: Vec<(Objects, Vec<Target>)> = Vec::new();
+            let mut earlier: Vec<(usize, Vec<Target>)> = Vec::new();
+            // Every object said so far, as what it settled on, with the
+            // event that said it: intros, the card, and references' picks.
+            let mut mentions: Vec<((usize, usize), Target)> = Vec::new();
             for &ei in scope {
                 let e = &ld.c.evs[ei];
                 if counts_as_intro(e, cfg) {
                     intros.push((li, ei));
+                    mentions.push(((li, ei), Target::Intro(li, ei)));
                     continue;
                 }
                 match &e.role {
-                    Role::SelfMention => self_at = Some(intros.len()),
+                    Role::SelfMention => {
+                        self_at = Some(intros.len());
+                        mentions.push(((li, ei), Target::SelfCard));
+                    }
                     Role::Ref(k) => {
                         let r = e.obj.clone().unwrap();
                         let pos = intros.len();
                         let get = |(l, i): (usize, usize)| &lds[l].c.evs[i];
                         let mut cands: Vec<Target> = Vec::new();
                         let mut note = String::new();
+                        // "create X tokens, where X is its power": X is worked
+                        // out before the tokens exist (CR 107.3, 608.2h), so
+                        // the X of a `Where` cannot mean what its effect makes.
+                        let where_frame = e.frames.windows(2).rev().find_map(|w| {
+                            (ld.c.frames[w[0]].verb == "Where"
+                                && ld.c.frames[w[1]].kind == Fk::Amount)
+                                .then_some(w[0])
+                        });
+                        let made_by_where = |x: &Ev| {
+                            where_frame
+                                .is_some_and(|w| x.role == Role::Pseudo && x.frames.contains(&w))
+                        };
                         let push_pool = |cands: &mut Vec<Target>, pred: &dyn Fn(&Ev) -> bool| {
                             for &(l, i) in intros.iter().rev() {
-                                if pred(get((l, i))) && compat(&r, get((l, i))) {
+                                if pred(get((l, i)))
+                                    && compat(&r, get((l, i)))
+                                    && !made_by_where(get((l, i)))
+                                {
                                     cands.push(Target::Intro(l, i));
                                 }
                             }
@@ -930,16 +1165,52 @@ fn resolve_face(lds: &[LineData], type_line: &str, cfg: Config) -> Vec<Resolved>
                         match k {
                             RefKind::Created => push_pool(&mut cands, &|x| is_tokenish(x)),
                             RefKind::Triggering => push_pool(&mut cands, &|x| x.in_trigger),
+                            // The one object the clause the condition
+                            // trails names: what the frame holding the
+                            // condition says outside it, an object or a
+                            // reference's pick ("counter that spell if its
+                            // mana value …").
                             RefKind::ClauseObject => {
-                                let iff = e
+                                let ci = e
                                     .frames
                                     .iter()
-                                    .rev()
-                                    .find(|&&f| ld.c.frames[f].is_if)
-                                    .copied();
-                                push_pool(&mut cands, &|x| {
-                                    iff.is_some_and(|f| x.frames.contains(&f))
-                                });
+                                    .rposition(|&f| ld.c.frames[f].kind == Fk::Cond);
+                                if let Some(ci) = ci.filter(|&c| c > 0) {
+                                    let (holder, cond) = (e.frames[ci - 1], e.frames[ci]);
+                                    let inside = |x: &Ev| {
+                                        x.frames.contains(&holder) && !x.frames.contains(&cond)
+                                    };
+                                    for ((l, i), t) in mentions.iter().rev() {
+                                        let x = get((*l, *i));
+                                        if *l == li && inside(x) && !cands.contains(t) {
+                                            let ok = match t {
+                                                Target::Intro(..) => compat(&r, x),
+                                                Target::SelfCard => self_compat(&r, type_line),
+                                                Target::Linked(a, b) => compat(&r, get((*a, *b))),
+                                                _ => true,
+                                            };
+                                            if ok {
+                                                cands.push(t.clone());
+                                            }
+                                        }
+                                    }
+                                    // Said after the ref in walk order: the
+                                    // node declares its condition first.
+                                    if cands.is_empty() {
+                                        let later = scope.iter().any(|&j| {
+                                            let x = &ld.c.evs[j];
+                                            j != ei
+                                                && inside(x)
+                                                && matches!(
+                                                    x.role,
+                                                    Role::Intro | Role::Ref(_) | Role::SelfMention
+                                                )
+                                        });
+                                        if later {
+                                            note = "its clause comes after it in walk order".into();
+                                        }
+                                    }
+                                }
                             }
                             RefKind::Itself => {
                                 if let Some(&anc) = e
@@ -961,17 +1232,21 @@ fn resolve_face(lds: &[LineData], type_line: &str, cfg: Config) -> Vec<Resolved>
                                 // The latest effect with two or more objects,
                                 // or (Both) the last object of each of the two
                                 // effects before.
-                                let mut groups: Vec<(Option<usize>, Vec<(usize, usize)>)> =
+                                let mut groups: Vec<((usize, Option<usize>), Vec<Target>)> =
                                     Vec::new();
-                                for &(l, i) in intros.iter() {
-                                    let x = get((l, i));
-                                    if !compat(&r, x) {
+                                for ((l, i), t) in mentions.iter() {
+                                    let x = get((*l, *i));
+                                    if matches!(t, Target::Intro(..)) && !compat(&r, x) {
                                         continue;
                                     }
-                                    let key = if l == li { x.effect_frame } else { None };
+                                    let key = (*l, if *l == li { x.effect_frame } else { None });
                                     match groups.last_mut() {
-                                        Some((g, v)) if *g == key && l == v[0].0 => v.push((l, i)),
-                                        _ => groups.push((key, vec![(l, i)])),
+                                        Some((g, v)) if *g == key => {
+                                            if !v.contains(t) {
+                                                v.push(t.clone())
+                                            }
+                                        }
+                                        _ => groups.push((key, vec![t.clone()])),
                                     }
                                 }
                                 if *k == RefKind::Listed {
@@ -983,13 +1258,15 @@ fn resolve_face(lds: &[LineData], type_line: &str, cfg: Config) -> Vec<Resolved>
                                 } else if groups.len() >= 2 {
                                     let n = groups.len();
                                     let set = vec![
-                                        *groups[n - 2].1.last().unwrap(),
-                                        *groups[n - 1].1.last().unwrap(),
+                                        groups[n - 2].1.last().unwrap().clone(),
+                                        groups[n - 1].1.last().unwrap().clone(),
                                     ];
                                     cands.push(Target::Set(set));
                                 }
                             }
-                            RefKind::Linked | RefKind::LinkedPost => {
+                            _ if matches!(k, RefKind::Linked | RefKind::LinkedPost)
+                                || linked_post(&r.filter).is_some() =>
+                            {
                                 let verb = linked_post(&r.filter).unwrap_or("?");
                                 let vm = |x: &Ev| {
                                     if verb == "@token" {
@@ -1054,8 +1331,7 @@ fn resolve_face(lds: &[LineData], type_line: &str, cfg: Config) -> Vec<Resolved>
                                 }
                                 // A reference back to a reference: the same
                                 // object (a chain), when it fits.
-                                for (eo, ts) in earlier.iter() {
-                                    let _ = eo;
+                                for (_, ts) in earlier.iter() {
                                     for t in ts {
                                         let ok = match t {
                                             Target::Linked(l, i) => compat(&r, &lds[*l].c.evs[*i]),
@@ -1066,6 +1342,26 @@ fn resolve_face(lds: &[LineData], type_line: &str, cfg: Config) -> Vec<Resolved>
                                             cands.push(t.clone());
                                         }
                                     }
+                                }
+                            }
+                        }
+                        // "The chosen creature" with no choice in the ability:
+                        // a linked ability's choice (CR 607.2d).
+                        if cands.is_empty() && !matches!(k, RefKind::Itself | RefKind::Rest) {
+                            if let Some(how) = marked_how(&r.filter) {
+                                for (lj, ints) in intros_per_line.iter().enumerate() {
+                                    if lj == li {
+                                        continue;
+                                    }
+                                    for &i in ints {
+                                        let x = &lds[lj].c.evs[i];
+                                        if verb_matches(how, &x.verb) && compat(&r, x) {
+                                            cands.push(Target::Linked(lj, i));
+                                        }
+                                    }
+                                }
+                                if !cands.is_empty() {
+                                    note = "linked by its Marked post".into();
                                 }
                             }
                         }
@@ -1082,24 +1378,41 @@ fn resolve_face(lds: &[LineData], type_line: &str, cfg: Config) -> Vec<Resolved>
                             Class::None => None,
                             Class::Determined => Some(cands[0].clone()),
                             Class::Ambiguous => {
-                                let nearest_intro =
-                                    cands.iter().find(|t| matches!(t, Target::Intro(..)));
-                                let ipos = nearest_intro.and_then(|t| match t {
-                                    Target::Intro(l, i) => {
-                                        intros.iter().position(|x| *x == (*l, *i))
-                                    }
-                                    _ => None,
-                                });
-                                match (self_at, ipos, cands.contains(&Target::SelfCard)) {
-                                    (Some(s), Some(p), true) if s > p => Some(Target::SelfCard),
-                                    (_, Some(_), _) => nearest_intro.cloned(),
-                                    _ => Some(cands[0].clone()),
-                                }
+                                // Recency: an introducer at its index, the
+                                // card at its last mention, a chained target
+                                // at the reference that named it.
+                                let rec = |t: &Target| -> f64 {
+                                    let chained = earlier
+                                        .iter()
+                                        .filter(|(_, ts)| ts.contains(t))
+                                        .map(|(p, _)| *p as f64 - 0.5)
+                                        .fold(f64::MIN, f64::max);
+                                    let own = match t {
+                                        Target::Intro(l, i) => intros
+                                            .iter()
+                                            .position(|x| *x == (*l, *i))
+                                            .map_or(f64::MIN, |p| p as f64),
+                                        Target::SelfCard => {
+                                            self_at.map_or(f64::MIN, |s| s as f64 - 0.5)
+                                        }
+                                        _ => -1e9,
+                                    };
+                                    own.max(chained)
+                                };
+                                cands
+                                    .iter()
+                                    .max_by(|a, b| rec(a).partial_cmp(&rec(b)).unwrap())
+                                    .cloned()
                             }
                         };
                         let cross_line = matches!(&pick, Some(Target::Intro(l, _)) if *l != li);
                         if *k != RefKind::FromAmongThem {
-                            earlier.push((r.clone(), cands.clone()));
+                            // Only what it settled on chains on: "its owner"
+                            // after "the exiled card" is that card.
+                            earlier.push((pos, pick.iter().cloned().collect()));
+                            if let Some(p) = &pick {
+                                mentions.push(((li, ei), p.clone()));
+                            }
                         }
                         let _ = base;
                         out.push(Resolved {
@@ -1120,6 +1433,9 @@ fn resolve_face(lds: &[LineData], type_line: &str, cfg: Config) -> Vec<Resolved>
             if si == 0 {
                 prior = intros.clone();
                 prior_self |= self_at.is_some();
+                if !ld.die_row {
+                    roll = (prior.clone(), prior_self);
+                }
             }
         }
     }
@@ -1188,9 +1504,13 @@ fn new_quant(lds: &[LineData], r: &Resolved, cfg: Config) -> Option<Quant> {
                 nth: u8::try_from(nth).ok()?,
             }
         }
+        // A set holding this card or a linked object is no list of backs.
         Target::Set(v) => Quant::BackRefs(
             v.iter()
-                .map(|x| back_of(&intros, pos, *x))
+                .map(|x| match x {
+                    Target::Intro(l, i) => back_of(&intros, pos, (*l, *i)),
+                    _ => None,
+                })
                 .collect::<Option<Vec<u8>>>()?,
         ),
         Target::Enclosing(_) => return None,
@@ -1239,7 +1559,7 @@ fn describe(lds: &[LineData], t: &Target) -> String {
         Target::Enclosing(_) => "the set it sits in".into(),
         Target::Set(v) => v
             .iter()
-            .map(|(l, i)| one(*l, *i))
+            .map(|t| describe(lds, t))
             .collect::<Vec<_>>()
             .join(" + "),
     }
@@ -1280,7 +1600,7 @@ fn validate(
             }
             v.checked += 1;
             let (intros, pos) = scope_intros(&lds, li, ei, cfg);
-            let mut fail = |what: &str, v: &mut Validation| {
+            let fail = |what: &str, v: &mut Validation| {
                 if v.examples.len() < 200 {
                     v.examples
                         .push(format!("{card} line {li}: {what} {:?}", o.quant));
@@ -1399,6 +1719,11 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let show_cards = args.iter().any(|a| a == "--cards");
     let show_fail = args.iter().any(|a| a == "--failures");
+    let excfg: usize = args
+        .iter()
+        .position(|a| a == "--excfg")
+        .and_then(|i| args.get(i + 1))
+        .map_or(0, |x| x.parse().unwrap());
     let examples_of = args
         .iter()
         .position(|a| a == "--examples")
@@ -1419,19 +1744,24 @@ fn main() {
     let base = Config {
         intro_in_amount: false,
         intro_in_cond: true,
+        intro_in_exist: false,
         flip: false,
     };
     let configs = [
-        ("default (no introducers inside amounts)", base),
+        (
+            "default (no introducers inside amounts or existential conditions)",
+            base,
+        ),
         (
             "every non-reference object introduces",
             Config {
                 intro_in_amount: true,
+                intro_in_exist: true,
                 ..base
             },
         ),
         (
-            "nor inside conditions",
+            "nor inside any condition",
             Config {
                 intro_in_cond: false,
                 ..base
@@ -1443,9 +1773,16 @@ fn main() {
         .map(|e| {
             let lines = e.lines();
             let all = lines.iter().all(|l| l.parsed.is_ok());
+            // A broken line stays as an empty ability, so a line number is
+            // the face's.
             let abs = lines
                 .into_iter()
-                .filter_map(|l| l.parsed.ok().map(|a| (a, l.continues)))
+                .map(|l| {
+                    (
+                        l.parsed.unwrap_or(Ability::Keywords(Vec::new())),
+                        l.continues,
+                    )
+                })
                 .collect();
             (e, abs, all)
         })
@@ -1507,13 +1844,17 @@ fn main() {
                 }
                 if let Some(want) = &examples_of {
                     let tag = format!("{:?}:{:?}", r.kind, r.class);
-                    if &tag == want && example_lines.len() < 25 && ci == 0 {
+                    if &tag == want && example_lines.len() < 60 && ci == excfg {
                         let ev = &lds[r.line].c.evs[r.ev];
                         example_lines.push(format!(
-                            "{} | {} | ref {} | cands: {}",
+                            "{} | {} | ref {} | pick: {} | cands: {}",
                             e.card,
                             ld_text(e, r.line).chars().take(200).collect::<String>(),
                             ev.obj.as_ref().map(objects_text).unwrap_or_default(),
+                            r.pick
+                                .as_ref()
+                                .map(|t| describe(&lds, t))
+                                .unwrap_or_default(),
                             r.cands
                                 .iter()
                                 .map(|t| describe(&lds, t))
@@ -1666,6 +2007,9 @@ fn main() {
                 println!("  !k {x}");
             }
         }
+        for l in &example_lines {
+            println!("  ex: {l}");
+        }
         if ci == 0 {
             println!("flip unordered If/ForEach/Damage: {flipped} of {flip_total} determined BackRefs move");
             let mut why: Vec<_> = none_why.into_iter().collect();
@@ -1673,9 +2017,6 @@ fn main() {
             println!("NONE by kind/context (top 30):");
             for (k, n) in why.iter().take(30) {
                 println!("  {n:>5} {k}");
-            }
-            for l in &example_lines {
-                println!("  ex: {l}");
             }
         }
     }
