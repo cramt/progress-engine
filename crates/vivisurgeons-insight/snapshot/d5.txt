@@ -654,7 +654,7 @@ face: Oblation
 type: Instant
 cost: {2}{W}
 > The owner of target nonland permanent shuffles it into their library, then draws two cards.
-= Spell([ShuffleInto { who: OwnerOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }), what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: OwnerOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }), n: N(2) }])
+= Spell([ShuffleInto { who: OwnerOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }), what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: That, n: N(2) }])
 
 ## Orzhov Signet
 face: Orzhov Signet

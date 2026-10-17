@@ -1003,7 +1003,7 @@ cost: {5}
 > {2}: Target creature you control gains flying until end of turn.
 > {2}: Prevent all combat damage that would be dealt to and dealt by target creature you control this turn.
 = Activated { cost: [Mana(Mana(["2"]))], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], limits: [] }
-= Activated { cost: [Mana(Mana(["2"]))], effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })]), by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"]))], effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })]), by: Some(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), dur: ThisTurn }], limits: [] }
 
 ## Stern Mentor
 face: Stern Mentor

@@ -6252,7 +6252,15 @@ fn same_subject(a: &Objects, b: &Objects) -> bool {
 /// `same_subject` for players: "target player draws two cards and loses 2
 /// life" continues the target as `That`.
 fn same_player(a: &Player, b: &Player) -> bool {
-    a == b || *a == Player::Target && *b == Player::That
+    a == b
+        || *b == Player::That
+            && match a {
+                Player::Target => true,
+                Player::OwnerOf(o) | Player::ControllerOf(o) => {
+                    matches!(o.quant, Quant::Target { .. })
+                }
+                _ => false,
+            }
 }
 
 /// Whether `who` continues the last clause's subject.
@@ -7364,8 +7372,13 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             }
             // "damage that black and/or red sources would deal to creatures
             // you control": the same damage, said actively.
+            // "dealt to and dealt by target creature": one object, both ways.
+            let both = |t: &[Recipient], b: &Objects| match t {
+                [Recipient::Objects(a)] => same_subject(a, b).then(|| a.clone()),
+                _ => None,
+            };
             if let (Some(t), Some(b)) = (to, by) {
-                if !(t.len() == 1 && t[0] == Recipient::Objects(b.clone())) {
+                if both(t, b).is_none() {
                     let passive = out(|o| {
                         o.w("damage that would be dealt to");
                         recipients(o, t);
@@ -7385,9 +7398,9 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             }
             o.w("damage that would be dealt");
             match (to, by) {
-                (Some(t), Some(b)) if t.len() == 1 && t[0] == Recipient::Objects(b.clone()) => {
+                (Some(t), Some(b)) if both(t, b).is_some() => {
                     o.w("to and dealt by");
-                    objects(o, b);
+                    objects(o, &both(t, b).unwrap_or_else(|| b.clone()));
                 }
                 _ => {
                     if let Some(t) = to {

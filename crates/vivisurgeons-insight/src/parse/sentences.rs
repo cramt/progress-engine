@@ -959,6 +959,19 @@ fn object_subject_mut(e: &mut Effect) -> Option<&mut Objects> {
     }
 }
 
+/// A player subject continued by a later verb: a target, or the owner or
+/// controller of a target ("The owner of target permanent shuffles it into
+/// their library, then draws two cards"), is that player, chosen once.
+fn continued_player(w: Player) -> Player {
+    match &w {
+        Player::Target => Player::That,
+        Player::OwnerOf(o) | Player::ControllerOf(o) if matches!(o.quant, Quant::Target { .. }) => {
+            Player::That
+        }
+        _ => w,
+    }
+}
+
 /// "Target player draws two cards and loses 2 life", "target creature
 /// loses all abilities and has base power and toughness 1/1": a target
 /// said once and continued by a second verb is the one target, chosen
@@ -968,9 +981,9 @@ pub(super) fn continue_target(es: &mut [Effect]) {
     let Some((first, rest)) = es.split_first_mut() else {
         return;
     };
-    if subject_of(first) == Some(Player::Target) {
+    if let Some(s) = subject_of(first).filter(|s| continued_player(s.clone()) == Player::That) {
         for e in rest.iter_mut() {
-            if let Some(who @ Player::Target) = subject_mut(e) {
+            if let Some(who) = subject_mut(e).filter(|w| **w == s) {
                 *who = Player::That;
             }
         }
@@ -1169,9 +1182,7 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         let continues = p.peek_word().is_some_and(agrees);
         // A continued target is the one chosen ([continued-subject]).
         let who = if continues {
-            v.last()
-                .and_then(subject_of)
-                .map(|w| if w == Player::Target { Player::That } else { w })
+            v.last().and_then(subject_of).map(continued_player)
         } else {
             p.implied.clone()
         };

@@ -2578,7 +2578,15 @@ pub(super) fn prevent(p: &mut P) -> Option<Effect> {
             combat_only,
             n,
             to: Some(vec![Recipient::Objects(o.clone())]),
-            by: Some(o),
+            // A target is chosen once: the second "dealt" refers back to it
+            // ([continued-subject]).
+            by: Some(match o.quant {
+                Quant::Target { .. } => Objects {
+                    quant: Quant::Antecedent,
+                    ..o
+                },
+                _ => o,
+            }),
             dur,
         });
     }

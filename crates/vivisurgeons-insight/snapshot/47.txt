@@ -536,7 +536,7 @@ face: Mercy Killing
 type: Instant
 cost: {2}{G/W}
 > Target creature's controller sacrifices it, then creates X 1/1 green and white Elf Warrior creature tokens, where X is that creature's power.
-= Spell([Where { then: [Sacrifice { who: ControllerOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Create { who: ControllerOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: X, token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green, White], types: ["elf", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], x: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }])
+= Spell([Where { then: [Sacrifice { who: ControllerOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Create { who: That, n: X, token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green, White], types: ["elf", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], x: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }])
 
 ## Moldgraf Scavenger
 face: Moldgraf Scavenger
