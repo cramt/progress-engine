@@ -267,7 +267,7 @@ cost: {3}{U}{U}
 > Flying
 > Whenever this creature deals combat damage to a player, that player exiles cards from the top of their library until they exile an instant or sorcery card. You may cast that card without paying its mana cost. Then that player puts the exiled cards that weren't cast this way on the bottom of their library in a random order.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "weren't" after: whenever this creature deals combat damage to a player , that player exiles cards from the top of their library until they exile an instant or sorcery card . you may cast that card without paying its mana cost . then that player puts the exiled cards that
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [UntilFound { who: That, verb: Exile, zone: TopOfLibrary(That), until: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } } }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }, Performed { by: That, effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled), Not(Marked(Cast))], or: None } }, from: None, to: BottomOfLibrary(That), tapped: false, transformed: false, under: None, order: Some(Random) } }], limits: [] }
 
 ## Death Pulse
 face: Death Pulse

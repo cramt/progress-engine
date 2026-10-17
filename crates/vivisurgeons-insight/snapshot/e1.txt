@@ -770,7 +770,7 @@ cost: {1}{R}
 > Haste
 > This creature enters with a +1/+1 counter on it for each other spell cast this turn.
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "cast" after: this creature enters with a <pt> counter on it for each other spell
+= BROKE at "turn" after: this creature enters with a <pt> counter on it for each other spell cast this
 
 ## Storm King's Thunder
 face: Storm King's Thunder

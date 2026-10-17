@@ -834,7 +834,7 @@ cost: {1}{B}{B}{G}
 > Trample
 > Whenever Storrev deals combat damage to a player or planeswalker, return to your hand target creature or planeswalker card in your graveyard that wasn't put there this combat.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "wasn't" after: whenever ~ deals combat damage to a player or planeswalker , return to your hand target creature or planeswalker card in your graveyard that
+= BROKE at "put" after: whenever ~ deals combat damage to a player or planeswalker , return to your hand target creature or planeswalker card in your graveyard that wasn't
 
 ## Subterranean Cavern
 face: Subterranean Cavern

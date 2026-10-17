@@ -183,7 +183,7 @@ face: Chaos Wand
 type: Artifact
 cost: {3}
 > {4}, {T}: Target opponent exiles cards from the top of their library until they exile an instant or sorcery card. You may cast that card without paying its mana cost. Then put the exiled cards that weren't cast this way on the bottom of that library in a random order.
-= BROKE at "weren't" after: {4} , {T} : target opponent exiles cards from the top of their library until they exile an instant or sorcery card . you may cast that card without paying its mana cost . then put the exiled cards that
+= BROKE at "in" after: {4} , {T} : target opponent exiles cards from the top of their library until they exile an instant or sorcery card . you may cast that card without paying its mana cost . then put the exiled cards that weren't cast this way on the bottom of that library
 
 ## Chatter of the Squirrel
 face: Chatter of the Squirrel

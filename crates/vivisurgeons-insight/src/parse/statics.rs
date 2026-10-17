@@ -291,6 +291,16 @@ pub(super) fn counters_phrase(p: &mut P) -> Option<(Quant, Option<CounterKind>)>
 pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
     p.word("if")?;
     let event = alt!(p;
+        // Unpredictable Cyclone: "a cycling ability of another nonland card
+        // would cause you to draw a card".
+        |p| {
+            p.words("a cycling ability of")?;
+            let of = objects(p)?;
+            p.words("would cause")?;
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.words("to draw a card")?;
+            Some(Event::DrawsByCycling { who, of })
+        },
         |p| {
             let by = alt!(p; actor, |p| p.word("you").map(|_| Actor::Player(Player::You)))?;
             p.words("would create")?;
@@ -390,6 +400,19 @@ pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
         matches!(c.first(), Some(Effect::IfYouDo(_) | Effect::IfYouDont(_))).then_some(c)
     }) {
         instead.extend(more);
+    }
+    // "instead exile cards from the top of your library until you exile a
+    // card …. You may cast that card …. Then put the exiled cards that
+    // weren't cast this way on the bottom …": what is done with the cards
+    // found is part of what replaces the event.
+    if matches!(instead.first(), Some(Effect::UntilFound { .. })) {
+        while let Some(more) = p.attempt(|p| {
+            p.tok(&Tok::Period)?;
+            p.attempt(|p| p.word("then"));
+            clauses(p)
+        }) {
+            instead.extend(more);
+        }
     }
     Some(vec![Static::Replacement {
         event: Box::new(event),

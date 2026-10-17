@@ -631,7 +631,7 @@ face: Muse Vortex
 type: Sorcery
 cost: {X}{U}{U}
 > Exile the top X cards of your library. You may cast an instant or sorcery spell with mana value X or less from among them without paying its mana cost. Then put the exiled instant and sorcery cards that weren't cast this way into your hand and the rest on the bottom of your library in a random order.
-= BROKE at "weren't" after: exile the top x cards of your library . you may cast an instant or sorcery spell with mana value x or less from among them without paying its mana cost . then put the exiled instant and sorcery cards that
+= Spell([Exile(Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Le, value: X }), FromAmongThem], or: None } }, payment: Free, dur: Permanent }] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [Marked(Exiled), Not(Marked(Cast))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }])
 
 ## Neurok Prodigy
 face: Neurok Prodigy

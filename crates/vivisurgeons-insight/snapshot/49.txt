@@ -93,7 +93,7 @@ cost: {1}{U}
 > Spells you cast from anywhere other than your hand cost {1} less to cast.
 > Whenever Bilbo attacks, you may cast an artifact, instant, or sorcery spell from your graveyard. If an instant or sorcery spell cast this way would be put into your graveyard, exile it instead.
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(You), CastFrom(AnywhereOtherThan(Hand(You)))], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= BROKE at "cast" after: whenever ~ attacks , you may cast an artifact , instant , or sorcery spell from your graveyard . if an instant or sorcery spell
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [CastFrom(Graveyard(You))], or: None } }, payment: ManaCost, dur: Permanent }] }, Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Marked(Cast)], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Blackbloom Rogue // Blackbloom Bog
 face: Blackbloom Rogue
@@ -292,7 +292,7 @@ cost: {U}
 > {1}{U}, {T}: Copy target spell you control that wasn't cast. You may choose new targets for the copy.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "defender", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "wasn't" after: {1} {U} , {T} : copy target spell you control that
+= BROKE at "." after: {1} {U} , {T} : copy target spell you control that wasn't cast
 
 ## Exclude
 face: Exclude

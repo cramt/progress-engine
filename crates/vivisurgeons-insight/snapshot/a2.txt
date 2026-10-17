@@ -854,7 +854,7 @@ cost: {10}{G}{G}
 > Trample, haste
 > Trample over planeswalkers (This creature can deal excess combat damage to the controller of the planeswalker it's attacking.)
 > Thrasta has hexproof as long as it entered this turn.
-= BROKE at "cast" after: this spell costs {3} less to cast for each other spell
+= BROKE at "turn" after: this spell costs {3} less to cast for each other spell cast this
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
 = BROKE at "<end>" after: trample over planeswalkers
 = Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])

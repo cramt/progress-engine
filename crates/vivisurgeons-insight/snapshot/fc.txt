@@ -338,7 +338,7 @@ cost: {4}{G}{G}
 > When you cast this spell, copy it for each time you've cast your commander from the command zone this game.
 > Reveal cards from the top of your library until you reveal a nonland permanent card. You may put that card onto the battlefield. Then put all cards revealed this way that weren't put onto the battlefield on the bottom of your library in a random order.
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Repeat { times: TimesCast { who: You, what: Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }, zone: CommandZone }, then: [Copy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: false }] }], limits: [] }
-= BROKE at "weren't" after: reveal cards from the top of your library until you reveal a nonland permanent card . you may put that card onto the battlefield . then put all cards revealed this way that
+= BROKE at "put" after: reveal cards from the top of your library until you reveal a nonland permanent card . you may put that card onto the battlefield . then put all cards revealed this way that weren't
 
 ## Glowrider
 face: Glowrider
@@ -528,7 +528,7 @@ face: Maestros Ascendancy
 type: Enchantment
 cost: {U}{B}{R}
 > Once during each of your turns, you may cast an instant or sorcery spell from your graveyard by sacrificing a creature in addition to paying its other costs. If a spell cast this way would be put into your graveyard, exile it instead.
-= BROKE at "cast" after: once during each of your turns , you may cast an instant or sorcery spell from your graveyard by sacrificing a creature in addition to paying its other costs . if a spell
+= Static([Once { yours: true, then: [CastPaying { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, zone: Some(Graveyard(You)), cost: [Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], rather: false }] }, Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Marked(Cast)], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Marchesa, the Black Rose
 face: Marchesa, the Black Rose

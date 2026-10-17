@@ -4326,6 +4326,8 @@ fn marked_word(m: Marked) -> &'static str {
         Marked::Removed => "removed",
         Marked::PutOntoBattlefield => "put onto the battlefield",
         Marked::Manifested => "manifested",
+        Marked::Cast => "cast",
+        Marked::Cycled => "cycled",
     }
 }
 
@@ -4890,6 +4892,17 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         Post::OfChosenColor => o.w("of the chosen color"),
         Post::OfThatType => o.w("of that type"),
         Post::OfThatColor => o.w("of that color"),
+        Post::Not(q) if matches!(&**q, Post::Marked(_)) => {
+            if let Post::Marked(m) = &**q {
+                o.w(if n == Num::Sg {
+                    "that wasn't"
+                } else {
+                    "that weren't"
+                });
+                o.w(marked_word(*m));
+                o.w("this way");
+            }
+        }
         Post::Not(q) if matches!(&**q, Post::ThatIs(_)) => {
             o.w(if n == Num::Sg {
                 "that isn't"
@@ -10806,6 +10819,13 @@ fn event(o: &mut Out, e: &Event) {
             o.verb("draw", player_num(p));
             o.w("one or more cards");
         }
+        Event::DrawsByCycling { who, of } => {
+            o.w("a cycling ability of");
+            objects(o, of);
+            o.w("causes");
+            player(o, who);
+            o.w("to draw a card");
+        }
         Event::CastFrom { what, zone: z } => {
             obj_subj(o, what, "are");
             o.w("cast from");
@@ -11028,6 +11048,13 @@ fn would(o: &mut Out, e: &Event) {
         Event::Draws(p) => {
             player(o, p);
             o.w("would draw a card");
+        }
+        Event::DrawsByCycling { who, of } => {
+            o.w("a cycling ability of");
+            objects(o, of);
+            o.w("would cause");
+            player(o, who);
+            o.w("to draw a card");
         }
         Event::DrawsOneOrMore(p) => {
             player(o, p);

@@ -745,7 +745,7 @@ cost: {X}{R}{R}{R}
 > Improvise (Each artifact you tap after you're done activating mana abilities pays for {1}.)
 > Reveal the top X cards of your library. You may put any number of artifact cards with mana value X or less from among them onto the battlefield. Then put all cards revealed this way that weren't put onto the battlefield into your graveyard.
 = Keywords([Keyword { name: "improvise", param: None }])
-= BROKE at "weren't" after: reveal the top x cards of your library . you may put any number of artifact cards with mana value x or less from among them onto the battlefield . then put all cards revealed this way that
+= BROKE at "put" after: reveal the top x cards of your library . you may put any number of artifact cards with mana value x or less from among them onto the battlefield . then put all cards revealed this way that weren't
 
 ## Sakashima's Protege
 face: Sakashima's Protege

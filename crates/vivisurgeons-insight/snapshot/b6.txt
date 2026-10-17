@@ -451,7 +451,7 @@ cost: {1}{U}{B}{R}
 > Flying
 > Once during each of your turns, you may cast an instant or sorcery spell from your graveyard. If a spell cast this way would be put into your graveyard, exile it instead.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "cast" after: once during each of your turns , you may cast an instant or sorcery spell from your graveyard . if a spell
+= Static([Once { yours: true, then: [PlayFrom { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, zone: Graveyard(You) }] }, Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Marked(Cast)], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Killer Instinct
 face: Killer Instinct

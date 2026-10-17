@@ -1294,6 +1294,11 @@ pub enum Marked {
     /// "For each card manifested this way" (Kozilek, the Broken Reality):
     /// turned face down as a 2/2 by the effect before (CR 701.40a).
     Manifested,
+    /// "the exiled cards that weren't cast this way": what an earlier "you
+    /// may cast that card" cast.
+    Cast,
+    /// "the cycled card": the card whose cycling ability the event is.
+    Cycled,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -3328,6 +3333,14 @@ pub enum Event {
     /// "you would draw one or more cards": one event however many, where
     /// "a card" is each draw.
     DrawsOneOrMore(Player),
+    /// "If a cycling ability of another nonland card would cause you to draw
+    /// a card" (Unpredictable Cyclone): a draw a cycling ability of `of`
+    /// makes `who` take (CR 702.29a), which `Antecedent` + `Marked(Cycled)`
+    /// ("the cycled card") names in what replaces it.
+    DrawsByCycling {
+        who: Player,
+        of: Objects,
+    },
     /// "this card is cast from exile".
     CastFrom {
         what: Objects,

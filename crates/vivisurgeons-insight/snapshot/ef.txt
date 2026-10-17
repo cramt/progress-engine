@@ -745,7 +745,7 @@ cost: {2}{R}
 > This enchantment can't be the target of white spells or abilities from white sources.
 > Sacrifice an Orc: Each player may tap any number of untapped white creatures they control. For each creature tapped this way, that player chooses up to two Plains. Then destroy all Plains that weren't chosen this way by any player.
 = BROKE at "white" after: this enchantment can't be the target of
-= BROKE at "weren't" after: sacrifice an orc : each player may tap any number of untapped white creatures they control . for each creature tapped this way , that player chooses up to two plains . then destroy all plains that
+= BROKE at "by" after: sacrifice an orc : each player may tap any number of untapped white creatures they control . for each creature tapped this way , that player chooses up to two plains . then destroy all plains that weren't chosen this way
 
 ## Rapacious Dragon
 face: Rapacious Dragon

@@ -1212,7 +1212,7 @@ cost: {U}
 > Cleave {1}{U}{U} (You may cast this spell for its cleave cost. If you do, remove the words in square brackets.)
 > Counter target spell [that wasn't cast from its owner's hand].
 = Keywords([Keyword { name: "cleave", param: Some(Cost([Mana(Mana(["1", "U", "U"]))])) }])
-= BROKE at "wasn't" after: counter target spell [ that
+= BROKE at "from" after: counter target spell [ that wasn't cast
 
 ## Watchful Naga
 face: Watchful Naga

@@ -1817,6 +1817,10 @@ impl Walk for Event {
             Event::DrawsOneOrMore(f0) => {
                 Walk::walk(f0, v);
             }
+            Event::DrawsByCycling { who, of } => {
+                Walk::walk(who, v);
+                Walk::walk(of, v);
+            }
             Event::CastFrom { what, zone } => {
                 Walk::walk(what, v);
                 Walk::walk(zone, v);

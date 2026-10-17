@@ -226,7 +226,7 @@ type: Creature — Human Wizard
 cost: {4}{W}
 > When this creature enters, starting with you, each player chooses up to five permanents they control. All permanents other than this creature that weren't chosen this way phase out.
 > Permanents can't phase in.
-= BROKE at "weren't" after: when this creature enters , starting with you , each player chooses up to five permanents they control . all permanents other than this creature that
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [StartingWith { first: You, then: [Performed { by: Each, effect: Choose(Objects(Objects { quant: UpTo(N(5)), filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That)], or: None } })) }] }, PhaseOut(Objects { quant: All, filter: Filter { alts: [], kind: Some(Permanent), posts: [OtherThanSelf, Not(Marked(Chosen))], or: None } })], limits: [] }
 = BROKE at "." after: permanents can't phase in
 
 ## Dominating Vampire

@@ -449,7 +449,7 @@ cost: {2}{R}{R}{R}
 > −8: You get an emblem with "You may cast instant and sorcery spells from your graveyard. If a spell cast this way would be put into your graveyard, exile it instead."
 = BROKE at "this" after: N(1) : add {R} {R} {R} . spend
 = Loyalty { change: N(1), effect: [Discard { who: You, what: Objects { quant: UpTo(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: ThatMany }] }
-= BROKE at "cast" after: N(-8) : you get an emblem with " you may cast instant and sorcery spells from your graveyard . if a spell
+= Loyalty { change: N(-8), effect: [Emblem([Static([PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, zone: Graveyard(You) }, Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Marked(Cast)], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])])] }
 
 ## Jhessian Thief
 face: Jhessian Thief

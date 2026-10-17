@@ -1040,6 +1040,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // "the number of creatures you controlled that were destroyed this
         // way" (Kaya's Wrath).
         |p| { p.one_of(&["that was", "that were"])?; let how = marked_this_way(p)?; p.words("this way")?; Some(Post::Marked(how)) },
+        |p| { p.one_of(&["that wasn't", "that weren't"])?; let how = marked_this_way(p)?; p.words("this way")?; Some(Post::Not(Box::new(Post::Marked(how)))) },
         |p| p.one_of(&["who doesn't", "who don't"]).map(|_| Post::WhoDoesnt),
         |p| p.words("who can't").map(|_| Post::WhoCant),
         |p| { p.one_of(&["that aren't", "that isn't"])?; p.one_of(&["on", "in"])?; zone(p).map(Post::NotIn) },
@@ -1645,6 +1646,7 @@ pub(super) fn marked(p: &mut P) -> Option<Marked> {
         |p| p.word("destroyed").map(|_| Marked::Destroyed),
         |p| p.word("milled").map(|_| Marked::Milled),
         |p| p.word("discarded").map(|_| Marked::Discarded),
+        |p| p.word("cycled").map(|_| Marked::Cycled),
     )
 }
 
@@ -1654,6 +1656,7 @@ pub(super) fn marked(p: &mut P) -> Option<Marked> {
 fn marked_this_way(p: &mut P) -> Option<Marked> {
     alt!(p;
         marked,
+        |p| p.word("cast").map(|_| Marked::Cast),
         |p| p.word("tapped").map(|_| Marked::Tapped),
         |p| p.word("removed").map(|_| Marked::Removed),
         |p| p.word("manifested").map(|_| Marked::Manifested),

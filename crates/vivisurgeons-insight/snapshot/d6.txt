@@ -603,7 +603,7 @@ cost: {X}{G}
 > This creature enters with X +1/+1 counters on it.
 > When this creature enters, reveal the top X cards of your library. You may put any number of Aura cards with mana value X or less from among them onto the battlefield. Then put all cards revealed this way that weren't put onto the battlefield on the bottom of your library in a random order.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: X, kind: "+1/+1" }])
-= BROKE at "weren't" after: when this creature enters , reveal the top x cards of your library . you may put any number of aura cards with mana value x or less from among them onto the battlefield . then put all cards revealed this way that
+= BROKE at "put" after: when this creature enters , reveal the top x cards of your library . you may put any number of aura cards with mana value x or less from among them onto the battlefield . then put all cards revealed this way that weren't
 
 ## Konstrari Annex
 face: Konstrari Annex

@@ -409,7 +409,7 @@ face: Jetsam
 type: Sorcery
 cost: {4}{U/B}{U/B}
 > Each opponent mills three cards, then you may cast a spell from each opponent's graveyard without paying its mana cost. If a spell cast this way would be put into a graveyard, exile it instead.
-= BROKE at "cast" after: each opponent mills three cards , then you may cast a spell from each opponent 's graveyard without paying its mana cost . if a spell
+= Spell([Mill { who: EachOpponent, n: N(3) }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Graveyard(EachOpponent))], or: None } }, payment: Free, dur: Permanent }] }, Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Marked(Cast)], or: None } }, to: AGraveyard, from: Anywhere }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Ghostly Wings
 face: Ghostly Wings

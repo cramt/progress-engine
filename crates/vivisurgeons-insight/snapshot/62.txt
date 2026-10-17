@@ -253,7 +253,7 @@ cost: {5}{U}{U}
 > Flying
 > When this creature enters, for each opponent, you may cast up to one target instant or sorcery card from that player's graveyard without paying its mana cost. If a spell cast this way would be put into a graveyard, exile it instead.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "cast" after: when this creature enters , for each opponent , you may cast up to one target instant or sorcery card from that player 's graveyard without paying its mana cost . if a spell
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, payment: Free, dur: Permanent }] }] }, Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Marked(Cast)], or: None } }, to: AGraveyard, from: Anywhere }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Disease Carriers
 face: Disease Carriers

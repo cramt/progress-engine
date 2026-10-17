@@ -770,7 +770,7 @@ cost: {5}{U}{U}
 > Flying
 > When this creature enters, you may cast target instant, sorcery, or artifact card from your graveyard without paying its mana cost. If an instant or sorcery spell cast this way would be put into your graveyard, exile it instead.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "cast" after: when this creature enters , you may cast target instant , sorcery , or artifact card from your graveyard without paying its mana cost . if an instant or sorcery spell
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")], [Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, payment: Free, dur: Permanent }] }, Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Marked(Cast)], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Setessan Training
 face: Setessan Training

@@ -486,7 +486,7 @@ face: Magus of the Mind
 type: Creature — Human Wizard
 cost: {4}{U}{U}
 > {U}, {T}, Sacrifice this creature: Shuffle your library, then exile the top X cards, where X is one plus the number of spells cast this turn. Until end of turn, you may play lands and cast spells from among cards exiled this way without paying their mana costs.
-= BROKE at "cast" after: {U} , {T} , sacrifice this creature : shuffle your library , then exile the top x cards , where x is one plus the number of spells
+= BROKE at "turn" after: {U} , {T} , sacrifice this creature : shuffle your library , then exile the top x cards , where x is one plus the number of spells cast this
 
 ## Meldweb Strider
 face: Meldweb Strider

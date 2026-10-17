@@ -135,7 +135,7 @@ cost: {6}{B}{B}
 > Flying
 > When this creature enters, if you cast it, each player sacrifices all other creatures they control. Then each player returns all creature cards from their graveyard that weren't put there this way to the battlefield.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "weren't" after: when this creature enters , if you cast it , each player sacrifices all other creatures they control . then each player returns all creature cards from their graveyard that
+= BROKE at "put" after: when this creature enters , if you cast it , each player sacrifices all other creatures they control . then each player returns all creature cards from their graveyard that weren't
 
 ## Bygone Colossus
 face: Bygone Colossus

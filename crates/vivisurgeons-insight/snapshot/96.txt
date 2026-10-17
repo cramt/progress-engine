@@ -340,7 +340,7 @@ cost: {2}{W}
 > Flying
 > When this creature enters, look at target opponent's hand. You may exile a nonland card from it. For as long as that card remains exiled, its owner may play it. A spell cast this way costs {2} more to cast.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "this" after: when this creature enters , look at target opponent 's hand . you may exile a nonland card from it . for as long as that card remains exiled , its owner may play it . a spell cast
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [LookAtHand { who: You, whose: TargetOpponent }, May { who: You, then: [Exile(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }), May { who: OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, payment: ManaCost, dur: ForAsLongAs(In { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, zone: Exile }) }] }] }, CostChange { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Marked(Cast)], or: None } }, by: Mana(["2"]), less: false, dur: Permanent }], limits: [] }
 
 ## Enduring Ideal
 face: Enduring Ideal

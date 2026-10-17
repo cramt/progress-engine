@@ -1098,7 +1098,7 @@ face: Twinning Glass
 type: Artifact
 cost: {4}
 > {1}, {T}: You may cast a spell from your hand without paying its mana cost if it has the same name as a spell that was cast this turn.
-= BROKE at "cast" after: {1} , {T} : you may cast a spell from your hand without paying its mana cost if it has the same name as a spell that was
+= BROKE at "turn" after: {1} , {T} : you may cast a spell from your hand without paying its mana cost if it has the same name as a spell that was cast this
 
 ## Unclaimed Territory
 face: Unclaimed Territory
