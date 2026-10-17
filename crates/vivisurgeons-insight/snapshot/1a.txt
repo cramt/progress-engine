@@ -449,7 +449,7 @@ cost: {W}{U}{B}{R}{G}
 > −3: Choose up to two target creatures. For each of them, put a number of +1/+1 counters on it equal to the number of colors it is.
 > −6: Return target multicolored card from your graveyard to your hand. If that card was all colors, draw a card and create two Treasure tokens.
 > Jared Carthalion can be your commander.
-= BROKE at "all" after: N(1) : create a <pt> kavu creature token with trample that's
+= Loyalty { change: N(1), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [White, Blue, Black, Red, Green], types: ["kavu", "creature"], keywords: [Keyword { name: "trample", param: None }], abilities: [], named: None, attacking: None } }] }
 = BROKE at "it" after: N(-3) : choose up to two target creatures . for each of them , put a number of <pt> counters on it equal to the number of colors
 = BROKE at "colors" after: N(-6) : return target multicolored card from your graveyard to your hand . if that card was all
 = Static([CanBeCommander])

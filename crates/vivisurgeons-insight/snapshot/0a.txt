@@ -688,7 +688,7 @@ cost: {5}{G}{G}
 > • Return target permanent card from your graveyard to your hand.
 > • Proliferate.
 > • You gain 4 life.
-= BROKE at "all" after: choose four . you may choose the same mode more than once . • create a <pt> citizen creature token that's
+= Spell([Modal { choose: Repeatable(N(4)), modes: [[Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White, Blue, Black, Red, Green], types: ["citizen", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], [Action { by: None, name: "proliferate", n: None }], [GainLife { who: You, n: N(4) }]] }])
 
 ## Possessed Aven
 face: Possessed Aven

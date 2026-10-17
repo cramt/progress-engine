@@ -813,7 +813,7 @@ cost: {G}{U}
 > The Minstrel's Ballad — At the beginning of combat on your turn, if you control five or more Towns, create a 2/2 Elemental creature token that's all colors.
 > {3}{W}{U}{B}{R}{G}: Other creatures you control get +X/+X until end of turn, where X is the number of Towns you control.
 = Static([EntersUntapped(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })])
-= BROKE at "all" after: the minstrel 's ballad — at the beginning of combat on your turn , if you control five or more towns , create a <pt> elemental creature token that's
+= Labelled { label: "the minstrel's ballad", ability: Triggered { trigger: InterveningIf(At(Combat(Yours)), YouControl(Objects { quant: AtLeast(N(5)), filter: Filter { alts: [[Subtype("town")]], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White, Blue, Black, Red, Green], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] } }
 = Activated { cost: [Mana(Mana(["3", "W", "U", "B", "R", "G"]))], effect: [Where { then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), gains: [], dur: UntilEndOfTurn }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("town")]], kind: None, posts: [Controller(You)], or: None } }) }], limits: [] }
 
 ## Three Tree Rootweaver

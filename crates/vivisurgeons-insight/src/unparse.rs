@@ -1797,6 +1797,13 @@ mod syn {
         );
     }
 
+    /// Named rewrite [all-colors]: "a 1/1 Fish creature token that's all
+    /// colors" (The Fish Brewer) is a white, blue, black, red, and green
+    /// token: "all colors" is each of the five (CR 105.1).
+    pub fn all_colors(o: &mut Out, spelled: Out, all: Out) {
+        alt(o, vec![spelled, all]);
+    }
+
     /// Named rewrite [except-for]: "destroy all creatures except creatures
     /// chosen this way" (Unstable Glyphbridge) is "except for creatures
     /// chosen this way": the same exclusion, with or without "for".
@@ -6548,6 +6555,34 @@ fn token_body(
     counted: bool,
     lead_tapped: bool,
 ) {
+    // "a 1/1 Fish creature token that's all colors": the five colors said
+    // out, or "all colors" after what the token has ([all-colors]).
+    if t.colors
+        == [
+            Color::White,
+            Color::Blue,
+            Color::Black,
+            Color::Red,
+            Color::Green,
+        ]
+    {
+        let spelled = out(|o| token_body_as(o, n, t, half, counted, lead_tapped, false));
+        let all = out(|o| token_body_as(o, n, t, half, counted, lead_tapped, true));
+        return syn::all_colors(o, spelled, all);
+    }
+    token_body_as(o, n, t, half, counted, lead_tapped, false);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn token_body_as(
+    o: &mut Out,
+    n: &Amount,
+    t: &Token,
+    half: Option<(&Amount, bool)>,
+    counted: bool,
+    lead_tapped: bool,
+    all_colors: bool,
+) {
     if lead_tapped {
         o.w("tapped");
     }
@@ -6560,7 +6595,7 @@ fn token_body(
     if let Some(pt) = &t.pt {
         o.tok(Tok::Pt(*pt));
     }
-    for (i, c) in t.colors.iter().enumerate() {
+    for (i, c) in t.colors.iter().enumerate().filter(|_| !all_colors) {
         if i > 0 && i + 1 == t.colors.len() {
             o.w("and");
         }
@@ -6583,6 +6618,10 @@ fn token_body(
     if counted {
         o.w("equal to");
         measure(o, n);
+    }
+    if all_colors {
+        that_is(o, amount_num(n));
+        o.w("all colors");
     }
     token_attacking(o, n, t, !lead_tapped);
 }

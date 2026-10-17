@@ -291,7 +291,7 @@ cost: {1}{G}
 > {T}, Tap an untapped creature you control: Add one mana of any color.
 > {3}{W}{U}{B}{R}{G}, Sacrifice this artifact: Create a 4/4 Dragon creature token named Reliquary Dragon that's all colors. It has flying, lifelink, and "When this token enters, it deals 3 damage to any target." Activate only as a sorcery.
 = Activated { cost: [Tap, TapUntapped(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
-= BROKE at "all" after: {3} {W} {U} {B} {R} {G} , sacrifice this artifact : create a <pt> dragon creature token named reliquary dragon that's
+= BROKE at "flying" after: {3} {W} {U} {B} {R} {G} , sacrifice this artifact : create a <pt> dragon creature token named reliquary dragon that's all colors . it has
 
 ## Dragonologist
 face: Dragonologist

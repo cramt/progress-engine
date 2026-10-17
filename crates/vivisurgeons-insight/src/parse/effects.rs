@@ -325,6 +325,24 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
             )?
         }
     };
+    // "a 1/1 Fish creature token that's all colors": each of the five
+    // (CR 105.1), said out ([all-colors]).
+    let colors = match colors.is_empty()
+        && p.attempt(|p| {
+            p.one_of(&["that's", "that are"])?;
+            p.words("all colors")
+        })
+        .is_some()
+    {
+        true => vec![
+            Color::White,
+            Color::Blue,
+            Color::Black,
+            Color::Red,
+            Color::Green,
+        ],
+        false => colors,
+    };
     // "that's tapped and attacking that player or a planeswalker they control";
     // with none named, its controller chooses (CR 508.4).
     let (tapped, attacking) = match p.attempt(|p| {
