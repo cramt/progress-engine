@@ -419,7 +419,7 @@ face: Hungry Ridgewolf
 type: Creature — Wolf
 cost: {1}{R}
 > As long as you control another Wolf or Werewolf, this creature gets +1/+0 and has trample.
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("wolf")], [Subtype("werewolf")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("wolf")], [Subtype("werewolf")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }])
 
 ## Hunting Moa
 face: Hunting Moa
@@ -919,7 +919,7 @@ face: Temur Battlecrier
 type: Creature — Orc Ranger
 cost: {G}{U}{R}
 > During your turn, spells you cast cost {1} less to cast for each creature you control with power 4 or greater.
-= Static([AsLongAs { cond: ItsYourTurn, then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }) }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }) }] }])
 
 ## Terrapact Intimidator
 face: Terrapact Intimidator

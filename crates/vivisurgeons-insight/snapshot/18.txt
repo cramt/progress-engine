@@ -891,7 +891,7 @@ cost: {2}{W}
 > When Toby enters, create a 4/4 white Beast creature token with "This token can't attack or block alone."
 > As long as you control four or more creature tokens, creature tokens you control have flying.
 = BROKE at "." after: when ~ enters , create a <pt> white beast creature token with " this token can't attack or block alone
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Tribal Unity
 face: Tribal Unity

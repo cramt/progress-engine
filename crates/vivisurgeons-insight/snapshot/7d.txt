@@ -827,7 +827,7 @@ cost: {X}{R}
 > This spell costs {2} less to cast if it targets a blue permanent.
 > This spell can't be countered.
 > Torch Breath deals X damage to target creature or planeswalker.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Permanent), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Permanent), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }])
 

@@ -102,7 +102,7 @@ cost: {2}{B}
 > Menace (This creature can't be blocked except by two or more creatures.)
 > This creature gets +3/+0 as long as an opponent has eight or more cards in their graveyard.
 = Keywords([Keyword { name: "menace", param: None }])
-= Static([AsLongAs { cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Blackbloom Rogue // Blackbloom Bog
 face: Blackbloom Bog
@@ -310,7 +310,7 @@ cost: {1}{R/W}
 > Changeling (This card is every creature type.)
 > During your turn, this creature has first strike.
 = Keywords([Keyword { name: "changeling", param: None }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Flare of Malice
 face: Flare of Malice
@@ -369,7 +369,7 @@ cost: {2}{G}
 > As long as enchanted permanent is a creature, it gets +2/+1.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [GreatestAmong { stat: Power, among: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } } }], or: None } }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Hoarder's Greed
 face: Hoarder's Greed
@@ -751,8 +751,8 @@ type: Creature — Human Soldier
 cost: {1}{W}
 > During your turn, this creature has first strike.
 > This creature gets +1/+0 as long as you control an Elspeth planeswalker.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("elspeth"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("elspeth"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Swerve
 face: Swerve

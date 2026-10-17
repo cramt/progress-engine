@@ -102,7 +102,7 @@ type: Sorcery
 cost: {3}{B}{B}
 > You may pay {B} rather than pay this spell's mana cost if there are thirteen or more creatures on the battlefield.
 > Each player sacrifices thirteen creatures of their choice.
-= Static([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }), op: Ge, value: N(13) }, then: [AlternativeCost([Mana(Mana(["B"]))])] }])
+= Static([If { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }), op: Ge, value: N(13) }, then: [AlternativeCost([Mana(Mana(["B"]))])] }])
 = Spell([Sacrifice { who: Each, what: Objects { quant: N(N(13)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }])
 
 ## Bloated Contaminator
@@ -131,7 +131,7 @@ type: Instant
 cost: {2}{G}
 > This spell costs {2} less to cast if it targets a black permanent.
 > Bouncer's Beatdown deals X damage to target creature or planeswalker, where X is the greatest power among creatures you control. If that creature or planeswalker would die this turn, exile it instead.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Permanent), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Permanent), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }], x: Greatest { stat: Power, among: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } } }, During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } }), instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 
 ## Cadric, Soul Kindler
@@ -176,7 +176,7 @@ type: Legendary Creature — Mutant Hero
 cost: {4}{G}
 > During your turn, Colossus has indestructible. (Damage and effects that say "destroy" don't destroy him.)
 > Other Mutants you control get +1/+1.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("mutant")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
 
 ## Combustible Gearhulk

@@ -90,7 +90,7 @@ cost: {4}{G}{G}
 > This spell costs {1} less to cast if you control a Desert.
 > Reach
 > Whenever this creature becomes the target of a spell or ability an opponent controls, you may draw a card.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("desert")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("desert")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "reach", param: None }])
 = Triggered { trigger: When(BecomesTarget { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }) }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
@@ -204,7 +204,7 @@ cost: {3}{B}
 > Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)
 > This creature gets +2/+2 as long as you have the city's blessing.
 = Keywords([Keyword { name: "ascend", param: None }])
-= Static([AsLongAs { cond: CitysBlessing(You), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: CitysBlessing(You), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Dwarven Landslide
 face: Dwarven Landslide
@@ -493,7 +493,7 @@ type: Enchantment Creature — Dragon Spirit
 > As long as you control five or more modified creatures, this creature gets +5/+5 and has trample. (Equipment, Auras you control, and counters are modifications.)
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["X"]))] }] }, WhenYouDo([PutCounters { n: X, kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }])], limits: [] }
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(5)), filter: Filter { alts: [[State(Modified), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(5)), filter: Filter { alts: [[State(Modified), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }])
 
 ## Kaya, Intangible Slayer
 face: Kaya, Intangible Slayer
@@ -666,7 +666,7 @@ type: Creature — Cat
 cost: {1}{B}{B}
 > This creature enters with eight revival counters on it if you cast it.
 > When this creature dies, if it had a revival counter on it, return it to the battlefield with one fewer revival counter on it at the beginning of the next end step.
-= Static([If { cond: YouCastIt(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(8), kind: "revival" }] }])
+= Static([If { order: Trailing, cond: YouCastIt(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(8), kind: "revival" }] }])
 = BROKE at "revival" after: when this creature dies , if it had a revival counter on it , return it to the battlefield with one fewer
 
 ## Ojer Axonil, Deepest Might // Temple of Power
@@ -962,7 +962,7 @@ cost: {3}{U}
 > At the beginning of your end step, exile up to one other target creature you control, then return that card to the battlefield under your control.
 > {3}{U}: Tap another target creature.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Blue]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Blue]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Triggered { trigger: At(EndStep(Yours)), effect: [Exile(Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }], limits: [] }
 = Activated { cost: [Mana(Mana(["3", "U"]))], effect: [Tap(Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
 

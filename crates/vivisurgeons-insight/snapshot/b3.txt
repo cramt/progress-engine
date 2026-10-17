@@ -220,7 +220,7 @@ cost: {6}
 > Imprint — When this creature enters, you may exile target nontoken creature.
 > As long as a card exiled with this creature is a creature card, this creature has the power, toughness, and creature types of the last creature card exiled with it. It's still a Shapeshifter.
 = Labelled { label: "imprint", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] } }
-= Static([AsLongAs { cond: Is { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [HasValuesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, values: [Power, Toughness, CreatureTypes], of: Objects { quant: Last, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, still: [Subtype("shapeshifter")] }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [HasValuesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, values: [Power, Toughness, CreatureTypes], of: Objects { quant: Last, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, still: [Subtype("shapeshifter")] }] }])
 
 ## Emrakul's Messenger
 face: Emrakul's Messenger
@@ -404,7 +404,7 @@ type: Creature — Elemental
 > As long as this creature is on the battlefield, it's a land in addition to its other types.
 > {T}: Add one mana of any color.
 = Keywords([Keyword { name: "vigilance", param: None }, Keyword { name: "haste", param: None }])
-= Static([AsLongAs { cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }, then: [AlsoIs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("land")]) }] }])
+= Static([AsLongAs { order: Leading, cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }, then: [AlsoIs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("land")]) }] }])
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 
 ## Involuntary Cooldown
@@ -481,7 +481,7 @@ face: Kessig Dire Swine
 type: Creature — Boar Horror
 cost: {4}{G}{G}
 > Delirium — This creature has trample as long as there are four or more card types among cards in your graveyard.
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }]) }
 
 ## Kjeldoran Escort
 face: Kjeldoran Escort

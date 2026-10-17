@@ -270,7 +270,7 @@ face: Court Homunculus
 type: Artifact Creature — Homunculus
 cost: {W}
 > This creature gets +1/+1 as long as you control another artifact.
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Devastation
 face: Devastation
@@ -533,7 +533,7 @@ cost: {2}{U}
 > Enchanted creature has flying as long as you control a red or white permanent.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red)], [Color(White)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red)], [Color(White)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Kasla, the Broken Halo
 face: Kasla, the Broken Halo
@@ -608,7 +608,7 @@ cost: {1}{W}{U}
 > As long as you've cast two or more noncreature spells this turn, Lyse Hext has double strike.
 = Keywords([Keyword { name: "prowess", param: None }])
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= Static([AsLongAs { cond: DidThisTurn(Casts { who: You, what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: DidThisTurn(Casts { who: You, what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
 
 ## Magewright's Stone
 face: Magewright's Stone
@@ -710,7 +710,7 @@ type: Instant
 cost: {3}{W}
 > If you've cast another white spell this turn, you may cast this spell without paying its mana cost.
 > Destroy all enchantments.
-= Static([If { cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [[Color(White)]], kind: Some(Spell), posts: [], or: None } } }), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [[Color(White)]], kind: Some(Spell), posts: [], or: None } } }), then: [CastWithoutPaying] }])
 = Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }])
 
 ## Pixie Illusionist
@@ -817,7 +817,7 @@ face: Scrapdiver Serpent
 type: Creature — Serpent
 cost: {5}{U}{U}
 > This creature can't be blocked as long as defending player controls an artifact.
-= Static([AsLongAs { cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 
 ## Serra Angel
 face: Serra Angel
@@ -1033,7 +1033,7 @@ cost: {8}
 > This creature has hexproof as long as it's untapped. (It can't be the target of spells or abilities your opponents control.)
 = Static([CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Modified), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }) }])
 = Keywords([Keyword { name: "trample", param: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 
 ## Wu Longbowman
 face: Wu Longbowman

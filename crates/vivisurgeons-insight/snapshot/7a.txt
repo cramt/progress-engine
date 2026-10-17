@@ -338,7 +338,7 @@ type: Creature — Elf Warrior
 cost: {G}
 > This creature gets +2/+2 as long as there are three or more land cards in your graveyard.
 > {2}, {T}, Sacrifice a land: Search your library for a land card, put it onto the battlefield tapped, then shuffle.
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Mana(Mana(["2"])), Tap, Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
 
 ## Expedition Raptor
@@ -472,7 +472,7 @@ face: Goblin Boarders
 type: Creature — Goblin Pirate
 cost: {2}{R}
 > Raid — This creature enters with a +1/+1 counter on it if you attacked this turn.
-= Labelled { label: "raid", ability: Static([If { cond: YouAttackedThisTurn, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }]) }
+= Labelled { label: "raid", ability: Static([If { order: Trailing, cond: YouAttackedThisTurn, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }]) }
 
 ## HULK SMASH!
 face: HULK SMASH!
@@ -926,7 +926,7 @@ cost: {2}{G}
 > When this creature enters, search your library for a basic land card, reveal it, put it into your hand, then shuffle.
 > Delirium — This creature gets +1/+2 and has vigilance as long as there are four or more card types among cards in your graveyard.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }]) }
 
 ## Stampeding Elk Herd
 face: Stampeding Elk Herd

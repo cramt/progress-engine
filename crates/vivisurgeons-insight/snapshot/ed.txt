@@ -395,7 +395,7 @@ face: Gigantoad
 type: Creature — Frog
 cost: {3}{G}
 > As long as you control seven or more lands, this creature gets +2/+2.
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Goblin Mutant
 face: Goblin Mutant
@@ -453,7 +453,7 @@ face: Inquisitor's Ox
 type: Creature — Ox
 cost: {3}{W}
 > Delirium — This creature gets +1/+0 and has vigilance as long as there are four or more card types among cards in your graveyard.
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }]) }
 
 ## Instant Ramen
 face: Instant Ramen

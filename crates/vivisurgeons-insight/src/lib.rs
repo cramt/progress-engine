@@ -688,7 +688,7 @@ mod tests {
         };
         assert!(matches!(
             &s[0],
-            Static::If { cond: Condition::YouControl(_), then } if matches!(then[0], Static::CostChange { less: true, .. })
+            Static::If { cond: Condition::YouControl(_), then, .. } if matches!(then[0], Static::CostChange { less: true, .. })
         ));
     }
 
@@ -1725,7 +1725,8 @@ mod tests {
             "You may cast this spell as though it had flash if you pay {2} more to cast it.\nYou may cast this spell as though it had flash if you control a Human.",
         );
         assert!(
-            a.contains("CastAsThoughFlashFor") && a.contains("If { cond: YouControl"),
+            a.contains("CastAsThoughFlashFor")
+                && a.contains("If { order: Trailing, cond: YouControl"),
             "{a}"
         );
         let a = one(

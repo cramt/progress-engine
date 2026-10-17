@@ -443,7 +443,7 @@ cost: {1}{B}{R}
 > Whenever Neheb deals combat damage to a player, each player discards a card.
 = Keywords([Keyword { name: "first strike", param: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("minotaur")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }])
-= Static([AsLongAs { cond: CardsInHandAtMost(1), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("minotaur")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: CardsInHandAtMost(1), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("minotaur")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
 
 ## Omen of the Hunt
@@ -653,7 +653,7 @@ type: Instant — Trap
 cost: {3}{G}
 > If a black creature with flying is attacking, you may pay {G} rather than pay this spell's mana cost.
 > Destroy target attacking creature with flying.
-= Static([If { cond: Is { what: Objects { quant: One, filter: Filter { alts: [[Color(Black), Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [AlternativeCost([Mana(Mana(["G"]))])] }])
+= Static([If { order: Leading, cond: Is { what: Objects { quant: One, filter: Filter { alts: [[Color(Black), Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [AlternativeCost([Mana(Mana(["G"]))])] }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, no_regen: false }])
 
 ## Slitherwisp

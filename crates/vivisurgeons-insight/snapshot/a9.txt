@@ -110,7 +110,7 @@ cost: {2}{W}
 > As long as you have 30 or more life, equipped creature gets +5/+5 and has indestructible and "Prevent all damage that would be dealt to this creature."
 > Equip {W}{W}
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }])
-= Static([AsLongAs { cond: PlayerHas { who: You, at_least: 30, what: Life }, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), has: [Keyword { name: "indestructible", param: None }], per: None }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Static([PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None }]) }] }])
+= Static([AsLongAs { order: Leading, cond: PlayerHas { who: You, at_least: 30, what: Life }, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), has: [Keyword { name: "indestructible", param: None }], per: None }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Static([PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None }]) }] }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["W", "W"]))])) }])
 
 ## Carrion Beetles
@@ -424,7 +424,7 @@ face: Giant Tortoise
 type: Creature — Turtle
 cost: {1}{U}
 > This creature gets +0/+3 as long as it's untapped.
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(3), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(3), signed: true }), has: [], per: None }] }])
 
 ## Glorybringer
 face: Glorybringer
@@ -606,7 +606,7 @@ face: Kumena's Speaker
 type: Creature — Merfolk Shaman
 cost: {G}
 > This creature gets +1/+1 as long as you control another Merfolk or an Island.
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("merfolk")], [Subtype("island")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("merfolk")], [Subtype("island")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Lantern Bearer // Lanterns' Lift
 face: Lantern Bearer
@@ -829,7 +829,7 @@ face: Pterodon Knight
 type: Creature — Human Knight
 cost: {3}{W}
 > This creature has flying as long as you control a Dinosaur.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dinosaur")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dinosaur")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Quilled Charger
 face: Quilled Charger
@@ -969,7 +969,7 @@ cost: {W}
 > Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)
 > This creature gets +3/+0 as long as you have the city's blessing.
 = Keywords([Keyword { name: "ascend", param: None }])
-= Static([AsLongAs { cond: CitysBlessing(You), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: CitysBlessing(You), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Spindrift Drake
 face: Spindrift Drake

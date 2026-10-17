@@ -467,7 +467,7 @@ type: Land
 > If you control two or more other lands, this land enters tapped.
 > {T}: Add {B}.
 > {3}{B}: Until end of turn, this land becomes a 3/3 black Beholder creature with menace and "Whenever this creature attacks, exile target card from defending player's graveyard." It's still a land.
-= Static([If { cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[State(Other), Type("land")]], kind: None, posts: [], or: None } }), then: [EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[State(Other), Type("land")]], kind: None, posts: [], or: None } }), then: [EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["B"])))], limits: [] }
 = Activated { cost: [Mana(Mana(["3", "B"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Color(Black), Subtype("beholder"), Type("creature")], gains: [Keyword { name: "menace", param: None }], keeps: Listed([Type("land")]), dur: Permanent }, GrantAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(DefendingPlayer))], or: None } })], limits: [] }, dur: Permanent }] }], limits: [] }
 
@@ -579,7 +579,7 @@ cost: {3}{G}{W}
 > As long as your devotion to green and white is less than seven, Karametra isn't a creature.
 > Whenever you cast a creature spell, you may search your library for a Forest or Plains card, put it onto the battlefield tapped, then shuffle.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Green, White]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Green, White]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("forest")], [Subtype("plains")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You)] }], limits: [] }
 
 ## Kindred Charge

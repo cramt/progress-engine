@@ -252,7 +252,7 @@ face: Earth Surge
 type: Enchantment
 cost: {3}{G}
 > Each land gets +2/+2 as long as it's a creature.
-= Static([AsLongAs { cond: Is { what: Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Ecstatic Electromancer
 face: Ecstatic Electromancer
@@ -450,7 +450,7 @@ cost: {3}{W}
 > Permanents your opponents control can't be turned face up during your turn.
 > Whenever you attack with three or more creatures, creatures you control get +1/+1 until end of turn.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(EachOpponent)], or: None } }, rule: CantBeTurnedFaceUp }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(EachOpponent)], or: None } }, rule: CantBeTurnedFaceUp }] }])
 = Triggered { trigger: When(AttacksWith { who: You, what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, at: None }), effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Keldon Berserker
@@ -682,7 +682,7 @@ face: Raph's Bravado
 type: Enchantment
 cost: {1}{R}
 > During your turn, attacking creatures get +1/+0.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Rebuff the Wicked
 face: Rebuff the Wicked
@@ -764,7 +764,7 @@ cost: {1}{U}
 > {1}, Discard a card: Create a 0/3 blue Crab creature token.
 > Delirium — Crabs you control get +1/+1 as long as there are four or more card types among cards in your graveyard.
 = Activated { cost: [Mana(Mana(["1"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(3), signed: false }), colors: [Blue], types: ["crab", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("crab")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("crab")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }]) }
 
 ## Selesnya Sagittars
 face: Selesnya Sagittars
@@ -893,7 +893,7 @@ face: Sunspear Shikari
 type: Creature — Cat Soldier
 cost: {1}{W}
 > As long as this creature is equipped, it has first strike and lifelink. (It deals combat damage before creatures without first strike. Damage dealt by it also causes you to gain that much life.)
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }], per: None }] }])
 
 ## Survivors' Encampment
 face: Survivors' Encampment

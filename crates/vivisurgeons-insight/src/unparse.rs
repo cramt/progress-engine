@@ -12414,6 +12414,7 @@ fn statics(o: &mut Out, ss: &[Static]) {
                         what: spell.clone(),
                     }));
                     said.push(Static::If {
+                        order: ClauseOrder::Leading,
                         cond,
                         then: rules.clone(),
                     });
@@ -13088,7 +13089,7 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("during");
             step(o, s);
         }
-        Static::AsLongAs { cond, then } => {
+        Static::AsLongAs { cond, then, .. } => {
             if let (
                 [Static::ControlPlayer(Player::That)],
                 Condition::Searching {
@@ -13250,6 +13251,7 @@ fn static_other(o: &mut Out, s: &Static) {
         Static::If {
             cond: Condition::YourNthTurn(v),
             then,
+            ..
         } if matches!(&then[..], [Static::PlayerRestrict { who: Player::You, rules }]
             if matches!(&rules[..], [PlayerRule::CantCast(_)])) =>
         {
@@ -13266,7 +13268,7 @@ fn static_other(o: &mut Out, s: &Static) {
             }
             o.w("turns of the game");
         }
-        Static::If { cond, then } => {
+        Static::If { cond, then, .. } => {
             let before = out(|o| {
                 o.w("if");
                 condition(o, cond);

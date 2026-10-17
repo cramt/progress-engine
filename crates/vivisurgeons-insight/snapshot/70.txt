@@ -375,7 +375,7 @@ type: Instant
 cost: {4}{U}
 > This spell costs {2} less to cast if you've cast another spell this turn.
 > Draw three cards, then discard a card.
-= Static([If { cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
 
 ## Frilled Cave-Wurm

@@ -86,7 +86,7 @@ face: Blood Burglar
 type: Creature — Vampire Rogue
 cost: {1}{B}
 > During your turn, this creature has lifelink.(Damage dealt by this creature also causes you to gain that much life.)
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 
 ## Boarded Window
 face: Boarded Window
@@ -571,7 +571,7 @@ face: Mystic Visionary
 type: Creature — Human Nomad Mystic
 cost: {1}{W}
 > Threshold — This creature has flying as long as there are seven or more cards in your graveyard.
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }]) }
 
 ## Nissa's Expedition
 face: Nissa's Expedition
@@ -724,7 +724,7 @@ type: Creature — Sliver
 cost: {2}{R}
 > All Sliver creatures have "This creature gets +1/+1 as long as you control a Swamp."
 > All Slivers have "{B}: Regenerate this permanent." (The next time it would be destroyed this turn, instead tap it, remove it from combat, and heal all damage on it.)
-= Static([HasAbility { what: Objects { quant: All, filter: Filter { alts: [[Subtype("sliver"), Type("creature")]], kind: None, posts: [], or: None } }, ability: Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }]) }])
+= Static([HasAbility { what: Objects { quant: All, filter: Filter { alts: [[Subtype("sliver"), Type("creature")]], kind: None, posts: [], or: None } }, ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }]) }])
 = Static([HasAbility { what: Objects { quant: All, filter: Filter { alts: [[Subtype("sliver")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["B"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] } }])
 
 ## Shard Convergence
@@ -778,7 +778,7 @@ face: Spinehorn Minotaur
 type: Creature — Minotaur Berserker
 cost: {2}{R}
 > As long as you've drawn two or more cards this turn, this creature has double strike.
-= Static([AsLongAs { cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
 
 ## Splinter, Hamato Yoshi
 face: Splinter, Hamato Yoshi
@@ -823,7 +823,7 @@ face: Tenacious Hunter
 type: Creature — Crocodile
 cost: {2}{G}{G}
 > As long as a creature has a -1/-1 counter on it, this creature has vigilance and deathtouch.
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, kind: Some("-1/-1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }, Keyword { name: "deathtouch", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: HasCounter { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, kind: Some("-1/-1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }, Keyword { name: "deathtouch", param: None }], per: None }] }])
 
 ## Thelonite Monk
 face: Thelonite Monk

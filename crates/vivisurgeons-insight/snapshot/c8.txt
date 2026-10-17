@@ -34,7 +34,7 @@ type: Legendary Creature — Wolf Beast
 cost: {3}{G}
 > During your turn, commanders you control have indestructible. (Effects that say "destroy" don't destroy them. A creature with indestructible can't be destroyed by damage.)
 > Partner (You can have two commanders if both have partner.)
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Commander), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Commander), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Keywords([Keyword { name: "partner", param: None }])
 
 ## Angrath, Minotaur Pirate
@@ -560,7 +560,7 @@ face: Kithkin Greatheart
 type: Creature — Kithkin Soldier
 cost: {1}{W}
 > As long as you control a Giant, this creature gets +1/+1 and has first strike.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("giant")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("giant")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Kuro, Pitlord
 face: Kuro, Pitlord
@@ -895,7 +895,7 @@ cost: {U}{B}
 > Whenever one or more Rogues you control attack, each opponent mills two cards.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("rogue")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("rogue")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
 = Triggered { trigger: When(Attacks(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Subtype("rogue")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Mill { who: EachOpponent, n: N(2) }], limits: [] }
 
 ## Splash Portal
@@ -1141,7 +1141,7 @@ face: Vivien's Crocodile
 type: Creature — Crocodile Spirit
 cost: {2}{G}
 > This creature gets +1/+1 as long as you control a Vivien planeswalker.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("vivien"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("vivien"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Wildfire Emissary
 face: Wildfire Emissary
@@ -1158,7 +1158,7 @@ type: Creature — Human Werewolf
 cost: {5}{G}
 > This spell costs {2} less to cast if you control a Wolf or Werewolf.
 > Daybound (If a player casts no spells during their own turn, it becomes night next turn.)
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("wolf")], [Subtype("werewolf")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("wolf")], [Subtype("werewolf")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "daybound", param: None }])
 
 ## Wolfkin Outcast // Wedding Crasher

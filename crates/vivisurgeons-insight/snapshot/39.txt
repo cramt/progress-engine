@@ -173,7 +173,7 @@ face: Deathmask Nezumi
 type: Creature — Rat Shaman
 cost: {2}{B}
 > As long as you have seven or more cards in hand, this creature gets +2/+1 and has fear. (It can't be blocked except by artifact creatures and/or black creatures.)
-= Static([AsLongAs { cond: PlayerHas { who: You, at_least: 7, what: CardsInHand }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [Keyword { name: "fear", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: PlayerHas { who: You, at_least: 7, what: CardsInHand }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [Keyword { name: "fear", param: None }], per: None }] }])
 
 ## Demonic Embrace
 face: Demonic Embrace
@@ -419,7 +419,7 @@ type: Sorcery
 cost: {3}{W}{W}{W}
 > This spell costs {3} less to cast if there are ten or more nonland permanents on the battlefield.
 > Destroy all nonland permanents.
-= Static([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [In(Battlefield)], or: None } }), op: Ge, value: N(10) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [In(Battlefield)], or: None } }), op: Ge, value: N(10) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }])
 
 ## Indigo Faerie
@@ -586,7 +586,7 @@ type: Instant
 cost: {2}{R}
 > This spell costs {1} less to cast if you control a Vampire.
 > Neonate's Rush deals 1 damage to target creature and 1 damage to its controller. Draw a card.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, Draw { who: You, n: N(1) }])
 
 ## Nori, Teller of Tales

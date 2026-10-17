@@ -143,7 +143,7 @@ cost: {2}{U}
 > Flying
 > As long as you control an artifact, this creature gets +1/+0.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Comet, Stellar Pup
 face: Comet, Stellar Pup
@@ -247,8 +247,8 @@ cost: {1}{W}
 > Enchanted creature gets +1/+2 as long as it's white.
 > Enchanted creature has shroud as long as its controller controls another creature. (It can't be the target of spells or abilities.)
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(White)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }] }])
-= Static([AsLongAs { cond: PlayerControls(ControllerOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Objects { quant: One, filter: Filter { alts: [[OtherThan(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "shroud", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(White)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(ControllerOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Objects { quant: One, filter: Filter { alts: [[OtherThan(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "shroud", param: None }], per: None }] }])
 
 ## Flameblast Dragon
 face: Flameblast Dragon
@@ -629,7 +629,7 @@ cost: {4}
 > This creature can't be blocked by Walls.
 > Threshold — As long as there are seven or more cards in your graveyard, this creature gets +3/+0 and attacks each combat if able.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Subtype("wall")]], kind: None, posts: [], or: None }) }])
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksEachCombat }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksEachCombat }] }]) }
 
 ## Panicked Altisaur
 face: Panicked Altisaur

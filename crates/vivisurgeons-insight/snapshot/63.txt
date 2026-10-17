@@ -453,7 +453,7 @@ face: Imperial Lancer
 type: Creature — Human Knight
 cost: {W}
 > This creature has double strike as long as you control a Dinosaur.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dinosaur")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dinosaur")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
 
 ## Imposter Mech
 face: Imposter Mech
@@ -870,7 +870,7 @@ cost: {2}{R}
 > Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)
 > This creature has first strike as long as it's attacking.
 = Keywords([Keyword { name: "prowess", param: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Thoughtpicker Witch
 face: Thoughtpicker Witch

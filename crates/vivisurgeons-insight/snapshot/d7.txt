@@ -332,7 +332,7 @@ cost: {1}{W}
 > Vigilance
 > This creature has lifelink as long as you control another Cleric.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("cleric")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("cleric")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 
 ## Eyes of the Watcher
 face: Eyes of the Watcher
@@ -389,7 +389,7 @@ cost: {2}{W}
 > Flying
 > As long as this creature is enchanted, it has "{T}: This creature deals 2 damage to target attacking or blocking creature."
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Enchanted)]], kind: None, posts: [], or: None } }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(AttackingOrBlocking), Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Enchanted)]], kind: None, posts: [], or: None } }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(AttackingOrBlocking), Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] } }] }])
 
 ## Frenzied Saddlebrute
 face: Frenzied Saddlebrute
@@ -715,7 +715,7 @@ face: Metamorphic Wurm
 type: Creature — Elephant Wurm
 cost: {3}{G}{G}
 > Threshold — This creature gets +4/+4 as long as there are seven or more cards in your graveyard.
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: true }), has: [], per: None }] }]) }
 
 ## Metathran Soldier
 face: Metathran Soldier
@@ -1023,7 +1023,7 @@ type: Instant
 cost: {4}{U}
 > If an opponent controls a Forest and you control an Island, you may cast this spell without paying its mana cost.
 > Put target creature on top of its owner's library.
-= Static([If { cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
 = Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None }])
 
 ## Sudden Reclamation

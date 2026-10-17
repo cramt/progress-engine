@@ -162,7 +162,7 @@ type: Instant
 cost: {3}{B}
 > This spell costs {3} less to cast if it targets a creature that was dealt damage this turn.
 > Destroy target creature. Its controller loses 2 life.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WasDealtDamageThisTurn { by: None, combat: false }], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WasDealtDamageThisTurn { by: None, combat: false }], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, LoseLife { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2) }])
 
 ## Blood Baron of Vizkopa
@@ -172,7 +172,7 @@ cost: {3}{W}{B}
 > Lifelink, protection from white and from black
 > As long as you have 30 or more life and an opponent has 10 or less life, this creature gets +6/+6 and has flying.
 = Keywords([Keyword { name: "lifelink", param: None }, Keyword { name: "protection", param: Some(Colors([White, Black])) }])
-= Static([AsLongAs { cond: And([PlayerHas { who: You, at_least: 30, what: Life }, PlayerHasAtMost { who: AnOpponent, at_most: 10, what: Life }]), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(6), toughness: N(6), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: And([PlayerHas { who: You, at_least: 30, what: Life }, PlayerHasAtMost { who: AnOpponent, at_most: 10, what: Life }]), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(6), toughness: N(6), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Bloombrute
 face: Bloombrute
@@ -373,7 +373,7 @@ cost: {1}{R}{R}
 > Exquisite Firecraft deals 4 damage to any target.
 > Spell mastery — If there are two or more instant and/or sorcery cards in your graveyard, this spell can't be countered.
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
-= Labelled { label: "spell mastery", ability: Static([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }] }]) }
+= Labelled { label: "spell mastery", ability: Static([If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }] }]) }
 
 ## Fire Nation Ambushers
 face: Fire Nation Ambushers
@@ -1141,7 +1141,7 @@ cost: {1}{R}
 > Equipped creature gets +3/+0 as long as it's legendary.
 > Equip {1}{R}
 = BROKE at "unattach" after: equipped creature has " {1} {R} , {T} ,
-= Static([AsLongAs { cond: Is { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Supertype("legendary")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Supertype("legendary")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1", "R"]))])) }])
 
 ## Trail of Crumbs

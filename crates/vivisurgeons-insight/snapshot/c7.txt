@@ -167,7 +167,7 @@ face: Daggersail Aeronaut
 type: Creature — Goblin
 cost: {3}{R}
 > During your turn, this creature has flying.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Dance of the Skywise
 face: Dance of the Skywise
@@ -182,7 +182,7 @@ type: Instant
 cost: {2}{R}
 > If you control a commander, you may cast this spell without paying its mana cost.
 > You may choose new targets for target spell or ability.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
 = Spell([May { who: You, then: [ChooseNewTargets(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } })] }])
 
 ## Devil's Play
@@ -242,7 +242,7 @@ cost: {3}{B}
 > Your opponents can't gain life.
 > {1}{B}, Pay 2 life: Draw a card.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Black]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Black]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Static([PlayerRestrict { who: EachOpponent, rules: [CantGainLife] }])
 = Activated { cost: [Mana(Mana(["1", "B"])), PayLife(N(2))], effect: [Draw { who: You, n: N(1) }], limits: [] }
 
@@ -451,7 +451,7 @@ cost: {1}{W}
 > Bushido 1 (Whenever this creature blocks or becomes blocked, it gets +1/+1 until end of turn.)
 > As long as you control a legendary Samurai, this creature gets +1/+2 and has vigilance. (Attacking doesn't cause this creature to tap.)
 = Keywords([Keyword { name: "bushido", param: Some(N(N(1))) }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Subtype("samurai")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Subtype("samurai")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
 
 ## Kuro's Taken
 face: Kuro's Taken
@@ -852,7 +852,7 @@ cost: {2}{W}{B}
 > During your turn, creatures and planeswalkers you control have lifelink.
 > +2: Sorin deals 1 damage to target player or planeswalker.
 > −X: Return target creature card with mana value X from your graveyard to the battlefield. That creature is a Vampire in addition to its other types.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 = Loyalty { change: N(2), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }] }
 = Loyalty { change: MinusX, effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Eq, value: X }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Subtype("vampire")], keeps: OtherTypes, pt: None, gains: [] }] }
 
@@ -905,7 +905,7 @@ cost: {2}
 > Syr Ginger has trample, hexproof, and haste as long as an opponent controls a planeswalker.
 > Whenever another artifact you control is put into a graveyard from the battlefield, put a +1/+1 counter on Syr Ginger and scry 1.
 > {2}, {T}, Sacrifice Syr Ginger: You gain life equal to its power.
-= Static([AsLongAs { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }, Keyword { name: "hexproof", param: None }, Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }, Keyword { name: "hexproof", param: None }, Keyword { name: "haste", param: None }], per: None }] }])
 = Triggered { trigger: When(PutInto { what: Objects { quant: Another, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, to: AGraveyard, from: Battlefield }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Scry(N(1))], limits: [] }
 = Activated { cost: [Mana(Mana(["2"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [GainLife { who: You, n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], limits: [] }
 

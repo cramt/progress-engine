@@ -4,7 +4,7 @@ type: Creature — Human Wizard
 cost: {4}{U}
 > This spell costs {1} less to cast if you control a Wizard.
 > When this creature enters, return target creature an opponent controls to its owner's hand.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Ambush Gigapede
@@ -336,7 +336,7 @@ type: Legendary Creature — Avatar
 > Echo of the Lost — During your turn, you may play cards from your graveyard.
 > If a card or token would be put into your graveyard from anywhere, exile it instead.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Labelled { label: "echo of the lost", ability: Static([AsLongAs { cond: ItsYourTurn, then: [PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, zone: Graveyard(You) }] }]) }
+= Labelled { label: "echo of the lost", ability: Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, zone: Graveyard(You) }] }]) }
 = Static([Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: Some(Filter { alts: [], kind: Some(Token), posts: [], or: None }) } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Enduring Renewal
@@ -439,7 +439,7 @@ face: Garrison Sergeant
 type: Creature — Lizard Soldier
 cost: {3}{R}{W}
 > This creature has double strike as long as you control a Gate.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("gate")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("gate")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
 
 ## Geralf's Messenger
 face: Geralf's Messenger
@@ -1218,7 +1218,7 @@ face: Weapons Trainer
 type: Creature — Human Soldier Ally
 cost: {R}{W}
 > Other creatures you control get +1/+0 as long as you control an Equipment.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Wild Mongrel
 face: Wild Mongrel

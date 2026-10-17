@@ -71,7 +71,7 @@ face: Backwoods Survivalists
 type: Creature — Human Warrior
 cost: {3}{G}
 > Delirium — This creature gets +1/+1 and has trample as long as there are four or more card types among cards in your graveyard.
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }]) }
 
 ## Barkweave Crusher
 face: Barkweave Crusher
@@ -201,7 +201,7 @@ cost: {2}{U}
 > When this creature enters, surveil 3. (Look at the top three cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)
 > Threshold — This creature can't be blocked as long as there are seven or more cards in your graveyard.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Surveil(N(3))], limits: [] }
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }]) }
 
 ## Chronic Flooding
 face: Chronic Flooding
@@ -691,7 +691,7 @@ cost: {3}{W}{W}
 > As long as you have four or more cards in hand, Kiyomaro has vigilance.
 > Whenever Kiyomaro deals damage, if you have seven or more cards in hand, you gain 7 life.
 = Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }) }])
-= Static([AsLongAs { cond: PlayerHas { who: You, at_least: 4, what: CardsInHand }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: PlayerHas { who: You, at_least: 4, what: CardsInHand }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }] }])
 = Triggered { trigger: InterveningIf(When(DealsDamage(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), PlayerHas { who: You, at_least: 7, what: CardsInHand }), effect: [GainLife { who: You, n: N(7) }], limits: [] }
 
 ## Kothophed, Soul Hoarder

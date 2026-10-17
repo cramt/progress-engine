@@ -175,7 +175,7 @@ face: Circle of the Moon Druid
 type: Creature — Human Elf Druid
 cost: {2}{G}
 > Bear Form — During your turn, this creature is a Bear with base power and toughness 4/2. (It loses all other creature types.)
-= Labelled { label: "bear form", ability: Static([AsLongAs { cond: ItsYourTurn, then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Subtypes([Subtype("bear")]) }, BasePt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Pt { power: N(4), toughness: N(2), signed: false } }] }]) }
+= Labelled { label: "bear form", ability: Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Subtypes([Subtype("bear")]) }, BasePt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Pt { power: N(4), toughness: N(2), signed: false } }] }]) }
 
 ## Circular Logic
 face: Circular Logic
@@ -888,7 +888,7 @@ face: Slumbering Trudge
 type: Creature — Plant Beast
 cost: {X}{G}
 > This creature enters with a number of stun counters on it equal to three minus X. If X is 2 or less, it enters tapped. (If a permanent with a stun counter would become untapped, remove one from it instead.)
-= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Minus(N(3), X), kind: "stun" }, If { cond: AmountIs { n: X, op: Le, value: N(2) }, then: [EntersTapped(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Minus(N(3), X), kind: "stun" }, If { order: Leading, cond: AmountIs { n: X, op: Le, value: N(2) }, then: [EntersTapped(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Soldevi Sentry
 face: Soldevi Sentry

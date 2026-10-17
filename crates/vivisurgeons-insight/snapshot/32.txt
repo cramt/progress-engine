@@ -377,7 +377,7 @@ type: Creature — Ape
 cost: {3}{R}
 > This creature gets +1/+1 as long as you control a Forest.
 > {4}{G}: Target creature gets +2/+2 and gains trample until end of turn. (It can deal excess combat damage to the player or planeswalker it's attacking.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Mana(Mana(["4", "G"]))], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Lavafume Invoker
@@ -428,7 +428,7 @@ cost: {2}{B}{R}{G}
 > As long as it's your turn, Maarika has indestructible.
 > Whenever Maarika deals damage to a creature, if that creature was dealt excess damage this turn, that creature's controller sacrifices a noncreature, nonland permanent.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MustBeBlocked }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = BROKE at "excess" after: whenever ~ deals damage to a creature , if that creature was dealt
 
 ## MacCready, Lamplight Mayor
@@ -661,7 +661,7 @@ cost: {3}{U}{U}
 > Warp {1}{U}
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= Static([AsLongAs { cond: CardsInHandAtMost(1), then: [Replacement { event: DrawsOneOrMore(You), instead: [Draw { who: You, n: Plus(ThatMany, 1) }] }] }])
+= Static([AsLongAs { order: Leading, cond: CardsInHandAtMost(1), then: [Replacement { event: DrawsOneOrMore(You), instead: [Draw { who: You, n: Plus(ThatMany, 1) }] }] }])
 = Keywords([Keyword { name: "warp", param: Some(Cost([Mana(Mana(["1", "U"]))])) }])
 
 ## Razing Snidd

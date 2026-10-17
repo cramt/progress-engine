@@ -390,7 +390,7 @@ cost: {1}{W}{W}
 > +1: Up to one other target creature you control gains your choice of vigilance, lifelink, or indestructible until end of turn.
 > −6: Exile target nonland permanent.
 = BROKE at "<pt>" after: during your turn , ~ is a
-= Static([AsLongAs { cond: ItsYourTurn, then: [PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None }] }])
 = Loyalty { change: N(1), effect: [GainsChoiceOf { what: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, keywords: [Keyword { name: "vigilance", param: None }, Keyword { name: "lifelink", param: None }, Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }] }
 = Loyalty { change: N(-6), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } })] }
 
@@ -525,7 +525,7 @@ cost: {2}{R}{W}
 > Creatures you control have menace.
 > Prevent all damage that would be dealt to attacking creatures you control.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Red, White]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Red, White]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }], per: None }])
 = Static([PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })]), by: None }])
 
@@ -938,8 +938,8 @@ type: Artifact Creature — Scarecrow
 cost: {6}
 > This creature has wither as long as you control a green creature. (It deals damage to creatures in the form of -1/-1 counters.)
 > This creature has vigilance as long as you control a white creature.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "wither", param: None }], per: None }] }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "wither", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }] }])
 
 ## Thoughtweft Gambit
 face: Thoughtweft Gambit

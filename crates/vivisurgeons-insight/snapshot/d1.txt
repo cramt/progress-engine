@@ -13,7 +13,7 @@ cost: {4}{W}
 > As long as enchanted permanent is a Vehicle, it's a creature in addition to its other types.
 > Enchanted creature gets +2/+2 and has flying.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [], or: None } })) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } }, then: [AlsoIs { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("creature")]) }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } }, then: [AlsoIs { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("creature")]) }] }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }])
 
 ## Airborne Aid
@@ -619,7 +619,7 @@ cost: {X}{R}{R}
 > If this spell was kicked, it has split second. (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)
 > Molten Disaster deals X damage to each creature without flying and each player.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["R"]))])) }])
-= Static([If { cond: WasKicked, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "split second", param: None }], per: None }] }])
+= Static([If { order: Leading, cond: WasKicked, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "split second", param: None }], per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithoutKeyword("flying")], or: None } }), Player(Each)] }])
 
 ## Moment of Triumph
@@ -946,7 +946,7 @@ type: Creature — Wurm
 cost: {G}
 > This creature has deathtouch as long as you control three or more artifacts.
 > Whenever an artifact you control enters, you gain 1 life. If this is the first time this ability has resolved this turn, put a +1/+1 counter on this creature.
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
 = Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [GainLife { who: You, n: N(1) }, If { order: Leading, cond: NthResolution(1), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Tezzeret's Touch

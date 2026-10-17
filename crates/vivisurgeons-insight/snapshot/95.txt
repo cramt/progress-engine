@@ -106,7 +106,7 @@ face: Boggart Sprite-Chaser
 type: Creature — Goblin Warrior
 cost: {1}{R}
 > As long as you control a Faerie, this creature gets +1/+1 and has flying.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("faerie")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("faerie")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Brago's Representative
 face: Brago's Representative
@@ -438,7 +438,7 @@ face: Goblin Blast-Runner
 type: Creature — Goblin
 cost: {R}
 > This creature gets +2/+0 and has menace as long as you sacrificed a permanent this turn.
-= Static([AsLongAs { cond: DidThisTurn(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: DidThisTurn(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
 
 ## Goblin King
 face: Goblin King

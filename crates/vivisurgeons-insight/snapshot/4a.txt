@@ -139,7 +139,7 @@ type: Creature — Lizard Assassin
 cost: {2}{B/R}
 > This creature enters with a +1/+1 counter on it if an opponent lost life this turn.
 > {1}{B/R}: This creature gains menace until end of turn. (It can't be blocked except by two or more creatures.)
-= Static([If { cond: DidThisTurn(LosesLife(AnOpponent)), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(LosesLife(AnOpponent)), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
 = Activated { cost: [Mana(Mana(["1", "B/R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "menace", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Codespell Cleric
@@ -421,7 +421,7 @@ cost: {2}{W}{W}
 > As long as you control four or more Humans, Humans you control get +2/+2.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(KeywordsAmong { n: 2, among: [Keyword { name: "first strike", param: None }, Keyword { name: "vigilance", param: None }, Keyword { name: "lifelink", param: None }] })] }])
 = Static([HasChosenAbilities(Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [Controller(You)], or: None } })])
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Grindstone
 face: Grindstone
@@ -447,7 +447,7 @@ type: Legendary Creature — God Warrior
 cost: {3}{R}{G}{W}
 > Havi has indestructible as long as there are four or more historic cards in your graveyard. (Artifacts, legendaries, and Sagas are historic.)
 > Sage Project — Whenever Havi or another legendary creature you control dies, return target legendary creature card with lesser mana value from your graveyard to the battlefield tapped.
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Historic)]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Historic)]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Labelled { label: "sage project", ability: Triggered { trigger: When(Dies(Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Lt, value: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }], limits: [] } }
 
 ## Hixus, Prison Warden

@@ -92,7 +92,7 @@ cost: {3}{R}{W}
 > During your turn, other historic creatures you control have double strike.
 > Disguise {1}{R}{W} (You may cast this card face down for {3} as a 2/2 creature with ward {2}. Turn it face up any time for its disguise cost.)
 = Keywords([Keyword { name: "double strike", param: None }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), State(Historic), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), State(Historic), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["1", "R", "W"]))])) }])
 
 ## Blighted Shaman
@@ -706,7 +706,7 @@ cost: {2}{W}
 > Storied (If you control three or more artifacts, legendaries, and/or Sagas, you have an enduring story for the rest of the game.)
 > As long as you have an enduring story, Ori gets +1/+0 and has vigilance.
 = Keywords([Keyword { name: "storied", param: None }])
-= Static([AsLongAs { cond: EnduringStory(You), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: EnduringStory(You), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
 
 ## Orim's Chant
 face: Orim's Chant
@@ -723,7 +723,7 @@ type: Enchantment
 cost: {2}{W}
 > As long as your life total is greater than or equal to your starting life total, creatures you control get +1/+1.
 > Whenever one or more creatures you control attack, you gain life equal to the number of attacking creatures.
-= Static([AsLongAs { cond: AmountIs { n: LifeTotal(You), op: Ge, value: StartingLifeTotal(You) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: LifeTotal(You), op: Ge, value: StartingLifeTotal(You) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 = Triggered { trigger: When(Attacks(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [GainLife { who: You, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }) }], limits: [] }
 
 ## Path to the Festival

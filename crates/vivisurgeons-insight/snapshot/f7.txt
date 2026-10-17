@@ -48,7 +48,7 @@ face: Angrath's Ambusher
 type: Creature — Orc Pirate
 cost: {2}{B}
 > This creature gets +2/+0 as long as you control an Angrath planeswalker.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("angrath"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("angrath"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Angrath's Rampage
 face: Angrath's Rampage
@@ -145,7 +145,7 @@ cost: {2}{B}
 > This creature enters with a +1/+1 counter on it if a creature died this turn.
 > Plot {1}{B} (You may pay {1}{B} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([If { cond: DidThisTurn(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
 = Keywords([Keyword { name: "plot", param: Some(Cost([Mana(Mana(["1", "B"]))])) }])
 
 ## Capashen Standard
@@ -225,7 +225,7 @@ cost: {3}{W}
 > This creature enters with a shield counter on it. (If it would be dealt damage or destroyed, remove a shield counter from it instead.)
 > During your turn, this creature gets +2/+0.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "shield" }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Dazzling Lights
 face: Dazzling Lights
@@ -250,7 +250,7 @@ face: Dhund Operative
 type: Creature — Human Rogue
 cost: {1}{B}
 > As long as you control an artifact, this creature gets +1/+0 and has deathtouch.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
 
 ## Disarm
 face: Disarm
@@ -378,7 +378,7 @@ face: Fledgling Osprey
 type: Creature — Bird
 cost: {U}
 > This creature has flying as long as it's enchanted.
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Enchanted)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Enchanted)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Forge Armor
 face: Forge Armor
@@ -736,7 +736,7 @@ face: Prickleboar
 type: Creature — Boar
 cost: {4}{R}
 > During your turn, this creature gets +2/+0 and has first strike. (It deals combat damage before creatures without first strike.)
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Python
 face: Python

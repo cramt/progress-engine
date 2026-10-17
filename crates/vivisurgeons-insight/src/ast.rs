@@ -3531,7 +3531,10 @@ pub enum Static {
         what: Objects,
         step: Step,
     },
+    /// "As long as X, Y" (`Leading`) or "Y as long as X" (`Trailing`), in
+    /// reading order ([backref]).
     AsLongAs {
+        order: ClauseOrder,
         cond: Condition,
         then: Vec<Static>,
     },
@@ -3578,7 +3581,10 @@ pub enum Static {
         what: Objects,
         equal_to: Amount,
     },
+    /// "If X, Y" (`Leading`) or "Y if X" (`Trailing`), in reading order
+    /// ([backref]).
     If {
+        order: ClauseOrder,
         cond: Condition,
         then: Vec<Static>,
     },

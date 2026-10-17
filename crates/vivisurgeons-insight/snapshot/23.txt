@@ -301,7 +301,7 @@ type: Instant
 cost: {4}{W}
 > This spell costs {2} less to cast if it targets a tapped creature.
 > Destroy target nonland permanent.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }])
 
 ## Fateful Showdown
@@ -609,7 +609,7 @@ cost: {B}
 > Discard a card: This creature gains flying until end of turn.
 > Threshold — As long as there are seven or more cards in your graveyard, this creature gets +1/+1 and can't block.
 = Activated { cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], limits: [] }
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }] }]) }
 
 ## Quirion Elves
 face: Quirion Elves
@@ -990,7 +990,7 @@ cost: {2}
 > As long as Weatherlight Compleated has four or more phyresis counters on it, it's a Phyrexian creature in addition to its other types.
 > Whenever a creature you control dies, put a phyresis counter on Weatherlight Compleated. Then draw a card if it has seven or more phyresis counters on it. If it doesn't, scry 1.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("phyresis"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(4) }, then: [AlsoIs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Subtype("phyrexian"), Type("creature")]) }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("phyresis"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(4) }, then: [AlsoIs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Subtype("phyrexian"), Type("creature")]) }] }])
 = BROKE at "," after: whenever a creature you control dies , put a phyresis counter on ~ . then draw a card if it has seven or more phyresis counters on it . if it doesn't
 
 ## Wing It

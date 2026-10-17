@@ -176,7 +176,7 @@ face: Combat Celebrant
 type: Creature — Human Warrior
 cost: {2}{R}
 > If this creature hasn't been exerted this turn, you may exert it as it attacks. When you do, untap all other creatures you control and after this phase, there is an additional combat phase. (An exerted creature won't untap during your next untap step.)
-= Static([If { cond: Not(DidThisTurn(Exerts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } })), then: [ExertAsAttacks { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [WhenYouDo([Untap(Objects { quant: All, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), AdditionalPhases { after: None, phases: [Combat] }])] }] }])
+= Static([If { order: Leading, cond: Not(DidThisTurn(Exerts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } })), then: [ExertAsAttacks { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [WhenYouDo([Untap(Objects { quant: All, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), AdditionalPhases { after: None, phases: [Combat] }])] }] }])
 
 ## Conclave Sledge-Captain
 face: Conclave Sledge-Captain
@@ -627,7 +627,7 @@ type: Instant
 cost: {2}{U}
 > This spell costs {1} less to cast if you control a Pirate.
 > Counter target spell unless its controller pays {4}.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("pirate")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("pirate")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["4"]))])) }])
 
 ## Machinist's Arsenal
@@ -681,7 +681,7 @@ type: Creature — Kavu Soldier
 cost: {3}{R}
 > During your turn, other creatures you control get +1/+0.
 > Warp {1}{R} (You may cast this card from your hand for its warp cost. Exile this creature at the beginning of the next end step, then you may cast it from exile on a later turn.)
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
 = Keywords([Keyword { name: "warp", param: Some(Cost([Mana(Mana(["1", "R"]))])) }])
 
 ## Memory Guardian
@@ -700,7 +700,7 @@ cost: {3}{U}{U}
 > When this creature enters, create two 0/2 blue Illusion creature tokens with "Whenever this token blocks a creature, that creature doesn't untap during its controller's next untap step."
 > This creature has hexproof as long as you control an Illusion.
 = BROKE at "," after: when this creature enters , create two <pt> blue illusion creature tokens with " whenever this token blocks a creature
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("illusion")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("illusion")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 
 ## Meteor Shower
 face: Meteor Shower

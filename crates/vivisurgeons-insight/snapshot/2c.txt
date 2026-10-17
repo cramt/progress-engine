@@ -167,7 +167,7 @@ cost: {2}{U}
 > This spell has flash as long as you control a Merfolk.
 > Return target creature to its owner's hand.
 > Draw a card.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("merfolk")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flash", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("merfolk")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flash", param: None }], per: None }] }])
 = Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
 = Spell([Draw { who: You, n: N(1) }])
 
@@ -324,7 +324,7 @@ type: Instant
 cost: {1}{U}{U}
 > If it's not your turn, you may exile a blue card from your hand rather than pay this spell's mana cost.
 > Counter target noncreature spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.
-= Static([If { cond: NotYourTurn, then: [AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])] }])
+= Static([If { order: Leading, cond: NotYourTurn, then: [AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])] }])
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } }, unless: None }, If { order: Leading, cond: ThisWay(Countered(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })), then: [InsteadOf { then: Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), of: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersGraveyard, tapped: false, transformed: false, under: None, order: None } }] }])
 
 ## Foul Roads
@@ -982,7 +982,7 @@ cost: {W}
 > Enchanted creature gets +2/+2 as long as an opponent controls a white permanent.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Restrict { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [], or: None }) }])
-= Static([AsLongAs { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Color(White)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Color(White)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Wildvine Pummeler
 face: Wildvine Pummeler

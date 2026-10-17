@@ -12,7 +12,7 @@ type: Instant
 cost: {1}{U}{U}
 > Raid — If you attacked this turn, you may pay {U} rather than pay this spell's mana cost.
 > Counter target spell.
-= Labelled { label: "raid", ability: Static([If { cond: YouAttackedThisTurn, then: [AlternativeCost([Mana(Mana(["U"]))])] }]) }
+= Labelled { label: "raid", ability: Static([If { order: Leading, cond: YouAttackedThisTurn, then: [AlternativeCost([Mana(Mana(["U"]))])] }]) }
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }])
 
 ## Alabaster Leech
@@ -458,7 +458,7 @@ face: Gray Slaad
 type: Creature — Frog Horror
 cost: {2}{B}
 > As long as there are four or more creature cards in your graveyard, this creature has menace and deathtouch.
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }, Keyword { name: "deathtouch", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }, Keyword { name: "deathtouch", param: None }], per: None }] }])
 
 ## Gray Slaad // Entropic Decay
 face: Entropic Decay
@@ -921,7 +921,7 @@ cost: {4}{U}{U}
 > As long as you control four or more artifacts, this creature has hexproof. (It can't be the target of spells or abilities your opponents control.)
 > Tap two untapped artifacts you control: Draw a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 = Activated { cost: [TapUntapped(Objects { quant: N(N(2)), filter: Filter { alts: [[State(Untapped), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Shorecrasher Mimic

@@ -126,7 +126,7 @@ cost: {4}{R/W}{R/W}
 > As long as you have an enduring story, if a triggered ability of a Dwarf you control triggers, that ability triggers an additional time.
 = Keywords([Keyword { name: "storied", param: None }])
 = Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: EnduringStory(You), then: [AdditionalTrigger { of: Objects { quant: One, filter: Filter { alts: [[Subtype("dwarf")]], kind: None, posts: [Controller(You)], or: None } }, cause: None }] }])
+= Static([AsLongAs { order: Leading, cond: EnduringStory(You), then: [AdditionalTrigger { of: Objects { quant: One, filter: Filter { alts: [[Subtype("dwarf")]], kind: None, posts: [Controller(You)], or: None } }, cause: None }] }])
 
 ## Blazing Torch
 face: Blazing Torch
@@ -384,7 +384,7 @@ cost: {1}{G}
 > Defender (This creature can't attack.)
 > As long as you control a creature with power 4 or greater, this creature can attack as though it didn't have defender.
 = Keywords([Keyword { name: "defender", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
 
 ## Eshki, Temur's Roar
 face: Eshki, Temur's Roar

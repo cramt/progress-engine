@@ -187,7 +187,7 @@ type: Creature — Human Soldier
 cost: {2}{W}
 > If an opponent controls a Swamp and you control a Plains, you may cast this spell without paying its mana cost.
 > Protection from black
-= Static([If { cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
 = Keywords([Keyword { name: "protection", param: Some(Colors([Black])) }])
 
 ## Chrome Host Seedshark
@@ -280,7 +280,7 @@ type: Creature — Dwarf Warrior
 cost: {R}{W}
 > This creature has lifelink as long as you control another Dwarf.
 > When this creature enters, look at the top four cards of your library. You may reveal a Dwarf or Equipment card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("dwarf")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("dwarf")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [LookAtTop { who: You, whose: You, n: N(4) }, May { who: You, then: [Reveal { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("dwarf")], [Subtype("equipment")]], kind: Some(Card), posts: [FromAmongThem], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }], limits: [] }
 
 ## Ertai's Familiar
@@ -632,7 +632,7 @@ face: Necrotic Ooze
 type: Creature — Ooze
 cost: {2}{B}{B}
 > As long as this creature is on the battlefield, it has all activated abilities of all creature cards in all graveyards.
-= Static([AsLongAs { cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }, then: [HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } } }] }])
+= Static([AsLongAs { order: Leading, cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }, then: [HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } } }] }])
 
 ## Noxious Vapors
 face: Noxious Vapors

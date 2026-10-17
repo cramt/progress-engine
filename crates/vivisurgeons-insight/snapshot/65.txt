@@ -225,7 +225,7 @@ face: Dragonloft Idol
 type: Artifact Creature — Gargoyle
 cost: {4}
 > As long as you control a Dragon, this creature gets +1/+1 and has flying and trample.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }], per: None }] }])
 
 ## Drake Familiar
 face: Drake Familiar
@@ -492,7 +492,7 @@ face: Inventor's Apprentice
 type: Creature — Human Artificer
 cost: {R}
 > This creature gets +1/+1 as long as you control an artifact.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Ionize
 face: Ionize
@@ -662,7 +662,7 @@ cost: {1}{R}
 > Haste
 > This creature gets +1/+1 as long as you control another red creature.
 = Keywords([Keyword { name: "haste", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Color(Red), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Color(Red), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Niko Aris
 face: Niko Aris
@@ -951,7 +951,7 @@ cost: {3}{U}
 > This spell costs {2} less to cast if you've cast a noncreature spell this turn.
 > Flying, vigilance
 > Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)
-= Static([If { cond: DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
 = Keywords([Keyword { name: "prowess", param: None }])
 

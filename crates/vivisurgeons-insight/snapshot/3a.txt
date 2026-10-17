@@ -137,7 +137,7 @@ cost: {1}{B/R}{B/R}
 > When this creature enters, discard your hand, then investigate four times. (To investigate, create a Clue token. It's an artifact with "{2}, Sacrifice this token: Draw a card.")
 > As long as you have one or fewer cards in hand, this creature gets +2/+2 and has menace.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [DiscardHand(You), Repeat { times: N(4), then: [Action { by: None, name: "investigate", n: None }] }], limits: [] }
-= Static([AsLongAs { cond: CardsInHandAtMost(1), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: CardsInHandAtMost(1), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
 
 ## Carrion Wurm
 face: Carrion Wurm
@@ -279,7 +279,7 @@ cost: {4}{G}{W}
 > Your opponents can't cast spells during your turn.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "lifelink", param: None }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
 
 ## Dreadbringer Lampads
 face: Dreadbringer Lampads
@@ -478,7 +478,7 @@ cost: {1}{B}{B}
 > As long as Haakon is on the battlefield, you may cast Knight spells from your graveyard.
 > When Haakon dies, you lose 2 life.
 = BROKE at "not" after: you may cast this card from your graveyard , but
-= Static([AsLongAs { cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }, then: [PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("knight")]], kind: Some(Spell), posts: [], or: None } }, zone: Graveyard(You) }] }])
+= Static([AsLongAs { order: Leading, cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }, then: [PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("knight")]], kind: Some(Spell), posts: [], or: None } }, zone: Graveyard(You) }] }])
 = Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: You, n: N(2) }], limits: [] }
 
 ## Hammerheim

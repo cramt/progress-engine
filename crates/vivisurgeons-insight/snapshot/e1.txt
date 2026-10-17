@@ -303,7 +303,7 @@ face: Heir of the Ancient Fang
 type: Creature — Snake Samurai
 cost: {2}{G}
 > This creature enters with a +1/+1 counter on it if you control a modified creature. (Equipment, Auras you control, and counters are modifications.)
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[State(Modified), Type("creature")]], kind: None, posts: [], or: None } }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[State(Modified), Type("creature")]], kind: None, posts: [], or: None } }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
 
 ## Herald of Anguish
 face: Herald of Anguish
@@ -521,7 +521,7 @@ face: Moorland Drifter
 type: Creature — Spirit
 cost: {1}{W}
 > Delirium — This creature has flying as long as there are four or more card types among cards in your graveyard.
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }]) }
 
 ## Nightscape Master
 face: Nightscape Master
@@ -546,7 +546,7 @@ cost: {7}
 > Counter target spell or ability that targets a permanent you control.
 > This spell costs {7} less to cast if it targets a spell or ability that targets a creature you control with power 7 or greater.
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Targets(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } })], or: None } }, unless: None }])
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Targets(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(7) })], or: None } })], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["7"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Targets(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(7) })], or: None } })], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["7"]), less: true, per: None }] }])
 
 ## Ognis, the Dragon's Lash
 face: Ognis, the Dragon's Lash
@@ -797,7 +797,7 @@ cost: {1}{G}
 > Vigilance
 > As long as you control six or more lands, this creature and land creatures you control get +2/+2.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(6)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfAnd(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("land"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(6)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfAnd(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("land"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Taste of Blood
 face: Taste of Blood

@@ -12,7 +12,7 @@ face: Abzan Kin-Guard
 type: Creature — Human Warrior
 cost: {3}{G}
 > This creature has lifelink as long as you control a white or black permanent.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(White)], [Color(Black)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(White)], [Color(Black)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 
 ## Aegis of Honor
 face: Aegis of Honor
@@ -156,7 +156,7 @@ cost: {4}{W}
 > Flying, vigilance
 > Cosmic Awareness — As long as an opponent has cast a spell this turn, you may cast spells as though they had flash.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
-= Labelled { label: "cosmic awareness", ability: Static([AsLongAs { cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CastAsThoughFlash(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }]) }
+= Labelled { label: "cosmic awareness", ability: Static([AsLongAs { order: Leading, cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CastAsThoughFlash(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }]) }
 
 ## Case of the Filched Falcon
 face: Case of the Filched Falcon
@@ -313,7 +313,7 @@ type: Instant
 cost: {2}{U}
 > This spell costs {2} less to cast if it targets an attacking creature.
 > Return target creature to its owner's hand. Surveil 2. (Look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, Surveil(N(2))])
 
 ## Fade from History
@@ -566,7 +566,7 @@ type: Legendary Creature — Cat Warrior
 cost: {1}{G}{W}
 > Your opponents can't cast spells during your turn.
 > Whenever one or more creatures you control each with power greater than its base power deals combat damage to a player, draw a card.
-= Static([AsLongAs { cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Gt, value: BasePowerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Liliana's Indignation

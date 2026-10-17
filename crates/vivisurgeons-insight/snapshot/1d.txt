@@ -421,7 +421,7 @@ type: Land
 > If you control two or more other lands, this land enters tapped.
 > {T}: Add {G}.
 > {X}{G}: Until end of turn, this land becomes an X/X green Hydra creature. It's still a land. X can't be 0.
-= Static([If { cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[State(Other), Type("land")]], kind: None, posts: [], or: None } }), then: [EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[State(Other), Type("land")]], kind: None, posts: [], or: None } }), then: [EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] }
 = Activated { cost: [Mana(Mana(["X", "G"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: false }), types: [Color(Green), Subtype("hydra"), Type("creature")], gains: [], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [X(NotZero)] }
 
@@ -439,7 +439,7 @@ face: Lightwalker
 type: Creature — Human Warrior
 cost: {1}{W}
 > This creature has flying as long as it has a +1/+1 counter on it.
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Living Lies of Loki
 face: Living Lies of Loki

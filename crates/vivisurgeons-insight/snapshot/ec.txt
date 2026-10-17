@@ -51,7 +51,7 @@ face: Auriok Edgewright
 type: Creature — Human Soldier
 cost: {W}{W}
 > Metalcraft — This creature has double strike as long as you control three or more artifacts.
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }]) }
 
 ## Axis of Mortality
 face: Axis of Mortality
@@ -75,7 +75,7 @@ type: Creature — Human Soldier
 cost: {1}{W}
 > During your turn, this creature has first strike.
 > {4}{W}: Creatures you control get +1/+1 until end of turn.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Activated { cost: [Mana(Mana(["4", "W"]))], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Blood Mist
@@ -229,7 +229,7 @@ cost: {2}{U}{R}
 > This creature enters with two +1/+1 counters on it if you've cast two or more spells this turn.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Keywords([Keyword { name: "menace", param: None }])
-= Static([If { cond: DidThisTurn(Casts { who: You, what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(Casts { who: You, what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }])
 
 ## Elephant Guide
 face: Elephant Guide
@@ -336,7 +336,7 @@ cost: {3}{G}{G}
 > Reach (This creature can block creatures with flying.)
 > As long as you've drawn two or more cards this turn, this creature gets +0/+2 and has vigilance. (Attacking doesn't cause it to tap.)
 = Keywords([Keyword { name: "reach", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
 
 ## Goblin Bangchuckers
 face: Goblin Bangchuckers
@@ -441,7 +441,7 @@ face: Loam Lion
 type: Creature — Cat
 cost: {W}
 > This creature gets +1/+2 as long as you control a Forest.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Long Feng, Grand Secretariat
 face: Long Feng, Grand Secretariat
@@ -743,7 +743,7 @@ cost: {R}
 > First strike
 > Raid — This creature enters with a +1/+1 counter on it if you attacked this turn.
 = Keywords([Keyword { name: "first strike", param: None }])
-= Labelled { label: "raid", ability: Static([If { cond: YouAttackedThisTurn, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }]) }
+= Labelled { label: "raid", ability: Static([If { order: Trailing, cond: YouAttackedThisTurn, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }]) }
 
 ## Ruination Guide
 face: Ruination Guide
@@ -766,8 +766,8 @@ cost: {1}{U}
 > As long as enchanted permanent is an Equipment, it has "Equipped creature has flying."
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })) }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } }, then: [HasAbility { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }]) }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } }, then: [HasAbility { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }]) }] }])
 
 ## Ruthless Instincts
 face: Ruthless Instincts

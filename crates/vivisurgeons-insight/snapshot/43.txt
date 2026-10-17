@@ -160,7 +160,7 @@ cost: {4}{B}{B}
 > As long as you control an artifact creature or a Plan, Doctor Doom has indestructible.
 > At the beginning of your end step, you draw a card and lose 1 life.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateNamed { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Colorless], types: ["robot", "villain", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "doombot" }], limits: [] }
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact"), Type("creature")], [Subtype("plan")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact"), Type("creature")], [Subtype("plan")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Triggered { trigger: At(EndStep(Yours)), effect: [Draw { who: You, n: N(1) }, LoseLife { who: You, n: N(1) }], limits: [] }
 
 ## Dogmeat, Ever Loyal
@@ -886,7 +886,7 @@ type: Legendary Creature — Spider Human Hero
 cost: {3}{W/U}
 > During your turn, Sun-Spider has flying.
 > When Sun-Spider enters, search your library for an Aura or Equipment card, reveal it, put it into your hand, then shuffle.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("aura")], [Subtype("equipment")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
 
 ## Sylvan Shepherd
@@ -966,7 +966,7 @@ face: Vintara Snapper
 type: Creature — Turtle
 cost: {G}{G}
 > This creature has shroud as long as you control no untapped lands. (It can't be the target of spells or abilities.)
-= Static([AsLongAs { cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "shroud", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "shroud", param: None }], per: None }] }])
 
 ## Viridian Scout
 face: Viridian Scout

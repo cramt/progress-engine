@@ -158,7 +158,7 @@ cost: {3}{G}
 > Haste
 > Threshold — As long as there are seven or more cards in your graveyard, this creature has "When this creature enters, creatures you control get +1/+1 and gain trample until end of turn."
 = Keywords([Keyword { name: "haste", param: None }])
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [] } }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [] } }] }]) }
 
 ## Chain Devil
 face: Chain Devil
@@ -270,7 +270,7 @@ cost: {3}{G}
 > As long as enchanted permanent is a creature, it gets +3/+3 and has reach.
 > Channel — {1}{G}, Discard this card: Target creature gets +3/+3 and gains reach until end of turn.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [Keyword { name: "reach", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [Keyword { name: "reach", param: None }], per: None }] }])
 = Labelled { label: "channel", ability: Activated { cost: [Mana(Mana(["1", "G"])), Discard(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [Keyword { name: "reach", param: None }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Final Parting
@@ -660,8 +660,8 @@ cost: {7}{U}{U}{U}
 > Myojin of Seeing Winds enters with a divinity counter on it if you cast it from your hand.
 > Myojin of Seeing Winds has indestructible as long as it has a divinity counter on it.
 > Remove a divinity counter from Myojin of Seeing Winds: Draw a card for each permanent you control.
-= Static([If { cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "divinity" }] }])
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("divinity") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([If { order: Trailing, cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "divinity" }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("divinity") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "divinity", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Mystic Meditation
@@ -821,7 +821,7 @@ face: Scoria Cat
 type: Creature — Cat
 cost: {3}{R}{R}
 > This creature gets +3/+3 as long as you control no untapped lands.
-= Static([AsLongAs { cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }] }])
 
 ## Searing Flesh
 face: Searing Flesh
@@ -1106,7 +1106,7 @@ cost: {3}{W}
 > Whenever you gain life, put a +1/+1 counter on this creature.
 > As long as you have 25 or more life, this creature has double strike. (It deals both first-strike and regular combat damage.)
 = Triggered { trigger: When(GainsLife(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: PlayerHas { who: You, at_least: 25, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: PlayerHas { who: You, at_least: 25, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
 
 ## Tyrant of Valakut
 face: Tyrant of Valakut
@@ -1161,7 +1161,7 @@ face: Vigilant Sentry
 type: Creature — Human Nomad
 cost: {1}{W}{W}
 > Threshold — As long as there are seven or more cards in your graveyard, this creature gets +1/+1 and has "{T}: Target attacking or blocking creature gets +3/+3 until end of turn."
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(AttackingOrBlocking), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] } }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(AttackingOrBlocking), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] } }] }]) }
 
 ## Viridian Acolyte
 face: Viridian Acolyte

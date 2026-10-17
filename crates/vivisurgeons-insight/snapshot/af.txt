@@ -300,7 +300,7 @@ type: Sorcery
 cost: {3}{B}{B}
 > This spell costs {2} less to cast if a player's life total is less than or equal to half their starting life total.
 > Destroy all creatures.
-= Static([If { cond: AmountIs { n: LifeTotal(APlayer), op: Le, value: HalfUnrounded(StartingLifeTotal(That)) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: AmountIs { n: LifeTotal(APlayer), op: Le, value: HalfUnrounded(StartingLifeTotal(That)) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }])
 
 ## Geistblast
@@ -651,7 +651,7 @@ type: Sorcery
 cost: {2}{U}
 > This spell costs {1} less to cast if you control an Otter.
 > Draw two cards.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("otter")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("otter")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Draw { who: You, n: N(2) }])
 
 ## Phyrexian Scriptures
@@ -709,7 +709,7 @@ face: Protean Raider
 type: Creature — Shapeshifter Pirate
 cost: {1}{U}{R}
 > Raid — If you attacked this turn, you may have this creature enter as a copy of any creature on the battlefield.
-= Labelled { label: "raid", ability: Static([If { cond: YouAttackedThisTurn, then: [EntersAsCopy { may: true, tapped: false, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }, except: [] }] }]) }
+= Labelled { label: "raid", ability: Static([If { order: Leading, cond: YouAttackedThisTurn, then: [EntersAsCopy { may: true, tapped: false, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }, except: [] }] }]) }
 
 ## Pyromancy
 face: Pyromancy

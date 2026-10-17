@@ -149,7 +149,7 @@ face: Bubbling Beebles
 type: Creature — Beeble
 cost: {4}{U}
 > This creature can't be blocked as long as defending player controls an enchantment.
-= Static([AsLongAs { cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 
 ## Burning-Yard Trainer
 face: Burning-Yard Trainer
@@ -521,7 +521,7 @@ cost: {2}{W}{W}
 > As long as you have at least 7 life more than your starting life total, creatures you control get +2/+2.
 = OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Static([Replacement { event: GainsLife(You), instead: [GainLife { who: You, n: Plus(ThatMany, 1) }] }])
-= Static([AsLongAs { cond: AmountIs { n: LifeTotal(You), op: Ge, value: Plus(StartingLifeTotal(You), 7) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: LifeTotal(You), op: Ge, value: Plus(StartingLifeTotal(You), 7) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Littjara Mirrorlake
 face: Littjara Mirrorlake
@@ -605,7 +605,7 @@ type: Creature — Kithkin Advisor
 cost: {4}{G}
 > This spell costs {1} less to cast if you control a Kithkin.
 > When this creature enters, draw a card.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("kithkin")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("kithkin")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Mogg Maniac

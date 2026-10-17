@@ -338,7 +338,7 @@ face: Ezuri's Brigade
 type: Creature — Elf Warrior
 cost: {2}{G}{G}
 > Metalcraft — As long as you control three or more artifacts, this creature gets +4/+4 and has trample.
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }]) }
 
 ## False Floor
 face: False Floor

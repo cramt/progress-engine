@@ -446,7 +446,7 @@ type: Creature — Plant Beast
 cost: {4}{G}{G}
 > This spell costs {2} less to cast if your opponents control three or more creatures.
 > Reach
-= Static([If { cond: PlayerControls(EachOpponent, Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: PlayerControls(EachOpponent, Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "reach", param: None }])
 
 ## Loch Dragon
@@ -674,7 +674,7 @@ cost: {X}{G}{G}
 > This creature has trample as long as it has ten or more +1/+1 counters on it.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: X, kind: "+1/+1" }])
 = Triggered { trigger: At(Upkeep(Yours)), effect: [DoubleCounters { kind: Some("+1/+1"), on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(10) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(10) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
 
 ## Pteramander
 face: Pteramander
@@ -692,7 +692,7 @@ cost: {1}{R}{G}
 > During your turn, Radha has first strike.
 > You may look at the top card of your library any time, and you may play lands from the top of your library.
 > {4}{R}{G}: Radha gets +X/+X until end of turn, where X is the number of lands you control.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Static([LookAtTopAnyTime, PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, zone: TopOfLibrary(You) }])
 = Activated { cost: [Mana(Mana(["4", "R", "G"]))], effect: [Where { then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), gains: [], dur: UntilEndOfTurn }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }) }], limits: [] }
 

@@ -776,7 +776,7 @@ cost: {3}
 > Defender
 > As long as this creature is enchanted, it can attack as though it didn't have defender.
 = Keywords([Keyword { name: "defender", param: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Enchanted)]], kind: None, posts: [], or: None } }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Enchanted)]], kind: None, posts: [], or: None } }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
 
 ## Puca's Mischief
 face: Puca's Mischief
@@ -831,7 +831,7 @@ cost: {3}
 > {2}, {T}, Sacrifice a creature: Draw a card.
 > As long as you control a Cleric, this artifact has "Whenever a creature you control dies, each opponent loses 1 life and you gain 1 life."
 = Activated { cost: [Mana(Mana(["2"])), Tap, Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [] }
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("cleric")]], kind: None, posts: [], or: None } }), then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [LoseLife { who: EachOpponent, n: N(1) }, GainLife { who: You, n: N(1) }], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("cleric")]], kind: None, posts: [], or: None } }), then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [LoseLife { who: EachOpponent, n: N(1) }, GainLife { who: You, n: N(1) }], limits: [] } }] }])
 
 ## Rootwater Diver
 face: Rootwater Diver
@@ -1022,7 +1022,7 @@ type: Land
 > {W}{W}{U}{U}{B}{B}{R}{R}{G}{G}, {T}, Sacrifice this land: Search your library for any number of God cards, put them onto the battlefield, then shuffle.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] }
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(6)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(6)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] } }] }])
 = Activated { cost: [Mana(Mana(["W", "W", "U", "U", "B", "B", "R", "R", "G", "G"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("god")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
 
 ## Thrun, the Last Troll
@@ -1094,7 +1094,7 @@ cost: {B}{R}
 > As long as an opponent lost life this turn, each other Vampire you control enters with an additional +1/+1 counter on it.
 = Keywords([Keyword { name: "menace", param: None }])
 = Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), DidThisTurn(LosesLife(AnOpponent))), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[State(Other), Subtype("vampire")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: DidThisTurn(LosesLife(AnOpponent)), then: [EntersWithCounters { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Subtype("vampire")]], kind: None, posts: [Controller(You)], or: None } }, n: Additional(N(1)), kind: "+1/+1" }] }])
+= Static([AsLongAs { order: Leading, cond: DidThisTurn(LosesLife(AnOpponent)), then: [EntersWithCounters { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Subtype("vampire")]], kind: None, posts: [Controller(You)], or: None } }, n: Additional(N(1)), kind: "+1/+1" }] }])
 
 ## Vanguard Seraph
 face: Vanguard Seraph

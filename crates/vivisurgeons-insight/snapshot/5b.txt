@@ -49,7 +49,7 @@ type: Creature — Vampire
 cost: {1}{R}
 > This creature has first strike as long as it's attacking.
 > When this creature dies, create a Blood token. (It's an artifact with "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.")
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["blood"], keywords: [], abilities: [], named: Some("blood"), attacking: None } }], limits: [] }
 
 ## Blood-Chin Rager
@@ -271,7 +271,7 @@ cost: {2}{W}
 > As long as another Aura is attached to enchanted creature, it has first strike and lifelink.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }])
-= Static([AsLongAs { cond: AttachedTo { what: Objects { quant: Another, filter: Filter { alts: [[Subtype("aura")]], kind: None, posts: [], or: None } }, to: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AttachedTo { what: Objects { quant: Another, filter: Filter { alts: [[Subtype("aura")]], kind: None, posts: [], or: None } }, to: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }], per: None }] }])
 
 ## Fatal Blow
 face: Fatal Blow
@@ -793,7 +793,7 @@ type: Sorcery
 cost: {3}{R}
 > This spell costs {3} less to cast if you control a creature with menace.
 > Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("menace")], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("menace")], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }, Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }])
 
 ## The Key to the Vault

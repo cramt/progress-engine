@@ -129,7 +129,7 @@ cost: {1}{W}
 > Jump — During your turn, Cid has flying.
 > {2}, {T}: Return target Equipment or Vehicle card from your graveyard to your hand.
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")], [Subtype("vehicle")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= Labelled { label: "jump", ability: Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }]) }
+= Labelled { label: "jump", ability: Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }]) }
 = Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("equipment")], [Subtype("vehicle")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Command of Unsummoning
@@ -429,7 +429,7 @@ type: Legendary Creature — God
 cost: {2}{G}{G}
 > As long as you control three or more legendary creatures, Kolvori gets +4/+2 and has vigilance.
 > {1}{G}, {T}: Look at the top six cards of your library. You may reveal a legendary creature card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
 = Activated { cost: [Mana(Mana(["1", "G"])), Tap], effect: [LookAtTop { who: You, whose: You, n: N(6) }, May { who: You, then: [Reveal { who: You, what: Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: Some(Card), posts: [FromAmongThem], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }], limits: [] }
 
 ## Kolvori, God of Kinship // The Ringhart Crest
@@ -544,7 +544,7 @@ face: Personal Sanctuary
 type: Enchantment
 cost: {2}{W}
 > During your turn, prevent all damage that would be dealt to you.
-= Static([AsLongAs { cond: ItsYourTurn, then: [PreventDamage { combat_only: false, to: Some([Player(You)]), by: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [PreventDamage { combat_only: false, to: Some([Player(You)]), by: None }] }])
 
 ## Pilgrim of the Ages
 face: Pilgrim of the Ages
@@ -656,7 +656,7 @@ face: Ruthless Cullblade
 type: Creature — Vampire Warrior
 cost: {1}{B}
 > This creature gets +2/+1 as long as an opponent has 10 or less life.
-= Static([AsLongAs { cond: PlayerHasAtMost { who: AnOpponent, at_most: 10, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerHasAtMost { who: AnOpponent, at_most: 10, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Servant of Volrath
 face: Servant of Volrath

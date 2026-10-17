@@ -50,7 +50,7 @@ cost: {1}{W}
 > Whenever this creature becomes the target of a spell or ability for the first time each turn, put a +1/+1 counter on it.
 > As long as this creature has three or more +1/+1 counters on it, it has flying.
 = Triggered { trigger: When(FirstTimeEachTurn(BecomesTarget { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }) })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Angelic Quartermaster
 face: Angelic Quartermaster
@@ -147,7 +147,7 @@ cost: {3}{G}
 > This creature can't be blocked by creatures with power 2 or less.
 > As long as another creature entered the battlefield under your control this turn, this creature gets +2/+0.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(2) })], or: None }) }])
-= Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Cabal Evangel
 face: Cabal Evangel

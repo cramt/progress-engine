@@ -746,7 +746,7 @@ face: Renegade Firebrand
 type: Creature — Human Warrior
 cost: {2}{R}
 > As long as you control a Chandra planeswalker, this creature gets +1/+0 and has first strike. (It deals combat damage before creatures without first strike.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("chandra"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("chandra"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Resounding Roar
 face: Resounding Roar

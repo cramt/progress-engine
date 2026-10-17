@@ -55,7 +55,7 @@ cost: {1}{R}
 > This creature can't block.
 > Delirium — This spell has cascade as long as there are four or more card types among cards in your graveyard. (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "cascade", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "cascade", param: None }], per: None }] }]) }
 
 ## Bloodfray Giant
 face: Bloodfray Giant
@@ -128,7 +128,7 @@ cost: {B}{R}{G}
 > Haste
 > This creature has indestructible as long as it entered this turn.
 = Keywords([Keyword { name: "haste", param: None }])
-= Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: DidThisTurn(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 
 ## Cut of the Profits
 face: Cut of the Profits
@@ -448,7 +448,7 @@ cost: {4}{G}{G}
 > If Grunn was kicked, it enters with five +1/+1 counters on it.
 > Whenever Grunn attacks alone, double its power and toughness until end of turn.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3"]))])) }])
-= Static([If { cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(5), kind: "+1/+1" }] }])
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(5), kind: "+1/+1" }] }])
 = BROKE at "power" after: whenever ~ attacks alone , double its
 
 ## Haazda Officer
@@ -598,7 +598,7 @@ type: Legendary Creature — Human Druid
 cost: {G}{W}
 > During your turn, Mounts and Vehicles you control have hexproof.
 > Whenever a Mount or Vehicle you control attacks, put a +1/+1 counter on it.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("mount")], [Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("mount")], [Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 = Triggered { trigger: When(Attacks(Objects { quant: One, filter: Filter { alts: [[Subtype("mount")], [Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Mishra's Workshop
@@ -615,7 +615,7 @@ cost: {2}{B}{R}
 > As long as your devotion to black and red is less than seven, Mogis isn't a creature.
 > At the beginning of each opponent's upkeep, Mogis deals 2 damage to that player unless they sacrifice a creature of their choice.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Black, Red]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Black, Red]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Triggered { trigger: At(Upkeep(EachOpponent)), effect: [Unless { effect: Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(That)] }, who: That, cost: [Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } })] }], limits: [] }
 
 ## Narci, Fable Singer

@@ -186,7 +186,7 @@ cost: {1}{B}{B}
 > At the beginning of your upkeep, exile a card from your graveyard.
 > Threshold — As long as there are seven or more cards in your graveyard, this enchantment has "Whenever a nontoken creature is put into your graveyard from the battlefield, you may pay {1}. If you do, return that card to your hand."
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], limits: [] }
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(PutInto { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [], or: None } }, to: Graveyard(You), from: Battlefield }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1"]))] }] }, IfYouDo([Move { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] } }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(PutInto { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [], or: None } }, to: Graveyard(You), from: Battlefield }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1"]))] }] }, IfYouDo([Move { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] } }] }]) }
 
 ## Deepwood Elder
 face: Deepwood Elder
@@ -202,7 +202,7 @@ cost: {3}{B}{B}
 > Flying
 > Lieutenant — As long as you control your commander, this creature gets +2/+2 and has "Whenever this creature deals combat damage to a player, that player sacrifices a creature of their choice."
 = Keywords([Keyword { name: "flying", param: None }])
-= Labelled { label: "lieutenant", ability: Static([AsLongAs { cond: YouControl(Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: That, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }], limits: [] } }] }]) }
+= Labelled { label: "lieutenant", ability: Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: That, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }], limits: [] } }] }]) }
 
 ## Demonic Rising
 face: Demonic Rising
@@ -271,7 +271,7 @@ cost: {3}{U}
 > This spell costs {2} less to cast if it targets a tapped creature.
 > Return target nonland permanent to its owner's hand.
 > Draw a card.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
 = Spell([Draw { who: You, n: N(1) }])
 
@@ -674,7 +674,7 @@ cost: {2}{B}{B}
 > Crew 1
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } })), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [], kind: Some(Permanent), posts: [Named(PrintedName("Phoenix Fleet Airship"))], or: None } }), then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("artifact"), Type("creature")]) }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [], kind: Some(Permanent), posts: [Named(PrintedName("Phoenix Fleet Airship"))], or: None } }), then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("artifact"), Type("creature")]) }] }])
 = Keywords([Keyword { name: "crew", param: Some(N(N(1))) }])
 
 ## Phyresis
@@ -859,7 +859,7 @@ cost: {2}{U}
 > Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)
 > As long as you have the city's blessing, this creature has hexproof and can't be blocked.
 = Keywords([Keyword { name: "ascend", param: None }])
-= Static([AsLongAs { cond: CitysBlessing(You), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Leading, cond: CitysBlessing(You), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 
 ## Slumbering Cerberus
 face: Slumbering Cerberus

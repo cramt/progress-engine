@@ -145,7 +145,7 @@ cost: {2}{U}{U}
 > This creature gets +1/+1 as long as you control a Yanling planeswalker.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("yanling"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("yanling"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Charge Across the Araba
 face: Charge Across the Araba
@@ -891,7 +891,7 @@ type: Creature — Angel
 cost: {W}{W}
 > You can't cast Serra Avenger during your first, second, or third turns of the game.
 > Flying, vigilance
-= Static([If { cond: YourNthTurn([1, 2, 3]), then: [PlayerRestrict { who: You, rules: [CantCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
+= Static([If { order: Trailing, cond: YourNthTurn([1, 2, 3]), then: [PlayerRestrict { who: You, rules: [CantCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
 
 ## Shared Fate
@@ -1043,7 +1043,7 @@ cost: {U}
 > As long as this creature has three or more +1/+1 counters on it, it can attack as though it didn't have defender.
 = Keywords([Keyword { name: "defender", param: None }])
 = Triggered { trigger: When(Performs { who: You, action: "surveil" }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
 
 ## Tomakul Scrapsmith
 face: Tomakul Scrapsmith

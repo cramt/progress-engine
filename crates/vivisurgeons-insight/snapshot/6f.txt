@@ -238,7 +238,7 @@ cost: {1}{U}
 > Defender
 > As long as an opponent has eight or more cards in their graveyard, this creature can attack as though it didn't have defender and it can't be blocked.
 = Keywords([Keyword { name: "defender", param: None }])
-= Static([AsLongAs { cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Leading, cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 
 ## Explosive Singularity
 face: Explosive Singularity
@@ -631,7 +631,7 @@ cost: {3}{G}
 > Other creatures you control have trample.
 > {3}{G}: Target creature gets +2/+2 until end of turn.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Green]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Green]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }])
 = Activated { cost: [Mana(Mana(["3", "G"]))], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 

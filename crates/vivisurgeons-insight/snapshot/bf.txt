@@ -112,7 +112,7 @@ cost: {2}{W}
 > As long as enchanted permanent is a creature, it gets +1/+1 for each creature and/or Vehicle you control.
 > Channel — {2}{W}, Discard this card: Create two 1/1 colorless Pilot creature tokens with "This token crews Vehicles as though its power were 2 greater."
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } })) }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } })) }] }])
 = Labelled { label: "channel", ability: Activated { cost: [Mana(Mana(["2", "W"])), Discard(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["pilot", "creature"], keywords: [], abilities: [Static([PowerGreaterFor { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, keywords: [("crew", Objects { quant: Plural, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } })], by: N(2) }])], named: None, attacking: None } }], limits: [] } }
 
 ## Caltrops
@@ -143,7 +143,7 @@ face: Cloudreach Cavalry
 type: Creature — Human Soldier
 cost: {1}{W}
 > As long as you control a Bird, this creature gets +2/+2 and has flying.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("bird")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("bird")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Coalition Warbrute
 face: Coalition Warbrute
@@ -398,7 +398,7 @@ face: Greenwheel Liberator
 type: Creature — Elf Warrior
 cost: {1}{G}
 > Revolt — This creature enters with two +1/+1 counters on it if a permanent left the battlefield under your control this turn.
-= Labelled { label: "revolt", ability: Static([If { cond: DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }]) }
+= Labelled { label: "revolt", ability: Static([If { order: Trailing, cond: DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }]) }
 
 ## Grovetender Druids
 face: Grovetender Druids
@@ -414,7 +414,7 @@ cost: {3}{G}
 > Reach (This creature can block creatures with flying.)
 > As long as you control a Nissa planeswalker, this creature gets +2/+0 and has vigilance. (Attacking doesn't cause it to tap.)
 = Keywords([Keyword { name: "reach", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("nissa"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("nissa"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
 
 ## HELIOS One
 face: HELIOS One
@@ -617,7 +617,7 @@ type: Instant
 cost: {2}{B}{G}
 > This spell costs {2} less to cast if you gained life this turn.
 > Destroy target nonland permanent.
-= Static([If { cond: DidThisTurn(GainsLife(You)), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(GainsLife(You)), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }])
 
 ## Nazgûl
@@ -717,7 +717,7 @@ type: Land
 > {T}: Add {C}.
 > As long as this card is in your graveyard, lands you control have "{T}: Add {G} or {W}."
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Static([AsLongAs { cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, then: [HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Or([Mana(["G"]), Mana(["W"])]))], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, then: [HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Or([Mana(["G"]), Mana(["W"])]))], limits: [] } }] }])
 
 ## Roar of Resistance
 face: Roar of Resistance

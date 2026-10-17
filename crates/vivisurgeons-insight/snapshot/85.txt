@@ -83,7 +83,7 @@ cost: {6}{W}{W}
 > If you have 3 or less life, this spell costs {6} less to cast.
 > Flying
 > This creature can block any number of creatures.
-= Static([If { cond: LifeAtMost(3), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["6"]), less: true, per: None }] }])
+= Static([If { order: Leading, cond: LifeAtMost(3), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["6"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CanBlockAnyNumber }])
 

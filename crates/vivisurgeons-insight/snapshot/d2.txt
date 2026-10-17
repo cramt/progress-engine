@@ -340,7 +340,7 @@ cost: {1}{U}
 > This creature can't be blocked.
 > This creature gets +2/+0 as long as you control a commander that's a creature or planeswalker.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [ThatIs(Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None })], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [ThatIs(Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None })], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Guildpact Informant
 face: Guildpact Informant
@@ -399,7 +399,7 @@ cost: {3}{G}
 > This spell costs {3} less to cast if it targets a blue permanent you don't control.
 > This spell can't be countered.
 > Target creature you control gets +1/+1 until end of turn. Then it deals damage equal to its power to target creature or planeswalker you don't control.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Permanent), posts: [NotControlledBy(You)], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Permanent), posts: [NotControlledBy(You)], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
 = Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, Damage { source: Some(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [NotControlledBy(You)], or: None } })] }])
 
@@ -688,8 +688,8 @@ type: Artifact Creature — Scarecrow
 cost: {6}
 > This creature has persist as long as you control a black creature. (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)
 > This creature has haste as long as you control a red creature.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Black), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "persist", param: None }], per: None }] }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Black), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "persist", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
 
 ## Road of Return
 face: Road of Return

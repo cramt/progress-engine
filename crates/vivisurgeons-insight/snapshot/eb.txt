@@ -96,7 +96,7 @@ cost: {6}{R}{R}
 > If an opponent controls seven or more lands, this spell costs {6} less to cast.
 > Flying
 > {R}: This creature gets +1/+0 until end of turn.
-= Static([If { cond: PlayerControls(AnOpponent, Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["6"]), less: true, per: None }] }])
+= Static([If { order: Leading, cond: PlayerControls(AnOpponent, Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["6"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "flying", param: None }])
 = Activated { cost: [Mana(Mana(["R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
@@ -105,7 +105,7 @@ face: Bant Sureblade
 type: Creature — Human Soldier
 cost: {G/U}{W}
 > As long as you control another multicolored permanent, this creature gets +1/+1 and has first strike.
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Color(Multicolored)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Color(Multicolored)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Blade Splicer
 face: Blade Splicer
@@ -456,7 +456,7 @@ type: Enchantment
 cost: {2}{W}{W}
 > As long as you control seven or more enchantments, creatures you control have flying and vigilance.
 > Whenever you cast an enchantment spell, create a white Spirit Cleric creature token with "This token's power and toughness are each equal to the number of Spirits you control."
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }], per: None }] }])
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [White], types: ["spirit", "cleric", "creature"], keywords: [], abilities: [Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [Controller(You)], or: None } }) }])], named: None, attacking: None } }], limits: [] }
 
 ## Heraldic Banner
@@ -887,7 +887,7 @@ face: Sardian Cliffstomper
 type: Creature — Minotaur Barbarian
 cost: {1}{R}
 > As long as it's your turn and you control four or more Mountains, this creature gets +X/+0, where X is the number of Mountains you control.
-= Static([AsLongAs { cond: And([ItsYourTurn, YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } })]), then: [Where { inner: Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: N(0), signed: true }), has: [], per: None }, x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [Controller(You)], or: None } }) }] }])
+= Static([AsLongAs { order: Leading, cond: And([ItsYourTurn, YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } })]), then: [Where { inner: Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: N(0), signed: true }), has: [], per: None }, x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [Controller(You)], or: None } }) }] }])
 
 ## Shield of the Oversoul
 face: Shield of the Oversoul
@@ -897,8 +897,8 @@ cost: {2}{G/W}
 > As long as enchanted creature is green, it gets +1/+1 and has indestructible. (Damage and effects that say "destroy" don't destroy it. If its toughness is 0 or less, it still dies.)
 > As long as enchanted creature is white, it gets +1/+1 and has flying.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Green)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "indestructible", param: None }], per: None }] }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(White)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Green)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(White)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Shifting Woodland
 face: Shifting Woodland
@@ -1123,7 +1123,7 @@ face: Treacherous Werewolf
 type: Creature — Werewolf Minion
 cost: {2}{B}
 > Threshold — As long as there are seven or more cards in your graveyard, this creature gets +2/+2 and has "When this creature dies, you lose 4 life."
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: You, n: N(4) }], limits: [] } }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: You, n: N(4) }], limits: [] } }] }]) }
 
 ## Underground Mortuary
 face: Underground Mortuary

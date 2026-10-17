@@ -567,7 +567,7 @@ type: Creature — Human Wizard
 cost: {1}{R}
 > As long as there are four or more instant and/or sorcery cards in your graveyard, this creature gets +3/+1.
 > {T}, Discard a card: Exile the top two cards of your library, then choose one of them. You may play that card this turn.
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(1), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Tap, Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), Choose(Objects(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmongThem], or: None } })), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ThisTurn }] }], limits: [] }
 
 ## Mercurial Kite
@@ -697,7 +697,7 @@ cost: {2}{U}{U}
 > Flying
 > Threshold — As long as there are seven or more cards in your graveyard, this creature gets +1/+1, is black, and has "{2}{B}, {T}: Destroy target blue creature."
 = Keywords([Keyword { name: "flying", param: None }])
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Color(Black)]) }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["2", "B"])), Tap], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Color(Blue), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] } }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Color(Black)]) }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["2", "B"])), Tap], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Color(Blue), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] } }] }]) }
 
 ## Powerbalance
 face: Powerbalance
@@ -713,7 +713,7 @@ cost: {2}{W}
 > During your turn, creature tokens you control get +1/+4.
 > {3}{W}: Create a 1/1 white Soldier creature token.
 > Partner (You can have two commanders if both have partner.)
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(4), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(4), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Mana(Mana(["3", "W"]))], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 = Keywords([Keyword { name: "partner", param: None }])
 
@@ -966,7 +966,7 @@ cost: {1}{W}{W}
 > {T}: Create a 1/1 white Human creature token.
 > Fateful hour — As long as you have 5 or less life, other creatures you control get +2/+2.
 = Activated { cost: [Tap], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= Labelled { label: "fateful hour", ability: Static([AsLongAs { cond: LifeAtMost(5), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "fateful hour", ability: Static([AsLongAs { order: Leading, cond: LifeAtMost(5), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
 
 ## Thunderbolt
 face: Thunderbolt
@@ -1060,5 +1060,5 @@ cost: {3}{U}
 > Flying
 > As long as this card is in your graveyard and you control an Island, creatures you control have flying.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: And([In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: And([In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 

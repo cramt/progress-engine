@@ -380,7 +380,7 @@ face: Grand Ball Guest
 type: Creature — Human Peasant
 cost: {1}{R}
 > Celebration — This creature gets +1/+1 and has trample as long as two or more nonland permanents entered the battlefield under your control this turn.
-= Labelled { label: "celebration", ability: Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }]) }
+= Labelled { label: "celebration", ability: Static([AsLongAs { order: Trailing, cond: DidThisTurn(Enters { what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }]) }
 
 ## Greener Pastures
 face: Greener Pastures
@@ -504,7 +504,7 @@ type: Creature — Goblin
 cost: {1}{R}
 > If an opponent controls a Plains and you control a Mountain, you may cast this spell without paying its mana cost.
 > Haste
-= Static([If { cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
 = Keywords([Keyword { name: "haste", param: None }])
 
 ## Liesa, Shroud of Dusk
@@ -844,7 +844,7 @@ face: Sokka's Charge
 type: Enchantment
 cost: {3}{W}
 > During your turn, Allies you control have double strike and lifelink.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("ally")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }, Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("ally")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }, Keyword { name: "lifelink", param: None }], per: None }] }])
 
 ## Soltari Emissary
 face: Soltari Emissary

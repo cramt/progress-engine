@@ -17,7 +17,7 @@ type: Enchantment
 cost: {2}{R}{R}
 > Revolt — As long as a permanent left the battlefield under your control this turn, if a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, it deals that much damage plus 2 instead.
 > Whenever you get one or more {E}, this enchantment deals that much damage to any target.
-= Labelled { label: "revolt", ability: Static([AsLongAs { cond: DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You }), then: [Replacement { event: DealsNoncombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }, to: [Or([Player(AnOpponent), Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } })])] }, instead: [ThatDamage { source: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Plus(ThatDamage, 2), to: None }] }] }]) }
+= Labelled { label: "revolt", ability: Static([AsLongAs { order: Leading, cond: DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You }), then: [Replacement { event: DealsNoncombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }, to: [Or([Player(AnOpponent), Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } })])] }, instead: [ThatDamage { source: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Plus(ThatDamage, 2), to: None }] }] }]) }
 = BROKE at "{E}" after: whenever you get one or more
 
 ## Ashe, Princess of Dalmasca
@@ -857,7 +857,7 @@ cost: {10}{G}{G}
 = BROKE at "turn" after: this spell costs {3} less to cast for each other spell cast this
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
 = BROKE at "<end>" after: trample over planeswalkers
-= Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: DidThisTurn(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 
 ## Tidespout Tyrant
 face: Tidespout Tyrant

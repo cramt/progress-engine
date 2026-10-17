@@ -734,7 +734,7 @@ cost: {W}
 > Enchanted creature gets +2/+2 as long as an opponent controls a red permanent.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Restrict { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Color(Red), Type("creature")]], kind: None, posts: [], or: None }) }])
-= Static([AsLongAs { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Riddle Gate Gargoyle
 face: Riddle Gate Gargoyle
@@ -851,7 +851,7 @@ cost: {5}{G}{G}
 > Hexproof
 > As long as this creature is attacking, for each creature you control, you may have that creature assign its combat damage as though it weren't blocked.
 = Keywords([Keyword { name: "hexproof", param: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [AssignAsThoughUnblocked(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [AssignAsThoughUnblocked(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })] }])
 
 ## Snapping Gnarlid
 face: Snapping Gnarlid

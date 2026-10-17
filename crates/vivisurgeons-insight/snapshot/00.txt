@@ -327,7 +327,7 @@ cost: {3}{B}
 > Whenever another creature you control dies, you may pay 2 life. If you do, draw a card.
 > {1}{B}, Sacrifice another creature: Target creature gets -2/-1 until end of turn.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Black]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Black]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [PayLife(N(2))] }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "B"])), Sacrifice(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
@@ -635,7 +635,7 @@ type: Creature — Elf Druid
 cost: {1}{G}
 > This creature has hexproof as long as it's untapped. (It can't be the target of spells or abilities your opponents control.)
 > {T}: Add one mana of any color.
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 
 ## Plague Witch
@@ -966,7 +966,7 @@ cost: {X}{R}{R}
 > Torrent of Lava deals X damage to each creature without flying.
 > As long as Torrent of Lava is on the stack, each creature has "{T}: Prevent the next 1 damage that would be dealt to this creature by Torrent of Lava this turn."
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithoutKeyword("flying")], or: None } })] }])
-= Static([AsLongAs { cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Stack }, then: [HasAbility { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: Granter, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn }], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Stack }, then: [HasAbility { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: Granter, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn }], limits: [] } }] }])
 
 ## Upwelling
 face: Upwelling

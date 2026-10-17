@@ -469,7 +469,7 @@ cost: {2}{G}
 > This creature gets +2/+1 as long as you have 25 or more life.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Static([Replacement { event: GainsLife(You), instead: [GainLife { who: You, n: Plus(ThatMany, 1) }] }])
-= Static([AsLongAs { cond: PlayerHas { who: You, at_least: 25, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerHas { who: You, at_least: 25, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Howling Giant
 face: Howling Giant
@@ -1089,7 +1089,7 @@ face: Thraben Foulbloods
 type: Creature — Zombie Dog
 cost: {2}{B}
 > Delirium — This creature gets +1/+1 and has menace as long as there are four or more card types among cards in your graveyard. (A creature with menace can't be blocked except by two or more creatures.)
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }]) }
 
 ## Tidal Barracuda
 face: Tidal Barracuda
@@ -1098,7 +1098,7 @@ cost: {3}{U}
 > Any player may cast spells as though they had flash.
 > Your opponents can't cast spells during your turn.
 = BROKE at "they" after: any player may cast spells as though
-= Static([AsLongAs { cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
 
 ## Undead Augur
 face: Undead Augur
@@ -1133,7 +1133,7 @@ type: Creature — Elemental Warrior
 cost: {3}{R}
 > This creature has haste as long as a Warrior card is in your graveyard.
 > {R}: This creature gets +1/+0 until end of turn.
-= Static([AsLongAs { cond: In { what: Objects { quant: One, filter: Filter { alts: [[Subtype("warrior")]], kind: Some(Card), posts: [], or: None } }, zone: Graveyard(You) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: In { what: Objects { quant: One, filter: Filter { alts: [[Subtype("warrior")]], kind: Some(Card), posts: [], or: None } }, zone: Graveyard(You) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
 = Activated { cost: [Mana(Mana(["R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Verdant Sun's Avatar
@@ -1182,7 +1182,7 @@ cost: {2}{W}{W}
 > Flying
 > During your turn, equipped creatures you control have indestructible.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 
 ## Zenos yae Galvus // Shinryu, Transcendent Rival
 face: Zenos yae Galvus

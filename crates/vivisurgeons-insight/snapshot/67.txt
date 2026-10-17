@@ -113,7 +113,7 @@ type: Creature — Bird
 cost: {3}{B}
 > This spell costs {3} less to cast if a creature died this turn.
 > Flying, deathtouch
-= Static([If { cond: DidThisTurn(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "deathtouch", param: None }])
 
 ## Brink of Disaster
@@ -210,7 +210,7 @@ cost: {4}{G}
 > Trample
 > This creature gets +10/+10 as long as you control ten or more lands.
 = Keywords([Keyword { name: "trample", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(10)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(10), toughness: N(10), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(10)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(10), toughness: N(10), signed: true }), has: [], per: None }] }])
 
 ## Curate
 face: Curate
@@ -271,7 +271,7 @@ cost: {4}
 > Flying
 > This creature has shroud as long as you control another artifact creature. (It can't be the target of spells or abilities.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "shroud", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "shroud", param: None }], per: None }] }])
 
 ## Dwarven Ruins
 face: Dwarven Ruins
@@ -443,7 +443,7 @@ cost: {2}{W}
 > Whenever you gain life, put a +1/+1 counter on target creature or enchantment you control.
 > {1}{W}: Another target creature gains lifelink until end of turn.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([White]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([White]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Triggered { trigger: When(GainsLife(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "W"]))], effect: [Modify { what: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
@@ -546,7 +546,7 @@ type: Instant
 cost: {4}{W}
 > This spell costs {3} less to cast if it targets a tapped creature.
 > Magnificent End deals 5 damage to target creature.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
 
 ## Magus of the Disk
@@ -954,7 +954,7 @@ type: Sorcery
 cost: {4}{B}
 > This spell costs {2} less to cast if you control a Villain.
 > Destroy target creature. You gain 2 life.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("villain")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("villain")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, GainLife { who: You, n: N(2) }])
 
 ## Victory's Herald

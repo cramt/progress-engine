@@ -112,7 +112,7 @@ type: Creature — Turtle
 cost: {3}{G}
 > During your turn, creatures you control have hexproof.
 > Each creature you control with toughness greater than its power assigns combat damage equal to its toughness rather than its power.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 = BROKE at "assigns" after: each creature you control with toughness greater than its power
 
 ## Bog Wreckage

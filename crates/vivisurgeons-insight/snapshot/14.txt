@@ -84,7 +84,7 @@ face: Bellowing Elk
 type: Creature — Elk
 cost: {3}{G}
 > As long as you had another creature enter the battlefield under your control this turn, this creature has trample and indestructible.
-= Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }, Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }, Keyword { name: "indestructible", param: None }], per: None }] }])
 
 ## Benediction of Moons
 face: Benediction of Moons
@@ -171,7 +171,7 @@ cost: {W}
 > Lifelink (Damage dealt by this creature also causes you to gain that much life.)
 > This creature gets +1/+1 as long as you control an Ajani planeswalker.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("ajani"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("ajani"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Dauntless Scrapbot
 face: Dauntless Scrapbot
@@ -212,7 +212,7 @@ cost: {W/B}{W/B}{W/B}{W/B}{W/B}
 > Flying, lifelink
 > This creature gets +4/+4 as long as you have 25 or more life.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "lifelink", param: None }])
-= Static([AsLongAs { cond: PlayerHas { who: You, at_least: 25, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerHas { who: You, at_least: 25, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: true }), has: [], per: None }] }])
 
 ## Doubling Cube
 face: Doubling Cube
@@ -472,7 +472,7 @@ type: Instant
 cost: {2}{U}{U}
 > This spell costs {2} less to cast if it targets a creature spell.
 > Counter target spell.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }])
 
 ## Panoptic Mirror
@@ -816,7 +816,7 @@ cost: {U}
 > As long as enchanted creature is face down, it can't be turned face up.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Loses { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }] }, AlsoIs { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: Listed([Subtype("toy"), Type("artifact"), Type("creature")]) }, BasePt { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Pt { power: N(0), toughness: N(2), signed: false } }])
-= Static([AsLongAs { cond: FaceDown(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeTurnedFaceUp }] }])
+= Static([AsLongAs { order: Leading, cond: FaceDown(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeTurnedFaceUp }] }])
 
 ## Unstable Mutation
 face: Unstable Mutation

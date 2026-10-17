@@ -147,7 +147,7 @@ cost: {4}
 > Equipped creature has double strike as long as two or more Equipment are attached to it.
 > Equip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Copy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: false }], limits: [] }
-= Static([AsLongAs { cond: AttachedTo { what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } }, to: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: AttachedTo { what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } }, to: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
 ## Briarbridge Patrol
@@ -291,7 +291,7 @@ cost: {1}{U}{B}
 > Threshold — This creature gets +1/+1 and has deathtouch as long as there are seven or more cards in your graveyard.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "deathtouch", param: None }], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "deathtouch", param: None }], per: None }] }]) }
 
 ## Ellie, Vengeful Hunter
 face: Ellie, Vengeful Hunter
@@ -389,7 +389,7 @@ cost: {2}{B}
 > Flying
 > This creature gets +1/+0 as long as you control an artifact.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Geothermal Crevice
 face: Geothermal Crevice
@@ -453,7 +453,7 @@ cost: {3}{W}
 > Other creatures you control have vigilance.
 > {2}{W}{W}: Create a 2/1 white Cleric enchantment creature token.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([White]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([White]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }])
 = Activated { cost: [Mana(Mana(["2", "W", "W"]))], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [White], types: ["cleric", "enchantment", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
@@ -472,7 +472,7 @@ cost: {2}{R/W}
 > During your turn, equipped creature gets +1/+1 and has first strike.
 > Equip {3}
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["ally", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Attach { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["3"]))])) }])
 
 ## Hulk, Gamma Goliath
@@ -649,7 +649,7 @@ cost: {3}{G}
 > This spell costs {2} less to cast if an opponent controls a green permanent.
 > Deathtouch
 > Whenever this creature deals combat damage to a player, draw a card.
-= Static([If { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Color(Green)]], kind: Some(Permanent), posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Color(Green)]], kind: Some(Permanent), posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "deathtouch", param: None }])
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
@@ -854,7 +854,7 @@ face: Sigiled Contender
 type: Creature — Human Warrior
 cost: {3}{W}
 > This creature has lifelink as long as it has a +1/+1 counter on it. (Damage dealt by this creature also causes you to gain that much life.)
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 
 ## Skirsdag High Priest
 face: Skirsdag High Priest
@@ -962,7 +962,7 @@ type: Sorcery
 cost: {2}{B}
 > Void — This spell costs {2} less to cast if a nonland permanent left the battlefield this turn or a spell was warped this turn.
 > Target opponent reveals their hand. You choose a nonland card from it. That player discards that card.
-= Labelled { label: "void", ability: Static([If { cond: Or([DidThisTurn(Leaves { what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: Battlefield }), DidThisTurn(CastUsing { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, keyword: "warp" })]), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }]) }
+= Labelled { label: "void", ability: Static([If { order: Trailing, cond: Or([DidThisTurn(Leaves { what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: Battlefield }), DidThisTurn(CastUsing { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, keyword: "warp" })]), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }]) }
 = Spell([RevealHand(TargetOpponent), Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } })), Discard { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
 
 ## Terminal Moraine

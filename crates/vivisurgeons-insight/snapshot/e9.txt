@@ -503,7 +503,7 @@ type: Creature — Troll Cleric
 cost: {2}{G}
 > This creature gets +1/+1 as long as you control a Plains.
 > {W}: Regenerate this creature.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Mana(Mana(["W"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Hopeful Vigil
@@ -597,7 +597,7 @@ cost: {3}{R}{W}
 > First strike
 > Metalcraft — Creatures you control get +3/+0 as long as you control three or more artifacts.
 = Keywords([Keyword { name: "first strike", param: None }])
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }]) }
 
 ## Judoon Enforcers
 face: Judoon Enforcers
@@ -748,7 +748,7 @@ cost: {U}
 > Flying
 > Threshold — This creature gets +1/+1 as long as there are seven or more cards in your graveyard.
 = Keywords([Keyword { name: "flying", param: None }])
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }]) }
 
 ## Most Decrepit Old Bird // Speak Secrets
 face: Speak Secrets
@@ -904,7 +904,7 @@ type: Instant
 cost: {1}{B}
 > If you control a Swamp, you may pay 2 life rather than pay this spell's mana cost.
 > Target creature gets +2/+0 until end of turn.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [AlternativeCost([PayLife(N(2))])] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [AlternativeCost([PayLife(N(2))])] }])
 = Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }])
 
 ## Sarcatog

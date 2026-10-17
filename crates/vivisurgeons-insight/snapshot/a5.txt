@@ -20,7 +20,7 @@ type: Sorcery
 cost: {2}{G}
 > This spell costs {2} less to cast if it targets a legendary creature you control.
 > Target creature you control deals damage equal to twice its power to target creature or planeswalker you don't control.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), n: Twice(PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [NotControlledBy(You)], or: None } })] }])
 
 ## Arcbound Crusher
@@ -161,7 +161,7 @@ cost: {3}{B}
 > Flying
 > Threshold — As long as there are seven or more cards in your graveyard, this creature gets +2/+2 and can't block.
 = Keywords([Keyword { name: "flying", param: None }])
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }] }]) }
 
 ## Chiss-Goria, Forge Tyrant
 face: Chiss-Goria, Forge Tyrant
@@ -558,7 +558,7 @@ cost: {R}{W}
 > Merry has first strike as long as it's equipped.
 > Whenever you attack with Merry and another legendary creature, draw a card.
 = Keywords([Keyword { name: "haste", param: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = BROKE at "legendary" after: whenever you attack with ~ and another
 
 ## Myojin of Night's Reach
@@ -568,8 +568,8 @@ cost: {5}{B}{B}{B}
 > Myojin of Night's Reach enters with a divinity counter on it if you cast it from your hand.
 > Myojin of Night's Reach has indestructible as long as it has a divinity counter on it.
 > Remove a divinity counter from Myojin of Night's Reach: Each opponent discards their hand.
-= Static([If { cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "divinity" }] }])
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("divinity") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([If { order: Trailing, cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "divinity" }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("divinity") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "divinity", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [DiscardHand(EachOpponent)], limits: [] }
 
 ## Nico Minoru, Runaway
@@ -637,7 +637,7 @@ cost: {2}{B/G}{B/G}
 > Deathtouch
 > Disappear — This creature enters with two +1/+1 counters on it if a permanent left the battlefield under your control this turn.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Labelled { label: "disappear", ability: Static([If { cond: DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }]) }
+= Labelled { label: "disappear", ability: Static([If { order: Trailing, cond: DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }]) }
 
 ## Quarum Trench Gnomes
 face: Quarum Trench Gnomes
@@ -730,7 +730,7 @@ cost: {R}{R}
 > First strike
 > Delirium — This creature has double strike as long as there are four or more card types among cards in your graveyard.
 = Keywords([Keyword { name: "first strike", param: None }])
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }]) }
 
 ## Screeching Sliver
 face: Screeching Sliver
@@ -855,7 +855,7 @@ type: Creature — Elf Soldier
 cost: {2}{G}{U}
 > As long as you control another Elf, you may play an additional land on each of your turns.
 > Landfall — Whenever a land you control enters, put two +1/+1 counters on target creature you control. It gains vigilance until end of turn.
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("elf")]], kind: None, posts: [], or: None } }), then: [ExtraLand(N(1))] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("elf")]], kind: None, posts: [], or: None } }), then: [ExtraLand(N(1))] }])
 = Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "vigilance", param: None }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Thriving Grubs

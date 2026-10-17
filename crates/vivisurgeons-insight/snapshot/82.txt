@@ -603,7 +603,7 @@ face: Kitesail Apprentice
 type: Creature — Kor Soldier
 cost: {W}
 > As long as this creature is equipped, it gets +1/+1 and has flying.
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Knight of Stromgald
 face: Knight of Stromgald
@@ -765,7 +765,7 @@ type: Instant — Trap
 cost: {4}{B}{B}
 > If a white creature is attacking, you may pay {B}{B} rather than pay this spell's mana cost.
 > Exile target attacking creature. Create a token that's a copy of that creature. Exile it at the beginning of the next end step.
-= Static([If { cond: Is { what: Objects { quant: One, filter: Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [AlternativeCost([Mana(Mana(["B", "B"]))])] }])
+= Static([If { order: Leading, cond: Is { what: Objects { quant: One, filter: Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [AlternativeCost([Mana(Mana(["B", "B"]))])] }])
 = Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }), CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }, Delayed { step: EndStep(Next), then: [Exile(Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Novice Inspector

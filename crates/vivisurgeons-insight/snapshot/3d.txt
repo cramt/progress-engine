@@ -426,7 +426,7 @@ type: Instant
 cost: {5}{U}{U}
 > This spell costs {3} less to cast if an opponent has seven or more cards in their graveyard.
 > Draw four cards.
-= Static([If { cond: PlayerHas { who: AnOpponent, at_least: 7, what: CardsInGraveyard }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: PlayerHas { who: AnOpponent, at_least: 7, what: CardsInGraveyard }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Spell([Draw { who: You, n: N(4) }])
 
 ## Jace's Mindseeker
@@ -1047,7 +1047,7 @@ cost: {W}{B}
 > During your turn, this creature has first strike.
 > Whenever this creature attacks, venture into the dungeon. (Enter the first room or advance to the next room.)
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Action { by: None, name: "venture into the dungeon", n: None }], limits: [] }
 
 ## Typhoid Mary, Fractured

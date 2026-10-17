@@ -33,7 +33,7 @@ face: Angelic Voices
 type: Enchantment
 cost: {2}{W}{W}
 > Creatures you control get +1/+1 as long as you control no nonartifact, nonwhite creatures.
-= Static([AsLongAs { cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Non("artifact"), NonColor(White), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Non("artifact"), NonColor(White), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Anger of the Gods
 face: Anger of the Gods
@@ -499,7 +499,7 @@ type: Creature — Leech
 cost: {2}{U}
 > This creature gets +1/+1 as long as you control a Swamp.
 > {1}{B}: Target creature gains lifelink until end of turn. (Damage dealt by the creature also causes its controller to gain that much life.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Mana(Mana(["1", "B"]))], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Keeper of the Mind

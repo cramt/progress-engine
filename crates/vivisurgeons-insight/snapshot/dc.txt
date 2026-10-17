@@ -28,7 +28,7 @@ cost: {2}{W}{W}
 > Flying
 > Lieutenant — As long as you control your commander, this creature gets +2/+2 and creatures you control have vigilance.
 = Keywords([Keyword { name: "flying", param: None }])
-= Labelled { label: "lieutenant", ability: Static([AsLongAs { cond: YouControl(Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }] }]) }
+= Labelled { label: "lieutenant", ability: Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }] }]) }
 
 ## Angelic Observer
 face: Angelic Observer
@@ -523,8 +523,8 @@ cost: {5}{W}{W}{W}
 > Myojin of Cleansing Fire enters with a divinity counter on it if you cast it from your hand.
 > Myojin of Cleansing Fire has indestructible as long as it has a divinity counter on it.
 > Remove a divinity counter from Myojin of Cleansing Fire: Destroy all other creatures.
-= Static([If { cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "divinity" }] }])
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("divinity") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([If { order: Trailing, cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "divinity" }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("divinity") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "divinity", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }
 
 ## Myojin of Life's Web
@@ -534,8 +534,8 @@ cost: {6}{G}{G}{G}
 > Myojin of Life's Web enters with a divinity counter on it if you cast it from your hand.
 > Myojin of Life's Web has indestructible as long as it has a divinity counter on it.
 > Remove a divinity counter from Myojin of Life's Web: Put any number of creature cards from your hand onto the battlefield.
-= Static([If { cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "divinity" }] }])
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("divinity") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([If { order: Trailing, cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "divinity" }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("divinity") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "divinity", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Move { what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Myr Incubator
@@ -908,7 +908,7 @@ face: Skyshroud Elite
 type: Creature — Elf
 cost: {G}
 > This creature gets +1/+2 as long as an opponent controls a nonbasic land.
-= Static([AsLongAs { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Soul's Fire
 face: Soul's Fire
@@ -988,7 +988,7 @@ type: Instant
 cost: {2}{U}{U}
 > This spell costs {2} less to cast if a creature is attacking you.
 > The owner of target spell or creature puts it on their choice of the top or bottom of their library.
-= Static([If { cond: Is { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [AttackingAnyOf([Player(You)])], or: None } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Is { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [AttackingAnyOf([Player(You)])], or: None } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Performed { by: OwnerOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: Some(Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None }) } }), effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: TopOrBottomOfLibrary(That), tapped: false, transformed: false, under: None, order: None } }])
 
 ## Tel-Jilad Lifebreather

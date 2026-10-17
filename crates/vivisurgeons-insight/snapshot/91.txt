@@ -36,7 +36,7 @@ face: Ardent Recruit
 type: Creature — Human Soldier
 cost: {W}
 > Metalcraft — This creature gets +2/+2 as long as you control three or more artifacts.
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
 
 ## Ashaya, Soul of the Wild
 face: Ashaya, Soul of the Wild
@@ -272,7 +272,7 @@ face: Dire Wolves
 type: Creature — Wolf
 cost: {2}{G}
 > This creature has banding as long as you control a Plains. (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding you control are blocking or being blocked by a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "banding", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "banding", param: None }], per: None }] }])
 
 ## Diregraf Captain
 face: Diregraf Captain
@@ -347,7 +347,7 @@ face: Expedition Champion
 type: Creature — Human Warrior
 cost: {2}{R}
 > This creature gets +2/+0 as long as you control another Warrior.
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("warrior")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("warrior")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Expel the Interlopers
 face: Expel the Interlopers
@@ -446,7 +446,7 @@ type: Legendary Creature — Rat Knight
 cost: {R}
 > Jump — During your turn, Freya Crescent has flying.
 > {T}: Add {R}. Spend this mana only to cast an Equipment spell or activate an equip ability.
-= Labelled { label: "jump", ability: Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }]) }
+= Labelled { label: "jump", ability: Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }]) }
 = BROKE at "equip" after: {T} : add {R} . spend this mana only to cast an equipment spell or activate an
 
 ## Goblins of the Flarg
@@ -624,7 +624,7 @@ cost: {2}{U/B}
 > This creature gets +2/+0 as long as you've drawn two or more cards this turn.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["clue"], keywords: [], abilities: [], named: Some("clue"), attacking: None } }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Mirkwood Channeler
 face: Mirkwood Channeler
@@ -893,7 +893,7 @@ face: Spelleater Wolverine
 type: Creature — Wolverine
 cost: {2}{R}
 > This creature has double strike as long as there are three or more instant and/or sorcery cards in your graveyard.
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }])
 
 ## Spider Spawning
 face: Spider Spawning
@@ -971,7 +971,7 @@ type: Instant
 cost: {3}{G}
 > This spell costs {2} less to cast if it targets a Hero you control.
 > Target creature you control deals damage equal to twice its power to target creature an opponent controls.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Subtype("hero")]], kind: None, posts: [Controller(You)], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Subtype("hero")]], kind: None, posts: [Controller(You)], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), n: Twice(PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })] }])
 
 ## Thundering Falls

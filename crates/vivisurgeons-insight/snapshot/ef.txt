@@ -55,7 +55,7 @@ cost: {2}{U}
 > This creature gets +1/+1 as long as you control a Plains.
 > {W}: This creature gains lifelink until end of turn. (Damage dealt by this creature also causes you to gain that much life.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Mana(Mana(["W"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Ares, God of War
@@ -72,7 +72,7 @@ face: Armory Mice
 type: Creature — Mouse
 cost: {1}{W}
 > Celebration — This creature gets +0/+2 as long as two or more nonland permanents entered the battlefield under your control this turn.
-= Labelled { label: "celebration", ability: Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "celebration", ability: Static([AsLongAs { order: Trailing, cond: DidThisTurn(Enters { what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }] }]) }
 
 ## Balthor the Stout
 face: Balthor the Stout

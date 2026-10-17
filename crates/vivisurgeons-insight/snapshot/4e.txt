@@ -337,7 +337,7 @@ cost: {B}
 > This creature can't block.
 > You may cast this card from your graveyard as long as you control a Zombie.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [], or: None } }), then: [PlayFrom { verb: Cast, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [], or: None } }), then: [PlayFrom { verb: Cast, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }] }])
 
 ## Grist, the Hunger Tide
 face: Grist, the Hunger Tide
@@ -456,7 +456,7 @@ cost: {1}{R}
 > As long as enchanted creature is a Wizard, it has "{T}: This creature deals 2 damage to target creature."
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([HasAbility { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] } }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [], or: None } }, then: [HasAbility { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [], or: None } }, then: [HasAbility { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] } }] }])
 
 ## Lotus Ring
 face: Lotus Ring
@@ -483,7 +483,7 @@ cost: {1}{U}
 > This spell costs {1} less to cast during your turn.
 > Tap target artifact or creature.
 > Draw a card.
-= Static([AsLongAs { cond: ItsYourTurn, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } })])
 = Spell([Draw { who: You, n: N(1) }])
 

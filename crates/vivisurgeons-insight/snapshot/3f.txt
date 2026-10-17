@@ -686,7 +686,7 @@ cost: {2}{W}
 > Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)
 > As long as this creature is equipped, it gets +1/+1.
 = Keywords([Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Liliana's Spoils
 face: Liliana's Spoils
@@ -773,7 +773,7 @@ type: Legendary Creature — Spirit
 cost: {5}{W}{W}{W}
 > Myojin of Blooming Dawn enters with an indestructible counter on it if you cast it from your hand.
 > Remove an indestructible counter from Myojin of Blooming Dawn: Create a 1/1 colorless Spirit creature token for each permanent you control.
-= Static([If { cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "indestructible" }] }])
+= Static([If { order: Trailing, cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "indestructible" }] }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "indestructible", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["spirit", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 
 ## Nezumi Bladeblesser
@@ -782,8 +782,8 @@ type: Creature — Rat Samurai
 cost: {2}{B}
 > This creature has deathtouch as long as you control an artifact.
 > This creature has menace as long as you control an enchantment. (It can't be blocked except by two or more creatures.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }], per: None }] }])
 
 ## Noxious Gearhulk
 face: Noxious Gearhulk

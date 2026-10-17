@@ -128,7 +128,7 @@ face: Blood-Cursed Knight
 type: Creature — Vampire Knight
 cost: {1}{W}{B}
 > As long as you control an enchantment, this creature gets +1/+1 and has lifelink. (Damage dealt by this creature also causes you to gain that much life.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 
 ## Bloodline Shaman
 face: Bloodline Shaman
@@ -264,7 +264,7 @@ cost: {3}{W}{U}
 > Dragonlord Ojutai has hexproof as long as it's untapped.
 > Whenever Dragonlord Ojutai deals combat damage to a player, look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LookAtTop { who: You, whose: You, n: N(3) }, Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmongThem], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }], limits: [] }
 
 ## Drogskol Reaver
@@ -641,7 +641,7 @@ face: Pouncing Lynx
 type: Creature — Cat
 cost: {1}{W}
 > During your turn, this creature has first strike.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Profane Command
 face: Profane Command

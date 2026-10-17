@@ -25,7 +25,7 @@ cost: {2}{B}
 > Deathtouch
 > As long as this creature is equipped, it gets +2/+0 and has menace. (It can't be blocked except by two or more creatures.)
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
 
 ## Armored Wolf-Rider
 face: Armored Wolf-Rider
@@ -73,7 +73,7 @@ face: Auriok Glaivemaster
 type: Creature — Human Soldier
 cost: {W}
 > As long as this creature is equipped, it gets +1/+1 and has first strike.
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Barrenton Medic
 face: Barrenton Medic
@@ -382,7 +382,7 @@ cost: {5}{W}{W}
 > Vigilance
 > During your turn, prevent all damage that would be dealt to this creature.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None }] }])
 
 ## Guardian Naga // Banishing Coils
 face: Banishing Coils
@@ -717,7 +717,7 @@ cost: {1}{G/U}
 > As long as there is a Lesson card in your graveyard, this creature can attack as though it didn't have defender.
 = Keywords([Keyword { name: "defender", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: You, n: N(2) }], limits: [] }
-= Static([AsLongAs { cond: ThereAre([Objects { quant: One, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }]), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
+= Static([AsLongAs { order: Leading, cond: ThereAre([Objects { quant: One, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }]), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
 
 ## Press the Advantage
 face: Press the Advantage
@@ -755,7 +755,7 @@ type: Instant
 cost: {3}{G}
 > If an opponent controls a Swamp and you control a Forest, you may cast this spell without paying its mana cost.
 > Target player gains 6 life.
-= Static([If { cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
 = Spell([GainLife { who: Target, n: N(6) }])
 
 ## Refute
@@ -793,7 +793,7 @@ type: Instant
 cost: {3}{U}
 > This spell costs {1} less to cast if it targets an attacking creature.
 > Target creature's owner puts it on their choice of the top or bottom of their library.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Performed { by: OwnerOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: TopOrBottomOfLibrary(That), tapped: false, transformed: false, under: None, order: None } }])
 
 ## Sacred Knight
@@ -883,8 +883,8 @@ cost: {2}{W/U}
 > As long as enchanted creature is white, it gets +1/+1 and has lifelink. (Damage dealt by the creature also causes its controller to gain that much life.)
 > As long as enchanted creature is blue, it gets +1/+1 and can't be blocked.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(White)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "lifelink", param: None }], per: None }] }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Blue)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(White)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Blue)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 
 ## Stickytongue Sentinel
 face: Stickytongue Sentinel

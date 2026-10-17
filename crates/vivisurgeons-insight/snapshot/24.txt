@@ -40,7 +40,7 @@ cost: {B}{B}
 > This creature has haste as long as an opponent has 10 or less life.
 > Landfall — Whenever a land you control enters, you may return this card from your graveyard to the battlefield.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= Static([AsLongAs { cond: PlayerHasAtMost { who: AnOpponent, at_most: 10, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerHasAtMost { who: AnOpponent, at_most: 10, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
 = Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], limits: [] } }
 
 ## Cankerbloom
@@ -438,7 +438,7 @@ cost: {4}{B}
 > Green creatures and white creatures have protection from Gorgons.
 > Threshold — This creature has protection from green and from white as long as there are seven or more cards in your graveyard.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Color(Green), Type("creature")], [Color(White), Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "protection", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Subtype("gorgon")]], kind: None, posts: [], or: None } })) }], per: None }])
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "protection", param: Some(Colors([Green, White])) }], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "protection", param: Some(Colors([Green, White])) }], per: None }] }]) }
 
 ## Mob Justice
 face: Mob Justice
@@ -812,7 +812,7 @@ cost: {2}{W}
 > As long as an opponent controls more lands than you, you may play lands from the top of your library. (You can play a land this way only if you have an available land play remaining.)
 = Keywords([Keyword { name: "first strike", param: None }])
 = Static([LookAtTopAnyTime])
-= Static([AsLongAs { cond: ControlsMore { who: AnOpponent, what: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None }, than: You }, then: [PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, zone: TopOfLibrary(You) }] }])
+= Static([AsLongAs { order: Leading, cond: ControlsMore { who: AnOpponent, what: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None }, than: You }, then: [PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, zone: TopOfLibrary(You) }] }])
 
 ## Vitalizing Wind
 face: Vitalizing Wind
@@ -839,7 +839,7 @@ cost: {1}{W}
 > Mobilize 2 (Whenever this creature attacks, create two tapped and attacking 1/1 red Warrior creature tokens. Sacrifice them at the beginning of the next end step.)
 > Your opponents can't cast spells during your turn.
 = Keywords([Keyword { name: "mobilize", param: Some(N(N(2))) }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
 
 ## Wall of Deceit
 face: Wall of Deceit

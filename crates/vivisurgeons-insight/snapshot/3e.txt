@@ -53,7 +53,7 @@ face: Armory Guard
 type: Creature — Giant Soldier
 cost: {3}{W}
 > This creature has vigilance as long as you control a Gate.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("gate")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("gate")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }] }])
 
 ## Ashiok's Forerunner
 face: Ashiok's Forerunner
@@ -73,7 +73,7 @@ cost: {1}{G}{G}
 > Coven — As long as you control three or more creatures with different powers, you may cast creature spells from the top of your library.
 = Static([LookAtTopAnyTime])
 = Static([PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, zone: TopOfLibrary(You) }])
-= Labelled { label: "coven", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [DifferentValues(Power)], or: None } }), then: [PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }, zone: TopOfLibrary(You) }] }]) }
+= Labelled { label: "coven", ability: Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [DifferentValues(Power)], or: None } }), then: [PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }, zone: TopOfLibrary(You) }] }]) }
 
 ## Aven Trooper
 face: Aven Trooper
@@ -104,7 +104,7 @@ type: Creature — Goblin Soldier
 cost: {B}{R}
 > This creature has haste as long as you control another Goblin.
 > {T}, Sacrifice another Goblin: Add {B}{R}.
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
 = Activated { cost: [Tap, Sacrifice(Objects { quant: Another, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [], or: None } })], effect: [AddMana(Symbols(Mana(["B", "R"])))], limits: [] }
 
 ## Candy Trail
@@ -382,7 +382,7 @@ type: Creature — Centaur Mercenary
 cost: {2}{G}
 > This creature enters with two +1/+1 counters on it if it wasn't cast or no mana was spent to cast it.
 > Plot {3}{G} (You may pay {3}{G} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)
-= Static([If { cond: Or([Not(WasCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), NoManaSpentToCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }])
+= Static([If { order: Trailing, cond: Or([Not(WasCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), NoManaSpentToCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }])
 = Keywords([Keyword { name: "plot", param: Some(Cost([Mana(Mana(["3", "G"]))])) }])
 
 ## Frog-Squirrels
@@ -457,7 +457,7 @@ cost: {1}{R}
 > During your turn, equipped creature has first strike and trample.
 > Equip {2}{R}
 = BROKE at "<end>" after: for mirrodin !
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }, Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }, Keyword { name: "trample", param: None }], per: None }] }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2", "R"]))])) }])
 
 ## Iguana Parrot
@@ -714,7 +714,7 @@ cost: {1}{G}
 > {T}: Add {G}.
 > As long as this creature is modified, it has "{T}: Add {G}{G}." (Equipment, Auras you control, and counters are modifications.)
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] }
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Modified)]], kind: None, posts: [], or: None } }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G", "G"])))], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Modified)]], kind: None, posts: [], or: None } }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G", "G"])))], limits: [] } }] }])
 
 ## Outnumber
 face: Outnumber
@@ -798,7 +798,7 @@ cost: {2}{W}
 > As long as you have at least 7 life more than your starting life total, creatures you control get +2/+2.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Subtype("angel")], [Subtype("cleric")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [GainLife { who: You, n: ToughnessOf(Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: LifeTotal(You), op: Ge, value: Plus(StartingLifeTotal(You), 7) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: LifeTotal(You), op: Ge, value: Plus(StartingLifeTotal(You), 7) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Riparian Tiger
 face: Riparian Tiger

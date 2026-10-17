@@ -12,7 +12,7 @@ cost: {3}{R}
 > Haste
 > As long as this card is in your graveyard and you control a Mountain, creatures you control have haste.
 = Keywords([Keyword { name: "haste", param: None }])
-= Static([AsLongAs { cond: And([In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: And([In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
 
 ## Aphetto Dredging
 face: Aphetto Dredging
@@ -682,7 +682,7 @@ type: Creature — Mutant Ninja Turtle Dinosaur
 cost: {4}{G}
 > This spell costs {1} less to cast if you control a creature with a +1/+1 counter on it.
 > Vigilance (Attacking doesn't cause this creature to tap.)
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(Some("+1/+1"))], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(Some("+1/+1"))], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "vigilance", param: None }])
 
 ## Priest of the Blessed Graf
@@ -721,7 +721,7 @@ type: Creature — Human Assassin
 cost: {R}{R}
 > This creature has first strike during your turn.
 > Whenever an opponent draws a card, this creature deals 1 damage to them.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Triggered { trigger: When(Draws(AnOpponent)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(That)] }], limits: [] }
 
 ## Relic Golem
@@ -1094,7 +1094,7 @@ type: Creature — Vampire Warrior
 cost: {R}
 > This creature has first strike as long as it's attacking.
 > {2}{R}: This creature gets +2/+0 until end of turn.
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Activated { cost: [Mana(Mana(["2", "R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Wail of the Forgotten
@@ -1141,7 +1141,7 @@ cost: {1}{U}
 > As long as you control another snow permanent, enchanted creature doesn't untap during its controller's untap step.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Tap(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Supertype("snow")]], kind: Some(Permanent), posts: [], or: None } }), then: [Restrict { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntap(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Supertype("snow")]], kind: Some(Permanent), posts: [], or: None } }), then: [Restrict { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntap(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }] }])
 
 ## You Come to a River
 face: You Come to a River

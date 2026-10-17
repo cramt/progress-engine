@@ -410,7 +410,7 @@ cost: {2}{G}
 > This creature gets +1/+1 for each Gate you control.
 > As long as you control two or more Gates, this creature has vigilance and trample.
 = Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("gate")]], kind: None, posts: [Controller(You)], or: None } })) }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Subtype("gate")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }, Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Subtype("gate")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }, Keyword { name: "trample", param: None }], per: None }] }])
 
 ## Glitch Interpreter
 face: Glitch Interpreter
@@ -510,7 +510,7 @@ type: Legendary Creature — Human Knight
 cost: {2}{B}
 > Jump — During your turn, Kain has flying.
 > Whenever Kain deals combat damage to a player, that player gains control of Kain. If they do, you draw that many cards, create that many tapped Treasure tokens, then lose that much life.
-= Labelled { label: "jump", ability: Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }]) }
+= Labelled { label: "jump", ability: Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }]) }
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Performed { by: That, effect: GainControl { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: Permanent } }, IfYouDo([Draw { who: You, n: ThatMany }, Create { who: You, n: ThatMany, token: Token { tapped: true, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }, LoseLife { who: You, n: ThatMany }])], limits: [] }
 
 ## Kjeldoran Javelineer
@@ -595,7 +595,7 @@ type: Creature — Illusion Wall
 cost: {2}{U}
 > This creature has defender as long as it's a Wall.
 > {1}: This creature becomes the creature type of your choice until end of turn.
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("wall")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "defender", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("wall")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "defender", param: None }], per: None }] }])
 = BROKE at "the" after: {1} : this creature becomes
 
 ## Mistwalker
@@ -625,7 +625,7 @@ cost: {4}{R}
 > Trample
 > This creature enters with a +1/+1 counter on it if an opponent lost life this turn.
 = Keywords([Keyword { name: "trample", param: None }])
-= Static([If { cond: DidThisTurn(LosesLife(AnOpponent)), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(LosesLife(AnOpponent)), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
 
 ## Myojin of Cryptic Dreams
 face: Myojin of Cryptic Dreams
@@ -633,7 +633,7 @@ type: Legendary Creature — Spirit
 cost: {5}{U}{U}{U}
 > Myojin of Cryptic Dreams enters with an indestructible counter on it if you cast it from your hand.
 > Remove an indestructible counter from Myojin of Cryptic Dreams: Copy target permanent spell you control three times. (The copies become tokens.)
-= Static([If { cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "indestructible" }] }])
+= Static([If { order: Trailing, cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "indestructible" }] }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "indestructible", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Repeat { times: N(3), then: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [Controller(You)], or: None } }, may_choose_new_targets: false }] }], limits: [] }
 
 ## Nature's Ruin
@@ -787,7 +787,7 @@ cost: {1}{U}
 > As long as enchanted permanent is a creature, it gets -3/-0 and loses flying.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(0), signed: true }), has: [], per: None }, Loses { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, lost: [Keywords([Keyword { name: "flying", param: None }])] }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(0), signed: true }), has: [], per: None }, Loses { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, lost: [Keywords([Keyword { name: "flying", param: None }])] }] }])
 
 ## Shrine Steward
 face: Shrine Steward

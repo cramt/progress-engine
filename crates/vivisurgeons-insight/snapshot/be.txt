@@ -129,7 +129,7 @@ cost: {W}
 > Enchanted creature gets +2/+2 as long as an opponent controls a black permanent.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Restrict { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Color(Black), Type("creature")]], kind: None, posts: [], or: None }) }])
-= Static([AsLongAs { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Bogwater Lumaret
 face: Bogwater Lumaret
@@ -279,7 +279,7 @@ type: Instant
 cost: {5}{U}
 > This spell costs {2} less to cast if you control a Dragon.
 > Draw three cards.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Draw { who: You, n: N(3) }])
 
 ## Dream Beavers

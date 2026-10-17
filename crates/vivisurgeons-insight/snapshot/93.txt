@@ -227,8 +227,8 @@ cost: {U/R}
 > As long as enchanted creature is blue, it gets +1/+1 and has shroud. (It can't be the target of spells or abilities.)
 > As long as enchanted creature is red, it gets +1/+1 and has haste.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Blue)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "shroud", param: None }], per: None }] }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Red)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Blue)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "shroud", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Red)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "haste", param: None }], per: None }] }])
 
 ## Consecrate Land
 face: Consecrate Land
@@ -443,7 +443,7 @@ cost: {1}{U}
 > Flying
 > This creature gets +1/+1 as long as there's a Lesson card in your graveyard.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: ThereAre([Objects { quant: One, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }]), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: ThereAre([Objects { quant: One, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }]), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Fissure Wizard
 face: Fissure Wizard
@@ -637,7 +637,7 @@ cost: {4}{W}
 > Other artifact creatures you control get +2/+2 as long as you have the city's blessing.
 > At the beginning of each upkeep, create a 1/1 colorless Gnome artifact creature token.
 = Keywords([Keyword { name: "ascend", param: None }])
-= Static([AsLongAs { cond: CitysBlessing(You), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: CitysBlessing(You), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 = Triggered { trigger: At(Upkeep(Each)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["gnome", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Inspiring Statuary
@@ -781,7 +781,7 @@ cost: {3}{W}
 > During your turn, you may cast creature spells with power or toughness 1 or less from your graveyard. If you cast a spell this way, that creature enters with a finality counter on it. (If a creature with a finality counter on it would die, exile it instead.)
 = Keywords([Keyword { name: "sneak", param: Some(Cost([Mana(Mana(["2", "W", "W"]))])) }])
 = Keywords([Keyword { name: "double strike", param: None }])
-= Static([PermissionRules { permissions: [AsLongAs { cond: ItsYourTurn, then: [PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [PowerOrToughness { op: Le, value: N(1) }], or: None } }, zone: Graveyard(You) }] }], spell: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rules: [EntersWithCounters { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: N(1), kind: "finality" }] }])
+= Static([PermissionRules { permissions: [AsLongAs { order: Leading, cond: ItsYourTurn, then: [PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [PowerOrToughness { op: Le, value: N(1) }], or: None } }, zone: Graveyard(You) }] }], spell: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rules: [EntersWithCounters { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: N(1), kind: "finality" }] }])
 
 ## Leonin Shikari
 face: Leonin Shikari

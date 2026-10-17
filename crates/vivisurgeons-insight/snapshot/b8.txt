@@ -478,7 +478,7 @@ face: Kitesail Corsair
 type: Creature — Human Pirate
 cost: {1}{U}
 > This creature has flying as long as it's attacking.
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Krosan Verge
 face: Krosan Verge
@@ -815,7 +815,7 @@ face: Tanglewalker
 type: Creature — Dryad
 cost: {2}{G}
 > Each creature you control can't be blocked as long as defending player controls an artifact land.
-= Static([AsLongAs { cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Type("artifact"), Type("land")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Type("artifact"), Type("land")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked }] }])
 
 ## Teferi's Veil
 face: Teferi's Veil

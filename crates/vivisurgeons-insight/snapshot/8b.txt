@@ -827,7 +827,7 @@ type: Legendary Creature — Human Assassin
 cost: {1}{U}{R}
 > Leap Strike — During your turn, Shao Jun has flying and first strike.
 > Rope Dart — Tap two untapped artifacts you control: Shao Jun deals 1 damage to each opponent.
-= Labelled { label: "leap strike", ability: Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }, Keyword { name: "first strike", param: None }], per: None }] }]) }
+= Labelled { label: "leap strike", ability: Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }, Keyword { name: "first strike", param: None }], per: None }] }]) }
 = Labelled { label: "rope dart", ability: Activated { cost: [TapUntapped(Objects { quant: N(N(2)), filter: Filter { alts: [[State(Untapped), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }], limits: [] } }
 
 ## Shinen of Life's Roar
@@ -927,7 +927,7 @@ cost: {4}{U}
 > Defender
 > Metalcraft — As long as you control three or more artifacts, this creature gets +2/+2 and can attack as though it didn't have defender.
 = Keywords([Keyword { name: "defender", param: None }])
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }]) }
 
 ## Spirit Mantle
 face: Spirit Mantle

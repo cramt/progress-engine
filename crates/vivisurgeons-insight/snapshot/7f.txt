@@ -145,7 +145,7 @@ type: Creature — Human Soldier
 cost: {3}{B}{R}
 > Raid — This creature enters with a +1/+1 counter on it if you attacked this turn.
 > Whenever this creature attacks, create a 2/2 red Soldier creature token with firebending 1. (Whenever it attacks, add {R}. This mana lasts until end of combat.)
-= Labelled { label: "raid", ability: Static([If { cond: YouAttackedThisTurn, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }]) }
+= Labelled { label: "raid", ability: Static([If { order: Trailing, cond: YouAttackedThisTurn, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }]) }
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Red], types: ["soldier", "creature"], keywords: [Keyword { name: "firebending", param: Some(N(N(1))) }], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Cryptek
@@ -477,7 +477,7 @@ type: Instant
 cost: {1}{G}
 > This spell costs {1} less to cast if it targets a Spider.
 > Target creature gets +4/+4 until end of turn.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Subtype("spider")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Subtype("spider")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: true }), gains: [], dur: UntilEndOfTurn }])
 
 ## Hollow Trees
@@ -552,7 +552,7 @@ face: Leonin Den-Guard
 type: Creature — Cat Soldier
 cost: {1}{W}
 > As long as this creature is equipped, it gets +1/+1 and has vigilance.
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }] }])
 
 ## Leyline Axe
 face: Leyline Axe
@@ -620,7 +620,7 @@ type: Sorcery
 cost: {2}{G}
 > This spell costs {2} less to cast if you've cast another instant or sorcery spell this turn.
 > Target creature you control gets +1/+2 until end of turn. Then it fights target creature you don't control. (Each deals damage equal to its power to the other.)
-= Static([If { cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, Fight { a: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, b: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } } }])
 
 ## Mana Breach
@@ -955,7 +955,7 @@ type: Creature — Serpent
 cost: {5}{U}{U}
 > If there are three or more Lesson cards in your graveyard, you may cast this spell as though it had flash.
 > This spell costs {1} less to cast for each noncreature, nonland card in your graveyard.
-= Static([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(3) }, then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
+= Static([If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(3) }, then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 = Static([CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Non("creature"), Non("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }])
 
 ## Severed Legion

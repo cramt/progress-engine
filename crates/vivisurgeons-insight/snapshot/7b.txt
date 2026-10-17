@@ -189,7 +189,7 @@ cost: {B}
 > As long as enchanted permanent is a creature, it gets -1/-1 and can't block.
 > Enchanted permanent has "At the beginning of your upkeep, you lose 1 life."
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }] }])
 = Static([HasAbility { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, ability: Triggered { trigger: At(Upkeep(Yours)), effect: [LoseLife { who: You, n: N(1) }], limits: [] } }])
 
 ## Consuming Corruption
@@ -566,7 +566,7 @@ face: Mire Kavu
 type: Creature — Kavu
 cost: {3}{R}
 > This creature gets +1/+1 as long as you control a Swamp.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Mnemonic Deluge
 face: Mnemonic Deluge
@@ -788,7 +788,7 @@ cost: {1}{G}
 > Reach
 > This creature gets +2/+2 as long as you control eight or more lands.
 = Keywords([Keyword { name: "reach", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Shivan Oasis
 face: Shivan Oasis

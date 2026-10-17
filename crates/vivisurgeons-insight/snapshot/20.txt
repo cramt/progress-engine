@@ -284,7 +284,7 @@ type: Sorcery
 cost: {3}{W}{W}
 > You may cast this spell as though it had flash if a creature is attacking and a creature is blocking.
 > Target creature you control and target creature an opponent controls each gain indestructible until end of turn. Then destroy all creatures.
-= Static([If { cond: And([Is { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, Is { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Blocking)]], kind: None, posts: [], or: None } }]), then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
+= Static([If { order: Trailing, cond: And([Is { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, Is { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Blocking)]], kind: None, posts: [], or: None } }]), then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 = BROKE at "gain" after: target creature you control and target creature an opponent controls each
 
 ## Feast on the Fallen
@@ -997,7 +997,7 @@ cost: {4}{B}{B}
 > Deathtouch
 > Prismatic Gallery — As long as Trazyn is on the battlefield, it has all activated abilities of all artifact cards in your graveyard.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Labelled { label: "prismatic gallery", ability: Static([AsLongAs { cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }, then: [HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: All, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } } }] }]) }
+= Labelled { label: "prismatic gallery", ability: Static([AsLongAs { order: Leading, cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }, then: [HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: All, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } } }] }]) }
 
 ## Undead Alchemist
 face: Undead Alchemist
@@ -1074,7 +1074,7 @@ cost: {W}{U}{B}
 > Lifelink (Damage dealt by this creature also causes you to gain that much life.)
 > This creature has flying as long as an artifact card is in your graveyard.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= Static([AsLongAs { cond: In { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } }, zone: Graveyard(You) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: In { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } }, zone: Graveyard(You) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Winter's Chill
 face: Winter's Chill

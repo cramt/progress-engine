@@ -98,6 +98,7 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
             rules: vec![PlayerRule::CantCast(what)],
         };
         Some(vec![Static::If {
+            order: ClauseOrder::Trailing,
             cond: Condition::YourNthTurn(v),
             then: vec![rule],
         }])
@@ -137,6 +138,7 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
         let s = Static::ExertAsAttacks { what, then };
         Some(vec![match cond {
             Some(cond) => Static::If {
+                order: ClauseOrder::Leading,
                 cond,
                 then: vec![s],
             },
@@ -210,7 +212,7 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
             // "As long as you have one or fewer cards in hand, if you would
             // draw one or more cards, …": a replacement while it holds.
             let then = alt!(p; replacement, static_joined)?;
-            Some(vec![Static::AsLongAs { cond, then }])
+            Some(vec![Static::AsLongAs { order: ClauseOrder::Leading, cond, then }])
         },
         // "During your turn, as long as ~ has one or more loyalty counters on
         // him, he's a 3/4 Ninja creature and has hexproof."
@@ -219,30 +221,30 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
             let cond = condition(p)?;
             p.tok(&Tok::Comma)?;
             let then = static_joined(p)?;
-            Some(vec![Static::AsLongAs { cond: Condition::ItsYourTurn, then: vec![Static::AsLongAs { cond, then }] }])
+            Some(vec![Static::AsLongAs { order: ClauseOrder::Leading, cond: Condition::ItsYourTurn, then: vec![Static::AsLongAs { order: ClauseOrder::Leading, cond, then }] }])
         },
         |p| {
             p.words("during your turn ,")?;
             let then = static_joined(p)?;
-            Some(vec![Static::AsLongAs { cond: Condition::ItsYourTurn, then }])
+            Some(vec![Static::AsLongAs { order: ClauseOrder::Leading, cond: Condition::ItsYourTurn, then }])
         },
         |p| {
             p.word("if")?;
             let cond = condition(p)?;
             p.tok(&Tok::Comma)?;
             let then = static_joined(p)?;
-            Some(vec![Static::If { cond, then }])
+            Some(vec![Static::If { order: ClauseOrder::Leading, cond, then }])
         },
         |p| {
             let then = static_joined(p)?;
             p.words("during your turn")?;
-            Some(vec![Static::AsLongAs { cond: Condition::ItsYourTurn, then }])
+            Some(vec![Static::AsLongAs { order: ClauseOrder::Trailing, cond: Condition::ItsYourTurn, then }])
         },
         |p| {
             let then = static_joined(p)?;
             p.words("as long as")?;
             let cond = condition(p)?;
-            Some(vec![Static::AsLongAs { cond, then }])
+            Some(vec![Static::AsLongAs { order: ClauseOrder::Trailing, cond, then }])
         },
         replacement,
         static_joined,
@@ -565,7 +567,7 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             p.words("rather than pay this spell 's mana cost")?;
             // "… if there are thirteen or more creatures on the battlefield".
             Some(vec![match p.attempt(|p| { p.word("if")?; condition(p) }) {
-                Some(cond) => Static::If { cond, then: vec![Static::AlternativeCost(c)] },
+                Some(cond) => Static::If { order: ClauseOrder::Trailing, cond, then: vec![Static::AlternativeCost(c)] },
                 None => Static::AlternativeCost(c),
             }])
         },
@@ -593,9 +595,9 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             // one searches, not every opponent while some "that" player does.
             if who == Player::EachOpponent && cond == (Condition::Searching { who: Player::That, zone: Zone::Library(Player::That) }) {
                 let cond = Condition::Searching { who: Player::AnOpponent, zone: Zone::Library(Player::That) };
-                return Some(vec![Static::AsLongAs { cond, then: vec![Static::ControlPlayer(Player::That)] }]);
+                return Some(vec![Static::AsLongAs { order: ClauseOrder::Trailing, cond, then: vec![Static::ControlPlayer(Player::That)] }]);
             }
-            Some(vec![Static::AsLongAs { cond, then: vec![Static::ControlPlayer(who)] }])
+            Some(vec![Static::AsLongAs { order: ClauseOrder::Trailing, cond, then: vec![Static::ControlPlayer(who)] }])
         },
         |p| { p.words("you control")?; objects(p).map(|o| vec![Static::Control(o)]) },
         |p| {
@@ -622,7 +624,7 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             // "You may cast this spell as though it had flash if you control
             // a Human": the permission only while the condition holds.
             Some(vec![match p.attempt(|p| { p.word("if")?; condition(p) }) {
-                Some(cond) => Static::If { cond, then: vec![cast] },
+                Some(cond) => Static::If { order: ClauseOrder::Trailing, cond, then: vec![cast] },
                 None => cast,
             }])
         },
@@ -1318,7 +1320,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             // the replacement applies only if the condition holds as it
             // enters.
             Some(vec![match p.attempt(|p| { p.word("if")?; condition(p) }) {
-                Some(cond) => Static::If { cond, then: vec![enters] },
+                Some(cond) => Static::If { order: ClauseOrder::Trailing, cond, then: vec![enters] },
                 None => enters,
             }])
         },
@@ -1348,7 +1350,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             };
             // "This spell costs {3} less to cast if you control a creature with power 4 or greater."
             Some(vec![match p.attempt(|p| { p.word("if")?; condition(p) }) {
-                Some(cond) => Static::If { cond, then: vec![change] },
+                Some(cond) => Static::If { order: ClauseOrder::Trailing, cond, then: vec![change] },
                 None => change,
             }])
         },
@@ -1504,6 +1506,7 @@ fn static_permission_rules(v: &mut Vec<Static>) {
     let Some(Static::If {
         cond: Condition::ThisWay(e),
         then,
+        ..
     }) = v.pop()
     else {
         unreachable!("matched above");

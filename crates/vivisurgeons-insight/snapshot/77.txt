@@ -679,7 +679,7 @@ face: Moon-Eating Dog
 type: Creature — Dog
 cost: {3}{U}
 > As long as you control a Yanling planeswalker, this creature has flying. (It can't be blocked except by creatures with flying or reach.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("yanling"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("yanling"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Mystic Might
 face: Mystic Might
@@ -889,7 +889,7 @@ type: Instant
 cost: {4}{W}
 > This spell costs {3} less to cast if it targets a tapped creature.
 > Destroy target creature.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }])
 
 ## Shay Cormac
@@ -1010,7 +1010,7 @@ cost: {1}{B}
 > Equipped creature can't be blocked as long as its power is 3 or less.
 > Equip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: PowerOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: N(3) }, then: [Restrict { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Trailing, cond: AmountIs { n: PowerOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: N(3) }, then: [Restrict { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Thrumming Stone

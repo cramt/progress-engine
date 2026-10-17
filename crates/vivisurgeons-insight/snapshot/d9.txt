@@ -121,7 +121,7 @@ cost: {2}{W}
 > Vigilance
 > This creature gets +2/+0 as long as you've cast two or more spells this turn.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Static([AsLongAs { cond: DidThisTurn(Casts { who: You, what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: DidThisTurn(Casts { who: You, what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Captivating Unicorn
 face: Captivating Unicorn
@@ -438,7 +438,7 @@ cost: {4}{G}
 > Trample
 > Revolt — This creature enters with two +1/+1 counters on it if a permanent left the battlefield under your control this turn.
 = Keywords([Keyword { name: "trample", param: None }])
-= Labelled { label: "revolt", ability: Static([If { cond: DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }]) }
+= Labelled { label: "revolt", ability: Static([If { order: Trailing, cond: DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }]) }
 
 ## Livonya Silone
 face: Livonya Silone
@@ -796,7 +796,7 @@ cost: {5}{W}{W}{W}
 > Flying
 > Threshold — Other creatures you control get +2/+2 as long as there are seven or more cards in your graveyard.
 = Keywords([Keyword { name: "flying", param: None }])
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
 
 ## Simic Ragworm
 face: Simic Ragworm
@@ -812,7 +812,7 @@ cost: {W/U}{W/U}
 > Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)
 > This creature has flying as long as it's modified. (Equipment, Auras you control, and counters are modifications.)
 = Keywords([Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Modified)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Modified)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Smoldering Stagecoach
 face: Smoldering Stagecoach
@@ -1069,6 +1069,6 @@ cost: {2}{U}{R}{W}
 > Zurgo and Ojutai has hexproof as long as it entered this turn.
 > Whenever one or more Dragons you control deal combat damage to a player or battle, look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order. You may return one of those Dragons to its owner's hand.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }])
-= Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: DidThisTurn(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 = Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [Controller(You)], or: None } }, to: Or([Player(APlayer), Objects(Objects { quant: One, filter: Filter { alts: [[Type("battle")]], kind: None, posts: [], or: None } })]) }), effect: [LookAtTop { who: You, whose: You, n: N(3) }, Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmongThem], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }, May { who: You, then: [Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Triggering, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } })], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 

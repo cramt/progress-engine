@@ -855,7 +855,7 @@ cost: {2}{U}
 > Play with the top card of your library revealed.
 > As long as the top card of your library is an artifact or creature card, this creature has all activated abilities of that card. (If any of the abilities use that card's name, use this creature's name instead.)
 = Static([PlayWithTopRevealed(You)])
-= Static([AsLongAs { cond: Is { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Skyshroud Falcon
 face: Skyshroud Falcon

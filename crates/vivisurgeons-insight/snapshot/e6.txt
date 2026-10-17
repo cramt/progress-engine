@@ -42,7 +42,7 @@ cost: {1}{G}
 > This creature gets +3/+0 as long as it has three or more oil counters on it.
 > {T}: Add one mana of any color.
 > Whenever this creature becomes tapped, exile target card from a graveyard and put an oil counter on this creature.
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("oil"))), posts: [On(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("oil"))), posts: [On(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 = Triggered { trigger: When(BecomesTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), PutCounters { n: N(1), kind: "oil", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
@@ -458,7 +458,7 @@ type: Instant
 cost: {1}{R}{R}
 > If it's not your turn, you may exile a red card from your hand rather than pay this spell's mana cost.
 > Create two 3/1 red Elemental creature tokens with trample and haste. Sacrifice those tokens at the beginning of your next upkeep.
-= Static([If { cond: NotYourTurn, then: [AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])] }])
+= Static([If { order: Leading, cond: NotYourTurn, then: [AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])] }])
 = Spell([Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(1), signed: false }), colors: [Red], types: ["elemental", "creature"], keywords: [Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }], abilities: [], named: None, attacking: None } }, Delayed { step: Upkeep(YourNext), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }])
 
 ## Fountain Watch
@@ -623,7 +623,7 @@ cost: {4}{W}{W}
 > Protection from red
 > Creatures named Ivory Guardians get +1/+1 as long as an opponent controls a nontoken red permanent.
 = Keywords([Keyword { name: "protection", param: Some(Colors([Red])) }])
-= Static([AsLongAs { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Color(Red)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Named(PrintedName("Ivory Guardians"))], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Color(Red)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Named(PrintedName("Ivory Guardians"))], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Jarvis, Earth's Mightiest Butler
 face: Jarvis, Earth's Mightiest Butler

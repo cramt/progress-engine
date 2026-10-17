@@ -208,7 +208,7 @@ cost: {3}{R}
 > Haste
 > As long as this card is in your graveyard and you control a Mountain, creatures you control have haste.
 = Keywords([Keyword { name: "haste", param: None }])
-= Static([AsLongAs { cond: And([In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: And([In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
 
 ## Anguished Unmaking
 face: Anguished Unmaking
@@ -598,7 +598,7 @@ cost: {2}{G}
 > Whenever a creature you control attacks, you may put a quest counter on this enchantment.
 > As long as this enchantment has seven or more quest counters on it, creatures you control get +5/+5.
 = Triggered { trigger: When(Attacks(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "quest", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("quest"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("quest"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), has: [], per: None }] }])
 
 ## Bedevil
 face: Bedevil
@@ -738,7 +738,7 @@ type: Sorcery
 cost: {3}{B}{B}
 > You may pay {B} rather than pay this spell's mana cost if there are thirteen or more creatures on the battlefield.
 > Each player sacrifices thirteen creatures of their choice.
-= Static([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }), op: Ge, value: N(13) }, then: [AlternativeCost([Mana(Mana(["B"]))])] }])
+= Static([If { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }), op: Ge, value: N(13) }, then: [AlternativeCost([Mana(Mana(["B"]))])] }])
 = Spell([Sacrifice { who: Each, what: Objects { quant: N(N(13)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }])
 
 ## Blazemire Verge
@@ -901,7 +901,7 @@ type: Instant
 cost: {3}{R}
 > This spell costs {3} less to cast if you control a creature with power 4 or greater.
 > Change the target of target spell or ability with a single target.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Spell([ChangeTarget(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [WithSingleTarget], or: None } })])
 
 ## Bonders' Enclave
@@ -1327,7 +1327,7 @@ cost: {3}
 > As long as equipped creature is legendary, it has hexproof. (It can't be the target of spells or abilities your opponents control.)
 > Equip {1}
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Supertype("legendary")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Supertype("legendary")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
 ## Chandra's Ignition
@@ -1864,7 +1864,7 @@ type: Instant
 cost: {3}{B}
 > If you control a commander, you may cast this spell without paying its mana cost.
 > Exile target creature.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
 = Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])
 
 ## Deathcap Glade
@@ -1915,7 +1915,7 @@ type: Instant
 cost: {2}{R}
 > If you control a commander, you may cast this spell without paying its mana cost.
 > You may choose new targets for target spell or ability.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
 = Spell([May { who: You, then: [ChooseNewTargets(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } })] }])
 
 ## Delighted Halfling
@@ -2801,7 +2801,7 @@ type: Instant
 cost: {2}{U}
 > If you control a commander, you may cast this spell without paying its mana cost.
 > Counter target noncreature spell.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } }, unless: None }])
 
 ## Fiery Emancipation
@@ -2850,7 +2850,7 @@ type: Instant
 cost: {2}{W}
 > If you control a commander, you may cast this spell without paying its mana cost.
 > Creatures you control gain indestructible until end of turn.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
 = Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }])
 
 ## Fleshbag Marauder
@@ -2921,7 +2921,7 @@ type: Instant
 cost: {1}{U}{U}
 > If it's not your turn, you may exile a blue card from your hand rather than pay this spell's mana cost.
 > Counter target noncreature spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.
-= Static([If { cond: NotYourTurn, then: [AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])] }])
+= Static([If { order: Leading, cond: NotYourTurn, then: [AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])] }])
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } }, unless: None }, If { order: Leading, cond: ThisWay(Countered(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })), then: [InsteadOf { then: Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), of: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersGraveyard, tapped: false, transformed: false, under: None, order: None } }] }])
 
 ## Force of Will
@@ -3260,7 +3260,7 @@ face: Grand Abolisher
 type: Creature — Human Cleric
 cost: {W}{W}
 > During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.
-= Static([AsLongAs { cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), CantActivateAbilitiesOf(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("enchantment")]], kind: None, posts: [], or: None } })] }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), CantActivateAbilitiesOf(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("enchantment")]], kind: None, posts: [], or: None } })] }] }])
 
 ## Grapeshot
 face: Grapeshot
@@ -3285,7 +3285,7 @@ cost: {B}
 > This creature can't block.
 > You may cast this card from your graveyard as long as you control a Zombie.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [], or: None } }), then: [PlayFrom { verb: Cast, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [], or: None } }), then: [PlayFrom { verb: Cast, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }] }])
 
 ## Graven Cairns
 face: Graven Cairns
@@ -4087,7 +4087,7 @@ type: Legendary Creature — Cat Warrior
 cost: {1}{G}{W}
 > Your opponents can't cast spells during your turn.
 > Whenever one or more creatures you control each with power greater than its base power deals combat damage to a player, draw a card.
-= Static([AsLongAs { cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Gt, value: BasePowerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Laboratory Maniac
@@ -4513,7 +4513,7 @@ type: Instant — Trap
 cost: {2}{U}{U}
 > If an opponent cast three or more spells this turn, you may pay {0} rather than pay this spell's mana cost.
 > Exile any number of target spells.
-= Static([If { cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [AlternativeCost([Mana(Mana(["0"]))])] }])
+= Static([If { order: Leading, cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [AlternativeCost([Mana(Mana(["0"]))])] }])
 = Spell([Exile(Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })])
 
 ## Mindcrank
@@ -5062,7 +5062,7 @@ cost: {2}{B}
 > You control your opponents while they're searching their libraries.
 > While an opponent is searching their library, they exile each card they find. You may play those cards for as long as they remain exiled, and you may spend mana as though it were mana of any color to cast them.
 = Keywords([Keyword { name: "flash", param: None }])
-= Static([AsLongAs { cond: Searching { who: AnOpponent, zone: Library(That) }, then: [ControlPlayer(That)] }])
+= Static([AsLongAs { order: Trailing, cond: Searching { who: AnOpponent, zone: Library(That) }, then: [ControlPlayer(That)] }])
 = Static([While { cond: Searching { who: AnOpponent, zone: Library(That) }, then: [Performed { by: That, effect: Exile(Objects { quant: Each, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedBy { how: Found, by: That }], or: None } }) }, May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ForAsLongAs(In { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }) }] }, May { who: You, then: [SpendAsAnyColor { uses: [Cast(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], dur: ForAsLongAs(In { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }) }] }] }])
 
 ## Opt
@@ -5472,7 +5472,7 @@ cost: {W}{W}
 > Whenever an Equipment you control enters, you may draw a card.
 > Metalcraft — Equipment you control have equip {0} as long as you control three or more artifacts.
 = Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }], limits: [] }
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "equip", param: Some(Cost([Mana(Mana(["0"]))])) }], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "equip", param: Some(Cost([Mana(Mana(["0"]))])) }], per: None }] }]) }
 
 ## Purphoros, God of the Forge
 face: Purphoros, God of the Forge
@@ -5483,7 +5483,7 @@ cost: {3}{R}
 > Whenever another creature you control enters, Purphoros deals 2 damage to each opponent.
 > {2}{R}: Creatures you control get +1/+0 until end of turn.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Red]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Red]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent)] }], limits: [] }
 = Activated { cost: [Mana(Mana(["2", "R"]))], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
@@ -5636,7 +5636,7 @@ type: Creature — Human Assassin
 cost: {R}{R}
 > This creature has first strike during your turn.
 > Whenever an opponent draws a card, this creature deals 1 damage to them.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Triggered { trigger: When(Draws(AnOpponent)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(That)] }], limits: [] }
 
 ## Read the Bones
@@ -6466,7 +6466,7 @@ cost: {2}{G}
 > During your turn, nonland permanent cards in your graveyard have retrace. (You may cast permanent cards from your graveyard by discarding a land card in addition to paying their other costs.)
 = Keywords([Keyword { name: "reach", param: None }])
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Mill { who: You, n: N(3) }, May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [FromAmongThem], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, pt: None, has: [Keyword { name: "retrace", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, pt: None, has: [Keyword { name: "retrace", param: None }], per: None }] }])
 
 ## Skullclamp
 face: Skullclamp
@@ -6535,7 +6535,7 @@ type: Instant
 cost: {3}{B}
 > If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost.
 > Destroy target nonblack creature. It can't be regenerated.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [AlternativeCost([PayLife(N(4))])] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [AlternativeCost([PayLife(N(4))])] }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[NonColor(Black), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: true }])
 
 ## Sokenzan, Crucible of Defiance
@@ -7502,7 +7502,7 @@ type: Land
 > {W}{W}{U}{U}{B}{B}{R}{R}{G}{G}, {T}, Sacrifice this land: Search your library for any number of God cards, put them onto the battlefield, then shuffle.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] }
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(6)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(6)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] } }] }])
 = Activated { cost: [Mana(Mana(["W", "W", "U", "U", "B", "B", "R", "R", "G", "G"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("god")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
 
 ## Thespian's Stage
@@ -8130,7 +8130,7 @@ cost: {1}{W}
 > Mobilize 2 (Whenever this creature attacks, create two tapped and attacking 1/1 red Warrior creature tokens. Sacrifice them at the beginning of the next end step.)
 > Your opponents can't cast spells during your turn.
 = Keywords([Keyword { name: "mobilize", param: Some(N(N(2))) }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
+= Static([AsLongAs { order: Trailing, cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
 
 ## Void Rend
 face: Void Rend
@@ -8357,7 +8357,7 @@ cost: {3}{U}
 > Flying
 > As long as this card is in your graveyard and you control an Island, creatures you control have flying.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: And([In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: And([In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Wood Elves
 face: Wood Elves

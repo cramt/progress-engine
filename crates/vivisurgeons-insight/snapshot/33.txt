@@ -158,7 +158,7 @@ type: Land
 > If you control two or more other lands, this land enters tapped.
 > {T}: Add {W}.
 > {4}{W}: This land becomes a 3/4 white Dragon creature with flying until end of turn. It's still a land.
-= Static([If { cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[State(Other), Type("land")]], kind: None, posts: [], or: None } }), then: [EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[State(Other), Type("land")]], kind: None, posts: [], or: None } }), then: [EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["W"])))], limits: [] }
 = Activated { cost: [Mana(Mana(["4", "W"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(4), signed: false }), types: [Color(White), Subtype("dragon"), Type("creature")], gains: [Keyword { name: "flying", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 
@@ -573,7 +573,7 @@ face: Intrepid Ace
 type: Creature — Human Pilot
 cost: {R}
 > This creature gets +2/+0 as long as it isn't attacking or blocking.
-= Static([AsLongAs { cond: Not(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(AttackingOrBlocking)]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Not(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(AttackingOrBlocking)]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Iron Monger, Sadistic Tycoon
 face: Iron Monger, Sadistic Tycoon
@@ -870,7 +870,7 @@ type: Instant
 cost: {3}{W}
 > If you control a Plains, you may tap an untapped creature you control rather than pay this spell's mana cost.
 > Creatures you control get +1/+1 until end of turn.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [AlternativeCost([TapUntapped(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })])] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [AlternativeCost([TapUntapped(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })])] }])
 = Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }])
 
 ## Ravenous Gigantotherium

@@ -208,7 +208,7 @@ type: Instant
 cost: {3}{U}{U}{U}
 > During your turn, this spell costs {2}{U}{U} less to cast.
 > End the turn. (Exile all spells and abilities from the stack, including this card. The player whose turn it is discards down to their maximum hand size. Damage wears off, and "this turn" and "until end of turn" effects end.)
-= Static([AsLongAs { cond: ItsYourTurn, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2", "U", "U"]), less: true, per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2", "U", "U"]), less: true, per: None }] }])
 = Spell([EndTheTurn])
 
 ## Doctor Spectrum
@@ -250,7 +250,7 @@ type: Instant
 cost: {1}{U}{U}
 > This spell costs {U} less to cast if an opponent cast two or more spells this turn.
 > Counter target spell.
-= Static([If { cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["U"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["U"]), less: true, per: None }] }])
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }])
 
 ## Explosive Apparatus

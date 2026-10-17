@@ -129,7 +129,7 @@ type: Instant
 cost: {2}{U}{U}
 > This spell costs {1}{U} less to cast if it targets an instant or sorcery spell.
 > Counter target spell.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1", "U"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1", "U"]), less: true, per: None }] }])
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }])
 
 ## Bubble Snare
@@ -216,7 +216,7 @@ cost: {4}{G}{G}
 > {G}, Discard a card: This creature gains trample until end of turn.
 > Threshold — As long as there are seven or more cards in your graveyard, this creature gets +2/+2 and has shroud. (It can't be the target of spells or abilities.)
 = Activated { cost: [Mana(Mana(["G"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [] }
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "shroud", param: None }], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "shroud", param: None }], per: None }] }]) }
 
 ## Creative Technique
 face: Creative Technique
@@ -406,7 +406,7 @@ face: Gavony Ironwright
 type: Creature — Human Soldier
 cost: {2}{W}
 > Fateful hour — As long as you have 5 or less life, other creatures you control get +1/+4.
-= Labelled { label: "fateful hour", ability: Static([AsLongAs { cond: LifeAtMost(5), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(4), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "fateful hour", ability: Static([AsLongAs { order: Leading, cond: LifeAtMost(5), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(4), signed: true }), has: [], per: None }] }]) }
 
 ## General Jarkeld
 face: General Jarkeld
@@ -781,7 +781,7 @@ type: Creature — Elephant
 cost: {3}{W}
 > This creature gets +1/+1 as long as you control a Forest.
 > {G}: This creature gains trample until end of turn. (It can deal excess combat damage to the player or planeswalker it's attacking.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Mana(Mana(["G"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Puppet Master, String Puller
@@ -1046,7 +1046,7 @@ face: Swaggering Corsair
 type: Creature — Human Pirate
 cost: {2}{R}
 > Raid — This creature enters with a +1/+1 counter on it if you attacked this turn.
-= Labelled { label: "raid", ability: Static([If { cond: YouAttackedThisTurn, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }]) }
+= Labelled { label: "raid", ability: Static([If { order: Trailing, cond: YouAttackedThisTurn, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }]) }
 
 ## Tel-Jilad Defiance
 face: Tel-Jilad Defiance
@@ -1187,7 +1187,7 @@ type: Instant
 cost: {2}{R}
 > This spell costs {2} less to cast if you control a Wizard.
 > Wizard's Lightning deals 3 damage to any target.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Worldpurge

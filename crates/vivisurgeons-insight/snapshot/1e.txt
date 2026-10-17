@@ -144,7 +144,7 @@ type: Instant
 cost: {4}{U}
 > This spell costs {2} less to cast if it targets an attacking creature.
 > Put target creature into its owner's library second from the top.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryNthFromTop(2), tapped: false, transformed: false, under: None, order: None }])
 
 ## Caller of the Untamed
@@ -419,7 +419,7 @@ cost: {2}{W}{W}
 > If it's not your turn, you may exile a white card from your hand rather than pay this spell's mana cost.
 > Flash
 > Creatures you control get +1/+1.
-= Static([If { cond: NotYourTurn, then: [AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(White)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])] }])
+= Static([If { order: Leading, cond: NotYourTurn, then: [AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(White)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])] }])
 = Keywords([Keyword { name: "flash", param: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
 
@@ -587,7 +587,7 @@ cost: {1}{R}{G}
 > As long as your devotion to red and green is less than seven, Klothys isn't a creature.
 > At the beginning of your first main phase, exile target card from a graveyard. If it was a land card, add {R} or {G}. Otherwise, you gain 2 life and Klothys deals 2 damage to each opponent.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Red, Green]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Red, Green]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Triggered { trigger: At(PrecombatMain(Yours)), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { order: Leading, cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }), then: [AddMana(Or([Mana(["R"]), Mana(["G"])]))] }, Otherwise([GainLife { who: You, n: N(2) }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent)] }])], limits: [] }
 
 ## Lake of the Dead
@@ -956,7 +956,7 @@ cost: {2}{W}
 > Shadow (This creature can block or be blocked by only creatures with shadow.)
 > This creature has first strike as long as it's attacking.
 = Keywords([Keyword { name: "shadow", param: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Soul-Scar Mage
 face: Soul-Scar Mage
@@ -993,7 +993,7 @@ type: Legendary Creature — Spider Human Hero
 cost: {G}{W}
 > During your turn, Spider-Girl has flying.
 > When Spider-Girl leaves the battlefield, create a 1/1 green and white Human Citizen creature token.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 = Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green, White], types: ["human", "citizen", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Spinning Wheel Kick
@@ -1102,7 +1102,7 @@ cost: {4}{W}{W}
 > Whenever another nontoken artifact you control enters, create a 2/2 white Human Knight creature token with "This token gets +2/+2 as long as an artifact entered the battlefield under your control this turn."
 > Crew 2
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[State(Nontoken), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White], types: ["human", "knight", "creature"], keywords: [], abilities: [Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])], named: None, attacking: None } }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[State(Nontoken), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White], types: ["human", "knight", "creature"], keywords: [], abilities: [Static([AsLongAs { order: Trailing, cond: DidThisTurn(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])], named: None, attacking: None } }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 
 ## The Reality Chip
@@ -1113,7 +1113,7 @@ cost: {1}{U}
 > As long as The Reality Chip is attached to a creature, you may play lands and cast spells from the top of your library.
 > Reconfigure {2}{U} ({2}{U}: Attach to target creature you control; or unattach from a creature. Reconfigure only as a sorcery. While attached, this isn't a creature.)
 = Static([LookAtTopAnyTime])
-= Static([AsLongAs { cond: AttachedTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, then: [PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, zone: TopOfLibrary(You) }, PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, zone: TopOfLibrary(You) }] }])
+= Static([AsLongAs { order: Leading, cond: AttachedTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, then: [PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, zone: TopOfLibrary(You) }, PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, zone: TopOfLibrary(You) }] }])
 = Keywords([Keyword { name: "reconfigure", param: Some(Cost([Mana(Mana(["2", "U"]))])) }])
 
 ## Thought Nibbler

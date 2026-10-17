@@ -538,7 +538,7 @@ cost: {2}{W}{W}
 > Flying
 > Metalcraft — Artifacts you control have shroud as long as you control three or more artifacts. (An artifact with shroud can't be the target of spells or abilities.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "shroud", param: None }], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "shroud", param: None }], per: None }] }]) }
 
 ## Infirmary Healer // Stream of Life
 face: Infirmary Healer
@@ -801,7 +801,7 @@ face: Saddled Rimestag
 type: Snow Creature — Elk
 cost: {1}{G}
 > This creature gets +2/+2 as long as you had another creature enter the battlefield under your control this turn.
-= Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Savai Thundermane
 face: Savai Thundermane
@@ -1045,7 +1045,7 @@ cost: {1}{B}{B}{B}
 > Play with the top card of your library revealed.
 > As long as the top card of your library is black, this creature and other Vampire creatures you control get +2/+1 and have flying.
 = Static([PlayWithTopRevealed(You)])
-= Static([AsLongAs { cond: Is { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, filter: Filter { alts: [[Color(Black)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: WithOthers(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Subtype("vampire"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, filter: Filter { alts: [[Color(Black)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: WithOthers(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Subtype("vampire"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Vassal Soul
 face: Vassal Soul
@@ -1138,8 +1138,8 @@ type: Creature — Cat Warrior
 cost: {G}
 > This creature gets +1/+1 as long as you control a Mountain.
 > This creature gets +1/+1 as long as you control a Plains.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Winding Wurm
 face: Winding Wurm
@@ -1163,7 +1163,7 @@ type: Instant
 cost: {1}{U}{U}
 > This spell costs {1} less to cast if you control a Wizard.
 > Counter target spell.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }])
 
 ## Woolly Thoctar

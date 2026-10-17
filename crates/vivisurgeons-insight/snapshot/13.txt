@@ -342,7 +342,7 @@ face: Jund Hackblade
 type: Creature — Goblin Berserker
 cost: {B/G}{R}
 > As long as you control another multicolored permanent, this creature gets +1/+1 and has haste.
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Color(Multicolored)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Color(Multicolored)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "haste", param: None }], per: None }] }])
 
 ## Kamahl's Will
 face: Kamahl's Will
@@ -529,7 +529,7 @@ face: Pardic Arsonist
 type: Creature — Human Barbarian
 cost: {2}{R}{R}
 > Threshold — As long as there are seven or more cards in your graveyard, this creature has "When this creature enters, it deals 3 damage to any target."
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }] }]) }
 
 ## Phabine, Boss's Confidant
 face: Phabine, Boss's Confidant
@@ -548,7 +548,7 @@ cost: {3}{U}{B}
 > As long as your devotion to blue and black is less than seven, Phenax isn't a creature.
 > Creatures you control have "{T}: Target player mills X cards, where X is this creature's toughness."
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Blue, Black]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Blue, Black]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [Where { then: [Mill { who: Target, n: X }], x: ToughnessOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], limits: [] } }])
 
 ## Playful Shove

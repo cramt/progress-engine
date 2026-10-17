@@ -1192,7 +1192,7 @@ fn refer_to_the_card(statics: &mut [Static]) {
                 continue;
             }
         }
-        let (Static::AsLongAs { cond, then } | Static::If { cond, then }) = st else {
+        let (Static::AsLongAs { cond, then, .. } | Static::If { cond, then, .. }) = st else {
             continue;
         };
         // "As long as this creature has three or more +1/+1 counters on it,

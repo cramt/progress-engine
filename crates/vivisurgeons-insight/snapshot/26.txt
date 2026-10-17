@@ -184,7 +184,7 @@ cost: {1}{G}
 > Whenever you gain life, put a growth counter on this enchantment.
 > As long as there are five or more growth counters on this enchantment, creatures you control get +3/+3.
 = Triggered { trigger: When(GainsLife(You)), effect: [PutCounters { n: N(1), kind: "growth", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("growth"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("growth"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }] }])
 
 ## Crustacean Commando
 face: Crustacean Commando
@@ -221,7 +221,7 @@ cost: {3}{G}
 > Dauntless Dourbark's power and toughness are each equal to the number of Forests you control plus the number of Treefolk you control.
 > This creature has trample as long as you control another Treefolk.
 = BROKE at "the" after: ~ 's power and toughness are each equal to the number of forests you control plus
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("treefolk")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("treefolk")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
 
 ## Divine Smite
 face: Divine Smite
@@ -237,7 +237,7 @@ cost: {2}{R}
 > Ferocious — If you control a creature with power 4 or greater, you may cast this spell as though it had flash. (You may cast it any time you could cast an instant.)
 > Enchant creature
 > Enchanted creature gets +2/+0 and has first strike.
-= Labelled { label: "ferocious", ability: Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }]) }
+= Labelled { label: "ferocious", ability: Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }]) }
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }])
 
@@ -350,7 +350,7 @@ cost: {2}{R}
 > This spell costs {2} less to cast if an opponent controls a multicolored permanent.
 > Ghostfire Slice deals 4 damage to any target.
 = Keywords([Keyword { name: "devoid", param: None }])
-= Static([If { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Color(Multicolored)]], kind: Some(Permanent), posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Color(Multicolored)]], kind: Some(Permanent), posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Goldwardens' Gambit
@@ -803,7 +803,7 @@ cost: {1}{W}
 > Whenever another creature you control enters, put a +1/+1 counter on this creature.
 > As long as this creature has three or more +1/+1 counters on it, it has flying and is a Knight in addition to its other types.
 = Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }, AlsoIs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Subtype("knight")]) }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }, AlsoIs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Subtype("knight")]) }] }])
 
 ## Smaug, the Great Calamity // Spew Flame
 face: Smaug, the Great Calamity
@@ -833,7 +833,7 @@ face: Spiraling Duelist
 type: Creature — Human Berserker
 cost: {2}{R}{R}
 > Metalcraft — This creature has double strike as long as you control three or more artifacts.
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }]) }
 
 ## Splitting the Powerstone
 face: Splitting the Powerstone
@@ -1065,6 +1065,6 @@ type: Sorcery
 cost: {2}{U}
 > This spell costs {1} less to cast if you control a creature with flying.
 > Draw two cards.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Draw { who: You, n: N(2) }])
 

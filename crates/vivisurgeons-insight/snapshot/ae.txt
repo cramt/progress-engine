@@ -604,7 +604,7 @@ cost: {5}{U}{U}
 > Shroud (This creature can't be the target of spells or abilities.)
 > This creature gets +4/+8 as long as a library has twenty or fewer cards in it.
 = Keywords([Keyword { name: "shroud", param: None }])
-= Static([AsLongAs { cond: ZoneHasCards { zone: ALibrary, op: Le, n: 20 }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(8), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: ZoneHasCards { zone: ALibrary, op: Le, n: 20 }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(8), signed: true }), has: [], per: None }] }])
 
 ## J. Jonah Jameson
 face: J. Jonah Jameson

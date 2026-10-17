@@ -450,7 +450,7 @@ face: Grand Abolisher
 type: Creature — Human Cleric
 cost: {W}{W}
 > During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.
-= Static([AsLongAs { cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), CantActivateAbilitiesOf(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("enchantment")]], kind: None, posts: [], or: None } })] }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), CantActivateAbilitiesOf(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("enchantment")]], kind: None, posts: [], or: None } })] }] }])
 
 ## Grip of Desolation
 face: Grip of Desolation

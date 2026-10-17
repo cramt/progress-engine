@@ -173,7 +173,7 @@ cost: {4}{R}{R}
 > This creature has trample as long as it has a +1/+1 counter on it.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "unleash", param: None }])
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
 
 ## Circle of Confinement
 face: Circle of Confinement
@@ -296,7 +296,7 @@ cost: {U}
 > Spells you cast from anywhere other than your hand cost {2} less to cast.
 = Static([LookAtTopAnyTime])
 = Activated { cost: [Mana(Mana(["3", "U"]))], effect: [ClassLevel(2)], limits: [] }
-= Static([AsLongAs { cond: DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, zone: TopOfLibrary(You) }] }])
+= Static([AsLongAs { order: Leading, cond: DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, zone: TopOfLibrary(You) }] }])
 = Activated { cost: [Mana(Mana(["2", "U"]))], effect: [ClassLevel(3)], limits: [] }
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(You), CastFrom(AnywhereOtherThan(Hand(You)))], or: None } }, by: Mana(["2"]), less: true, per: None }])
 

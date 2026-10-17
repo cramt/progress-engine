@@ -65,7 +65,7 @@ cost: {4}{R}
 > Protection from red
 > This creature gets +1/+1 as long as an opponent controls a nontoken white permanent.
 = Keywords([Keyword { name: "protection", param: Some(Colors([Red])) }])
-= Static([AsLongAs { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Color(White)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Color(White)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Behold the Multiverse
 face: Behold the Multiverse
@@ -521,7 +521,7 @@ type: Sorcery
 cost: {2}{B}{B}
 > If an opponent controls a Plains and you control a Swamp, you may cast this spell without paying its mana cost.
 > All creatures get -2/-2 until end of turn.
-= Static([If { cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
 = Spell([Modify { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }])
 
 ## Merrow Reejerey
@@ -898,7 +898,7 @@ type: Instant
 cost: {4}{U}
 > This spell costs {2} less to cast if you control at least two creatures that share a creature type.
 > Put target nonland permanent into its owner's library second from the top.
-= Static([If { cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [SharesType { card_type: "creature", with: None }], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [SharesType { card_type: "creature", with: None }], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersLibraryNthFromTop(2), tapped: false, transformed: false, under: None, order: None }])
 
 ## Tawnos, Urza's Apprentice

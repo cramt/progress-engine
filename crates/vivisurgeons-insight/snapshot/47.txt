@@ -12,7 +12,7 @@ face: Akki Underling
 type: Creature — Goblin Warrior
 cost: {1}{R}
 > As long as you have seven or more cards in hand, this creature gets +2/+1 and has first strike.
-= Static([AsLongAs { cond: PlayerHas { who: You, at_least: 7, what: CardsInHand }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: PlayerHas { who: You, at_least: 7, what: CardsInHand }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Antagonize
 face: Antagonize
@@ -69,8 +69,8 @@ type: Artifact Creature — Scarecrow
 cost: {5}
 > This creature has haste as long as you control a red creature.
 > This creature has wither as long as you control a green creature. (It deals damage to creatures in the form of -1/-1 counters.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "wither", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "wither", param: None }], per: None }] }])
 
 ## Blightcaster
 face: Blightcaster
@@ -250,7 +250,7 @@ cost: {1}{W}
 > As long as you have an enduring story, creatures can't attack you unless their controller pays {1} for each of those creatures.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Keywords([Keyword { name: "storied", param: None }])
-= Static([AsLongAs { cond: EnduringStory(You), then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackPlayer(You), who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["1"]))], per: Some(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) } }] }])
+= Static([AsLongAs { order: Leading, cond: EnduringStory(You), then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackPlayer(You), who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["1"]))], per: Some(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) } }] }])
 
 ## Echoes of Eternity
 face: Echoes of Eternity
@@ -543,7 +543,7 @@ face: Moldgraf Scavenger
 type: Creature — Fungus
 cost: {1}{G}
 > Delirium — This creature gets +3/+0 as long as there are four or more card types among cards in your graveyard.
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }]) }
 
 ## Molimo, Maro-Sorcerer
 face: Molimo, Maro-Sorcerer
@@ -584,8 +584,8 @@ cost: {7}{R}{R}{R}
 > Myojin of Infinite Rage enters with a divinity counter on it if you cast it from your hand.
 > Myojin of Infinite Rage has indestructible as long as it has a divinity counter on it.
 > Remove a divinity counter from Myojin of Infinite Rage: Destroy all lands.
-= Static([If { cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "divinity" }] }])
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("divinity") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([If { order: Trailing, cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "divinity" }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("divinity") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "divinity", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }
 
 ## Mystic Speculation
@@ -628,7 +628,7 @@ cost: {3}{G}
 > Creature spells you cast cost {1} less to cast.
 > {2}{G}: Reveal the top card of your library. If it's a creature card, put it into your hand. Otherwise, you may put it into your graveyard.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Green]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Green]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
 = Activated { cost: [Mana(Mana(["2", "G"]))], effect: [RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Otherwise([May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }] }])], limits: [] }
 
@@ -733,7 +733,7 @@ cost: {R}
 > Whenever a Goblin you control enters, you may put a quest counter on this enchantment.
 > As long as this enchantment has five or more quest counters on it, creatures you control get +2/+0.
 = Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "quest", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("quest"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("quest"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Ravenous Robots
 face: Ravenous Robots

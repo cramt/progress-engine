@@ -478,7 +478,7 @@ cost: {1}{U}
 > Whenever you cast a noncreature spell, put an oil counter on this creature.
 > As long as this creature has four or more oil counters on it, it gets +2/+0 and can't be blocked.
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "oil", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("oil"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("oil"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 
 ## Infected Vermin
 face: Infected Vermin
@@ -889,7 +889,7 @@ cost: {1}{U}
 > Enchanted creature has first strike as long as it's blocking and you control a snow land.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }])
-= Static([AsLongAs { cond: And([Is { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Blocking)]], kind: None, posts: [], or: None } }, YouControl(Objects { quant: One, filter: Filter { alts: [[Supertype("snow"), Type("land")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: And([Is { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Blocking)]], kind: None, posts: [], or: None } }, YouControl(Objects { quant: One, filter: Filter { alts: [[Supertype("snow"), Type("land")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Spell Shrivel
 face: Spell Shrivel
@@ -989,7 +989,7 @@ face: Teferi's Sentinel
 type: Artifact Creature — Golem
 cost: {5}
 > As long as you control a Teferi planeswalker, this creature gets +4/+0.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("teferi"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("teferi"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Tenacity
 face: Tenacity

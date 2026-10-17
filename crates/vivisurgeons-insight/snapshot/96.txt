@@ -949,7 +949,7 @@ cost: {1}{B}
 > During your turn, you may play cards you don't own with stash counters on them from exile, and mana of any type can be spent to cast those spells.
 > {3}{B}, {T}: Each opponent discards a card. Activate only as a sorcery.
 = BROKE at "from" after: whenever an opponent discards a card , exile it
-= Static([AsLongAs { cond: ItsYourTurn, then: [PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [NotOwnedBy(You), WithCounter(Some("stash"))], or: None } }, zone: Exile }, SpendAsAnyType([Cast(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })])] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [NotOwnedBy(You), WithCounter(Some("stash"))], or: None } }, zone: Exile }, SpendAsAnyType([Cast(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })])] }])
 = Activated { cost: [Mana(Mana(["3", "B"])), Tap], effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
 
 ## Titania's Song
@@ -1062,7 +1062,7 @@ cost: {W}
 > Survival — At the beginning of your second main phase, if this creature is tapped, exile up to one target card from a graveyard.
 > As long as there are three or more cards exiled with this creature, it gets +3/+3 and has hexproof. (It can't be the target of spells or abilities your opponents control.)
 = Labelled { label: "survival", ability: Triggered { trigger: InterveningIf(At(SecondMain(Yours)), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } })], limits: [] } }
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 
 ## Vivien's Jaguar
 face: Vivien's Jaguar

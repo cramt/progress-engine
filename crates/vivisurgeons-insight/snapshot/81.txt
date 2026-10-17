@@ -387,7 +387,7 @@ type: Sorcery
 cost: {4}{W}
 > This spell costs {2} less to cast if it targets a tapped creature.
 > Exile target creature.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])
 
 ## Headhunter
@@ -949,7 +949,7 @@ cost: {B}
 > As long as an opponent has eight or more cards in their graveyard, this creature gets +2/+1 and has deathtouch.
 = Keywords([Keyword { name: "flash", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Subtype("rogue")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Mill { who: EachOpponent, n: N(2) }], limits: [] }
-= Static([AsLongAs { cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
 
 ## Threats Around Every Corner
 face: Threats Around Every Corner
@@ -980,7 +980,7 @@ cost: {2}{B}
 > Menace (This creature can't be blocked except by two or more creatures.)
 > Infusion — This creature gets +2/+0 as long as you gained life this turn.
 = Keywords([Keyword { name: "menace", param: None }])
-= Labelled { label: "infusion", ability: Static([AsLongAs { cond: DidThisTurn(GainsLife(You)), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "infusion", ability: Static([AsLongAs { order: Trailing, cond: DidThisTurn(GainsLife(You)), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }]) }
 
 ## Utopia Vow
 face: Utopia Vow

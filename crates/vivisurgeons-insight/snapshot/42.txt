@@ -11,7 +11,7 @@ type: Creature — Zombie Minotaur Warrior
 cost: {2}{R}
 > During your turn, this creature has first strike.
 > {1}, Sacrifice another creature: This creature gets +2/+0 until end of turn.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Angelic Wall
@@ -215,7 +215,7 @@ type: Creature — Shade
 cost: {3}{B}
 > If an opponent controls a Forest and you control a Swamp, you may cast this spell without paying its mana cost.
 > {B}: This creature gets +1/+1 until end of turn.
-= Static([If { cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
 = Activated { cost: [Mana(Mana(["B"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Desert of the True
@@ -567,7 +567,7 @@ cost: {1}{W}
 > If you control a Plains, you may tap an untapped creature you control rather than pay this spell's mana cost.
 > Enchant creature
 > Enchanted creature has first strike.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [AlternativeCost([TapUntapped(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })])] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }), then: [AlternativeCost([TapUntapped(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })])] }])
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }])
 
@@ -658,7 +658,7 @@ type: Legendary Creature — Spirit
 cost: {5}{G}{G}{G}
 > Myojin of Towering Might enters with an indestructible counter on it if you cast it from your hand.
 > Remove an indestructible counter from Myojin of Towering Might: Distribute eight +1/+1 counters among any number of target creatures you control. They gain trample until end of turn.
-= Static([If { cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "indestructible" }] }])
+= Static([If { order: Trailing, cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "indestructible" }] }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "indestructible", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [DistributeCounters { n: N(8), kind: "+1/+1", among: Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Mystic Genesis

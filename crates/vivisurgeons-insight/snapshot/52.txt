@@ -251,7 +251,7 @@ cost: {U}{B}
 > When this creature enters, draw a card, then discard a card.
 > As long as you've drawn two or more cards this turn, this creature gets +1/+0 and has menace.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
 
 ## False Prophet
 face: False Prophet
@@ -454,7 +454,7 @@ face: Leech Fanatic
 type: Creature — Human Warlock
 cost: {1}{B}
 > During your turn, this creature has lifelink.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 
 ## Lightning Reaver
 face: Lightning Reaver

@@ -57,7 +57,7 @@ cost: {1}{B}
 > Threshold — As long as there are seven or more cards in your graveyard, this creature gets +1/+1 and has "At the beginning of your end step, exile two cards from your graveyard."
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Mill { who: You, n: N(1) }], limits: [] }
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: At(EndStep(Yours)), effect: [Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], limits: [] } }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: At(EndStep(Yours)), effect: [Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], limits: [] } }] }]) }
 
 ## Bog Serpent
 face: Bog Serpent
@@ -214,7 +214,7 @@ type: Instant
 cost: {3}{U}
 > This spell costs {1} less to cast if it targets an attacking or tapped creature.
 > Target creature's owner puts it on their choice of the top or bottom of their library.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")], [State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")], [State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Performed { by: OwnerOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: TopOrBottomOfLibrary(That), tapped: false, transformed: false, under: None, order: None } }])
 
 ## Disallow
@@ -393,7 +393,7 @@ cost: {4}{W}{U}
 > This spell costs {2} less to cast as long as you've drawn two or more cards this turn.
 > Flying, vigilance
 > Other Birds you control have vigilance.
-= Static([AsLongAs { cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("bird")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }])
 

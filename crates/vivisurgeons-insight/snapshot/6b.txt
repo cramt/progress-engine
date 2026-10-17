@@ -4,7 +4,7 @@ type: Legendary Creature — Human Avatar Ally
 cost: {2}{G/W}
 > Aang has vigilance as long as there's a Lesson card in your graveyard.
 > Whenever another creature you control dies, put a +1/+1 counter on Aang.
-= Static([AsLongAs { cond: ThereAre([Objects { quant: One, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }]), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: ThereAre([Objects { quant: One, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }]), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }] }])
 = Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Accelerated Mutation
@@ -1048,7 +1048,7 @@ face: Woolly Mammoths
 type: Creature — Elephant
 cost: {1}{G}{G}
 > This creature has trample as long as you control a snow land.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Supertype("snow"), Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Supertype("snow"), Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
 
 ## Wren's Run Packmaster
 face: Wren's Run Packmaster

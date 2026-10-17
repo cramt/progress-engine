@@ -467,7 +467,7 @@ type: Instant — Trap
 cost: {3}{U}
 > If three or more creatures are attacking, you may pay {U} rather than pay this spell's mana cost.
 > Attacking creatures get -3/-0 until end of turn.
-= Static([If { cond: Is { what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [AlternativeCost([Mana(Mana(["U"]))])] }])
+= Static([If { order: Leading, cond: Is { what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [AlternativeCost([Mana(Mana(["U"]))])] }])
 = Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }])
 
 ## Lightning Rift
@@ -630,7 +630,7 @@ type: Instant
 cost: {2}{G}
 > This spell costs {2} less to cast if there are two or more creature cards in your graveyard.
 > Target creature you control deals damage equal to twice its power to target creature an opponent controls.
-= Static([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), n: Twice(PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })] }])
 
 ## Quickening Licid
@@ -707,7 +707,7 @@ cost: {2}{U}
 > This spell costs {2} less to cast if it targets a permanent with mana value 1.
 > Return target creature or Vehicle an opponent controls to its owner's hand.
 > Draw a card.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [With(Compare { stat: ManaValue, op: Eq, value: N(1) })], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [With(Compare { stat: ManaValue, op: Eq, value: N(1) })], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
 = Spell([Draw { who: You, n: N(1) }])
 
@@ -819,7 +819,7 @@ cost: {4}{G}
 > Reach (This creature can block creatures with flying.)
 > Morbid — This creature enters with two +1/+1 counters on it if a creature died this turn.
 = Keywords([Keyword { name: "reach", param: None }])
-= Labelled { label: "morbid", ability: Static([If { cond: DidThisTurn(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }]) }
+= Labelled { label: "morbid", ability: Static([If { order: Trailing, cond: DidThisTurn(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }]) }
 
 ## Sower of Chaos
 face: Sower of Chaos
@@ -964,7 +964,7 @@ cost: {U}
 > As long as this permanent is a creature, it has prowess. (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)
 > Enchanted creature gets +1/+1 and has prowess.
 = Keywords([Keyword { name: "bestow", param: Some(Cost([Mana(Mana(["1", "U"]))])) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "prowess", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "prowess", param: None }], per: None }] }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "prowess", param: None }], per: None }])
 
 ## Trumpet Blast

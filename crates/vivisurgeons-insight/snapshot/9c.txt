@@ -80,7 +80,7 @@ cost: {7}
 > Trample
 > As long as you control another creature, prevent all damage that would be dealt to this creature by spells that target it.
 = Keywords([Keyword { name: "trample", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Targets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Targets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) }] }])
 
 ## Brotherhood Outcast
 face: Brotherhood Outcast
@@ -125,7 +125,7 @@ cost: {4}{W}
 > Flying
 > As long as this creature is untapped, it gets +0/+2.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Celestine, the Living Saint
 face: Celestine, the Living Saint
@@ -801,7 +801,7 @@ type: Instant
 cost: {1}{G}
 > This spell costs {1} less to cast if you control a Turtle.
 > Put a +1/+1 counter on target creature you control. It gains trample, hexproof, and indestructible until end of turn.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("turtle")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("turtle")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "trample", param: None }, Keyword { name: "hexproof", param: None }, Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }])
 
 ## Screamreach Brawler
@@ -903,7 +903,7 @@ cost: {6}{B}{B}{B}
 > Flying, trample, haste, protection from black
 > Spirit of the Night has first strike as long as it's attacking.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }, Keyword { name: "protection", param: Some(Colors([Black])) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Spiritmonger
 face: Spiritmonger

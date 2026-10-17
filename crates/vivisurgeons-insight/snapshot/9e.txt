@@ -65,7 +65,7 @@ cost: {1}{W}
 > Equip costs you pay cost {1} less.
 > As long as this creature is equipped, each creature you control that's a Soldier or a Knight gets +1/+1.
 = BROKE at "{1}" after: equip costs you pay cost
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), ThatIs(Filter { alts: [[Subtype("soldier")], [Subtype("knight")]], kind: None, posts: [], or: None })], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), ThatIs(Filter { alts: [[Subtype("soldier")], [Subtype("knight")]], kind: None, posts: [], or: None })], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Avacynian Priest
 face: Avacynian Priest
@@ -83,7 +83,7 @@ cost: {X}{U}{U}
 > As long as enchanted permanent is a creature, it has base power and toughness 1/1.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [PutCounters { n: X, kind: "+1/+1", on: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }], limits: [] }
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [BasePt { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Pt { power: N(1), toughness: N(1), signed: false } }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [BasePt { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Pt { power: N(1), toughness: N(1), signed: false } }] }])
 
 ## Baird, Steward of Argive
 face: Baird, Steward of Argive
@@ -597,7 +597,7 @@ type: Legendary Creature — Merfolk Bard
 cost: {4}{U}
 > This spell costs {3} less to cast if creatures you control have total toughness 10 or greater.
 > When Orysa enters, draw two cards.
-= Static([If { cond: Total { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, cmp: Compare { stat: Toughness, op: Ge, value: N(10) } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Total { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, cmp: Compare { stat: Toughness, op: Ge, value: N(10) } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }], limits: [] }
 
 ## Patch Up
@@ -730,7 +730,7 @@ type: Legendary Creature — Human Pilot
 cost: {1}{W}
 > As long as an artifact creature you control is attacking, prevent all damage that would be dealt to Sanwell.
 > Whenever Sanwell becomes tapped, exile the top six cards of your library. You may cast a Vehicle or artifact creature spell from among them. Then put the rest on the bottom of your library in a random order.
-= Static([AsLongAs { cond: Is { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [PreventDamage { combat_only: false, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None }] }])
 = Triggered { trigger: When(BecomesTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Exile(Objects { quant: N(N(6)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Subtype("vehicle")], [Type("artifact"), Type("creature")]], kind: Some(Spell), posts: [FromAmongThem], or: None } }, payment: ManaCost, dur: Permanent }] }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }], limits: [] }
 
 ## Saproling Infestation
@@ -817,7 +817,7 @@ type: Sorcery
 cost: {1}{W}
 > Spell mastery — If there are two or more instant and/or sorcery cards in your graveyard, you may cast this spell as though it had flash. (You may cast it any time you could cast an instant.)
 > Destroy target tapped creature.
-= Labelled { label: "spell mastery", ability: Static([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }]) }
+= Labelled { label: "spell mastery", ability: Static([If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }]) }
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }])
 
 ## Teleport

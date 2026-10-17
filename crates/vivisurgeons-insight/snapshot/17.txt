@@ -124,7 +124,7 @@ cost: {1}{B}
 > Discard a card: This creature gains lifelink until end of turn.
 > Threshold — This creature gets +1/+2 as long as there are seven or more cards in your graveyard.
 = Activated { cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }], limits: [] }
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }] }]) }
 
 ## Calming Licid
 face: Calming Licid
@@ -303,7 +303,7 @@ face: Frontier Mastodon
 type: Creature — Elephant
 cost: {2}{G}
 > Ferocious — This creature enters with a +1/+1 counter on it if you control a creature with power 4 or greater.
-= Labelled { label: "ferocious", ability: Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }]) }
+= Labelled { label: "ferocious", ability: Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }]) }
 
 ## Ghoulcaller's Chant
 face: Ghoulcaller's Chant
@@ -714,7 +714,7 @@ cost: {4}{R}
 > Other creatures you control have haste.
 > {2}{R}: You may put a red creature card or an artifact creature card from your hand onto the battlefield. Sacrifice it at the beginning of the next end step.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Red]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Red]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }])
 = Activated { cost: [Mana(Mana(["2", "R"]))], effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Color(Red), Type("creature")]], kind: Some(Card), posts: [In(Hand(You))], or: Some(Filter { alts: [[Type("artifact"), Type("creature")]], kind: Some(Card), posts: [In(Hand(You))], or: None }) } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }], limits: [] }
 
@@ -777,7 +777,7 @@ cost: {5}{G}
 > This creature enters with a shield counter on it. (If it would be dealt damage or destroyed, remove a shield counter from it instead.)
 > This creature has trample as long as it has a shield counter on it.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "shield" }])
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("shield") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("shield") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
 
 ## River Song's Diary
 face: River Song's Diary

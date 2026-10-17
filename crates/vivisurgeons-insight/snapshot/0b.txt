@@ -347,7 +347,7 @@ cost: {1}{W}{W}
 > Disturb {5}{W}{W}
 = Keywords([Keyword { name: "defender", param: None }, Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
 = BROKE at "fewer" after: at the beginning of your upkeep , if this creature has two or
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("judgment"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("judgment"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
 = Keywords([Keyword { name: "disturb", param: Some(Cost([Mana(Mana(["5", "W", "W"]))])) }])
 
 ## Faithbound Judge // Sinner's Judgment
@@ -419,7 +419,7 @@ type: Legendary Creature — Dwarf Warrior
 cost: {1}{R}{G}
 > Gimli has indestructible as long as two or more creatures died under your control this turn.
 > Whenever another creature you control dies, put a +1/+1 counter on Gimli. When this ability resolves for the third time this turn, Gimli fights up to one target creature you don't control.
-= Static([AsLongAs { cond: DidThisTurn(Dies(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: DidThisTurn(Dies(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = BROKE at "resolves" after: whenever another creature you control dies , put a <pt> counter on ~ . when this ability
 
 ## Goliath Sphinx
@@ -755,7 +755,7 @@ face: Shadow of Mortality
 type: Creature — Avatar
 cost: {13}{B}{B}
 > If your life total is less than your starting life total, this spell costs {X} less to cast, where X is the difference.
-= Static([If { cond: AmountIs { n: LifeTotal(You), op: Lt, value: StartingLifeTotal(You) }, then: [Where { inner: CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["X"]), less: true, per: None }, x: TheDifference }] }])
+= Static([If { order: Leading, cond: AmountIs { n: LifeTotal(You), op: Lt, value: StartingLifeTotal(You) }, then: [Where { inner: CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["X"]), less: true, per: None }, x: TheDifference }] }])
 
 ## Shipwreck Patrol
 face: Shipwreck Patrol
@@ -847,7 +847,7 @@ cost: {2}{U}{U}
 > This creature has hexproof as long as you haven't cast a spell this turn.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: Not(DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } })), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Not(DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } })), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 
 ## Strip Bare
 face: Strip Bare
@@ -919,7 +919,7 @@ cost: {4}{G}{G}
 > Trample
 > Lieutenant — As long as you control your commander, this creature gets +2/+2 and other creatures you control get +2/+2 and have trample.
 = Keywords([Keyword { name: "trample", param: None }])
-= Labelled { label: "lieutenant", ability: Static([AsLongAs { cond: YouControl(Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }]) }
+= Labelled { label: "lieutenant", ability: Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }]) }
 
 ## Tidewalker
 face: Tidewalker

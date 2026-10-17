@@ -86,7 +86,7 @@ cost: {2}{W}
 > First strike
 > This creature gets +1/+1 as long as you control another white creature.
 = Keywords([Keyword { name: "first strike", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Banishing Slash
 face: Banishing Slash
@@ -675,8 +675,8 @@ cost: {1}{G}{G}
 > As long as the top card of your library is a creature card, this creature gets +3/+3.
 > As long as the top card of your library is a land card, this creature has "{T}: Add two mana of any one color."
 = Static([PlayWithTopRevealed(You)])
-= Static([AsLongAs { cond: Is { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }] }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(2), pick: AnyOneColor, within: None })], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(2), pick: AnyOneColor, within: None })], limits: [] } }] }])
 
 ## Mystical Tether
 face: Mystical Tether
@@ -914,7 +914,7 @@ face: Sporeback Wolf
 type: Creature — Wolf
 cost: {1}{G}
 > During your turn, this creature gets +0/+2.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Stalwarts of Osgiliath
 face: Stalwarts of Osgiliath

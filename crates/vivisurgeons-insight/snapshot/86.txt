@@ -56,7 +56,7 @@ face: Auriok Sunchaser
 type: Creature — Human Soldier
 cost: {1}{W}
 > Metalcraft — As long as you control three or more artifacts, this creature gets +2/+2 and has flying.
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }]) }
 
 ## Avatar's Wrath
 face: Avatar's Wrath

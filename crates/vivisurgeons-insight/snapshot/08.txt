@@ -19,7 +19,7 @@ face: Ainok Artillerist
 type: Creature — Dog Archer
 cost: {2}{G}
 > This creature has reach as long as it has a +1/+1 counter on it. (It can block creatures with flying.)
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "reach", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "reach", param: None }], per: None }] }])
 
 ## Amethyst Dragon // Explosive Crystal
 face: Amethyst Dragon
@@ -250,7 +250,7 @@ type: Creature — Human Knight
 cost: {3}{R}
 > During your turn, this creature has flying.
 > Whenever this creature attacks, you may pay {2}{R}. If you do, creatures you control get +X/+0 until end of turn, where X is the number of opponents you have.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 = BROKE at "have" after: whenever this creature attacks , you may pay {2} {R} . if you do , creatures you control get <pt> until end of turn , where x is the number of opponents you
 
 ## Embodiment of Insight
@@ -410,7 +410,7 @@ cost: {2}{U}{B}
 > 0: Surveil 2. Then draw a card for each opponent who lost life this turn.
 > −2: Tap target creature. Put two stun counters on it.
 = Keywords([Keyword { name: "ninjutsu", param: Some(Cost([Mana(Mana(["1", "U", "B"]))])) }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("loyalty") }, then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Subtype("ninja"), Type("creature")]) }, BasePt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Pt { power: N(3), toughness: N(4), signed: false } }, Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [AsLongAs { order: Leading, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("loyalty") }, then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Subtype("ninja"), Type("creature")]) }, BasePt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Pt { power: N(3), toughness: N(4), signed: false } }, Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }] }])
 = Loyalty { change: N(1), effect: [Emblem([Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("ninja")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])])] }
 = Loyalty { change: N(0), effect: [Surveil(N(2)), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [LostLifeThisTurn], or: None } }, then: [Draw { who: You, n: N(1) }] }] }
 = Loyalty { change: N(-2), effect: [Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), PutCounters { n: N(2), kind: "stun", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }
@@ -1013,7 +1013,7 @@ cost: {R}{G}
 > Haste
 > Delirium — This creature gets +1/+1 and has trample as long as there are four or more card types among cards in your graveyard.
 = Keywords([Keyword { name: "haste", param: None }])
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }]) }
 
 ## Zuran Orb
 face: Zuran Orb

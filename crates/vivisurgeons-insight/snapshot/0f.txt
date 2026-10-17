@@ -21,7 +21,7 @@ cost: {1}{G}{G}
 > Trample
 > As long as you control eight or more lands, this creature gets +5/+5.
 = Keywords([Keyword { name: "trample", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), has: [], per: None }] }])
 
 ## Augmenter Pugilist // Echoing Equation
 face: Echoing Equation
@@ -758,7 +758,7 @@ face: Toxic Iguanar
 type: Creature — Lizard
 cost: {R}
 > This creature has deathtouch as long as you control a green permanent. (Any amount of damage a creature with deathtouch deals to a creature is enough to destroy it.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Green)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Green)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
 
 ## Treasonous Ogre
 face: Treasonous Ogre

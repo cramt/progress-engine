@@ -152,7 +152,7 @@ cost: {R}{R}
 > As long as the top card of your library is a Goblin card, this creature has all activated abilities of that card.
 = Static([PlayWithTopRevealed(You)])
 = Static([PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("goblin")]], kind: Some(Spell), posts: [], or: None } }, zone: TopOfLibrary(You) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, filter: Filter { alts: [[Subtype("goblin")]], kind: Some(Card), posts: [], or: None } }, then: [HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, filter: Filter { alts: [[Subtype("goblin")]], kind: Some(Card), posts: [], or: None } }, then: [HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Crocodile of the Crossing
 face: Crocodile of the Crossing
@@ -330,7 +330,7 @@ cost: {1}{W}
 > Defender, flying
 > Delirium — This creature can attack as though it didn't have defender as long as there are four or more card types among cards in your graveyard.
 = Keywords([Keyword { name: "defender", param: None }, Keyword { name: "flying", param: None }])
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }]) }
 
 ## Genji Glove
 face: Genji Glove
@@ -694,7 +694,7 @@ cost: {W}{W}
 > Whenever an Equipment you control enters, you may draw a card.
 > Metalcraft — Equipment you control have equip {0} as long as you control three or more artifacts.
 = Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }], limits: [] }
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "equip", param: Some(Cost([Mana(Mana(["0"]))])) }], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "equip", param: Some(Cost([Mana(Mana(["0"]))])) }], per: None }] }]) }
 
 ## Push the Limit
 face: Push the Limit

@@ -777,7 +777,7 @@ face: Sword Coast Serpent
 type: Creature — Serpent Dragon
 cost: {5}{U}{U}
 > This creature can't be blocked as long as you've cast a noncreature spell this turn.
-= Static([AsLongAs { cond: DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Trailing, cond: DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 
 ## Sword Coast Serpent // Capsizing Wave
 face: Capsizing Wave

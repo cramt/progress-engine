@@ -860,7 +860,7 @@ face: Thresher Lizard
 type: Creature — Lizard
 cost: {2}{R}
 > This creature gets +1/+2 as long as you have one or fewer cards in hand.
-= Static([AsLongAs { cond: CardsInHandAtMost(1), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: CardsInHandAtMost(1), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Thriving Rhino
 face: Thriving Rhino

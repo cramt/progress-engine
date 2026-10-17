@@ -226,7 +226,7 @@ cost: {1}{B}
 > This creature enters tapped.
 > This creature has menace as long as you control an artifact.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }], per: None }] }])
 
 ## Emerald Dragonfly
 face: Emerald Dragonfly
@@ -422,7 +422,7 @@ face: Hungering Yeti
 type: Creature — Yeti
 cost: {4}{R}
 > As long as you control a green or blue permanent, you may cast this spell as though it had flash. (You may cast it any time you could cast an instant.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Green)], [Color(Blue)]], kind: Some(Permanent), posts: [], or: None } }), then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Green)], [Color(Blue)]], kind: Some(Permanent), posts: [], or: None } }), then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Ifnir Deadlands
 face: Ifnir Deadlands
@@ -712,7 +712,7 @@ cost: {5}{G}
 > At the beginning of your upkeep, you may create a 1/1 green Squirrel creature token.
 > Threshold — All Squirrels get +2/+2 as long as there are seven or more cards in your graveyard.
 = Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["squirrel", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: All, filter: Filter { alts: [[Subtype("squirrel")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: All, filter: Filter { alts: [[Subtype("squirrel")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
 
 ## Octopus Umbra
 face: Octopus Umbra
@@ -772,7 +772,7 @@ face: Razorfield Rhino
 type: Artifact Creature — Rhino
 cost: {6}
 > Metalcraft — This creature gets +2/+2 as long as you control three or more artifacts.
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
 
 ## Regal Caracal
 face: Regal Caracal
@@ -1036,7 +1036,7 @@ cost: {3}{W}
 > Flying
 > Celebration — This creature gets +1/+0 and has lifelink as long as two or more nonland permanents entered the battlefield under your control this turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= Labelled { label: "celebration", ability: Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "lifelink", param: None }], per: None }] }]) }
+= Labelled { label: "celebration", ability: Static([AsLongAs { order: Trailing, cond: DidThisTurn(Enters { what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "lifelink", param: None }], per: None }] }]) }
 
 ## Twinblade Geist // Twinblade Invocation
 face: Twinblade Geist
@@ -1073,7 +1073,7 @@ cost: {1}{R}
 > Protection from white (This creature can't be blocked, targeted, dealt damage, enchanted, or equipped by anything white.)
 > This creature gets +2/+0 as long as it's attacking.
 = Keywords([Keyword { name: "protection", param: Some(Colors([White])) }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Unyielding Krumar
 face: Unyielding Krumar

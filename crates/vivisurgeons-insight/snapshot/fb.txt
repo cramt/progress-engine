@@ -227,7 +227,7 @@ cost: {2}{R}
 > Devoid (This card has no color.)
 > This creature has haste as long as you control another colorless creature.
 = Keywords([Keyword { name: "devoid", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Color(Colorless), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Color(Colorless), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
 
 ## Eldrazi Displacer
 face: Eldrazi Displacer
@@ -330,7 +330,7 @@ cost: {3}{B}
 > As long as it's your turn and you control an Army, Grond is an artifact creature.
 > Crew 3 (Tap any number of creatures you control with total power 3 or more: This Vehicle becomes an artifact creature until end of turn.)
 = Keywords([Keyword { name: "trample", param: None }])
-= Static([AsLongAs { cond: And([ItsYourTurn, YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("army")]], kind: None, posts: [], or: None } })]), then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("artifact"), Type("creature")]) }] }])
+= Static([AsLongAs { order: Leading, cond: And([ItsYourTurn, YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("army")]], kind: None, posts: [], or: None } })]), then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("artifact"), Type("creature")]) }] }])
 = Keywords([Keyword { name: "crew", param: Some(N(N(3))) }])
 
 ## Guidelight Synergist
@@ -541,7 +541,7 @@ type: Legendary Creature — Spirit
 cost: {5}{B}{B}{B}
 > Myojin of Grim Betrayal enters with an indestructible counter on it if you cast it from your hand.
 > Remove an indestructible counter from Myojin of Grim Betrayal: Put onto the battlefield under your control all creature cards in all graveyards that were put there from anywhere this turn.
-= Static([If { cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "indestructible" }] }])
+= Static([If { order: Trailing, cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "indestructible" }] }])
 = BROKE at "the" after: remove an indestructible counter from ~ : put onto
 
 ## Nahiri, the Harbinger

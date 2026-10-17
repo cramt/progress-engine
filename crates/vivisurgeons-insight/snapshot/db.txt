@@ -754,7 +754,7 @@ cost: {W}
 > Lifelink (Damage dealt by this creature also causes you to gain that much life.)
 > As long as you have 30 or more life, this creature gets +5/+5 and has flying.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= Static([AsLongAs { cond: PlayerHas { who: You, at_least: 30, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: PlayerHas { who: You, at_least: 30, what: Life }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Sharpened Pitchfork
 face: Sharpened Pitchfork
@@ -764,7 +764,7 @@ cost: {2}
 > As long as equipped creature is a Human, it gets +1/+1.
 > Equip {1}
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
 ## Shriveling Rot
@@ -783,7 +783,7 @@ face: Skirk Outrider
 type: Creature — Goblin
 cost: {3}{R}
 > As long as you control a Beast, this creature gets +2/+2 and has trample.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("beast")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("beast")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }])
 
 ## Skullport Merchant
 face: Skullport Merchant

@@ -106,7 +106,7 @@ cost: {3}
 > As long as equipped creature is a Human, it has lifelink.
 > Equip {3}
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }])
-= Static([AsLongAs { cond: Is { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["3"]))])) }])
 
 ## Canker Abomination
@@ -288,7 +288,7 @@ face: Gigastorm Titan
 type: Creature — Elemental
 cost: {4}{U}
 > This spell costs {3} less to cast if you've cast another spell this turn.
-= Static([If { cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 
 ## Goblin Deathraiders
 face: Goblin Deathraiders
@@ -935,7 +935,7 @@ cost: {R}{W}
 > As long as you have an enduring story, artifacts and creatures you control have ward {1}.
 = Keywords([Keyword { name: "trample", param: None }])
 = Keywords([Keyword { name: "storied", param: None }])
-= Static([AsLongAs { cond: EnduringStory(You), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["1"]))])) }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: EnduringStory(You), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["1"]))])) }], per: None }] }])
 
 ## Tiger Claws
 face: Tiger Claws
@@ -1030,7 +1030,7 @@ cost: {2}{B}
 > This creature can't block.
 > As long as you control a Demon, this creature has "{B}: Regenerate this creature."
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("demon")]], kind: None, posts: [], or: None } }), then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["B"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("demon")]], kind: None, posts: [], or: None } }), then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["B"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] } }] }])
 
 ## Vineshaper Prodigy
 face: Vineshaper Prodigy

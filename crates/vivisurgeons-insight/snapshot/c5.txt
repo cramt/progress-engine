@@ -561,7 +561,7 @@ type: Instant
 cost: {3}{R}
 > If it's your turn, you may sacrifice a Mountain rather than pay this spell's mana cost.
 > Mine Collapse deals 5 damage to target creature or planeswalker.
-= Static([If { cond: ItsYourTurn, then: [AlternativeCost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } })])] }])
+= Static([If { order: Leading, cond: ItsYourTurn, then: [AlternativeCost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } })])] }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }])
 
 ## Myr Servitor

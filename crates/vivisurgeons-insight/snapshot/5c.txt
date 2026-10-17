@@ -193,7 +193,7 @@ cost: {2}{G}{G}
 > Colossal Rattlewurm has flash as long as you control a Desert.
 > Trample
 > {1}{G}, Exile this card from your graveyard: Search your library for a Desert card, put it onto the battlefield tapped, then shuffle.
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("desert")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flash", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("desert")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flash", param: None }], per: None }] }])
 = Keywords([Keyword { name: "trample", param: None }])
 = Activated { cost: [Mana(Mana(["1", "G"])), Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } })], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("desert")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
 
@@ -449,7 +449,7 @@ cost: {2}{R}
 > This creature can't block.
 > This creature has menace as long as you control another Pirate.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("pirate")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("pirate")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }], per: None }] }])
 
 ## Hullbreacher
 face: Hullbreacher
@@ -532,7 +532,7 @@ cost: {2}
 > During your turn, creatures you control that are equipped have first strike and vigilance.
 > Equip {2}
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), ThatIs(Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None })], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }, Keyword { name: "vigilance", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), ThatIs(Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None })], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }, Keyword { name: "vigilance", param: None }], per: None }] }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Lurking Skirge
@@ -592,7 +592,7 @@ type: Legendary Creature — God
 cost: {4}{W}{B}{G}
 > As long as your life total is less than or equal to half your starting life total, Myrkul has indestructible.
 > Whenever another nontoken creature you control dies, you may exile it. If you do, create a token that's a copy of that card, except it's an enchantment and loses all other card types.
-= Static([AsLongAs { cond: AmountIs { n: LifeTotal(You), op: Le, value: HalfUnrounded(StartingLifeTotal(You)) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: LifeTotal(You), op: Le, value: HalfUnrounded(StartingLifeTotal(You)) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [May { who: You, then: [Exile(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, except: [Is { pt: None, adjs: [Type("enchantment")] }] }])], limits: [] }
 
 ## Mystic Monastery
@@ -836,7 +836,7 @@ face: Scrapyard Mongrel
 type: Creature — Dog
 cost: {3}{R}
 > As long as you control an artifact, this creature gets +2/+0 and has trample. (It can deal excess combat damage to the player or planeswalker it's attacking.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }] }])
 
 ## Scribe of the Mindful
 face: Scribe of the Mindful

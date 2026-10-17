@@ -96,7 +96,7 @@ type: Creature — Wolf
 cost: {G}
 > This creature enters with a +1/+1 counter on it if you control a permanent with mana value 4 or greater.
 > Whenever you cast a spell with mana value 4 or greater, put a +1/+1 counter on this creature.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } }), then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } } }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Ashmouth Hound
@@ -488,7 +488,7 @@ cost: {G}
 > Whenever you gain life for the first time each turn, create a 3/3 green Raccoon creature token.
 > {3}{G}: Level 3
 > Whenever you gain life for the first time each turn, put a +1/+1 counter on each creature you control.
-= Static([AsLongAs { cond: ItsYourTurn, then: [AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, types: Listed([Subtype("food")]) }, HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Mana(Mana(["2"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [GainLife { who: You, n: N(3) }], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, types: Listed([Subtype("food")]) }, HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Mana(Mana(["2"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [GainLife { who: You, n: N(3) }], limits: [] } }] }])
 = Activated { cost: [Mana(Mana(["2", "G"]))], effect: [ClassLevel(2)], limits: [] }
 = Triggered { trigger: When(FirstTimeEachTurn(GainsLife(You))), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green], types: ["raccoon", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 = Activated { cost: [Mana(Mana(["3", "G"]))], effect: [ClassLevel(3)], limits: [] }
@@ -1009,7 +1009,7 @@ type: Instant
 cost: {3}{G}
 > This spell costs {2} less to cast if you control a permanent with mana value 4 or greater.
 > One or two target creatures you control each get +1/+0 until end of turn. They each deal damage equal to their power to target creature an opponent controls.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = BROKE at "deal" after: one or two target creatures you control each get <pt> until end of turn . they each
 
 ## The Mycotyrant
@@ -1071,7 +1071,7 @@ cost: {2}{B}{B}
 > As long as enchanted permanent is a creature, it gets +1/+1.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, no_regen: false }], limits: [] }
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Unexpected Results
 face: Unexpected Results

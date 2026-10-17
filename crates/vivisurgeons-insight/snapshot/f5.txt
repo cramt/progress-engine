@@ -301,7 +301,7 @@ face: Etched Champion
 type: Artifact Creature — Soldier
 cost: {3}
 > Metalcraft — This creature has protection from each color as long as you control three or more artifacts.
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "protection", param: Some(Colors([White, Blue, Black, Red, Green])) }], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "protection", param: Some(Colors([White, Blue, Black, Red, Green])) }], per: None }] }]) }
 
 ## Famished Foragers
 face: Famished Foragers
@@ -781,7 +781,7 @@ type: Land
 > Whenever this land attacks, scry 1.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["U"]), Mana(["R"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["U", "R"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), types: [Color(Blue), Color(Red), Subtype("elemental"), Type("creature")], gains: [], keeps: Listed([Type("land")]), dur: Permanent }, GrantAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["U", "R"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), types: [Color(Blue), Color(Red), Subtype("elemental"), Type("creature")], gains: [], keeps: Listed([Type("land")]), dur: Permanent }, GrantAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }]), dur: Permanent }] }], limits: [] }
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Scry(N(1))], limits: [] }
 
 ## Rootha, Mercurial Artist
@@ -938,7 +938,7 @@ cost: {3}
 > As long as equipped creature is attacking, it has first strike and must be blocked if able.
 > Equipped creature has "If a creature dying causes a triggered ability of this creature or an emblem you own to trigger, that ability triggers an additional time."
 > Equip {2}
-= Static([AsLongAs { cond: Is { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MustBeBlocked }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MustBeBlocked }] }])
 = BROKE at "ability" after: equipped creature has " if a creature dying causes a triggered
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 

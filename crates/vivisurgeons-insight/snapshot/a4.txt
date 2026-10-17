@@ -34,7 +34,7 @@ cost: {4}{W}{B}
 > At the beginning of your end step, put a coin counter on another target creature.
 > Whenever a creature with a coin counter on it dies or is put into exile, return that card to the battlefield under your control.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([White, Black]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([White, Black]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Triggered { trigger: At(EndStep(Yours)), effect: [PutCounters { n: N(1), kind: "coin", on: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(Or([Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(Some("coin"))], or: None } }), PutInto { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(Some("coin"))], or: None } }, to: Exile, from: Anywhere }])), effect: [Move { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }], limits: [] }
 
@@ -221,7 +221,7 @@ cost: {2}{U}
 > As long as you have the city's blessing, Detectives you control can't be blocked.
 > Whenever you draw your second card each turn, create a 2/2 white and blue Detective creature token.
 = Keywords([Keyword { name: "ascend", param: None }])
-= Static([AsLongAs { cond: CitysBlessing(You), then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Leading, cond: CitysBlessing(You), then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked }] }])
 = Triggered { trigger: When(DrawsNth { who: You, n: 2 }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White, Blue], types: ["detective", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Distorted Curiosity
@@ -485,7 +485,7 @@ type: Creature — Human Monk
 cost: {2}{U}
 > This creature can't be blocked as long as you control no other creatures.
 > When this creature deals combat damage to a player, exile it and the top card of your library in a face-down pile, shuffle that pile, then manifest those cards. (To manifest a card, put it onto the battlefield face down as a 2/2 creature. Turn it face up any time for its mana cost if it's a creature card.)
-= Static([AsLongAs { cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Trailing, cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 = BROKE at "in" after: when this creature deals combat damage to a player , exile it and the top card of your library
 
 ## Jovial Evil
@@ -618,7 +618,7 @@ face: Nimana Skitter-Sneak
 type: Creature — Human Rogue
 cost: {3}{B}
 > As long as an opponent has eight or more cards in their graveyard, this creature gets +1/+0 and has menace. (It can't be blocked except by two or more creatures.)
-= Static([AsLongAs { cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
 
 ## Nimble-Blade Khenra
 face: Nimble-Blade Khenra
@@ -707,7 +707,7 @@ cost: {3}{W}
 > • Create two 1/1 white Monk creature tokens with prowess.
 > • Up to two target creatures you control each get +2/+2 until end of turn.
 > • Destroy target creature with power 4 or greater.
-= Static([If { cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Modal { choose: One, modes: [[Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["monk", "creature"], keywords: [Keyword { name: "prowess", param: None }], abilities: [], named: None, attacking: None } }], [Modify { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }, no_regen: false }]] }])
 
 ## Raze the Effigy

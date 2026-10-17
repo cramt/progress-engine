@@ -647,7 +647,7 @@ type: Instant — Trap
 cost: {2}{U}{U}
 > If an opponent cast three or more spells this turn, you may pay {0} rather than pay this spell's mana cost.
 > Exile any number of target spells.
-= Static([If { cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [AlternativeCost([Mana(Mana(["0"]))])] }])
+= Static([If { order: Leading, cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [AlternativeCost([Mana(Mana(["0"]))])] }])
 = Spell([Exile(Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })])
 
 ## Mirrorwood Treefolk
@@ -696,7 +696,7 @@ face: Neurok Spy
 type: Creature — Human Rogue
 cost: {2}{U}
 > This creature can't be blocked as long as defending player controls an artifact.
-= Static([AsLongAs { cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 
 ## Neyam Shai Murad
 face: Neyam Shai Murad
@@ -719,7 +719,7 @@ face: Night Revelers
 type: Creature — Vampire
 cost: {4}{R}
 > This creature has haste as long as an opponent controls a Human.
-= Static([AsLongAs { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
 
 ## Noggin Whack
 face: Noggin Whack
@@ -897,7 +897,7 @@ type: Creature — Devil
 cost: {2}{R}
 > During your turn, this creature has first strike.
 > Whenever another creature dies, this creature deals 1 damage to target player or planeswalker.
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }], limits: [] }
 
 ## Squall
@@ -969,7 +969,7 @@ cost: {3}{R}{G}
 > The Howling Abomination has trample as long as you've cast three or more spells this turn.
 > Whenever The Howling Abomination becomes the target of a spell, it gets +2/+2 until end of turn and deals 2 damage to each opponent.
 = Keywords([Keyword { name: "haste", param: None }])
-= Static([AsLongAs { cond: DidThisTurn(Casts { who: You, what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: DidThisTurn(Casts { who: You, what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
 = Triggered { trigger: When(BecomesTarget { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent)] }], limits: [] }
 
 ## Throes of Chaos
@@ -1014,7 +1014,7 @@ type: Instant
 cost: {2}{R}{R}
 > This spell costs {2} less to cast if you control a Vehicle.
 > Truck Toss deals 4 damage to any target.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Tundra Wolves

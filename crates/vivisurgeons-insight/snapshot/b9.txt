@@ -351,7 +351,7 @@ type: Instant
 cost: {5}{W}
 > This spell costs {2} less to cast if a creature is attacking you.
 > Return target creature card from your graveyard to the battlefield. If a Hero enters this way, it enters with two additional +1/+1 counters on it.
-= Static([If { cond: Is { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [AttackingAnyOf([Player(You)])], or: None } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Is { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [AttackingAnyOf([Player(You)])], or: None } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: ThisWay(Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("hero")]], kind: None, posts: [], or: None } }, under: None, state: None }), then: [EntersWithCounters { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Additional(N(2)), kind: "+1/+1" }] }])
 
 ## Igneous Inspiration
@@ -578,7 +578,7 @@ cost: {W}{U}{B}
 > Whenever you cast a spell, if its mana value is equal to 1 plus the number of soul counters on this enchantment, put a soul counter on this enchantment, then create a 2/2 white Spirit creature token with flying.
 > As long as there are five or more soul counters on this enchantment, Spirits you control get +3/+3.
 = Triggered { trigger: InterveningIf(When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), AmountIs { n: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Eq, value: Plus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("soul"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), 1) }), effect: [PutCounters { n: N(1), kind: "soul", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White], types: ["spirit", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("soul"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("soul"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }] }])
 
 ## Overencumbered
 face: Overencumbered
@@ -596,7 +596,7 @@ face: Paranoid Parish-Blade
 type: Creature — Human Soldier
 cost: {2}{W}
 > Delirium — This creature gets +1/+0 and has first strike as long as there are four or more card types among cards in your graveyard.
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }]) }
 
 ## Power Armor
 face: Power Armor
@@ -870,7 +870,7 @@ cost: {2}{R}{R}{R}
 > This creature has trample as long as it has a -1/-1 counter on it.
 > Persist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)
 = Keywords([Keyword { name: "haste", param: None }])
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("-1/-1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("-1/-1") }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }] }])
 = Keywords([Keyword { name: "persist", param: None }])
 
 ## Torch the Witness

@@ -390,7 +390,7 @@ face: Expedition Skulker
 type: Creature — Vampire Rogue
 cost: {1}{B}
 > This creature has deathtouch as long as you control another Rogue. (Any amount of damage it deals to a creature is enough to destroy it.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("rogue")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("rogue")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
 
 ## Familiar Ground
 face: Familiar Ground
@@ -412,7 +412,7 @@ type: Instant
 cost: {2}{W}
 > If you control a commander, you may cast this spell without paying its mana cost.
 > Creatures you control gain indestructible until end of turn.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
 = Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }])
 
 ## Forbidden Orchard
@@ -1004,7 +1004,7 @@ cost: {2}{B}
 > Taborax has lifelink as long as it has five or more +1/+1 counters on it.
 > Whenever another nontoken creature you control dies, put a +1/+1 counter on Taborax. If that creature was a Cleric, you may draw a card. If you do, you lose 1 life.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 = Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Leading, cond: Past(Is { what: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("cleric")]], kind: None, posts: [], or: None } }), then: [May { who: You, then: [Draw { who: You, n: N(1) }] }] }, IfYouDo([LoseLife { who: You, n: N(1) }])], limits: [] }
 
 ## Tandem Takedown

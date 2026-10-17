@@ -129,7 +129,7 @@ face: Bouncing Beebles
 type: Creature — Beeble
 cost: {2}{U}
 > This creature can't be blocked as long as defending player controls an artifact.
-= Static([AsLongAs { cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 
 ## Cacophony Unleashed
 face: Cacophony Unleashed
@@ -305,7 +305,7 @@ type: Creature — Boar
 cost: {1}{G}
 > This creature gets +1/+1 as long as you control a Mountain.
 > {R}: This creature gains haste until end of turn. (It can attack and {T} this turn.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Mana(Mana(["R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Flitterwing Nuisance
@@ -466,7 +466,7 @@ type: Legendary Creature — Human Mercenary
 cost: {1}{B}
 > June can't be blocked as long as you've drawn two or more cards this turn.
 > {1}, Sacrifice another creature: Create a Clue token. Activate only during your turn. (It's an artifact with "{2}, Sacrifice this token: Draw a card.")
-= Static([AsLongAs { cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
+= Static([AsLongAs { order: Trailing, cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }] }])
 = Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["clue"], keywords: [], abilities: [], named: Some("clue"), attacking: None } }], limits: [OnlyDuringYourTurn] }
 
 ## Kozilek's Sentinel
@@ -579,7 +579,7 @@ cost: {4}{G}{G}
 > Trample
 > This creature gets +3/+3 as long as there is a land card in your graveyard.
 = Keywords([Keyword { name: "trample", param: None }])
-= Static([AsLongAs { cond: ThereAre([Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }]), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: ThereAre([Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }]), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }] }])
 
 ## Nazar, the Velvet Fang
 face: Nazar, the Velvet Fang
@@ -901,7 +901,7 @@ cost: {2}{B}{G}
 > When The Swarmweaver enters, create two 1/1 black and green Insect creature tokens with flying.
 > Delirium — As long as there are four or more card types among cards in your graveyard, Insects and Spiders you control get +1/+1 and have deathtouch.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black, Green], types: ["insect", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
-= Labelled { label: "delirium", ability: Static([AsLongAs { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("insect")], [Subtype("spider")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "deathtouch", param: None }], per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("insect")], [Subtype("spider")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "deathtouch", param: None }], per: None }] }]) }
 
 ## Thought Dissector
 face: Thought Dissector

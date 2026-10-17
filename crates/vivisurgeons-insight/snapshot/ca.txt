@@ -885,7 +885,7 @@ face: Swordsworn Cavalier
 type: Creature — Human Knight
 cost: {1}{W}
 > This creature has first strike as long as another Knight entered the battlefield under your control this turn.
-= Static([AsLongAs { cond: DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Subtype("knight")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Subtype("knight")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Talas Merchant
 face: Talas Merchant

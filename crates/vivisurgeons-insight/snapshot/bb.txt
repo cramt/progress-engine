@@ -60,7 +60,7 @@ cost: {2}{G}{G}{W}{W}{U}{U}
 > {W}: Arcades Sabboth gets +0/+1 until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Unless { effect: Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, who: You, cost: [Mana(Mana(["G", "W", "U"]))] }], limits: [] }
-= Static([AsLongAs { cond: Not(Is { what: Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Not(Is { what: Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }] }])
 = Activated { cost: [Mana(Mana(["W"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Archetype of Finality
@@ -252,7 +252,7 @@ cost: {W}{U}
 > As long as you attacked with three or more Merfolk this turn, Merfolk you control get +1/+0.
 = Keywords([Keyword { name: "flash", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Untap(Objects { quant: Each, filter: Filter { alts: [[State(Other), Subtype("merfolk")]], kind: None, posts: [Controller(You)], or: None } })], limits: [] }
-= Static([AsLongAs { cond: AttackedWithThisTurn(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Subtype("merfolk")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("merfolk")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: AttackedWithThisTurn(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Subtype("merfolk")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("merfolk")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }] }])
 
 ## Defenestrate
 face: Defenestrate
@@ -575,7 +575,7 @@ cost: {3}{G}{U}
 > You have no maximum hand size.
 > If you would lose unspent mana, that mana becomes colorless instead.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Green, Blue]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Green, Blue]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Static([MaxHandSize])
 = BROKE at "," after: if you would lose unspent mana
 

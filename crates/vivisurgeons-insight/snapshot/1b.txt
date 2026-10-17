@@ -32,7 +32,7 @@ cost: {3}{W}{W}
 > Flying
 > As long as you control a Human, this creature has hexproof and indestructible.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }, Keyword { name: "indestructible", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }, Keyword { name: "indestructible", param: None }], per: None }] }])
 
 ## Ant-Man, Reformed Rogue
 face: Ant-Man, Reformed Rogue
@@ -762,7 +762,7 @@ cost: {3}
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["4"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "defender", param: None }])
 = BROKE at "," after: if this creature was kicked
-= Static([AsLongAs { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
+= Static([AsLongAs { order: Leading, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }])
 
 ## Snuff Out
 face: Snuff Out
@@ -770,7 +770,7 @@ type: Instant
 cost: {3}{B}
 > If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost.
 > Destroy target nonblack creature. It can't be regenerated.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [AlternativeCost([PayLife(N(4))])] }])
+= Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } }), then: [AlternativeCost([PayLife(N(4))])] }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[NonColor(Black), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: true }])
 
 ## Sokka, Lateral Strategist

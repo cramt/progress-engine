@@ -721,7 +721,7 @@ cost: {2}{B}
 > You control your opponents while they're searching their libraries.
 > While an opponent is searching their library, they exile each card they find. You may play those cards for as long as they remain exiled, and you may spend mana as though it were mana of any color to cast them.
 = Keywords([Keyword { name: "flash", param: None }])
-= Static([AsLongAs { cond: Searching { who: AnOpponent, zone: Library(That) }, then: [ControlPlayer(That)] }])
+= Static([AsLongAs { order: Trailing, cond: Searching { who: AnOpponent, zone: Library(That) }, then: [ControlPlayer(That)] }])
 = Static([While { cond: Searching { who: AnOpponent, zone: Library(That) }, then: [Performed { by: That, effect: Exile(Objects { quant: Each, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedBy { how: Found, by: That }], or: None } }) }, May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ForAsLongAs(In { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }) }] }, May { who: You, then: [SpendAsAnyColor { uses: [Cast(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], dur: ForAsLongAs(In { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }) }] }] }])
 
 ## Out of the Tombs
@@ -926,7 +926,7 @@ face: Spur Grappler
 type: Creature — Beast
 cost: {2}{R}
 > This creature gets +2/+1 as long as you control no untapped lands.
-= Static([AsLongAs { cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Squash
 face: Squash
@@ -934,7 +934,7 @@ type: Instant
 cost: {4}{R}
 > This spell costs {3} less to cast if you control a Giant.
 > Squash deals 6 damage to target creature or planeswalker.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("giant")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("giant")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(6), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }])
 
 ## Squirrelanoids

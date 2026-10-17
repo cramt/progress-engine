@@ -12,7 +12,7 @@ face: Aeronaut Tinkerer
 type: Creature — Human Artificer
 cost: {2}{U}
 > This creature has flying as long as you control an artifact. (It can't be blocked except by creatures with flying or reach.)
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 
 ## Agent of Shauku
 face: Agent of Shauku
@@ -174,7 +174,7 @@ face: Chrome Steed
 type: Artifact Creature — Horse
 cost: {4}
 > Metalcraft — This creature gets +2/+2 as long as you control three or more artifacts.
-= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
 
 ## Conceited Witch // Price of Beauty
 face: Conceited Witch
@@ -416,7 +416,7 @@ cost: {3}{W}
 > As long as you have an enduring story, creatures you control get +1/+1.
 > Whenever Fíli or another nontoken Dwarf you control enters, create a 2/2 red Dwarf creature token.
 = Keywords([Keyword { name: "storied", param: None }])
-= Static([AsLongAs { cond: EnduringStory(You), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: EnduringStory(You), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[State(Nontoken), Subtype("dwarf")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Red], types: ["dwarf", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Gangrenous Goliath
@@ -570,7 +570,7 @@ type: Sorcery
 cost: {X}{R}
 > As long as Kaervek's Torch is on the stack, spells that target it cost {2} more to cast.
 > Kaervek's Torch deals X damage to any target.
-= Static([AsLongAs { cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Stack }, then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Targets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, by: Mana(["2"]), less: false, per: None }] }])
+= Static([AsLongAs { order: Leading, cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Stack }, then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Targets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, by: Mana(["2"]), less: false, per: None }] }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Kapow!
@@ -708,7 +708,7 @@ cost: {4}{B}
 > Lifelink
 > This creature has haste as long as you control another Vampire.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
 
 ## Metropolis Angel
 face: Metropolis Angel
@@ -797,7 +797,7 @@ type: Artifact Creature — Gargoyle
 cost: {1}{W}{B}
 > This creature has flying as long as it's modified. (Equipment, Auras you control, and counters are modifications.)
 > Persist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Modified)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Modified)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
 = Keywords([Keyword { name: "persist", param: None }])
 
 ## Old Thrush
@@ -1156,7 +1156,7 @@ cost: {4}{G}
 > Infusion — This creature gets +2/+0 as long as you gained life this turn.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Triggered { trigger: When(BecomesTarget { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }) }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }], limits: [] }
-= Labelled { label: "infusion", ability: Static([AsLongAs { cond: DidThisTurn(GainsLife(You)), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "infusion", ability: Static([AsLongAs { order: Trailing, cond: DidThisTurn(GainsLife(You)), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }]) }
 
 ## The Stasis Coffin
 face: The Stasis Coffin

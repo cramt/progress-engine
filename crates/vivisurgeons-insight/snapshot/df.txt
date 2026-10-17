@@ -1088,7 +1088,7 @@ type: Instant
 cost: {2}{B}
 > This spell costs {1} less to cast if you control a Villain.
 > You draw two cards and lose 2 life.
-= Static([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("villain")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("villain")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Draw { who: You, n: N(2) }, LoseLife { who: You, n: N(2) }])
 
 ## Vivien, Monsters' Advocate

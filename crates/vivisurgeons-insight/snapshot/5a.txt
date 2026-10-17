@@ -500,7 +500,7 @@ cost: {R}
 > During your turn, equipped creature gets +1/+0 and has first strike.
 > {2}, Sacrifice this Equipment: Draw a card.
 > Equip {2}
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
 = Activated { cost: [Mana(Mana(["2"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
@@ -549,7 +549,7 @@ type: Sorcery
 cost: {3}{B}
 > This spell costs {2} less to cast if a creature card was put into your graveyard from anywhere this turn.
 > Return up to two target creature cards from your graveyard to your hand.
-= Static([If { cond: DidThisTurn(PutInto { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, to: Graveyard(You), from: Anywhere }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(PutInto { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, to: Graveyard(You), from: Anywhere }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Move { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])
 
 ## Meglonoth
@@ -678,7 +678,7 @@ type: Creature — Worm
 cost: {5}{G}{G}
 > This spell costs {2} less to cast if a creature died this turn.
 > Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)
-= Static([If { cond: DidThisTurn(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: DidThisTurn(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Keywords([Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Pygmy Razorback
@@ -724,7 +724,7 @@ cost: {1}{U}
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Red)]], kind: None, posts: [], or: None } }), effect: [Tap(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
-= Static([AsLongAs { cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Red)]], kind: None, posts: [], or: None } }, then: [Loses { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }] }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Red)]], kind: None, posts: [], or: None } }, then: [Loses { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }] }] }])
 = Static([Restrict { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntap(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }])
 
 ## Reclamation Sage
@@ -956,7 +956,7 @@ cost: {2}{U}
 > At the beginning of your upkeep, scry 1.
 > {1}{U}: Target creature you control can't be blocked this turn.
 = Keywords([Keyword { name: "indestructible", param: None }])
-= Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Blue]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: Devotion { who: You, to: Listed([Blue]) }, op: Lt, value: N(5) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Scry(N(1))], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "U"]))], effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
 
@@ -968,7 +968,7 @@ cost: {4}
 > +1: Attach The Aetherspark to up to one target creature you control. Put a +1/+1 counter on that creature.
 > −5: Draw two cards.
 > −10: Add ten mana of any one color.
-= Static([AsLongAs { cond: AttachedTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeAttacked }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(While { event: DealsCombatDamage(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), cond: ItsYourTurn }), effect: [PutCounters { n: ThatMany, kind: "loyalty", on: Objects { quant: Granter, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }] }])
+= Static([AsLongAs { order: Leading, cond: AttachedTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeAttacked }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(While { event: DealsCombatDamage(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), cond: ItsYourTurn }), effect: [PutCounters { n: ThatMany, kind: "loyalty", on: Objects { quant: Granter, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }] }])
 = Loyalty { change: N(1), effect: [Attach { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }
 = Loyalty { change: N(-5), effect: [Draw { who: You, n: N(2) }] }
 = Loyalty { change: N(-10), effect: [AddMana(Of { n: N(10), pick: AnyOneColor, within: None })] }

@@ -2619,7 +2619,7 @@ impl Walk for Static {
             Static::UntapDuring { what, .. } => {
                 Walk::walk(what, v);
             }
-            Static::AsLongAs { cond, then } => {
+            Static::AsLongAs { cond, then, .. } => {
                 Walk::walk(cond, v);
                 for x0 in (then).iter_mut() {
                     Walk::walk(x0, v);
@@ -2675,7 +2675,7 @@ impl Walk for Static {
                 Walk::walk(what, v);
                 Walk::walk(equal_to, v);
             }
-            Static::If { cond, then } => {
+            Static::If { cond, then, .. } => {
                 Walk::walk(cond, v);
                 for x0 in (then).iter_mut() {
                     Walk::walk(x0, v);

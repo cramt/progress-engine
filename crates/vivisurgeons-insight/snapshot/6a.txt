@@ -425,7 +425,7 @@ cost: {4}{R}
 > During your turn, you may cast instant and sorcery spells from your graveyard by paying 1 life in addition to their other costs.
 > If a card or token would be put into your graveyard from anywhere, exile it instead.
 > {1}{R}: Sacrifice this enchantment.
-= Static([AsLongAs { cond: ItsYourTurn, then: [CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, zone: Some(Graveyard(You)), cost: [PayLife(N(1))], rather: false }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, zone: Some(Graveyard(You)), cost: [PayLife(N(1))], rather: false }] }])
 = Static([Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: Some(Filter { alts: [], kind: Some(Token), posts: [], or: None }) } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 = Activated { cost: [Mana(Mana(["1", "R"]))], effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
@@ -690,7 +690,7 @@ type: Sorcery
 cost: {3}{R}
 > This spell costs {3} less to cast if it targets a creature token.
 > Gain control of target creature until end of turn. Untap that creature. It gets +2/+0 and gains haste until end of turn.
-= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
+= Static([If { order: Trailing, cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["3"]), less: true, per: None }] }])
 = Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }, Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }])
 
 ## Maximize Velocity
@@ -715,7 +715,7 @@ type: Creature — Rat Warlock
 cost: {2}{U/B}{U/B}
 > Threshold — As long as there are seven or more cards in your graveyard, this creature gets +3/+0.
 > {2}{U/B}: Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), has: [], per: None }] }]) }
 = Activated { cost: [Mana(Mana(["2", "U/B"]))], effect: [Surveil(N(1))], limits: [] }
 
 ## Mobilize
@@ -1081,7 +1081,7 @@ cost: {3}{U}{U}
 > Hexproof
 > Lieutenant — As long as you control your commander, this creature gets +2/+2 and has "Whenever this creature becomes blocked, you may draw two cards."
 = Keywords([Keyword { name: "hexproof", param: None }])
-= Labelled { label: "lieutenant", ability: Static([AsLongAs { cond: YouControl(Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(2) }] }], limits: [] } }] }]) }
+= Labelled { label: "lieutenant", ability: Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(2) }] }], limits: [] } }] }]) }
 
 ## Summon: Titan
 face: Summon: Titan

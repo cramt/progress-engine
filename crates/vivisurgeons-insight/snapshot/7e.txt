@@ -499,8 +499,8 @@ cost: {3}{G}{U}{R}
 > During your turn, each non-Lesson instant and sorcery card in your graveyard has flashback. The flashback cost is equal to that card's mana cost. (You may cast a card from your graveyard for its flashback cost. Then exile it.)
 > During your turn, each Lesson card in your graveyard has flashback {1}.
 = Keywords([Keyword { name: "firebending", param: Some(N(N(2))) }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Non("lesson"), Type("instant")], [Non("lesson"), Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, pt: None, has: [Keyword { name: "flashback", param: None }], per: None }] }, KeywordCost { keyword: "flashback", cost: [ManaCostOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }])
-= Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, pt: None, has: [Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["1"]))])) }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Non("lesson"), Type("instant")], [Non("lesson"), Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, pt: None, has: [Keyword { name: "flashback", param: None }], per: None }] }, KeywordCost { keyword: "flashback", cost: [ManaCostOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, pt: None, has: [Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["1"]))])) }], per: None }] }])
 
 ## Iron Fist, Hero for Hire
 face: Iron Fist, Hero for Hire

@@ -552,7 +552,7 @@ face: Mystic Zealot
 type: Creature — Human Nomad Mystic
 cost: {3}{W}
 > Threshold — As long as there are seven or more cards in your graveyard, this creature gets +1/+1 and has flying.
-= Labelled { label: "threshold", ability: Static([AsLongAs { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }] }]) }
 
 ## Neurok Stealthsuit
 face: Neurok Stealthsuit
@@ -790,7 +790,7 @@ type: Creature — Siren Pirate
 cost: {3}{U}
 > Raid — This spell costs {1} less to cast if you attacked this turn.
 > Flying
-= Labelled { label: "raid", ability: Static([If { cond: YouAttackedThisTurn, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }]) }
+= Labelled { label: "raid", ability: Static([If { order: Trailing, cond: YouAttackedThisTurn, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }]) }
 = Keywords([Keyword { name: "flying", param: None }])
 
 ## Skullcap Snail

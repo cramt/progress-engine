@@ -26,7 +26,7 @@ face: Arctic Foxes
 type: Creature — Fox
 cost: {1}{W}
 > This creature can't be blocked by creatures with power 2 or greater as long as defending player controls a snow land.
-= Static([AsLongAs { cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Supertype("snow"), Type("land")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(2) })], or: None }) }] }])
+= Static([AsLongAs { order: Trailing, cond: PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Supertype("snow"), Type("land")]], kind: None, posts: [], or: None } }), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(2) })], or: None }) }] }])
 
 ## Artful Takedown
 face: Artful Takedown
@@ -242,7 +242,7 @@ type: Creature — Vampire
 cost: {5}{B}{B}
 > Delirium — This spell costs {2} less to cast if there are four or more card types among cards in your graveyard.
 > Flying
-= Labelled { label: "delirium", ability: Static([If { cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }]) }
+= Labelled { label: "delirium", ability: Static([If { order: Trailing, cond: AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }]) }
 = Keywords([Keyword { name: "flying", param: None }])
 
 ## Earthshaker Khenra
@@ -283,7 +283,7 @@ cost: {2}{G}
 > Reach (This creature can block creatures with flying.)
 > As long as you control a red permanent, this creature gets +1/+0 and has first strike.
 = Keywords([Keyword { name: "reach", param: None }])
-= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "first strike", param: None }], per: None }] }])
 
 ## Endless Wurm
 face: Endless Wurm
@@ -405,7 +405,7 @@ cost: {3}
 > As long as this artifact is a creature, it can block an additional creature each combat.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["R"])))], limits: [] }
 = Activated { cost: [Mana(Mana(["4", "R"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Color(Red), Subtype("giant"), Type("artifact"), Type("creature")], gains: [Keyword { name: "trample", param: None }], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }], limits: [] }
-= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CanBlockAdditional(N(1)) }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CanBlockAdditional(N(1)) }] }])
 
 ## Frilled Oculus
 face: Frilled Oculus
