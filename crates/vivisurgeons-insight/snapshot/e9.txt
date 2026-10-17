@@ -950,7 +950,7 @@ face: Selective Obliteration
 type: Sorcery
 cost: {3}{C}{C}
 > Each player chooses a color. Then exile each permanent unless it's colorless or it's only the color its controller chose.
-= BROKE at "the" after: each player chooses a color . then exile each permanent unless it's colorless or it's only
+= Spell([Performed { by: Each, effect: Choose(Color) }, Exile(Objects { quant: Each, filter: Filter { alts: [], kind: Some(Permanent), posts: [Not(Either([ThatIs(Filter { alts: [[Color(Colorless)]], kind: None, posts: [], or: None }), OnlyColorChosenBy(ControllerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }))]))], or: None } })])
 
 ## Selvala, Explorer Returned
 face: Selvala, Explorer Returned

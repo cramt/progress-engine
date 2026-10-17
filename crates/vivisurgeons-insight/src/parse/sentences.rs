@@ -23,6 +23,17 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
                 who,
                 cost,
             };
+        } else if let Some(post) = matches!(&e, Effect::Exile(o) | Effect::Destroy { what: o, .. } if matches!(o.quant, Quant::Each | Quant::All))
+            .then(|| p.attempt(unless_each))
+            .flatten()
+        {
+            // "exile each permanent unless it's colorless or it's only the
+            // color its controller chose" (Selective Obliteration): the
+            // "unless" says which permanents, each tested on its own, so it
+            // is the objects' filter and not one condition on the spell.
+            if let Effect::Exile(o) | Effect::Destroy { what: o, .. } = &mut e {
+                o.filter.posts.push(post);
+            }
         } else if let Some(mut cond) = p.attempt(|p| {
             // "unless it has the same name as another card exiled this way".
             p.word("unless")?;
@@ -2313,4 +2324,37 @@ fn intervening(p: &mut P, event: Event) -> Event {
         },
         None => event,
     }
+}
+
+/// "unless it's colorless or it's only the color its controller chose":
+/// what each object must not be, as a post of the objects.
+fn unless_each(p: &mut P) -> Option<Post> {
+    p.word("unless")?;
+    let mut v = vec![];
+    loop {
+        p.word("it's")?;
+        let q = alt!(p;
+            |p| {
+                p.words("only the color its controller chose")?;
+                Some(Post::OnlyColorChosenBy(Player::ControllerOf(Box::new(Objects {
+                    quant: Quant::Itself,
+                    filter: Filter::default(),
+                }))))
+            },
+            |p| {
+                let a = p.peek_word().and_then(color_word)?;
+                p.bump();
+                Some(Post::ThatIs(Filter { alts: vec![vec![Adj::Color(a)]], ..Filter::default() }))
+            },
+        )?;
+        v.push(q);
+        if p.attempt(|p| p.word("or")).is_none() {
+            break;
+        }
+    }
+    // A lone "unless it's colorless" is still read as a condition.
+    if v.len() < 2 || !matches!(p.peek(), Some(Tok::Period) | None) {
+        return None;
+    }
+    Some(Post::Not(Box::new(Post::Either(v))))
 }

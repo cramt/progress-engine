@@ -2325,6 +2325,9 @@ impl Walk for Post {
                     Walk::walk(x0, v);
                 }
             }
+            Post::OnlyColorChosenBy(f0) => {
+                Walk::walk(f0, v);
+            }
             Post::SameNameAs(f0) => {
                 Walk::walk(&mut **f0, v);
             }

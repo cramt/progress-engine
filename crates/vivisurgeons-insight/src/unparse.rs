@@ -4791,6 +4791,28 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 filter(o, f, if state { n } else { Num::Sg });
             }
         }
+        // "each permanent unless it's colorless or it's only the color its
+        // controller chose": what each must not be, one "it's" per kind.
+        Post::Not(q) if matches!(&**q, Post::Either(v) if v.iter().any(|q| matches!(q, Post::OnlyColorChosenBy(_)))) => {
+            if let Post::Either(v) = &**q {
+                o.w("unless");
+                for (i, q) in v.iter().enumerate() {
+                    if i > 0 {
+                        o.w("or");
+                    }
+                    o.w("it's");
+                    match q {
+                        Post::ThatIs(f) => filter(o, f, Num::Sg),
+                        Post::OnlyColorChosenBy(w) => only_color_chosen_by(o, w),
+                        q => post(o, q, n),
+                    }
+                }
+            }
+        }
+        Post::OnlyColorChosenBy(w) => {
+            that_is(o, n);
+            only_color_chosen_by(o, w);
+        }
         // "without a fate counter on it".
         Post::Not(q) if matches!(&**q, Post::WithCounter(Some(_))) => {
             if let Post::WithCounter(Some(k)) = &**q {
@@ -6238,6 +6260,13 @@ fn says_no_player(e: &Effect) -> bool {
             | Effect::Choose(_)
             | Effect::PutCounters { .. }
     )
+}
+
+/// "only the color its controller chose".
+fn only_color_chosen_by(o: &mut Out, w: &Player) {
+    o.w("only the color");
+    player(o, w);
+    o.w("chose");
 }
 
 /// Whether `b` is the subject `a` said again: the same words, or the one

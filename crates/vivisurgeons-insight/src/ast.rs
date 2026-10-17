@@ -1215,6 +1215,10 @@ pub enum Post {
     CouldProduce(Mana),
     /// "that is snow or could produce {C}": any one of these holds.
     Either(Vec<Post>),
+    /// "unless it's only the color its controller chose" (Selective
+    /// Obliteration): exactly one color, the one that player chose (CR
+    /// 105.2a: a monocolored object is exactly one of the five colors).
+    OnlyColorChosenBy(Player),
     /// "with four or more card types among them".
     CardTypesAmongAtLeast(u32),
     /// "with the same name as that card".
