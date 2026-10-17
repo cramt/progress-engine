@@ -50,12 +50,17 @@ impl Entry {
         crate::read_face_unresolved(&face, &self.card)
     }
 
-    /// The face's abilities as one line each, as the grammar reads them now.
+    /// The face's abilities as one line each, as the grammar reads them now,
+    /// each pointer followed by what it points at (`/* a creature */`), so
+    /// a reader can check it and a moved referent is a moved line.
     pub fn trees(&self) -> Vec<String> {
-        self.lines()
+        let lines = self.lines();
+        let notes = crate::backref::notes(&lines, &self.type_line);
+        lines
             .into_iter()
-            .map(|l| match l.parsed {
-                Ok(a) => format!("{a:?}"),
+            .zip(notes)
+            .map(|(l, n)| match l.parsed {
+                Ok(a) => crate::backref::annotate(&format!("{a:?}"), &n),
                 Err(b) => format!("BROKE at {:?} after: {}", b.at, b.read),
             })
             .collect()

@@ -14,7 +14,7 @@ cost: {W}{U}{B}
 > −6: Choose left or right. Each player gains control of all nonland permanents other than Aminatou controlled by the next player in the chosen direction.
 > Aminatou, the Fateshifter can be your commander.
 = Loyalty { change: N(1), effect: [Draw { who: You, n: N(1) }, Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }
-= Loyalty { change: N(-1), effect: [Exile(Objects { quant: AnotherTarget, filter: Filter { alts: [], kind: Some(Permanent), posts: [Owner(You)], or: None } }), Move { what: Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }
+= Loyalty { change: N(-1), effect: [Exile(Objects { quant: AnotherTarget, filter: Filter { alts: [], kind: Some(Permanent), posts: [Owner(You)], or: None } }), Move { what: Objects { quant: BackRef { back: 1 } /* another target permanent you own */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }
 = BROKE at "or" after: N(-6) : choose left
 = Static([CanBeCommander])
 
@@ -32,7 +32,7 @@ face: Appetite for Brains
 type: Sorcery
 cost: {B}
 > Target opponent reveals their hand. You choose a card from it with mana value 4 or greater and exile that card.
-= Spell([RevealHand(TargetOpponent), Choose(Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(TargetOpponent), With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } })), Exile(Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])
+= Spell([RevealHand(TargetOpponent), Choose(Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(TargetOpponent), With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } })), Exile(Objects { quant: BackRef { back: 1 } /* a card from it with mana value 4 or greater */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])
 
 ## Arlinn Kord // Arlinn, Embraced by the Moon
 face: Arlinn Kord
@@ -197,7 +197,7 @@ cost: {2}{U}
 > Flying
 > Whenever you cast a noncreature spell, incubate X, where X is that spell's mana value. (Create an Incubator token with X +1/+1 counters on it and "{2}: Transform this token." It transforms into a 0/0 Phyrexian artifact creature.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Where { then: [Action { by: None, name: "incubate", n: Some(X) }], x: ManaValueOf(Objects { quant: BackRef { back: 2 }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Where { then: [Action { by: None, name: "incubate", n: Some(X) }], x: ManaValueOf(Objects { quant: BackRef { back: 2 } /* a noncreature spell [trigger] */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] }
 
 ## Cloakwood Hermit
 face: Cloakwood Hermit
@@ -281,7 +281,7 @@ cost: {R}{W}
 > This creature has lifelink as long as you control another Dwarf.
 > When this creature enters, look at the top four cards of your library. You may reveal a Dwarf or Equipment card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.
 = Static([AsLongAs { order: Trailing, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("dwarf")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [LookAtTop { who: You, whose: You, n: N(4) }, May { who: You, then: [Reveal { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("dwarf")], [Subtype("equipment")]], kind: Some(Card), posts: [FromAmong(Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }, Move { what: Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Move { what: Objects { quant: Rest { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [LookAtTop { who: You, whose: You, n: N(4) }, May { who: You, then: [Reveal { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("dwarf")], [Subtype("equipment")]], kind: Some(Card), posts: [FromAmong(Objects { quant: BackRef { back: 1 } /* the cards looked at */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }, Move { what: Objects { quant: BackRef { back: 1 } /* a dwarf or equipment card from among it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Move { what: Objects { quant: Rest { back: 1 } /* a dwarf or equipment card from among it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }], limits: [] }
 
 ## Ertai's Familiar
 face: Ertai's Familiar
@@ -339,7 +339,7 @@ type: Instant
 cost: {4}{W}
 > Creatures you control get +1/+2 until end of turn. Untap those creatures.
 > Basic landcycling {1}{W} ({1}{W}, Discard this card: Search your library for a basic land card, reveal it, put it into your hand, then shuffle.)
-= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, Untap(Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, Untap(Objects { quant: BackRef { back: 1 } /* creatures you control */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])
 = Keywords([Keyword { name: "basic landcycling", param: Some(Cost([Mana(Mana(["1", "W"]))])) }])
 
 ## Gustcloak Skirmisher
@@ -356,7 +356,7 @@ face: Hadana's Climb
 type: Legendary Enchantment
 cost: {1}{G}{U}
 > At the beginning of combat on your turn, put a +1/+1 counter on target creature you control. Then if that creature has three or more +1/+1 counters on it, transform Hadana's Climb.
-= Triggered { trigger: At(Combat(Yours)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Triggered { trigger: At(Combat(Yours)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: BackRef { back: 1 } /* target creature you control */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Hadana's Climb // Winged Temple of Orazca
 face: Winged Temple of Orazca
@@ -365,7 +365,7 @@ type: Legendary Land
 > {T}: Add one mana of any color.
 > {1}{G}{U}, {T}: Target creature you control gains flying and gets +X/+X until end of turn, where X is its power.
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "G", "U"])), Tap], effect: [Where { then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], x: PowerOf(Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "G", "U"])), Tap], effect: [Where { then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], x: PowerOf(Objects { quant: BackRef { back: 1 } /* target creature you control */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], limits: [] }
 
 ## Havengul Laboratory // Havengul Mystery
 face: Havengul Laboratory
@@ -384,7 +384,7 @@ type: Legendary Land
 > When the creature put onto the battlefield with Havengul Mystery leaves the battlefield, transform Havengul Mystery.
 > {T}, Pay 1 life: Add {B}.
 = Triggered { trigger: When(TransformsInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }], limits: [] }
-= Triggered { trigger: When(Leaves { what: Objects { quant: LinkedBackRef { line: 0, nth: 1 }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [PutOntoBattlefieldWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: Battlefield }), effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
+= Triggered { trigger: When(Leaves { what: Objects { quant: LinkedBackRef { line: 0, nth: 1 } /* line 0: target creature card from your graveyard */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [PutOntoBattlefieldWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: Battlefield }), effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 = Activated { cost: [Tap, PayLife(N(1))], effect: [AddMana(Symbols(Mana(["B"])))], limits: [] }
 
 ## Hooded Brawler
@@ -419,7 +419,7 @@ face: Insatiable Appetite
 type: Instant
 cost: {1}{G}
 > You may sacrifice a Food. If you do, target creature gets +5/+5 until end of turn. Otherwise, that creature gets +3/+3 until end of turn.
-= Spell([May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("food")]], kind: None, posts: [], or: None } } }] }, IfYouDo([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), gains: [], dur: UntilEndOfTurn }]), Otherwise([Modify { what: Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }])])
+= Spell([May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("food")]], kind: None, posts: [], or: None } } }] }, IfYouDo([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), gains: [], dur: UntilEndOfTurn }]), Otherwise([Modify { what: Objects { quant: BackRef { back: 1 } /* target creature */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }])])
 
 ## Jace, Cunning Castaway
 face: Jace, Cunning Castaway
@@ -444,7 +444,7 @@ face: Kaboom!
 type: Sorcery
 cost: {4}{R}
 > Choose any number of target players or planeswalkers. For each of them, reveal cards from the top of your library until you reveal a nonland card, Kaboom! deals damage equal to that card's mana value to that player or planeswalker, then you put the revealed cards on the bottom of your library in any order.
-= Spell([Choose(Objects(Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [], kind: Some(Player), posts: [], or: Some(Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None }) } })), ForEach { order: Leading, each: Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } } }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: BackRef { back: 2 }, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), to: [Or([Player(That), Objects(Objects { quant: BackRef { back: 2 }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }, Move { what: Objects { quant: BackRef { back: 2 }, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }] }])
+= Spell([Choose(Objects(Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [], kind: Some(Player), posts: [], or: Some(Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None }) } })), ForEach { order: Leading, each: Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } } }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: BackRef { back: 2 } /* a nonland card */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), to: [Or([Player(That), Objects(Objects { quant: BackRef { back: 2 } /* a nonland card */, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }, Move { what: Objects { quant: BackRef { back: 2 } /* a nonland card */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }] }])
 
 ## Knight of Meadowgrain
 face: Knight of Meadowgrain
@@ -497,7 +497,7 @@ cost: {4}{B}{B}
 > −3: Destroy target creature. Its controller loses 2 life.
 > −7: Target opponent loses 2 life for each creature card in their graveyard.
 = Loyalty { change: N(1), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }
-= Loyalty { change: N(-3), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, LoseLife { who: ControllerOf(Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2) }] }
+= Loyalty { change: N(-3), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, LoseLife { who: ControllerOf(Objects { quant: BackRef { back: 1 } /* target creature */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2) }] }
 = Loyalty { change: N(-7), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, then: [LoseLife { who: TargetOpponent, n: N(2) }] }] }
 
 ## Loathsome Curator
@@ -537,7 +537,7 @@ cost: {2}{W}{W}
 > Flying
 > Whenever a creature you control without flying dies, return it to the battlefield under its owner's control with a flying counter on it.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithoutKeyword("flying")], or: None } })), effect: [EntersWith { effect: Move { what: Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, n: N(1), kind: "flying" }], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithoutKeyword("flying")], or: None } })), effect: [EntersWith { effect: Move { what: Objects { quant: BackRef { back: 1 } /* a creature you control without flying [trigger] */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: BackRef { back: 1 } /* a creature you control without flying [trigger] */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, n: N(1), kind: "flying" }], limits: [] }
 
 ## Mabel, Bitter Recluse
 face: Mabel, Bitter Recluse
@@ -625,7 +625,7 @@ cost: {2}{R}{W}
 > Haste
 > Rally — Whenever Munda or another Ally you control enters, you may look at the top four cards of your library. If you do, reveal any number of Ally cards from among them, then put those cards on top of your library in any order and the rest on the bottom in any order.
 = Keywords([Keyword { name: "haste", param: None }])
-= Labelled { label: "rally", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Subtype("ally")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [LookAtTop { who: You, whose: You, n: N(4) }] }, IfYouDo([Reveal { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("ally")]], kind: Some(Card), posts: [FromAmong(Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }, Move { what: Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }, Move { what: Objects { quant: Rest { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryBottom, tapped: false, transformed: false, under: None, order: Some(Any) }])], limits: [] } }
+= Labelled { label: "rally", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Subtype("ally")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [LookAtTop { who: You, whose: You, n: N(4) }] }, IfYouDo([Reveal { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("ally")]], kind: Some(Card), posts: [FromAmong(Objects { quant: BackRef { back: 1 } /* the cards looked at */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }, Move { what: Objects { quant: BackRef { back: 1 } /* any number of ally cards from among it */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }, Move { what: Objects { quant: Rest { back: 1 } /* any number of ally cards from among it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryBottom, tapped: false, transformed: false, under: None, order: Some(Any) }])], limits: [] } }
 
 ## Necrotic Ooze
 face: Necrotic Ooze
@@ -788,7 +788,7 @@ face: Scrappy Bruiser
 type: Creature — Raccoon Warrior
 cost: {3}{R}
 > Whenever this creature attacks, up to one target attacking creature gets +2/+0 and gains trample until end of turn. Return that creature to its owner's hand at end of combat. (Return it only if it's on the battlefield.)
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }, Delayed { step: EndOfCombat(The), then: [Move { what: Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }, Delayed { step: EndOfCombat(The), then: [Move { what: Objects { quant: BackRef { back: 1 } /* up to 1 target attacking creature */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## See Double
 face: See Double
@@ -895,7 +895,7 @@ type: Legendary Artifact Creature — Human Villain
 cost: {2}
 > Whenever Spider-Slayer deals damage to a Spider, destroy that creature.
 > {6}, Exile this card from your graveyard: Create two tapped 1/1 colorless Robot artifact creature tokens with flying.
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Objects(Objects { quant: One, filter: Filter { alts: [[Subtype("spider")]], kind: None, posts: [], or: None } })] }), effect: [Destroy { what: Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Objects(Objects { quant: One, filter: Filter { alts: [[Subtype("spider")]], kind: None, posts: [], or: None } })] }), effect: [Destroy { what: Objects { quant: BackRef { back: 1 } /* a spider [trigger] */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }
 = Activated { cost: [Mana(Mana(["6"])), Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } })], effect: [Create { who: You, n: N(2), token: Token { tapped: true, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["robot", "artifact", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Springmantle Cleric
@@ -1048,7 +1048,7 @@ face: Vow to Erebor
 type: Instant
 cost: {1}{W}
 > Untap target creature you control. It gets +2/+2 until end of turn. If it's a Dwarf, you may attach an Equipment you control to it.
-= Spell([Untap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), Modify { what: Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: Is { what: Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("dwarf")]], kind: None, posts: [], or: None } }, then: [May { who: You, then: [Attach { what: Objects { quant: One, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, to: Objects { quant: BackRef { back: 1 }, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }])
+= Spell([Untap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), Modify { what: Objects { quant: BackRef { back: 1 } /* target creature you control */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: Is { what: Objects { quant: BackRef { back: 1 } /* target creature you control */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("dwarf")]], kind: None, posts: [], or: None } }, then: [May { who: You, then: [Attach { what: Objects { quant: One, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, to: Objects { quant: BackRef { back: 1 } /* a equipment you control */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }])
 
 ## Wasp Lancer
 face: Wasp Lancer

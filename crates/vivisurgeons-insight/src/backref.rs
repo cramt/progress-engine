@@ -1567,14 +1567,29 @@ impl Analysis {
     pub fn describe(&self, t: &Target) -> String {
         let one = |l: usize, i: usize| -> String {
             let e = &self.lines[l].c.evs[i];
-            match (&e.obj, e.role == Role::Made) {
+            let s = match (&e.obj, e.role == Role::Made) {
                 (_, true) => match e.verb.as_str() {
                     TOKEN => "the token(s) created".to_string(),
                     "Exile" => "the card hideaway exiled".to_string(),
-                    v => format!("the cards of {v}"),
+                    "RevealTop" => "the cards revealed".to_string(),
+                    "LookAtTop" => "the cards looked at".to_string(),
+                    "Mill" => "the cards milled".to_string(),
+                    "Draw" => "the cards drawn".to_string(),
+                    "Copy" => "the copy".to_string(),
+                    "ExileZone" => "the cards exiled".to_string(),
+                    "DiscardHand" => "the cards discarded".to_string(),
+                    "RevealHand" => "the cards revealed".to_string(),
+                    "Choose" => "the ones chosen".to_string(),
+                    v if v.starts_with("UntilFound") => "the cards revealed".to_string(),
+                    v => format!("the card of {}", v.trim_start_matches("Action>")),
                 },
                 (Some(o), _) => crate::unparse::objects_text(o),
                 _ => "?".into(),
+            };
+            if e.in_trigger {
+                format!("{s} [trigger]")
+            } else {
+                s
             }
         };
         match t {
@@ -1845,4 +1860,71 @@ fn unresolved(a: &Ability) -> bool {
     let mut any = Any(false);
     a.clone().walk(&mut any);
     any.0
+}
+
+/// Each line's pointers in walk order (which is `Debug` order), with what
+/// each points at in words: what `golden` writes beside them.
+pub fn notes(lines: &[crate::Line], type_line: &str) -> Vec<Vec<String>> {
+    let abs: Vec<(Option<&Ability>, bool)> = lines
+        .iter()
+        .map(|l| (l.parsed.as_ref().ok(), l.continues))
+        .collect();
+    let an = analyse(&abs, type_line);
+    let mut by: Vec<Vec<(usize, String)>> = vec![Vec::new(); lines.len()];
+    for r in &an.resolved {
+        if !matches!(
+            r.kind,
+            Kind::BackRef | Kind::LinkedBackRef | Kind::BackRefs | Kind::Rest
+        ) {
+            continue;
+        }
+        let (Some(decl), Some(t)) = (an.lines[r.line].c.evs[r.ev].decl, &r.pick) else {
+            continue;
+        };
+        by[r.line].push((decl, an.describe(t)));
+    }
+    by.into_iter()
+        .map(|mut v| {
+            v.sort_by_key(|x| x.0);
+            v.into_iter().map(|x| x.1).collect()
+        })
+        .collect()
+}
+
+/// `dbg`, a tree's `Debug`, with `/* … */` after each pointer saying what
+/// it points at. Unchanged where the pointers and notes do not pair up.
+pub fn annotate(dbg: &str, notes: &[String]) -> String {
+    const PATS: [&str; 4] = [
+        "BackRefs([",
+        "LinkedBackRef { ",
+        "BackRef { back: ",
+        "Rest { back: ",
+    ];
+    let mut out = String::new();
+    let mut rest = dbg;
+    let mut k = 0;
+    while let Some((i, p)) = PATS
+        .iter()
+        .filter_map(|p| rest.find(p).map(|i| (i, *p)))
+        .min_by_key(|x| x.0)
+    {
+        let close = if p == "BackRefs([" { "])" } else { "}" };
+        let Some(j) = rest[i..].find(close).map(|j| i + j + close.len()) else {
+            break;
+        };
+        out.push_str(&rest[..j]);
+        let Some(n) = notes.get(k) else {
+            return dbg.to_string();
+        };
+        out.push_str(" /* ");
+        out.push_str(&n.replace("*/", "* /"));
+        out.push_str(" */");
+        k += 1;
+        rest = &rest[j..];
+    }
+    if k != notes.len() {
+        return dbg.to_string();
+    }
+    out.push_str(rest);
+    out
 }
