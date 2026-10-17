@@ -1007,6 +1007,22 @@ mod syn {
     /// "Equipped creature gets +1/+1" and equip {2}", whose keywords and
     /// quoted abilities the tree keeps in two lists. English lets them sit
     /// either way with the same meaning.
+    /// [each-ability]: "has each activated ability of X" is "has all
+    /// activated abilities of X" (The Enigma Jewel).
+    pub fn each_ability(o: &mut Out, kind: Out) {
+        let all = out(|o| {
+            o.w("all");
+            o.add(kind.clone());
+            o.w("abilities of");
+        });
+        let each = out(|o| {
+            o.w("each");
+            o.add(kind);
+            o.w("ability of");
+        });
+        alt(o, vec![all, each]);
+    }
+
     pub fn position(o: &mut Out, before: Out, after: Out) {
         alt(o, vec![before, after]);
     }
@@ -12490,9 +12506,8 @@ fn static_predicate(o: &mut Out, s: &Static) {
         }
         Static::HasAbilitiesOf { kind, of, .. } => {
             o.verb("have", n);
-            o.w("all");
-            adj(o, &Adj::Ability(*kind), None);
-            o.w("abilities of");
+            let kind = out(|o| adj(o, &Adj::Ability(*kind), None));
+            syn::each_ability(o, kind);
             objects(o, of);
         }
         Static::HasIf { pairs, .. } => {
@@ -12556,6 +12571,13 @@ fn lost_words(o: &mut Out, lost: &[Lost]) {
 
 fn static_other(o: &mut Out, s: &Static) {
     match s {
+        Static::GrantedAbilitiesLimit(l) => {
+            o.w("you may activate each of those abilities");
+            match l {
+                Limit::OncePerTurn => o.w("only once each turn"),
+                _ => o.w("?"),
+            }
+        }
         Static::PreventDamage {
             combat_only,
             to,

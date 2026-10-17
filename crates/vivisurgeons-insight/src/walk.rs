@@ -2852,6 +2852,9 @@ impl Walk for Static {
                 Walk::walk(what, v);
                 Walk::walk(of, v);
             }
+            Static::GrantedAbilitiesLimit(f0) => {
+                Walk::walk(f0, v);
+            }
             Static::PreventNoncombat(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);

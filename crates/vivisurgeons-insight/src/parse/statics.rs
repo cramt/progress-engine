@@ -15,6 +15,21 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     }) {
         return Some(s);
     }
+    // "You may activate each of those abilities only once each turn.": the
+    // abilities a `HasAbilitiesOf` said before it grants.
+    if let Some(s) = p.attempt(|p| {
+        if !p.t[..p.i]
+            .iter()
+            .any(|t| matches!(t, Tok::Word(w) if w == "ability" || w == "abilities"))
+        {
+            return None;
+        }
+        p.words("you may activate each of those abilities only once each turn")?;
+        p.end_sentence()?;
+        Some(vec![Static::GrantedAbilitiesLimit(Limit::OncePerTurn)])
+    }) {
+        return Some(s);
+    }
     // "X can't be greater than the number of players in the game." alone.
     if let Some(s) = p.attempt(|p| {
         let x = super::x_limit(p)?;
@@ -1022,9 +1037,11 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
         // "have all activated abilities of all creature cards exiled with ~".
         |p| {
             p.verb("have")?;
-            p.word("all")?;
+            // "has each activated ability of the exiled cards used to craft
+            // it" (The Enigma Jewel) says the same, [each-ability].
+            let each = p.one_of(&["all", "each"])? == "each";
             let kind = match descriptor(p)? { Adj::Ability(k) => k, _ => return None };
-            p.words("abilities of")?;
+            p.words(if each { "ability of" } else { "abilities of" })?;
             let of = objects(p)?;
             Some(vec![Static::HasAbilitiesOf { what: what.clone(), kind, of }])
         },

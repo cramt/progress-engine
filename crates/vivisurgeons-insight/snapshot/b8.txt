@@ -504,7 +504,7 @@ cost: {1}{U}{B}{R}
 > When Mairsil enters, you may exile an artifact or creature card from your hand or graveyard and put a cage counter on it.
 > Mairsil has all activated abilities of all cards you own in exile with cage counters on them. You may activate each of those abilities only once each turn.
 = BROKE at "and" after: when ~ enters , you may exile an artifact or creature card from your hand or graveyard
-= BROKE at "each" after: ~ has all activated abilities of all cards you own in exile with cage counters on them . you may activate
+= Static([HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(You), In(Exile), WithCounter(Some("cage"))], or: None } } }, GrantedAbilitiesLimit(OncePerTurn)])
 
 ## Mana Short
 face: Mana Short

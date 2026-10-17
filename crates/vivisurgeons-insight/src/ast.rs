@@ -3461,6 +3461,10 @@ pub enum Static {
         kind: AbilityKind,
         of: Objects,
     },
+    /// "You may activate each of those abilities only once each turn." after
+    /// a `HasAbilitiesOf` (The Enigma Jewel): a limit on each ability that
+    /// static grants.
+    GrantedAbilitiesLimit(Limit),
     /// "Prevent all noncombat damage that would be dealt to other creatures
     /// you control."
     PreventNoncombat(Vec<Recipient>),

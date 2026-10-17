@@ -992,7 +992,7 @@ face: Locus of Enlightenment
 type: Legendary Artifact
 > Locus of Enlightenment has each activated ability of the exiled cards used to craft it. You may activate each of those abilities only once each turn.
 > Whenever you activate an ability that isn't a mana ability, copy it. You may choose new targets for the copy.
-= BROKE at "exiled" after: ~ has each activated ability of the
+= Static([HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: Linked, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled), UsedToCraft(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }, GrantedAbilitiesLimit(OncePerTurn)])
 = Triggered { trigger: When(Activates { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Ability), posts: [Not(ThatIs(Filter { alts: [[Ability(Mana)]], kind: Some(Ability), posts: [], or: None }))], or: None } } }), effect: [Copy { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }], limits: [] }
 
 ## The Legend of Kyoshi // Avatar Kyoshi
