@@ -954,6 +954,16 @@ fn static_body_more(p: &mut P) -> Option<Vec<Static>> {
             let n = number(p)?;
             Some(vec![Static::MaxHandSizeIs { who, n }])
         },
+        // "… you may sacrifice one or more creatures. When you do, copy this
+        // spell for each creature sacrificed this way." (Plumb the Forbidden).
+        |p| {
+            p.words("as an additional cost to cast this spell , you may")?;
+            let cost = costs(p)?;
+            p.end_sentence()?;
+            p.words("when you do ,")?;
+            let then = super::sentences::clauses(p)?;
+            Some(vec![Static::OptionalAdditionalCostWhenPaid { cost, then }])
+        },
         |p| {
             p.words("as an additional cost to cast this spell , you may")?;
             costs(p).map(|c| vec![Static::OptionalAdditionalCost(c)])

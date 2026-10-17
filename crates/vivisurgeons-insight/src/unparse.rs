@@ -13157,6 +13157,12 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("as an additional cost to cast this spell, you may");
             costs_said(o, c);
         }
+        Static::OptionalAdditionalCostWhenPaid { cost, then } => {
+            o.w("as an additional cost to cast this spell, you may");
+            costs_said(o, cost);
+            o.w(". when you do,");
+            clauses(o, then, &Cx::default());
+        }
         Static::CastFromUsing { zone: z, keyword } => {
             o.w("you may cast this card from");
             zone(o, z);

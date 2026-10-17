@@ -2881,6 +2881,14 @@ impl Walk for Static {
                     Walk::walk(x0, v);
                 }
             }
+            Static::OptionalAdditionalCostWhenPaid { cost, then } => {
+                for x0 in (cost).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+                for x0 in (then).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Static::CastFromUsing { zone, .. } => {
                 Walk::walk(zone, v);
             }

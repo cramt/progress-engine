@@ -762,7 +762,7 @@ type: Instant
 cost: {1}{B}
 > As an additional cost to cast this spell, you may sacrifice one or more creatures. When you do, copy this spell for each creature sacrificed this way.
 > You draw a card and lose 1 life.
-= BROKE at "you" after: as an additional cost to cast this spell , you may sacrifice one or more creatures . when
+= Static([OptionalAdditionalCostWhenPaid { cost: [Sacrifice(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Copy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: false }] }] }])
 = Spell([Draw { who: You, n: N(1) }, LoseLife { who: You, n: N(1) }])
 
 ## Plunge into Winter

@@ -66,6 +66,7 @@ new row takes a new one.
 | [start-your-engines] | "Start your engines!" | `Keywords`, the "!" part of the name | settled: CR 702.179a, a static keyword ability; Scryfall's catalog files it among the ability words |
 | [chapter-flavour-word] | "I — Crescent Fang — Search …" | `Chapter { [Labelled { "crescent fang", … }] }` | settled: CR 207.2d, a flavour word has no rules meaning. Tried after the plain chapter, so "I, II — Choose one — •…" stays a modal chapter |
 | [anchor-words] | "As this enchantment enters, choose Khans or Dragons. • Khans — … • Dragons — …" | `Ability::Anchored { what, options: [AnchoredAbility { word, ability }] }` | settled: CR 614.12c, anchor words; each bullet's ability is read as a line of its own, and the permanent has the one chosen as it entered. The Sieges, Mirrodin Besieged, Phenomenon Investigators |
+| [cost-when-paid] | "As an additional cost to cast this spell, you may sacrifice one or more creatures. When you do, copy this spell for each creature sacrificed this way." | `Static::OptionalAdditionalCostWhenPaid { cost, then }`, one node for the line | settled: CR 603.12, "When you do" is a reflexive trigger, here on paying the optional cost as the spell is cast; it lives on the same line as the cost it watches, so one node holds both. The copies are of this spell (`SelfRef`) |
 
 ## Objects and players
 

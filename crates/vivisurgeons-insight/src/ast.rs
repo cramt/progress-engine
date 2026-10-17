@@ -3475,6 +3475,14 @@ pub enum Static {
     /// "As an additional cost to cast this spell, you may …": a cost the
     /// caster may choose not to pay.
     OptionalAdditionalCost(Vec<Cost>),
+    /// "As an additional cost to cast this spell, you may sacrifice one or
+    /// more creatures. When you do, copy this spell for each creature
+    /// sacrificed this way." (Plumb the Forbidden): the optional cost, and
+    /// a reflexive trigger (CR 603.12) when it was paid as the spell was cast.
+    OptionalAdditionalCostWhenPaid {
+        cost: Vec<Cost>,
+        then: Vec<Effect>,
+    },
     /// "You may cast this card from your graveyard using its bestow ability."
     CastFromUsing {
         zone: Zone,
