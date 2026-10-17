@@ -65,6 +65,15 @@ impl From<String> for CounterKind {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Ability {
+    /// What is fixed as the ability is put on the stack or triggers,
+    /// which a reference in `ability` names by `Quant::Bound`: targets
+    /// (CR 601.2c), the trigger event's objects, what a cost names (CR
+    /// 601.2h), a static's objects. `bind[0]` is the outermost
+    /// ([binders]).
+    Let {
+        bind: Vec<Objects>,
+        ability: Box<Ability>,
+    },
     Keywords(Vec<Keyword>),
     Activated {
         cost: Vec<Cost>,
@@ -840,10 +849,11 @@ pub enum Quant {
     Other,
     AtLeast(Amount),
     AtMost(Amount),
-    /// "the rest", "the other": what the choice `back` points at
-    /// ([backref]) left of the pool it was chosen from.
+    /// "the rest", "the other": what the choice bound `of` places out
+    /// ([binders]) left of the pool it was chosen from. While the resolver
+    /// runs, `of` counts introducers back, as `BackRef` does.
     Rest {
-        back: u8,
+        of: u8,
     },
     /// "this creature or another Ally you control": itself, as the first
     /// object says it, or one the filter names.
@@ -909,6 +919,28 @@ pub enum Quant {
     /// every reference this way and `read_face` makes each it can a
     /// pointer ([backref]); `tests/backref.rs` counts the rest.
     Unresolved(Hint),
+    /// "it", "that creature", "the exiled card": the binder `.0` places
+    /// out from the reference among the binders in scope, 0 the innermost
+    /// ([binders]). The filter is what the text calls it.
+    Bound(u8),
+    /// Where the text says a bound object in full ("target creature", "a
+    /// card" searched for): the binder `.0` places out, counted as `Bound`
+    /// counts, said here. Each described binder has one ([binders]).
+    Introduced(u8),
+    /// "the exiled card" of a linked ability (CR 607.2a), or an object a
+    /// spell's earlier paragraph named (CR 608.2c): the `binder`-th binder
+    /// (0-based, walk order) of the face's `line`-th ability line.
+    LinkedBound {
+        line: u8,
+        binder: u8,
+    },
+    /// Several binders at once ("them" after a verb said once of two
+    /// objects, "both cards").
+    Bounds(Vec<Pointer>),
+    /// In a `With`'s binders: the objects the first effect of its `then`
+    /// makes or moves that no `Objects` names (tokens, the cards a draw or
+    /// a reveal moves); in a `Let`'s, the card hideaway exiled.
+    Made,
 }
 
 /// One object of `Quant::BackRefs`.
@@ -920,6 +952,10 @@ pub enum Pointer {
     ThisCard,
     /// As `Quant::LinkedBackRef { line, nth }`.
     Linked { line: u8, nth: u8 },
+    /// As `Quant::Bound`.
+    Bound(u8),
+    /// As `Quant::LinkedBound { line, binder }`.
+    LinkedBound { line: u8, binder: u8 },
 }
 
 /// What a reference back's words say it may mean, before it is a pointer
@@ -1741,6 +1777,14 @@ pub enum Effect {
         x: Amount,
     },
     IfYouDo(Vec<Effect>),
+    /// What comes to exist or is found as the ability resolves (a card
+    /// searched for, revealed, exiled or chosen; a token), in scope in
+    /// `then`, whose first effect introduces it, to the end of the
+    /// ability's effects ([binders]).
+    With {
+        bind: Vec<Objects>,
+        then: Vec<Effect>,
+    },
     /// "If X, Y" (`Leading`) or "Y if X" (`Trailing`): the order is the
     /// reading order a reference back counts in ([backref]), so "destroy
     /// target creature if it's tapped" tests the target.

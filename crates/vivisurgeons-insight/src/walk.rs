@@ -47,6 +47,12 @@ impl Walk for Ability {
             return;
         }
         match self {
+            Ability::Let { bind, ability } => {
+                for x0 in (bind).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+                Walk::walk(&mut **ability, v);
+            }
             Ability::Keywords(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
@@ -1042,6 +1048,14 @@ impl Walk for Effect {
             }
             Effect::IfYouDo(f0) => {
                 for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
+            Effect::With { bind, then } => {
+                for x0 in (bind).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+                for x0 in (then).iter_mut() {
                     Walk::walk(x0, v);
                 }
             }

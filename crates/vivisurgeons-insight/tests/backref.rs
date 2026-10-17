@@ -1,7 +1,11 @@
 //! Every pointer in the corpus lands where it says ([backref] in
 //! SEMANTICS.md): read from `snapshot/` again, each `BackRef`, `Rest`,
-//! `BackRefs` and `LinkedBackRef` names an introducer in its scope that
-//! its words fit, and no reference is left in an old form. A reference no
+//! `BackRefs` and `LinkedBackRef` the resolver writes names an introducer
+//! in its scope that its words fit, and no reference in a tree
+//! `read_face` returns is left in an old form. Then the binders made of
+//! them ([binders]): each `Bound` names a binder in scope its words fit,
+//! and saying each binder where it was first said gives back the tree
+//! with pointers. A reference no
 //! introducer fits is `Quant::Unresolved`; their number per hint may fall
 //! but not rise.
 
@@ -40,7 +44,7 @@ fn every_pointer_lands_on_an_introducer_its_words_fit() {
     for p in paths {
         let text = fs::read_to_string(&p).unwrap();
         for (e, _) in golden::read(&text).unwrap() {
-            let lines = e.lines();
+            let lines = e.lines_pointers();
             let abs: Vec<(Option<&Ability>, bool)> = lines
                 .iter()
                 .map(|l| (l.parsed.as_ref().ok(), l.continues))
@@ -57,7 +61,7 @@ fn every_pointer_lands_on_an_introducer_its_words_fit() {
                     _ => misses.push(format!("{}: {what}", e.card)),
                 }
             }
-            for l in &lines {
+            for l in &e.lines() {
                 if let Ok(a) = &l.parsed {
                     if let Some(q) = old_form(a) {
                         old.push(format!("{}: {q}", e.card));
@@ -136,4 +140,143 @@ fn old_form(a: &Ability) -> Option<String> {
     let mut v = Old(None);
     a.clone().walk(&mut v);
     v.0
+}
+
+/// Every reference named by its binder ([binders]): in scope, fitting its
+/// words, and the tree with each binder said in place is the pointer one.
+#[test]
+fn every_bound_names_a_binder_in_scope_and_binding_loses_nothing() {
+    use vivisurgeons_insight::backref::fits;
+    use vivisurgeons_insight::binders::{bindings, inline};
+    let dir = format!("{}/snapshot", env!("CARGO_MANIFEST_DIR"));
+    let mut paths: Vec<_> = fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .collect();
+    paths.sort();
+    let (mut bound, mut binders, mut lets, mut withs) = (0, 0, 0, 0);
+    let mut bad = Vec::new();
+    for p in paths {
+        let text = fs::read_to_string(&p).unwrap();
+        for (e, _) in golden::read(&text).unwrap() {
+            let done = e.lines();
+            let pointers = e.lines_pointers();
+            let counts: Vec<usize> = done
+                .iter()
+                .map(|l| l.parsed.as_ref().map_or(0, |a| bindings(a).binders.len()))
+                .collect();
+            for (l, (d, p)) in done.iter().zip(&pointers).enumerate() {
+                let (Ok(a), Ok(pa)) = (&d.parsed, &p.parsed) else {
+                    continue;
+                };
+                let b = bindings(a);
+                binders += b.binders.len();
+                let dbg = format!("{a:?}");
+                lets += dbg.matches("Let { bind").count();
+                withs += dbg.matches("With { bind").count();
+                for (decl, v) in &b.refs {
+                    for x in v {
+                        bound += 1;
+                        match x {
+                            None => bad.push(format!(
+                                "{} line {l}: object {decl} names no binder in scope",
+                                e.card
+                            )),
+                            Some(i) => {
+                                let words = &b.words[decl];
+                                if !matches!(words.quant, Quant::Rest { .. })
+                                    && !fits(words, &b.binders[*i].what)
+                                {
+                                    bad.push(format!(
+                                        "{} line {l}: object {decl} does not fit its binder",
+                                        e.card
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+                for (line, binder) in linked(a) {
+                    if counts
+                        .get(usize::from(line))
+                        .is_none_or(|&n| usize::from(binder) >= n)
+                    {
+                        bad.push(format!(
+                            "{} line {l}: line {line} has no binder {binder}",
+                            e.card
+                        ));
+                    }
+                }
+                if said(&inline(a)) != said(pa) {
+                    bad.push(format!(
+                        "{} line {l}: said in place, not the pointer tree",
+                        e.card
+                    ));
+                }
+            }
+        }
+    }
+    eprintln!("{bound} references to {binders} binders ({lets} Let, {withs} With)");
+    assert!(bound > 8000, "only {bound} references read");
+    assert!(
+        bad.is_empty(),
+        "{} problems:\n{}",
+        bad.len(),
+        bad.join("\n")
+    );
+}
+
+fn linked(a: &Ability) -> Vec<(u8, u8)> {
+    struct L(Vec<(u8, u8)>);
+    impl Visitor for L {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            match &o.quant {
+                Quant::LinkedBound { line, binder } => self.0.push((*line, *binder)),
+                Quant::Bounds(ps) => {
+                    for p in ps {
+                        if let vivisurgeons_insight::ast::Pointer::LinkedBound { line, binder } = p
+                        {
+                            self.0.push((*line, *binder));
+                        }
+                    }
+                }
+                _ => {}
+            }
+            true
+        }
+        fn ability(&mut self, _: &mut Ability) -> bool {
+            true
+        }
+    }
+    let mut v = L(Vec::new());
+    a.clone().walk(&mut v);
+    v.0
+}
+
+/// The tree with every reference's pointer written the same way: what
+/// binding and pointing both keep.
+fn said(a: &Ability) -> String {
+    struct S;
+    impl Visitor for S {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            match o.quant {
+                Quant::BackRef { .. }
+                | Quant::LinkedBackRef { .. }
+                | Quant::Bound(_)
+                | Quant::Introduced(_)
+                | Quant::Unresolved(_)
+                | Quant::LinkedBound { .. } => o.quant = Quant::BackRef { back: 0 },
+                Quant::BackRefs(_) | Quant::Bounds(_) => o.quant = Quant::BackRefs(Vec::new()),
+                Quant::Rest { .. } => o.quant = Quant::Rest { of: 0 },
+                _ => {}
+            }
+            true
+        }
+        fn ability(&mut self, _: &mut Ability) -> bool {
+            true
+        }
+    }
+    let mut a = a.clone();
+    a.walk(&mut S);
+    format!("{a:?}")
 }

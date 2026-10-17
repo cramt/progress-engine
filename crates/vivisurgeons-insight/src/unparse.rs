@@ -2122,6 +2122,7 @@ fn out(f: impl FnOnce(&mut Out)) -> Out {
 // ---------------------------------------------------------------- abilities
 
 pub fn ability(a: &Ability) -> Out {
+    let a = &crate::binders::inline(a);
     // The trigger's own object is only ever said by referring back to it:
     // "it", "its", "that card", "with lesser mana value". So is a reference
     // said before a trailing "for each", which only that position tells
@@ -2140,6 +2141,9 @@ pub fn ability(a: &Ability) -> Out {
                                 | Quant::LinkedBackRef { .. }
                                 | Quant::BackRefs(_)
                                 | Quant::Unresolved(_)
+                                | Quant::Bound(_)
+                                | Quant::LinkedBound { .. }
+                                | Quant::Bounds(_)
                         )
                     {
                         *p = Post::FromAmongThem;
@@ -2148,7 +2152,10 @@ pub fn ability(a: &Ability) -> Out {
             }
             // What a linked ability exiled is "exiled with ~" as well as
             // "the exiled card" (CR 607.2a).
-            if matches!(o.quant, Quant::LinkedBackRef { .. }) {
+            if matches!(
+                o.quant,
+                Quant::LinkedBackRef { .. } | Quant::LinkedBound { .. }
+            ) {
                 for p in &mut o.filter.posts {
                     if *p == Post::Marked(Marked::Exiled) {
                         *p = Post::ExiledWith(Box::new(self_ref()));
@@ -2168,11 +2175,13 @@ pub fn ability(a: &Ability) -> Out {
             // A pointer is said as the reference it is: "it", "that
             // creature", "the rest", "both cards" ([backref]).
             match o.quant {
-                Quant::Unresolved(Hint::Rest) => o.quant = Quant::Rest { back: 0 },
+                Quant::Unresolved(Hint::Rest) => o.quant = Quant::Rest { of: 0 },
                 Quant::Unresolved(Hint::Both) => o.quant = Quant::Both,
-                Quant::BackRef { .. } | Quant::LinkedBackRef { .. } | Quant::Unresolved(_) => {
-                    o.quant = Quant::Antecedent
-                }
+                Quant::BackRef { .. }
+                | Quant::LinkedBackRef { .. }
+                | Quant::Unresolved(_)
+                | Quant::Bound(_)
+                | Quant::LinkedBound { .. } => o.quant = Quant::Antecedent,
                 _ => {}
             }
             if matches!(
@@ -2240,6 +2249,8 @@ pub fn ability(a: &Ability) -> Out {
 /// spell's instructions from the paragraph before it, which licenses an
 /// opening "Then" ([then-paragraph]).
 pub fn paragraph(a: &Ability, continues: bool) -> Out {
+    // Each binder said where the text first says it ([binders]).
+    let a = &crate::binders::inline(a);
     match a {
         Ability::Spell(_) if continues => out(|o| {
             syn::then_paragraph(o);
@@ -2261,6 +2272,8 @@ pub fn paragraph(a: &Ability, continues: bool) -> Out {
 fn ability_into(o: &mut Out, a: &Ability) {
     let cx = Cx::default();
     match a {
+        // `ability` said its binders where the text first says them.
+        Ability::Let { ability, .. } => ability_into(o, ability),
         Ability::Keywords(ks) => {
             for (i, k) in ks.iter().enumerate() {
                 let protection_objects = |k: &Keyword| {
@@ -3840,7 +3853,12 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::BackRef { .. }
         | Quant::LinkedBackRef { .. }
         | Quant::BackRefs(_)
-        | Quant::Unresolved(_) => Num::Any,
+        | Quant::Unresolved(_)
+        | Quant::Bound(_)
+        | Quant::Introduced(_)
+        | Quant::LinkedBound { .. }
+        | Quant::Bounds(_)
+        | Quant::Made => Num::Any,
         // "Krang & Shredder enter", "equipped creatures you control": a
         // name or an attached-to creature may be one or several. The tree
         // holds no word for the card ([self-reference]), so "this creature"
@@ -3953,7 +3971,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
     match &x.quant {
         // Prototype (insight-backref): a pointer reads as "it" until the
         // round trip learns to say what it points at.
-        Quant::BackRefs(ps) => {
+        Quant::BackRefs(ps) | Quant::Bounds(ps) => {
             let said = Objects {
                 quant: Quant::Antecedent,
                 filter: f.clone(),
@@ -3969,7 +3987,13 @@ fn objects_plain(o: &mut Out, x: &Objects) {
                 o.0.extend(those.0);
             }
         }
-        Quant::BackRef { .. } | Quant::LinkedBackRef { .. } | Quant::Unresolved(_) => {
+        Quant::BackRef { .. }
+        | Quant::LinkedBackRef { .. }
+        | Quant::Unresolved(_)
+        | Quant::Bound(_)
+        | Quant::Introduced(_)
+        | Quant::LinkedBound { .. }
+        | Quant::Made => {
             let said = Objects {
                 quant: Quant::Antecedent,
                 filter: f.clone(),
@@ -7079,6 +7103,7 @@ fn obj_subj(o: &mut Out, x: &Objects, verb: &str) {
 
 fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
     match e {
+        Effect::With { then, .. } => clauses(o, then, cx),
         Effect::Draw { who, n } => {
             subj(o, who, "draw", cx);
             cards(o, n);
@@ -13919,10 +13944,12 @@ mod tests {
 
     #[test]
     fn the_bottom_of_a_library_said_as_the_top_does_not_round_trip() {
-        let (mut a, text) = read(
+        let (a, text) = read(
             "Sorcery",
             "Look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in a random order.",
         );
+        // The effects as the text lists them, its binders said in place.
+        let mut a = crate::binders::inline(&a);
         let Some(Effect::Move { to, .. }) = spell_effects(&mut a).last_mut() else {
             panic!()
         };

@@ -129,6 +129,12 @@ impl Lowered {
             // An ability word adds no rules (CR 207.2c): what it labels is
             // the ability.
             i::Ability::Labelled { ability, .. } => self.ability(*ability)?,
+            // One binder ([binders] in Insight's SEMANTICS.md): every
+            // reference names it, so the tree said with it in place is the
+            // same ability.
+            a @ i::Ability::Let { .. } if matches!(&a, i::Ability::Let { bind, .. } if bind.len() == 1) => {
+                self.ability(vivisurgeons_insight::binders::inline(&a))?
+            }
             // A spell's instructions are an ability too (CR 113.3a), run as
             // it resolves; a loyalty ability is activated (CR 606.1), a
             // chapter ability triggered (CR 714.2b).
@@ -492,12 +498,11 @@ fn static_part(part: &i::Static) -> Result<(&Objects, Vec<Op>), String> {
             )],
         ),
         // "each equal to its mana value": the object's own. `what` is the
-        // only object said before "its", so the pointer one back is it
-        // ([backref] in Insight's SEMANTICS.md).
+        // only binder there is (the `Let` above), so "its" names it.
         i::Static::BasePtEqual {
             what,
             each_equal_to: i::Amount::ManaValueOf(of),
-        } if of.quant == (Quant::BackRef { back: 1 }) && of.filter == i::Filter::default() => {
+        } if matches!(of.quant, Quant::Bound(_)) && of.filter == i::Filter::default() => {
             (what, vec![Op::SetBasePt(PtValue::ManaValue)])
         }
         _ => return Err(unlowered()),

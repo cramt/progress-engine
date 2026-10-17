@@ -5,6 +5,7 @@
 
 pub mod ast;
 pub mod backref;
+pub mod binders;
 pub mod corpus;
 pub mod golden;
 pub mod lex;
@@ -45,9 +46,18 @@ pub struct Broke {
 }
 
 /// Every ability line on one face. A modal spell's bullets belong to the
-/// "Choose one —" line above them. Every reference back that an
-/// introducer fits is a pointer ([backref]).
+/// "Choose one —" line above them. Every object a reference back points
+/// at is bound, and the reference names its binder ([binders]).
 pub fn read_face(face: &Face, card_name: &str) -> Vec<Line> {
+    let mut read = read_face_pointers(face, card_name);
+    binders::bind(&mut read, face.type_line);
+    read
+}
+
+/// `read_face` with each reference a pointer counted back over the
+/// objects introduced before it ([backref]), the step before binders:
+/// what `tests/backref.rs` checks the pointers of.
+pub fn read_face_pointers(face: &Face, card_name: &str) -> Vec<Line> {
     let mut read = read_face_unresolved(face, card_name);
     backref::resolve(&mut read, face.type_line);
     read

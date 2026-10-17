@@ -15,7 +15,7 @@
 //! effect's parts; and an `If` or `ForEach` whose clause trails
 //! (`ClauseOrder::Trailing`) is read effects first.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{self, Write as _};
 
 use crate::ast::*;
@@ -67,7 +67,7 @@ pub fn introduces(node: Node, at: Place) -> bool {
             }
             if matches!(
                 o.quant,
-                Quant::SelfRef | Quant::Granter | Quant::ThisAbility | Quant::Itself
+                Quant::SelfRef | Quant::Granter | Quant::ThisAbility | Quant::Itself | Quant::Made
             ) {
                 return false;
             }
@@ -91,6 +91,8 @@ pub enum Kind {
     LinkedBackRef,
     BackRefs,
     Rest,
+    /// A reference to a binder ([binders]), which `binders` reads.
+    Bound,
 }
 
 /// Whether an object is a reference back, and what kind.
@@ -110,6 +112,9 @@ pub fn reference(o: &Objects) -> Option<Kind> {
         Quant::LinkedBackRef { .. } => Kind::LinkedBackRef,
         Quant::BackRefs(_) => Kind::BackRefs,
         Quant::Rest { .. } => Kind::Rest,
+        Quant::Bound(_) | Quant::Introduced(_) | Quant::LinkedBound { .. } | Quant::Bounds(_) => {
+            Kind::Bound
+        }
         _ => return None,
     })
 }
@@ -255,6 +260,13 @@ struct Ev {
     /// Ancestor objects (event ids), outermost first.
     anc: Vec<usize>,
     effect_frame: Option<usize>,
+    /// The ability (no wrapper) it is said in, by walk order.
+    scope_root: usize,
+    /// The index of the effect it is said in within that ability's own
+    /// list of effects, if any.
+    top_effect: Option<usize>,
+    /// It is a `ForEach`'s loop object.
+    each_of_loop: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -310,6 +322,10 @@ struct Collect {
     nested: Vec<(&'static str, usize)>,
     /// Keywords of a `Keywords` line that introduce.
     keywords: usize,
+    /// The abilities (no wrappers) open, by walk order, and the index of
+    /// the effect each is in within its own list.
+    roots: Vec<(usize, Option<usize>)>,
+    next_root: usize,
 }
 
 const EXISTENTIAL: [&str; 18] = [
@@ -352,6 +368,8 @@ impl Collect {
             top_kind: "",
             nested: Vec::new(),
             keywords: 0,
+            roots: Vec::new(),
+            next_root: 0,
         }
     }
 
@@ -449,6 +467,11 @@ impl Collect {
             }
         };
         let id = self.evs.len();
+        let (scope_root, top_effect) = self.roots.last().copied().unwrap_or((0, None));
+        let each_of_loop = self.frames[self.here()].kind == Fk::Effect
+            && self.frames[self.here()].verb == "ForEach"
+            && self.frames[self.here()].items.is_empty()
+            && decl.is_some();
         self.evs.push(Ev {
             decl,
             slot,
@@ -460,6 +483,9 @@ impl Collect {
             frames: self.stack.clone(),
             anc: self.obj_stack.clone(),
             effect_frame: self.effect_frame(),
+            scope_root,
+            top_effect,
+            each_of_loop,
         });
         id
     }
@@ -546,8 +572,11 @@ impl Visitor for Collect {
                     | Ability::Harnessed(_)
                     | Ability::KeywordOn { .. }
                     | Ability::Station { .. }
+                    | Ability::Let { .. }
             );
             if !self.top {
+                self.roots.push((self.next_root, None));
+                self.next_root += 1;
                 self.top_kind = match a {
                     Ability::Triggered { .. } => "Triggered",
                     Ability::Activated { .. } => "Activated",
@@ -569,6 +598,8 @@ impl Visitor for Collect {
         }
         self.push_frame(Fk::Ability, String::new());
         self.ab_stack.push(true);
+        self.roots.push((self.next_root, None));
+        self.next_root += 1;
         let k = match a {
             Ability::Triggered { .. } => "Triggered",
             _ => "Other",
@@ -581,21 +612,38 @@ impl Visitor for Collect {
         if self.ab_stack.pop() == Some(true) {
             self.pop_frame();
             self.nested.pop();
+            self.roots.pop();
         }
     }
 
     fn effect(&mut self, e: &mut Effect) {
         if !self.effect_in_ability() {
-            match self.nested.last_mut() {
-                Some((_, n)) => *n += 1,
-                None => self.effects_open += 1,
+            let n = match self.nested.last_mut() {
+                Some((_, n)) => {
+                    *n += 1;
+                    *n
+                }
+                None => {
+                    self.effects_open += 1;
+                    self.effects_open
+                }
+            };
+            if let Some(r) = self.roots.last_mut() {
+                r.1 = Some(n - 1);
             }
         }
         self.push_frame(Fk::Effect, verb_of(e));
     }
 
     fn effect_done(&mut self, e: &mut Effect) {
+        // The objects it made are said in it.
+        let top = self.roots.last().and_then(|r| r.1);
         let id = self.pop_frame();
+        if !self.effect_in_ability() {
+            if let Some(r) = self.roots.last_mut() {
+                r.1 = None;
+            }
+        }
         self.frames[id].trail = match e {
             Effect::If {
                 order: ClauseOrder::Trailing,
@@ -611,6 +659,7 @@ impl Visitor for Collect {
             let ev = self.new_ev(None, Slot::Quant, Role::Made, None);
             self.evs[ev].verb = made(e).expect("introduces");
             self.evs[ev].token = token_of(e);
+            self.evs[ev].top_effect = top;
             let parent = self.here();
             self.frames[parent].items.push(Item::Ev(ev));
         }
@@ -1270,7 +1319,7 @@ fn resolve_one(
     };
     match (&r.quant, k) {
         (Quant::BackRef { back: b }, _) => back(*b, &mut cands, &mut note, true),
-        (Quant::Rest { back: b }, _) => back(*b, &mut cands, &mut note, false),
+        (Quant::Rest { of: b }, _) => back(*b, &mut cands, &mut note, false),
         (Quant::LinkedBackRef { line, nth }, _) => linked(*line, *nth, &mut cands, &mut note),
         (Quant::BackRefs(ps), _) => {
             let mut set = Vec::new();
@@ -1279,6 +1328,8 @@ fn resolve_one(
                     Pointer::Back(b) => back(*b, &mut set, &mut note, true),
                     Pointer::ThisCard => set.push(Target::SelfCard),
                     Pointer::Linked { line, nth } => linked(*line, *nth, &mut set, &mut note),
+                    // A binder is read by `binders`, not counted here.
+                    Pointer::Bound(_) | Pointer::LinkedBound { .. } => {}
                 }
             }
             cands.push(Target::Set(set));
@@ -1676,7 +1727,7 @@ fn new_quant(r: &Resolved, o: &Objects) -> Option<Quant> {
         return Some(Quant::Itself);
     }
     Some(match (h, r.pointer.as_deref()) {
-        (Hint::Rest, Some([Pointer::Back(b)])) => Quant::Rest { back: *b },
+        (Hint::Rest, Some([Pointer::Back(b)])) => Quant::Rest { of: *b },
         (Hint::Rest, _) | (_, None | Some([])) => Quant::Unresolved(h),
         (_, Some([Pointer::Back(b)])) => Quant::BackRef { back: *b },
         (_, Some([Pointer::ThisCard])) => Quant::SelfRef,
@@ -1927,4 +1978,140 @@ pub fn annotate(dbg: &str, notes: &[String]) -> String {
     }
     out.push_str(rest);
     out
+}
+
+/// What an introducer is, for `binders`.
+#[derive(Clone, Copy, Debug)]
+pub struct IntroInfo {
+    /// The object in walk order; `None` for objects an effect made.
+    pub decl: Option<usize>,
+    /// The ability (no wrapper) it is said in, by walk order.
+    pub scope_root: usize,
+    /// The effect of that ability's own list it is said in.
+    pub top_effect: Option<usize>,
+    /// Fixed as the ability is put on the stack: a target (CR 601.2c).
+    pub cast_time: bool,
+    /// A `ForEach`'s loop object.
+    pub each_of_loop: bool,
+}
+
+impl Analysis {
+    pub fn intro_info(&self, line: usize, ev: usize) -> IntroInfo {
+        let e = &self.lines[line].c.evs[ev];
+        IntroInfo {
+            decl: e.decl,
+            scope_root: e.scope_root,
+            top_effect: e.top_effect,
+            cast_time: e.obj.as_ref().is_some_and(targeted),
+            each_of_loop: e.each_of_loop,
+        }
+    }
+
+    /// Whether the event `ev` of `line` is said inside the loop whose
+    /// object is `each` (an event of the same line).
+    pub fn inside_loop(&self, line: usize, ev: usize, each: usize) -> bool {
+        let evs = &self.lines[line].c.evs;
+        evs[each]
+            .frames
+            .last()
+            .is_some_and(|f| evs[ev].frames.contains(f))
+    }
+
+    /// Whether the event `ev` of `line` is said inside the object `obj`.
+    pub fn within(&self, line: usize, ev: usize, obj: usize) -> bool {
+        self.lines[line].c.evs[ev].anc.contains(&obj)
+    }
+
+    /// An event's object in walk order.
+    pub fn decl_of(&self, line: usize, ev: usize) -> Option<usize> {
+        self.lines[line].c.evs[ev].decl
+    }
+
+    /// A reference's object in walk order.
+    pub fn decl(&self, r: &Resolved) -> Option<usize> {
+        self.lines[r.line].c.evs[r.ev].decl
+    }
+
+    /// The verb each object of `line` is said with, by walk order.
+    pub fn verbs(&self, line: usize) -> BTreeMap<usize, String> {
+        self.lines[line]
+            .c
+            .evs
+            .iter()
+            .filter_map(|e| e.decl.map(|d| (d, e.verb.clone())))
+            .collect()
+    }
+
+    /// The references of `line` in reading order, by walk order.
+    pub fn reading_order(&self, line: usize) -> Vec<usize> {
+        self.lines[line]
+            .scopes
+            .iter()
+            .flatten()
+            .filter_map(|&e| {
+                let ev = &self.lines[line].c.evs[e];
+                matches!(ev.role, Role::Ref(_)).then_some(ev.decl).flatten()
+            })
+            .collect()
+    }
+}
+
+/// Whether a reference said with `r`'s words can mean the object `b`
+/// describes, by kind and type alone.
+pub fn fits(r: &Objects, b: &Objects) -> bool {
+    let mut r = r.clone();
+    r.filter.posts.retain(|p| !matches!(p, Post::Marked(_)));
+    let e = Ev {
+        decl: None,
+        slot: Slot::Quant,
+        role: Role::Intro,
+        obj: Some(b.clone()),
+        token: None,
+        verb: String::new(),
+        in_trigger: false,
+        frames: Vec::new(),
+        anc: Vec::new(),
+        effect_frame: None,
+        scope_root: 0,
+        top_effect: None,
+        each_of_loop: false,
+    };
+    // "cast target nonland permanent card …, and mana … to cast that
+    // spell": a card cast is the spell.
+    let card_cast = r.filter.kind == Some(Noun::Spell)
+        && matches!(b.filter.kind, Some(Noun::Card | Noun::PermanentCard) | None);
+    b.quant == Quant::Made || card_cast || compat(&r, &e)
+}
+
+/// One ability's events in reading order, with no resolving: what
+/// `binders` reads the order and verbs of mentions from.
+fn read_alone(a: &Ability) -> (Collect, Vec<usize>) {
+    let mut c = Collect::new();
+    a.clone().walk(&mut c);
+    let mut top = Vec::new();
+    let mut nested = Vec::new();
+    flatten(&c, 0, &mut top, &mut nested);
+    top.extend(nested.into_iter().flatten());
+    (c, top)
+}
+
+/// The references of one ability in reading order, by walk order.
+pub fn reading_order_of(a: &Ability) -> Vec<usize> {
+    let (c, order) = read_alone(a);
+    order
+        .into_iter()
+        .filter_map(|e| {
+            let ev = &c.evs[e];
+            matches!(ev.role, Role::Ref(_)).then_some(ev.decl).flatten()
+        })
+        .collect()
+}
+
+/// The verb each object of one ability is said with, by walk order.
+pub fn verbs_of(a: &Ability) -> BTreeMap<usize, String> {
+    let (c, _) = read_alone(a);
+    c.evs
+        .iter()
+        .filter_map(|e| e.decl.map(|d| (d, e.verb.clone())))
+        .collect()
 }

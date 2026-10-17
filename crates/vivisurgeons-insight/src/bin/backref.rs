@@ -51,7 +51,7 @@ fn main() {
     let mut problem_lines: Vec<String> = Vec::new();
     let show_problems = args.iter().any(|a| a == "--problems");
     for e in &faces {
-        let done = e.lines();
+        let done = e.lines_pointers();
         let abs: Vec<(Option<&Ability>, bool)> = done
             .iter()
             .map(|l| (l.parsed.as_ref().ok(), l.continues))

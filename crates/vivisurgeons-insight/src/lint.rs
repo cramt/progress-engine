@@ -99,7 +99,7 @@ pub struct Context {
 pub fn face_context(lines: &[crate::Line], mana_cost: &str) -> Vec<Context> {
     let x_defined = mana_cost.contains("{X}")
         || lines.iter().any(|l| match &l.parsed {
-            Ok(a) => defines_x(a),
+            Ok(a) => defines_x(&crate::binders::inline(a)),
             // An unread line may be the one that defines it: a d20 table's
             // "1—9 | X is one", an additional cost the grammar can't read.
             Err(_) => l.text.contains('X'),
@@ -183,7 +183,12 @@ pub fn lint(a: &Ability, cx: Context) -> Vec<Kind> {
 
 /// One ability as its own scope; an ability granted inside it is another,
 /// which can lean on nothing the granting ability said.
-fn scope(mut a: Ability, cx: Context, out: &mut Vec<Kind>) {
+fn scope(a: Ability, cx: Context, out: &mut Vec<Kind>) {
+    // The checks read the tree in the shape the text has, each binder
+    // where the text says it ([binders]); which object a reference names
+    // is read from the bound tree.
+    let bound = a;
+    let mut a = crate::binders::inline(&bound);
     let mut v = Lint {
         top: true,
         nested: Vec::new(),
@@ -204,8 +209,9 @@ fn scope(mut a: Ability, cx: Context, out: &mut Vec<Kind>) {
         Ability::Triggered { trigger, .. } => {
             v.triggering_spell = trigger_event(trigger).is_some_and(event_is_spell);
             if v.triggering_spell {
-                v.at_trigger =
-                    crate::backref::analyse(&[(Some(&a), false)], "").pointing_at_trigger(0);
+                for _ in 0..crate::binders::trigger_state_refs(&bound, permanent_state) {
+                    v.out.push(Kind::StateOfTriggeringSpell);
+                }
             }
             // "At the beginning of each player's upkeep, that player …":
             // the step's player, whom no `Player` names.
@@ -275,6 +281,7 @@ impl Visitor for Lint {
                     | Ability::Harnessed(_)
                     | Ability::KeywordOn { .. }
                     | Ability::Station { .. }
+                    | Ability::Let { .. }
             );
             return true;
         }
@@ -595,7 +602,8 @@ fn core(a: &Ability) -> &Ability {
     match a {
         Ability::Labelled { ability, .. }
         | Ability::KeywordOn { ability, .. }
-        | Ability::Station { ability, .. } => core(ability),
+        | Ability::Station { ability, .. }
+        | Ability::Let { ability, .. } => core(ability),
         Ability::Harnessed(ability) => core(ability),
         _ => a,
     }

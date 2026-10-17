@@ -40,6 +40,16 @@ impl Entry {
         read_face(&face, &self.card)
     }
 
+    /// The face's lines with pointers, before their objects are bound.
+    pub fn lines_pointers(&self) -> Vec<Line> {
+        let face = Face {
+            name: &self.face,
+            type_line: &self.type_line,
+            text: &self.text,
+        };
+        crate::read_face_pointers(&face, &self.card)
+    }
+
     /// The face's lines before their references are pointers.
     pub fn lines_unresolved(&self) -> Vec<Line> {
         let face = Face {
@@ -51,16 +61,14 @@ impl Entry {
     }
 
     /// The face's abilities as one line each, as the grammar reads them now,
-    /// each pointer followed by what it points at (`/* a creature */`), so
-    /// a reader can check it and a moved referent is a moved line.
+    /// each binder and each reference to it followed by the binder's name
+    /// (`Bound(0) /* target */`), so a reader can check it and a moved
+    /// referent is a moved line.
     pub fn trees(&self) -> Vec<String> {
-        let lines = self.lines();
-        let notes = crate::backref::notes(&lines, &self.type_line);
-        lines
+        self.lines()
             .into_iter()
-            .zip(notes)
-            .map(|(l, n)| match l.parsed {
-                Ok(a) => crate::backref::annotate(&format!("{a:?}"), &n),
+            .map(|l| match l.parsed {
+                Ok(a) => crate::binders::annotate(&a, &format!("{a:?}")),
                 Err(b) => format!("BROKE at {:?} after: {}", b.at, b.read),
             })
             .collect()
