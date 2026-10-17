@@ -139,6 +139,28 @@ fn self_names(names: &[&str], legendary: bool) -> Vec<String> {
     v
 }
 
+/// "meld them into Titania, Gaea Incarnate" (Titania, Voice of Gaea) names
+/// the melded card by a name that holds this card's short name, so the
+/// renamed text names it "Qubbx, Gaea Incarnate"; the melded card's name is
+/// another card's and is left out of the comparison. Whether it shares the
+/// short name (`shares_short_name`) is still compared.
+fn without_meld_into(tree: &str) -> String {
+    let key = "into: \"";
+    let mut out = String::new();
+    let mut rest = tree;
+    while let Some(at) = rest.find("Meld {") {
+        let Some(k) = rest[at..].find(key) else {
+            break;
+        };
+        let start = at + k + key.len();
+        let end = rest[start..].find('"').map_or(rest.len(), |e| start + e);
+        out.push_str(&rest[..start]);
+        rest = &rest[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
 /// Every whole-word occurrence of a self-name in the text, renamed.
 fn rename_text(text: &str, names: &[String], words: &mut Vec<String>) -> String {
     let mut out = String::new();
@@ -187,8 +209,12 @@ fn renaming_a_card_does_not_change_its_trees() {
         let before: Vec<String> = trees(&e.card, &e.face, &e.type_line, &e.text)
             .into_iter()
             .map(|t| t.replace(&printed(&e.face), &printed(&face)))
+            .map(|t| without_meld_into(&t))
             .collect();
-        let after = trees(&card, &face, &e.type_line, &text);
+        let after: Vec<String> = trees(&card, &face, &e.type_line, &text)
+            .into_iter()
+            .map(|t| without_meld_into(&t))
+            .collect();
         if before != after {
             moved.push(format!(
                 "{} -> {card}:\n  {}\n  before {before:?}\n  after  {after:?}",

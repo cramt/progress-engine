@@ -194,6 +194,7 @@ const SAME_PLURAL: &[&str] = &[
     "aetherborn",
     "spacecraft",
     "nephilim",
+    "spawn",
 ];
 
 fn plural(sg: &str) -> String {
@@ -12465,37 +12466,8 @@ fn statics(o: &mut Out, ss: &[Static]) {
             }
         }
         // A run of PlayFrom from one zone is one sentence.
-        if let Static::PlayFrom { zone: z, .. } = s {
-            let mut j = i;
-            while matches!(ss.get(j), Some(Static::PlayFrom { zone: z2, .. }) if z2 == z) {
-                j += 1;
-            }
-            o.w("you may");
-            let mut last_verb = None;
-            for (k, p) in ss[i..j].iter().enumerate() {
-                if k > 0 {
-                    o.w("and");
-                }
-                if let Static::PlayFrom { verb, what, .. } = p {
-                    let word = out(|o| {
-                        o.w(match verb {
-                            CastVerb::Play => "play",
-                            CastVerb::Cast => "cast",
-                        })
-                    });
-                    // "cast artifact spells and colorless spells".
-                    if last_verb == Some(*verb) {
-                        syn::gapped(o, word, Out::default());
-                    } else {
-                        o.add(word);
-                    }
-                    last_verb = Some(*verb);
-                    objects(o, what);
-                }
-            }
-            o.w("from");
-            zone(o, z);
-            i = j;
+        if matches!(s, Static::PlayFrom { .. }) {
+            i += play_from_run(o, ss, i);
             continue;
         }
         // "can't block or be blocked by non-Spirit creatures": two rules,
@@ -13438,7 +13410,7 @@ fn static_other(o: &mut Out, s: &Static) {
             costs(o, c);
             o.w("rather than pay its mana cost");
         }
-        Static::PlayWithTopRevealed(Player::That) => {
+        Static::PlayWithTopRevealed(Player::That | Player::Each) => {
             o.w("players play with the top card of their libraries revealed")
         }
         Static::PlayWithTopRevealed(_) => o.w("play with the top card of your library revealed"),
@@ -13719,6 +13691,45 @@ fn unsaid(o: &mut Out, s: &Static) {
 }
 
 /// Statics inside "as long as …," or "if …,": one sentence, joined.
+/// "you may play lands and cast spells from the top of your library": a
+/// run of `PlayFrom` from one zone, said as one permission. Returns how
+/// many statics it said.
+fn play_from_run(o: &mut Out, ss: &[Static], i: usize) -> usize {
+    let Static::PlayFrom { zone: z, .. } = &ss[i] else {
+        return 0;
+    };
+    let mut j = i;
+    while matches!(ss.get(j), Some(Static::PlayFrom { zone: z2, .. }) if z2 == z) {
+        j += 1;
+    }
+    o.w("you may");
+    let mut last_verb = None;
+    for (k, p) in ss[i..j].iter().enumerate() {
+        if k > 0 {
+            o.w("and");
+        }
+        if let Static::PlayFrom { verb, what, .. } = p {
+            let word = out(|o| {
+                o.w(match verb {
+                    CastVerb::Play => "play",
+                    CastVerb::Cast => "cast",
+                })
+            });
+            // "cast artifact spells and colorless spells".
+            if last_verb == Some(*verb) {
+                syn::gapped(o, word, Out::default());
+            } else {
+                o.add(word);
+            }
+            last_verb = Some(*verb);
+            objects(o, what);
+        }
+    }
+    o.w("from");
+    zone(o, z);
+    j - i
+}
+
 fn statics_joined(o: &mut Out, ss: &[Static]) {
     let mut i = 0;
     while i < ss.len() {
@@ -13734,6 +13745,11 @@ fn statics_joined(o: &mut Out, ss: &[Static]) {
                 i += 1;
                 continue;
             }
+        }
+        // "you may play lands and cast spells from the top of your library".
+        if matches!(s, Static::PlayFrom { .. }) {
+            i += play_from_run(o, ss, i);
+            continue;
         }
         i += sized(o, ss, i);
     }
