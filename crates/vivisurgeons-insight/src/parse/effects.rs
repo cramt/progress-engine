@@ -1700,6 +1700,20 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                     if picks.len() < 2 || picks.iter().any(|f| !f.posts.is_empty()) { return None; }
                     Some(Effect::Choose(Choice::OneOfEach { picks, among }))
                 },
+                // "each player chooses a creature type", "that player chooses a
+                // color", "target player chooses a card name".
+                |p| {
+                    p.verb("choose")?;
+                    let c = alt!(p;
+                        |p| p.words("a color").map(|_| Choice::Color),
+                        |p| p.words("a creature type").map(|_| Choice::CreatureType),
+                        |p| p.words("a card type").map(|_| Choice::CardType),
+                        |p| p.words("a card name").map(|_| Choice::CardName),
+                        |p| p.words("a nonland card name").map(|_| Choice::NonlandCardName),
+                        |p| p.words("a number").map(|_| Choice::Number),
+                    )?;
+                    Some(Effect::Choose(c))
+                },
                 |p| { p.verb("choose")?; objects(p).map(|o| Effect::Choose(Choice::Objects(o))) },
                 |p| { p.verb("add")?; mana_add(p).map(Effect::AddMana) },
                 |p| { p.verb("scry")?; amount(p).map(Effect::Scry) },

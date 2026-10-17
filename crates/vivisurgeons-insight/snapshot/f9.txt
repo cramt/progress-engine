@@ -257,7 +257,7 @@ face: Hall of Gemstone
 type: World Enchantment
 cost: {1}{G}{G}
 > At the beginning of each player's upkeep, that player chooses a color. Until end of turn, lands tapped for mana produce mana of the chosen color instead of any other color.
-= BROKE at "." after: at the beginning of each player 's upkeep , that player chooses a color
+= BROKE at "mana" after: at the beginning of each player 's upkeep , that player chooses a color . until end of turn , lands tapped for
 
 ## Hamlet Glutton
 face: Hamlet Glutton

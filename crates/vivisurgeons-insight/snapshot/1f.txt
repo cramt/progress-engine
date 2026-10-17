@@ -493,7 +493,7 @@ face: Grave Sifter
 type: Creature — Elemental Beast
 cost: {5}{G}
 > When this creature enters, each player chooses a creature type and returns any number of cards of that type from their graveyard to their hand.
-= BROKE at "and" after: when this creature enters , each player chooses a creature type
+= BROKE at "any" after: when this creature enters , each player chooses a creature type and returns
 
 ## Grave Strength
 face: Grave Strength

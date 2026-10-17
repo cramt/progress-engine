@@ -950,7 +950,7 @@ face: Selective Obliteration
 type: Sorcery
 cost: {3}{C}{C}
 > Each player chooses a color. Then exile each permanent unless it's colorless or it's only the color its controller chose.
-= BROKE at "." after: each player chooses a color
+= BROKE at "the" after: each player chooses a color . then exile each permanent unless it's colorless or it's only
 
 ## Selvala, Explorer Returned
 face: Selvala, Explorer Returned

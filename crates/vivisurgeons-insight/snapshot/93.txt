@@ -555,7 +555,7 @@ face: Harsh Mercy
 type: Sorcery
 cost: {2}{W}
 > Each player chooses a creature type. Destroy all creatures that aren't of a type chosen this way. They can't be regenerated.
-= BROKE at "." after: each player chooses a creature type
+= BROKE at "type" after: each player chooses a creature type . destroy all creatures that aren't of a
 
 ## Heartstabber Mosquito
 face: Heartstabber Mosquito

@@ -629,7 +629,7 @@ type: World Enchantment
 cost: {3}{W}
 > As this enchantment enters, you and an opponent each choose a card name other than a basic land card name.
 > Spells with the chosen names can't be cast and lands with the chosen names can't be played.
-= BROKE at "name" after: as this enchantment enters , you and an opponent each choose a card
+= BROKE at "other" after: as this enchantment enters , you and an opponent each choose a card name
 = BROKE at "cast" after: spells with the chosen names can't be
 
 ## Nyxborn Courser

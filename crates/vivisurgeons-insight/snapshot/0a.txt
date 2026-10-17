@@ -168,7 +168,7 @@ cost: {2}{U}{U}
 > Flying
 > Whenever this creature attacks, each player chooses a card name. Then each player reveals the top card of their library. If the card a player revealed has the name they chose, that player puts it into their hand. If it doesn't, that player puts it on the bottom of their library.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "name" after: whenever this creature attacks , each player chooses a card
+= BROKE at "has" after: whenever this creature attacks , each player chooses a card name . then each player reveals the top card of their library . if the card a player revealed
 
 ## Corpses of the Lost
 face: Corpses of the Lost

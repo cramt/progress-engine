@@ -742,7 +742,7 @@ face: Petra Sphinx
 type: Creature — Sphinx
 cost: {2}{W}{W}{W}
 > {T}: Target player chooses a card name, then reveals the top card of their library. If that card has the chosen name, that player puts it into their hand. If it doesn't, the player puts it into their graveyard.
-= BROKE at "name" after: {T} : target player chooses a card
+= BROKE at "chosen" after: {T} : target player chooses a card name , then reveals the top card of their library . if that card has the
 
 ## Prophetic Flamespeaker
 face: Prophetic Flamespeaker

@@ -1108,7 +1108,7 @@ face: Vexing Arcanix
 type: Artifact
 cost: {4}
 > {3}, {T}: Target player chooses a card name, then reveals the top card of their library. If that card has the chosen name, that player puts it into their hand. Otherwise, they put it into their graveyard and this artifact deals 2 damage to them.
-= BROKE at "name" after: {3} , {T} : target player chooses a card
+= BROKE at "chosen" after: {3} , {T} : target player chooses a card name , then reveals the top card of their library . if that card has the
 
 ## Vivien Reid
 face: Vivien Reid

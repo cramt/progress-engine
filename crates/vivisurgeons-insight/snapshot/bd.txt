@@ -103,7 +103,7 @@ cost: {1}{U}{U}
 > As this creature enters, an opponent chooses a creature type.
 > {T}: Gain control of target creature that isn't of the chosen type for as long as this creature remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "." after: as this creature enters , an opponent chooses a creature type
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Performed { by: AnOpponent, effect: Choose(CreatureType) }] }])
 = BROKE at "tapped" after: {T} : gain control of target creature that isn't of the chosen type for as long as this creature remains
 
 ## Case of the Crimson Pulse

@@ -105,7 +105,7 @@ face: Choice of Damnations
 type: Sorcery — Arcane
 cost: {5}{B}
 > Target opponent chooses a number. You may have that player lose that much life. If you don't, that player sacrifices all but that many permanents of their choice.
-= BROKE at "." after: target opponent chooses a number
+= BROKE at "that" after: target opponent chooses a number . you may have that player lose that much life . if you don't , that player sacrifices all but
 
 ## Clever Concealment
 face: Clever Concealment
