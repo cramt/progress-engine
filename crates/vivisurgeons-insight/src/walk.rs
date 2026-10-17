@@ -26,6 +26,9 @@ pub trait Visitor {
     /// Before and after an amount's parts.
     fn amount(&mut self, _a: &mut Amount) {}
     fn amount_done(&mut self, _a: &mut Amount) {}
+    /// Before and after a cost's parts.
+    fn cost(&mut self, _c: &mut Cost) {}
+    fn cost_done(&mut self, _c: &mut Cost) {}
     /// Before a player's parts.
     fn player(&mut self, _p: &mut Player) {}
 }
@@ -579,6 +582,7 @@ impl Walk for Condition {
 impl Walk for Cost {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
+        v.cost(self);
         match self {
             Cost::AmountOfMana(f0) => {
                 Walk::walk(f0, v);
@@ -658,6 +662,7 @@ impl Walk for Cost {
             }
             _ => {}
         }
+        v.cost_done(self);
     }
 }
 

@@ -231,6 +231,9 @@ fn generate(src: &str) -> String {
              /// Before and after an amount's parts.\n    \
              fn amount(&mut self, _a: &mut Amount) {}\n    \
              fn amount_done(&mut self, _a: &mut Amount) {}\n    \
+             /// Before and after a cost's parts.\n    \
+             fn cost(&mut self, _c: &mut Cost) {}\n    \
+             fn cost_done(&mut self, _c: &mut Cost) {}\n    \
              /// Before a player's parts.\n    \
              fn player(&mut self, _p: &mut Player) {}\n\
          }\n\n\
@@ -332,6 +335,7 @@ fn generate(src: &str) -> String {
             "Effect" => format!("v.effect(self);\n{body}\nv.effect_done(self);"),
             "Condition" => format!("v.condition(self);\n{body}\nv.condition_done(self);"),
             "Amount" => format!("v.amount(self);\n{body}\nv.amount_done(self);"),
+            "Cost" => format!("v.cost(self);\n{body}\nv.cost_done(self);"),
             "Player" => format!("v.player(self);\n{body}"),
             _ => body,
         };
