@@ -2137,15 +2137,13 @@ fn effect_more(p: &mut P) -> Option<Effect> {
             p.word("into")?;
             // "meld them into ~, Gaea Incarnate": the melded card shares the
             // short name the lexer marked (Titania, Voice of Gaea).
-            let shares_short_name = p.attempt(|p| p.tok(&Tok::SelfRef)).is_some();
-            let into = if shares_short_name {
+            let into = if p.attempt(|p| p.tok(&Tok::SelfRef)).is_some() {
                 p.tok(&Tok::Comma)?;
-                let short = p.name.split(',').next()?.to_lowercase();
-                format!("{short}, {}", card_name(p, &[])?)
+                MeldInto::ShortNameAnd(card_name(p, &[])?)
             } else {
-                card_name(p, &[])?
+                MeldInto::Named(card_name(p, &[])?)
             };
-            Some(Effect::Meld { what, into, shares_short_name })
+            Some(Effect::Meld { what, into })
         },
         // "it produces {C} instead of any other type and amount".
         |p| {
