@@ -1029,7 +1029,7 @@ face: Venser's Diffusion
 type: Instant
 cost: {2}{U}
 > Return target nonland permanent or suspended card to its owner's hand.
-= BROKE at "to" after: return target nonland permanent or suspended card
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [], or: None }) } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
 
 ## Viashino Sandsprinter
 face: Viashino Sandsprinter

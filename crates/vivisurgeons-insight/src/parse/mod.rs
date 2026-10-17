@@ -590,7 +590,10 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             // "At the beginning of your next upkeep, pay …" on an instant or
             // sorcery is created as the spell resolves, a delayed trigger
             // (CR 603.7a), so it is the spell's effect, not a printed trigger.
-            if spell && matches!(trigger, Trigger::At(_)) { return None; }
+            // "At the beginning of each player's upkeep, if this card is
+            // suspended" (Curse of the Cabal) names no next step: a printed
+            // trigger that works while the card is in exile.
+            if spell && matches!(trigger, Trigger::At(_)) && !matches!(trigger, Trigger::At(Step::Upkeep(Whose::Each | Whose::Yours))) { return None; }
             p.tok(&Tok::Comma)?;
             alt!(p;
                 |p| {

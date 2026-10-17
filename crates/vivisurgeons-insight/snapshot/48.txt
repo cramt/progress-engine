@@ -789,7 +789,7 @@ cost: {4}{B}{B}
 > Whenever a card is put into an opponent's graveyard from anywhere, if this card is suspended, you may remove a time counter from this card.
 = Keywords([Keyword { name: "fear", param: None }])
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(7), cost: [Mana(Mana(["1", "B"]))] }) }])
-= BROKE at "," after: whenever a card is put into an opponent 's graveyard from anywhere , if this card is suspended
+= Triggered { trigger: InterveningIf(When(PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, to: Graveyard(AnOpponent), from: Anywhere }), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Suspended)]], kind: None, posts: [], or: None } }), effect: [May { who: You, then: [RemoveCounters { n: N(1), kind: "time", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Obstinate Gargoyle
 face: Obstinate Gargoyle

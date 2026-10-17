@@ -350,7 +350,7 @@ cost: {1}{R}
 > • Destroy target artifact.
 > • Target creature gets +1/+1 and gains trample until end of turn.
 > • Remove two time counters from target permanent or suspended card.
-= BROKE at "." after: choose one — • destroy target artifact . • target creature gets <pt> and gains trample until end of turn . • remove two time counters from target permanent or suspended card
+= Spell([Modal { choose: One, modes: [[Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, no_regen: false }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], [RemoveCounters { n: N(2), kind: "time", from: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [], or: None }) } } }]] }])
 
 ## Garna, the Bloodflame
 face: Garna, the Bloodflame

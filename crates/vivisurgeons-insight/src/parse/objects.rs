@@ -186,6 +186,7 @@ pub(super) fn state_word(w: &str) -> Option<State> {
         "equipped" => State::Equipped,
         "double-faced" => State::DoubleFaced,
         "transformed" => State::Transformed,
+        "suspended" => State::Suspended,
         _ => return None,
     })
 }

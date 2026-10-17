@@ -617,7 +617,7 @@ cost: {4}{R}{R}
 = Keywords([Keyword { name: "flying", param: None }])
 = Activated { cost: [Mana(Mana(["R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(2), cost: [Mana(Mana(["R", "R"]))] }) }])
-= BROKE at "," after: whenever an opponent casts a spell , if this card is suspended
+= Triggered { trigger: InterveningIf(When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Suspended)]], kind: None, posts: [], or: None } }), effect: [May { who: That, then: [PutCounters { n: N(1), kind: "time", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Pendelhaven Elder
 face: Pendelhaven Elder

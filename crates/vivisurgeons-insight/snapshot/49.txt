@@ -29,7 +29,7 @@ cost: {2}{R}
 > Whenever Amy Pond deals combat damage to a player, choose a suspended card you own and remove that many time counters from it.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Keywords([Keyword { name: "partner with", param: Some(PartnerWith("rory williams")) }])
-= BROKE at "card" after: whenever ~ deals combat damage to a player , choose a suspended
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Choose(Objects(Objects { quant: One, filter: Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [Owner(You)], or: None } })), RemoveCounters { n: ThatMany, kind: "time", from: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = BROKE at "<end>" after: doctor 's companion
 
 ## Animus of Predation

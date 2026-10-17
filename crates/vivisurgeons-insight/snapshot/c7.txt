@@ -748,7 +748,7 @@ face: Rift Elemental
 type: Creature — Elemental
 cost: {R}
 > {1}{R}, Remove a time counter from a permanent you control or suspended card you own: This creature gets +2/+0 until end of turn.
-= BROKE at "card" after: {1} {R} , remove a time counter from a permanent you control or suspended
+= Activated { cost: [Mana(Mana(["1", "R"])), RemoveCounters { n: N(1), kind: "time", from: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: Some(Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [Owner(You)], or: None }) } } }], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Roar of Challenge
 face: Roar of Challenge

@@ -979,7 +979,7 @@ cost: {X}{R}
 > Choose one —
 > • Remove X time counters from target permanent or suspended card.
 > • Put X time counters on target permanent with a time counter on it or suspended card.
-= BROKE at "." after: choose one — • remove x time counters from target permanent or suspended card
+= Spell([Modal { choose: One, modes: [[RemoveCounters { n: X, kind: "time", from: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [], or: None }) } } }], [PutCounters { n: X, kind: "time", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [WithCounter(Some("time"))], or: Some(Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [], or: None }) } } }]] }])
 
 ## Torgaar, Famine Incarnate
 face: Torgaar, Famine Incarnate

@@ -749,7 +749,7 @@ cost: {1}{W}
 > Bad Wolf — Whenever Rose Tyler attacks, put a time counter on it for each suspended card you own and each other permanent you control with a time counter on it.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("time"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })) }])
-= BROKE at "card" after: bad wolf — whenever ~ attacks , put a time counter on it for each suspended
+= BROKE at "." after: bad wolf — whenever ~ attacks , put a time counter on it for each suspended card you own and each other permanent you control with a time counter on it
 = BROKE at "<end>" after: doctor 's companion
 
 ## Rot Hulk

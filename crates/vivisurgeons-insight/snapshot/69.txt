@@ -792,7 +792,7 @@ cost: {2}{R}{R}
 > • Remove two time counters from target permanent or suspended card.
 > • Put two time counters on target permanent with a time counter on it or suspended card.
 > Suspend 4—{R}
-= BROKE at "." after: when this creature enters , choose one — • remove two time counters from target permanent or suspended card
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[RemoveCounters { n: N(2), kind: "time", from: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [], or: None }) } } }], [PutCounters { n: N(2), kind: "time", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [WithCounter(Some("time"))], or: Some(Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [], or: None }) } } }]] }], limits: [] }
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(4), cost: [Mana(Mana(["R"]))] }) }])
 
 ## Sickening Shoal

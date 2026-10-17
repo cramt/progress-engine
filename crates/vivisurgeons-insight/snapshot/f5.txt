@@ -232,7 +232,7 @@ cost: {7}{U}{U}{U}
 > Whenever an opponent casts a spell, if this card is suspended, remove a time counter from it.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }])
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(9), cost: [Mana(Mana(["2", "U"]))] }) }])
-= BROKE at "," after: whenever an opponent casts a spell , if this card is suspended
+= Triggered { trigger: InterveningIf(When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Suspended)]], kind: None, posts: [], or: None } }), effect: [RemoveCounters { n: N(1), kind: "time", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Defense Grid
 face: Defense Grid

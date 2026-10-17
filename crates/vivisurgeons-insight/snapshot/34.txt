@@ -1005,7 +1005,7 @@ cost: {U}
 > • Remove two time counters from target permanent or suspended card.
 > • Put two time counters on target permanent with a time counter on it or suspended card.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["U"]))])) }])
-= BROKE at "." after: when this creature is turned face up , choose one — • remove two time counters from target permanent or suspended card
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[RemoveCounters { n: N(2), kind: "time", from: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [], or: None }) } } }], [PutCounters { n: N(2), kind: "time", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [WithCounter(Some("time"))], or: Some(Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [], or: None }) } } }]] }], limits: [] }
 
 ## Titan of Industry
 face: Titan of Industry

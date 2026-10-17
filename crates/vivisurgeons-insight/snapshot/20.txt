@@ -388,7 +388,7 @@ cost: {9}{R}
 > Suspend 10—{R}
 > Sacrifice an artifact, creature, or land: Remove a time counter from this card. Activate only if this card is suspended.
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(10), cost: [Mana(Mana(["R"]))] }) }])
-= BROKE at "." after: sacrifice an artifact , creature , or land : remove a time counter from this card . activate only if this card is suspended
+= Activated { cost: [Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("land")]], kind: None, posts: [], or: None } })], effect: [RemoveCounters { n: N(1), kind: "time", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [OnlyIf(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Suspended)]], kind: None, posts: [], or: None } })] }
 
 ## Grotag Thrasher
 face: Grotag Thrasher

@@ -959,6 +959,9 @@ pub enum State {
     /// "transformed permanents": double-faced permanents with their back
     /// face up (CR 712.8e).
     Transformed,
+    /// "target permanent or suspended card": a card in exile that has
+    /// suspend and a time counter on it (CR 702.62b).
+    Suspended,
 }
 
 #[derive(Clone, Debug, PartialEq)]

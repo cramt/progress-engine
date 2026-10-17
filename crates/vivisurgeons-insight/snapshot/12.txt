@@ -195,7 +195,7 @@ cost: {9}{B}
 > At the beginning of each player's upkeep, if this card is suspended, that player may sacrifice a permanent of their choice. If the player does, put two time counters on this card.
 = BROKE at "control" after: target player sacrifices half the permanents they
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(2), cost: [Mana(Mana(["2", "B", "B"]))] }) }])
-= BROKE at "," after: at the beginning of each player 's upkeep , if this card is suspended
+= Triggered { trigger: InterveningIf(At(Upkeep(Each)), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Suspended)]], kind: None, posts: [], or: None } }), effect: [May { who: That, then: [Sacrifice { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [ChosenBy(That)], or: None } } }] }, IfYouDo([PutCounters { n: N(2), kind: "time", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 
 ## Dalkovan Packbeasts
 face: Dalkovan Packbeasts
