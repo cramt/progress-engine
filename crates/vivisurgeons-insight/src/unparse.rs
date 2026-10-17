@@ -1075,14 +1075,8 @@ mod syn {
         alt(o, vec![adjective, phrase]);
     }
 
-    /// The preposition before a zone in an object phrase follows the verb:
-    /// "return target card from your graveyard", "the number of cards in
-    /// your graveyard". The object is in that zone either way.
-    pub fn in_from(o: &mut Out) {
-        any_of(o, &["from", "in"]);
-    }
-
-    /// The same for the battlefield, which English puts things "on":
+    /// The preposition before the battlefield follows the verb, and English
+    /// puts things "on" it:
     /// "exile all creatures … from the battlefield", "each creature on the
     /// battlefield".
     pub fn on_from(o: &mut Out) {
@@ -2865,6 +2859,16 @@ fn cost_said(o: &mut Out, c: &Cost) {
 }
 
 fn cost(o: &mut Out, c: &Cost) {
+    // "Exile this card from your graveyard", "reveal a Dinosaur card from
+    // your hand": a cost that takes its objects out of a zone.
+    let moves = match c {
+        Cost::Reveal(x) => reveals_from(x),
+        c => matches!(c, Cost::Exile(_) | Cost::ReturnToHand(_)),
+    };
+    zone_from(moves, || cost_one(o, c))
+}
+
+fn cost_one(o: &mut Out, c: &Cost) {
     match c {
         Cost::Mana(m) if m.0.len() == 2 && m.0[0] == m.0[1] => syn::twice_mana(o, m),
         Cost::Mana(m) => mana(o, m),
@@ -3063,7 +3067,13 @@ fn amount_num(a: &Amount) -> Num {
     }
 }
 
+/// An amount names its objects where they are: "the number of cards in
+/// your hand", even inside a zone-moving effect.
 fn amount(o: &mut Out, a: &Amount) {
+    zone_from(false, || amount_said(o, a))
+}
+
+fn amount_said(o: &mut Out, a: &Amount) {
     match a {
         Amount::AnyOf(v) => {
             for (i, x) in v.iter().enumerate() {
@@ -3144,7 +3154,13 @@ fn stat_name(s: Stat) -> &'static str {
 }
 
 /// What follows "equal to".
+/// An amount said as a measure names its objects where they are, as
+/// `amount` does.
 fn measure(o: &mut Out, a: &Amount) {
+    zone_from(false, || measure_said(o, a))
+}
+
+fn measure_said(o: &mut Out, a: &Amount) {
     match a {
         Amount::N(_)
         | Amount::AnyOf(_)
@@ -3420,9 +3436,79 @@ fn measure(o: &mut Out, a: &Amount) {
 }
 
 thread_local! {
+    /// Set while an effect that takes its objects out of a zone says them,
+    /// so a zone they are in is said "from" ("return target creature card
+    /// from your graveyard"); anywhere else "in" ("the number of cards in
+    /// your graveyard"). The tree holds the zone alone.
+    static ZONE_FROM: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// Set while `sentences` renders the form that says the rounding once
     /// at the end ("Round down each time."), so each half says none.
     static ROUND_LATER: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The preposition before a zone an object is in, picked from what the
+/// sentence does with the object, never a choice the round trip accepts
+/// either way (supervisor, 2026-10-17): "from" for the object of a
+/// zone-moving verb ("return target card from your graveyard", `ZONE_FROM`),
+/// "in" otherwise ("the number of cards in your graveyard"). The tree holds
+/// the zone alone, `Post::In`. Nothing is "in" outside the game or the
+/// command zone.
+fn in_or_from(o: &mut Out, z: &Zone) {
+    let from = matches!(z, Zone::OutsideTheGame | Zone::CommandZone) || ZONE_FROM.with(|z| z.get());
+    o.w(if from { "from" } else { "in" });
+}
+
+/// Runs `f` with `ZONE_FROM` set to `on`, then puts it back.
+fn zone_from<R>(on: bool, f: impl FnOnce() -> R) -> R {
+    let was = ZONE_FROM.with(|z| z.replace(on));
+    let r = f();
+    ZONE_FROM.with(|z| z.set(was));
+    r
+}
+
+/// The effects whose objects leave the zone they are named in: what they
+/// exile, return, put, shuffle, cast or reveal is said "from" that zone.
+fn moves_from_a_zone(e: &Effect) -> bool {
+    matches!(
+        e,
+        Effect::Exile(_)
+            | Effect::ExileFaceDown(_)
+            | Effect::ExileUntilLeaves { .. }
+            | Effect::ExileWithCounters { .. }
+            | Effect::Move { .. }
+            | Effect::ShuffleInto { .. }
+            | Effect::ShuffleAllInto { .. }
+            | Effect::ActionOn { .. }
+            | Effect::Cast { .. }
+            | Effect::CastPaying { .. }
+            | Effect::Reveal { .. }
+    ) && match e {
+        Effect::Reveal { what, .. } => reveals_from(what),
+        // "put the cards in your hand on the bottom of your library"
+        // (Mindmoil), but "return that card from your graveyard" (Stitch
+        // Together).
+        Effect::Move { what, .. } => {
+            what.quant != Quant::Antecedent
+                || !matches!(&what.filter.posts[..], [Post::In(Zone::Hand(_))])
+        }
+        // "manifest a card from your hand", "cloak a card from your hand".
+        Effect::ActionOn { name, .. } => matches!(name.as_str(), "manifest" | "cloak"),
+        _ => true,
+    }
+}
+
+/// "reveal a Dragon card from your hand", "reveal any number of Dragon
+/// cards from your hand", but "reveal any number of green cards in your
+/// hand" (Scent of Ivy) and "reveal a white card in your hand" (Morph,
+/// Watcher of the Roost): Oracle says a reveal of a card or any number of
+/// cards described by their color alone "in" the hand.
+fn reveals_from(x: &Objects) -> bool {
+    let by_color = !x.filter.alts.is_empty()
+        && x.filter
+            .alts
+            .iter()
+            .all(|a| matches!(&a[..], [Adj::Color(_)]));
+    !(by_color && matches!(x.quant, Quant::AnyNumber | Quant::One))
 }
 
 /// ", rounded up", ", rounded down".
@@ -4724,7 +4810,37 @@ fn is_non(a: &Adj) -> bool {
     )
 }
 
+/// "cards you own in exile", "creature cards in your graveyard that were
+/// put there from the battlefield this turn": with an owner who is you or
+/// that player, or with where they came from, Oracle says the zone "in"
+/// whatever the verb. An opponent's cards are put "from exile" (Ruin
+/// Processor), and nothing is "in" outside the game.
 fn posts(o: &mut Out, ps: &[Post], n: Num) {
+    let outside = ps.contains(&Post::In(Zone::OutsideTheGame));
+    // "a card you own in exile with a study counter on it" (Kianne), but
+    // "a card you own with a silver counter on it from exile" (Karn) and
+    // "target card with flashback you own from exile" (Rootcoil Creeper).
+    let more_after_zone = ps
+        .iter()
+        .position(|p| matches!(p, Post::In(_)))
+        .is_some_and(|k| k + 1 < ps.len());
+    let said_in = ps.iter().any(|p| match p {
+        Post::PutThereFromBattlefieldThisTurn => true,
+        // "return all cards in your graveyard destroyed this way"
+        // (Cleansing Meditation), but "the chosen card from your graveyard".
+        Post::Marked(_) => more_after_zone,
+        Post::Owner(Player::AnOpponent | Player::EachOpponent) => false,
+        Post::Owner(_) => !outside && more_after_zone,
+        _ => false,
+    });
+    if said_in {
+        zone_from(false, || posts_said(o, ps, n))
+    } else {
+        posts_said(o, ps, n)
+    }
+}
+
+fn posts_said(o: &mut Out, ps: &[Post], n: Num) {
     let mut i = 0;
     while i < ps.len() {
         // "that each have a different mana value 3 or less": the bound
@@ -4795,7 +4911,7 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("the battlefield");
         }
         Post::In(z) => {
-            syn::in_from(o);
+            in_or_from(o, z);
             zone(o, z);
         }
         Post::CastFrom(z) => {
@@ -4988,7 +5104,17 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 _ => o.add(that),
             }
         }
-        Post::FromAmong(x) => from_among(o, x),
+        // "from among cards in exile with page counters on them" (Tasha).
+        // but "from among face-up cards your opponents own from exile"
+        // (Ashiok).
+        Post::FromAmong(x) => {
+            let theirs = x
+                .filter
+                .posts
+                .iter()
+                .any(|p| matches!(p, Post::Owner(Player::AnOpponent | Player::EachOpponent)));
+            zone_from(theirs, || from_among(o, x))
+        }
         Post::Greatest { stat, or_tied } => {
             o.w("with the greatest");
             o.w(stat_name(*stat));
@@ -6989,6 +7115,10 @@ fn obj_subj(o: &mut Out, x: &Objects, verb: &str) {
 }
 
 fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
+    zone_from(moves_from_a_zone(e), || effect_said(o, e, cx))
+}
+
+fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
     match e {
         Effect::Draw { who, n } => {
             subj(o, who, "draw", cx);
@@ -9433,9 +9563,12 @@ fn move_return_rest(o: &mut Out, e: &Effect) {
         objects(o, what);
         o.add(place.clone());
     });
+    // "return to your hand target artifact card in your graveyard with
+    // lesser mana value" (Scrap Trawler): said after where it goes, the
+    // object is "in" its zone.
     let after = out(|o| {
         o.add(place);
-        objects(o, what);
+        zone_from(false, || objects(o, what));
     });
     syn::position(o, before, after);
     order_words(o, order);
@@ -9511,6 +9644,10 @@ fn replacement(o: &mut Out, would_words: Out, instead: &[Effect], cx: &Cx) {
 
 /// The verbs a player is said to do for an effect that takes none.
 fn performed(o: &mut Out, e: &Effect, n: Num) {
+    zone_from(moves_from_a_zone(e), || performed_said(o, e, n))
+}
+
+fn performed_said(o: &mut Out, e: &Effect, n: Num) {
     match e {
         Effect::Vote(options) => {
             o.verb("vote", n);
@@ -11159,7 +11296,13 @@ fn would(o: &mut Out, e: &Event) {
 
 // ---------------------------------------------------------------- conditions
 
+/// A condition names its objects where they are: "if there are seven or
+/// more cards in your graveyard".
 fn condition(o: &mut Out, c: &Condition) {
+    zone_from(false, || condition_said(o, c))
+}
+
+fn condition_said(o: &mut Out, c: &Condition) {
     match c {
         Condition::GetsMoreVotes(w) => {
             o.w(w);
