@@ -257,7 +257,7 @@ face: Deadly Tempest
 type: Sorcery
 cost: {4}{B}{B}
 > Destroy all creatures. Each player loses life equal to the number of creatures they controlled that were destroyed this way.
-= BROKE at "controlled" after: destroy all creatures . each player loses life equal to the number of creatures they
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, LoseLife { who: Each, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ControlledThen(That), Marked(Destroyed)], or: None } }) }])
 
 ## Demonic Appetite
 face: Demonic Appetite

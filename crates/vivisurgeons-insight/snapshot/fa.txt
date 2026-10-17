@@ -220,7 +220,7 @@ face: Builder's Bane
 type: Sorcery
 cost: {X}{X}{R}
 > Destroy X target artifacts. Builder's Bane deals damage to each player equal to the number of artifacts they controlled that were put into a graveyard this way.
-= BROKE at "controlled" after: destroy x target artifacts . ~ deals damage to each player equal to the number of artifacts they
+= BROKE at "into" after: destroy x target artifacts . ~ deals damage to each player equal to the number of artifacts they controlled that were put
 
 ## Calamitous Cave-In
 face: Calamitous Cave-In

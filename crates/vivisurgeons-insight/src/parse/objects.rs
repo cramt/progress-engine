@@ -786,6 +786,9 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // said only of what was attached.
         |p| { p.words("you controlled that died this turn")?; Some(Post::DiedUnderControlThisTurn(Player::You)) },
         |p| { p.words("you controlled")?; if !matches!(p.peek_word(), Some("that")) { return None; } Some(Post::ControlledThen(Player::You)) },
+        // "creatures they controlled that were exiled this way" (Oversimplify):
+        // each player in turn, as "they control" is.
+        |p| { p.words("they controlled")?; if !matches!(p.peek_word(), Some("that")) { return None; } Some(Post::ControlledThen(Player::That)) },
         |p| p.words("you control").map(|_| Post::Controller(Player::You)),
         |p| p.words("you don't control").map(|_| Post::NotControlledBy(Player::You)),
         |p| p.words("you own").map(|_| Post::Owner(Player::You)),

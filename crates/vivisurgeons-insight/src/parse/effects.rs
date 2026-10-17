@@ -1355,16 +1355,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         },
         // "put a number of +1/+1 counters on ~ equal to that creature's
         // power", the amount before or after the object.
-        |p| {
-            p.words("put a number of")?;
-            let kind = counter_kind(p)?;
-            p.word("counters")?;
-            let (n, on) = alt!(p;
-                |p| { p.word("on")?; let on = objects(p)?; p.words("equal to")?; Some((measure(p)?, on)) },
-                |p| { p.words("equal to")?; let n = measure(p)?; p.word("on")?; Some((n, objects(p)?)) },
-            )?;
-            Some(Effect::PutCounters { n, kind, on })
-        },
+        |p| { p.word("put")?; number_of_counters(p) },
         // counters
         |p| {
             p.word("put")?;
@@ -1650,6 +1641,8 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             if by == Player::You { return None; }
             let e = alt!(p;
                 |p| { p.verb("put")?; put_rest(p) },
+                // "puts a number of +1/+1 counters on it equal to …" (Oversimplify).
+                |p| { p.verb("put")?; number_of_counters(p) },
                 |p| {
                     p.verb("put")?;
                     let n = amount_a(p)?;
@@ -2074,6 +2067,19 @@ pub(super) fn card_name(p: &mut P, stops: &[&str]) -> Option<String> {
     }
     (!words.is_empty() && words.last().map(String::as_str) != Some(","))
         .then(|| words.join(" ").replace(" ,", ","))
+}
+
+/// "a number of +1/+1 counters on ~ equal to that creature's power", after
+/// "put" or "puts": the amount before or after the object.
+fn number_of_counters(p: &mut P) -> Option<Effect> {
+    p.words("a number of")?;
+    let kind = counter_kind(p)?;
+    p.word("counters")?;
+    let (n, on) = alt!(p;
+        |p| { p.word("on")?; let on = objects(p)?; p.words("equal to")?; Some((measure(p)?, on)) },
+        |p| { p.words("equal to")?; let n = measure(p)?; p.word("on")?; Some((n, objects(p)?)) },
+    )?;
+    Some(Effect::PutCounters { n, kind, on })
 }
 
 /// The name after "a creature named": to a comma, "with" or "and", unless

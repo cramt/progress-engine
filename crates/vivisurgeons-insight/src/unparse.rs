@@ -6202,6 +6202,26 @@ fn subject_of(e: &Effect) -> Option<Player> {
     })
 }
 
+/// "a number of +1/+1 counters on it equal to its power" after "put", the
+/// amount before or after the object.
+fn number_of_counters(o: &mut Out, n: &Amount, kind: &CounterKind, on: &Objects) {
+    o.w("a number of");
+    counter_noun(o, kind, Num::Pl);
+    let on_first = out(|o| {
+        o.w("on");
+        objects(o, on);
+        o.w("equal to");
+        measure(o, n);
+    });
+    let equal_first = out(|o| {
+        o.w("equal to");
+        measure(o, n);
+        o.w("on");
+        objects(o, on);
+    });
+    syn::position(o, on_first, equal_first);
+}
+
 fn dur(o: &mut Out, d: &Duration) {
     match d {
         Duration::UntilEndOfTurn => o.w("until end of turn"),
@@ -6766,21 +6786,8 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         // "put a number of +1/+1 counters on it equal to its power", the
         // amount before or after the object.
         Effect::PutCounters { n, kind, on } if is_measure(n) => {
-            o.w("put a number of");
-            counter_noun(o, kind, Num::Pl);
-            let on_first = out(|o| {
-                o.w("on");
-                objects(o, on);
-                o.w("equal to");
-                measure(o, n);
-            });
-            let equal_first = out(|o| {
-                o.w("equal to");
-                measure(o, n);
-                o.w("on");
-                objects(o, on);
-            });
-            syn::position(o, on_first, equal_first);
+            o.w("put");
+            number_of_counters(o, n, kind, on);
         }
         Effect::PutCounters { n, kind, on } => {
             o.w("put");
@@ -9102,6 +9109,10 @@ fn replacement(o: &mut Out, would_words: Out, instead: &[Effect], cx: &Cx) {
 fn performed(o: &mut Out, e: &Effect, n: Num) {
     match e {
         Effect::Move { .. } => move_effect(o, e, n),
+        Effect::PutCounters { n: k, kind, on } if is_measure(k) => {
+            o.verb("put", n);
+            number_of_counters(o, k, kind, on);
+        }
         Effect::PutCounters { n: k, kind, on } => {
             o.verb("put", n);
             amount_a(o, k);

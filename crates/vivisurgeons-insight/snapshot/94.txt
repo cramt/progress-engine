@@ -738,7 +738,7 @@ face: Oversimplify
 type: Sorcery
 cost: {3}{G}{U}
 > Exile all creatures. Each player creates a 0/0 green and blue Fractal creature token and puts a number of +1/+1 counters on it equal to the total power of creatures they controlled that were exiled this way.
-= BROKE at "of" after: exile all creatures . each player creates a <pt> green and blue fractal creature token and puts a number
+= Spell([Exile(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Create { who: Each, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(0), signed: false }), colors: [Green, Blue], types: ["fractal", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Performed { by: Each, effect: PutCounters { n: Total { stat: Power, of: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ControlledThen(That), Marked(Exiled)], or: None } } }, kind: "+1/+1", on: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } } }])
 
 ## Pyreswipe Hawk
 face: Pyreswipe Hawk

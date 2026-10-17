@@ -618,7 +618,7 @@ face: Power Surge
 type: Enchantment
 cost: {R}{R}
 > At the beginning of each player's upkeep, this enchantment deals X damage to that player, where X is the number of untapped lands they controlled at the beginning of this turn.
-= BROKE at "controlled" after: at the beginning of each player 's upkeep , this enchantment deals x damage to that player , where x is the number of untapped lands they
+= BROKE at "at" after: at the beginning of each player 's upkeep , this enchantment deals x damage to that player , where x is the number of untapped lands they controlled
 
 ## Primordial Gnawer
 face: Primordial Gnawer
