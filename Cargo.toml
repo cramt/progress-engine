@@ -9,6 +9,7 @@ members = [
     "crates/vivisurgeons-insight",
     "crates/chancellor-of-the-spires",
     "crates/chancellor-of-the-spires/cr",
+    "crates/phyrexian-metamorph/*",
 ]
 # Gitaxian Probe is a workspace of its own (crates/gitaxian-probe/Cargo.toml), so
 # a plain `cargo` here resolves neither V8 nor the build-time download of
@@ -46,6 +47,7 @@ toml_edit = { version = "0.25", default-features = false, features = ["parse", "
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 imbl = "7"
 ascent = { version = "0.8.1", default-features = false }
+pdf-writer = "0.15"
 
 chip-decklist = { path = "crates/reality-chip/decklist" }
 chip-scryfall = { path = "crates/reality-chip/scryfall" }
@@ -54,6 +56,7 @@ gauntlet-toml = { path = "crates/ichormoon-gauntlet/toml" }
 gauntlet-sim = { path = "crates/ichormoon-gauntlet/sim" }
 chip-stats = { path = "crates/reality-chip/stats" }
 vivisurgeons-insight = { path = "crates/vivisurgeons-insight" }
+metamorph-sheet = { path = "crates/phyrexian-metamorph/sheet" }
 
 # meldweb-wasm ships over the network, so it trades build time for bytes. A
 # profile of its own leaves Gauntlet's release build as it was.

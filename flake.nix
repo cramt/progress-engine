@@ -484,6 +484,13 @@
         meta.description = "Deploy Meldweb Curator's site and worker with wrangler";
         program = pkgs.lib.getExe curatorDeploy;
       };
+      # The default package builds the whole workspace, so `metamorph` is
+      # already in it; this only names the binary for `nix run`.
+      apps.metamorph = {
+        type = "app";
+        meta.description = "Phyrexian Metamorph: a PDF of proxies to print and cut";
+        program = "${gauntlet}/bin/metamorph";
+      };
       apps.infra = {
         type = "app";
         meta.description = "Run OpenTofu on Meldweb Curator's Cloudflare stack";

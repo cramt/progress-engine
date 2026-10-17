@@ -1,6 +1,6 @@
 # progress-engine
 
-Three products, one workspace. Read NAMES_FOR_FUTURE.md for why they are named
+Several products, one workspace. Read NAMES_FOR_FUTURE.md for why they are named
 what they are and where a fourth would go.
 
 **Ichormoon Gauntlet** (`crates/ichormoon-gauntlet/`, binary `gauntlet`) is what
@@ -51,6 +51,14 @@ is what that editor does and the order to build it in. The TypeScript never
 reimplements what a decklist is: parsing, `commander` and `outside` come from
 Rust, and `web/src/deck.gen.ts` is generated from the wire types
 (`UPDATE_TS=1 cargo test -p meldweb-wasm`), with a test that fails when it is stale.
+
+**Phyrexian Metamorph** (`crates/phyrexian-metamorph/`, binary `metamorph`) is
+the proxy maker. `metamorph-sheet` lays card JPEGs out on paper with cut marks
+and knows nothing else about Magic; `metamorph-cli` takes a list of printings,
+or a `.deck.toml` with `--no-basics` and `--minus <collection.toml>`, and fetches
+the images from Scryfall. What a deck still needs is `chip-decklist`'s
+`supply`, as on Curator's Sourcing view, never a count of its own. Its README
+holds the flags and the measured runs.
 
 **Vivisurgeon's Insight** (`crates/vivisurgeons-insight/`, binary `insight`) is a
 spike, not a product: a grammar that reads Oracle text into a typed ability
