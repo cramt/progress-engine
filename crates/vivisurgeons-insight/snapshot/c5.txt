@@ -805,7 +805,7 @@ cost: {3}{U}{B}{R}
 > III — Starting with you, each player chooses a creature. Destroy each creature chosen this way.
 = Chapter { chapters: [1], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [GainControl { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("legendary"), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }) }] }] }
 = BROKE at "but" after: ii — draw a card for each creature you control
-= BROKE at "," after: iii — starting with you
+= Chapter { chapters: [3], effect: [StartingWith { first: You, then: [Performed { by: Each, effect: Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }] }, Destroy { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } }, no_regen: false }] }
 
 ## The Thanos-Copter
 face: The Thanos-Copter

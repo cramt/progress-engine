@@ -1046,7 +1046,7 @@ face: Whims of the Fates
 type: Sorcery
 cost: {5}{R}
 > Starting with you, each player separates all permanents they control into three piles. Then each player chooses one of their piles at random and sacrifices those permanents. (Piles can be empty.)
-= BROKE at "," after: starting with you
+= BROKE at "their" after: starting with you , each player separates all permanents they control into three piles . then each player chooses one of
 
 ## Winged Coatl
 face: Winged Coatl

@@ -130,7 +130,7 @@ face: Coercive Portal
 type: Artifact
 cost: {4}
 > Will of the council — At the beginning of your upkeep, starting with you, each player votes for carnage or homage. If carnage gets more votes, sacrifice this artifact and destroy all nonland permanents. If homage gets more votes or the vote is tied, draw a card.
-= BROKE at "with" after: will of the council — at the beginning of your upkeep , starting
+= BROKE at "for" after: will of the council — at the beginning of your upkeep , starting with you , each player votes
 
 ## Colfenor, the Last Yew
 face: Colfenor, the Last Yew

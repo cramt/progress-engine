@@ -7477,6 +7477,12 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 o.tok(Tok::Sym("E".into()));
             }
         }
+        Effect::StartingWith { first, then } => {
+            o.w("starting with");
+            player(o, first);
+            o.w(",");
+            clauses(o, then, cx);
+        }
         Effect::AnyTime {
             who,
             window,

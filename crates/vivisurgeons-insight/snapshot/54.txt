@@ -486,7 +486,7 @@ face: Lieutenants of the Guard
 type: Creature — Human Soldier
 cost: {4}{W}
 > Council's dilemma — When this creature enters, starting with you, each player votes for strength or numbers. Put a +1/+1 counter on this creature for each strength vote and create a 1/1 white Soldier creature token for each numbers vote.
-= BROKE at "with" after: council 's dilemma — when this creature enters , starting
+= BROKE at "for" after: council 's dilemma — when this creature enters , starting with you , each player votes
 
 ## Lightning Berserker
 face: Lightning Berserker

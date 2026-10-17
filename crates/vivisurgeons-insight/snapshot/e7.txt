@@ -359,7 +359,7 @@ face: Grenzo's Rebuttal
 type: Sorcery
 cost: {4}{R}{R}
 > Create a 4/4 red Ogre creature token. Starting with you, each player chooses an artifact, a creature, and a land from among the permanents controlled by the player to their left. Destroy each permanent chosen this way.
-= BROKE at "with" after: create a <pt> red ogre creature token . starting
+= BROKE at "controlled" after: create a <pt> red ogre creature token . starting with you , each player chooses an artifact , a creature , and a land from among the permanents
 
 ## Grinning Ignus
 face: Grinning Ignus

@@ -352,7 +352,7 @@ face: Druid of Purification
 type: Creature — Human Druid
 cost: {3}{G}
 > When this creature enters, starting with you, each player may choose an artifact or enchantment you don't control. Destroy each permanent chosen this way.
-= BROKE at "with" after: when this creature enters , starting
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [StartingWith { first: You, then: [May { who: Each, then: [Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [NotControlledBy(You)], or: None } }))] }] }, Destroy { what: Objects { quant: Each, filter: Filter { alts: [], kind: Some(Permanent), posts: [Marked(Chosen)], or: None } }, no_regen: false }], limits: [] }
 
 ## Elven Lyre
 face: Elven Lyre

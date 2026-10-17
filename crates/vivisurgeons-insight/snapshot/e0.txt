@@ -21,7 +21,7 @@ face: Alliance of Arms
 type: Sorcery
 cost: {W}
 > Join forces — Starting with you, each player may pay any amount of mana. Each player creates X 1/1 white Soldier creature tokens, where X is the total amount of mana paid this way.
-= BROKE at "," after: join forces — starting with you
+= BROKE at "amount" after: join forces — starting with you , each player may pay any amount of mana . each player creates x <pt> white soldier creature tokens , where x is the total
 
 ## Ambitious Farmhand // Seasoned Cathar
 face: Ambitious Farmhand

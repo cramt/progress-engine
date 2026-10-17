@@ -172,7 +172,7 @@ face: Collective Voyage
 type: Sorcery
 cost: {G}
 > Join forces — Starting with you, each player may pay any amount of mana. Each player searches their library for up to X basic land cards, where X is the total amount of mana paid this way, puts them onto the battlefield tapped, then shuffles.
-= BROKE at "," after: join forces — starting with you
+= BROKE at "amount" after: join forces — starting with you , each player may pay any amount of mana . each player searches their library for up to x basic land cards , where x is the total
 
 ## Conquering Manticore
 face: Conquering Manticore

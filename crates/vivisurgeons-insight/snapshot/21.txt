@@ -226,7 +226,7 @@ type: Creature — Human Wizard
 cost: {4}{W}
 > When this creature enters, starting with you, each player chooses up to five permanents they control. All permanents other than this creature that weren't chosen this way phase out.
 > Permanents can't phase in.
-= BROKE at "with" after: when this creature enters , starting
+= BROKE at "weren't" after: when this creature enters , starting with you , each player chooses up to five permanents they control . all permanents other than this creature that
 = BROKE at "." after: permanents can't phase in
 
 ## Dominating Vampire
@@ -1020,7 +1020,7 @@ type: Sorcery
 cost: {5}{G}
 > Council's dilemma — Starting with you, each player votes for Redhorn Pass or Mines of Moria. For each Redhorn Pass vote, search your library for a basic land card and put it onto the battlefield tapped. If you search your library this way, shuffle. For each Mines of Moria vote, return a card from your graveyard to your hand.
 > Exile Travel Through Caradhras.
-= BROKE at "," after: council 's dilemma — starting with you
+= BROKE at "for" after: council 's dilemma — starting with you , each player votes
 = Spell([Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Trespasser's Curse

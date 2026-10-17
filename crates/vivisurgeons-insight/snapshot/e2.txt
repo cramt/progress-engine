@@ -412,7 +412,7 @@ face: Eureka
 type: Sorcery
 cost: {2}{G}{G}
 > Starting with you, each player may put a permanent card from their hand onto the battlefield. Repeat this process until no one puts a card onto the battlefield.
-= BROKE at "," after: starting with you
+= BROKE at "one" after: starting with you , each player may put a permanent card from their hand onto the battlefield . repeat this process until no
 
 ## False Dawn
 face: False Dawn
@@ -705,7 +705,7 @@ cost: {4}{R}
 > Discard all the cards in your hand. Add {R} for each card discarded this way, then draw that many cards plus one.
 > Will of the Planeswalkers — Starting with you, each player votes for planeswalk or chaos. If planeswalk gets more votes, planeswalk. If chaos gets more votes or the vote is tied, chaos ensues.
 = Spell([Discard { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, random: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }, Draw { who: You, n: Plus(ThatMany, 1) }])
-= BROKE at "," after: will of the planeswalkers — starting with you
+= BROKE at "for" after: will of the planeswalkers — starting with you , each player votes
 
 ## Perilous Vault
 face: Perilous Vault

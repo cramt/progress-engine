@@ -402,7 +402,7 @@ type: Sorcery
 > Suspend 3—{1}{G}{G}
 > Starting with you, each player may put an artifact, creature, enchantment, or land card from their hand onto the battlefield. Repeat this process until no one puts a card onto the battlefield.
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(3), cost: [Mana(Mana(["1", "G", "G"]))] }) }])
-= BROKE at "," after: starting with you
+= BROKE at "one" after: starting with you , each player may put an artifact , creature , enchantment , or land card from their hand onto the battlefield . repeat this process until no
 
 ## Imperial Recruiter
 face: Imperial Recruiter

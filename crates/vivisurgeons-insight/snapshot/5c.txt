@@ -811,7 +811,7 @@ face: Sail into the West
 type: Instant
 cost: {2}{G}{U}
 > Will of the council — Starting with you, each player votes for return or embark. If return gets more votes, each player returns up to two cards from their graveyard to their hand, then you exile Sail into the West. If embark gets more votes or the vote is tied, each player may discard their hand and draw seven cards.
-= BROKE at "," after: will of the council — starting with you
+= BROKE at "for" after: will of the council — starting with you , each player votes
 
 ## Saproling Migration
 face: Saproling Migration

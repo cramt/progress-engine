@@ -670,7 +670,7 @@ face: Plea for Power
 type: Sorcery
 cost: {3}{U}
 > Will of the council — Starting with you, each player votes for time or knowledge. If time gets more votes, take an extra turn after this one. If knowledge gets more votes or the vote is tied, draw three cards.
-= BROKE at "," after: will of the council — starting with you
+= BROKE at "for" after: will of the council — starting with you , each player votes
 
 ## Pyromania
 face: Pyromania

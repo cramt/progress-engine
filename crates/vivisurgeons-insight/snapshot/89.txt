@@ -986,7 +986,7 @@ face: Thieves' Auction
 type: Sorcery
 cost: {4}{R}{R}{R}
 > Exile all nontoken permanents. Starting with you, each player chooses one of the exiled cards and puts it onto the battlefield tapped under their control. Repeat this process until all cards exiled this way have been chosen.
-= BROKE at "with" after: exile all nontoken permanents . starting
+= BROKE at "control" after: exile all nontoken permanents . starting with you , each player chooses one of the exiled cards and puts it onto the battlefield tapped under their
 
 ## Thrash // Threat
 face: Thrash

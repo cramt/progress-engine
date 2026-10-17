@@ -1600,6 +1600,13 @@ pub enum Effect {
     Choose(Choice),
     GetEnergy(u32),
     Emblem(Vec<Ability>),
+    /// "Starting with you, each player chooses …": the players choose one at
+    /// a time, `first` first and then in turn order, where CR 101.4 would
+    /// start with the active player.
+    StartingWith {
+        first: Player,
+        then: Vec<Effect>,
+    },
     /// "Until end of turn, any time you could activate a mana ability, you
     /// may pay 1 life. If you do, add {C}." (Yavimaya Bloomsage), "Until end
     /// of turn, you may pay {1} any time you could cast an instant. If you

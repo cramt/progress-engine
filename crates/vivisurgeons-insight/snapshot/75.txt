@@ -762,7 +762,7 @@ cost: {X}{1}{W}
 > Create X 1/1 white Spirit creature tokens with flying.
 > Will of the Planeswalkers — Starting with you, each player votes for planeswalk or chaos. If planeswalk gets more votes, planeswalk. If chaos gets more votes or the vote is tied, chaos ensues.
 = Spell([Create { who: You, n: X, token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["spirit", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }])
-= BROKE at "," after: will of the planeswalkers — starting with you
+= BROKE at "for" after: will of the planeswalkers — starting with you , each player votes
 
 ## Perplex
 face: Perplex

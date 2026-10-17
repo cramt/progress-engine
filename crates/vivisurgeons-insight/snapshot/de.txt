@@ -479,7 +479,7 @@ face: Manifold Insights
 type: Sorcery
 cost: {2}{U}
 > Reveal the top ten cards of your library. Starting with the next opponent in turn order, each opponent chooses a different nonland card from among them. Put the chosen cards into your hand and the rest on the bottom of your library in a random order.
-= BROKE at "with" after: reveal the top ten cards of your library . starting
+= BROKE at "the" after: reveal the top ten cards of your library . starting with
 
 ## Melded Moxite
 face: Melded Moxite

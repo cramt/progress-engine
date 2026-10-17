@@ -848,7 +848,7 @@ face: Shared Trauma
 type: Sorcery
 cost: {B}
 > Join forces — Starting with you, each player may pay any amount of mana. Each player mills X cards, where X is the total amount of mana paid this way.
-= BROKE at "," after: join forces — starting with you
+= BROKE at "amount" after: join forces — starting with you , each player may pay any amount of mana . each player mills x cards , where x is the total
 
 ## Shefet Archfiend
 face: Shefet Archfiend

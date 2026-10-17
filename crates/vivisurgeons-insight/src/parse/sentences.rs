@@ -1253,6 +1253,14 @@ pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
             p.words("times .")?;
             Some(vec![Effect::Repeat { times, then: effects(p)? }])
         },
+        // "Starting with you, each player chooses …": the sentence's players in
+        // turn order from you.
+        |p| {
+            p.words("starting with you ,")?;
+            let then = clauses(p)?;
+            p.end_sentence()?;
+            Some(vec![Effect::StartingWith { first: Player::You, then }])
+        },
         // "Until end of turn, any time you could activate a mana ability, you
         // may pay 1 life. If you do, add {C}.", or the window after the cost.
         |p| {

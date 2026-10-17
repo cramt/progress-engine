@@ -351,7 +351,7 @@ face: Fateful Tempest
 type: Sorcery
 cost: {2}{R}
 > Council's dilemma — Starting with you, each player votes for past or present. You mill a card for each past vote, then Fateful Tempest deals damage to each opponent equal to the total mana value of cards milled this way. Exile the top card of your library for each present vote. Until the end of your next turn, you may play the exiled cards.
-= BROKE at "," after: council 's dilemma — starting with you
+= BROKE at "for" after: council 's dilemma — starting with you , each player votes
 
 ## Ferrous Lake
 face: Ferrous Lake

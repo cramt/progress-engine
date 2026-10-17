@@ -345,7 +345,7 @@ face: Emissary Green
 type: Legendary Creature — Human Advisor
 cost: {4}{G}
 > Whenever Emissary Green attacks, starting with you, each player votes for profit or security. You create a number of Treasure tokens equal to twice the number of profit votes. Put a number of +1/+1 counters on each creature you control equal to the number of security votes.
-= BROKE at "with" after: whenever ~ attacks , starting
+= BROKE at "for" after: whenever ~ attacks , starting with you , each player votes
 
 ## Ether Well
 face: Ether Well

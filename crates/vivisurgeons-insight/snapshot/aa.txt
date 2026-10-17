@@ -182,7 +182,7 @@ face: Council's Judgment
 type: Sorcery
 cost: {1}{W}{W}
 > Will of the council — Starting with you, each player votes for a nonland permanent you don't control. Exile each permanent with the most votes or tied for most votes.
-= BROKE at "," after: will of the council — starting with you
+= BROKE at "for" after: will of the council — starting with you , each player votes
 
 ## Crown of Doom
 face: Crown of Doom

@@ -703,7 +703,7 @@ face: Orchard Elemental
 type: Creature — Elemental
 cost: {5}{G}
 > Council's dilemma — When this creature enters, starting with you, each player votes for sprout or harvest. Put two +1/+1 counters on this creature for each sprout vote. You gain 3 life for each harvest vote.
-= BROKE at "with" after: council 's dilemma — when this creature enters , starting
+= BROKE at "for" after: council 's dilemma — when this creature enters , starting with you , each player votes
 
 ## Ostracize
 face: Ostracize
