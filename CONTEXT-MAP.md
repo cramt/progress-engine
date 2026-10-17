@@ -10,6 +10,7 @@ progress-engine is a workspace of products that share a name family and, for now
 - **Gitaxian Probe** (`crates/gitaxian-probe/`): card scanning via Delver X's recognition engine, natively and on the web. It has no glossary or ADRs; its engine README.md and FINDINGS.md are the authority on it.
 - **Chancellor of the Spires** (`crates/chancellor-of-the-spires/`): the rules engine; so far the layer system over a battlefield state. The game is a typed Rust state machine, and what is true now is derived by ascent from Insight's trees, lowered into the engine's own continuous effects, one per layer ([ADR-0037](docs/adr/0037-chancellor-lowers-insights-trees-into-its-own-effects-and-applies-them-layer-by-layer.md)). The plan is [docs/research/rules-engine.md](docs/research/rules-engine.md).
 - **Phyrexian Metamorph** (`crates/phyrexian-metamorph/`): proxies. A list of printings in, a PDF to print and cut out; a deck is that list worked out from a `.deck.toml`, less the basics or what the collection owns ([ADR-0038](docs/adr/0038-a-proxy-sheet-is-a-list-of-printings-and-a-deck-is-that-list-less-what-it-says.md)). Its README is the authority on it.
+- **Mirage Mockery** (`crates/mirage-mockery/`, `mockery-core` and `mockery-cli`): custom cards from a `.card.toml` to PDF and PNG, laid out for printing at home. It never renders a real card; that is Phyrexian Metamorph's ([ADR-0039](docs/adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)). The plan is [docs/research/mirage-mockery.md](docs/research/mirage-mockery.md).
 
 ## Relationships
 
@@ -19,6 +20,9 @@ progress-engine is a workspace of products that share a name family and, for now
 - **Meldweb Curator → Gitaxian Probe**: a dev-only spike. `MELDWEB_PROBE=1 pnpm dev` puts a Scan button in the editor that runs the probe's web host on the page and joins what it finds to the deck through `scryfall_id` ([probe-in-curator.md](docs/research/probe-in-curator.md)). No build or deploy carries it.
 - **Phyrexian Metamorph → Reality Chip**: a deck's proxies are `chip-decklist`'s `supply`, the call behind Curator's Sourcing view, so "owned" means the same in both. The sheet itself (`metamorph-sheet`) knows the size of a card and nothing else.
 - **Chancellor of the Spires → Vivisurgeon's Insight**: the engine reads cards through Insight's parser and lowers each tree into its own effects. Where lowering a tree is awkward, that is feedback on the tree's shape.
+- **Mirage Mockery → Reality Chip**: the card index is what a custom card is checked against, so a real card is refused before it is rendered.
+- **Mirage Mockery ↔ Phyrexian Metamorph**: printing split at one line, custom cards and real ones. Mockery's refusal sends a real card to `metamorph`, and its sheet takes Metamorph's paper, gap, margin and cut-mark parameters so the two print alike, though it lays out vectors in Typst rather than JPEGs through `metamorph-sheet` ([ADR-0039](docs/adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
+- **Mirage Mockery → Vivisurgeon's Insight**: Insight reads a custom card's rules text, and the lines it cannot read are reported. A warning, not a gate.
 - **Gitaxian Probe ↔ everything else**: none. The probe reads Delver's own catalogue, and `scryfall_id` is the join key.
 
 ## Words that cross contexts

@@ -1,0 +1,11 @@
+name = "Proofsheet Drone"
+cost = "{2}{U}{U/P}"
+type = "Artifact Creature — Phyrexian Drone"
+rules = """
+Flying
+When this creature enters, draw a card for each oil counter among permanents you control.
+{1}{U}, {T}: Put an oil counter on target artifact. Activate only as a sorcery.
+"""
+flavor = "Every edict of Jin-Gitaxias is drafted twice: once in ink, once in flesh."
+pt = "2/3"
+artist = "Mirage Mockery"

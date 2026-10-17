@@ -75,6 +75,22 @@ The Comprehensive Rules are pinned by hash in `crates/chancellor-of-the-spires/c
 and never committed. Cite a rule as "CR 613.4c" so `cr check` can resolve it,
 and bump the pin only through `cr diff`'s worklist (that crate's README).
 
+**Mirage Mockery** (`crates/mirage-mockery/`: `mockery-core`, the library
+that builds for wasm, and `mockery-cli`, binary `mockery`) prints custom
+cards: a `.card.toml` to a PNG or PDF, or a sheet to cut with Phyrexian
+Metamorph's paper, gap, margin and cut-mark flags, through Typst compiled
+in-process. It refuses a real card, by name or by
+the same cost and rules text under another name, against the card index, and
+points at `metamorph` instead
+([ADR-0039](docs/adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
+Its sheet stays Typst's, not `metamorph-sheet`'s: that one embeds JPEGs, and
+vector cards printed through it came out soft at twelve times the size. It warns where Insight cannot read the rules text. The
+frame is its own, and the repo carries no Wizards symbols: `mockery symbols`
+caches Scryfall's, and tests use the circles in `core/tests/symbols/`. The
+flake's `wasm-libs` check builds `mockery-core` and Chancellor for wasm32, so
+that claim cannot go stale.
+[docs/research/mirage-mockery.md](docs/research/mirage-mockery.md) is the plan.
+
 Gauntlet stands on **Reality Chip** (`crates/reality-chip/`), the shared core:
 `chip-scryfall` (card index, query syntax), `chip-decklist` (Archidekt parsing)
 and `chip-stats` (the hypergeometric walk, which knows nothing about Magic and

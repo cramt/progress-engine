@@ -3695,6 +3695,7 @@ crates/vivisurgeons-insight/                         a spike: Oracle text into a
 crates/chancellor-of-the-spires/                     the rules engine: so far the layer system over a battlefield state
 crates/chancellor-of-the-spires/cr/                  the comprehensive rules pinned by hash, every citation checked, and a new version diffed
 crates/phyrexian-metamorph/{sheet,cli}               proxies: printings or a deck in, a PDF to print and cut out
+crates/mirage-mockery/{core,cli}                     custom cards: a .card.toml in, a PNG, a PDF or a sheet to cut out; never a real card
 ```
 
 `reality-chip` is the part a sibling tool depends on, kept in its own directory

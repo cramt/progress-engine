@@ -501,6 +501,34 @@ impl IndexFile {
         Ok(Some(card))
     }
 
+    /// Every card with exactly this mana cost, like `{2}{U}{U/P}`.
+    ///
+    /// For questions about Magic rather than about a deck: whether a custom
+    /// card is a real one under another name. The cost is found in each line's
+    /// text before any JSON is parsed, so only the cards that might match are
+    /// parsed: parsing all thirty-five thousand took 4.5s of CPU. A mana cost
+    /// is braces, letters, digits and slashes, none of which JSON escapes, so
+    /// the text match cannot miss; a face's cost can match it falsely, and the
+    /// parsed card settles that.
+    pub fn costing<'a>(
+        &'a self,
+        mana_cost: &'a str,
+    ) -> impl Iterator<Item = Result<Card, IndexError>> + 'a {
+        let needle = format!("\"mana_cost\":\"{mana_cost}\"");
+        self.entries
+            .values()
+            .filter(move |&&(start, end)| self.text[start..end].contains(&needle))
+            .map(|&(start, end)| {
+                facet_json::from_str::<Card>(&self.text[start..end]).map_err(|source| {
+                    IndexError::Json {
+                        path: self.path.clone(),
+                        source: Box::new(source),
+                    }
+                })
+            })
+            .filter(move |card| card.as_ref().map_or(true, |c| c.mana_cost == mana_cost))
+    }
+
     /// Whether this index has an entry for a name, without parsing it.
     pub fn contains(&self, name: &str) -> bool {
         let key = keyname(name);

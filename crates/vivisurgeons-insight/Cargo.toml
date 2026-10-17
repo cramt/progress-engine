@@ -13,4 +13,9 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 serde_json.workspace = true
+
+# Only the `insight` binary downloads anything. Native-only, so the library,
+# and Chancellor and Mirage Mockery above it, build for wasm32: rustls' ring
+# needs getrandom's "js" feature there.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ureq.workspace = true

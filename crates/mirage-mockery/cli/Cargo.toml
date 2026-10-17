@@ -1,0 +1,20 @@
+[package]
+name = "mockery-cli"
+description = "mockery: render, sheet and check custom Magic cards, and fetch the mana symbols"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "mockery"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+facet.workspace = true
+facet-json.workspace = true
+figue.workspace = true
+ureq.workspace = true
+chip-scryfall.workspace = true
+mockery-core.workspace = true
