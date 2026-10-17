@@ -1961,11 +1961,16 @@ mod syn {
         alt(o, vec![bare, said]);
     }
 
-    /// "When" and "Whenever" introduce the same kind of trigger (CR 603.1:
-    /// "[When/Whenever/At] [trigger condition or event], [effect]"); Oracle
-    /// style picks "when" for events that happen once.
-    pub fn when(o: &mut Out) {
-        any_of(o, &["whenever", "when"]);
+    /// Named rewrite [when-is-whenever]: a printed "When this creature
+    /// enters" (Oblivion Ring) is "whenever this creature enters". CR 603.1
+    /// writes every trigger "[When/Whenever/At] [trigger condition or event],
+    /// [effect]", CR 603.2 triggers each whenever its event matches, and CR
+    /// 113.3c names the three words alike; no rule reads a printed "when"
+    /// differently. The tree holds no word for it (a once-only trigger with a
+    /// duration is `DelayedWhen`, CR 603.7b), so the renderer says
+    /// "whenever" and the Oracle "when" is taken through this rewrite.
+    pub fn when_is_whenever(o: &mut Out) {
+        alt(o, vec![of("whenever"), of("when")]);
     }
 
     /// "When this creature enters and whenever an opponent draws …" and
@@ -10297,7 +10302,7 @@ fn palette_named(o: &mut Out, p: &Palette) {
 fn trigger(o: &mut Out, t: &Trigger) {
     match t {
         Trigger::WhenAndAt(e, s) => {
-            syn::when(o);
+            syn::when_is_whenever(o);
             event(o, e);
             o.w("and at the beginning of");
             printed_step(o, s);
@@ -10307,17 +10312,17 @@ fn trigger(o: &mut Out, t: &Trigger) {
         }
         Trigger::When(e) => {
             let one = out(|o| {
-                syn::when(o);
+                syn::when_is_whenever(o);
                 event(o, e);
             });
             // "When this creature enters and whenever an opponent draws …".
             match &**e {
                 Event::Or(v) if v.len() == 2 => {
                     let two = out(|o| {
-                        syn::when(o);
+                        syn::when_is_whenever(o);
                         event(o, &v[0]);
                         o.w("and");
-                        syn::when(o);
+                        syn::when_is_whenever(o);
                         event(o, &v[1]);
                     });
                     syn::trigger_conditions(o, one, two);
