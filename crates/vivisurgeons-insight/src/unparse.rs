@@ -2094,6 +2094,12 @@ struct Cx {
     modal: bool,
 }
 
+/// One object phrase as text, for a reader that annotates a tree
+/// (`src/bin/backref.rs`).
+pub fn objects_text(x: &Objects) -> String {
+    out(|o| objects(o, x)).text()
+}
+
 fn out(f: impl FnOnce(&mut Out)) -> Out {
     let mut o = Out::default();
     f(&mut o);
