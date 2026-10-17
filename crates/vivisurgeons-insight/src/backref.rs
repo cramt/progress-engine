@@ -53,10 +53,11 @@ pub struct Place {
 ///   counter, or is said inside an amount or an existence condition;
 /// - a target always introduces, wherever it is said: it is chosen as the
 ///   spell or ability is put on the stack (CR 601.2c);
-/// - an effect that makes or moves objects no `Objects` names introduces
-///   them: tokens, the cards a draw, mill, look or reveal moves, a copy of a
-///   spell, the cards of a zone exiled or discarded whole, the pile a dig
-///   reveals, a manifested or cloaked card;
+/// - an effect that makes, moves or picks objects no `Objects` names
+///   introduces them: tokens, the cards a draw, mill, look or reveal moves,
+///   a copy of a spell, the cards of a zone exiled or discarded whole, the
+///   pile a dig reveals, a manifested or cloaked card, one of each kind
+///   chosen;
 /// - hideaway introduces the card it exiles.
 pub fn introduces(node: Node, at: Place) -> bool {
     match node {
@@ -77,53 +78,38 @@ pub fn introduces(node: Node, at: Place) -> bool {
     }
 }
 
-/// What a reference back says it may mean, before it is a pointer.
+/// What kind of reference back an object is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Hint {
-    /// Any earlier object that fits.
-    Antecedent,
-    /// In a trailing condition: the one object its clause names.
-    ClauseObject,
-    /// The tokens an earlier effect made.
-    Created,
-    /// Every object one verb named, which no one `Objects` names.
-    Listed,
-    /// The last objects of the two clauses before.
-    Both,
-    /// The object of the trigger's event.
-    Triggering,
-    /// A spell and the copies an earlier effect made of it.
-    OriginalAndCopies,
-    /// What a linked ability exiled or created (CR 607.2a).
-    Linked,
-    /// "from among them": the pool a new choice is made from.
-    Pool,
-    /// "the rest": what the nearest choice left.
-    Rest,
-    /// Each one of a set in turn, said inside its filter or amount.
+pub enum Kind {
+    /// Not yet a pointer: what its words say it may mean.
+    Text(Hint),
+    /// Each one of a set in turn, said inside its filter or amount: a
+    /// bound variable, never a pointer.
     Itself,
-    // Pointers, read by the validator.
+    // Pointers, which the resolver checks rather than resolves.
     BackRef,
     LinkedBackRef,
     BackRefs,
+    Rest,
 }
 
-/// Whether an object is a reference back, and what it may mean.
-pub fn reference(o: &Objects) -> Option<Hint> {
+/// Whether an object is a reference back, and what kind.
+pub fn reference(o: &Objects) -> Option<Kind> {
     Some(match o.quant {
-        Quant::Antecedent | Quant::BeforeEach => Hint::Antecedent,
-        Quant::ClauseObject => Hint::ClauseObject,
-        Quant::Created => Hint::Created,
-        Quant::Listed => Hint::Listed,
-        Quant::Both => Hint::Both,
-        Quant::Triggering => Hint::Triggering,
-        Quant::OriginalAndCopies => Hint::OriginalAndCopies,
-        Quant::Linked => Hint::Linked,
-        Quant::Rest => Hint::Rest,
-        Quant::Itself => Hint::Itself,
-        Quant::BackRef { .. } => Hint::BackRef,
-        Quant::LinkedBackRef { .. } => Hint::LinkedBackRef,
-        Quant::BackRefs(_) => Hint::BackRefs,
+        Quant::Antecedent | Quant::BeforeEach => Kind::Text(Hint::Antecedent),
+        Quant::ClauseObject => Kind::Text(Hint::ClauseObject),
+        Quant::Created => Kind::Text(Hint::Created),
+        Quant::Listed => Kind::Text(Hint::Listed),
+        Quant::Both => Kind::Text(Hint::Both),
+        Quant::Triggering => Kind::Text(Hint::Triggering),
+        Quant::OriginalAndCopies => Kind::Text(Hint::OriginalAndCopies),
+        Quant::Linked => Kind::Text(Hint::Linked),
+        Quant::Unresolved(h) => Kind::Text(h),
+        Quant::Itself => Kind::Itself,
+        Quant::BackRef { .. } => Kind::BackRef,
+        Quant::LinkedBackRef { .. } => Kind::LinkedBackRef,
+        Quant::BackRefs(_) => Kind::BackRefs,
+        Quant::Rest { .. } => Kind::Rest,
         _ => return None,
     })
 }
@@ -166,6 +152,9 @@ fn made(e: &Effect) -> Option<String> {
         Effect::Draw { .. } => "Draw".into(),
         Effect::Copy { .. } => "Copy".into(),
         Effect::ExileZone(_) => "ExileZone".into(),
+        // "chooses an artifact, a creature, an enchantment, and a
+        // planeswalker from among …": the picks, which only filters name.
+        Effect::Choose(Choice::OneOfEach { .. }) => "Choose".into(),
         Effect::DiscardHand(_) => "DiscardHand".into(),
         Effect::RevealHand(_) => "RevealHand".into(),
         Effect::UntilFound { verb, .. } | Effect::DigUntilTotal { verb, .. } => {
@@ -235,7 +224,7 @@ enum Role {
     /// Objects an effect made that no `Objects` names.
     Made,
     SelfMention,
-    Ref(Hint),
+    Ref(Kind),
     /// A reference to a player or a counter: no object.
     OutOfScope,
     /// An object that introduces nothing ([`introduces`]).
@@ -252,7 +241,6 @@ pub enum Slot {
 }
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)] // `decl` and `slot` say where a pointer is written, from the next commit
 struct Ev {
     /// The object's index in walk order, if the event is one.
     decl: Option<usize>,
@@ -276,6 +264,8 @@ enum Fk {
     Cond,
     Amount,
     Cost,
+    /// A static ability, which may hold a condition said after it.
+    Static,
     Ability,
     Body,
 }
@@ -520,8 +510,12 @@ impl Visitor for Collect {
             let r = self.new_ev(
                 Some(decl),
                 Slot::Pool,
-                Role::Ref(Hint::Pool),
-                Some(o.clone()),
+                Role::Ref(Kind::Text(Hint::Pool)),
+                // The pool is said "them": its own words say nothing of it.
+                Some(Objects {
+                    quant: Quant::Unresolved(Hint::Pool),
+                    filter: Filter::default(),
+                }),
             );
             let parent = self.here();
             self.frames[parent].items.push(Item::Ev(r));
@@ -633,6 +627,23 @@ impl Visitor for Collect {
     }
     fn amount_done(&mut self, _a: &mut Amount) {
         self.pop_frame();
+    }
+    fn statik(&mut self, _s: &mut Static) {
+        self.push_frame(Fk::Static, String::new());
+    }
+    fn statik_done(&mut self, s: &mut Static) {
+        let id = self.pop_frame();
+        if let Static::If {
+            order: ClauseOrder::Trailing,
+            ..
+        }
+        | Static::AsLongAs {
+            order: ClauseOrder::Trailing,
+            ..
+        } = s
+        {
+            self.frames[id].trail = Trail::CondLast;
+        }
     }
     fn cost(&mut self, c: &mut Cost) {
         // A cost's objects are said before the effect, and "the sacrificed
@@ -895,13 +906,17 @@ pub enum Class {
 pub struct Resolved {
     pub line: usize,
     pub ev: usize,
-    pub hint: Hint,
+    pub kind: Kind,
     pub class: Class,
     pub cands: Vec<Target>,
     pub pick: Option<Target>,
     pub note: String,
     /// The pick is in an earlier paragraph of the same spell.
     pub cross_line: bool,
+    /// The pick as pointers counted from where the reference is: one, or
+    /// several for a set. `None` where it has no pick, or is a bound
+    /// variable.
+    pub pointer: Option<Vec<Pointer>>,
 }
 
 struct LineData {
@@ -971,6 +986,7 @@ pub fn analyse(lines: &[(Option<&Ability>, bool)], type_line: &str) -> Analysis 
 
 fn resolve_face(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
     let mut out = resolve_pass(lds, type_line);
+    let intros_per_line: Vec<Vec<usize>> = lds.iter().map(line_intros).collect();
     // A linked reference whose object the other ability names by a
     // reference of its own (Wormfang Crab: "an opponent chooses a
     // permanent … and exiles it"): that reference's pick.
@@ -1009,7 +1025,30 @@ fn resolve_face(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                 Class::Ambiguous
             };
             r.pick = Some(r.cands[0].clone());
+            r.pointer = pointer_of(&r.cands[0], &[], &intros_per_line);
             r.note = "linked through the other ability's reference".into();
+        }
+    }
+    // A pointer to such an object fits "the exiled card" though the
+    // object was introduced by another verb: the other ability exiled it
+    // by a reference of its own.
+    for r in out
+        .iter_mut()
+        .filter(|r| r.kind == Kind::LinkedBackRef && !r.note.is_empty())
+    {
+        let Some(Target::Linked(l, i)) = r.pick.clone() else {
+            continue;
+        };
+        let mut o = lds[r.line].c.evs[r.ev].obj.clone().expect("a reference");
+        let Some(how) = marked_how(&o.filter) else {
+            continue;
+        };
+        o.filter.posts.retain(|p| !matches!(p, Post::Marked(_)));
+        let named = picks
+            .iter()
+            .any(|(pl, verb, t)| *pl == l && *t == Target::Intro(l, i) && verb_matches(how, verb));
+        if named && compat(&o, &lds[l].c.evs[i]) {
+            r.note.clear();
         }
     }
     out
@@ -1068,7 +1107,10 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                             type_line,
                         );
                         let cross_line = matches!(&pick, Some(Target::Intro(l, _)) if *l != li);
-                        if *k != Hint::Pool {
+                        let pointer = pick
+                            .as_ref()
+                            .and_then(|t| pointer_of(t, &intros, &intros_per_line));
+                        if *k != Kind::Text(Hint::Pool) {
                             // Only what it settled on chains on: "its owner"
                             // after "the exiled card" is that card.
                             earlier.push((pos, pick.iter().cloned().collect()));
@@ -1079,12 +1121,13 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                         out.push(Resolved {
                             line: li,
                             ev: ei,
-                            hint: *k,
+                            kind: *k,
                             class,
                             cands,
                             pick,
                             note,
                             cross_line,
+                            pointer,
                         });
                     }
                     _ => {}
@@ -1102,6 +1145,36 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
     out
 }
 
+/// `t` as pointers from the end of `intros`, where the reference is.
+fn pointer_of(
+    t: &Target,
+    intros: &[(usize, usize)],
+    intros_per_line: &[Vec<usize>],
+) -> Option<Vec<Pointer>> {
+    Some(match t {
+        Target::Intro(l, i) => {
+            let at = intros.iter().rposition(|x| *x == (*l, *i))?;
+            vec![Pointer::Back(u8::try_from(intros.len() - at).ok()?)]
+        }
+        Target::SelfCard => vec![Pointer::ThisCard],
+        Target::Linked(l, i) => {
+            let nth = intros_per_line[*l].iter().position(|x| x == i)? + 1;
+            vec![Pointer::Linked {
+                line: u8::try_from(*l).ok()?,
+                nth: u8::try_from(nth).ok()?,
+            }]
+        }
+        Target::Set(v) => {
+            let mut out = Vec::new();
+            for t in v {
+                out.extend(pointer_of(t, intros, intros_per_line)?);
+            }
+            out
+        }
+        Target::Enclosing(_) => return None,
+    })
+}
+
 /// The line, and within the reference's own line the effect, a listed
 /// object was said in.
 type Group = (usize, Option<usize>);
@@ -1111,7 +1184,7 @@ fn resolve_one(
     lds: &[LineData],
     li: usize,
     ei: usize,
-    k: Hint,
+    k: Kind,
     r: &Objects,
     scope: &[usize],
     intros: &[(usize, usize)],
@@ -1147,18 +1220,106 @@ fn resolve_one(
         Target::Linked(a, b) => compat(r, get((*a, *b))),
         _ => true,
     };
+    // "Search your library for a card, exile it …. You may cast the exiled
+    // card": an object one verb introduced and a reference exiled fits
+    // "the exiled card" too.
+    let unmarked = {
+        let mut u = r.clone();
+        u.filter.posts.retain(|p| !matches!(p, Post::Marked(_)));
+        u
+    };
+    let named_so = |t: (usize, usize)| {
+        marked_how(&r.filter).is_some_and(|how| {
+            compat(&unmarked, get(t))
+                && mentions.iter().any(|((l, i), m)| {
+                    *m == Target::Intro(t.0, t.1) && verb_matches(how, &get((*l, *i)).verb)
+                })
+        })
+    };
+    // A pointer is checked, not resolved: it lands where it says, on an
+    // introducer its words fit.
+    let back = |b: u8, cands: &mut Vec<Target>, note: &mut String, check: bool| {
+        let b = usize::from(b);
+        if b == 0 || b > intros.len() {
+            *note = format!("back {b} out of range ({} introduced before)", intros.len());
+            return;
+        }
+        let t = intros[intros.len() - b];
+        if check && !compat(r, get(t)) && !named_so(t) {
+            *note = format!("back {b} lands on an object its words do not fit");
+        }
+        cands.push(Target::Intro(t.0, t.1));
+    };
+    let linked = |line: u8, nth: u8, cands: &mut Vec<Target>, note: &mut String| {
+        let l = usize::from(line);
+        match intros_per_line
+            .get(l)
+            .and_then(|v| v.get(usize::from(nth).wrapping_sub(1)))
+        {
+            Some(&i) => {
+                if !compat(r, &lds[l].c.evs[i]) {
+                    *note = format!(
+                        "line {l} object {nth} does not fit its words (said with {})",
+                        lds[l].c.evs[i].verb
+                    );
+                }
+                cands.push(Target::Linked(l, i));
+            }
+            None => *note = format!("line {l} introduces no object {nth}"),
+        }
+    };
+    match (&r.quant, k) {
+        (Quant::BackRef { back: b }, _) => back(*b, &mut cands, &mut note, true),
+        (Quant::Rest { back: b }, _) => back(*b, &mut cands, &mut note, false),
+        (Quant::LinkedBackRef { line, nth }, _) => linked(*line, *nth, &mut cands, &mut note),
+        (Quant::BackRefs(ps), _) => {
+            let mut set = Vec::new();
+            for p in ps {
+                match p {
+                    Pointer::Back(b) => back(*b, &mut set, &mut note, true),
+                    Pointer::ThisCard => set.push(Target::SelfCard),
+                    Pointer::Linked { line, nth } => linked(*line, *nth, &mut set, &mut note),
+                }
+            }
+            cands.push(Target::Set(set));
+        }
+        _ => {}
+    }
+    if matches!(
+        k,
+        Kind::BackRef | Kind::Rest | Kind::LinkedBackRef | Kind::BackRefs
+    ) {
+        let class = if cands.is_empty() {
+            Class::None
+        } else {
+            Class::Determined
+        };
+        return (cands.first().cloned(), class, cands, note);
+    }
     match k {
-        Hint::Created => push_pool(&mut cands, &is_tokenish),
-        Hint::Triggering => push_pool(&mut cands, &|x| x.in_trigger),
+        Kind::Text(Hint::Created) => push_pool(&mut cands, &is_tokenish),
+        Kind::Text(Hint::Triggering) => push_pool(&mut cands, &|x| x.in_trigger),
         // The one object the clause the condition trails names: what the
         // frame holding the condition says outside it, an object or a
         // reference's pick ("counter that spell if its mana value …").
-        Hint::ClauseObject => {
-            let ci = e
+        Kind::Text(Hint::ClauseObject) => {
+            let inner = e
                 .frames
                 .iter()
                 .rposition(|&f| ld.c.frames[f].kind == Fk::Cond);
-            if let Some(ci) = ci.filter(|&c| c > 0) {
+            // "unless it has the same name as …": the outermost condition
+            // of the clause, where the innermost names nothing.
+            let outer = e
+                .frames
+                .iter()
+                .rposition(|&f| matches!(ld.c.frames[f].kind, Fk::Effect | Fk::Static))
+                .and_then(|s| {
+                    (s + 1..e.frames.len()).find(|&j| ld.c.frames[e.frames[j]].kind == Fk::Cond)
+                });
+            for ci in [inner, outer].into_iter().flatten() {
+                if !cands.is_empty() || ci == 0 {
+                    continue;
+                }
                 let (holder, cond) = (e.frames[ci - 1], e.frames[ci]);
                 let inside = |x: &Ev| x.frames.contains(&holder) && !x.frames.contains(&cond);
                 for ((l, i), t) in mentions.iter().rev() {
@@ -1179,7 +1340,7 @@ fn resolve_one(
                 }
             }
         }
-        Hint::Itself => {
+        Kind::Itself => {
             if let Some(&anc) = e
                 .anc
                 .iter()
@@ -1193,7 +1354,7 @@ fn resolve_one(
                 push_pool(&mut cands, &|x| ef.is_some_and(|f| x.frames.contains(&f)));
             }
         }
-        Hint::Listed | Hint::Both => {
+        Kind::Text(Hint::Listed) | Kind::Text(Hint::Both) => {
             // The latest effect with two or more objects, or (Both) the
             // last object of each of the two effects before.
             let mut groups: Vec<(Group, Vec<Target>)> = Vec::new();
@@ -1212,7 +1373,7 @@ fn resolve_one(
                     _ => groups.push((key, vec![t.clone()])),
                 }
             }
-            if k == Hint::Listed {
+            if k == Kind::Text(Hint::Listed) {
                 if let Some((_, v)) = groups.iter().rev().find(|(_, v)| v.len() >= 2) {
                     cands.push(Target::Set(v.clone()));
                 }
@@ -1225,7 +1386,7 @@ fn resolve_one(
                 ]));
             }
         }
-        _ if k == Hint::Linked || linked_post(&r.filter).is_some() => {
+        _ if k == Kind::Text(Hint::Linked) || linked_post(&r.filter).is_some() => {
             let verb = linked_post(&r.filter).unwrap_or("?");
             let vm = |x: &Ev| {
                 if verb == TOKEN {
@@ -1247,10 +1408,10 @@ fn resolve_one(
                 }
             }
         }
-        Hint::Pool => push_pool(&mut cands, &|_| true),
+        Kind::Text(Hint::Pool) => push_pool(&mut cands, &|_| true),
         // "the rest": what the nearest choice left, of the pool it chose
         // from.
-        Hint::Rest => {
+        Kind::Text(Hint::Rest) => {
             let choice = intros.iter().rev().find(|&&(l, i)| {
                 let x = get((l, i));
                 x.role == Role::Made && x.verb != TOKEN
@@ -1275,7 +1436,7 @@ fn resolve_one(
         }
         // Antecedent, OriginalAndCopies: any earlier object that fits.
         _ => {
-            let copies = k == Hint::OriginalAndCopies;
+            let copies = k == Kind::Text(Hint::OriginalAndCopies);
             push_pool(&mut cands, &|x| !copies || x.verb.contains("Copy"));
             if self_at.is_some() && self_compat(r, type_line) {
                 cands.push(Target::SelfCard);
@@ -1298,7 +1459,7 @@ fn resolve_one(
     }
     // "The chosen creature" with no choice in the ability: a linked
     // ability's choice (CR 607.2d).
-    if cands.is_empty() && !matches!(k, Hint::Itself | Hint::Rest) {
+    if cands.is_empty() && !matches!(k, Kind::Itself | Kind::Text(Hint::Rest)) {
         if let Some(how) = marked_how(&r.filter) {
             for (lj, ints) in intros_per_line.iter().enumerate() {
                 if lj == li {
@@ -1314,6 +1475,53 @@ fn resolve_one(
             if !cands.is_empty() {
                 note = "linked by its Marked post".into();
             }
+        }
+    }
+    // What no rule above found, read again more widely. Each is tried only
+    // where nothing fit, so no reference that had a referent moves.
+    if cands.is_empty() {
+        match k {
+            Kind::Text(Hint::Antecedent | Hint::ClauseObject | Hint::Linked)
+                if marked_how(&r.filter).is_some() =>
+            {
+                for &(l, i) in intros.iter().rev() {
+                    if named_so((l, i)) {
+                        cands.push(Target::Intro(l, i));
+                    }
+                }
+                if !cands.is_empty() {
+                    note = "a reference before it did what its words say".into();
+                }
+            }
+            // "When you next cast a spell with {X} …, gain half X life": the
+            // object of a delayed trigger's event.
+            Kind::Text(Hint::Triggering) => {
+                for &(l, i) in intros.iter().rev() {
+                    let x = get((l, i));
+                    let delayed = x
+                        .effect_frame
+                        .is_some_and(|f| lds[l].c.frames[f].verb.starts_with("Delayed"));
+                    if delayed && compat(r, x) {
+                        cands.push(Target::Intro(l, i));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    // "permanents that had a counter put on them this way", "target spell
+    // with mana value … the number of cards in its controller's
+    // graveyard": a reference inside the filter of the set it describes,
+    // with nothing before it, is each one of that set in turn.
+    if cands.is_empty() && matches!(k, Kind::Text(Hint::Antecedent | Hint::ClauseObject)) {
+        if let Some(&anc) = e
+            .anc
+            .iter()
+            .rev()
+            .find(|&&a| matches!(ld.c.evs[a].role, Role::Intro | Role::Skip))
+        {
+            cands.push(Target::Enclosing(anc));
+            note = "in its set's own filter".into();
         }
     }
     let mut seen = BTreeSet::new();
@@ -1397,6 +1605,22 @@ impl Analysis {
         &self.lines[r.line].c.evs[r.ev].verb
     }
 
+    /// The objects (by walk order) of line `line` that point at what its
+    /// trigger's event names: "it" in "Whenever you cast a spell, if it's
+    /// tapped".
+    pub fn pointing_at_trigger(&self, line: usize) -> BTreeSet<usize> {
+        self.resolved
+            .iter()
+            .filter(|r| r.line == line && r.kind == Kind::BackRef)
+            .filter_map(|r| match r.pick {
+                Some(Target::Intro(l, i)) if self.lines[l].c.evs[i].in_trigger => {
+                    self.lines[r.line].c.evs[r.ev].decl
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     /// The reference's filter kind.
     pub fn kind(&self, r: &Resolved) -> Option<Noun> {
         self.lines[r.line].c.evs[r.ev]
@@ -1404,4 +1628,221 @@ impl Analysis {
             .as_ref()
             .and_then(|o| o.filter.kind.clone())
     }
+}
+
+// ---------------------------------------------------------------- rewriting
+
+/// What one line's tree becomes once its references are pointers.
+#[derive(Default, Debug)]
+pub struct LinePlan {
+    /// Object (in walk order) to its new quant.
+    quants: std::collections::BTreeMap<usize, Quant>,
+    /// Each `FromAmongThem` in walk order, the pool it points at.
+    pools: Vec<Quant>,
+}
+
+/// A reference's new quant, from what it resolved to.
+fn new_quant(r: &Resolved, o: &Objects) -> Option<Quant> {
+    let Kind::Text(h) = r.kind else {
+        return None;
+    };
+    // "the exiled cards used to craft it" with nothing before it: every
+    // card CR 702.167c says that of, which the face that crafted it (the
+    // other one) exiled. A set by what was done to it, not a pointer.
+    if r.pick.is_none()
+        && o.filter
+            .posts
+            .iter()
+            .any(|p| matches!(p, Post::UsedToCraft(x) if x.quant == Quant::SelfRef))
+    {
+        return Some(Quant::All);
+    }
+    if matches!(r.pick, Some(Target::Enclosing(_))) {
+        return Some(Quant::Itself);
+    }
+    Some(match (h, r.pointer.as_deref()) {
+        (Hint::Rest, Some([Pointer::Back(b)])) => Quant::Rest { back: *b },
+        (Hint::Rest, _) | (_, None | Some([])) => Quant::Unresolved(h),
+        (_, Some([Pointer::Back(b)])) => Quant::BackRef { back: *b },
+        (_, Some([Pointer::ThisCard])) => Quant::SelfRef,
+        (_, Some([Pointer::Linked { line, nth }])) => Quant::LinkedBackRef {
+            line: *line,
+            nth: *nth,
+        },
+        (_, Some(v)) => Quant::BackRefs(v.to_vec()),
+    })
+}
+
+impl Analysis {
+    /// Each line's rewrite, in the order of the lines given.
+    pub fn plan(&self) -> Vec<LinePlan> {
+        let mut plans: Vec<LinePlan> = (0..self.lines.len()).map(|_| LinePlan::default()).collect();
+        let mut pools: Vec<Vec<(usize, Quant)>> = vec![Vec::new(); self.lines.len()];
+        for r in &self.resolved {
+            let e = &self.lines[r.line].c.evs[r.ev];
+            let Some(o) = &e.obj else {
+                continue;
+            };
+            let (Some(decl), Some(q)) = (e.decl, new_quant(r, o)) else {
+                continue;
+            };
+            match e.slot {
+                Slot::Quant => {
+                    plans[r.line].quants.insert(decl, q);
+                }
+                Slot::Pool => pools[r.line].push((decl, q)),
+            }
+        }
+        for (plan, mut ps) in plans.iter_mut().zip(pools) {
+            ps.sort_by_key(|p| p.0);
+            plan.pools = ps.into_iter().map(|p| p.1).collect();
+        }
+        plans
+    }
+
+    /// Every pointer that does not land where it says, and every
+    /// reference with nothing to point at, as text: what `tests/backref.rs`
+    /// checks.
+    pub fn problems(&self) -> Vec<(Kind, String)> {
+        self.resolved
+            .iter()
+            .filter(|r| {
+                r.kind != Kind::Itself
+                    && (r.class == Class::None
+                        || matches!(
+                            r.kind,
+                            Kind::BackRef | Kind::Rest | Kind::LinkedBackRef | Kind::BackRefs
+                        ) && !r.note.is_empty())
+            })
+            .map(|r| {
+                (
+                    r.kind,
+                    format!("line {}: {} ({})", r.line, self.reference_text(r), r.note),
+                )
+            })
+            .collect()
+    }
+}
+
+impl LinePlan {
+    pub fn apply(&self, a: &mut Ability) {
+        struct Quants<'a>(usize, &'a LinePlan);
+        impl Visitor for Quants<'_> {
+            fn enter(&mut self, o: &mut Objects) -> bool {
+                if let Some(q) = self.1.quants.get(&self.0) {
+                    let pointer = !matches!(q, Quant::Unresolved(_));
+                    o.quant = q.clone();
+                    // A link post said which ability to look in; the
+                    // pointer says that now, and the word is "exiled".
+                    if pointer {
+                        // Each link post held one object, `SelfRef`, which
+                        // the walk no longer meets: count it as met.
+                        let before = o.filter.posts.len();
+                        o.filter.posts.retain(
+                            |p| !matches!(p, Post::CreatedWith(x) if x.quant == Quant::SelfRef),
+                        );
+                        self.0 += before - o.filter.posts.len();
+                        for p in &mut o.filter.posts {
+                            if matches!(p, Post::ExiledWith(x) if x.quant == Quant::SelfRef) {
+                                *p = Post::Marked(Marked::Exiled);
+                                self.0 += 1;
+                            }
+                        }
+                    }
+                }
+                self.0 += 1;
+                true
+            }
+            fn ability(&mut self, _: &mut Ability) -> bool {
+                true
+            }
+        }
+        struct Pools<'a>(std::slice::Iter<'a, Quant>);
+        impl Visitor for Pools<'_> {
+            fn enter(&mut self, o: &mut Objects) -> bool {
+                for p in &mut o.filter.posts {
+                    if *p == Post::FromAmongThem {
+                        if let Some(q) = self.0.next() {
+                            *p = Post::FromAmong(Box::new(Objects {
+                                quant: q.clone(),
+                                filter: Filter::default(),
+                            }));
+                        }
+                    }
+                }
+                true
+            }
+            fn ability(&mut self, _: &mut Ability) -> bool {
+                true
+            }
+        }
+        a.walk(&mut Quants(0, self));
+        if !self.pools.is_empty() {
+            a.walk(&mut Pools(self.pools.iter()));
+        }
+    }
+}
+
+/// Makes every reference of a face's lines a pointer where an introducer
+/// fits ([backref]): the parser's last step, in `read_face`. A second round
+/// reads the pointers the first wrote, so "its owner" after "the exiled
+/// card" of a linked ability points where that card does.
+pub fn resolve(lines: &mut [crate::Line], type_line: &str) {
+    rounds(lines, type_line, false);
+    if lines.iter().any(|l| l.said.is_some()) {
+        rounds(lines, type_line, true);
+    }
+}
+
+/// Resolves the parsed trees, or (`said`) the trees as the lines' own
+/// words say them, beside the others' parsed trees.
+fn rounds(lines: &mut [crate::Line], type_line: &str, said: bool) {
+    for _ in 0..2 {
+        let plans = {
+            let abs: Vec<(Option<&Ability>, bool)> = lines
+                .iter()
+                .map(|l| {
+                    let parsed = l.parsed.as_ref().ok();
+                    let a = if said {
+                        l.said.as_ref().or(parsed)
+                    } else {
+                        parsed
+                    };
+                    (a, l.continues)
+                })
+                .collect();
+            analyse(&abs, type_line).plan()
+        };
+        let mut left = false;
+        for (l, p) in lines.iter_mut().zip(&plans) {
+            let a = if said {
+                l.said.as_mut()
+            } else {
+                l.parsed.as_mut().ok()
+            };
+            if let Some(a) = a {
+                p.apply(a);
+                left |= unresolved(a);
+            }
+        }
+        if !left {
+            return;
+        }
+    }
+}
+
+fn unresolved(a: &Ability) -> bool {
+    struct Any(bool);
+    impl Visitor for Any {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            self.0 |= matches!(o.quant, Quant::Unresolved(_));
+            true
+        }
+        fn ability(&mut self, _: &mut Ability) -> bool {
+            true
+        }
+    }
+    let mut any = Any(false);
+    a.clone().walk(&mut any);
+    any.0
 }

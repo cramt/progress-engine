@@ -26,6 +26,9 @@ pub trait Visitor {
     /// Before and after an amount's parts.
     fn amount(&mut self, _a: &mut Amount) {}
     fn amount_done(&mut self, _a: &mut Amount) {}
+    /// Before and after a static ability's parts.
+    fn statik(&mut self, _s: &mut Static) {}
+    fn statik_done(&mut self, _s: &mut Static) {}
     /// Before and after a cost's parts.
     fn cost(&mut self, _c: &mut Cost) {}
     fn cost_done(&mut self, _c: &mut Cost) {}
@@ -2563,6 +2566,7 @@ impl Walk for SpentFor {
 impl Walk for Static {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
+        v.statik(self);
         match self {
             Static::X(f0) => {
                 Walk::walk(f0, v);
@@ -2976,6 +2980,7 @@ impl Walk for Static {
             }
             _ => {}
         }
+        v.statik_done(self);
     }
 }
 

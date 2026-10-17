@@ -45,8 +45,17 @@ pub struct Broke {
 }
 
 /// Every ability line on one face. A modal spell's bullets belong to the
-/// "Choose one —" line above them.
+/// "Choose one —" line above them. Every reference back that an
+/// introducer fits is a pointer ([backref]).
 pub fn read_face(face: &Face, card_name: &str) -> Vec<Line> {
+    let mut read = read_face_unresolved(face, card_name);
+    backref::resolve(&mut read, face.type_line);
+    read
+}
+
+/// `read_face` before its references are pointers: what `insight`'s
+/// backref report reads to say how each one resolved.
+pub fn read_face_unresolved(face: &Face, card_name: &str) -> Vec<Line> {
     let legendary = face.type_line.contains("Legendary");
     let spell = face.type_line.contains("Instant") || face.type_line.contains("Sorcery");
     let marked = lex::mark_self(face.text, &[face.name, card_name], legendary);
@@ -287,7 +296,7 @@ mod tests {
     use ast::*;
 
     fn read(name: &str, type_line: &str, text: &str) -> Vec<Ability> {
-        read_face(
+        read_face_unresolved(
             &Face {
                 name,
                 type_line,
@@ -1999,7 +2008,7 @@ mod round_nine {
             type_line,
             text,
         };
-        read_face(&face, "Some Card")
+        read_face_unresolved(&face, "Some Card")
             .into_iter()
             .map(|l| match l.parsed {
                 Ok(a) => a,
@@ -2067,7 +2076,7 @@ mod round_nine_b {
             type_line,
             text,
         };
-        read_face(&face, "Some Card")
+        read_face_unresolved(&face, "Some Card")
             .into_iter()
             .map(|l| match l.parsed {
                 Ok(a) => a,
@@ -2141,7 +2150,7 @@ mod round_nine_c {
             type_line,
             text,
         };
-        read_face(&face, "Some Card")
+        read_face_unresolved(&face, "Some Card")
             .into_iter()
             .map(|l| match l.parsed {
                 Ok(a) => a,
@@ -2228,7 +2237,7 @@ mod round_nine_d {
             type_line,
             text,
         };
-        read_face(&face, "Some Card")
+        read_face_unresolved(&face, "Some Card")
             .into_iter()
             .map(|l| match l.parsed {
                 Ok(a) => a,

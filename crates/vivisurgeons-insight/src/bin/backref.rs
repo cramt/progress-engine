@@ -11,7 +11,7 @@
 use std::collections::BTreeMap;
 
 use vivisurgeons_insight::ast::Ability;
-use vivisurgeons_insight::backref::{analyse, Class, Hint, Target};
+use vivisurgeons_insight::backref::{analyse, Class, Kind, Target};
 use vivisurgeons_insight::golden::{self, Entry};
 
 fn main() {
@@ -39,21 +39,48 @@ fn main() {
                 .map(|(e, _)| e),
         );
     }
-    let mut table: BTreeMap<(Hint, Class), usize> = BTreeMap::new();
+    let mut table: BTreeMap<(Kind, Class), usize> = BTreeMap::new();
     let mut none_why: BTreeMap<String, usize> = BTreeMap::new();
     let mut amb_n: BTreeMap<usize, usize> = BTreeMap::new();
     let mut amb_self = 0;
     let mut cross = 0;
     let mut examples: Vec<String> = Vec::new();
+    // The resolved trees, checked from themselves.
+    let mut pointers: BTreeMap<Kind, usize> = BTreeMap::new();
+    let mut problems: BTreeMap<String, usize> = BTreeMap::new();
+    let mut problem_lines: Vec<String> = Vec::new();
+    let show_problems = args.iter().any(|a| a == "--problems");
     for e in &faces {
-        let lines = e.lines();
+        let done = e.lines();
+        let abs: Vec<(Option<&Ability>, bool)> = done
+            .iter()
+            .map(|l| (l.parsed.as_ref().ok(), l.continues))
+            .collect();
+        let an = analyse(&abs, &e.type_line);
+        for r in &an.resolved {
+            *pointers.entry(r.kind).or_default() += 1;
+            if show_problems && matches!(r.kind, Kind::Text(_)) && r.class != Class::None {
+                problem_lines.push(format!("{}: a reference left unresolved resolves on another reading: line {} {} -> {:?}", e.card, r.line, an.reference_text(r), r.pick.as_ref().map(|t| an.describe(t))));
+            }
+        }
+        for (k, p) in an.problems() {
+            let what = match k {
+                Kind::Text(h) => format!("unresolved {h:?}"),
+                k => format!("{k:?} that misses"),
+            };
+            *problems.entry(what).or_default() += 1;
+            if show_problems {
+                problem_lines.push(format!("{}: {p}", e.card));
+            }
+        }
+        let lines = e.lines_unresolved();
         let abs: Vec<(Option<&Ability>, bool)> = lines
             .iter()
             .map(|l| (l.parsed.as_ref().ok(), l.continues))
             .collect();
         let an = analyse(&abs, &e.type_line);
         for r in &an.resolved {
-            *table.entry((r.hint, r.class)).or_default() += 1;
+            *table.entry((r.kind, r.class)).or_default() += 1;
             cross += usize::from(r.cross_line);
             match r.class {
                 Class::None => {
@@ -62,7 +89,7 @@ fn main() {
                         v => format!("verb {v}"),
                     };
                     *none_why
-                        .entry(format!("{:?} | {ctx} | kind {:?}", r.hint, an.kind(r)))
+                        .entry(format!("{:?} | {ctx} | kind {:?}", r.kind, an.kind(r)))
                         .or_default() += 1;
                 }
                 Class::Ambiguous => {
@@ -73,8 +100,12 @@ fn main() {
                 }
                 Class::Determined => {}
             }
-            let tag = format!("{:?}:{:?}", r.hint, r.class);
+            let tag = format!("{:?}:{:?}", r.kind, r.class);
             let wanted = examples_of.as_deref() == Some(tag.as_str())
+                || examples_of.as_deref() == Some("unpointed")
+                    && r.pick.is_some()
+                    && r.pointer.is_none()
+                    && r.kind != Kind::Itself
                 || card.as_deref().is_some_and(|c| e.card.starts_with(c));
             if wanted && examples.len() < 80 {
                 let text = lines[r.line].text.replace('\n', " ");
@@ -103,7 +134,7 @@ fn main() {
         "{:<18} {:>8} {:>8} {:>8} {:>8} {:>7}",
         "hint", "DETERM", "AMBIG", "NONE", "total", "%det"
     );
-    let hints: std::collections::BTreeSet<Hint> = table.keys().map(|k| k.0).collect();
+    let hints: std::collections::BTreeSet<Kind> = table.keys().map(|k| k.0).collect();
     let (mut td, mut ta, mut tn) = (0, 0, 0);
     for k in hints {
         let get = |c| table.get(&(k, c)).copied().unwrap_or(0);
@@ -135,6 +166,11 @@ fn main() {
     println!("NONE by hint/context (top 30):");
     for (k, n) in why.iter().take(30) {
         println!("  {n:>5} {k}");
+    }
+    println!("\nresolved trees: references by kind {pointers:?}");
+    println!("problems (pointers that miss, references with no introducer): {problems:?}");
+    for l in &problem_lines {
+        println!("  ! {l}");
     }
     for l in &examples {
         println!("  ex: {l}");

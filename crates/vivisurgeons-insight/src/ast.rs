@@ -840,8 +840,11 @@ pub enum Quant {
     Other,
     AtLeast(Amount),
     AtMost(Amount),
-    /// "the rest", "the other": what an earlier choice left.
-    Rest,
+    /// "the rest", "the other": what the choice `back` points at
+    /// ([backref]) left of the pool it was chosen from.
+    Rest {
+        back: u8,
+    },
     /// "this creature or another Ally you control": itself, as the first
     /// object says it, or one the filter names.
     SelfOrAnother(Box<Objects>),
@@ -882,23 +885,71 @@ pub enum Quant {
     /// name as that permanent": the one object, and every other the filter
     /// names.
     WithAllOthers(Box<Objects>),
-    /// Prototype (branch insight-backref): the `back`-th object introduced
-    /// before this reference in reading order within the ability, 1 the
-    /// nearest. Only `src/bin/backref.rs` writes it; the parser never does.
+    /// "it", "that creature", "the exiled card": the `back`-th object
+    /// introduced before this reference in reading order within its scope,
+    /// 1 the nearest ([backref]). The filter is what the text calls it.
     BackRef {
         back: u8,
     },
-    /// Prototype: the `nth` object (1-based, reading order) introduced by
-    /// the `ability`-th line (0-based) of the same face, a linked ability
-    /// (CR 607.1). Replaces `Linked` with `ExiledWith`/`CreatedWith`.
+    /// "the exiled card", "the chosen creature", "the token" in an ability
+    /// that exiled, chose or created none: the `nth` object (1-based, in
+    /// reading order) introduced by the face's `line`-th ability line
+    /// (0-based, a line that does not parse counted too), a linked ability
+    /// (CR 607.1, 607.2a).
     LinkedBackRef {
-        ability: u8,
+        line: u8,
         nth: u8,
     },
-    /// Prototype: several earlier objects at once, each counted as
-    /// `BackRef` counts ("them" after a verb said once of two objects,
-    /// "both cards"), which one `back` cannot say.
-    BackRefs(Vec<u8>),
+    /// "Exile up to one target artifact … and up to one target creature ….
+    /// Then return them", "both cards": several earlier objects at once,
+    /// which one pointer cannot say.
+    BackRefs(Vec<Pointer>),
+    /// A reference back no introducer in its scope fits, so it points at
+    /// nothing; `Hint` is what its words said it may mean. The parser says
+    /// every reference this way and `read_face` makes each it can a
+    /// pointer ([backref]); `tests/backref.rs` counts the rest.
+    Unresolved(Hint),
+}
+
+/// One object of `Quant::BackRefs`.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Pointer {
+    /// As `Quant::BackRef { back }`.
+    Back(u8),
+    /// The card itself, as `Quant::SelfRef`.
+    ThisCard,
+    /// As `Quant::LinkedBackRef { line, nth }`.
+    Linked { line: u8, nth: u8 },
+}
+
+/// What a reference back's words say it may mean, before it is a pointer
+/// ([backref]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Hint {
+    /// "it", "that creature": any earlier object that fits.
+    Antecedent,
+    /// In a trailing condition: the one object its clause names
+    /// ([trailing-if]).
+    ClauseObject,
+    /// "Sacrifice it" after "Create a token": the tokens an earlier effect
+    /// made.
+    Created,
+    /// "Then return them": every object one verb named.
+    Listed,
+    /// "Put both cards onto the battlefield": the last object of each of
+    /// the two clauses before.
+    Both,
+    /// The object of the trigger's event.
+    Triggering,
+    /// "those spells" after "you may copy it": a spell and its copies.
+    OriginalAndCopies,
+    /// "the exiled card" with nothing exiled before: what a linked
+    /// ability exiled or created (CR 607.2a).
+    Linked,
+    /// "from among them": the pool a new choice is made from.
+    Pool,
+    /// "the rest": what the nearest choice left.
+    Rest,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -2930,7 +2981,7 @@ pub fn choose_targets_listed(es: &mut [Effect]) -> bool {
             Effect::Damage { to, .. }
                 if to
                     .iter()
-                    .any(|t| matches!(t, Recipient::Objects(o) if o.quant == Quant::Rest)) =>
+                    .any(|t| matches!(t, Recipient::Objects(o) if o.quant == Quant::Unresolved(Hint::Rest))) =>
             {
                 return false
             }

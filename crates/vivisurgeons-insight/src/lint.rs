@@ -191,6 +191,9 @@ fn scope(mut a: Ability, cx: Context, out: &mut Vec<Kind>) {
         objects: usize::from(cx.prior),
         players: usize::from(cx.prior),
         triggering_spell: false,
+        at_trigger: Default::default(),
+        decl: 0,
+        is_state: false,
         wheres: 0,
         x_chosen: false,
         x_used: false,
@@ -200,6 +203,10 @@ fn scope(mut a: Ability, cx: Context, out: &mut Vec<Kind>) {
     match core(&a) {
         Ability::Triggered { trigger, .. } => {
             v.triggering_spell = trigger_event(trigger).is_some_and(event_is_spell);
+            if v.triggering_spell {
+                v.at_trigger =
+                    crate::backref::analyse(&[(Some(&a), false)], "").pointing_at_trigger(0);
+            }
             // "At the beginning of each player's upkeep, that player …":
             // the step's player, whom no `Player` names.
             if trigger_step(trigger)
@@ -233,6 +240,14 @@ struct Lint {
     /// Players other than "you" and "that player" said so far.
     players: usize,
     triggering_spell: bool,
+    /// The objects (by walk order, nested abilities counted) that point
+    /// at the trigger's object ([backref]).
+    at_trigger: std::collections::BTreeSet<usize>,
+    /// Objects met so far, nested abilities counted.
+    decl: usize,
+    /// A `Condition::Is` of a permanent's state is open: its object is the
+    /// next one met.
+    is_state: bool,
     /// How deep in "where X is" the walk is.
     wheres: u32,
     /// "You may pay {X}": the controller chose X (CR 107.3f).
@@ -263,20 +278,43 @@ impl Visitor for Lint {
             );
             return true;
         }
+        // Its objects count in walk order, as the resolver counts them.
+        struct Count(usize);
+        impl Visitor for Count {
+            fn enter(&mut self, _: &mut Objects) -> bool {
+                self.0 += 1;
+                true
+            }
+            fn ability(&mut self, _: &mut Ability) -> bool {
+                true
+            }
+        }
+        let mut n = Count(0);
+        a.clone().walk(&mut n);
+        self.decl += n.0;
         self.nested.push(a.clone());
         false
     }
 
     fn enter(&mut self, o: &mut Objects) -> bool {
-        if o.quant == Quant::Antecedent && self.objects == 0 {
+        // A reference back no introducer fits ([backref]).
+        if matches!(o.quant, Quant::Unresolved(_)) {
             self.out.push(Kind::DanglingAntecedent);
+        }
+        let at_trigger = self.triggering_spell && self.at_trigger.contains(&self.decl);
+        self.decl += 1;
+        if std::mem::take(&mut self.is_state) && at_trigger {
+            self.out.push(Kind::StateOfTriggeringSpell);
         }
         self.objects += 1;
         if matches!(o.filter.kind, Some(Noun::Player | Noun::Opponent)) {
             self.players += 1;
         }
         filter(&o.filter, &mut self.out);
-        if o.quant == Quant::Triggering && self.triggering_spell && permanent_state(&o.filter) {
+        if (o.quant == Quant::Triggering || at_trigger)
+            && self.triggering_spell
+            && permanent_state(&o.filter)
+        {
             self.out.push(Kind::StateOfTriggeringSpell);
         }
         true
@@ -390,6 +428,7 @@ impl Visitor for Lint {
             if what.quant == Quant::Triggering && self.triggering_spell && permanent_state(f) {
                 self.out.push(Kind::StateOfTriggeringSpell);
             }
+            self.is_state = permanent_state(f);
         }
     }
 
@@ -747,7 +786,7 @@ mod tests {
         assert_eq!(lint(&x, cx), []);
         // "Destroy it." "That player loses 1 life."
         let it = Ability::Spell(vec![Effect::Destroy {
-            what: objects(Quant::Antecedent, vec![], None, vec![]),
+            what: objects(Quant::Unresolved(Hint::Antecedent), vec![], None, vec![]),
             no_regen: false,
         }]);
         assert_eq!(kinds(it), [Kind::DanglingAntecedent]);

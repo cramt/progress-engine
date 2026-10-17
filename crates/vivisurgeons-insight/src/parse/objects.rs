@@ -1469,9 +1469,9 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             // would be the card just chosen.
             let bare = Objects { quant: Quant::Antecedent, filter: Filter { kind: Some(Noun::Card), ..Filter::default() } };
             if among == bare {
-                return Some(Objects { quant: Quant::Rest, filter: Filter::default() });
+                return Some(Objects { quant: Quant::Unresolved(Hint::Rest), filter: Filter::default() });
             }
-            Some(Objects { quant: Quant::Rest, filter: Filter { posts: vec![Post::FromAmong(Box::new(among))], ..Filter::default() } })
+            Some(Objects { quant: Quant::Unresolved(Hint::Rest), filter: Filter { posts: vec![Post::FromAmong(Box::new(among))], ..Filter::default() } })
         },
         // "the top half of their library, rounded up".
         |p| {
@@ -1487,8 +1487,8 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         },
         // "each of those creatures": the earlier noun, each one.
         |p| { p.words("each of")?; let o = pronoun(p)?; (o.quant == Quant::Antecedent).then_some(o) },
-        |p| p.words("the rest").map(|_| Objects { quant: Quant::Rest, filter: Filter::default() }),
-        |p| p.one_of(&["the other", "the others"]).map(|_| Objects { quant: Quant::Rest, filter: Filter::default() }),
+        |p| p.words("the rest").map(|_| Objects { quant: Quant::Unresolved(Hint::Rest), filter: Filter::default() }),
+        |p| p.one_of(&["the other", "the others"]).map(|_| Objects { quant: Quant::Unresolved(Hint::Rest), filter: Filter::default() }),
         // "twice that many of each of those kinds of counters": the counters
         // an event named, kind by kind.
         |p| p.words("each of those kinds of counters").map(|_| Objects {

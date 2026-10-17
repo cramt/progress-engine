@@ -231,6 +231,9 @@ fn generate(src: &str) -> String {
              /// Before and after an amount's parts.\n    \
              fn amount(&mut self, _a: &mut Amount) {}\n    \
              fn amount_done(&mut self, _a: &mut Amount) {}\n    \
+             /// Before and after a static ability's parts.\n    \
+             fn statik(&mut self, _s: &mut Static) {}\n    \
+             fn statik_done(&mut self, _s: &mut Static) {}\n    \
              /// Before and after a cost's parts.\n    \
              fn cost(&mut self, _c: &mut Cost) {}\n    \
              fn cost_done(&mut self, _c: &mut Cost) {}\n    \
@@ -336,6 +339,7 @@ fn generate(src: &str) -> String {
             "Condition" => format!("v.condition(self);\n{body}\nv.condition_done(self);"),
             "Amount" => format!("v.amount(self);\n{body}\nv.amount_done(self);"),
             "Cost" => format!("v.cost(self);\n{body}\nv.cost_done(self);"),
+            "Static" => format!("v.statik(self);\n{body}\nv.statik_done(self);"),
             "Player" => format!("v.player(self);\n{body}"),
             _ => body,
         };

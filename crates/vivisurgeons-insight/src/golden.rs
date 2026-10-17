@@ -40,6 +40,16 @@ impl Entry {
         read_face(&face, &self.card)
     }
 
+    /// The face's lines before their references are pointers.
+    pub fn lines_unresolved(&self) -> Vec<Line> {
+        let face = Face {
+            name: &self.face,
+            type_line: &self.type_line,
+            text: &self.text,
+        };
+        crate::read_face_unresolved(&face, &self.card)
+    }
+
     /// The face's abilities as one line each, as the grammar reads them now.
     pub fn trees(&self) -> Vec<String> {
         self.lines()

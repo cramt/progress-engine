@@ -491,11 +491,13 @@ fn static_part(part: &i::Static) -> Result<(&Objects, Vec<Op>), String> {
                 [CardType::Artifact, CardType::Creature].into(),
             )],
         ),
-        // "each equal to its mana value": the object's own.
+        // "each equal to its mana value": the object's own. `what` is the
+        // only object said before "its", so the pointer one back is it
+        // ([backref] in Insight's SEMANTICS.md).
         i::Static::BasePtEqual {
             what,
             each_equal_to: i::Amount::ManaValueOf(of),
-        } if of.quant == Quant::Antecedent && of.filter == i::Filter::default() => {
+        } if of.quant == (Quant::BackRef { back: 1 }) && of.filter == i::Filter::default() => {
             (what, vec![Op::SetBasePt(PtValue::ManaValue)])
         }
         _ => return Err(unlowered()),

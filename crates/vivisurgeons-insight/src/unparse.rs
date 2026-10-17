@@ -1309,11 +1309,24 @@ mod syn {
     /// Named rewrite [among-them] for the third: "puts all permanent cards
     /// among them onto the battlefield" (Pyxis of Pandemonium) is "from among
     /// them", the cards just named.
+    /// "one or more of them" says the pool as "from among them" does:
+    /// a pointer to it holds no preposition ([backref]).
     pub fn from_among_them(o: &mut Out) {
         any_of(
             o,
-            &["from among them", "from among those cards", "among them"],
+            &[
+                "from among them",
+                "from among those cards",
+                "among them",
+                "of them",
+            ],
         );
+    }
+
+    /// "Put both cards onto the battlefield", "put those cards …": two
+    /// objects a pointer names, whichever word the text gives them.
+    pub fn both_or_those(o: &mut Out, both: Out, those: Out) {
+        alt(o, vec![both, those]);
     }
 
     pub fn kicked(o: &mut Out) {
@@ -2117,6 +2130,51 @@ pub fn ability(a: &Ability) -> Out {
     struct Said;
     impl crate::walk::Visitor for Said {
         fn enter(&mut self, o: &mut Objects) -> bool {
+            // "from among them": a pool said by pronoun ([backref]).
+            for p in &mut o.filter.posts {
+                if let Post::FromAmong(x) = p {
+                    if x.filter == Filter::default()
+                        && matches!(
+                            x.quant,
+                            Quant::BackRef { .. }
+                                | Quant::LinkedBackRef { .. }
+                                | Quant::BackRefs(_)
+                                | Quant::Unresolved(_)
+                        )
+                    {
+                        *p = Post::FromAmongThem;
+                    }
+                }
+            }
+            // What a linked ability exiled is "exiled with ~" as well as
+            // "the exiled card" (CR 607.2a).
+            if matches!(o.quant, Quant::LinkedBackRef { .. }) {
+                for p in &mut o.filter.posts {
+                    if *p == Post::Marked(Marked::Exiled) {
+                        *p = Post::ExiledWith(Box::new(self_ref()));
+                    }
+                }
+            }
+            // "the exiled cards used to craft it" names all of them (CR
+            // 702.167c), by a definite article.
+            if o.quant == Quant::All
+                && o.filter
+                    .posts
+                    .iter()
+                    .any(|p| matches!(p, Post::UsedToCraft(_)))
+            {
+                o.quant = Quant::Antecedent;
+            }
+            // A pointer is said as the reference it is: "it", "that
+            // creature", "the rest", "both cards" ([backref]).
+            match o.quant {
+                Quant::Unresolved(Hint::Rest) => o.quant = Quant::Rest { back: 0 },
+                Quant::Unresolved(Hint::Both) => o.quant = Quant::Both,
+                Quant::BackRef { .. } | Quant::LinkedBackRef { .. } | Quant::Unresolved(_) => {
+                    o.quant = Quant::Antecedent
+                }
+                _ => {}
+            }
             if matches!(
                 o.quant,
                 Quant::Triggering
@@ -3761,7 +3819,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::AnyNumberOfOtherTarget
         | Quant::AtLeast(_)
         | Quant::AtMost(_)
-        | Quant::Rest
+        | Quant::Rest { .. }
         | Quant::Additional
         | Quant::WithOthers(_)
         | Quant::SelfAnd(_)
@@ -3781,7 +3839,8 @@ fn obj_num(x: &Objects) -> Num {
         // Prototype pointers: said as the reference they replace.
         | Quant::BackRef { .. }
         | Quant::LinkedBackRef { .. }
-        | Quant::BackRefs(_) => Num::Any,
+        | Quant::BackRefs(_)
+        | Quant::Unresolved(_) => Num::Any,
         // "Krang & Shredder enter", "equipped creatures you control": a
         // name or an attached-to creature may be one or several. The tree
         // holds no word for the card ([self-reference]), so "this creature"
@@ -3894,7 +3953,23 @@ fn objects_plain(o: &mut Out, x: &Objects) {
     match &x.quant {
         // Prototype (insight-backref): a pointer reads as "it" until the
         // round trip learns to say what it points at.
-        Quant::BackRef { .. } | Quant::LinkedBackRef { .. } | Quant::BackRefs(_) => {
+        Quant::BackRefs(ps) => {
+            let said = Objects {
+                quant: Quant::Antecedent,
+                filter: f.clone(),
+            };
+            let those = out(|o| objects_plain(o, &said));
+            if ps.len() == 2 && *f != Filter::default() {
+                let both = out(|o| {
+                    o.w("both");
+                    filter(o, f, Num::Pl);
+                });
+                syn::both_or_those(o, both, those);
+            } else {
+                o.0.extend(those.0);
+            }
+        }
+        Quant::BackRef { .. } | Quant::LinkedBackRef { .. } | Quant::Unresolved(_) => {
             let said = Objects {
                 quant: Quant::Antecedent,
                 filter: f.clone(),
@@ -4230,7 +4305,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             of_those(o, f, n);
         }
         // "the rest of the exiled cards".
-        Quant::Rest
+        Quant::Rest { .. }
             if matches!(
                 (&f.alts[..], &f.kind, &f.posts[..]),
                 ([], None, [Post::FromAmong(_)])
@@ -4241,7 +4316,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
                 objects(o, x);
             }
         }
-        Quant::Rest => {
+        Quant::Rest { .. } => {
             syn::the_rest(o);
             filter(o, f, n);
         }
