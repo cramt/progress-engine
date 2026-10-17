@@ -23,7 +23,7 @@ cost: {2}{W}{W}
 > −6: Create a white Avatar creature token. It has "This token's power and toughness are each equal to your life total."
 = Loyalty { change: N(1), effect: [GainLife { who: You, n: N(2) }] }
 = Loyalty { change: N(-1), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "vigilance", param: None }], dur: UntilEndOfTurn }] }
-= Loyalty { change: N(-6), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [White], types: ["avatar", "creature"], keywords: [], abilities: [Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: LifeTotal(You) }])], named: Some("avatar"), attacking: None } }] }
+= Loyalty { change: N(-6), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [White], types: ["avatar", "creature"], keywords: [], abilities: [Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: LifeTotal(You) }])], named: None, attacking: None } }] }
 
 ## Angelfire Ignition
 face: Angelfire Ignition

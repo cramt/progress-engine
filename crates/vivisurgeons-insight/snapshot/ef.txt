@@ -487,7 +487,7 @@ cost: {1}{W}
 > Double strike
 > When this creature enters, create a colorless Equipment artifact token named Axe with "Equipped creature gets +1/+0" and equip {2}.
 = Keywords([Keyword { name: "double strike", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [Colorless], types: ["equipment", "artifact"], keywords: [Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }], abilities: [Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }])], named: Some("equipment"), attacking: None }, name: "axe" }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [Colorless], types: ["equipment", "artifact"], keywords: [Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }], abilities: [Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }])], named: None, attacking: None }, name: "axe" }], limits: [] }
 
 ## Iron Myr
 face: Iron Myr

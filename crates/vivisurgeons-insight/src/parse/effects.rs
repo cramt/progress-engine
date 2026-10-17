@@ -163,6 +163,25 @@ pub(super) fn subject_player(p: &mut P) -> Player {
     }
 }
 
+/// The predefined tokens (CR 111.10a-x) other than Roles, by subtype.
+const PREDEFINED_TOKENS: &[&str] = &[
+    "treasure",
+    "food",
+    "gold",
+    "walker",
+    "shard",
+    "clue",
+    "blood",
+    "powerstone",
+    "incubator",
+    "map",
+    "junk",
+    "lander",
+    "mutagen",
+    "vibranium",
+    "heartwood",
+];
+
 pub(super) fn token(p: &mut P) -> Option<(Amount, Token)> {
     match token_named(p)? {
         (n, t, None) => Some((n, t)),
@@ -243,7 +262,10 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
         match a {
             Adj::Type(t) | Adj::Supertype(t) => types.push(t),
             Adj::Subtype(s) => {
-                if pt.is_none() && named.is_none() {
+                // "a Treasure token": a predefined token (CR 111.10) is named
+                // by its subtype; "an Equipment artifact token", "a white
+                // Aura enchantment token" name none.
+                if pt.is_none() && named.is_none() && PREDEFINED_TOKENS.contains(&s.as_str()) {
                     named = Some(s.clone());
                 }
                 types.push(s)

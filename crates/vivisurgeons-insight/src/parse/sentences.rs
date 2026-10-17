@@ -1413,7 +1413,10 @@ pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
                         // "The token has enchant creature and "Whenever …""
                         // (Scriv, the Obligator): keywords too.
                         p.one_of(&["the token has", "the tokens have"])?;
-                        let ka = super::keywords_then_quoted(p)?;
+                        let ka = alt!(p;
+                            super::keywords_then_quoted,
+                            |p| super::keyword_list(p).map(|k| (k, vec![])),
+                        )?;
                         p.end_sentence()?;
                         Some(ka)
                     }) {

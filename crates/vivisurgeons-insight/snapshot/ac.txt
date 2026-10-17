@@ -689,7 +689,7 @@ cost: {4}{U}{U}
 > −2: Create a blue Dog Illusion creature token with "This token's power and toughness are each equal to twice the number of cards in your hand."
 > −10: Exchange your hand and library, then shuffle. You get an emblem with "You have no maximum hand size."
 = Loyalty { change: N(2), effect: [Draw { who: You, n: N(2) }, Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }
-= Loyalty { change: N(-2), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [Blue], types: ["dog", "illusion", "creature"], keywords: [], abilities: [Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: Twice(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })) }])], named: Some("dog"), attacking: None } }] }
+= Loyalty { change: N(-2), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [Blue], types: ["dog", "illusion", "creature"], keywords: [], abilities: [Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: Twice(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })) }])], named: None, attacking: None } }] }
 = BROKE at "hand" after: N(-10) : exchange your
 
 ## Murmuring Bosk

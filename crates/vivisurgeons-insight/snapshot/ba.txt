@@ -322,7 +322,7 @@ cost: {1}{G}{W}{U}
 > −7: Mill seven cards. Return all non-Aura enchantment cards from your graveyard to the battlefield, then do the same for Aura cards.
 > Estrid, the Masked can be your commander.
 = Loyalty { change: N(2), effect: [Untap(Objects { quant: Each, filter: Filter { alts: [[State(Enchanted)]], kind: Some(Permanent), posts: [Controller(You)], or: None } })] }
-= BROKE at "." after: N(-1) : create a white aura enchantment token named mask attached to another target permanent . the token has enchant permanent and umbra armor
+= Loyalty { change: N(-1), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [White], types: ["aura", "enchantment"], keywords: [Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })) }, Keyword { name: "umbra armor", param: None }], abilities: [], named: None, attacking: None }, to: Objects { quant: AnotherTarget, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, name: Some("mask") }] }
 = BROKE at "the" after: N(-7) : mill seven cards . return all non-aura enchantment cards from your graveyard to the battlefield , then do
 = Static([CanBeCommander])
 
