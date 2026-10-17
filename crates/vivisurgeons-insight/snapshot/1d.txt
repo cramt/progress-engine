@@ -328,7 +328,7 @@ face: Graf Rats
 type: Creature — Rat
 cost: {1}{B}
 > At the beginning of combat on your turn, if you both own and control this creature and a creature named Midnight Scavengers, exile them, then meld them into Chittering Host.
-= Triggered { trigger: InterveningIf(At(Combat(Yours)), OwnAndControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NamedCard("midnight scavengers")], or: None } }])), effect: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Meld { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: "chittering host", shares_short_name: false }], limits: [] }
+= Triggered { trigger: InterveningIf(At(Combat(Yours)), OwnAndControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NamedCard("midnight scavengers")], or: None } }])), effect: [Exile(Objects { quant: Listed, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Meld { what: Objects { quant: Listed, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: "chittering host", shares_short_name: false }], limits: [] }
 
 ## Grazing Gladehart
 face: Grazing Gladehart

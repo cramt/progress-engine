@@ -1001,7 +1001,7 @@ cost: {1}{W}{U}
 > Artifact, instant, and sorcery spells you cast cost {1} less to cast.
 > {7}: If you both own and control Urza, Lord Protector and an artifact named The Mightstone and Weakstone, exile them, then meld them into Urza, Planeswalker. Activate only as a sorcery.
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= Activated { cost: [Mana(Mana(["7"]))], effect: [If { cond: OwnAndControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [NamedCard("the mightstone and weakstone")], or: None } }]), then: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Meld { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: "urza, planeswalker", shares_short_name: true }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["7"]))], effect: [If { cond: OwnAndControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [NamedCard("the mightstone and weakstone")], or: None } }]), then: [Exile(Objects { quant: Listed, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Meld { what: Objects { quant: Listed, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: "urza, planeswalker", shares_short_name: true }] }], limits: [SorcerySpeed] }
 
 ## Vine Gecko
 face: Vine Gecko

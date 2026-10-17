@@ -2781,6 +2781,46 @@ impl Visitor for FromAmongAfterShares {
     }
 }
 
+/// "If you both own and control ~ and a creature named Bruna, the Fading
+/// Light, exile them, then meld them into Brisela" (Gisela): "them" is
+/// both objects the condition lists, not the last alone
+/// ([listed-objects]).
+#[derive(Default)]
+struct MeldListed {
+    listed: bool,
+    done: bool,
+}
+
+impl Visitor for MeldListed {
+    fn enter(&mut self, _: &mut Objects) -> bool {
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+    fn condition(&mut self, c: &mut Condition) {
+        if matches!(c, Condition::OwnAndControl(v) if v.len() > 1) {
+            self.listed = true;
+        }
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        if !self.listed || self.done {
+            return;
+        }
+        let what = match e {
+            Effect::Exile(what) => what,
+            Effect::Meld { what, .. } => {
+                self.done = true;
+                what
+            }
+            _ => return,
+        };
+        if *what == antecedent() {
+            what.quant = Quant::Listed;
+        }
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 /// One line of a face's text, `name` the face's printed name.
 pub fn parse_line(
@@ -2806,6 +2846,7 @@ pub fn parse_line(
             a.walk(&mut OtherMarkedCards);
             a.walk(&mut FromAmongAfterShares);
             a.walk(&mut EntriesThisTurn);
+            a.walk(&mut MeldListed::default());
             counters_on_itself(&mut a);
             Ok(a)
         }

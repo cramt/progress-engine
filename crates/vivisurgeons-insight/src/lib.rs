@@ -1525,7 +1525,7 @@ mod tests {
                 "{3}{R}{R}, {T}: If you both own and control this land and a creature named Hanweir Garrison, exile them.",
             )
         );
-        assert!(a.contains("Antecedent"), "{a}");
+        assert!(a.contains("Listed"), "{a}");
     }
 
     #[test]
