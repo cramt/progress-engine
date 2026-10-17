@@ -6,15 +6,10 @@ use std::path::{Path, PathBuf};
 use chip_scryfall::index::IndexFile;
 use mockery_core::card::Card;
 use mockery_core::render::{self, Layout, Paper, Sheet};
-use mockery_core::symbols::Symbols;
 use mockery_core::{read, real};
 
 fn here(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(rel)
-}
-
-fn symbols() -> Symbols {
-    Symbols::open(&here("tests/symbols")).unwrap()
 }
 
 fn index() -> IndexFile {
@@ -31,7 +26,7 @@ fn card(toml: &str) -> Card {
 
 #[test]
 fn a_card_renders_to_a_trimmed_png_and_a_pdf() {
-    let doc = render::compile(&[drone()], &symbols(), Layout::Cards).unwrap();
+    let doc = render::compile(&[drone()], Layout::Cards).unwrap();
     assert_eq!(doc.pages().len(), 1);
     let pdf = render::pdf(&doc).unwrap();
     assert!(pdf.starts_with(b"%PDF"));
@@ -53,7 +48,7 @@ fn a_sheet_holds_what_the_paper_does() {
         (Paper::A3, 16),
     ] {
         let sheet = Sheet::new(paper, 0.0, 5.0, true).unwrap();
-        let doc = render::compile(&seventeen, &symbols(), Layout::Sheet(sheet)).unwrap();
+        let doc = render::compile(&seventeen, Layout::Sheet(sheet)).unwrap();
         assert_eq!(doc.pages().len(), 17usize.div_ceil(per_page), "{paper:?}");
     }
 }
@@ -65,7 +60,7 @@ fn a_gap_costs_cards_only_where_there_is_no_room_for_it() {
     let nine = vec![drone(); 9];
     let pages = |gap| {
         let sheet = Sheet::new(Paper::A4, gap, 5.0, true).unwrap();
-        render::compile(&nine, &symbols(), Layout::Sheet(sheet))
+        render::compile(&nine, Layout::Sheet(sheet))
             .unwrap()
             .pages()
             .len()
@@ -81,9 +76,9 @@ fn a_negative_gap_is_refused() {
 
 #[test]
 fn a_symbol_with_no_svg_is_named() {
-    let c = card("name = \"x\"\ncost = \"{S}\"\ntype = \"Instant\"");
-    let err = render::compile(&[c], &symbols(), Layout::Cards).unwrap_err();
-    assert!(format!("{err:#}").contains("no symbol {S}"), "{err:#}");
+    let c = card("name = \"x\"\ncost = \"{K}\"\ntype = \"Instant\"");
+    let err = render::compile(&[c], Layout::Cards).unwrap_err();
+    assert!(format!("{err:#}").contains("no symbol {K}"), "{err:#}");
 }
 
 #[test]

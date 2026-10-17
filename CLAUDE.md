@@ -85,8 +85,8 @@ points at `metamorph` instead
 ([ADR-0039](docs/adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
 Its sheet stays Typst's, not `metamorph-sheet`'s: that one embeds JPEGs, and
 vector cards printed through it came out soft at twelve times the size. It warns where Insight cannot read the rules text. The
-frame is its own, and the repo carries no Wizards symbols: `mockery symbols`
-caches Scryfall's, and tests use the circles in `core/tests/symbols/`. The
+frame is its own. Scryfall's mana symbols are committed in `core/symbols/` and
+compiled in by `build.rs`; `core/symbols/fetch.sh` refreshes them. The
 flake's `wasm-libs` check builds `mockery-core` and Chancellor for wasm32, so
 that claim cannot go stale.
 [docs/research/mirage-mockery.md](docs/research/mirage-mockery.md) is the plan.

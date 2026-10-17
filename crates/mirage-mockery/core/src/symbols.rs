@@ -1,71 +1,20 @@
-//! The mana and tap symbols, as SVGs in a directory, and rules text split
-//! into the runs of words and symbols the template sets.
+//! The mana and tap symbols, and rules text split into the runs of words and
+//! symbols the template sets.
 //!
-//! The symbols are Wizards' (the Fan Content Policy lists them among its
-//! marks), so the repo carries none. `mockery symbols` fetches Scryfall's into
-//! a cache once; tests use the stand-ins in `tests/symbols/`. Nothing here
-//! touches the network, so the library builds for the browser.
+//! The symbols are Scryfall's SVGs, committed in `symbols/` and compiled in by
+//! `build.rs`, so setting one needs no disk or network, in a binary or in the
+//! browser. `symbols/fetch.sh` refreshes them.
 
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+static SVGS: &[(&str, &[u8])] = include!(concat!(env!("OUT_DIR"), "/symbols.rs"));
 
-use anyhow::{bail, Context, Result};
-
-/// Symbols by what goes between the braces: `U`, `U/P`, `T`.
-pub struct Symbols {
-    pub svgs: BTreeMap<String, Vec<u8>>,
+/// A symbol's SVG, by what goes between its braces: `U`, `U/P`, `T`.
+pub fn svg(code: &str) -> Option<&'static [u8]> {
+    SVGS.iter().find(|(c, _)| *c == code).map(|(_, svg)| *svg)
 }
 
 /// A symbol's file name: `U/P` is `U_P.svg`, because a slash is a directory.
 pub fn file_name(code: &str) -> String {
     format!("{}.svg", code.replace('/', "_"))
-}
-
-impl Symbols {
-    pub fn default_dir() -> PathBuf {
-        let base = std::env::var("XDG_CACHE_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache")
-            });
-        base.join("mirage-mockery").join("symbols")
-    }
-
-    pub fn open(dir: &Path) -> Result<Self> {
-        let entries = std::fs::read_dir(dir).with_context(|| {
-            format!(
-                "no symbols at {}; `mockery symbols` fetches them",
-                dir.display()
-            )
-        })?;
-        let mut svgs = BTreeMap::new();
-        for entry in entries {
-            let path = entry?.path();
-            let Some(stem) = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .and_then(|n| n.strip_suffix(".svg"))
-            else {
-                continue;
-            };
-            svgs.insert(stem.replace('_', "/"), std::fs::read(&path)?);
-        }
-        if svgs.is_empty() {
-            bail!(
-                "{} holds no symbols; `mockery symbols` fetches them",
-                dir.display()
-            );
-        }
-        Ok(Symbols { svgs })
-    }
-
-    pub fn require(&self, code: &str) -> Result<()> {
-        if self.svgs.contains_key(code) {
-            Ok(())
-        } else {
-            bail!("no symbol {{{code}}}")
-        }
-    }
 }
 
 /// One stretch of a paragraph, set as one thing.
@@ -117,6 +66,17 @@ pub fn runs(paragraph: &str) -> Vec<Run> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_symbol_cards_print_is_compiled_in() {
+        // CR 107.4's mana symbols, a sample of each kind, and the tap symbol.
+        for code in [
+            "W", "U", "B", "R", "G", "C", "0", "15", "X", "W/U", "2/W", "C/G", "U/P", "G/U/P", "S",
+            "T", "Q", "E",
+        ] {
+            assert!(svg(code).is_some(), "{{{code}}}");
+        }
+    }
 
     fn words(text: &str, reminder: bool) -> Run {
         Run::Words {

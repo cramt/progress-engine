@@ -18,7 +18,7 @@ use typst::{Library, LibraryExt, World};
 use typst_layout::PagedDocument;
 
 use crate::card::{Card, Corner, Frame};
-use crate::symbols::{file_name, runs, Run, Symbols};
+use crate::symbols::{self, file_name, runs, Run};
 
 const TEMPLATE: &str = include_str!("card.typ");
 
@@ -144,15 +144,15 @@ impl World for Job {
     }
 }
 
-/// Lay the cards out. Every symbol the cards use must be in `symbols`.
-pub fn compile(cards: &[Card], symbols: &Symbols, layout: Layout) -> Result<PagedDocument> {
+/// Lay the cards out. A symbol with no SVG is an error naming it.
+pub fn compile(cards: &[Card], layout: Layout) -> Result<PagedDocument> {
     let mut files = HashMap::new();
     let mut symbol = |code: &str| -> Result<Value> {
-        symbols.require(code)?;
+        let Some(svg) = symbols::svg(code) else {
+            bail!("no symbol {{{code}}}");
+        };
         let path = format!("/symbols/{}", file_name(code));
-        files
-            .entry(id(&path))
-            .or_insert_with(|| Bytes::new(symbols.svgs[code].clone()));
+        files.entry(id(&path)).or_insert_with(|| Bytes::new(svg));
         Ok(json!(path))
     };
     let mut out = Vec::new();

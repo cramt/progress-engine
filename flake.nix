@@ -70,10 +70,10 @@
             (builtins.match ".*/crates/meldweb-curator/web(/.*)?$" path == null)
             || (builtins.match ".*/crates/meldweb-curator/web(/src(/deck\\.gen\\.ts)?)?$" path != null)
           )
-          # .typ is Mirage Mockery's template, and its test symbols are the only
-          # .svg any Rust reads: the repo's assets/ has many more.
+          # .typ is Mirage Mockery's template, and its symbols are the only .svg
+          # any Rust reads: the repo's assets/ has many more.
           && ((builtins.match ".*\\.(json|jsonl|txt|ts|typ)$" path != null)
-            || (builtins.match ".*/crates/mirage-mockery/core/tests/symbols/.*\\.svg$" path != null)
+            || (builtins.match ".*/crates/mirage-mockery/core/symbols/.*\\.svg$" path != null)
             || (craneLib.filterCargoSources path type));
         name = "source";
       };

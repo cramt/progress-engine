@@ -13,8 +13,6 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 facet.workspace = true
-facet-json.workspace = true
 figue.workspace = true
-ureq.workspace = true
 chip-scryfall.workspace = true
 mockery-core.workspace = true

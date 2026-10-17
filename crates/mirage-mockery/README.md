@@ -6,10 +6,12 @@ print and cut. Two crates:
 - `mockery-core`: the card format, the real-card refusal, Insight's reading
   and the Typst renderer. No network and no argument parsing, so it builds for
   wasm as it is.
-- `mockery-cli`: binary `mockery`, and the one place that fetches anything.
+- `mockery-cli`: binary `mockery`.
+
+The mana symbols are Scryfall's, committed in `core/symbols/` and compiled
+in; `core/symbols/fetch.sh` refreshes them when a set adds one.
 
 ```
-mockery symbols                                   # once: Scryfall's mana symbols into ~/.cache/mirage-mockery
 mockery render my-card.card.toml                  # my-card.png beside it, 300 ppi
 mockery render a.card.toml b.card.toml -o set.pdf # one card a page
 mockery sheet *.card.toml -o sheet.pdf --paper letter --gap 2  # Metamorph's flags

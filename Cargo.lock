@@ -2037,10 +2037,8 @@ dependencies = [
  "anyhow",
  "chip-scryfall",
  "facet",
- "facet-json",
  "figue",
  "mockery-core",
- "ureq",
 ]
 
 [[package]]

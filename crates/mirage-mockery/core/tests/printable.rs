@@ -10,7 +10,6 @@ use std::path::Path;
 
 use mockery_core::card::Card;
 use mockery_core::render::{self, Layout};
-use mockery_core::symbols::Symbols;
 use proptest::prelude::*;
 
 const SYMBOLS: &[&str] = &["1", "2", "X", "W", "U", "B", "R", "G", "U/P", "T"];
@@ -125,8 +124,7 @@ proptest! {
     #[test]
     fn every_card_the_format_accepts_prints_or_is_refused_for_space(toml in card_toml()) {
         let card = Card::parse(&toml, Path::new(".")).expect("the generator writes only valid cards");
-        let symbols = Symbols::open(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/symbols")).unwrap();
-        match render::compile(&[card], &symbols, Layout::Cards) {
+        match render::compile(&[card], Layout::Cards) {
             Ok(doc) => prop_assert_eq!(doc.pages().len(), 1),
             Err(e) => {
                 let e = format!("{e:#}");
@@ -144,9 +142,7 @@ fn rules_text_too_long_for_any_size_is_refused() {
         Path::new("."),
     )
     .unwrap();
-    let symbols =
-        Symbols::open(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/symbols")).unwrap();
-    let err = render::compile(&[card], &symbols, Layout::Cards).unwrap_err();
+    let err = render::compile(&[card], Layout::Cards).unwrap_err();
     assert!(
         format!("{err:#}").contains("the rules text does not fit"),
         "{err:#}"
@@ -160,9 +156,7 @@ fn a_name_too_long_for_one_line_is_refused() {
         Path::new("."),
     )
     .unwrap();
-    let symbols =
-        Symbols::open(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/symbols")).unwrap();
-    let err = render::compile(&[card], &symbols, Layout::Cards).unwrap_err();
+    let err = render::compile(&[card], Layout::Cards).unwrap_err();
     assert!(
         format!("{err:#}").contains("the name does not fit"),
         "{err:#}"
