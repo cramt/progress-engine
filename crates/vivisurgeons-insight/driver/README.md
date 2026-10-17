@@ -35,9 +35,11 @@ conflicts with them.
 
 1. **Baseline.** A release build, then `insight coverage`, `roundtrip`,
    `lint --counts` and `snapshot`, recorded in `batches/<n>/baseline.json`.
-   The current milestone is the first one in `milestones.json` without a
-   `golden/<name>.txt`. At 100% it is escalated for a human to review and pin,
-   and the loop stops.
+   The current milestone is the first one in `milestones.json` not both at
+   100% and pinned, where pinned means `golden/<name>.txt` holds as many cards
+   as the milestone has. A list that grows (new decks in `my-decks`) reopens
+   its milestone. At 100% it is escalated for a human to review and pin (or
+   re-pin), and the loop stops.
 2. **Writer.** One `query()` with `prompts/writer.md`, filled in with the
    handoff, the supervisor's `decisions.md`, the queued findings, the
    milestone's `insight failing` list and `method-notes.md`. A `PreToolUse`

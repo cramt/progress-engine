@@ -1,7 +1,9 @@
-# Every card in the 17 decks of github.com/cramt/mtg (decks/*.deck.toml), read from the name comment beside each printing, fetched 2026-10-11.
+# Every card in the 20 decks of github.com/cramt/mtg (decks/*.deck.toml), read from the name comment beside each printing, fetched 2026-10-17.
 Abandoned Air Temple
 Abandoned Sarcophagus
+Abrade
 Abstergo Entertainment
+Abstract Performance
 Abstruse Interference
 Academy Manufactor
 Academy Ruins
@@ -9,25 +11,35 @@ Adagia, Windswept Bastion
 Adaptive Omnitool
 Adarkar Wastes
 Adeline, Resplendent Cathar
+Adéwalé, Breaker of Chains
+Adrestia
 Adverse Conditions
 Aerial Modification
 Aetherize
+Aethersphere Harvester
 Aftermath Analyst
 Agadeem's Awakening // Agadeem, the Undercrypt
+Ainok Bond-Kin
+Ainok Strike Leader
+Ainok Survivalist
 Ajani's Chosen
 Akroma's Memorial
 Alchemist's Refuge
 Alchemist's Talent
 All Is Dust
+Alpine Watchdog
+Alquist Proft, Master Sleuth
 Altered Ego
 Ancient Brass Dragon
 Angelic Destiny
 Anguished Unmaking
+Animal Sanctuary
 Animate Dead
 Animist's Awakening
 An Offer You Can't Refuse
 Anticausal Vestige
 Aqueous Form
+Arbor Adherent
 Arcane Denial
 Arcane Lighthouse
 Arcane Signet
@@ -40,6 +52,7 @@ Ardent Plea
 Argoth, Sanctum of Nature
 Arid Archway
 Armed and Armored
+Armed with Proof
 Armored Skyhunter
 Armor of Shadows
 Artful Dodge
@@ -54,15 +67,20 @@ Augur of Autumn
 Avacyn's Pilgrim
 Awakening Zone
 Ayli, Eternal Pilgrim
+Baffling End
 Bala Ged Recovery // Bala Ged Sanctuary
+Baleful Mastery
+Basim Ibn Ishaq
 Basri, Tomorrow's Champion
 Beamsaw Prospector
 Beanstalk Giant // Fertile Footsteps
 Beast Within
+Behold the Multiverse
 Beledros Witherbloom
 Benevolent Hydra
 Benthic Anomaly
 Berserkers' Onslaught
+Beseech the Mirror
 Betor, Ancestor's Voice
 Big Score
 Bilbo, Luckwearer // Burglar's Plot
@@ -70,29 +88,39 @@ Biomass Mutation
 Birds of Paradise
 Bitter Triumph
 Blackblade Reforged
+Black Cat, Cunning Thief
+Blackcleave Cliffs
+Black Market Connections
+Bladegriff Prototype
 Blasphemous Act
 Blast Zone
+Blazemire Verge
 Bleachbone Verge
 Blight Herder
 Blight Mound
+Blightwing Bandit
 Blinkmoth Nexus
 Blood Artist
+Blood Crypt
 Bloodghast
 Bloodsoaked Champion
 Bloodstained Mire
 Bloodsworn Steward
 Blossoming Bogbeast
 Blue Sun's Zenith
+Boggart Trawler // Boggart Bog
 Bog Initiate
 Bojuka Bog
 Bolt Bend
 Bonders' Enclave
 Bond of Agony
 Boon of the Wish-Giver
+Boosted Sloop
 Borborygmos and Fblthp
 Born to Drive
 Boseiju, Who Endures
 Bountiful Promenade
+Brainstealer Dragon
 Brainstorm
 Brallin, Skyshark Rider
 Brass Herald
@@ -100,6 +128,7 @@ Brass Infiniscope
 Brave the Elements
 Brazen Borrower // Petty Theft
 Breaker of Creation
+Breeches, Brazen Plunderer
 Breeding Pool
 Breena, the Demagogue
 Brotherhood Regalia
@@ -114,6 +143,7 @@ Camaraderie
 Canopy Vista
 Captain Howler, Sea Scourge
 Caradora, Heart of Alacria
+Cargo Ship
 Carnival Elephant Meteor
 Castle Ardenvale
 Castle Locthwain
@@ -123,11 +153,13 @@ Cauldron of Essence
 Caustic Hound
 Cavalier of Flame
 Caves of Koilos
+Cemetery Illuminator
 Censor
 Cephalid Coliseum
 Chainer, Dementia Master
 Chains of Custody
 Chandra, Spark Hunter
+Changeling Outcast
 Changing Loyalty
 Chaos Warp
 Chart a Course
@@ -137,6 +169,8 @@ Chimil, the Inner Sun
 Chronicle of Victory
 Chronomancer
 Cid, Freeflier Pilot
+Cid, Timeless Artificer
+Círdan the Shipwright
 City of Brass
 City of Shadows
 Cityscape Leveler
@@ -144,8 +178,11 @@ Clockspinning
 Cloudpost
 Clown Car
 Coastal Peak
+Coastal Piracy
+Codecracker Hound
 Codex Shredder
 Coercive Impetus
+Coldsteel Heart
 Collected Company
 Combat Calligrapher
 Combat Celebrant
@@ -159,19 +196,25 @@ Conduit of Worlds
 Consult the Star Charts
 Cool Fluffy Loxodon
 Cosmic Cube
+Council's Judgment
 Counterbalance
 Counterspell
 Country Roads
+Court of Grace
+Court of Locthwain
 Cranial Plating
 Crawling Barrens
 Creakwood Liege
 Creeping Renaissance
 Crime Novelist
 Crucible of Worlds
+Crumbling Necropolis
 Crumbling Vestige
 Crystalline Resonance
 Culling Ritual
 Cultivate
+Cultivator's Caravan
+Cunning Rhetoric
 Cunning Survivor
 Curator of Mysteries
 Curse of Opulence
@@ -179,10 +222,13 @@ Curse of the Swine
 Cybermen Squadron
 Cyclonic Rift
 Dakra Mystic
+Damnation
 Daretti, Scrap Savant
 Dark Confidant
+Darkslick Shores
 Darkstar Augur
 Darksteel Mutation
+Dauthi Voidwalker
 Deadly Brew
 Deadly Dispute
 Deadly Rollick
@@ -207,7 +253,9 @@ Desert of the Fervent
 Desert of the Mindful
 Desolate Mire
 Desperate Ravings
+Desynchronization
 Devourer of Destiny
+Diabolic Tutor
 Dig Through Time
 Dina, Essence Brewer
 Dion, Bahamut's Dominant // Bahamut, Warden of Light
@@ -217,19 +265,24 @@ Dispatch
 Displacement Wave
 Distant Melody
 Distortion Strike
+District Mascot
 Doomskar
 Doom Whisperer
 Dowsing Device // Geode Grotto
+Dragonskull Summit
 Drake Haven
 Drannith Stinger
 Dreamroot Cascade
 Dreamscape Artist
+Drowned Catacomb
 Drowner of Hope
 Drownyard Temple
 Duplicant
+Dusk Rose Reliquary
 Eccentric Pestfinder // Turn Stones
 Echoes of Eternity
 Eclipsed Steppe
+Edward Kenway
 Eidolon of Countless Battles
 Eiganjo Dynastorian // Replenish
 Eiganjo, Seat of the Empire
@@ -243,11 +296,14 @@ Eldrazi Temple
 Eldritch Immunity
 Elemental Bond
 Elementalist's Palette
+Elspeth Conquers Death
 Elusive Otter // Grove's Bounty
 Elves of Deep Shadow
 Elvish Mystic
 Emeria's Call // Emeria, Shattered Skyclave
 Emeria, the Sky Ruin
+Emeritus of Ideation // Ancestral Recall
+Emeritus of Truce // Swords to Plowshares
 Emmara, Soul of the Accord
 Emrakul's Messenger
 Emrakul, the Promised End
@@ -259,6 +315,7 @@ Enlightened Confidant
 Enlightened Maniac
 Ennis, Debate Moderator
 Entrancing Melody
+Erdwal Illuminator
 Eriette of the Charmed Apple
 Escape Protocol
 Escape Tunnel
@@ -270,16 +327,20 @@ Evolving Wilds
 Exotic Orchard
 Expansion Algorithm
 Expedition Map
+Expel from Orazca
 Exsanguinate
 Extract Power
 Eye of Ugin
 Fabled Passage
 Fabricate
+Faithful Watchdog
 Faithless Looting
 Falcon and Redwing
 Fallen Ideal
+Fall of the Impostor
 Farseek
 Fateful Absence
+Fearless Swashbuckler
 Feed the Swarm
 Fell the Profane // Fell Mire
 Fellwar Stone
@@ -306,6 +367,8 @@ Flayer of Loyalties
 Flickering Ward
 Flooded Grove
 Flooded Strand
+Floodfarm Verge
+Floodhound
 Fluctuator
 Fomori Vault
 Footfall Crater
@@ -327,6 +390,7 @@ Fyndhorn Elves
 Gathering Stone
 Gavony Township
 Generous Gift
+Generous Pup
 Genji Glove
 Gerrard's Hourglass Pendant
 Ghost Ark
@@ -336,11 +400,14 @@ Ghoulcaller's Bell
 Ghoulish Impetus
 Gift of Immortality
 Gilded Goose
+Gix, Yawgmoth Praetor
 Glacial Fortress
 Glaring Fleshraker
 Glimmerpost
+Glimmervoid
 Glint-Horn Buccaneer
 Glitch Interpreter
+Gloomlake Verge
 Goblin Coward Parade
 Goblin Engineer
 Goblin Welder
@@ -351,6 +418,8 @@ Gogo, Master of Mimicry
 Golden Argosy
 Goldspan Dragon
 Goldvein Hydra
+Gonti, Lord of Luxury
+Gonti, Night Minister
 Gorma, the Gullet
 Graaz, Unstoppable Juggernaut
 Grand Abolisher
@@ -358,16 +427,23 @@ Grasp of Fate
 Graven Lore
 Grave Researcher // Reanimate
 Gray Merchant of Asphodel
+Greater Tanuki
+Great Furnace
 Greenhouse Propagator
 Greymond, Avacyn's Stalwart
 Grim Backwoods
+Grim Tutor
+Grindstone
 Gruesome Slaughter
 Guardian Augmenter
 Guardian Idol
+Guardian Project
 Guidelight Matrix
 Guildless Commons
+Gwafa Hazid, Profiteer
 Gyome, Master Chef
 Gyre Sage
+Hagra Mauling // Hagra Broodpit
 Haliya, Guided by Light
 Hall of the Bandit Lord
 Hallowed Fountain
@@ -379,10 +455,14 @@ Hateful Eidolon
 Haunted Mire
 Haunt of the Dead Marshes
 Haywire Mite
+Heartless Act
+Heartless Conscription
+Heart of Kiran
 Hedron Detonator
 Hellkite Tyrant
 Helm of the Host
 Helping Hand
+Herald's Horn
 H.E.R.B.I.E., Lovable Robot
 Heroic Intervention
 Hidden Cataract
@@ -390,6 +470,8 @@ Hidden Courtyard
 Hidden Nursery
 Hieroglyphic Illumination
 High Market
+High-Speed Hoverbike
+Hinder
 Hinterland Harbor
 History of Benalia
 Hobbit Hole
@@ -397,6 +479,7 @@ Homeward Path
 Hope of Ghirapur
 Horizon Canopy
 Horn of Gondor
+Hostage Taker
 Howling Banshee
 Hunted Phantasm
 Hushwood Verge
@@ -417,13 +500,19 @@ Infernal Grasp
 Ingenious Prodigy
 Inkmoth Nexus
 Inkshield
+Inside Information
+Inspiring Call
 Instruments of War
 Insult // Injury
 Intrepid Stablemaster
+Invasion of Belenon // Belenon War Anthem
+Invasion of Dominaria // Serra Faithkeeper
+Invasion of Gobakhan // Lightshield Array
 Invasion of Ikoria // Zilortha, Apex of Ikoria
 Invasion of Ixalan // Belligerent Regisaur
 Invasion of Kamigawa // Rooftop Saboteurs
 Invasion of Moag // Bloomwielder Dryads
+Invasion of Muraganda // Primordial Plasm
 Invasion of New Phyrexia // Teferi Akosa of Zhalfir
 Invasion of Pyrulea // Gargantuan Slabhorn
 Invasion of Ravnica // Guildpact Paragon
@@ -445,16 +534,21 @@ Izzet Signet
 Jace Reawakened
 Jadar, Ghoulcaller of Nephalia
 Jocasta, Automaton Avenger
+Joined Researchers // Secret Rendezvous
 Journey to Nowhere
 Junk Jet
 Jwari Disruption // Jwari Ruins
+K-9, Mark I
+Kabira Takedown // Kabira Plateau
 Kami of Whispered Hopes
 Karn, Living Legacy
 Karn's Bastion
 Karoo
 Karplusan Forest
+Karvanista, Loyal Lupari
 Katilda, Dawnhart Prime
 Kazuul's Fury // Kazuul's Cliffs
+Keeper of Secrets
 Keeper of the Accord
 Kellan, the Kid
 Kenrith's Transformation
@@ -462,6 +556,8 @@ Ketria Triome
 Killian, Decisive Mentor
 Killian, Ink Duelist
 Kinetic Ooze
+King Solomon's Frogs
+Kitesail Larcenist
 Knight Exemplar
 Knight of the White Orchid
 Kodama's Reach
@@ -492,7 +588,9 @@ Living Twister
 Llanowar Elves
 Llanowar Wastes
 Loamcrafter Faun
+Lobelia, Defender of Bag End
 Lonely Sandbar
+Long-Bodied Grey Dog
 Long River's Pull
 Loran of the Third Path
 Lord Jyscal Guado
@@ -501,6 +599,7 @@ Lose Focus
 Losheel, Clockwork Scholar
 Lotus Cobra
 Loyal Warhound
+Lucky the Pizza Dog
 Lumbering Worldwagon
 Lumra, Bellow of the Woods
 Lush Portico
@@ -508,6 +607,9 @@ Madame Null, Power Broker
 Magda, Brazen Outlaw
 Magmakin Artillerist
 Magmatic Insight
+Make Your Own Luck
+Malakir Rebirth // Malakir Mire
+Malcolm, Alluring Scoundrel
 Malevolent Rumble
 Mana Bloom
 Mana Confluence
@@ -517,6 +619,7 @@ March of Otherworldly Light
 Marketback Walker
 Marsh Flats
 Martial Impetus
+Mary Read and Anne Bonny
 Master of Ceremonies
 Matter Reshaper
 Maze of Ith
@@ -524,36 +627,48 @@ Mazirek, Kraul Death Priest
 Mech Hangar
 Mechtitan Core
 Memnite
+Memory Deluge
 Memory Lapse
 Merchant of Venom
 Merciless Executioner
 Metallic Mimic
+Metamorphose
 Metastatic Evangel
 Meteor Golem
 Midnight Tilling
 Mikokoro, Center of the Sea
 Millikin
+Millstone
 Minas Morgul, Dark Fortress
 Minas Tirith
+Mind's Dilation
 Mind's Eye
 Mind Stone
 Miriam, Herd Whisperer
+Mirror Entity
+Mischievous Pup
 Mishra's Factory
 Mishra's Foundry
+Misinformation
 Mister Negative
 Misty Rainforest
 M.O.D.O.K.
 Mogis's Favor
 Moldervine Reclamation
 Momo, Playful Pet
+Mongrel Pack
 Monumental Henge
 Monument to Endurance
 Moon Girl and Devil Dinosaur
+Moonsnare Prototype
 Morbid Opportunist
 Moseo, Vein's New Dean
 Mountain
+Mowu, Loyal Companion
+Mox Opal
 Muddle the Mixture
 Muraganda Raceway
+Mushroom Watchdogs
 Mutavault
 Mycoloth
 Myr Battlesphere
@@ -562,6 +677,8 @@ Myr Retriever
 Mysterious Limousine
 Mystic Sanctuary
 Mystifying Maze
+Nashi, Moon Sage's Scion
+Natural Selection
 Nature's Lore
 Nautiloid Ship
 Necroblossom Snarl
@@ -600,14 +717,20 @@ Opal Palace
 Open the Way
 Ophiomancer
 Oran-Rief, the Vastwood
+Ornate Kanzashi
+Ossification
 Oswald Fiddlebender
 Otawara, Soaring City
+Outrageous Robbery
 Overflowing Basin
 Overgrown Farmland
 Overgrown Tomb
 Oversimplify
+Overwhelming Stampede
 Owlin Spiralmancer
 Ozolith, the Shattered Spire
+Pack Leader
+Palace Jailer
 Palantír of Orthanc
 Palladium Myr
 Paradox Gardens
@@ -619,12 +742,14 @@ Path to Exile
 Pawn of Ulamog
 Peacewalker Colossus
 Pearl-Ear, Imperial Advisor
+Peregrin Took
 Perilous Voyage
 Perplexing Test
 Persistent Specimen
 Pest Infestation
 Pest Rescuer
 Petrified Field
+Phelia, Exuberant Shepherd
 Phoenix Fleet Airship
 Phyrexia's Core
 Pirate's Pillage
@@ -633,12 +758,15 @@ Pitiless Plunderer
 Plague Myr
 Plains
 Planar Nexus
+Plan the Heist
 Plumb the Forbidden
 Polluted Delta
 Pongify
 Portent Tracker
 Port Razer
 Powerbalance
+Power Conduit
+Praetor's Grasp
 Prairie Stream
 Prickly Marmoset
 Priest of Forgotten Gods
@@ -657,10 +785,13 @@ Quandrix Apprentice
 Quandrix Campus
 Quandrix Charm
 Quandrix Command
+Quantum Riddler
 Quicksmith Genius
 Raffine's Guidance
 Raise the Past
 Raking Claws
+Rambunctious Mutt
+Ramirez DePietro, Pillager
 Rampant Growth
 Ramunap Excavator
 Ramunap Ruins
@@ -671,17 +802,22 @@ Reality Shift
 Reality Smasher
 Reanimate
 Reassembling Skeleton
+Reckless Fireweaver
 Reckoner Bankbuster
 Recon Craft Theta
 Recruiter of the Guard
+Recurring Insight
 Redemption Arc
 Redirect Lightning
+Reflecting Pool
 Reforge the Soul
 Rejuvenating Springs
+Release the Dogs
 Relic of Progenitus
 Reliquary Tower
 Remembrance
 Repurposing Bay
+Return of the Wildspeaker
 Return the Favor
 Return to Dust
 Return to the Ranks
@@ -691,6 +827,7 @@ Rings of Brighthearth
 Rip, Spawn Hunter
 Riptide Laboratory
 Riverchurn Monument
+Riverpyre Verge
 RMS Titanic
 Roar of the Kha
 Robo-Piñata
@@ -713,13 +850,17 @@ Savannah
 Scalding Tarn
 Scaretiller
 Scavenger Grounds
+Scheming Symmetry
 Scholar of New Horizons
 Scour from Existence
 Screams from Within
+Scrib Nibblers
 Scriv, the Obligator
 Sea Gate Restoration // Sea Gate, Reborn
+Sea of Clouds
 Search for Azcanta // Azcanta, the Sunken Ruin
 Search for Tomorrow
+Seaside Citadel
 Seat of the Synod
 Secret Rendezvous
 Secrets of the Dead
@@ -728,6 +869,7 @@ Seize the Spoils
 Sejiri Shelter // Sejiri Glacier
 Selective Obliteration
 Selesnya Sanctuary
+Selfless Savior
 Sensei's Divining Top
 Sentinel's Eyes
 Senu, Keen-Eyed Protector
@@ -745,6 +887,7 @@ Sheoldred's Edict
 Shielded by Faith
 Shineshadow Snarl
 Shivan Reef
+Shizo, Death's Storehouse
 Shrine of the Forsaken Gods
 Sigarda, Champion of Light
 Sigarda, Font of Blessings
@@ -756,12 +899,15 @@ Silver Scrutiny
 Simic Growth Chamber
 Simulacrum Shaper
 Sink into Stupor // Soporific Springs
+Siren Stormtamer
 Sire of Seven Deaths
 Six
 Skirsdag Supplicant
 Skrelv, Defector Mite
 Skullclamp
 Skyclave Apparition
+Skycoach Waypoint
+Sky Skiff
 Skysovereign, Consul Flagship
 Slagwoods Bridge
 Slice and Dice
@@ -769,6 +915,7 @@ Slip Through Space
 Smuggler's Copter
 Snow-Covered Island
 Snow-Covered Wastes
+Snuff Out
 Sodden Verdure
 Sokenzan, Crucible of Defiance
 Solar Blast
@@ -776,6 +923,7 @@ Solemn Simulacrum
 Sol Ring
 Songbirds' Blessing
 Song-Mad Treachery // Song-Mad Ruins
+Sophia, Dogged Detective
 Soulcage Fiend
 Souldrinker
 Spara's Headquarters
@@ -788,6 +936,7 @@ Spikefield Hazard // Spikefield Cave
 Spine of Ish Sah
 Spirebluff Canal
 Spire of Industry
+Spirited Companion
 Spirit Mantle
 Split Up
 Springbloom Druid
@@ -814,9 +963,11 @@ Striding Shotcaller // Run the Play
 Strionic Resonator
 Striped Riverwinder
 Stroke of Genius
+Studious First-Year // Rampant Growth
 Study Hall
 Sudden Spoiling
 Sulfur Falls
+Sulfurous Springs
 Summon: Ixion
 Summon: Knights of Round
 Summon: Yojimbo
@@ -826,6 +977,7 @@ Sunken Palace
 Sunpetal Grove
 Sunset Strikemaster
 Sun Titan
+Supply Runners
 Surgehacker Mech
 Surly Badgersaur
 Swamp
@@ -841,13 +993,18 @@ Tainted Sigil
 Takenuma, Abandoned Mire
 Talisman of Creativity
 Talisman of Curiosity
+Talisman of Dominance
 Talisman of Hierarchy
 Talisman of Impulse
+Talisman of Indulgence
 Talon Gates of Madara
 Tamiyo's Journal
+Tam, Observant Sequencer // Deep Sight
 Tanazir Quandrix
 Tangled Islet
+Tanglepool Bridge
 Tarrian's Soulcleaver
+Tataru Taru
 Teacher's Pest
 Tectonic Reformation
 Templar Knight
@@ -858,6 +1015,8 @@ Temple of Plenty
 Temple of Silence
 Temple of the False God
 Tendershoot Dryad
+Tenuous Truce
+Terminate
 Terramorphic Expanse
 Tezzeret, Cruel Captain
 Tezzeret the Seeker
@@ -870,7 +1029,9 @@ The Fire Crystal
 The Goose Mother
 The Great Henge
 The Great Mound
+The Indomitable
 The Legend of Yangchen // Avatar Yangchen
+The Lunar Whale
 The Master of Lake-town
 The Mycosynth Gardens
 The Prydwen, Steel Flagship
@@ -878,6 +1039,10 @@ The Reality Chip
 The Regalia
 Thespian's Stage
 The Vision
+Thieves' Tools
+Thieving Amalgam
+Thornspire Verge
+Thorough Investigation
 Thought-Knot Seer
 Thought Vessel
 Thran Dynamo
@@ -893,20 +1058,25 @@ Thrumming Stone
 Thundering Falls
 Tibalt's Trickery
 Ticketomaton
+Tinybones, the Pickpocket
+Tireless Tracker
 Titania, Gaea Incarnate
 Titania, Voice of Gaea
 Titan's Grave
 Titan's Presence
 Tolaria West
 Tome of Legends
+Torgal, A Fine Hound
 Tower of the Magistrate
 Toxic Deluge
+Trade Route Envoy
 Trade Routes
 Trading Post
 Trailblazer's Boots
 Training Center
 Transcendent Envoy
 Traumatic Visions
+Traveling Botanist
 Treasure Cruise
 Tree of Redemption
 Trial of a Time Lord
@@ -914,6 +1084,7 @@ Trinket Mage
 Tri-Sentinel, Act of Vengeance
 Troyan, Gutsy Explorer
 Trudge Garden
+Trusty Retriever
 Turbulent Fen
 Turbulent Moor
 Turbulent Springs
@@ -937,11 +1108,14 @@ Ultima, Origin of Oblivion
 Ultron the Annihilator
 Umbral Collar Zealot
 Unbound Flourishing
+Unbreakable Formation
 Undead Butler
+Underground River
 Undergrowth Stadium
 Unfathomable Truths
 Unholy Indenture
 Unidentified Hovership
+Universal Automaton
 Unlicensed Hearse
 Unpredictable Cyclone
 Unstable Glyphbridge // Sandswirl Wanderglyph
@@ -949,6 +1123,7 @@ Untamed Hunger
 Untimely Malfunction
 Unwinding Clock
 Urborg, Tomb of Yawgmoth
+Uro, Titan of Nature's Wrath
 Urza's Cave
 Urza's Mine
 Urza's Power Plant
@@ -979,12 +1154,14 @@ Vizier of Tumbling Sands
 Vona, Butcher of Magan
 Walking Atlas
 Wall of Blood
+Wand of Denial
 Warping Wail
 Warren Soultrader
 War Room
 Wastes
 Wastewood Verge
 Waterlogged Grove
+Watery Grave
 Wayfarer's Bauble
 Weathered Wayfarer
 Weatherlight
@@ -996,6 +1173,7 @@ Wight of the Reliquary
 Wild Ride
 Wild Roads
 Will of the Abzan
+Willowrush Verge
 Windcaller Aven
 Winds of Abandon
 Winds of Rath
@@ -1006,6 +1184,8 @@ Witherbloom Campus
 Witherbloom Charm
 Witherbloom Command
 Withering Torment
+Witness Protection
+Wizard's Staff
 Wizened Snitches
 Woe Strider
 Wooded Bastion
@@ -1018,6 +1198,7 @@ Wrenn and Six
 Wrenn's Resolve
 Wurmcoil Engine
 Wylie Duke, Atiin Hero
+Xander's Lounge
 Xorn
 Yahenni, Undying Partisan
 Yathan Roadwatcher
@@ -1026,10 +1207,13 @@ Yavimaya Coast
 Yavimaya, Cradle of Growth
 Yawgmoth Merfolk Soul
 Yidaro, Wandering Monster
+Yorion, Sky Nomad
+Yoshimaru, Beloved Companion
 Zenith Chronicler
 Zenith Seeker
 Zimone, All-Questioning
 Zimone, Infinite Analyst
 Zimone, Quandrix Prodigy
 Zimone's Hypothesis
+Zoetic Glyph
 Zulaport Cutthroat

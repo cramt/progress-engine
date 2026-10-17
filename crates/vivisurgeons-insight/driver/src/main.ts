@@ -240,10 +240,22 @@ function queueText(queue: Queued[]): string {
 
 function milestoneStatus(m: Measurement): MilestoneStatus {
   for (const ms of milestones) {
-    if (existsSync(join(paths.crate, "golden", `${ms.name}.txt`))) continue;
     const r = row(m.coverage, ms.coverageLabel);
     const done =
       r.cards.ok === r.cards.total && r.abilities.ok === r.abilities.total;
+    // A pinned list can grow (new decks in my-decks), which reopens it: the
+    // new cards need parsing, then a re-pin so golden holds them too. `pin`
+    // writes exactly the cards coverage counts, so a count that differs is
+    // a golden file from an older list.
+    const golden = join(paths.crate, "golden", `${ms.name}.txt`);
+    const pinnedCards = existsSync(golden)
+      ? new Set(
+          readFileSync(golden, "utf8")
+            .split("\n")
+            .filter((l) => l.startsWith("## ")),
+        ).size
+      : null;
+    if (done && pinnedCards === r.cards.total) continue;
     return { kind: done ? "ready-to-pin" : "working", milestone: ms, row: r };
   }
   return { kind: "all-pinned" };
@@ -415,7 +427,7 @@ async function startBatch(batch: number): Promise<Started> {
       escalate(
         batch,
         "milestone",
-        `${s.milestone.name} is at 100% (${rowLine(s)}). Review it, then pin with \`insight pin ${s.milestone.target}\`; the driver moves on once golden/${s.milestone.name}.txt exists.`,
+        `${s.milestone.name} is at 100% (${rowLine(s)}). Review it, then pin with \`insight pin ${s.milestone.target}\`; the driver moves on once golden/${s.milestone.name}.txt holds every card of it.`,
       );
       return {
         kind: "stop",
