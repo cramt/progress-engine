@@ -117,7 +117,7 @@ face: Blizzard Brawl
 type: Snow Sorcery
 cost: {G}
 > Choose target creature you control and target creature you don't control. If you control three or more snow permanents, the creature you control gets +1/+0 and gains indestructible until end of turn. Then those creatures fight each other. (Each deals damage equal to its power to the other.)
-= BROKE at "." after: choose target creature you control and target creature you don't control
+= Spell([Choose(Targets([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } }])), If { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Supertype("snow")]], kind: Some(Permanent), posts: [], or: None } }), then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }] }, FightEachOther(Objects { quant: Listed, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])
 
 ## Blood-Toll Harpy
 face: Blood-Toll Harpy

@@ -1823,6 +1823,7 @@ fn brings_in(e: &Effect) -> bool {
         | Effect::Search { what, .. }
         | Effect::Reveal { what, .. }
         | Effect::Choose(Choice::Objects(what)) => new(what),
+        Effect::Choose(Choice::Targets(v)) => v.iter().any(new),
         Effect::Create { .. }
         | Effect::CreateCopy { .. }
         | Effect::CreateNamed { .. }

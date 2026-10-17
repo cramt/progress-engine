@@ -2751,6 +2751,35 @@ pub fn each_player_chose(es: &mut [Effect]) {
     }
 }
 
+/// "Choose target creature you control and target creature you don't
+/// control. … Then those creatures fight each other": the fight is both
+/// targets, `Listed` ([choose-targets], [fight-each-other]). `false` when a
+/// later clause says "each of those creatures deals damage … to the
+/// other" (Grim Contest), which no node holds: one source and `Rest` would
+/// be one creature's damage.
+pub fn choose_targets_listed(es: &mut [Effect]) -> bool {
+    let Some(i) = es
+        .iter()
+        .position(|e| matches!(e, Effect::Choose(Choice::Targets(_))))
+    else {
+        return true;
+    };
+    for e in es[i + 1..].iter_mut() {
+        match e {
+            Effect::FightEachOther(o) if o.quant == Quant::Antecedent => o.quant = Quant::Listed,
+            Effect::Damage { to, .. }
+                if to
+                    .iter()
+                    .any(|t| matches!(t, Recipient::Objects(o) if o.quant == Quant::Rest)) =>
+            {
+                return false
+            }
+            _ => {}
+        }
+    }
+    true
+}
+
 /// The renderer's inverse of `each_player_creates`: the pass per player is
 /// said "each player creates … and puts …", as the card says it.
 pub fn each_player_creates_said(es: &mut Vec<Effect>) {
@@ -3984,6 +4013,12 @@ pub enum Choice {
     Opponent,
     /// "choose target artifact card in your graveyard".
     Objects(Objects),
+    /// "choose target creature you control and target creature you don't
+    /// control": two targets chosen at once, each its own target (CR
+    /// 115.1), which later sentences tell apart by description ("the
+    /// creature you control") or name together ("those creatures")
+    /// ([choose-targets]).
+    Targets(Vec<Objects>),
     /// "choose artifact, creature, enchantment, instant, or sorcery": one
     /// of these card types.
     CardTypeAmong(Vec<String>),
@@ -4034,6 +4069,7 @@ impl Ability {
             | Ability::Triggered { effect: es, .. }
             | Ability::Spree { effect: es, .. }
             | Ability::Chapter { effect: es, .. } => Some(es),
+            Ability::Labelled { ability, .. } => ability.effects_mut(),
             _ => None,
         }
     }

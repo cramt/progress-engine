@@ -2850,6 +2850,9 @@ pub fn parse_line(
             if let Some(es) = a.effects_mut() {
                 crate::ast::each_player_creates(es);
                 crate::ast::each_player_chose(es);
+                if !crate::ast::choose_targets_listed(es) {
+                    return Err(p.furthest);
+                }
             }
             counters_on_itself(&mut a);
             Ok(a)

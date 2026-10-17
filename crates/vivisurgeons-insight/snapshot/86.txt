@@ -411,7 +411,7 @@ face: Grim Contest
 type: Instant
 cost: {1}{B}{G}
 > Choose target creature you control and target creature an opponent controls. Each of those creatures deals damage equal to its toughness to the other.
-= BROKE at "." after: choose target creature you control and target creature an opponent controls
+= BROKE at "<end>" after: choose target creature you control and target creature an opponent controls . each of those creatures deals damage equal to its toughness to the other .
 
 ## Hail of Arrows
 face: Hail of Arrows

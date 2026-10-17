@@ -9727,6 +9727,14 @@ fn choice(o: &mut Out, c: &Choice) {
         Choice::Player => o.w("a player"),
         Choice::Opponent => o.w("an opponent"),
         Choice::Objects(x) => objects(o, x),
+        Choice::Targets(v) => {
+            for (i, x) in v.iter().enumerate() {
+                if i > 0 {
+                    o.w("and");
+                }
+                objects(o, x);
+            }
+        }
         Choice::KeywordsAmong { n, among } => {
             syn::number(o, *n);
             o.w(if *n == 1 { "ability" } else { "abilities" });

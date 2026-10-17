@@ -220,7 +220,7 @@ face: Capricious Efreet
 type: Creature — Efreet
 cost: {4}{R}{R}
 > At the beginning of your upkeep, choose target nonland permanent you control and up to two target nonland permanents you don't control. Destroy one of them at random.
-= BROKE at "." after: at the beginning of your upkeep , choose target nonland permanent you control and up to two target nonland permanents you don't control
+= BROKE at "random" after: at the beginning of your upkeep , choose target nonland permanent you control and up to two target nonland permanents you don't control . destroy one of them at
 
 ## Carnivorous Cultivator // Enroot
 face: Carnivorous Cultivator

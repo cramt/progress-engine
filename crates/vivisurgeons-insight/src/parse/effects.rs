@@ -1211,6 +1211,15 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 |p| p.words("target opponent").map(|_| Choice::TargetOpponent),
                 |p| p.words("a player").map(|_| Choice::Player),
                 |p| p.words("target player").map(|_| Choice::TargetPlayer),
+                // "choose target artifact a player controls and target
+                // artifact card in that player's graveyard" ([choose-targets]).
+                |p| {
+                    let target = |o: &Objects| matches!(o.quant, Quant::Target { .. });
+                    let first = objects(p).filter(target)?;
+                    p.word("and")?;
+                    let second = objects(p).filter(target)?;
+                    Some(Choice::Targets(vec![first, second]))
+                },
                 |p| objects(p).map(Choice::Objects),
             )?;
             Some(Effect::Choose(c))

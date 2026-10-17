@@ -372,7 +372,7 @@ face: Goblin Welder
 type: Creature — Goblin Artificer
 cost: {R}
 > {T}: Choose target artifact a player controls and target artifact card in that player's graveyard. If both targets are still legal as this ability resolves, that player simultaneously sacrifices the artifact and returns the artifact card to the battlefield.
-= BROKE at "." after: {T} : choose target artifact a player controls and target artifact card in that player 's graveyard
+= BROKE at "are" after: {T} : choose target artifact a player controls and target artifact card in that player 's graveyard . if both targets
 
 ## Golem Artisan
 face: Golem Artisan

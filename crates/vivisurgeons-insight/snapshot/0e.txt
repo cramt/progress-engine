@@ -858,7 +858,7 @@ face: Stolen Uniform
 type: Instant
 cost: {U}
 > Choose target creature you control and target Equipment. Gain control of that Equipment until end of turn. Attach it to the chosen creature. When you lose control of that Equipment this turn, if it's attached to a creature you control, unattach it.
-= BROKE at "." after: choose target creature you control and target equipment
+= BROKE at "control" after: choose target creature you control and target equipment . gain control of that equipment until end of turn . attach it to the chosen creature . when you lose
 
 ## Strafe
 face: Strafe
