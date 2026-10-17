@@ -604,7 +604,7 @@ cost: {1}{U}{B}
 > (As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)
 > I — Each player mills four cards. Then you may exile a creature or planeswalker card from each graveyard.
 > II, III — Until end of turn, you may cast spells from among cards exiled with this Saga, and you may spend mana as though it were mana of any color to cast those spells.
-= Chapter { chapters: [1], effect: [Mill { who: Each, n: N(4) }, May { who: You, then: [Exile(Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } })] }] }
+= Chapter { chapters: [1], effect: [Mill { who: Each, n: N(4) }, May { who: You, then: [Exile(Objects { quant: NFromEach(N(1)), filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } })] }] }
 = Chapter { chapters: [2, 3], effect: [During { dur: UntilEndOfTurn, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [FromAmong(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })], or: None } }, payment: ManaCost, dur: Permanent }] }, May { who: You, then: [SpendAsAnyColor { uses: [Cast(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })], dur: Permanent }] }] }] }
 
 ## Korozda Guildmage

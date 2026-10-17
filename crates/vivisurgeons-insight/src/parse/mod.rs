@@ -2178,14 +2178,24 @@ impl Visitor for SpellCastFrom {
 
 /// "Exile the top card of each player's library": the possessive "each
 /// player's" distributes, so the count is per library, one card from each.
+/// The same holds for a graveyard: "a spell from each opponent's graveyard",
+/// "an instant or sorcery card from each graveyard" is one from each.
 struct FromEachLibrary;
 
 impl Visitor for FromEachLibrary {
     fn enter(&mut self, o: &mut Objects) -> bool {
-        if let (Quant::N(n), [Post::In(Zone::TopOfLibrary(Player::Each | Player::EachOpponent))]) =
-            (&o.quant, &o.filter.posts[..])
-        {
-            o.quant = Quant::NFromEach(n.clone());
+        let each = |p: &Player| matches!(p, Player::Each | Player::EachOpponent);
+        let from_each = match &o.filter.posts[..] {
+            [Post::In(Zone::TopOfLibrary(p))] => each(p),
+            [Post::In(Zone::Graveyard(p)) | Post::CastFrom(Zone::Graveyard(p))] => each(p),
+            _ => false,
+        };
+        if from_each {
+            match &o.quant {
+                Quant::N(n) => o.quant = Quant::NFromEach(n.clone()),
+                Quant::One => o.quant = Quant::NFromEach(Amount::N(1)),
+                _ => {}
+            }
         }
         true
     }

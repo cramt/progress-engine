@@ -949,7 +949,7 @@ cost: {3}{R}
 > I — Exile an instant or sorcery card from each graveyard.
 > II, III, IV — Add {R} for each lore counter on this Saga. You may cast an instant or sorcery card exiled with this Saga, and mana of any type can be spent to cast that spell.
 > Flying, haste
-= Chapter { chapters: [1], effect: [Exile(Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } })] }
+= Chapter { chapters: [1], effect: [Exile(Objects { quant: NFromEach(N(1)), filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } })] }
 = Chapter { chapters: [2, 3, 4], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("lore"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, payment: ManaCost, dur: Permanent }] }, SpendAsAnyType { uses: [Cast(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })], dur: Permanent }] }
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }])
 
