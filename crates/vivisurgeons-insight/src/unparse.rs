@@ -3216,6 +3216,10 @@ fn measure(o: &mut Out, a: &Amount) {
         Amount::DamagePrevented => o.w("1 damage prevented this way"),
         Amount::RolledResults(Parity::Odd) => o.w("odd result"),
         Amount::RolledResults(Parity::Even) => o.w("even result"),
+        Amount::Votes(w) => {
+            o.w(w);
+            o.w("vote");
+        }
         Amount::TimesAttackedThisTurn(x) => {
             o.w("time");
             pronoun_or(o, x, syn::it_has, |o| {
@@ -8320,7 +8324,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("as steps and phases end");
         }
         Effect::Repeat { times, then } => match times {
-            Amount::RolledResults(_) => {
+            Amount::RolledResults(_) | Amount::Votes(_) => {
                 o.w("for each");
                 amount(o, times);
                 o.w(",");

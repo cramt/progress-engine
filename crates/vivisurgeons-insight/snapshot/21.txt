@@ -1020,7 +1020,7 @@ type: Sorcery
 cost: {5}{G}
 > Council's dilemma — Starting with you, each player votes for Redhorn Pass or Mines of Moria. For each Redhorn Pass vote, search your library for a basic land card and put it onto the battlefield tapped. If you search your library this way, shuffle. For each Mines of Moria vote, return a card from your graveyard to your hand.
 > Exile Travel Through Caradhras.
-= BROKE at "pass" after: council 's dilemma — starting with you , each player votes for redhorn pass or mines of moria . for each redhorn
+= Labelled { label: "council's dilemma", ability: Spell([StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["redhorn pass", "mines of moria"]) }] }, Repeat { times: Votes("redhorn pass"), then: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }, If { cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }, Repeat { times: Votes("mines of moria"), then: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }]) }
 = Spell([Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Trespasser's Curse

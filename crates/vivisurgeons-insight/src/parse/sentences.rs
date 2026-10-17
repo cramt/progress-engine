@@ -289,6 +289,13 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.words("result ,")?;
             Some(vec![Effect::Repeat { times: Amount::RolledResults(parity), then: clauses(p)? }])
         },
+        // "For each evidence vote, investigate." (CR 701.38): once per vote.
+        |p| {
+            p.words("for each")?;
+            let w = super::conditions::vote_option(p, "vote")?;
+            p.words("vote ,")?;
+            Some(vec![Effect::Repeat { times: Amount::Votes(w), then: clauses(p)? }])
+        },
         // "For each 1 damage prevented this way, create …": once per point.
         |p| {
             p.words("for each")?;

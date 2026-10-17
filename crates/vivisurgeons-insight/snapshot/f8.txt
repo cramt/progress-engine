@@ -330,7 +330,7 @@ face: Expropriate
 type: Sorcery
 cost: {7}{U}{U}
 > Council's dilemma — Starting with you, each player votes for time or money. For each time vote, take an extra turn after this one. For each money vote, choose a permanent owned by the voter and gain control of it. Exile Expropriate.
-= BROKE at "vote" after: council 's dilemma — starting with you , each player votes for time or money . for each time
+= BROKE at "owned" after: council 's dilemma — starting with you , each player votes for time or money . for each time vote , take an extra turn after this one . for each money vote , choose a permanent
 
 ## Ezio, Brash Novice
 face: Ezio, Brash Novice

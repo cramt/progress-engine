@@ -462,6 +462,9 @@ pub enum Amount {
     /// "each odd result": the results of the dice just rolled that are odd
     /// (or even), one per die (CR 706.2: the result after modifiers).
     RolledResults(Parity),
+    /// "each evidence vote": the votes cast for that choice (CR 701.38), one
+    /// per vote.
+    Votes(String),
     /// "each time it has attacked this turn".
     TimesAttackedThisTurn(Box<Objects>),
     /// "up to two": the player picks any number to that bound.
