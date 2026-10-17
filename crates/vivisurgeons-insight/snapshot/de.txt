@@ -91,7 +91,7 @@ face: Betroth the Beast
 type: Sorcery — Adventure
 cost: {W}
 > Create a Royal Role token attached to target creature you control. (Enchanted creature gets +1/+1 and has ward {1}.)
-= Spell([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("royal role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }])
+= Spell([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("royal role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }])
 
 ## Blessed Alliance
 face: Blessed Alliance

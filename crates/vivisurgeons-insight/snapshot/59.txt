@@ -338,7 +338,7 @@ cost: {1}{U}
 > I — Create a Cursed Role token attached to up to one target creature. (If you control another Role on it, put that one into the graveyard. Enchanted creature is 1/1.)
 > II — Scry 2.
 > III — When you next cast an instant or sorcery spell with mana value 3 or less this turn, copy that spell. You may choose new targets for the copy.
-= Chapter { chapters: [1], effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("cursed role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }
+= Chapter { chapters: [1], effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("cursed role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, name: None }] }
 = Chapter { chapters: [2], effect: [Scry(N(2))] }
 = Chapter { chapters: [3], effect: [DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) })], or: None } } }, dur: ThisTurn, then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }
 

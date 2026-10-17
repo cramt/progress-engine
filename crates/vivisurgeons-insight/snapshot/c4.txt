@@ -820,7 +820,7 @@ face: Royal Treatment
 type: Instant
 cost: {G}
 > Target creature you control gains hexproof until end of turn. Create a Royal Role token attached to that creature. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has ward {1}.)
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "hexproof", param: None }], dur: UntilEndOfTurn }, CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("royal role"), attacking: None }, to: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "hexproof", param: None }], dur: UntilEndOfTurn }, CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("royal role"), attacking: None }, to: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, name: None }])
 
 ## Ruby, Daring Tracker
 face: Ruby, Daring Tracker

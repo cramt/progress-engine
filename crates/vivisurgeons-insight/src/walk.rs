@@ -1460,7 +1460,9 @@ impl Walk for Effect {
                 Walk::walk(n, v);
                 Walk::walk(token, v);
             }
-            Effect::CreateAttached { who, n, token, to } => {
+            Effect::CreateAttached {
+                who, n, token, to, ..
+            } => {
                 Walk::walk(who, v);
                 Walk::walk(n, v);
                 Walk::walk(token, v);

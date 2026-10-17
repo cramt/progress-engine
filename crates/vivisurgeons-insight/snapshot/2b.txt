@@ -857,7 +857,7 @@ face: Splashy Spellcaster
 type: Creature — Elemental Wizard
 cost: {3}{U}
 > Whenever you cast an instant or sorcery spell, create a Sorcerer Role token attached to up to one other target creature you control. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has "Whenever this creature attacks, scry 1.")
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("sorcerer role"), attacking: None }, to: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("sorcerer role"), attacking: None }, to: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }], limits: [] }
 
 ## Stalactite Dagger
 face: Stalactite Dagger

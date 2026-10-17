@@ -540,7 +540,7 @@ type: Enchantment
 cost: {1}{B}
 > When this enchantment enters, create a Wicked Role token attached to target creature you control. (Enchanted creature gets +1/+1. When this token is put into a graveyard, each opponent loses 1 life.)
 > At the beginning of your draw step, if you control an enchanted creature, you lose 1 life and you draw an additional card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }], limits: [] }
 = Triggered { trigger: InterveningIf(At(DrawStep(Yours)), YouControl(Objects { quant: One, filter: Filter { alts: [[State(Enchanted), Type("creature")]], kind: None, posts: [], or: None } })), effect: [LoseLife { who: You, n: N(1) }, Draw { who: You, n: Additional(N(1)) }], limits: [] }
 
 ## Lurking Arynx

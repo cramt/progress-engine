@@ -740,7 +740,7 @@ cost: {1}{W}
 > Vigilance
 > At the beginning of combat on your turn, you may pay {1}. When you do, create a Sorcerer Role token attached to target creature you control. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has "Whenever this creature attacks, scry 1.")
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Triggered { trigger: At(Combat(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1"]))] }] }, WhenYouDo([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("sorcerer role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }])], limits: [] }
+= Triggered { trigger: At(Combat(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1"]))] }] }, WhenYouDo([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("sorcerer role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }])], limits: [] }
 
 ## Spiketail Drake
 face: Spiketail Drake

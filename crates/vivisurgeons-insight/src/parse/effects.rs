@@ -589,7 +589,7 @@ fn effect_first(p: &mut P) -> Option<Effect> {
             let (n, token) = token(p)?;
             p.words("attached to")?;
             let to = objects(p)?;
-            Some(Effect::CreateAttached { who, n, token, to })
+            Some(Effect::CreateAttached { who, n, token, to, name: None })
         },
         // "double the value of X" (Unbound Flourishing): the spell's X.
         |p| {

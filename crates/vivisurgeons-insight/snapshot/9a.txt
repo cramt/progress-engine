@@ -78,7 +78,7 @@ cost: {2}{U}{U}
 > You may cast this spell as though it had flash if you pay {2} more to cast it.
 > For each creature your opponents control, create a Cursed Role token attached to that creature. (If you control another Role on it, put that one into the graveyard. Enchanted creature is 1/1.)
 = Static([CastAsThoughFlashFor { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["2"]))] }])
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, then: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("cursed role"), attacking: None }, to: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }])
+= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, then: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("cursed role"), attacking: None }, to: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, name: None }] }])
 
 ## Augur of Skulls
 face: Augur of Skulls

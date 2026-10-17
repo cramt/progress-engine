@@ -953,7 +953,7 @@ type: Legendary Creature — Human Knight
 cost: {3}{G}{W}
 > When Syr Armont enters, create a Monster Role token attached to another target creature you control. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has trample.)
 > Enchanted creatures you control get +1/+1.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("monster role"), attacking: None }, to: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("monster role"), attacking: None }, to: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }], limits: [] }
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
 
 ## Tam's Resistance

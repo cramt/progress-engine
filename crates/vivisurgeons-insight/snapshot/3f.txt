@@ -248,7 +248,7 @@ face: Curse of the Werefox
 type: Sorcery
 cost: {2}{G}
 > Create a Monster Role token attached to target creature you control. When you do, that creature fights up to one target creature you don't control. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has trample. Creatures that fight each deal damage equal to their power to the other.)
-= Spell([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("monster role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, WhenYouDo([Fight { a: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, b: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } } }])])
+= Spell([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("monster role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }, WhenYouDo([Fight { a: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, b: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } } }])])
 
 ## Desert of the Glorified
 face: Desert of the Glorified

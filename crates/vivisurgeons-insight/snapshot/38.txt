@@ -1011,7 +1011,7 @@ cost: {1}{B}
 > III — Create a Wicked Role token attached to target creature you control.
 = Chapter { chapters: [1], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent), With(Compare { stat: ManaValue, op: Le, value: N(2) })], or: None } }, no_regen: false }] }
 = Chapter { chapters: [2], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }] }
-= Chapter { chapters: [3], effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }] }
+= Chapter { chapters: [3], effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }] }
 
 ## The World Tree
 face: The World Tree

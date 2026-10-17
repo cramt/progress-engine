@@ -729,7 +729,7 @@ face: Shatter the Oath
 type: Sorcery
 cost: {3}{B}{B}
 > Destroy target creature or enchantment. Create a Wicked Role token attached to up to one target creature you control. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1. When this token is put into a graveyard, each opponent loses 1 life.)
-= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }])
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }])
 
 ## She-Hulk, Attorney-at-Law
 face: She-Hulk, Attorney-at-Law

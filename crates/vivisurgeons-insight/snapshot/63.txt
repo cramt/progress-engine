@@ -285,7 +285,7 @@ type: Creature — Troll
 cost: {2}{B}{G}
 > When this creature enters, create a Monster Role token attached to it. (Enchanted creature gets +1/+1 and has trample.)
 > {1}, Sacrifice an Aura attached to this creature: This creature fights target creature you don't control. If that creature would die this turn, exile it instead. Activate only as a sorcery.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("monster role"), attacking: None }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("monster role"), attacking: None }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, name: None }], limits: [] }
 = BROKE at "this" after: {1} , sacrifice an aura attached to
 
 ## Feebleness
@@ -311,7 +311,7 @@ face: Guard Change
 type: Instant — Adventure
 cost: {1}{G}
 > Create a Monster Role token attached to target creature you control. (Enchanted creature gets +1/+1 and has trample.)
-= Spell([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("monster role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }])
+= Spell([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("monster role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }])
 
 ## Fire Nation Occupation
 face: Fire Nation Occupation

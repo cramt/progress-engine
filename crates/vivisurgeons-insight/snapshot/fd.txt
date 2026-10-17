@@ -1126,7 +1126,7 @@ face: Unassuming Sage
 type: Creature — Human Peasant Wizard
 cost: {1}{W}
 > When this creature enters, you may pay {2}. If you do, create a Sorcerer Role token attached to it. (Enchanted creature gets +1/+1 and has "Whenever this creature attacks, scry 1.")
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("sorcerer role"), attacking: None }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("sorcerer role"), attacking: None }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, name: None }])], limits: [] }
 
 ## Victimize
 face: Victimize

@@ -1042,7 +1042,7 @@ cost: {2}{R}
 > Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.
 > Create a Wicked Role token attached to up to one target creature. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1. When this token is put into a graveyard, each opponent loses 1 life.)
 = Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }, Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }])
-= Spell([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }])
+= Spell([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, name: None }])
 
 ## Vegetation Abomination
 face: Vegetation Abomination

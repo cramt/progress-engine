@@ -2110,12 +2110,15 @@ pub enum Effect {
         token: Token,
         name: String,
     },
-    /// "Create a Monster Role token attached to it."
+    /// "Create a Monster Role token attached to it", "create a white Aura
+    /// enchantment token named Contract attached to target creature an
+    /// opponent controls" (Scriv): the name, where one is given.
     CreateAttached {
         who: Player,
         n: Amount,
         token: Token,
         to: Objects,
+        name: Option<String>,
     },
     /// "Each opponent gets an emblem with …".
     EmblemFor {

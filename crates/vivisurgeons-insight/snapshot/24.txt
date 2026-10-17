@@ -144,7 +144,7 @@ cost: {2}{W}
 > Lifelink
 > When this creature enters, create a Cursed Role token attached to it. (Enchanted creature is 1/1.)
 = Keywords([Keyword { name: "lifelink", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("cursed role"), attacking: None }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("cursed role"), attacking: None }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, name: None }], limits: [] }
 
 ## Daily Bugle Newspaper
 face: Daily Bugle Newspaper

@@ -111,7 +111,7 @@ face: Become Brutes
 type: Sorcery
 cost: {1}{R}
 > One or two target creatures each gain haste until end of turn. For each of those creatures, create a Monster Role token attached to it. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has trample.)
-= Spell([Modify { what: Objects { quant: Target { n: Between(1, 2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, ForEach { each: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("monster role"), attacking: None }, to: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
+= Spell([Modify { what: Objects { quant: Target { n: Between(1, 2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, ForEach { each: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("monster role"), attacking: None }, to: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, name: None }] }])
 
 ## Bitterthorn, Nissa's Animus
 face: Bitterthorn, Nissa's Animus

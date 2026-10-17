@@ -492,7 +492,7 @@ face: Living Lectern
 type: Artifact Creature — Construct
 cost: {1}{U}
 > {1}, Sacrifice this creature: Draw a card. Create a Sorcerer Role token attached to up to one other target creature you control. Activate only as a sorcery. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has "Whenever this creature attacks, scry 1.")
-= Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }, CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("sorcerer role"), attacking: None }, to: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }, CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("sorcerer role"), attacking: None }, to: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }], limits: [SorcerySpeed] }
 
 ## Locust Swarm
 face: Locust Swarm

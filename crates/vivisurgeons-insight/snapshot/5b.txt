@@ -260,7 +260,7 @@ face: Eriette's Whisper
 type: Sorcery
 cost: {3}{B}
 > Target opponent discards two cards. Create a Wicked Role token attached to up to one target creature you control. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1. When this token is put into a graveyard, each opponent loses 1 life.)
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }])
 
 ## Face of Divinity
 face: Face of Divinity

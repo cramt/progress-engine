@@ -1034,7 +1034,7 @@ face: Croaking Curse
 type: Sorcery — Adventure
 cost: {1}{U}
 > Tap target creature. Create a Cursed Role token attached to it. (Enchanted creature is 1/1.)
-= Spell([Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("cursed role"), attacking: None }, to: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
+= Spell([Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("cursed role"), attacking: None }, to: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, name: None }])
 
 ## Vebulid
 face: Vebulid
