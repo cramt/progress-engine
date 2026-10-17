@@ -986,6 +986,22 @@ impl Walk for Effect {
                     Walk::walk(x0, v);
                 }
             }
+            Effect::AnyTime {
+                who,
+                cost,
+                then,
+                dur,
+                ..
+            } => {
+                Walk::walk(who, v);
+                for x0 in (cost).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+                for x0 in (then).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+                Walk::walk(dur, v);
+            }
             Effect::Where { then, x } => {
                 for x0 in (then).iter_mut() {
                     Walk::walk(x0, v);

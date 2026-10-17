@@ -1230,6 +1230,15 @@ fn modes(p: &mut P) -> Option<Vec<Vec<Effect>>> {
     Some(modes)
 }
 
+/// "any time you could activate a mana ability", "… cast an instant".
+fn any_time_window(p: &mut P) -> Option<AnyTimeWindow> {
+    p.words("any time you could")?;
+    alt!(p;
+        |p| p.words("activate a mana ability").map(|_| AnyTimeWindow::ManaAbility),
+        |p| p.words("cast an instant").map(|_| AnyTimeWindow::Instant),
+    )
+}
+
 pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
     alt!(p;
         |p| modal(p).map(|m| vec![m]),
@@ -1243,6 +1252,24 @@ pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
             let times = amount(p)?;
             p.words("times .")?;
             Some(vec![Effect::Repeat { times, then: effects(p)? }])
+        },
+        // "Until end of turn, any time you could activate a mana ability, you
+        // may pay 1 life. If you do, add {C}.", or the window after the cost.
+        |p| {
+            let dur = duration(p)?;
+            p.tok(&Tok::Comma)?;
+            let lead = p.attempt(|p| { let w = any_time_window(p)?; p.tok(&Tok::Comma)?; Some(w) });
+            p.words("you may")?;
+            let cost = costs(p)?;
+            let window = match lead {
+                Some(w) => w,
+                None => any_time_window(p)?,
+            };
+            p.end_sentence()?;
+            p.words("if you do ,")?;
+            let then = clauses(p)?;
+            p.end_sentence()?;
+            Some(vec![Effect::AnyTime { who: Player::You, window, cost, then, dur }])
         },
         |p| {
             p.words("repeat this process until")?;

@@ -1354,6 +1354,16 @@ pub enum Duration {
     UntilEvent(Box<Event>),
 }
 
+/// When an [`Effect::AnyTime`] action may be taken.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AnyTimeWindow {
+    /// "any time you could activate a mana ability" (CR 605.3a).
+    ManaAbility,
+    /// "any time you could cast an instant": whenever you have priority
+    /// (CR 117.1a).
+    Instant,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Effect {
     Draw {
@@ -1590,6 +1600,18 @@ pub enum Effect {
     Choose(Choice),
     GetEnergy(u32),
     Emblem(Vec<Ability>),
+    /// "Until end of turn, any time you could activate a mana ability, you
+    /// may pay 1 life. If you do, add {C}." (Yavimaya Bloomsage), "Until end
+    /// of turn, you may pay {1} any time you could cast an instant. If you
+    /// do, …" (Guardian Angel): an action the player may take again and
+    /// again in that window for the duration, each time paying the cost.
+    AnyTime {
+        who: Player,
+        window: AnyTimeWindow,
+        cost: Vec<Cost>,
+        then: Vec<Effect>,
+        dur: Duration,
+    },
     /// "…, where X is …": X is defined for the whole sentence before it.
     Where {
         then: Vec<Effect>,

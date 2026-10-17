@@ -390,7 +390,7 @@ face: Guardian Angel
 type: Instant
 cost: {X}{W}
 > Prevent the next X damage that would be dealt to any target this turn. Until end of turn, you may pay {1} any time you could cast an instant. If you do, prevent the next 1 damage that would be dealt to that permanent or player this turn.
-= BROKE at "any" after: prevent the next x damage that would be dealt to any target this turn . until end of turn , you may pay {1}
+= Spell([Prevent { combat_only: false, n: Some(X), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }, AnyTime { who: You, window: Instant, cost: [Mana(Mana(["1"]))], then: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [], kind: Some(Player), posts: [], or: None }) } })]), by: None, dur: ThisTurn }], dur: UntilEndOfTurn }])
 
 ## Hardened Berserker
 face: Hardened Berserker

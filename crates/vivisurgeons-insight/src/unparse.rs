@@ -7461,6 +7461,40 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 o.tok(Tok::Sym("E".into()));
             }
         }
+        Effect::AnyTime {
+            who,
+            window,
+            cost,
+            then,
+            dur: d,
+        } => {
+            dur(o, d);
+            o.w(",");
+            let when = out(|o| {
+                o.w("any time you could");
+                o.w(match window {
+                    AnyTimeWindow::ManaAbility => "activate a mana ability",
+                    AnyTimeWindow::Instant => "cast an instant",
+                });
+            });
+            let pay = out(|o| {
+                player(o, who);
+                o.w("may");
+                costs_said(o, cost);
+            });
+            let lead = out(|o| {
+                o.add(when.clone());
+                o.w(",");
+                o.add(pay.clone());
+            });
+            let trail = out(|o| {
+                o.add(pay);
+                o.add(when);
+            });
+            syn::position(o, lead, trail);
+            o.w(". if you do,");
+            clauses(o, then, &Cx::default());
+        }
         Effect::Emblem(v) => {
             o.w("you get an emblem with");
             for (i, a) in v.iter().enumerate() {

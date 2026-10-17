@@ -105,7 +105,7 @@ face: Channel
 type: Sorcery
 cost: {G}{G}
 > Until end of turn, any time you could activate a mana ability, you may pay 1 life. If you do, add {C}.
-= BROKE at "you" after: until end of turn , any time
+= Spell([AnyTime { who: You, window: ManaAbility, cost: [PayLife(N(1))], then: [AddMana(Symbols(Mana(["C"])))], dur: UntilEndOfTurn }])
 
 ## Coiling Woodworm
 face: Coiling Woodworm
