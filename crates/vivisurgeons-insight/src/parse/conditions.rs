@@ -440,6 +440,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         },
         |p| p.words("you're the starting player").map(|_| Condition::YouAreStartingPlayer),
         |p| p.words("the gift was promised").map(|_| Condition::GiftPromised),
+        |p| p.words("both targets are still legal as this ability resolves").map(|_| Condition::TargetsStillLegal),
         |p| { p.words("you cast this spell during")?; step(p).map(Condition::CastDuring) },
         // "an opponent has cast a blue or black spell this turn", "you haven't
         // cast a spell this turn", "an opponent cast three or more spells this turn".

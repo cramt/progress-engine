@@ -66,7 +66,7 @@ cost: {2}{B}{B}
 > Minion creatures get +1/+1.
 > {B}{B}{B}, Exile Balthor: Each player returns all black and all red creature cards from their graveyard to the battlefield.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("minion"), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
-= BROKE at "returns" after: {B} {B} {B} , exile ~ : each player
+= BROKE at "all" after: {B} {B} {B} , exile ~ : each player returns all black and
 
 ## Barbed Field
 face: Barbed Field

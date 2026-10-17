@@ -1607,6 +1607,11 @@ pub enum Effect {
     /// one of these words, which have no rules meaning (CR 701.38b). Said
     /// inside `Performed`, whose player votes.
     Vote(Vec<String>),
+    /// "Simultaneously untap all tapped creatures and tap all untapped
+    /// creatures", "that player simultaneously sacrifices the artifact and
+    /// returns the artifact card to the battlefield" (Goblin Welder): the
+    /// clauses happen at once, not one after the other ([simultaneously]).
+    Simultaneously(Vec<Effect>),
     /// "Starting with you, each player chooses …": the players choose one at
     /// a time, `first` first and then in turn order, where CR 101.4 would
     /// start with the active player.
@@ -3740,6 +3745,10 @@ pub enum TypeSet {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Condition {
+    /// "If both targets are still legal as this ability resolves" (Goblin
+    /// Welder): each of the ability's targets passes the check of CR
+    /// 608.2b, where the rule alone resolves the ability if any one does.
+    TargetsStillLegal,
     /// "If carnage gets more votes" (CR 701.38): that choice of a vote got
     /// more votes than the other.
     GetsMoreVotes(String),

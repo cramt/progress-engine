@@ -372,7 +372,7 @@ face: Goblin Welder
 type: Creature — Goblin Artificer
 cost: {R}
 > {T}: Choose target artifact a player controls and target artifact card in that player's graveyard. If both targets are still legal as this ability resolves, that player simultaneously sacrifices the artifact and returns the artifact card to the battlefield.
-= BROKE at "are" after: {T} : choose target artifact a player controls and target artifact card in that player 's graveyard . if both targets
+= Activated { cost: [Tap], effect: [Choose(Targets([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(APlayer)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }])), If { cond: TargetsStillLegal, then: [Simultaneously([Sacrifice { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, Performed { by: That, effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }])] }], limits: [] }
 
 ## Golem Artisan
 face: Golem Artisan

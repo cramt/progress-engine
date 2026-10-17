@@ -569,7 +569,7 @@ cost: {4}{B}
 > Choose an opponent. You and that player each sacrifice a creature. Each player who sacrificed a creature this way draws two cards.
 > Choose an opponent. Return a creature card from your graveyard to the battlefield, then that player returns a creature card from their graveyard to the battlefield.
 = BROKE at "sacrificed" after: choose an opponent . you and that player each sacrifice a creature . each player who
-= BROKE at "returns" after: choose an opponent . return a creature card from your graveyard to the battlefield , then that player
+= Spell([Choose(Opponent), Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }])
 
 ## Iridescent Angel
 face: Iridescent Angel

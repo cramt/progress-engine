@@ -431,7 +431,7 @@ type: Instant
 cost: {2}{U}
 > Target player returns each commander they control from the battlefield to the command zone.
 > Draw a card.
-= BROKE at "from" after: target player returns each commander they control
+= Spell([Performed { by: Target, effect: Move { what: Objects { quant: Each, filter: Filter { alts: [], kind: Some(Commander), posts: [Controller(That), In(Battlefield)], or: None } }, from: None, to: CommandZone, tapped: false, transformed: false, under: None, order: None } }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Lightwalker

@@ -627,7 +627,7 @@ cost: {2}{G}
 > When Mikey & Mona enter, choose one or both. Each mode must target a different player.
 > • Target player chooses a creature they control and puts two +1/+1 counters on it.
 > • Target player returns a creature or land card from their graveyard to their hand.
-= BROKE at "." after: when ~ enter , choose one or both . each mode must target a different player . • target player chooses a creature they control and puts two <pt> counters on it . • target player returns a creature or land card from their graveyard to their hand
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: DifferentPlayers(OneOrBoth), modes: [[Performed { by: Target, effect: Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } })) }, Performed { by: Target, effect: PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } } }], [Performed { by: Target, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }]] }], limits: [] }
 
 ## Mind Spring
 face: Mind Spring

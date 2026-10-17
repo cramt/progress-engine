@@ -991,6 +991,11 @@ impl Walk for Effect {
                     Walk::walk(x0, v);
                 }
             }
+            Effect::Simultaneously(f0) => {
+                for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Effect::StartingWith { first, then } => {
                 Walk::walk(first, v);
                 for x0 in (then).iter_mut() {

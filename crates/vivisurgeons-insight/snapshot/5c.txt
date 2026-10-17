@@ -811,7 +811,7 @@ face: Sail into the West
 type: Instant
 cost: {2}{G}{U}
 > Will of the council — Starting with you, each player votes for return or embark. If return gets more votes, each player returns up to two cards from their graveyard to their hand, then you exile Sail into the West. If embark gets more votes or the vote is tied, each player may discard their hand and draw seven cards.
-= BROKE at "returns" after: will of the council — starting with you , each player votes for return or embark . if return gets more votes , each player
+= Labelled { label: "will of the council", ability: Spell([StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["return", "embark"]) }] }, If { cond: GetsMoreVotes("return"), then: [Performed { by: Each, effect: Move { what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { cond: Or([GetsMoreVotes("embark"), VoteTied]), then: [May { who: Each, then: [DiscardHand(Each), Draw { who: Each, n: N(7) }] }] }]) }
 
 ## Saproling Migration
 face: Saproling Migration

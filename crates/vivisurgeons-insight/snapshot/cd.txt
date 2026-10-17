@@ -94,7 +94,7 @@ face: Bloodbond March
 type: Enchantment
 cost: {2}{B}{G}
 > Whenever a player casts a creature spell, each player returns all cards with the same name as that spell from their graveyard to the battlefield.
-= BROKE at "returns" after: whenever a player casts a creature spell , each player
+= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Performed { by: Each, effect: Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [SameNameAs(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), In(Graveyard(That))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }], limits: [] }
 
 ## Cabal Archon
 face: Cabal Archon

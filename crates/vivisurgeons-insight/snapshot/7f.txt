@@ -628,7 +628,7 @@ face: Mana Breach
 type: Enchantment
 cost: {2}{U}
 > Whenever a player casts a spell, that player returns a land they control to its owner's hand.
-= BROKE at "returns" after: whenever a player casts a spell , that player
+= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }], limits: [] }
 
 ## Marisi, Breaker of the Coil
 face: Marisi, Breaker of the Coil

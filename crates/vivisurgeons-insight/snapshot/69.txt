@@ -234,7 +234,7 @@ cost: {4}{U}
 > When Donnie & April enter, choose one or both. Each mode must target a different player.
 > • Target player draws two cards.
 > • Target player returns an artifact, instant, or sorcery card from their graveyard to their hand.
-= BROKE at "," after: when ~ enter , choose one or both . each mode must target a different player . • target player draws two cards . • target player returns an artifact
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: DifferentPlayers(OneOrBoth), modes: [[Draw { who: Target, n: N(2) }], [Performed { by: Target, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }]] }], limits: [] }
 
 ## Dúnedain Blade
 face: Dúnedain Blade

@@ -977,6 +977,26 @@ fn object_subject_of(e: &Effect) -> Option<Objects> {
     }
 }
 
+/// "Simultaneously untap all tapped creatures and tap all untapped
+/// creatures", "that player simultaneously sacrifices the artifact and
+/// returns the artifact card to the battlefield": the clauses at once
+/// ([simultaneously]).
+fn simultaneously(p: &mut P) -> Option<Vec<Effect>> {
+    let who = p.attempt(player);
+    p.word("simultaneously")?;
+    let implied = who.or_else(|| p.implied.clone());
+    let then = clause_as_all(p, implied)?;
+    (then.len() > 1).then(|| vec![Effect::Simultaneously(then)])
+}
+
+/// Joined clauses whose subject, if they have none, is `who`.
+fn clause_as_all(p: &mut P, who: Option<Player>) -> Option<Vec<Effect>> {
+    let outer = std::mem::replace(&mut p.implied, who);
+    let c = p.attempt(clauses);
+    p.implied = outer;
+    c
+}
+
 /// A clause whose subject, if it has none, is `who`.
 pub(super) fn clause_as(p: &mut P, who: Option<Player>) -> Option<Vec<Effect>> {
     let outer = std::mem::replace(&mut p.implied, who);
@@ -1062,6 +1082,9 @@ fn play_and_cast_from(a: &mut Effect, b: &Effect) {
 }
 
 pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
+    if let Some(v) = p.attempt(simultaneously) {
+        return Some(v);
+    }
     let mut v = clause(p)?;
     while let Some((joiner, more)) = p.attempt(|p| {
         let joiner = p.one_of(&[
@@ -1516,8 +1539,22 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                             | Effect::EntersAttached { .. }
                     )
             });
+            // "If X is 2, you may choose a player. They return a creature
+            // they control to its owner's hand" (Multiple Choice): the
+            // player exists only in the branch that chose one.
+            let chose_player = branch
+                .iter()
+                .any(|e| matches!(e, Effect::Choose(Choice::Player | Choice::Opponent)))
+                && matches!(
+                    s.first(),
+                    Some(Effect::Performed {
+                        by: Player::That,
+                        ..
+                    })
+                );
             if otherwise
                 || didnt_put
+                || chose_player
                 || s.first().is_some_and(refers_back)
                 || (option && s.first().is_some_and(casts_from_among_them))
             {
@@ -1823,6 +1860,10 @@ fn brings_in(e: &Effect) -> bool {
         | Effect::Search { what, .. }
         | Effect::Reveal { what, .. }
         | Effect::Choose(Choice::Objects(what)) => new(what),
+        // "If X is 2, you may choose a player. They return a creature they
+        // control to its owner's hand." (Multiple Choice): the player is
+        // chosen only in the branch.
+        Effect::Choose(Choice::Player | Choice::Opponent) => true,
         Effect::Choose(Choice::Targets(v)) => v.iter().any(new),
         Effect::Create { .. }
         | Effect::CreateCopy { .. }

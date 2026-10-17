@@ -619,7 +619,7 @@ face: Overburden
 type: Enchantment
 cost: {1}{U}
 > Whenever a player puts a nontoken creature onto the battlefield, that player returns a land they control to its owner's hand.
-= BROKE at "returns" after: whenever a player puts a nontoken creature onto the battlefield , that player
+= Triggered { trigger: When(Puts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [], or: None } }, to: Battlefield }), effect: [Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }], limits: [] }
 
 ## Parallel Evolution
 face: Parallel Evolution

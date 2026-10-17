@@ -1644,7 +1644,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let by = match p.attempt(player) {
                 Some(by) => by,
                 // "that player reveals …, then puts it into their hand".
-                None if matches!(p.peek_word(), Some("puts" | "adds" | "exiles")) => p.implied.clone()?,
+                None if matches!(p.peek_word(), Some("puts" | "adds" | "exiles" | "returns")) => p.implied.clone()?,
                 None => return None,
             };
             if by == Player::You { return None; }
@@ -1659,6 +1659,19 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                     let b = super::conditions::vote_option(p, ".")?;
                     if !matches!(p.peek(), Some(Tok::Period)) { return None; }
                     Some(Effect::Vote(vec![a, b]))
+                },
+                // "that player … returns the artifact card to the battlefield"
+                // (Goblin Welder).
+                |p| {
+                    p.verb("return")?;
+                    let what = objects(p)?;
+                    // Traveling Plague's "this Aura from its owner's graveyard":
+                    // "its" is the Aura, which the reference rule can't tell.
+                    if what.filter.posts.iter().any(|q| matches!(q, Post::In(Zone::Graveyard(Player::OwnerOf(_))))) { return None; }
+                    let from = p.attempt(|p| { p.word("from")?; zone(p) });
+                    p.word("to")?;
+                    let to = destination(p)?;
+                    Some(to.moving(what, from, None))
                 },
                 // "puts a number of +1/+1 counters on it equal to …" (Oversimplify).
                 |p| { p.verb("put")?; number_of_counters(p) },

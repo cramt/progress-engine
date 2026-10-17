@@ -99,7 +99,7 @@ cost: {2}{U}{U}
 > You may cast this spell as though it had flash if you pay {2} more to cast it. (You may cast it any time you could cast an instant.)
 > Simultaneously untap all tapped creatures and tap all untapped creatures.
 = Static([CastAsThoughFlashFor { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["2"]))] }])
-= BROKE at "all" after: simultaneously untap all tapped creatures and tap
+= Spell([Simultaneously([Untap(Objects { quant: All, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }), Tap(Objects { quant: All, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [], or: None } })])])
 
 ## Burlfist Oak
 face: Burlfist Oak
@@ -638,7 +638,7 @@ cost: {2}{B}
 > When this enchantment leaves the battlefield, each player returns to their hand all cards they own exiled with it.
 = Keywords([Keyword { name: "fading", param: Some(N(N(5))) }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "fade", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Performed { by: TargetOpponent, effect: Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }) }], limits: [SorcerySpeed] }
-= BROKE at "returns" after: when this enchantment leaves the battlefield , each player
+= BROKE at "their" after: when this enchantment leaves the battlefield , each player returns to
 
 ## Passageway Seer
 face: Passageway Seer

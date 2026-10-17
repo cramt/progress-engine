@@ -55,7 +55,7 @@ cost: {2}{U}{B}
 > • That player returns a permanent they control to its owner's hand.
 > • That player discards a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "'s" after: whenever this creature deals combat damage to a player , choose one — • that player returns a permanent they control to its owner
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }], [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }], limits: [] }
 
 ## Boarding Party
 face: Boarding Party

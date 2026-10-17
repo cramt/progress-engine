@@ -916,7 +916,7 @@ cost: {3}{B}{B}
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Triggered { trigger: At(Upkeep(Each)), effect: [PutCounters { n: N(1), kind: "plague", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("plague"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })) }])
-= BROKE at "returns" after: when enchanted creature leaves the battlefield , that creature 's controller
+= BROKE at "to" after: when enchanted creature leaves the battlefield , that creature 's controller returns this aura from its owner 's graveyard
 
 ## Vivien's Grizzly
 face: Vivien's Grizzly

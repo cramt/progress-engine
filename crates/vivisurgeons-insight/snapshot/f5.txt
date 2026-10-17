@@ -895,7 +895,7 @@ face: Sunken Hope
 type: Enchantment
 cost: {3}{U}{U}
 > At the beginning of each player's upkeep, that player returns a creature they control to its owner's hand.
-= BROKE at "returns" after: at the beginning of each player 's upkeep , that player
+= Triggered { trigger: At(Upkeep(Each)), effect: [Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }], limits: [] }
 
 ## Tendrils of Despair
 face: Tendrils of Despair

@@ -703,7 +703,7 @@ face: Neyam Shai Murad
 type: Legendary Creature — Human Rogue
 cost: {2}{W}{B}
 > Rogue Trader — Whenever Neyam Shai Murad deals combat damage to a player, you may have that player return target permanent card from their graveyard to their hand. If you do, that player chooses a permanent card in your graveyard, then you put it onto the battlefield under your control.
-= BROKE at "." after: rogue trader — whenever ~ deals combat damage to a player , you may have that player return target permanent card from their graveyard to their hand
+= Labelled { label: "rogue trader", ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Performed { by: That, effect: Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(Graveyard(That))], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }] }, IfYouDo([Performed { by: That, effect: Choose(Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } })) }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }])], limits: [] } }
 
 ## Niblis of the Urn
 face: Niblis of the Urn
@@ -861,7 +861,7 @@ cost: {2}{G}
 > Deathtouch
 > When this creature enters, return target card from your graveyard to your hand, then choose an opponent. That player returns a card from their graveyard to their hand.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= BROKE at "returns" after: when this creature enters , return target card from your graveyard to your hand , then choose an opponent . that player
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Choose(Opponent), Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }], limits: [] }
 
 ## Skycoach Waypoint
 face: Skycoach Waypoint

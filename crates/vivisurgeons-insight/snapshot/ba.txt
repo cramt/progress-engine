@@ -895,7 +895,7 @@ cost: {4}
 > Each player skips their untap step.
 > At the beginning of each player's upkeep, that player simultaneously untaps each tapped artifact, creature, and land they control and taps each untapped artifact, creature, and land they control.
 = BROKE at "." after: each player skips their untap step
-= BROKE at "simultaneously" after: at the beginning of each player 's upkeep , that player
+= BROKE at "each" after: at the beginning of each player 's upkeep , that player simultaneously untaps
 
 ## Scatter to the Winds
 face: Scatter to the Winds

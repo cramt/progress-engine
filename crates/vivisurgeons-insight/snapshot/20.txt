@@ -545,7 +545,7 @@ cost: {X}{U}
 > If X is 3, create a 4/4 blue and red Elemental creature token.
 > If X is 4 or more, do all of the above.
 = Spell([If { cond: AmountIs { n: X, op: Eq, value: N(1) }, then: [Scry(N(1)), Draw { who: You, n: N(1) }] }])
-= BROKE at "return" after: if x is 2 , you may choose a player . they
+= Spell([If { cond: AmountIs { n: X, op: Eq, value: N(2) }, then: [May { who: You, then: [Choose(Player), Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }] }] }])
 = Spell([If { cond: AmountIs { n: X, op: Eq, value: N(3) }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [Blue, Red], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 = BROKE at "all" after: if x is 4 or more , do
 

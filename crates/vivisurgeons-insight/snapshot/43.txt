@@ -187,7 +187,7 @@ cost: {5}{W}
 > I — Destroy all lands.
 > II, III — Each player returns two land cards from their graveyard to the battlefield.
 = Chapter { chapters: [1], effect: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, no_regen: false }] }
-= BROKE at "their" after: ii , iii — each player returns two land cards from
+= Chapter { chapters: [2, 3], effect: [Performed { by: Each, effect: Move { what: Objects { quant: N(N(2)), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }] }
 
 ## Feral Hydra
 face: Feral Hydra

@@ -106,7 +106,7 @@ face: Blood Clock
 type: Artifact
 cost: {4}
 > At the beginning of each player's upkeep, that player returns a permanent they control to its owner's hand unless they pay 2 life.
-= BROKE at "returns" after: at the beginning of each player 's upkeep , that player
+= BROKE at "2" after: at the beginning of each player 's upkeep , that player returns a permanent they control to its owner 's hand unless they pay
 
 ## Burgeoning
 face: Burgeoning

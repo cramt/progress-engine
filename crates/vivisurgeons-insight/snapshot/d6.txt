@@ -308,7 +308,7 @@ face: Empty the Catacombs
 type: Sorcery
 cost: {3}{B}
 > Each player returns all creature cards from their graveyard to their hand.
-= BROKE at "their" after: each player returns all creature cards from
+= Spell([Performed { by: Each, effect: Move { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }])
 
 ## Erebos's Intervention
 face: Erebos's Intervention

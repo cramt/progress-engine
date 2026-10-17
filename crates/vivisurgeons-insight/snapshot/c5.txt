@@ -569,7 +569,7 @@ face: Myr Servitor
 type: Artifact Creature — Myr
 cost: {1}
 > At the beginning of your upkeep, if this creature is on the battlefield, each player returns all cards named Myr Servitor from their graveyard to the battlefield.
-= BROKE at "returns" after: at the beginning of your upkeep , if this creature is on the battlefield , each player
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }), effect: [Performed { by: Each, effect: Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Myr Servitor")), In(Graveyard(That))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }], limits: [] }
 
 ## Network Disruptor
 face: Network Disruptor

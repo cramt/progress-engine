@@ -817,7 +817,7 @@ face: Pyrrhic Revival
 type: Sorcery
 cost: {3}{W/B}{W/B}{W/B}
 > Each player returns each creature card from their graveyard to the battlefield with an additional -1/-1 counter on it.
-= BROKE at "their" after: each player returns each creature card from
+= BROKE at "with" after: each player returns each creature card from their graveyard to the battlefield
 
 ## Quenchable Fire
 face: Quenchable Fire

@@ -269,7 +269,7 @@ face: Dispersal
 type: Instant
 cost: {3}{U}{B}
 > Each opponent returns a nonland permanent they control with the greatest mana value among permanents they control to its owner's hand, then discards a card.
-= BROKE at "control" after: each opponent returns a nonland permanent they
+= Spell([Performed { by: EachOpponent, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(That), GreatestAmong { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That)], or: None } } }], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
 
 ## Drana's Silencer
 face: Drana's Silencer

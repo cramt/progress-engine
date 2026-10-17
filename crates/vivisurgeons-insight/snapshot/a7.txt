@@ -797,7 +797,7 @@ face: Roar of Reclamation
 type: Sorcery
 cost: {5}{W}{W}
 > Each player returns all artifact cards from their graveyard to the battlefield.
-= BROKE at "their" after: each player returns all artifact cards from
+= Spell([Performed { by: Each, effect: Move { what: Objects { quant: All, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }])
 
 ## Rogue's Gloves
 face: Rogue's Gloves

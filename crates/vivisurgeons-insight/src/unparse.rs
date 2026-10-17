@@ -5587,6 +5587,27 @@ fn lead_duration(e: &Effect, cx: &Cx) -> Option<Out> {
     }))
 }
 
+/// [simultaneously]: "simultaneously" leads the clauses, or follows the
+/// subject they share ("that player simultaneously sacrifices … and
+/// returns …").
+fn simultaneously(o: &mut Out, then: &[Effect], cx: &Cx) {
+    match then.first().and_then(subject_of) {
+        Some(who) if who != Player::You => {
+            player(o, &who);
+            o.w("simultaneously");
+            let cx = Cx {
+                continues: Some(who),
+                ..cx.clone()
+            };
+            clauses(o, then, &cx);
+        }
+        _ => {
+            o.w("simultaneously");
+            clauses(o, then, cx);
+        }
+    }
+}
+
 /// The clause [target-before-delayed] split, said with its target again:
 /// `Choose(target)` then a step's `Delayed` acting on it by reference.
 fn target_in_delayed(c: &Choice, s: &Step, then: &[Effect]) -> Option<Effect> {
@@ -7512,6 +7533,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             }
         }
         Effect::Vote(_) => performed(o, e, Num::Pl),
+        Effect::Simultaneously(then) => simultaneously(o, then, cx),
         Effect::StartingWith { first, then } => {
             o.w("starting with");
             player(o, first);
@@ -11283,6 +11305,9 @@ fn condition(o: &mut Out, c: &Condition) {
             o.w("this combat");
         }
         Condition::GiftPromised => o.w("the gift was promised"),
+        Condition::TargetsStillLegal => {
+            o.w("both targets are still legal as this ability resolves")
+        }
         Condition::CastDuring(s) => {
             o.w("you cast this spell during");
             step(o, s);

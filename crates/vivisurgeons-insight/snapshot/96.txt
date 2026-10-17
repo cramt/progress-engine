@@ -1028,7 +1028,7 @@ face: Umbilicus
 type: Artifact
 cost: {4}
 > At the beginning of each player's upkeep, that player may pay 2 life. If they don't, they return a permanent they control to its owner's hand.
-= BROKE at "return" after: at the beginning of each player 's upkeep , that player may pay 2 life . if they don't , they
+= Triggered { trigger: At(Upkeep(Each)), effect: [May { who: That, then: [Pay { who: That, cost: [PayLife(N(2))] }] }, IfYouDont([Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }])], limits: [] }
 
 ## Uvilda, Dean of Perfection // Nassari, Dean of Expression
 face: Uvilda, Dean of Perfection
