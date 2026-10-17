@@ -208,7 +208,7 @@ face: Cosmogoyf
 type: Creature — Elemental Lhurgoyf
 cost: {B}{G}
 > Cosmogoyf's power is equal to the number of cards you own in exile and its toughness is equal to that number plus 1.
-= Static([SetPower { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(You), In(Exile)], or: None } }) }, SetToughness { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: Plus(ThatNumber, 1) }])
+= Static([SetPower { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(You), In(Exile)], or: None } }) }, SetToughness { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: Plus(ThatNumber, 1) }])
 
 ## Crime Novelist
 face: Crime Novelist

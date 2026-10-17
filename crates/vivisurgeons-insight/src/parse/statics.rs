@@ -1010,10 +1010,15 @@ fn static_body_first(p: &mut P) -> Option<Vec<Static>> {
             let power = measure(p)?;
             p.words("and its toughness is equal to")?;
             let toughness = measure(p)?;
+            let its = if what.quant == Quant::SelfRef { what.clone() } else { antecedent() };
             Some(vec![
                 Static::SetPower { what, equal_to: power },
-                // "its toughness": the same object, by pronoun.
-                Static::SetToughness { what: antecedent(), equal_to: toughness },
+                // "its toughness": the same object, by pronoun; this one
+                // when the power was this one's ([self-reference]).
+                Static::SetToughness {
+                    what: its,
+                    equal_to: toughness,
+                },
             ])
         },
         // "You may have ~ enter as a copy of …, except …. When you do, exile

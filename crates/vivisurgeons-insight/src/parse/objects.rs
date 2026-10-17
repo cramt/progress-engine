@@ -1555,6 +1555,16 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
                     return Some(Objects { quant: Quant::Linked, filter: f });
                 }
                 Some(m) => f.posts.insert(0, Post::Marked(m)),
+                // Balustrade Spy's "reveals cards … until they reveal a land
+                // card, then puts those cards into their graveyard": every
+                // card revealed, not the land alone ([listed-objects]).
+                None if matches!(&p.t[start], Tok::Word(w) if w == "those")
+                    && f == Filter { kind: Some(Noun::Card), ..Filter::default() }
+                    && revealed_until_in_sentence(&p.t[..start]) =>
+                {
+                    f.posts.push(Post::Marked(Marked::Revealed));
+                    return Some(Objects { quant: Quant::All, filter: f });
+                }
                 None => {}
             }
             Some(Objects { quant: Quant::Antecedent, filter: f })
@@ -1587,6 +1597,23 @@ fn exiled_earlier(before: &[Tok]) -> bool {
     before
         .iter()
         .any(|t| matches!(t, Tok::Word(w) if w == "exile" || w == "exiles"))
+}
+
+/// Whether the sentence before a phrase reveals cards "until" something is
+/// revealed.
+fn revealed_until_in_sentence(before: &[Tok]) -> bool {
+    let start = before
+        .iter()
+        .rposition(|t| matches!(t, Tok::Period))
+        .map_or(0, |i| i + 1);
+    let s = &before[start..];
+    s.iter()
+        .position(|t| matches!(t, Tok::Word(w) if w == "until"))
+        .is_some_and(|u| {
+            s[u..]
+                .iter()
+                .any(|t| matches!(t, Tok::Word(w) if w == "reveal" || w == "reveals"))
+        })
 }
 
 /// Whether the words of an ability before a phrase create a token.

@@ -563,7 +563,7 @@ type: Creature — Lhurgoyf
 cost: {B}
 > Nethergoyf's power is equal to the number of card types among cards in your graveyard and its toughness is equal to that number plus 1.
 > Escape—{2}{B}, Exile any number of other cards from your graveyard with four or more card types among them. (You may cast this card from your graveyard for its escape cost.)
-= Static([SetPower { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }, SetToughness { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: Plus(ThatNumber, 1) }])
+= Static([SetPower { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }, SetToughness { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: Plus(ThatNumber, 1) }])
 = Keywords([Keyword { name: "escape", param: Some(Cost([Mana(Mana(["2", "B"])), Exile(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Other)]], kind: Some(Card), posts: [In(Graveyard(You)), CardTypesAmongAtLeast(4)], or: None } })])) }])
 
 ## Night Market Guard

@@ -1861,6 +1861,15 @@ mod syn {
         alt(o, vec![spelled, those]);
     }
 
+    /// Named rewrite [revealed-until]: "reveals cards from the top of
+    /// their library until they reveal a land card, then puts those cards
+    /// into their graveyard" (Balustrade Spy, Mirko Vosk) says "all cards
+    /// revealed this way" as "those cards": the land and every card
+    /// revealed before it (Mirko Vosk's ruling).
+    pub fn revealed_until(o: &mut Out, spelled: Out) {
+        alt(o, vec![spelled, of("those cards")]);
+    }
+
     pub fn at_end_of_combat(o: &mut Out, spelled: Out) {
         alt(o, vec![spelled, of("at end of combat")]);
     }
@@ -3776,6 +3785,17 @@ fn each_objects(o: &mut Out, x: &Objects) {
 
 fn objects(o: &mut Out, x: &Objects) {
     let f = &x.filter;
+    // "puts those cards into their graveyard" after revealing until
+    // ([revealed-until]).
+    if x.quant == Quant::All
+        && f.alts.is_empty()
+        && f.kind == Some(Noun::Card)
+        && f.posts == [Post::Marked(Marked::Revealed)]
+    {
+        let spelled = out(|o| objects_plain(o, x));
+        syn::revealed_until(o, spelled);
+        return;
+    }
     // "Exile those permanents" after each player chose them
     // ([each-player-chose]).
     if x.quant == Quant::Each && f.posts == [Post::Marked(Marked::Chosen)] {
