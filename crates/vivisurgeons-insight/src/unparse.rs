@@ -2101,6 +2101,9 @@ pub fn ability(a: &Ability) -> Out {
     }
     let mut a = a.clone();
     crate::walk::Walk::walk(&mut a, &mut Said);
+    if let Some(es) = a.effects_mut() {
+        crate::ast::each_player_creates_said(es);
+    }
     out(|o| ability_into(o, &a))
 }
 

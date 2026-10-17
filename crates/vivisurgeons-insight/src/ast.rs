@@ -2638,6 +2638,101 @@ pub enum Pick {
     ThatType,
 }
 
+/// The players a loop over "each player" / "each opponent" runs through.
+fn player_loop_objects(who: &Player) -> Option<Objects> {
+    let kind = match who {
+        Player::Each => Noun::Player,
+        Player::EachOpponent => Noun::Opponent,
+        _ => return None,
+    };
+    Some(Objects {
+        quant: Quant::Plural,
+        filter: Filter {
+            kind: Some(kind),
+            ..Filter::default()
+        },
+    })
+}
+
+/// "Each player creates a 0/0 … Fractal creature token and puts a number of
+/// +1/+1 counters on it equal to …" (Oversimplify): each player puts the
+/// counters on the token that player created, so the two clauses are one
+/// pass per player, `ForEach { players, [Create { who: That }, Performed {
+/// by: That, .. }] }`. Read as two loops, `Created` was every player's
+/// token, and each total went on all of them ([each-player-creates]).
+pub fn each_player_creates(es: &mut Vec<Effect>) {
+    struct HasCreated(bool);
+    impl crate::walk::Visitor for HasCreated {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            self.0 |= o.quant == Quant::Created;
+            true
+        }
+    }
+    let mut i = 0;
+    while i + 1 < es.len() {
+        let pair = match (&es[i], &es[i + 1]) {
+            (Effect::Create { who, .. }, Effect::Performed { by, effect }) if who == by => {
+                let mut e = (**effect).clone();
+                let mut has = HasCreated(false);
+                crate::walk::Walk::walk(&mut e, &mut has);
+                has.0
+            }
+            _ => false,
+        };
+        let each = match &es[i] {
+            Effect::Create { who, .. } if pair => player_loop_objects(who),
+            _ => None,
+        };
+        if let Some(each) = each {
+            let mut then: Vec<Effect> = es.drain(i..i + 2).collect();
+            if let Effect::Create { who, .. } = &mut then[0] {
+                *who = Player::That;
+            }
+            if let Effect::Performed { by, .. } = &mut then[1] {
+                *by = Player::That;
+            }
+            es.insert(i, Effect::ForEach { each, then });
+        }
+        i += 1;
+    }
+}
+
+/// The renderer's inverse of `each_player_creates`: the pass per player is
+/// said "each player creates … and puts …", as the card says it.
+pub fn each_player_creates_said(es: &mut Vec<Effect>) {
+    let mut i = 0;
+    while i < es.len() {
+        let who = match &es[i] {
+            Effect::ForEach { each, then } => match &then[..] {
+                [Effect::Create {
+                    who: Player::That, ..
+                }, Effect::Performed {
+                    by: Player::That, ..
+                }] => [Player::Each, Player::EachOpponent]
+                    .into_iter()
+                    .find(|p| player_loop_objects(p).as_ref() == Some(each)),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(who) = who {
+            let Effect::ForEach { mut then, .. } = es.remove(i) else {
+                unreachable!()
+            };
+            if let Effect::Create { who: w, .. } = &mut then[0] {
+                *w = who.clone();
+            }
+            if let Effect::Performed { by, .. } = &mut then[1] {
+                *by = who;
+            }
+            es.splice(i..i, then);
+            i += 2;
+        } else {
+            i += 1;
+        }
+    }
+}
+
 /// "If you would create a Clue, Food, or Treasure token, instead create one
 /// of each" (Academy Manufactor): that many of each predefined token the
 /// replaced event names (CR 111.10), each a `Create` of the same token "create
@@ -3873,4 +3968,19 @@ pub const BASIC_LAND_TYPES: [&str; 5] = ["plains", "island", "swamp", "mountain"
 pub enum EachTurn {
     Turn,
     YourTurn,
+}
+
+impl Ability {
+    /// The effects an ability's text lists, where it lists some.
+    pub fn effects_mut(&mut self) -> Option<&mut Vec<Effect>> {
+        match self {
+            Ability::Spell(es)
+            | Ability::Activated { effect: es, .. }
+            | Ability::Loyalty { effect: es, .. }
+            | Ability::Triggered { effect: es, .. }
+            | Ability::Spree { effect: es, .. }
+            | Ability::Chapter { effect: es, .. } => Some(es),
+            _ => None,
+        }
+    }
 }

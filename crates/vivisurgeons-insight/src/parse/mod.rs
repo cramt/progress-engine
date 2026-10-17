@@ -2847,6 +2847,9 @@ pub fn parse_line(
             a.walk(&mut FromAmongAfterShares);
             a.walk(&mut EntriesThisTurn);
             a.walk(&mut MeldListed::default());
+            if let Some(es) = a.effects_mut() {
+                crate::ast::each_player_creates(es);
+            }
             counters_on_itself(&mut a);
             Ok(a)
         }
