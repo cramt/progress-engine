@@ -10059,6 +10059,17 @@ fn choice(o: &mut Out, c: &Choice) {
         Choice::Number => o.w("a number"),
         Choice::Player => o.w("a player"),
         Choice::Opponent => o.w("an opponent"),
+        // "choose Island or Swamp", "choose creature or land": a choice
+        // between kinds, said by their names alone.
+        Choice::Objects(x)
+            if x.quant == Quant::Plural
+                && x.filter.kind.is_none()
+                && x.filter.posts.is_empty()
+                && x.filter.or.is_none()
+                && !x.filter.alts.is_empty() =>
+        {
+            filter(o, &x.filter, Num::Sg)
+        }
         Choice::Objects(x) => objects(o, x),
         Choice::Targets(v) => {
             for (i, x) in v.iter().enumerate() {
@@ -11400,7 +11411,12 @@ fn condition(o: &mut Out, c: &Condition) {
                     o.verb("are", obj_num(what));
                 },
             );
-            o.w(if *z == Zone::Battlefield { "on" } else { "in" });
+            // "as long as this card is on the stack" (Kaervek's Torch).
+            o.w(if matches!(z, Zone::Battlefield | Zone::Stack) {
+                "on"
+            } else {
+                "in"
+            });
             zone(o, z);
         }
         Condition::YouAreStartingPlayer => o.w("you're the starting player"),
