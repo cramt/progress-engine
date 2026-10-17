@@ -794,7 +794,7 @@ cost: {3}{G}
 > Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.
 > Will of the Planeswalkers — Starting with you, each player votes for planeswalk or chaos. If planeswalk gets more votes, planeswalk. If chaos gets more votes or the vote is tied, chaos ensues.
 = Spell([Search { who: You, zones: [Library(You)], what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You)])
-= BROKE at "for" after: will of the planeswalkers — starting with you , each player votes
+= BROKE at "ensues" after: will of the planeswalkers — starting with you , each player votes for planeswalk or chaos . if planeswalk gets more votes , planeswalk . if chaos gets more votes or the vote is tied , chaos
 
 ## Perennial Behemoth
 face: Perennial Behemoth

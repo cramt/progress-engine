@@ -216,7 +216,7 @@ cost: {4}{W}
 > Flying
 > Will of the council — When this creature enters, starting with you, each player votes for an artifact, creature, or enchantment card in your graveyard. Return each card with the most votes or tied for most votes to your hand.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "for" after: will of the council — when this creature enters , starting with you , each player votes
+= BROKE at "an" after: will of the council — when this creature enters , starting with you , each player votes for
 
 ## Dapper Shieldmate
 face: Dapper Shieldmate
@@ -973,7 +973,7 @@ face: Split Decision
 type: Instant
 cost: {1}{U}
 > Will of the council — Choose target instant or sorcery spell. Starting with you, each player votes for denial or duplication. If denial gets more votes, counter the spell. If duplication gets more votes or the vote is tied, copy the spell. You may choose new targets for the copy.
-= BROKE at "for" after: will of the council — choose target instant or sorcery spell . starting with you , each player votes
+= Labelled { label: "will of the council", ability: Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } })), StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["denial", "duplication"]) }] }, If { cond: GetsMoreVotes("denial"), then: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }, If { cond: Or([GetsMoreVotes("duplication"), VoteTied]), then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }]) }
 
 ## Stampeding Serow
 face: Stampeding Serow

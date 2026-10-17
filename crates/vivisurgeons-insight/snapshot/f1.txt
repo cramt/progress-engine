@@ -683,7 +683,7 @@ cost: {4}{U}
 > Target player draws four cards.
 > Will of the Planeswalkers — Starting with you, each player votes for planeswalk or chaos. If planeswalk gets more votes, planeswalk. If chaos gets more votes or the vote is tied, chaos ensues.
 = Spell([Draw { who: Target, n: N(4) }])
-= BROKE at "for" after: will of the planeswalkers — starting with you , each player votes
+= BROKE at "ensues" after: will of the planeswalkers — starting with you , each player votes for planeswalk or chaos . if planeswalk gets more votes , planeswalk . if chaos gets more votes or the vote is tied , chaos
 
 ## Peregrine Drake
 face: Peregrine Drake

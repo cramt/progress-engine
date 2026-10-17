@@ -705,7 +705,7 @@ cost: {4}{R}
 > Discard all the cards in your hand. Add {R} for each card discarded this way, then draw that many cards plus one.
 > Will of the Planeswalkers — Starting with you, each player votes for planeswalk or chaos. If planeswalk gets more votes, planeswalk. If chaos gets more votes or the vote is tied, chaos ensues.
 = Spell([Discard { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, random: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }, Draw { who: You, n: Plus(ThatMany, 1) }])
-= BROKE at "for" after: will of the planeswalkers — starting with you , each player votes
+= BROKE at "ensues" after: will of the planeswalkers — starting with you , each player votes for planeswalk or chaos . if planeswalk gets more votes , planeswalk . if chaos gets more votes or the vote is tied , chaos
 
 ## Perilous Vault
 face: Perilous Vault

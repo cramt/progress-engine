@@ -1641,6 +1641,16 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             if by == Player::You { return None; }
             let e = alt!(p;
                 |p| { p.verb("put")?; put_rest(p) },
+                // "votes for death or taxes" (CR 701.38).
+                |p| {
+                    p.verb("vote")?;
+                    p.word("for")?;
+                    let a = super::conditions::vote_option(p, "or")?;
+                    p.word("or")?;
+                    let b = super::conditions::vote_option(p, ".")?;
+                    if !matches!(p.peek(), Some(Tok::Period)) { return None; }
+                    Some(Effect::Vote(vec![a, b]))
+                },
                 // "puts a number of +1/+1 counters on it equal to …" (Oversimplify).
                 |p| { p.verb("put")?; number_of_counters(p) },
                 |p| {

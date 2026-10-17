@@ -300,7 +300,7 @@ face: Galadriel, Elven-Queen
 type: Legendary Creature — Elf Noble
 cost: {2}{G}{U}
 > Will of the council — At the beginning of combat on your turn, if another Elf entered the battlefield under your control this turn, starting with you, each player votes for dominion or guidance. If dominion gets more votes, the Ring tempts you, then you put a +1/+1 counter on your Ring-bearer. If guidance gets more votes or the vote is tied, draw a card.
-= BROKE at "for" after: will of the council — at the beginning of combat on your turn , if another elf entered the battlefield under your control this turn , starting with you , each player votes
+= BROKE at "." after: will of the council — at the beginning of combat on your turn , if another elf entered the battlefield under your control this turn , starting with you , each player votes for dominion or guidance . if dominion gets more votes , the ring tempts you , then you put a <pt> counter on your ring-bearer
 
 ## Giant Beaver
 face: Giant Beaver

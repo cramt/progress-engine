@@ -1056,7 +1056,7 @@ cost: {3}{W}{U}{B}
 > Council's dilemma — Whenever Tivit enters or deals combat damage to a player, starting with you, each player votes for evidence or bribery. For each evidence vote, investigate. For each bribery vote, create a Treasure token.
 > While voting, you may vote an additional time. (The votes can be for different choices or for the same choice.)
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "ward", param: Some(Cost([Mana(Mana(["3"]))])) }])
-= BROKE at "for" after: council 's dilemma — whenever ~ enters or deals combat damage to a player , starting with you , each player votes
+= BROKE at "vote" after: council 's dilemma — whenever ~ enters or deals combat damage to a player , starting with you , each player votes for evidence or bribery . for each evidence
 = BROKE at "," after: while voting
 
 ## Torch Courier

@@ -7477,6 +7477,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 o.tok(Tok::Sym("E".into()));
             }
         }
+        Effect::Vote(_) => performed(o, e, Num::Pl),
         Effect::StartingWith { first, then } => {
             o.w("starting with");
             player(o, first);
@@ -9164,6 +9165,14 @@ fn replacement(o: &mut Out, would_words: Out, instead: &[Effect], cx: &Cx) {
 /// The verbs a player is said to do for an effect that takes none.
 fn performed(o: &mut Out, e: &Effect, n: Num) {
     match e {
+        Effect::Vote(options) => {
+            o.verb("vote", n);
+            o.w("for");
+            for (i, w) in options.iter().enumerate() {
+                list_sep(o, i, options.len(), "or");
+                o.w(w);
+            }
+        }
         Effect::Move { .. } => move_effect(o, e, n),
         Effect::PutCounters { n: k, kind, on } if is_measure(k) => {
             o.verb("put", n);
@@ -10752,6 +10761,11 @@ fn would(o: &mut Out, e: &Event) {
 
 fn condition(o: &mut Out, c: &Condition) {
     match c {
+        Condition::GetsMoreVotes(w) => {
+            o.w(w);
+            o.w("gets more votes");
+        }
+        Condition::VoteTied => o.w("the vote is tied"),
         Condition::YouControl(x) => {
             o.w("you control");
             objects(o, x);

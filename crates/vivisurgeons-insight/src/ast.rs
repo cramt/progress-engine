@@ -1600,6 +1600,10 @@ pub enum Effect {
     Choose(Choice),
     GetEnergy(u32),
     Emblem(Vec<Ability>),
+    /// "each player votes for death or taxes" (CR 701.38): each player chooses
+    /// one of these words, which have no rules meaning (CR 701.38b). Said
+    /// inside `Performed`, whose player votes.
+    Vote(Vec<String>),
     /// "Starting with you, each player chooses …": the players choose one at
     /// a time, `first` first and then in turn order, where CR 101.4 would
     /// start with the active player.
@@ -3555,6 +3559,11 @@ pub enum TypeSet {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Condition {
+    /// "If carnage gets more votes" (CR 701.38): that choice of a vote got
+    /// more votes than the other.
+    GetsMoreVotes(String),
+    /// "the vote is tied": no choice of the vote got more votes.
+    VoteTied,
     YouControl(Objects),
     /// "if that spell's mana cost or that ability's activation cost
     /// contains {X}" (Unbound Flourishing).

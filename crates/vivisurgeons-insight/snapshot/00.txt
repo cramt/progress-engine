@@ -122,7 +122,7 @@ face: Capital Punishment
 type: Sorcery
 cost: {4}{B}{B}
 > Council's dilemma — Starting with you, each player votes for death or taxes. Each opponent sacrifices a creature of their choice for each death vote and discards a card for each taxes vote.
-= BROKE at "for" after: council 's dilemma — starting with you , each player votes
+= BROKE at "vote" after: council 's dilemma — starting with you , each player votes for death or taxes . each opponent sacrifices a creature of their choice for each death
 
 ## Cataclysm
 face: Cataclysm

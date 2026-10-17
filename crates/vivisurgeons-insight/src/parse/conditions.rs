@@ -48,8 +48,43 @@ pub(super) fn condition(p: &mut P) -> Option<Condition> {
     })
 }
 
+/// A vote's choice: a word or two with no rules meaning (CR 701.38b), read
+/// to `stop`. A choice that starts like an object ("a creature you don't
+/// control") is an object vote, which this doesn't read.
+pub(super) fn vote_option(p: &mut P, stop: &str) -> Option<String> {
+    // Look before reading, so a line that is no vote keeps its break point.
+    let near = (p.i..p.i + 4).any(|j| match p.t.get(j) {
+        Some(Tok::Word(w)) => w == stop,
+        Some(Tok::Period) => stop == ".",
+        _ => false,
+    });
+    if !near {
+        return None;
+    }
+    let mut words = Vec::new();
+    while let Some(Tok::Word(w)) = p.peek() {
+        if w == stop {
+            break;
+        }
+        words.push(w.clone());
+        p.bump();
+    }
+    let first = words.first()?.as_str();
+    if words.len() > 3 || ["a", "an", "the", "up", "another", "each", "no"].contains(&first) {
+        return None;
+    }
+    Some(words.join(" "))
+}
+
 pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
     alt!(p;
+        // "If carnage gets more votes", "or the vote is tied" (CR 701.38).
+        |p| {
+            let option = vote_option(p, "gets")?;
+            p.words("gets more votes")?;
+            Some(Condition::GetsMoreVotes(option))
+        },
+        |p| p.words("the vote is tied").map(|_| Condition::VoteTied),
         |p| {
             let who = alt!(p;
                 |p| p.word("they're").map(|_| Player::That),

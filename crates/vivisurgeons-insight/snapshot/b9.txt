@@ -509,7 +509,7 @@ cost: {4}{U}
 > Flying
 > Council's dilemma — When this creature enters, starting with you, each player votes for feather or quill. Put a +1/+1 counter on this creature for each feather vote and draw a card for each quill vote. For each card drawn this way, discard a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "for" after: council 's dilemma — when this creature enters , starting with you , each player votes
+= BROKE at "vote" after: council 's dilemma — when this creature enters , starting with you , each player votes for feather or quill . put a <pt> counter on this creature for each feather
 
 ## Minotaur Abomination
 face: Minotaur Abomination

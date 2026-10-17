@@ -930,7 +930,7 @@ cost: {1}{W}{W}
 > I, II, III — Exile target nontoken creature an opponent controls until this Saga leaves the battlefield.
 > IV — Starting with you, each player votes for innocent or guilty. If guilty gets more votes, the owner of each card exiled with this Saga puts that card on the bottom of their library.
 = Chapter { chapters: [1, 2, 3], effect: [ExileUntilLeaves { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, until: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }
-= BROKE at "for" after: iv — starting with you , each player votes
+= Chapter { chapters: [4], effect: [StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["innocent", "guilty"]) }] }, If { cond: GetsMoreVotes("guilty"), then: [Performed { by: OwnerOf(Objects { quant: Each, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: BottomOfLibrary(That), tapped: false, transformed: false, under: None, order: None } }] }] }
 
 ## Triumphant Surge
 face: Triumphant Surge
