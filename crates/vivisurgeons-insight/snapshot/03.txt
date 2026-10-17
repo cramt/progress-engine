@@ -21,7 +21,7 @@ cost: {1}
 > Whenever one or more +1/+1 counters are put on a permanent you control, you may pay {1}. If you do, create a 1/1 colorless Servo artifact creature token.
 > {3}, {T}: Choose a counter on target permanent or player. Give that permanent or player another counter of that kind.
 = Triggered { trigger: When(CountersPut { by: None, n: AtLeast(N(1)), kind: Some("+1/+1"), on: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } } }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1"]))] }] }, IfYouDo([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["servo", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }])], limits: [] }
-= BROKE at "target" after: {3} , {T} : choose a counter on
+= BROKE at "that" after: {3} , {T} : choose a counter on target permanent or player . give
 
 ## Arachnoform
 face: Arachnoform

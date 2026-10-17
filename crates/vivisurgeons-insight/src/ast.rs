@@ -10,6 +10,10 @@ use crate::lex::{Pt, PtPart, Signed};
 pub enum CounterKind {
     Pt(Pt),
     Named(String),
+    /// "that counter", "another of those counters", "a counter of that
+    /// kind" after "choose a counter on target permanent" (Clockspinning):
+    /// the kind of the counter chosen. Printed `Chosen`, unquoted.
+    Chosen,
 }
 
 impl CounterKind {
@@ -17,6 +21,7 @@ impl CounterKind {
     pub fn text(&self) -> String {
         match self {
             CounterKind::Named(w) => w.clone(),
+            CounterKind::Chosen => "of that kind".into(),
             CounterKind::Pt(pt) => {
                 let part = |p: PtPart| match (p, pt.signed) {
                     (PtPart::N(n), true) if n < 0 => format!("-{}", -n),
@@ -39,6 +44,9 @@ impl CounterKind {
 
 impl std::fmt::Debug for CounterKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if *self == CounterKind::Chosen {
+            return write!(f, "Chosen");
+        }
         write!(f, "{:?}", self.text())
     }
 }
@@ -2735,6 +2743,23 @@ pub fn each_player_creates(es: &mut Vec<Effect>) {
 /// `Marked(Chosen)`, as "Destroy each permanent chosen this way" says it. A
 /// bare `Antecedent` was the last player's choice alone
 /// ([each-player-chose]).
+/// "For each non-Saga permanent, choose a counter on it. You may put an
+/// additional counter of that kind on that permanent." (The Caves of
+/// Androzani): the counter is chosen once per permanent, so what is done
+/// with it is too; the sentences after the loop go inside it
+/// ([chosen-counter]).
+pub fn counter_chosen_in_loop(es: &mut Vec<Effect>) {
+    let Some(i) = es.iter().position(|e| {
+        matches!(e, Effect::ForEach { then, .. } if matches!(then.last(), Some(Effect::Choose(Choice::CounterOn(_)))))
+    }) else {
+        return;
+    };
+    let rest: Vec<Effect> = es.drain(i + 1..).collect();
+    if let Effect::ForEach { then, .. } = &mut es[i] {
+        then.extend(rest);
+    }
+}
+
 pub fn each_player_chose(es: &mut [Effect]) {
     struct Those(bool);
     impl crate::walk::Visitor for Those {
@@ -4062,6 +4087,10 @@ pub enum Choice {
     Opponent,
     /// "choose target artifact card in your graveyard".
     Objects(Objects),
+    /// "choose a counter on target permanent or suspended card"
+    /// (Clockspinning): one counter on it, whose kind later sentences
+    /// name as `CounterKind::Chosen`.
+    CounterOn(Objects),
     /// "choose target creature you control and target creature you don't
     /// control": two targets chosen at once, each its own target (CR
     /// 115.1), which later sentences tell apart by description ("the

@@ -309,6 +309,9 @@ impl Walk for Choice {
             Choice::Objects(f0) => {
                 Walk::walk(f0, v);
             }
+            Choice::CounterOn(f0) => {
+                Walk::walk(f0, v);
+            }
             Choice::Targets(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);

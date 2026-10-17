@@ -169,7 +169,7 @@ cost: {U}
 > Buyback {3} (You may pay an additional {3} as you cast this spell. If you do, put this card into your hand as it resolves.)
 > Choose a counter on target permanent or suspended card. Remove that counter from that permanent or card or put another of those counters on it.
 = Keywords([Keyword { name: "buyback", param: Some(Cost([Mana(Mana(["3"]))])) }])
-= BROKE at "suspended" after: choose a counter on target permanent or
+= Spell([Choose(CounterOn(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [], or: None }) } })), Or([RemoveCounters { n: N(1), kind: Chosen, from: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [], kind: Some(Card), posts: [], or: None }) } } }, PutCounters { n: N(1), kind: Chosen, on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])])
 
 ## Coalition Skyknight
 face: Coalition Skyknight

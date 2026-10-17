@@ -1229,6 +1229,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             p.word("choose")?;
             let c = alt!(p;
                 |p| p.words("a color").map(|_| Choice::Color),
+                |p| { p.words("a counter on")?; objects(p).map(Choice::CounterOn) },
                 |p| p.words("odd or even").map(|_| Choice::OddOrEven),
                 |p| p.words("a creature type").map(|_| Choice::CreatureType),
                 |p| p.words("a card type").map(|_| Choice::CardType),
@@ -1405,6 +1406,20 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         // "put a number of +1/+1 counters on ~ equal to that creature's
         // power", the amount before or after the object.
         |p| { p.word("put")?; number_of_counters(p) },
+        // "put another of those counters on it" after "choose a counter on
+        // target permanent" (Clockspinning): one more of the chosen kind.
+        |p| {
+            p.word("put")?;
+            p.one_of(&["another of those counters", "an additional counter of that kind", "another counter of that kind", "a counter of that kind"])?;
+            p.word("on")?;
+            let on = objects(p)?;
+            Some(Effect::PutCounters { n: Amount::N(1), kind: CounterKind::Chosen, on })
+        },
+        |p| {
+            p.words("remove that counter from")?;
+            let from = objects(p)?;
+            Some(Effect::RemoveCounters { n: Amount::N(1), kind: CounterKind::Chosen, from })
+        },
         // counters
         |p| {
             p.word("put")?;

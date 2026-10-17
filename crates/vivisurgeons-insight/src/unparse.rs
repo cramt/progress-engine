@@ -1870,6 +1870,25 @@ mod syn {
         alt(o, vec![spelled, of("those cards")]);
     }
 
+    /// Named rewrite [chosen-counter]: after "choose a counter on target
+    /// permanent", one counter of the chosen kind is "a counter of that
+    /// kind"; Oracle says it "another of those counters", "another
+    /// counter of that kind" or "an additional counter of that kind" when
+    /// put (Clockspinning, Tivit), and "that counter" when removed.
+    pub fn chosen_counter(o: &mut Out, put: bool) {
+        let mut v = vec![of("a counter of that kind")];
+        if put {
+            v.extend([
+                of("another of those counters"),
+                of("another counter of that kind"),
+                of("an additional counter of that kind"),
+            ]);
+        } else {
+            v.push(of("that counter"));
+        }
+        alt(o, v);
+    }
+
     pub fn at_end_of_combat(o: &mut Out, spelled: Out) {
         alt(o, vec![spelled, of("at end of combat")]);
     }
@@ -2989,6 +3008,11 @@ fn cost(o: &mut Out, c: &Cost) {
 
 /// A counter's kind, a word or a printed `+1/+1`, then the noun.
 fn counter_noun(o: &mut Out, kind: &CounterKind, n: Num) {
+    if *kind == CounterKind::Chosen {
+        o.noun("counter", n);
+        o.w("of that kind");
+        return;
+    }
     counter_kind(o, kind);
     o.noun("counter", n);
 }
@@ -2997,6 +3021,7 @@ fn counter_kind(o: &mut Out, kind: &CounterKind) {
     match kind {
         CounterKind::Pt(pt) => o.tok(Tok::Pt(*pt)),
         CounterKind::Named(w) => o.w(w),
+        CounterKind::Chosen => o.w("of that kind"),
     }
 }
 
@@ -7045,6 +7070,16 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("put");
             number_of_counters(o, n, kind, on);
         }
+        Effect::PutCounters {
+            n: Amount::N(1),
+            kind: CounterKind::Chosen,
+            on,
+        } => {
+            o.w("put");
+            syn::chosen_counter(o, true);
+            o.w("on");
+            objects(o, on);
+        }
         Effect::PutCounters { n, kind, on } => {
             o.w("put");
             amount_a(o, n);
@@ -7059,6 +7094,16 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 n => amount_a(o, n),
             }
             o.noun("counter", amount_num(n));
+            o.w("from");
+            objects(o, from);
+        }
+        Effect::RemoveCounters {
+            n: Amount::N(1),
+            kind: CounterKind::Chosen,
+            from,
+        } => {
+            o.w("remove");
+            syn::chosen_counter(o, false);
             o.w("from");
             objects(o, from);
         }
@@ -9962,6 +10007,10 @@ fn choice(o: &mut Out, c: &Choice) {
             }
         }
         Choice::Color => o.w("a color"),
+        Choice::CounterOn(x) => {
+            o.w("a counter on");
+            objects(o, x);
+        }
         Choice::OddOrEven => o.w("odd or even"),
         Choice::CreatureType => o.w("a creature type"),
         Choice::CardType => o.w("a card type"),

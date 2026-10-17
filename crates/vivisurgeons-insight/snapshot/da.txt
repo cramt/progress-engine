@@ -82,7 +82,7 @@ cost: {1}{U}
 > Flying
 > Whenever this creature attacks, choose a counter on a permanent you control. Put a counter of that kind on target permanent you control if it doesn't have a counter of that kind on it.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "permanent" after: whenever this creature attacks , choose a counter on a
+= BROKE at "a" after: whenever this creature attacks , choose a counter on a permanent you control . put a counter of that kind on target permanent you control if it doesn't have
 
 ## Basalt Ravager
 face: Basalt Ravager

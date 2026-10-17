@@ -996,7 +996,7 @@ cost: {3}{W}
 > II, III — For each non-Saga permanent, choose a counter on it. You may put an additional counter of that kind on that permanent.
 > IV — Search your library for a Doctor card, reveal it, put it into your hand, then shuffle.
 = Chapter { chapters: [1], effect: [PutCounters { n: N(2), kind: "stun", on: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }] }
-= BROKE at "kind" after: ii , iii — for each non-saga permanent , choose a counter on it . you may put an additional counter of that
+= Chapter { chapters: [2, 3], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Non("saga")]], kind: Some(Permanent), posts: [], or: None } }, then: [Choose(CounterOn(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), May { who: You, then: [PutCounters { n: N(1), kind: Chosen, on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }] }] }] }
 = Chapter { chapters: [4], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("doctor")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You)] }
 
 ## The Jolly Balloon Man
