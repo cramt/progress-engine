@@ -25,7 +25,7 @@ cost: {2}{R}{R}
 > You don't lose unspent red mana as steps and phases end.
 > Magecraft — Whenever you cast or copy an instant or sorcery spell, discard a card, then draw a card. If this is the second time this ability has resolved this turn, Ashling deals 2 damage to each opponent and each creature they control. If it's the third time, add {R}{R}{R}{R}.
 = BROKE at "steps" after: you don't lose unspent red mana as
-= Labelled { label: "magecraft", ability: Triggered { trigger: When(Or([Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, Copies { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }])), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(1) }, If { cond: NthResolution(2), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent), Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } })] }] }, If { cond: NthResolution(3), then: [AddMana(Symbols(Mana(["R", "R", "R", "R"])))] }], limits: [] } }
+= Labelled { label: "magecraft", ability: Triggered { trigger: When(Or([Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, Copies { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }])), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(1) }, If { order: Leading, cond: NthResolution(2), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent), Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } })] }] }, If { order: Leading, cond: NthResolution(3), then: [AddMana(Symbols(Mana(["R", "R", "R", "R"])))] }], limits: [] } }
 
 ## Baithook Angler // Hook-Haunt Drifter
 face: Baithook Angler
@@ -151,7 +151,7 @@ cost: {3}{B}
 > Void — At the beginning of your end step, sacrifice this Aura unless a nonland permanent left the battlefield this turn or a spell was warped this turn.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }])
 = Triggered { trigger: When(Attacks(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [EntersAttacking(Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(DefendingPlayer))], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: Some(You), order: None })], limits: [] }
-= Labelled { label: "void", ability: Triggered { trigger: At(EndStep(Yours)), effect: [If { cond: Not(Or([DidThisTurn(Leaves { what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: Battlefield }), DidThisTurn(CastUsing { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, keyword: "warp" })])), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] } }
+= Labelled { label: "void", ability: Triggered { trigger: At(EndStep(Yours)), effect: [If { order: Trailing, cond: Not(Or([DidThisTurn(Leaves { what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: Battlefield }), DidThisTurn(CastUsing { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, keyword: "warp" })])), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] } }
 
 ## Circuits Act
 face: Circuits Act
@@ -755,7 +755,7 @@ cost: {2}{B}
 > III — Each opponent loses 1 life for each creature card in their graveyard.
 = Chapter { chapters: [1], effect: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }
 = Chapter { chapters: [2], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }] }
-= Chapter { chapters: [3], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, then: [LoseLife { who: EachOpponent, n: N(1) }] }] }
+= Chapter { chapters: [3], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, then: [LoseLife { who: EachOpponent, n: N(1) }] }] }
 
 ## Osai Vultures
 face: Osai Vultures
@@ -786,7 +786,7 @@ cost: {3}{G}
 > Each creature that's attacking one of your opponents has trample.
 > {G}, {T}: You may put a creature or Vehicle card from your hand onto the battlefield. If you put an artifact onto the battlefield this way, put two +1/+1 counters on it.
 = Static([Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [AttackingPlayer(AnOpponent)], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }])
-= Activated { cost: [Mana(Mana(["G"])), Tap], effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { cond: ThisWay(Puts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, to: Battlefield }), then: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["G"])), Tap], effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: ThisWay(Puts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, to: Battlefield }), then: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }], limits: [] }
 
 ## Pain for All
 face: Pain for All
@@ -887,7 +887,7 @@ cost: {2}{B}{G}
 > Reach
 > {3}{B}{G}, Exile a creature card from your graveyard: Create a 1/2 green Spider creature token with reach, then each opponent loses 1 life for each Spider you control.
 = Keywords([Keyword { name: "reach", param: None }])
-= Activated { cost: [Mana(Mana(["3", "B", "G"])), Exile(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(2), signed: false }), colors: [Green], types: ["spider", "creature"], keywords: [Keyword { name: "reach", param: None }], abilities: [], named: None, attacking: None } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("spider")]], kind: None, posts: [Controller(You)], or: None } }, then: [LoseLife { who: EachOpponent, n: N(1) }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3", "B", "G"])), Exile(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(2), signed: false }), colors: [Green], types: ["spider", "creature"], keywords: [Keyword { name: "reach", param: None }], abilities: [], named: None, attacking: None } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("spider")]], kind: None, posts: [Controller(You)], or: None } }, then: [LoseLife { who: EachOpponent, n: N(1) }] }], limits: [] }
 
 ## Runo Stromkirk // Krothuss, Lord of the Deep
 face: Runo Stromkirk
@@ -936,7 +936,7 @@ face: Search for Azcanta
 type: Legendary Enchantment
 cost: {1}{U}
 > At the beginning of your upkeep, surveil 1. Then if you have seven or more cards in your graveyard, you may transform Search for Azcanta. (Look at the top card of your library. You may put that card into your graveyard.)
-= Triggered { trigger: At(Upkeep(Yours)), effect: [Surveil(N(1)), If { cond: PlayerHas { who: You, at_least: 7, what: CardsInGraveyard }, then: [May { who: You, then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Surveil(N(1)), If { order: Leading, cond: PlayerHas { who: You, at_least: 7, what: CardsInGraveyard }, then: [May { who: You, then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }], limits: [] }
 
 ## Search for Azcanta // Azcanta, the Sunken Ruin
 face: Azcanta, the Sunken Ruin
@@ -1140,7 +1140,7 @@ cost: {B}{B}
 > Tymaret's toughness is equal to your devotion to black. (Each {B} in the mana costs of permanents you control counts toward your devotion to black.)
 > {1}{B}: Exile up to two target cards from graveyards. You gain 1 life for each creature card exiled this way.
 = BROKE at "to" after: ~ 's toughness is equal to your devotion
-= Activated { cost: [Mana(Mana(["1", "B"]))], effect: [Exile(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "B"]))], effect: [Exile(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
 
 ## Umara Wizard // Umara Skyfalls
 face: Umara Wizard
@@ -1198,7 +1198,7 @@ cost: {2}{R}
 > Kicker {B} (You may pay an additional {B} as you cast this spell.)
 > Creatures you control get +2/+0 until end of turn. If this spell was kicked, whenever a creature you control dies this turn, draw a card.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["B"]))])) }])
-= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: WasKicked, then: [During { dur: ThisTurn, then: [DelayedWhenever { event: Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), then: [Draw { who: You, n: N(1) }] }] }] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: WasKicked, then: [During { dur: ThisTurn, then: [DelayedWhenever { event: Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), then: [Draw { who: You, n: N(1) }] }] }] }])
 
 ## Waterlogged Hulk // Watertight Gondola
 face: Waterlogged Hulk

@@ -90,7 +90,7 @@ face: Berg Strider
 type: Snow Creature — Giant Wizard
 cost: {4}{U}
 > When this creature enters, tap target artifact or creature an opponent controls. If {S} was spent to cast this spell, that permanent doesn't untap during its controller's next untap step. ({S} is mana from a snow source.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }), If { cond: ManaSpent { mana: Mana(["S"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }), If { order: Leading, cond: ManaSpent { mana: Mana(["S"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }] }], limits: [] }
 
 ## Bleeding Edge
 face: Bleeding Edge
@@ -254,7 +254,7 @@ face: Culmination of Studies
 type: Sorcery
 cost: {X}{U}{R}
 > Exile the top X cards of your library. For each land card exiled this way, create a Treasure token. For each blue card exiled this way, draw a card. For each red card exiled this way, Culmination of Studies deals 1 damage to each opponent.
-= Spell([Exile(Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Color(Blue)]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [Draw { who: You, n: N(1) }] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Color(Red)]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }] }])
+= Spell([Exile(Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Color(Blue)]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [Draw { who: You, n: N(1) }] }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Color(Red)]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }] }])
 
 ## Cyclopean Snare
 face: Cyclopean Snare
@@ -1286,7 +1286,7 @@ face: Viashino Sandswimmer
 type: Creature — Lizard
 cost: {2}{R}{R}
 > {R}: Flip a coin. If you win the flip, return this creature to its owner's hand. If you lose the flip, sacrifice this creature.
-= Activated { cost: [Mana(Mana(["R"]))], effect: [FlipCoin, If { cond: WonFlip(true), then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }, If { cond: WonFlip(false), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["R"]))], effect: [FlipCoin, If { order: Leading, cond: WonFlip(true), then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }, If { order: Leading, cond: WonFlip(false), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Vinelasher Adept
 face: Vinelasher Adept

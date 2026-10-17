@@ -383,7 +383,7 @@ type: Instant
 cost: {2}{G}
 > You gain 2 life for each creature card in your graveyard.
 > Flashback {2}{G} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["2", "G"]))])) }])
 
 ## Goblin Game
@@ -600,7 +600,7 @@ face: Red Sun's Twilight
 type: Sorcery
 cost: {X}{R}{R}
 > Destroy up to X target artifacts. If X is 5 or more, for each artifact destroyed this way, create a token that's a copy of it. Those tokens gain haste. Exile them at the beginning of the next end step.
-= Spell([Destroy { what: Objects { quant: Target { n: X, up_to: true }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, no_regen: false }, If { cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }] }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: Permanent }, Delayed { step: EndStep(Next), then: [Exile(Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
+= Spell([Destroy { what: Objects { quant: Target { n: X, up_to: true }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }] }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: Permanent }, Delayed { step: EndStep(Next), then: [Exile(Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Righteous Authority
 face: Righteous Authority
@@ -632,7 +632,7 @@ face: Sage's Dousing
 type: Kindred Instant — Wizard
 cost: {2}{U}
 > Counter target spell unless its controller pays {3}. If you control a Wizard, draw a card.
-= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["3"]))])) }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
+= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["3"]))])) }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
 
 ## Sarkhan, the Dragonspeaker
 face: Sarkhan, the Dragonspeaker
@@ -980,7 +980,7 @@ type: Land
 = Keywords([Keyword { name: "hideaway", param: Some(N(N(4))) }])
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["W"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["W"])), Tap], effect: [If { cond: AttackedWithThisTurn(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Linked, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["W"])), Tap], effect: [If { order: Trailing, cond: AttackedWithThisTurn(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Linked, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
 
 ## Windgrace Acolyte
 face: Windgrace Acolyte

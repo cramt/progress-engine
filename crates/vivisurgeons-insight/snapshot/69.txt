@@ -193,14 +193,14 @@ cost: {3}{W}
 > If damage would be dealt to you, put that many delay counters on this enchantment instead.
 > At the beginning of your upkeep, remove all delay counters from this enchantment. For each delay counter removed this way, you lose 1 life unless you pay {1}{W}.
 = BROKE at "," after: if damage would be dealt to you
-= Triggered { trigger: At(Upkeep(Yours)), effect: [RemoveAllCountersOf { kind: "delay", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("delay"))), posts: [Marked(Removed)], or: None } }, then: [Unless { effect: LoseLife { who: You, n: N(1) }, who: You, cost: [Mana(Mana(["1", "W"]))] }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [RemoveAllCountersOf { kind: "delay", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("delay"))), posts: [Marked(Removed)], or: None } }, then: [Unless { effect: LoseLife { who: You, n: N(1) }, who: You, cost: [Mana(Mana(["1", "W"]))] }] }], limits: [] }
 
 ## Descent of the Dragons
 face: Descent of the Dragons
 type: Sorcery
 cost: {4}{R}{R}
 > Destroy any number of target creatures. For each creature destroyed this way, its controller creates a 4/4 red Dragon creature token with flying.
-= Spell([Destroy { what: Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [Create { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [Red], types: ["dragon", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }] }])
+= Spell([Destroy { what: Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [Create { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [Red], types: ["dragon", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }] }])
 
 ## Diligent Zookeeper
 face: Diligent Zookeeper
@@ -216,7 +216,7 @@ cost: {3}{B}
 > Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)
 > When this creature enters, exile up to one target card from a graveyard. If a creature card was exiled this way, each opponent loses 2 life and you gain 2 life.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, how: Exiled }, then: [LoseLife { who: EachOpponent, n: N(2) }, GainLife { who: You, n: N(2) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, how: Exiled }, then: [LoseLife { who: EachOpponent, n: N(2) }, GainLife { who: You, n: N(2) }] }], limits: [] }
 
 ## Discordant Spirit
 face: Discordant Spirit
@@ -366,7 +366,7 @@ face: Grasp of Fate
 type: Enchantment
 cost: {1}{W}{W}
 > When this enchantment enters, for each opponent, exile up to one target nonland permanent that player controls until this enchantment leaves the battlefield. (Those permanents return under their owners' control.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [ExileUntilLeaves { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(That)], or: None } }, until: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [ExileUntilLeaves { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(That)], or: None } }, until: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Grim Feast
 face: Grim Feast
@@ -719,7 +719,7 @@ face: Respite
 type: Instant
 cost: {1}{G}
 > Prevent all combat damage that would be dealt this turn. You gain 1 life for each attacking creature.
-= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
 
 ## Samut, Hazoret's Champion
 face: Samut, Hazoret's Champion

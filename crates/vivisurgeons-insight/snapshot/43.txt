@@ -61,7 +61,7 @@ face: Burden of Greed
 type: Instant
 cost: {3}{B}
 > Target player loses 1 life for each tapped artifact they control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("artifact")]], kind: None, posts: [Controller(That)], or: None } }, then: [LoseLife { who: Target, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("artifact")]], kind: None, posts: [Controller(That)], or: None } }, then: [LoseLife { who: Target, n: N(1) }] }])
 
 ## By Invitation Only
 face: By Invitation Only
@@ -75,7 +75,7 @@ face: Cemetery Recruitment
 type: Sorcery
 cost: {1}{B}
 > Return target creature card from your graveyard to your hand. If it's a Zombie card, draw a card.
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("zombie")]], kind: Some(Card), posts: [], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("zombie")]], kind: Some(Card), posts: [], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Charisma
 face: Charisma
@@ -618,7 +618,7 @@ face: Ouphe Vandals
 type: Creature — Ouphe Rogue
 cost: {2}{G}
 > {G}, Sacrifice this creature: Counter target activated ability from an artifact source and destroy that artifact if it's on the battlefield. (Mana abilities can't be targeted.)
-= Activated { cost: [Mana(Mana(["G"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Activated)]], kind: Some(Ability), posts: [FromSource([Type("artifact")])], or: None } }, unless: None }, If { cond: In { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }, then: [Destroy { what: Objects { quant: SourceOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Ability), posts: [], or: None } }), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["G"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Activated)]], kind: Some(Ability), posts: [FromSource([Type("artifact")])], or: None } }, unless: None }, If { order: Trailing, cond: In { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }, then: [Destroy { what: Objects { quant: SourceOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Ability), posts: [], or: None } }), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
 
 ## Penregon Strongbull
 face: Penregon Strongbull

@@ -12,7 +12,7 @@ cost: {6}
 > When this artifact enters, create three Food tokens.
 > {T}: Add {C} for each Food you control.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(3), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }], limits: [] }
-= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("food")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["C"])))] }], limits: [] }
+= Activated { cost: [Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("food")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["C"])))] }], limits: [] }
 
 ## Bag of Tricks
 face: Bag of Tricks
@@ -53,7 +53,7 @@ face: Black Tom Cassidy
 type: Legendary Creature — Mutant Villain
 cost: {1}{G}
 > {T}: Add {G}. If you control another Mutant, you gain 1 life.
-= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"]))), If { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("mutant")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(1) }] }], limits: [] }
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"]))), If { order: Leading, cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("mutant")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(1) }] }], limits: [] }
 
 ## Boltwing Marauder
 face: Boltwing Marauder
@@ -274,7 +274,7 @@ face: Geistwave
 type: Instant
 cost: {1}{U}
 > Return target nonland permanent to its owner's hand. If you controlled that permanent, draw a card.
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, If { cond: Past(YouControl(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })), then: [Draw { who: You, n: N(1) }] }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: Past(YouControl(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })), then: [Draw { who: You, n: N(1) }] }])
 
 ## Ghosts of the Damned
 face: Ghosts of the Damned
@@ -348,7 +348,7 @@ cost: {1}{B}{G}
 > −2: You may sacrifice a creature. When you do, destroy target creature or planeswalker.
 > −5: Each opponent loses life equal to the number of creature cards in your graveyard.
 = BROKE at "<pt>" after: as long as ~ isn't on the battlefield , it's a
-= Loyalty { change: N(1), effect: [Process([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black, Green], types: ["insect", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Mill { who: You, n: N(1) }, If { cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Subtype("insect")]], kind: Some(Card), posts: [], or: None } }, how: Milled }, then: [PutCounters { n: N(1), kind: "loyalty", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, RepeatProcess] }])] }
+= Loyalty { change: N(1), effect: [Process([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black, Green], types: ["insect", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Mill { who: You, n: N(1) }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Subtype("insect")]], kind: Some(Card), posts: [], or: None } }, how: Milled }, then: [PutCounters { n: N(1), kind: "loyalty", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, RepeatProcess] }])] }
 = Loyalty { change: N(-2), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }, WhenYouDo([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } }, no_regen: false }])] }
 = Loyalty { change: N(-5), effect: [LoseLife { who: EachOpponent, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }] }
 
@@ -375,7 +375,7 @@ face: Howl of the Night Pack
 type: Sorcery
 cost: {6}{G}
 > Create a 2/2 green Wolf creature token for each Forest you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["wolf", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["wolf", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Howlpack Wolf
 face: Howlpack Wolf
@@ -526,7 +526,7 @@ cost: {4}{R}
 > Flying
 > Whenever you cast a spell from anywhere other than your hand, you may pay {1}{U/R}. If you do, copy that spell and you may choose new targets for the copy. If the copy is a permanent spell, it gains haste and "At the beginning of your end step, sacrifice this permanent." (A copy of a permanent spell becomes a token.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(You)))], or: None } } }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1", "U/R"]))] }] }, IfYouDo([Copy { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } }, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: Permanent }, GrantAbility { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: At(EndStep(Yours)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }, dur: Permanent }] }])], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(You)))], or: None } } }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1", "U/R"]))] }] }, IfYouDo([Copy { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } }, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: Permanent }, GrantAbility { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: At(EndStep(Yours)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }, dur: Permanent }] }])], limits: [] }
 
 ## Mnemonic Sphere
 face: Mnemonic Sphere
@@ -710,7 +710,7 @@ cost: {2}
 > At the beginning of your upkeep, put a +1/+1 counter on equipped creature if it's black.
 > Equip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)
 = Activated { cost: [Mana(Mana(["2"]))], effect: [Regenerate(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
-= Triggered { trigger: At(Upkeep(Yours)), effect: [If { cond: Is { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Black)]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [If { order: Trailing, cond: Is { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Black)]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
 ## Sanctum of All
@@ -719,7 +719,7 @@ type: Legendary Enchantment — Shrine
 cost: {W}{U}{B}{R}{G}
 > At the beginning of your upkeep, you may search your library and/or graveyard for a Shrine card and put it onto the battlefield. If you search your library this way, shuffle.
 > If a triggered ability of another Shrine you control triggers while you control six or more Shrines, that ability triggers an additional time.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("shrine")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, If { cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("shrine")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, If { order: Leading, cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }], limits: [] }
 = BROKE at "while" after: if a triggered ability of another shrine you control triggers
 
 ## Sazacap's Brew
@@ -731,7 +731,7 @@ cost: {1}{R}
 > Target player draws two cards. If the gift was promised, target creature you control gets +2/+0 until end of turn.
 = Keywords([Keyword { name: "gift", param: Some(Gift(Token { tapped: true, named: "fish" })) }])
 = Static([AdditionalCost([Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])])
-= Spell([Draw { who: Target, n: N(2) }, If { cond: GiftPromised, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([Draw { who: Target, n: N(2) }, If { order: Leading, cond: GiftPromised, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Scalding Salamander
 face: Scalding Salamander
@@ -861,7 +861,7 @@ cost: {3}{B}
 > Flash
 > When Teyo enters, target permanent you control gains deathtouch until end of turn. Put a +1/+1 counter on it if it's a creature. Put a loyalty counter on it if it's a planeswalker.
 = Keywords([Keyword { name: "flash", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "loyalty", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }, If { order: Trailing, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, If { order: Trailing, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "loyalty", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Thalisse, Reverent Medium
 face: Thalisse, Reverent Medium

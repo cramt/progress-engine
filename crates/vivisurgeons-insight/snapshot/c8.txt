@@ -85,7 +85,7 @@ cost: {3}{U}{U}
 > II — If you have one or fewer cards in hand, draw four cards. Otherwise, scry 2, then draw two cards.
 > III — Exile this Saga, then return it to the battlefield transformed under your control.
 = Chapter { chapters: [1], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(0), signed: true }), gains: [], dur: UntilYourNextTurn }] }
-= Chapter { chapters: [2], effect: [If { cond: CardsInHandAtMost(1), then: [Draw { who: You, n: N(4) }] }, Otherwise([Scry(N(2)), Draw { who: You, n: N(2) }])] }
+= Chapter { chapters: [2], effect: [If { order: Leading, cond: CardsInHandAtMost(1), then: [Draw { who: You, n: N(4) }] }, Otherwise([Scry(N(2)), Draw { who: You, n: N(2) }])] }
 = Chapter { chapters: [3], effect: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: true, under: Some(You), order: None }] }
 
 ## Behold the Unspeakable // Vision of the Unspeakable
@@ -147,7 +147,7 @@ face: Bountiful Harvest
 type: Sorcery
 cost: {4}{G}
 > You gain 1 life for each land you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
 
 ## Bountiful Landscape
 face: Bountiful Landscape
@@ -401,7 +401,7 @@ type: Land
 > {T}: Add {C}.
 > {T}: Untap target Griffin. If it's a creature, it gets +1/+1 until end of turn.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Tap], effect: [Untap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("griffin")]], kind: None, posts: [], or: None } }), If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Activated { cost: [Tap], effect: [Untap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("griffin")]], kind: None, posts: [], or: None } }), If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Grimgrin, Corpse-Born
 face: Grimgrin, Corpse-Born
@@ -514,7 +514,7 @@ type: Creature — Zombie Elemental
 > Menace
 > At the beginning of your end step, put a +1/+1 counter on this creature if a permanent was put into a graveyard from the battlefield this turn.
 = Keywords([Keyword { name: "menace", param: None }])
-= Triggered { trigger: At(EndStep(Yours)), effect: [If { cond: DidThisTurn(PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, to: AGraveyard, from: Battlefield }), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: At(EndStep(Yours)), effect: [If { order: Trailing, cond: DidThisTurn(PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, to: AGraveyard, from: Battlefield }), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Ioreth of the Healing House
 face: Ioreth of the Healing House
@@ -662,7 +662,7 @@ cost: {4}{R}{R}
 > Menace
 > Whenever this creature enters or attacks, create two 1/1 black Rat creature tokens with "This token can't block." Then if you control five or more Rats, each Rat you control gets +2/+0 until end of turn.
 = Keywords([Keyword { name: "menace", param: None }])
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["rat", "creature"], keywords: [], abilities: [Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])], named: None, attacking: None } }, If { cond: YouControl(Objects { quant: AtLeast(N(5)), filter: Filter { alts: [[Subtype("rat")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Subtype("rat")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["rat", "creature"], keywords: [], abilities: [Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])], named: None, attacking: None } }, If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(5)), filter: Filter { alts: [[Subtype("rat")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Subtype("rat")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time
 face: Ojer Pakpatiq, Deepest Epoch
@@ -691,7 +691,7 @@ cost: {4}
 > {T}: Put a charge counter on this artifact.
 > {T}: Each player draws a card for each charge counter on this artifact.
 = Activated { cost: [Tap], effect: [PutCounters { n: N(1), kind: "charge", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("charge"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Draw { who: Each, n: N(1) }] }], limits: [] }
+= Activated { cost: [Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("charge"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Draw { who: Each, n: N(1) }] }], limits: [] }
 
 ## Pain Magnification
 face: Pain Magnification
@@ -776,7 +776,7 @@ face: Renewing Dawn
 type: Sorcery
 cost: {1}{W}
 > You gain 2 life for each Mountain target opponent controls.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
 
 ## Retraction Helix
 face: Retraction Helix
@@ -874,7 +874,7 @@ face: Sink into Takenuma
 type: Sorcery — Arcane
 cost: {3}{B}
 > Sweep — Return any number of Swamps you control to their owner's hand. Target player discards a card for each Swamp returned this way.
-= Labelled { label: "sweep", ability: Spell([Move { what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Marked(Returned)], or: None } }, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }]) }
+= Labelled { label: "sweep", ability: Spell([Move { what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Marked(Returned)], or: None } }, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }]) }
 
 ## Skatewing Spy
 face: Skatewing Spy
@@ -903,7 +903,7 @@ face: Splash Portal
 type: Sorcery
 cost: {U}
 > Exile target creature you control, then return it to the battlefield under its owner's control. If that creature is a Bird, Frog, Otter, or Rat, draw a card.
-= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("bird")], [Subtype("frog")], [Subtype("otter")], [Subtype("rat")]], kind: None, posts: [], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("bird")], [Subtype("frog")], [Subtype("otter")], [Subtype("rat")]], kind: None, posts: [], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Sporeweb Weaver
 face: Sporeweb Weaver

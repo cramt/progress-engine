@@ -346,7 +346,7 @@ type: Enchantment
 > When this enchantment enters, create two 2/2 black Zombie creature tokens.
 > {2}{B}: Exile target card from a graveyard. If it was a creature card, create a 2/2 black Zombie creature token.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= Activated { cost: [Mana(Mana(["2", "B"]))], effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "B"]))], effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { order: Leading, cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 
 ## Izzet Generatorium
 face: Izzet Generatorium
@@ -486,7 +486,7 @@ type: Enchantment
 cost: {2}{R}
 > At the beginning of your upkeep, flip a coin. If you lose the flip, sacrifice this enchantment.
 > Whenever a player casts a spell, that player flips a coin. If they lose the flip, counter that spell.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [FlipCoin, If { cond: WonFlip(false), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [FlipCoin, If { order: Leading, cond: WonFlip(false), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = BROKE at "flips" after: whenever a player casts a spell , that player
 
 ## Ral Zarek, Guest Lecturer

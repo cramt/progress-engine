@@ -351,7 +351,7 @@ face: Finale of Eternity
 type: Sorcery
 cost: {X}{B}{B}
 > Destroy up to three target creatures with toughness X or less. If X is 10 or more, return all creature cards from your graveyard to the battlefield.
-= Spell([Destroy { what: Objects { quant: Target { n: N(3), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Toughness, op: Le, value: X })], or: None } }, no_regen: false }, If { cond: AmountIs { n: X, op: Ge, value: N(10) }, then: [Move { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }])
+= Spell([Destroy { what: Objects { quant: Target { n: N(3), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Toughness, op: Le, value: X })], or: None } }, no_regen: false }, If { order: Leading, cond: AmountIs { n: X, op: Ge, value: N(10) }, then: [Move { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }])
 
 ## Fire Nation Sentinels
 face: Fire Nation Sentinels
@@ -985,14 +985,14 @@ face: Undead Servant
 type: Creature — Zombie
 cost: {3}{B}
 > When this creature enters, create a 2/2 black Zombie creature token for each card named Undead Servant in your graveyard.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Undead Servant")), In(Graveyard(You))], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Undead Servant")), In(Graveyard(You))], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 
 ## Undercity's Embrace
 face: Undercity's Embrace
 type: Instant
 cost: {2}{B}
 > Target opponent sacrifices a creature of their choice. If you control a creature with power 4 or greater, you gain 4 life.
-= Spell([Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [GainLife { who: You, n: N(4) }] }])
+= Spell([Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [GainLife { who: You, n: N(4) }] }])
 
 ## Unexpected Fangs
 face: Unexpected Fangs
@@ -1088,7 +1088,7 @@ face: West Coast Expansion
 type: Sorcery
 cost: {X}{U}{U}
 > Draw X cards. If X is 5 or more, you may cast a Hero spell from your hand without paying its mana cost.
-= Spell([Draw { who: You, n: X }, If { cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Subtype("hero")]], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } }, payment: Free, dur: Permanent }] }] }])
+= Spell([Draw { who: You, n: X }, If { order: Leading, cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Subtype("hero")]], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } }, payment: Free, dur: Permanent }] }] }])
 
 ## Wild Leotau
 face: Wild Leotau

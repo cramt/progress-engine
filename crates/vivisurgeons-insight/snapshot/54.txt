@@ -692,7 +692,7 @@ face: Renounce
 type: Instant
 cost: {1}{W}
 > Sacrifice any number of permanents. You gain 2 life for each permanent sacrificed this way.
-= Spell([Sacrifice { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Marked(Sacrificed)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
+= Spell([Sacrifice { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Marked(Sacrificed)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
 
 ## Reptilian Reflection
 face: Reptilian Reflection
@@ -1000,7 +1000,7 @@ face: Warren Pilferers
 type: Creature — Goblin Rogue
 cost: {4}{B}
 > When this creature enters, return target creature card from your graveyard to your hand. If that card is a Goblin card, this creature gains haste until end of turn.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, filter: Filter { alts: [[Subtype("goblin")]], kind: Some(Card), posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, filter: Filter { alts: [[Subtype("goblin")]], kind: Some(Card), posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Willowrush Verge
 face: Willowrush Verge

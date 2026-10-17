@@ -151,7 +151,7 @@ face: Calming Verse
 type: Sorcery
 cost: {3}{G}
 > Destroy all enchantments you don't control. Then if you control an untapped land, destroy all enchantments you control.
-= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [NotControlledBy(You)], or: None } }, no_regen: false }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [], or: None } }), then: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, no_regen: false }] }])
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [NotControlledBy(You)], or: None } }, no_regen: false }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [], or: None } }), then: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, no_regen: false }] }])
 
 ## Captain Howler, Sea Scourge
 face: Captain Howler, Sea Scourge
@@ -160,7 +160,7 @@ cost: {2}{U}{R}
 > Ward—{2}, Pay 2 life.
 > Whenever you discard one or more cards, target creature gets +2/+0 until end of turn for each card discarded this way. Whenever that creature deals combat damage to a player this turn, you draw a card.
 = Keywords([Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"])), PayLife(N(2))])) }])
-= Triggered { trigger: When(Discards { who: You, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }, During { dur: ThisTurn, then: [DelayedWhenever { event: DealsCombatDamageToPlayer(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }] }], limits: [] }
+= Triggered { trigger: When(Discards { who: You, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }, During { dur: ThisTurn, then: [DelayedWhenever { event: DealsCombatDamageToPlayer(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }] }], limits: [] }
 
 ## Clockspinning
 face: Clockspinning
@@ -268,7 +268,7 @@ cost: {4}{R}
 > As an additional cost to cast this spell, you may sacrifice any number of Spirits.
 > Target creature gets +3/+0 until end of turn. For each Spirit sacrificed this way, that creature gets an additional +3/+0 until end of turn.
 = Static([OptionalAdditionalCost([Sacrifice(Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [], or: None } })])])
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Dimension X
 face: Dimension X
@@ -530,7 +530,7 @@ face: Hex Parasite
 type: Artifact Creature — Phyrexian Insect
 cost: {1}
 > {X}{B/P}: Remove up to X counters from target permanent. For each counter removed this way, this creature gets +1/+0 until end of turn. ({B/P} can be paid with either {B} or 2 life.)
-= Activated { cost: [Mana(Mana(["X", "B/P"]))], effect: [RemoveAnyCounters { n: UpTo(X), from: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [Marked(Removed)], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["X", "B/P"]))], effect: [RemoveAnyCounters { n: UpTo(X), from: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [Marked(Removed)], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Homura, Human Ascendant // Homura's Essence
 face: Homura, Human Ascendant
@@ -920,7 +920,7 @@ type: Instant — Arcane
 cost: {1}{G}{G}
 > Destroy target artifact or enchantment if its mana value is less than or equal to the number of cards in your hand.
 > Draw a card.
-= Spell([If { cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }) }, then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }] }])
+= Spell([If { order: Trailing, cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }) }, then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }] }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Reverent Mantra

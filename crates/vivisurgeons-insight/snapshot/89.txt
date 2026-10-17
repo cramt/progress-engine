@@ -30,7 +30,7 @@ cost: {1}{G}{G/W/P}{W}
 > −3: Distribute three +1/+1 counters among up to three target creatures. They gain vigilance until end of turn.
 > −6: You get an emblem with "Whenever you cast a creature or planeswalker spell, target opponent gets two poison counters."
 = Keywords([Keyword { name: "compleated", param: None }])
-= Loyalty { change: N(1), effect: [RevealTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Otherwise([May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }])] }
+= Loyalty { change: N(1), effect: [RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Otherwise([May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }])] }
 = Loyalty { change: N(-3), effect: [DistributeCounters { n: N(3), kind: "+1/+1", among: Objects { quant: Target { n: N(3), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "vigilance", param: None }], dur: UntilEndOfTurn }] }
 = Loyalty { change: N(-6), effect: [Emblem([Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Spell), posts: [], or: None } } }), effect: [GetCounters { who: TargetOpponent, n: N(2), kind: "poison" }], limits: [] }])] }
 
@@ -373,7 +373,7 @@ face: Gift of Estates
 type: Sorcery
 cost: {1}{W}
 > If an opponent controls more lands than you, search your library for up to three Plains cards, reveal them, put them into your hand, then shuffle.
-= Spell([If { cond: ControlsMore { who: AnOpponent, what: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None }, than: You }, then: [Search { who: You, zones: [Library(You)], what: Objects { quant: UpTo(N(3)), filter: Filter { alts: [[Subtype("plains")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You)] }])
+= Spell([If { order: Leading, cond: ControlsMore { who: AnOpponent, what: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None }, than: You }, then: [Search { who: You, zones: [Library(You)], what: Objects { quant: UpTo(N(3)), filter: Filter { alts: [[Subtype("plains")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You)] }])
 
 ## Gigadrowse
 face: Gigadrowse
@@ -665,7 +665,7 @@ cost: {X}{G}{U}
 > 0: Look at the top card of your library. If it's a land card or a creature card with mana value less than or equal to the number of loyalty counters on Nissa, you may put that card onto the battlefield.
 > −6: Untap up to two target lands you control. They become 5/5 Elemental creatures with flying and haste until end of turn. They're still lands.
 = Loyalty { change: N(2), effect: [Scry(N(2))] }
-= Loyalty { change: N(0), effect: [LookAtTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: Some(Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("loyalty"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) })], or: None }) } }, then: [May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }] }
+= Loyalty { change: N(0), effect: [LookAtTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: Some(Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("loyalty"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) })], or: None }) } }, then: [May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }] }
 = BROKE at "still" after: N(-6) : untap up to two target lands you control . they become <pt> elemental creatures with flying and haste until end of turn . they're
 
 ## Olivia's Attendants
@@ -887,7 +887,7 @@ face: Seed Spark
 type: Instant
 cost: {3}{W}
 > Destroy target artifact or enchantment. If {G} was spent to cast this spell, create two 1/1 green Saproling creature tokens.
-= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, If { cond: ManaSpent { mana: Mana(["G"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["saproling", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: ManaSpent { mana: Mana(["G"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["saproling", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Sekki, Seasons' Guide
 face: Sekki, Seasons' Guide
@@ -911,7 +911,7 @@ cost: {2}{W}{W}
 face: Serra's Sanctum
 type: Legendary Land
 > {T}: Add {W} for each enchantment you control.
-= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["W"])))] }], limits: [] }
+= Activated { cost: [Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["W"])))] }], limits: [] }
 
 ## Sewer Crocodile
 face: Sewer Crocodile
@@ -979,7 +979,7 @@ face: The Stone Brain
 type: Legendary Artifact
 cost: {2}
 > {2}, {T}, Exile The Stone Brain: Choose a card name. Search target opponent's graveyard, hand, and library for up to four cards with that name and exile them. That player shuffles, then draws a card for each card exiled from their hand this way. Activate only as a sorcery.
-= Activated { cost: [Mana(Mana(["2"])), Tap, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Choose(CardName), Search { who: You, zones: [Graveyard(TargetOpponent), Hand(TargetOpponent), Library(TargetOpponent)], what: Objects { quant: UpTo(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }, and: [] }, Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedFrom { how: Exiled, from: Hand(That) }], or: None } }, then: [Draw { who: That, n: N(1) }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["2"])), Tap, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Choose(CardName), Search { who: You, zones: [Graveyard(TargetOpponent), Hand(TargetOpponent), Library(TargetOpponent)], what: Objects { quant: UpTo(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }, and: [] }, Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedFrom { how: Exiled, from: Hand(That) }], or: None } }, then: [Draw { who: That, n: N(1) }] }], limits: [SorcerySpeed] }
 
 ## Thieves' Auction
 face: Thieves' Auction

@@ -85,7 +85,7 @@ face: Blunt the Assault
 type: Instant
 cost: {3}{G}
 > You gain 1 life for each creature on the battlefield. Prevent all combat damage that would be dealt this turn.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }, then: [GainLife { who: You, n: N(1) }] }, Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }, then: [GainLife { who: You, n: N(1) }] }, Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
 
 ## Bolrac-Clan Basher
 face: Bolrac-Clan Basher
@@ -165,7 +165,7 @@ face: Check for Traps
 type: Sorcery
 cost: {1}{B}
 > Target opponent reveals their hand. You choose a nonland card from it. Exile that card. If an instant card or a card with flash is exiled this way, they lose 1 life. Otherwise, you lose 1 life.
-= Spell([RevealHand(TargetOpponent), Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } })), Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), If { cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")]], kind: Some(Card), posts: [], or: Some(Filter { alts: [], kind: Some(Card), posts: [WithKeyword("flash")], or: None }) } }, how: Exiled }, then: [LoseLife { who: That, n: N(1) }] }, Otherwise([LoseLife { who: You, n: N(1) }])])
+= Spell([RevealHand(TargetOpponent), Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } })), Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")]], kind: Some(Card), posts: [], or: Some(Filter { alts: [], kind: Some(Card), posts: [WithKeyword("flash")], or: None }) } }, how: Exiled }, then: [LoseLife { who: That, n: N(1) }] }, Otherwise([LoseLife { who: You, n: N(1) }])])
 
 ## Cloudpost
 face: Cloudpost
@@ -173,7 +173,7 @@ type: Land — Locus
 > This land enters tapped.
 > {T}: Add {C} for each Locus on the battlefield.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
-= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("locus")]], kind: None, posts: [In(Battlefield)], or: None } }, then: [AddMana(Symbols(Mana(["C"])))] }], limits: [] }
+= Activated { cost: [Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("locus")]], kind: None, posts: [In(Battlefield)], or: None } }, then: [AddMana(Symbols(Mana(["C"])))] }], limits: [] }
 
 ## Cyan, Vengeful Samurai
 face: Cyan, Vengeful Samurai
@@ -418,7 +418,7 @@ face: Gruesome Fate
 type: Sorcery
 cost: {2}{B}
 > Each opponent loses 1 life for each creature you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [LoseLife { who: EachOpponent, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [LoseLife { who: EachOpponent, n: N(1) }] }])
 
 ## Haazda Marshal
 face: Haazda Marshal
@@ -473,7 +473,7 @@ face: Kessig Cagebreakers
 type: Creature — Human Rogue
 cost: {4}{G}
 > Whenever this creature attacks, create a 2/2 green Wolf creature token that's tapped and attacking for each creature card in your graveyard.
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["wolf", "creature"], keywords: [], abilities: [], named: None, attacking: Some(ControllerChooses) } }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["wolf", "creature"], keywords: [], abilities: [], named: None, attacking: Some(ControllerChooses) } }] }], limits: [] }
 
 ## Last-Ditch Effort
 face: Last-Ditch Effort
@@ -497,7 +497,7 @@ face: Lyzolda, the Blood Witch
 type: Legendary Creature — Human Cleric
 cost: {1}{B}{R}
 > {2}, Sacrifice a creature: Lyzolda deals 2 damage to any target if the sacrificed creature was red. Draw a card if the sacrificed creature was black.
-= Activated { cost: [Mana(Mana(["2"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [If { cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, filter: Filter { alts: [[Color(Red)]], kind: None, posts: [], or: None } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }, If { cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, filter: Filter { alts: [[Color(Black)]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [If { order: Trailing, cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, filter: Filter { alts: [[Color(Red)]], kind: None, posts: [], or: None } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }, If { order: Trailing, cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, filter: Filter { alts: [[Color(Black)]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Magma Vein
 face: Magma Vein
@@ -934,7 +934,7 @@ cost: {4}
 > When this Equipment enters, draw a card for each Equipment you control.
 > Equipped creature gets +2/+2 for each Equipment you control.
 > Equip {3}
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } })) }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["3"]))])) }])
 
@@ -969,7 +969,7 @@ cost: {3}
 > As an additional cost to cast this spell, reveal a colorless creature card from your hand.
 > Exile target creature if its power is less than or equal to the revealed card's power.
 = Static([AdditionalCost([Reveal(Objects { quant: One, filter: Filter { alts: [[Color(Colorless), Type("creature")]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])])
-= Spell([If { cond: AmountIs { n: PowerOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }) }, then: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
+= Spell([If { order: Trailing, cond: AmountIs { n: PowerOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }) }, then: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
 
 ## Tony Stark // The Invincible Iron Man
 face: Tony Stark
@@ -987,7 +987,7 @@ cost: {4}{U}{R}
 > Flying, haste
 > At the beginning of combat on your turn, you may put an artifact card from your hand onto the battlefield. If it's an Equipment, attach it to The Invincible Iron Man.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }])
-= Triggered { trigger: At(Combat(Yours)), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } }, then: [Attach { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }], limits: [] }
+= Triggered { trigger: At(Combat(Yours)), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } }, then: [Attach { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }], limits: [] }
 
 ## Tree of Perdition
 face: Tree of Perdition
@@ -1121,7 +1121,7 @@ face: When We Were Young
 type: Instant
 cost: {3}{W}
 > Up to two target creatures each get +2/+2 until end of turn. If you control an artifact and an enchantment, those creatures also gain lifelink until end of turn.
-= Spell([Modify { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: And([YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: And([YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } })]), then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }] }])
 
 ## Wild Growth
 face: Wild Growth

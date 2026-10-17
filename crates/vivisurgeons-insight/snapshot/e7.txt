@@ -73,14 +73,14 @@ face: Avid Reclaimer
 type: Creature — Human Druid
 cost: {2}{G}
 > {T}: Add {G} or {U}. If you control a Nissa planeswalker, you gain 2 life.
-= Activated { cost: [Tap], effect: [AddMana(Or([Mana(["G"]), Mana(["U"])])), If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("nissa"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(2) }] }], limits: [] }
+= Activated { cost: [Tap], effect: [AddMana(Or([Mana(["G"]), Mana(["U"])])), If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("nissa"), Type("planeswalker")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(2) }] }], limits: [] }
 
 ## Blue Sun's Twilight
 face: Blue Sun's Twilight
 type: Sorcery
 cost: {X}{U}{U}
 > Gain control of target creature with mana value X or less. If X is 5 or more, create a token that's a copy of that creature.
-= Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: ManaValue, op: Le, value: X })], or: None } }, dur: Permanent }, If { cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }] }])
+= Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: ManaValue, op: Le, value: X })], or: None } }, dur: Permanent }, If { order: Leading, cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }] }])
 
 ## Bojuka Bog
 face: Bojuka Bog
@@ -156,7 +156,7 @@ face: Cutthroat Negotiator
 type: Creature — Orc Pirate
 cost: {2}{U}{R}
 > Parley — Whenever this creature attacks, each player reveals the top card of their library. For each nonland card revealed this way, you create a tapped Treasure token. Then each player draws a card.
-= Labelled { label: "parley", ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [RevealTop { who: Each, whose: That, n: N(1) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: true, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }, Draw { who: Each, n: N(1) }], limits: [] } }
+= Labelled { label: "parley", ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [RevealTop { who: Each, whose: That, n: N(1) }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: true, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }, Draw { who: Each, n: N(1) }], limits: [] } }
 
 ## Dazzling Angel
 face: Dazzling Angel
@@ -384,7 +384,7 @@ type: Legendary Land
 > {T}: Add {G}.
 > {T}: Add {G} for each creature you control.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] }
-= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["G"])))] }], limits: [] }
+= Activated { cost: [Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["G"])))] }], limits: [] }
 
 ## Halo Hopper
 face: Halo Hopper
@@ -416,7 +416,7 @@ cost: {2}{W}
 > Teamwork 3 (As an additional cost to cast this spell, you may tap any number of creatures you control with total power 3 or more.)
 > One or two target creatures each get +2/+1 until end of turn. If this spell was cast using teamwork, draw a card.
 = Keywords([Keyword { name: "teamwork", param: Some(N(N(3))) }])
-= Spell([Modify { what: Objects { quant: Target { n: Between(1, 2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: CastUsing { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, keyword: "teamwork" }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Modify { what: Objects { quant: Target { n: Between(1, 2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: CastUsing { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, keyword: "teamwork" }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Highland Lake
 face: Highland Lake
@@ -470,7 +470,7 @@ type: Legendary Creature — Elf Druid
 cost: {2}{G}
 > {T}: Exile the top card of your library. If it's a land card, put it into your hand. Otherwise, put a study counter on it.
 > {4}{G}: Create a 0/0 green and blue Fractal creature token. Put a +1/+1 counter on it for each different mana value among nonland cards you own in exile with study counters on them.
-= Activated { cost: [Tap], effect: [Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Otherwise([PutCounters { n: N(1), kind: "study", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
+= Activated { cost: [Tap], effect: [Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Otherwise([PutCounters { n: N(1), kind: "study", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 = BROKE at "mana" after: {4} {G} : create a <pt> green and blue fractal creature token . put a <pt> counter on it for each different
 
 ## Kianne, Dean of Substance // Imbraham, Dean of Theory
@@ -632,7 +632,7 @@ cost: {2}{W}{U}
 > +1: Look at the top card of your library. If it's a noncreature, nonland card, you may reveal it and put it into your hand.
 > −2: When you next cast an instant or sorcery spell from your hand this turn, it gains rebound. (Exile the spell as it resolves. At the beginning of your next upkeep, you may cast that card from exile without paying its mana cost.)
 > −9: You get an emblem with "Your opponents can't cast noncreature spells."
-= Loyalty { change: N(1), effect: [LookAtTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Non("creature"), Non("land")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }] }
+= Loyalty { change: N(1), effect: [LookAtTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Non("creature"), Non("land")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }] }
 = Loyalty { change: N(-2), effect: [DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } } }, dur: ThisTurn, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "rebound", param: None }], dur: Permanent }] }] }
 = Loyalty { change: N(-9), effect: [Emblem([Static([PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } })] }])])] }
 
@@ -731,7 +731,7 @@ face: Righteous Fury
 type: Sorcery
 cost: {4}{W}{W}
 > Destroy all tapped creatures. You gain 2 life for each creature destroyed this way.
-= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
 
 ## Road // Ruin
 face: Road
@@ -885,7 +885,7 @@ face: Timbermaw Larva
 type: Creature — Beast
 cost: {3}{G}
 > Whenever this creature attacks, it gets +1/+1 until end of turn for each Forest you control.
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Tombfire
 face: Tombfire
@@ -903,7 +903,7 @@ cost: {3}{U}
 > When Toothy leaves the battlefield, draw a card for each +1/+1 counter on it.
 = Keywords([Keyword { name: "partner with", param: Some(PartnerWith("pir, imaginative rascal")) }])
 = Triggered { trigger: When(Draws(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Traveling Plague
 face: Traveling Plague
@@ -923,7 +923,7 @@ face: Vivien's Grizzly
 type: Creature — Bear Spirit
 cost: {2}{G}
 > {3}{G}: Look at the top card of your library. If it's a creature or planeswalker card, you may reveal it and put it into your hand. If you don't put the card into your hand, put it on the bottom of your library.
-= Activated { cost: [Mana(Mana(["3", "G"]))], effect: [LookAtTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }, If { cond: Not(ThisWay(Puts { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, to: Hand(You) })), then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3", "G"]))], effect: [LookAtTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }, If { order: Leading, cond: Not(ThisWay(Puts { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, to: Hand(You) })), then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Voyager Drake
 face: Voyager Drake

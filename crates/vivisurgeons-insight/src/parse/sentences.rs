@@ -41,6 +41,7 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
         }) {
             after_clause(&e, &mut cond);
             e = Effect::If {
+                order: ClauseOrder::Trailing,
                 cond: Condition::Not(Box::new(cond)),
                 then: vec![e],
             };
@@ -91,6 +92,7 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
             // so none of them is the object a pass counts.
             e.walk(&mut BeforeEach);
             e = Effect::ForEach {
+                order: ClauseOrder::Trailing,
                 each,
                 then: vec![e],
             };
@@ -106,6 +108,7 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
         }) {
             after_clause(&e, &mut cond);
             e = Effect::If {
+                order: ClauseOrder::Trailing,
                 cond,
                 then: vec![e],
             };
@@ -573,6 +576,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 // triggers for each opponent (Chancellor of the Annex's
                 // ruling), so it is one per opponent.
                 Event::Casts { who: Player::EachOpponent, what } => Effect::ForEach {
+                    order: ClauseOrder::Leading,
                     each: Objects { quant: Quant::Plural, filter: Filter { kind: Some(Noun::Opponent), ..Filter::default() } },
                     then: vec![Effect::DelayedWhen { event: Event::Casts { who: Player::That, what }, then }],
                 },
@@ -606,7 +610,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let then = clauses(p)?;
             let trail = p.attempt(|p| p.word("instead")).is_some();
             Some(vec![match (lead, trail) {
-                (false, false) => Effect::If { cond, then },
+                (false, false) => Effect::If { order: ClauseOrder::Leading, cond, then },
                 (true, true) => return None,
                 _ => Effect::Instead { cond, then },
             }])
@@ -668,7 +672,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             )?;
             p.tok(&Tok::Comma)?;
             let then = clauses(p)?;
-            Some(vec![Effect::ForEach { each, then }])
+            Some(vec![Effect::ForEach { order: ClauseOrder::Leading, each, then }])
         },
         |p| {
             p.words("for each color among")?;
@@ -775,8 +779,9 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             // only if the condition holds, so the "if" holds the "may", and
             // "If you don't" and "Otherwise" after it answer the choice and
             // the condition, not a choice that was always offered.
-            if let [Effect::If { cond, then: inner }] = &then[..] {
+            if let [Effect::If { order, cond, then: inner }] = &then[..] {
                 return Some(vec![Effect::If {
+                    order: *order,
                     cond: cond.clone(),
                     then: vec![Effect::May { who, then: inner.clone() }],
                 }]);
@@ -1483,6 +1488,7 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                 if let Some(ev) = not_done {
                     let then = std::mem::take(then);
                     s = vec![Effect::If {
+                        order: ClauseOrder::Leading,
                         cond: Condition::Not(Box::new(Condition::ThisWay(Box::new(ev)))),
                         then,
                     }];
@@ -1839,7 +1845,7 @@ fn repeats(e: &Effect) -> bool {
 /// The objects of a "For each …, its controller …" loop, whose controllers
 /// a later "those players" names.
 fn controllers_of_each(e: &Effect) -> Option<Objects> {
-    let Effect::ForEach { each, then } = e else {
+    let Effect::ForEach { each, then, .. } = e else {
         return None;
     };
     let its = Objects {
@@ -2129,6 +2135,7 @@ fn permission_rules(v: &mut Vec<Effect>) {
             let Effect::If {
                 cond: Condition::ThisWay(e),
                 then,
+                ..
             } = v.remove(i)
             else {
                 unreachable!("matched above");
@@ -2214,7 +2221,7 @@ fn source_of_ability(v: &mut [Effect]) {
         filter,
     };
     for e in v[k + 1..].iter_mut() {
-        let Effect::If { cond, then } = e else {
+        let Effect::If { cond, then, .. } = e else {
             continue;
         };
         let [Effect::Destroy { what, .. }] = &mut then[..] else {

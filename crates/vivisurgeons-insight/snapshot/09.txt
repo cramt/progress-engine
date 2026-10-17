@@ -194,7 +194,7 @@ cost: {2}{W}
 > Kicker {2}{U} (You may pay an additional {2}{U} as you cast this spell.)
 > Destroy target artifact or enchantment. If this spell was kicked, draw two cards.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2", "U"]))])) }])
-= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, If { cond: WasKicked, then: [Draw { who: You, n: N(2) }] }])
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: WasKicked, then: [Draw { who: You, n: N(2) }] }])
 
 ## Doom Whisperer
 face: Doom Whisperer
@@ -252,7 +252,7 @@ cost: {W}
 > At the beginning of your upkeep, put a hunger counter on this enchantment. Then destroy this enchantment if it has five or more hunger counters on it.
 > If you would begin your draw step, you may skip that step instead. If you do, you gain 2 life.
 > When you draw a card, destroy this enchantment.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [PutCounters { n: N(1), kind: "hunger", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("hunger"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Destroy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [PutCounters { n: N(1), kind: "hunger", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("hunger"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Destroy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
 = BROKE at "," after: if you would begin your draw step
 = Triggered { trigger: When(Draws(You)), effect: [Destroy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }
 
@@ -358,7 +358,7 @@ face: Goatnap
 type: Sorcery
 cost: {2}{R}
 > Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn. If that creature is a Goat, it also gets +3/+0 until end of turn.
-= Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }, Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("goat")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }, Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("goat")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Goblin Artisans
 face: Goblin Artisans
@@ -372,7 +372,7 @@ face: Goblin Welder
 type: Creature — Goblin Artificer
 cost: {R}
 > {T}: Choose target artifact a player controls and target artifact card in that player's graveyard. If both targets are still legal as this ability resolves, that player simultaneously sacrifices the artifact and returns the artifact card to the battlefield.
-= Activated { cost: [Tap], effect: [Choose(Targets([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(APlayer)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }])), If { cond: TargetsStillLegal, then: [Simultaneously([Sacrifice { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, Performed { by: That, effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }])] }], limits: [] }
+= Activated { cost: [Tap], effect: [Choose(Targets([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(APlayer)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }])), If { order: Leading, cond: TargetsStillLegal, then: [Simultaneously([Sacrifice { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, Performed { by: That, effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }])] }], limits: [] }
 
 ## Golem Artisan
 face: Golem Artisan
@@ -415,7 +415,7 @@ cost: {1}{U}
 > Devoid (This card has no color.)
 > Counter target creature spell with mana value 4 or less. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.
 = Keywords([Keyword { name: "devoid", param: None }])
-= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Le, value: N(4) })], or: None } }, unless: None }, If { cond: ThisWay(Countered(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })), then: [InsteadOf { then: Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), of: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersGraveyard, tapped: false, transformed: false, under: None, order: None } }] }])
+= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Le, value: N(4) })], or: None } }, unless: None }, If { order: Leading, cond: ThisWay(Countered(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })), then: [InsteadOf { then: Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), of: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersGraveyard, tapped: false, transformed: false, under: None, order: None } }] }])
 
 ## Inside Out
 face: Inside Out
@@ -560,7 +560,7 @@ type: Sorcery
 cost: {3}{R}
 > Exile target card that's an instant or sorcery from your graveyard. For each card exiled this way, copy it, and you may cast the copy without paying its mana cost. Exile Mizzix's Mastery.
 > Overload {5}{R}{R}{R} (You may cast this spell for its overload cost. If you do, change "target" in its text to "each.")
-= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [ThatIs(Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: None, posts: [], or: None }), In(Graveyard(You))], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: false }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } }, payment: Free, dur: Permanent }] }] }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
+= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [ThatIs(Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: None, posts: [], or: None }), In(Graveyard(You))], or: None } }), ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: false }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } }, payment: Free, dur: Permanent }] }] }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Keywords([Keyword { name: "overload", param: Some(Cost([Mana(Mana(["5", "R", "R", "R"]))])) }])
 
 ## Molten Sentry
@@ -767,7 +767,7 @@ cost: {1}{B}{G}
 > Flying
 > Whenever you sacrifice a land, create a tapped token that's a copy of this creature if seven or more land cards are in your graveyard. Otherwise, create a tapped 1/1 black Insect creature token with flying.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } } }), effect: [If { cond: In { what: Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, zone: Graveyard(You) }, then: [CreateCopy { n: N(1), tapped: true, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }, Otherwise([Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["insect", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }])], limits: [] }
+= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } } }), effect: [If { order: Trailing, cond: In { what: Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, zone: Graveyard(You) }, then: [CreateCopy { n: N(1), tapped: true, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }, Otherwise([Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["insect", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }])], limits: [] }
 
 ## Scuzzback Scrounger
 face: Scuzzback Scrounger
@@ -940,7 +940,7 @@ cost: {1}{R}
 > Target creature gains double strike until end of turn.
 > Ferocious — That creature also gains trample until end of turn if you control a creature with power 4 or greater.
 = Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "double strike", param: None }], dur: UntilEndOfTurn }])
-= Labelled { label: "ferocious", ability: Spell([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }] }]) }
+= Labelled { label: "ferocious", ability: Spell([If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }] }]) }
 
 ## Thalakos Deceiver
 face: Thalakos Deceiver
@@ -974,7 +974,7 @@ cost: {2}{B}{B}
 > This spell costs {2} less to cast if your life total is 5 or less.
 > Exile target creature or planeswalker. Search its controller's graveyard, hand, and library for any number of cards with the same name as that permanent and exile them. That player shuffles, then draws a card for each card exiled from their hand this way.
 = Static([If { cond: AmountIs { n: LifeTotal(You), op: Le, value: N(5) }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
-= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } }), Search { who: You, zones: [Graveyard(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Hand(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Library(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }))], what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [SameNameAs(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })], or: None } }, and: [] }, Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedFrom { how: Exiled, from: Hand(That) }], or: None } }, then: [Draw { who: That, n: N(1) }] }])
+= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } }), Search { who: You, zones: [Graveyard(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Hand(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Library(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }))], what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [SameNameAs(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })], or: None } }, and: [] }, Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedFrom { how: Exiled, from: Hand(That) }], or: None } }, then: [Draw { who: That, n: N(1) }] }])
 
 ## Thraben Watcher
 face: Thraben Watcher
@@ -992,7 +992,7 @@ cost: {1}{R}
 > Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)
 > Whenever this creature attacks, you may pay {X}{R}. If you do, create X 1/1 red Elemental creature tokens that are tapped and attacking. At the beginning of the next end step, exile those tokens unless you have the city's blessing.
 = Keywords([Keyword { name: "ascend", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["X", "R"]))] }] }, IfYouDo([Create { who: You, n: X, token: Token { tapped: true, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: Some(ControllerChooses) } }, Delayed { step: EndStep(Next), then: [If { cond: Not(CitysBlessing(You)), then: [Exile(Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })] }] }])], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["X", "R"]))] }] }, IfYouDo([Create { who: You, n: X, token: Token { tapped: true, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: Some(ControllerChooses) } }, Delayed { step: EndStep(Next), then: [If { order: Trailing, cond: Not(CitysBlessing(You)), then: [Exile(Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })] }] }])], limits: [] }
 
 ## Time Stretch
 face: Time Stretch
@@ -1025,7 +1025,7 @@ type: Land — Locus
 > {T}: Add {C}.
 > {3}, {T}: Target player mills a card for each Locus you control.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("locus")]], kind: None, posts: [Controller(You)], or: None } }, then: [Mill { who: Target, n: N(1) }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("locus")]], kind: None, posts: [Controller(You)], or: None } }, then: [Mill { who: Target, n: N(1) }] }], limits: [] }
 
 ## Ugin's Binding
 face: Ugin's Binding
@@ -1044,7 +1044,7 @@ type: Instant
 cost: {2}{W}
 > Permanents you control gain indestructible until end of turn. If this spell was cast from exile, prevent all damage that would be dealt to you this turn.
 > Foretell {2}{W} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)
-= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }, If { cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }, then: [Prevent { combat_only: false, n: None, to: Some([Player(You)]), by: None, dur: ThisTurn }] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }, If { order: Leading, cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }, then: [Prevent { combat_only: false, n: None, to: Some([Player(You)]), by: None, dur: ThisTurn }] }])
 = Keywords([Keyword { name: "foretell", param: Some(Cost([Mana(Mana(["2", "W"]))])) }])
 
 ## Veinfire Borderpost

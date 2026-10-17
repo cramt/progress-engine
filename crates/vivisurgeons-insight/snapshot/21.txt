@@ -35,7 +35,7 @@ cost: {4}{W}{W}
 > This spell costs {2} less to cast if a player attacked you during their last turn.
 > Destroy all creatures. You gain 1 life for each creature destroyed this way.
 = BROKE at "you" after: this spell costs {2} less to cast if a player attacked
-= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
 
 ## Black Knight
 face: Black Knight
@@ -170,7 +170,7 @@ face: Crooked Scales
 type: Artifact
 cost: {4}
 > {4}, {T}: Flip a coin. If you win the flip, destroy target creature an opponent controls. If you lose the flip, destroy target creature you control unless you pay {3} and repeat this process.
-= Activated { cost: [Mana(Mana(["4"])), Tap], effect: [Process([FlipCoin, If { cond: WonFlip(true), then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, no_regen: false }] }, If { cond: WonFlip(false), then: [Unless { effect: Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, no_regen: false }, who: You, cost: [Mana(Mana(["3"]))] }, RepeatProcess] }])], limits: [] }
+= Activated { cost: [Mana(Mana(["4"])), Tap], effect: [Process([FlipCoin, If { order: Leading, cond: WonFlip(true), then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, no_regen: false }] }, If { order: Leading, cond: WonFlip(false), then: [Unless { effect: Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, no_regen: false }, who: You, cost: [Mana(Mana(["3"]))] }, RepeatProcess] }])], limits: [] }
 
 ## Cytospawn Shambler
 face: Cytospawn Shambler
@@ -204,7 +204,7 @@ cost: {1}{U}
 > Choose one —
 > • Counter target artifact or enchantment spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.
 > • Counter target activated or triggered ability.
-= Spell([Modal { choose: One, modes: [[Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: Some(Spell), posts: [], or: None } }, unless: None }, If { cond: ThisWay(Countered(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })), then: [InsteadOf { then: Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), of: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersGraveyard, tapped: false, transformed: false, under: None, order: None } }] }], [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Activated)], [Ability(Triggered)]], kind: Some(Ability), posts: [], or: None } }, unless: None }]] }])
+= Spell([Modal { choose: One, modes: [[Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: Some(Spell), posts: [], or: None } }, unless: None }, If { order: Leading, cond: ThisWay(Countered(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })), then: [InsteadOf { then: Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), of: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersGraveyard, tapped: false, transformed: false, under: None, order: None } }] }], [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Activated)], [Ability(Triggered)]], kind: Some(Ability), posts: [], or: None } }, unless: None }]] }])
 
 ## Defiant Salvager
 face: Defiant Salvager
@@ -576,7 +576,7 @@ cost: {2}{R}
 > Reach
 > Landfall — Whenever a land you control enters, Koth deals 1 damage to each opponent. If that land is a Mountain, add {R}.
 = Keywords([Keyword { name: "reach", param: None }])
-= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }, If { cond: Is { what: Objects { quant: Triggering, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }], limits: [] } }
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }, If { order: Leading, cond: Is { what: Objects { quant: Triggering, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }], limits: [] } }
 
 ## Krenko, Tin Street Kingpin
 face: Krenko, Tin Street Kingpin
@@ -647,7 +647,7 @@ face: Marshaling the Troops
 type: Sorcery
 cost: {1}{G}
 > Tap any number of untapped creatures you control. You gain 4 life for each creature tapped this way.
-= Spell([Tap(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Tapped)], or: None } }, then: [GainLife { who: You, n: N(4) }] }])
+= Spell([Tap(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Tapped)], or: None } }, then: [GainLife { who: You, n: N(4) }] }])
 
 ## Merchant of the Vale // Haggle
 face: Merchant of the Vale
@@ -978,7 +978,7 @@ face: Surge of Thoughtweft
 type: Kindred Instant — Kithkin
 cost: {1}{W}
 > Creatures you control get +1/+1 until end of turn. If you control a Kithkin, draw a card.
-= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("kithkin")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("kithkin")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
 
 ## Talisman of Conviction
 face: Talisman of Conviction
@@ -1020,7 +1020,7 @@ type: Sorcery
 cost: {5}{G}
 > Council's dilemma — Starting with you, each player votes for Redhorn Pass or Mines of Moria. For each Redhorn Pass vote, search your library for a basic land card and put it onto the battlefield tapped. If you search your library this way, shuffle. For each Mines of Moria vote, return a card from your graveyard to your hand.
 > Exile Travel Through Caradhras.
-= Labelled { label: "council's dilemma", ability: Spell([StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["redhorn pass", "mines of moria"]) }] }, Repeat { times: Votes("redhorn pass"), then: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }, If { cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }, Repeat { times: Votes("mines of moria"), then: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }]) }
+= Labelled { label: "council's dilemma", ability: Spell([StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["redhorn pass", "mines of moria"]) }] }, Repeat { times: Votes("redhorn pass"), then: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }, If { order: Leading, cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }, Repeat { times: Votes("mines of moria"), then: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }]) }
 = Spell([Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Trespasser's Curse

@@ -314,7 +314,7 @@ face: Face Yourself
 type: Sorcery
 cost: {5}{R}{R}
 > For each creature target player controls, create a token that's a copy of that creature, except it has haste and "At the beginning of the end step, if you don't control a planeswalker, sacrifice this creature."
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [Triggered { trigger: InterveningIf(At(EndStep(Each)), YouDontControl(Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }] }] }] }])
+= Spell([ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [Triggered { trigger: InterveningIf(At(EndStep(Each)), YouDontControl(Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }] }] }] }])
 
 ## Faldorn, Dread Wolf Herald
 face: Faldorn, Dread Wolf Herald
@@ -380,7 +380,7 @@ cost: {1}{R}
 > Kicker {2}{U} (You may pay an additional {2}{U} as you cast this spell.)
 > If this spell was kicked, draw a card. Fires of Victory deals damage to target creature or planeswalker equal to the number of cards in your hand.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2", "U"]))])) }])
-= Spell([If { cond: WasKicked, then: [Draw { who: You, n: N(1) }] }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }])
+= Spell([If { order: Leading, cond: WasKicked, then: [Draw { who: You, n: N(1) }] }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }])
 
 ## Flailing Manticore
 face: Flailing Manticore
@@ -524,7 +524,7 @@ face: Honorable Scout
 type: Creature — Human Soldier Scout
 cost: {W}
 > When this creature enters, you gain 2 life for each black and/or red creature target opponent controls.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Color(Black), Type("creature")], [Color(Red), Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [GainLife { who: You, n: N(2) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Color(Black), Type("creature")], [Color(Red), Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [GainLife { who: You, n: N(2) }] }], limits: [] }
 
 ## Howl of the Horde
 face: Howl of the Horde
@@ -653,7 +653,7 @@ cost: {2}{G}
 > Flash
 > When this creature enters, untap another target creature you control. If that creature is a Bear, put a +1/+1 counter on it.
 = Keywords([Keyword { name: "flash", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Untap(Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("bear")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Untap(Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("bear")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Lurking Informant
 face: Lurking Informant
@@ -848,7 +848,7 @@ face: Reject Imperfection
 type: Instant
 cost: {1}{U}{U}
 > Counter target spell. If that spell's mana value was 3 or less, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)
-= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }, If { cond: Past(AmountIs { n: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), op: Le, value: N(3) }), then: [Action { by: None, name: "proliferate", n: None }] }])
+= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }, If { order: Leading, cond: Past(AmountIs { n: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), op: Le, value: N(3) }), then: [Action { by: None, name: "proliferate", n: None }] }])
 
 ## Remnant Elemental
 face: Remnant Elemental
@@ -919,7 +919,7 @@ cost: {2}{U}
 > III — Draw a card for each tapped creature target opponent controls.
 = Chapter { chapters: [1], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, dur: ForAsLongAs(YouControl(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }, Designation("ring")] }
 = Chapter { chapters: [2], effect: [Tap(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), PutCounters { n: N(1), kind: "stun", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }
-= Chapter { chapters: [3], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [Draw { who: You, n: N(1) }] }] }
+= Chapter { chapters: [3], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [Draw { who: You, n: N(1) }] }] }
 
 ## Smuggler's Buggy
 face: Smuggler's Buggy
@@ -947,7 +947,7 @@ cost: {2}
 > When Sting enters, put a hone counter on Sting for each creature target opponent controls. Attach Sting to up to one target creature you control. (Each hone counter on an Equipment grants +1/+0 to equipped creature.)
 > Equip {3}
 = Keywords([Keyword { name: "flash", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [PutCounters { n: N(1), kind: "hone", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, Attach { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [PutCounters { n: N(1), kind: "hone", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, Attach { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["3"]))])) }])
 
 ## Structural Distortion
@@ -1017,7 +1017,7 @@ face: Theft of Dreams
 type: Sorcery
 cost: {2}{U}
 > Draw a card for each tapped creature target opponent controls.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Thoughtcast
 face: Thoughtcast

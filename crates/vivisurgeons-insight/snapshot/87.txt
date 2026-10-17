@@ -164,7 +164,7 @@ face: Cheering Crowd
 type: Creature — Human Citizen
 cost: {1}{R/G}
 > At the beginning of each player's first main phase, that player may put a +1/+1 counter on this creature. If they do, they add {C} for each counter on it.
-= Triggered { trigger: At(PrecombatMain(Each)), effect: [May { who: That, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, IfYouDo([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Performed { by: That, effect: AddMana(Symbols(Mana(["C"]))) }] }])], limits: [] }
+= Triggered { trigger: At(PrecombatMain(Each)), effect: [May { who: That, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, IfYouDo([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Performed { by: That, effect: AddMana(Symbols(Mana(["C"]))) }] }])], limits: [] }
 
 ## Chishiro, the Shattered Blade
 face: Chishiro, the Shattered Blade
@@ -364,7 +364,7 @@ face: Fathom Fleet Boarder
 type: Creature — Orc Pirate
 cost: {2}{B}
 > When this creature enters, you lose 2 life unless you control another Pirate.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { cond: Not(YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("pirate")]], kind: None, posts: [], or: None } })), then: [LoseLife { who: You, n: N(2) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: Not(YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("pirate")]], kind: None, posts: [], or: None } })), then: [LoseLife { who: You, n: N(2) }] }], limits: [] }
 
 ## Fear, Fire, Foes!
 face: Fear, Fire, Foes!
@@ -603,7 +603,7 @@ type: Legendary Creature — Human Knight
 cost: {4}{W}{W}
 > When Lena enters, create a 1/1 white Soldier creature token for each nontoken creature you control.
 > Sacrifice Lena: Creatures you control with power less than Lena's power gain indestructible until end of turn.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 = Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Lt, value: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Leonin Squire
@@ -751,7 +751,7 @@ cost: {W}
 > At the beginning of your end step, if you gained life this turn, create a 1/1 white Cat creature token. Then if you have the city's blessing, for each token you control that entered this turn, create a token that's a copy of it.
 = Keywords([Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }])
 = Keywords([Keyword { name: "ascend", param: None }])
-= Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(GainsLife(You))), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["cat", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, If { cond: CitysBlessing(You), then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You), EnteredThisTurn], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }] }], limits: [] }
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(GainsLife(You))), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["cat", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, If { order: Leading, cond: CitysBlessing(You), then: [ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You), EnteredThisTurn], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }] }], limits: [] }
 
 ## On the Trail
 face: On the Trail
@@ -1088,7 +1088,7 @@ face: Tavern Swindler
 type: Creature — Human Rogue
 cost: {1}{B}
 > {T}, Pay 3 life: Flip a coin. If you win the flip, you gain 6 life.
-= Activated { cost: [Tap, PayLife(N(3))], effect: [FlipCoin, If { cond: WonFlip(true), then: [GainLife { who: You, n: N(6) }] }], limits: [] }
+= Activated { cost: [Tap, PayLife(N(3))], effect: [FlipCoin, If { order: Leading, cond: WonFlip(true), then: [GainLife { who: You, n: N(6) }] }], limits: [] }
 
 ## Tectonic Break
 face: Tectonic Break
@@ -1191,7 +1191,7 @@ face: Veil of Summer
 type: Instant
 cost: {G}
 > Draw a card if an opponent has cast a blue or black spell this turn. Spells you control can't be countered this turn. You and permanents you control gain hexproof from blue and from black until end of turn. (You and they can't be the targets of blue or black spells or abilities your opponents control.)
-= Spell([If { cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [[Color(Blue)], [Color(Black)]], kind: Some(Spell), posts: [], or: None } } }), then: [Draw { who: You, n: N(1) }] }, Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Controller(You)], or: None } }, rule: CantBeCountered, dur: ThisTurn }, PlayerGains { who: You, keywords: [Keyword { name: "hexproof", param: Some(Colors([Blue, Black])) }], dur: UntilEndOfTurn }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "hexproof", param: Some(Colors([Blue, Black])) }], dur: UntilEndOfTurn }])
+= Spell([If { order: Trailing, cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [[Color(Blue)], [Color(Black)]], kind: Some(Spell), posts: [], or: None } } }), then: [Draw { who: You, n: N(1) }] }, Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Controller(You)], or: None } }, rule: CantBeCountered, dur: ThisTurn }, PlayerGains { who: You, keywords: [Keyword { name: "hexproof", param: Some(Colors([Blue, Black])) }], dur: UntilEndOfTurn }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "hexproof", param: Some(Colors([Blue, Black])) }], dur: UntilEndOfTurn }])
 
 ## Voyage Home
 face: Voyage Home

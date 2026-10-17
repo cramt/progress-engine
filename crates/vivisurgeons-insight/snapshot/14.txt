@@ -93,7 +93,7 @@ cost: {W}
 > You gain 1 life for each player.
 > Haunt (When this spell card is put into a graveyard after resolving, exile it haunting target creature.)
 > When the creature this card haunts dies, you gain 1 life for each player.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
 = Keywords([Keyword { name: "haunt", param: None }])
 = BROKE at "," after: when the creature this card haunts dies
 
@@ -613,7 +613,7 @@ type: Sorcery
 cost: {B}
 > Target opponent exiles a card from their hand. If this spell was cast from a graveyard, draw a card.
 > Flashback {4}{B} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Performed { by: TargetOpponent, effect: Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }) }, If { cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: AGraveyard }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Performed { by: TargetOpponent, effect: Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }) }, If { order: Leading, cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: AGraveyard }, then: [Draw { who: You, n: N(1) }] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["4", "B"]))])) }])
 
 ## Ruthless Sniper
@@ -669,7 +669,7 @@ cost: {G}{W}
 > Lifelink
 > Whenever Shuri attacks, draw a card if you control three or more artifacts. Then if you control six or more artifacts, creatures you control get +2/+2 until end of turn.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [If { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }, If { cond: YouControl(Objects { quant: AtLeast(N(6)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [If { order: Trailing, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }, If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(6)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Sir Shandlar of Eberyn
 face: Sir Shandlar of Eberyn

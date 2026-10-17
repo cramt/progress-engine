@@ -564,7 +564,7 @@ mod tests {
         let Ability::Spell(effect) = &a[0] else {
             panic!("{a:?}")
         };
-        let Effect::If { cond, then } = &effect[1] else {
+        let Effect::If { cond, then, .. } = &effect[1] else {
             panic!("{effect:?}")
         };
         assert!(matches!(cond, Condition::ThisWay(e) if matches!(**e, Event::Countered(_))));
@@ -1331,7 +1331,7 @@ mod tests {
             "Creature — Phyrexian Advisor",
             "You may reveal this card from your opening hand. If you do, when each opponent casts their first spell of the game, counter that spell unless that player pays {1}.",
         );
-        assert!(format!("{a:?}").contains("ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent)"), "{a:?}");
+        assert!(format!("{a:?}").contains("ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent)"), "{a:?}");
         assert!(
             format!("{a:?}").contains("DelayedWhen { event: Casts { who: That"),
             "{a:?}"
@@ -1813,7 +1813,7 @@ mod tests {
             "Creature — Human",
             "Raid — This creature enters with a +1/+1 counter on it if you attacked this turn.\nThis creature enters with a divinity counter on it if you cast it from your hand.",
         );
-        assert!(a.contains("If { cond: YouAttackedThisTurn"), "{a}");
+        assert!(a.contains("cond: YouAttackedThisTurn"), "{a}");
         assert!(
             a.contains("YouCastItFrom { what: Objects { quant: SelfRef"),
             "{a}"
@@ -2252,7 +2252,7 @@ mod round_nine_d {
             "Instant",
             "Destroy target artifact. If its mana value was 2 or less, draw a card.",
         );
-        assert!(format!("{a:?}").contains("If { cond: Past(AmountIs { n: ManaValueOf("));
+        assert!(format!("{a:?}").contains("cond: Past(AmountIs { n: ManaValueOf("));
     }
 
     #[test]

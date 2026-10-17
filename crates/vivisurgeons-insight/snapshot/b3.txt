@@ -122,7 +122,7 @@ face: Change of Fortune
 type: Sorcery
 cost: {3}{R}
 > Discard your hand, then draw a card for each card you've discarded this turn.
-= Spell([DiscardHand(You), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [DoneThisTurn { who: You, verbs: [Discarded] }], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([DiscardHand(You), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [DoneThisTurn { who: You, verbs: [Discarded] }], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Changeling Sentinel
 face: Changeling Sentinel
@@ -245,7 +245,7 @@ face: Faerie Fencing
 type: Instant
 cost: {X}{B}
 > Target creature gets -X/-X until end of turn. That creature gets an additional -3/-3 until end of turn if you controlled a Faerie as you cast this spell.
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: MinusX, toughness: MinusX, signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: AsYouCastIt(Past(YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("faerie")]], kind: None, posts: [], or: None } }))), then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(-3), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: MinusX, toughness: MinusX, signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Trailing, cond: AsYouCastIt(Past(YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("faerie")]], kind: None, posts: [], or: None } }))), then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(-3), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Fire Nation Raider
 face: Fire Nation Raider
@@ -727,7 +727,7 @@ type: Creature — Human Rogue
 cost: {3}{B}
 > Whenever you sacrifice another creature, exile it. If that creature was a token, put a +1/+1 counter on this creature.
 > When this creature leaves the battlefield, return each card exiled with it to the battlefield under your control.
-= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }), effect: [Exile(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), If { cond: Past(Is { what: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }), effect: [Exile(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), If { order: Leading, cond: Past(Is { what: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Move { what: Objects { quant: Each, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }], limits: [] }
 
 ## Pseudodragon Familiar
@@ -778,7 +778,7 @@ face: Rolling Spoil
 type: Sorcery
 cost: {2}{G}{G}
 > Destroy target land. If {B} was spent to cast this spell, all creatures get -1/-1 until end of turn.
-= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, no_regen: false }, If { cond: ManaSpent { mana: Mana(["B"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Modify { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: ManaSpent { mana: Mana(["B"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Modify { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Rough // Tumble
 face: Rough
@@ -965,7 +965,7 @@ face: Sylvan Library
 type: Enchantment
 cost: {1}{G}
 > At the beginning of your draw step, you may draw two additional cards. If you do, choose two cards in your hand drawn this turn. For each of those cards, pay 4 life or put the card on top of your library.
-= Triggered { trigger: At(DrawStep(Yours)), effect: [May { who: You, then: [Draw { who: You, n: Additional(N(2)) }] }, IfYouDo([Choose(Objects(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You)), DrawnThisTurn], or: None } })), ForEach { each: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, then: [Or([Pay { who: You, cost: [PayLife(N(4))] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: None }])] }])], limits: [] }
+= Triggered { trigger: At(DrawStep(Yours)), effect: [May { who: You, then: [Draw { who: You, n: Additional(N(2)) }] }, IfYouDo([Choose(Objects(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You)), DrawnThisTurn], or: None } })), ForEach { order: Leading, each: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, then: [Or([Pay { who: You, cost: [PayLife(N(4))] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: None }])] }])], limits: [] }
 
 ## The Great Aurora
 face: The Great Aurora
@@ -1045,7 +1045,7 @@ type: Enchantment
 cost: {1}{U}
 > Whenever a creature you control deals combat damage to a player, put a quest counter on this enchantment. Then if it has four or more quest counters on it, draw a card.
 > Waterbend {4}: Target creature can't be blocked this turn. (While paying a waterbend cost, you can tap your artifacts and creatures to help. Each one pays for {1}.)
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [PutCounters { n: N(1), kind: "quest", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("quest"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(4) }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [PutCounters { n: N(1), kind: "quest", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("quest"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(4) }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 = Activated { cost: [ActionMana { name: "waterbend", mana: Mana(["4"]) }], effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
 
 ## Will of the All-Hunter

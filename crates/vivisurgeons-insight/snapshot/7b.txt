@@ -5,7 +5,7 @@ cost: {X}{G}
 > Reveal the top X cards of your library. Put all land cards from among them onto the battlefield tapped and the rest on the bottom of your library in a random order.
 > Spell mastery — If there are two or more instant and/or sorcery cards in your graveyard, untap those lands.
 = Spell([RevealTop { who: You, whose: You, n: X }, Move { what: Objects { quant: All, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [FromAmongThem], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }])
-= Labelled { label: "spell mastery", ability: Spell([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })] }]) }
+= Labelled { label: "spell mastery", ability: Spell([If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })] }]) }
 
 ## Arc-Slogger
 face: Arc-Slogger
@@ -227,7 +227,7 @@ face: Dispersal Shield
 type: Instant
 cost: {1}{U}
 > Counter target spell if its mana value is less than or equal to the greatest mana value among permanents you control.
-= Spell([If { cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: Greatest { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } } } }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }])
+= Spell([If { order: Trailing, cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: Greatest { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } } } }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }])
 
 ## Dockside Chef
 face: Dockside Chef
@@ -283,7 +283,7 @@ type: Sorcery
 cost: {5}{G}{G}{G}
 > Create a 1/1 green Snake creature token for each card in your hand.
 > Epic (For the rest of the game, you can't cast spells. At the beginning of each of your upkeeps, copy this spell except for its epic ability.)
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["snake", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["snake", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 = Keywords([Keyword { name: "epic", param: None }])
 
 ## Falkenrath Perforator
@@ -459,7 +459,7 @@ cost: {2}{B}{B}
 > +1: Mill three cards. If at least one Zombie card is milled this way, each opponent loses 2 life and you gain 2 life.
 > −2: Target creature gets -X/-X until end of turn, where X is the number of Zombies you control.
 > −3: You may cast Zombie spells from your graveyard this turn.
-= Loyalty { change: N(1), effect: [Mill { who: You, n: N(3) }, If { cond: DoneThisWay { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Subtype("zombie")]], kind: Some(Card), posts: [], or: None } }, how: Milled }, then: [LoseLife { who: EachOpponent, n: N(2) }, GainLife { who: You, n: N(2) }] }] }
+= Loyalty { change: N(1), effect: [Mill { who: You, n: N(3) }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Subtype("zombie")]], kind: Some(Card), posts: [], or: None } }, how: Milled }, then: [LoseLife { who: EachOpponent, n: N(2) }, GainLife { who: You, n: N(2) }] }] }
 = Loyalty { change: N(-2), effect: [Where { then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: MinusX, toughness: MinusX, signed: true }), gains: [], dur: UntilEndOfTurn }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }) }] }
 = Loyalty { change: N(-3), effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("zombie")]], kind: Some(Spell), posts: [CastFrom(Graveyard(You))], or: None } }, payment: ManaCost, dur: ThisTurn }] }] }
 
@@ -559,7 +559,7 @@ face: Mind's Dilation
 type: Enchantment
 cost: {5}{U}{U}
 > Whenever an opponent casts their first spell each turn, that player exiles the top card of their library. If it's a nonland card, you may cast it without paying its mana cost.
-= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: NthEachTurn { n: 1, of: That }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Performed { by: That, effect: Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(That))], or: None } }) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: NthEachTurn { n: 1, of: That }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Performed { by: That, effect: Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(That))], or: None } }) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
 
 ## Mire Kavu
 face: Mire Kavu
@@ -589,7 +589,7 @@ face: Mythos of Nethroi
 type: Instant
 cost: {2}{B}
 > Destroy target nonland permanent if it's a creature or if {G}{W} was spent to cast this spell.
-= Spell([If { cond: Or([Is { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ManaSpent { mana: Mana(["G", "W"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }]), then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }] }])
+= Spell([If { order: Trailing, cond: Or([Is { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ManaSpent { mana: Mana(["G", "W"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }]), then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }] }])
 
 ## Negate
 face: Negate
@@ -842,7 +842,7 @@ face: Specter's Shriek
 type: Sorcery
 cost: {B}
 > Target opponent reveals their hand. You may choose a nonland card from it. If you do, that player exiles that card. If a nonblack card is exiled this way, exile a card from your hand.
-= Spell([RevealHand(TargetOpponent), May { who: You, then: [Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }))] }, IfYouDo([Performed { by: That, effect: Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }) }]), If { cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[NonColor(Black)]], kind: Some(Card), posts: [], or: None } }, how: Exiled }, then: [Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })] }])
+= Spell([RevealHand(TargetOpponent), May { who: You, then: [Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }))] }, IfYouDo([Performed { by: That, effect: Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }) }]), If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[NonColor(Black)]], kind: Some(Card), posts: [], or: None } }, how: Exiled }, then: [Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })] }])
 
 ## Stasis Cocoon
 face: Stasis Cocoon
@@ -993,7 +993,7 @@ type: Instant
 cost: {1}{W}
 > Destroy target nonland permanent if another permanent with the same name is on the battlefield.
 > Draw a card.
-= Spell([If { cond: In { what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Permanent), posts: [SameNameAs(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, zone: Battlefield }, then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }] }])
+= Spell([If { order: Trailing, cond: In { what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Permanent), posts: [SameNameAs(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, zone: Battlefield }, then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }] }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Withering Torment

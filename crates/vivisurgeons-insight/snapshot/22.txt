@@ -540,7 +540,7 @@ cost: {1}{W}{W}
 > Creatures you control get +2/+1 until end of turn.
 > Spell mastery — If there are two or more instant and/or sorcery cards in your graveyard, those creatures also gain vigilance until end of turn. (Attacking doesn't cause them to tap.)
 = Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }])
-= Labelled { label: "spell mastery", ability: Spell([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "vigilance", param: None }], dur: UntilEndOfTurn }] }]) }
+= Labelled { label: "spell mastery", ability: Spell([If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "vigilance", param: None }], dur: UntilEndOfTurn }] }]) }
 
 ## Leovold, Emissary of Trest
 face: Leovold, Emissary of Trest
@@ -675,7 +675,7 @@ cost: {1}{B}{R}
 > −2: Create a 1/1 red Devil creature token with "When this token dies, it deals 1 damage to any target."
 > −7: Target player draws seven cards and loses 7 life.
 = BROKE at "the" after: casualty x .
-= Loyalty { change: N(1), effect: [Unless { effect: LoseLife { who: EachOpponent, n: N(2) }, who: That, cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("demon")], [Subtype("devil")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(2) }] }] }
+= Loyalty { change: N(1), effect: [Unless { effect: LoseLife { who: EachOpponent, n: N(2) }, who: That, cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("demon")], [Subtype("devil")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(2) }] }] }
 = Loyalty { change: N(-2), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["devil", "creature"], keywords: [], abilities: [Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }], named: None, attacking: None } }] }
 = Loyalty { change: N(-7), effect: [Draw { who: Target, n: N(7) }, LoseLife { who: That, n: N(7) }] }
 
@@ -888,7 +888,7 @@ face: Tezzeret's Betrayal
 type: Sorcery
 cost: {3}{U}{B}
 > Destroy target creature. You may search your library and/or graveyard for a card named Tezzeret, Master of Metal, reveal it, and put it into your hand. If you search your library this way, shuffle.
-= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("tezzeret, master of metal")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("tezzeret, master of metal")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { order: Leading, cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
 
 ## The Prima Vista
 face: The Prima Vista

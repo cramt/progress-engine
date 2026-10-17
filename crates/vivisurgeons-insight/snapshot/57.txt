@@ -67,7 +67,7 @@ cost: {3}{U}{U}
 > When this enchantment enters, exile all graveyards.
 > Whenever a player casts a spell, counter it if a card with the same name is in a graveyard or a nontoken permanent with the same name is on the battlefield.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ExileZone(Graveyard(Each))], limits: [] }
-= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [If { cond: Or([In { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [SameNameAs(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, zone: AGraveyard }, In { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken)]], kind: Some(Permanent), posts: [SameNameAs(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, zone: Battlefield }]), then: [Counter { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: None }] }], limits: [] }
+= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [If { order: Trailing, cond: Or([In { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [SameNameAs(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, zone: AGraveyard }, In { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken)]], kind: Some(Permanent), posts: [SameNameAs(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, zone: Battlefield }]), then: [Counter { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: None }] }], limits: [] }
 
 ## Bear's Companion
 face: Bear's Companion
@@ -463,7 +463,7 @@ type: Creature — Elemental Druid
 cost: {2}{R}{G}
 > {T}: Add {G} for each creature with power 4 or greater you control.
 > {7}{R}: This creature deals damage equal to its power to target player or planeswalker.
-= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) }), Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["G"])))] }], limits: [] }
+= Activated { cost: [Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) }), Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["G"])))] }], limits: [] }
 = Activated { cost: [Mana(Mana(["7", "R"]))], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }], limits: [] }
 
 ## Legion's Judgment
@@ -601,7 +601,7 @@ face: Pulse of the Tangle
 type: Sorcery
 cost: {1}{G}{G}
 > Create a 3/3 green Beast creature token. Then if an opponent controls more creatures than you, return Pulse of the Tangle to its owner's hand.
-= Spell([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green], types: ["beast", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, If { cond: ControlsMore { who: AnOpponent, what: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None }, than: You }, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }])
+= Spell([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green], types: ["beast", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, If { order: Leading, cond: ControlsMore { who: AnOpponent, what: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None }, than: You }, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }])
 
 ## Rain of Blades
 face: Rain of Blades
@@ -652,7 +652,7 @@ type: Land
 > This land enters tapped with two depletion counters on it.
 > {T}, Remove a depletion counter from this land: Add {R}{R}. If there are no depletion counters on this land, sacrifice it.
 = BROKE at "counters" after: this land enters tapped with two depletion
-= Activated { cost: [Tap, RemoveCounters { n: N(1), kind: "depletion", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [AddMana(Symbols(Mana(["R", "R"]))), If { cond: Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("depletion") }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Activated { cost: [Tap, RemoveCounters { n: N(1), kind: "depletion", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [AddMana(Symbols(Mana(["R", "R"]))), If { order: Leading, cond: Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("depletion") }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Senator Peacock
 face: Senator Peacock
@@ -810,7 +810,7 @@ face: Systems Override
 type: Sorcery
 cost: {2}{R}
 > Gain control of target artifact or creature until end of turn. Untap that permanent. It gains haste until end of turn. If it's a Spacecraft, put ten charge counters on it. If you do, remove ten charge counters from it at the beginning of the next end step.
-= Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }, Untap(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }), Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("spacecraft")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(10), kind: "charge", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, IfYouDo([Delayed { step: EndStep(Next), then: [RemoveCounters { n: N(10), kind: "charge", from: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])])
+= Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }, Untap(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }), Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("spacecraft")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(10), kind: "charge", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, IfYouDo([Delayed { step: EndStep(Next), then: [RemoveCounters { n: N(10), kind: "charge", from: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])])
 
 ## Tariff
 face: Tariff

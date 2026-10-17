@@ -86,7 +86,7 @@ face: Become the Avalanche
 type: Sorcery
 cost: {4}{G}{G}
 > Draw a card for each creature you control with power 4 or greater. Then creatures you control get +X/+X until end of turn, where X is the number of cards in your hand.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }, then: [Draw { who: You, n: N(1) }] }, Where { then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), gains: [], dur: UntilEndOfTurn }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }) }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }, then: [Draw { who: You, n: N(1) }] }, Where { then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), gains: [], dur: UntilEndOfTurn }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }) }])
 
 ## Beseech the Mirror
 face: Beseech the Mirror
@@ -95,7 +95,7 @@ cost: {1}{B}{B}{B}
 > Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)
 > Search your library for a card, exile it face down, then shuffle. If this spell was bargained, you may cast the exiled card without paying its mana cost if that spell's mana value is 4 or less. Put the exiled card into your hand if it wasn't cast this way.
 = Keywords([Keyword { name: "bargain", param: None }])
-= Spell([Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, and: [] }, ExileFaceDown(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(You), If { cond: WasBargained, then: [If { cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), op: Le, value: N(4) }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, payment: Free, dur: Permanent }] }] }] }, If { cond: Not(ThisWay(WasCast(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }))), then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }])
+= Spell([Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, and: [] }, ExileFaceDown(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(You), If { order: Leading, cond: WasBargained, then: [If { order: Trailing, cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), op: Le, value: N(4) }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, payment: Free, dur: Permanent }] }] }] }, If { order: Trailing, cond: Not(ThisWay(WasCast(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }))), then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }])
 
 ## Big Apple, 3 a.m.
 face: Big Apple, 3 a.m.
@@ -206,7 +206,7 @@ face: Dual-Sun Technique
 type: Instant
 cost: {1}{W}
 > Target creature you control gains double strike until end of turn. If it has a +1/+1 counter on it, draw a card.
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "double strike", param: None }], dur: UntilEndOfTurn }, If { cond: HasCounter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "double strike", param: None }], dur: UntilEndOfTurn }, If { order: Leading, cond: HasCounter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Emeria, the Sky Ruin
 face: Emeria, the Sky Ruin
@@ -461,7 +461,7 @@ face: Lotleth Giant
 type: Creature — Zombie Giant
 cost: {6}{B}
 > Undergrowth — When this creature enters, it deals 1 damage to target opponent for each creature card in your graveyard.
-= Labelled { label: "undergrowth", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(TargetOpponent)] }] }], limits: [] } }
+= Labelled { label: "undergrowth", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(TargetOpponent)] }] }], limits: [] } }
 
 ## Luminous Angel
 face: Luminous Angel
@@ -624,7 +624,7 @@ cost: {3}{R}{W}
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Exile)], or: None } } }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent)] }, GainLife { who: You, n: N(2) }], limits: [] }
 = Loyalty { change: N(1), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Red, White], types: ["spirit", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }
 = Loyalty { change: N(-3), effect: [Action { by: None, name: "discover", n: Some(N(4)) }] }
-= Loyalty { change: N(-6), effect: [Exile(Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }, May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ThisTurn }] }] }
+= Loyalty { change: N(-6), effect: [Exile(Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }, May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ThisTurn }] }] }
 
 ## Raging Goblin
 face: Raging Goblin
@@ -649,7 +649,7 @@ cost: {2}{R}
 > First strike
 > Whenever this creature attacks, for each creature token you control that entered this turn, create a tapped and attacking token that's a copy of that token. At the beginning of the next end step, sacrifice those tokens.
 = Keywords([Keyword { name: "first strike", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [Controller(You), EnteredThisTurn], or: None } }, then: [CreateCopy { n: N(1), tapped: true, attacking: Some(ControllerChooses), of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, except: [] }] }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [Controller(You), EnteredThisTurn], or: None } }, then: [CreateCopy { n: N(1), tapped: true, attacking: Some(ControllerChooses), of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, except: [] }] }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }], limits: [] }
 
 ## Revealing Wind
 face: Revealing Wind
@@ -665,7 +665,7 @@ cost: {3}{U}{U}
 > Return up to two target creatures to their owner's hand.
 > Search your library and/or graveyard for a card named Mu Yanling, reveal it, and put it into your hand. If you search your library this way, shuffle.
 = Spell([Move { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
-= Spell([Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("mu yanling")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
+= Spell([Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("mu yanling")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
 
 ## Rienne, Angel of Rebirth
 face: Rienne, Angel of Rebirth
@@ -767,7 +767,7 @@ face: Sonar Strike
 type: Instant
 cost: {1}{W}
 > Sonar Strike deals 4 damage to target attacking, blocking, or tapped creature. You gain 3 life if you control a Bat.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")], [State(Blocking), Type("creature")], [State(Tapped), Type("creature")]], kind: None, posts: [], or: None } })] }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("bat")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(3) }] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")], [State(Blocking), Type("creature")], [State(Tapped), Type("creature")]], kind: None, posts: [], or: None } })] }, If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("bat")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(3) }] }])
 
 ## Soulblade Corrupter
 face: Soulblade Corrupter

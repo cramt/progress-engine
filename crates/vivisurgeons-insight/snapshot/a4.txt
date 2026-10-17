@@ -295,7 +295,7 @@ face: Fickle Efreet
 type: Creature — Efreet
 cost: {3}{R}
 > Whenever this creature attacks or blocks, flip a coin at end of combat. If you lose the flip, an opponent gains control of this creature.
-= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [FlipCoin, If { cond: WonFlip(false), then: [Performed { by: AnOpponent, effect: GainControl { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: Permanent } }] }] }], limits: [] }
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [FlipCoin, If { order: Leading, cond: WonFlip(false), then: [Performed { by: AnOpponent, effect: GainControl { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: Permanent } }] }] }], limits: [] }
 
 ## Figure of Destiny
 face: Figure of Destiny
@@ -305,7 +305,7 @@ cost: {R/W}
 > {R/W}{R/W}{R/W}: If this creature is a Spirit, it becomes a Kithkin Spirit Warrior with base power and toughness 4/4.
 > {R/W}{R/W}{R/W}{R/W}{R/W}{R/W}: If this creature is a Warrior, it becomes a Kithkin Spirit Warrior Avatar with base power and toughness 8/8, flying, and first strike.
 = Activated { cost: [Mana(Mana(["R/W"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), types: [Subtype("kithkin"), Subtype("spirit")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }], limits: [] }
-= Activated { cost: [Mana(Mana(["R/W", "R/W", "R/W"]))], effect: [If { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [], or: None } }, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Subtype("kithkin"), Subtype("spirit"), Subtype("warrior")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["R/W", "R/W", "R/W"]))], effect: [If { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [], or: None } }, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Subtype("kithkin"), Subtype("spirit"), Subtype("warrior")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }] }], limits: [] }
 = BROKE at "," after: {R/W} {R/W} {R/W} {R/W} {R/W} {R/W} : if this creature is a warrior , it becomes a kithkin spirit warrior avatar with base power and toughness <pt> , flying
 
 ## Flanking Troops
@@ -326,7 +326,7 @@ cost: {2}{R}{W}
 face: Gaea's Cradle
 type: Legendary Land
 > {T}: Add {G} for each creature you control.
-= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["G"])))] }], limits: [] }
+= Activated { cost: [Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["G"])))] }], limits: [] }
 
 ## Gallia of the Endless Dance
 face: Gallia of the Endless Dance
@@ -361,7 +361,7 @@ cost: {1}{R}
 > Protection from blue (This creature can't be blocked, targeted, dealt damage, or enchanted by anything blue.)
 > Whenever this creature attacks, it gets +2/+0 until end of turn for each other attacking Goblin.
 = Keywords([Keyword { name: "protection", param: Some(Colors([Blue])) }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), State(Attacking), Subtype("goblin")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), State(Attacking), Subtype("goblin")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Growth Spasm
 face: Growth Spasm
@@ -523,7 +523,7 @@ face: Knotvine Paladin
 type: Creature — Human Knight
 cost: {G}{W}
 > Whenever this creature attacks, it gets +1/+1 until end of turn for each untapped creature you control.
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Krosan Warchief
 face: Krosan Warchief
@@ -562,7 +562,7 @@ face: Martyr's Cry
 type: Sorcery
 cost: {W}{W}
 > Exile all white creatures. For each creature exiled this way, its controller draws a card.
-= Spell([Exile(Objects { quant: All, filter: Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Exiled)], or: None } }, then: [Draw { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1) }] }])
+= Spell([Exile(Objects { quant: All, filter: Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [], or: None } }), ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Exiled)], or: None } }, then: [Draw { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1) }] }])
 
 ## Mawcor
 face: Mawcor
@@ -589,7 +589,7 @@ cost: {10}
 > Whenever Memnarch attacks, draw a card for each artifact you control.
 = Keywords([Keyword { name: "indestructible", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["myr", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Moonlit Strider
 face: Moonlit Strider
@@ -742,7 +742,7 @@ cost: {3}
 > Flying
 > Whenever a player casts a spell, they lose 1 life for each spell they've cast this turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastThisTurn(That)], or: None } }, then: [LoseLife { who: That, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastThisTurn(That)], or: None } }, then: [LoseLife { who: That, n: N(1) }] }], limits: [] }
 
 ## Rune-Sealed Wall
 face: Rune-Sealed Wall

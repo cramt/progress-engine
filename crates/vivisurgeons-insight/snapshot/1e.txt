@@ -43,7 +43,7 @@ cost: {3}{W}{W}
 > +2: You gain 1 life for each creature you control.
 > −3: Creatures you control get +2/+2 until end of turn.
 > −9: Put X +1/+1 counters on target creature, where X is your life total.
-= Loyalty { change: N(2), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }] }
+= Loyalty { change: N(2), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }] }
 = Loyalty { change: N(-3), effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }] }
 = Loyalty { change: N(-9), effect: [Where { then: [PutCounters { n: X, kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], x: LifeTotal(You) }] }
 
@@ -119,7 +119,7 @@ face: Brackish Blunder
 type: Instant
 cost: {1}{U}
 > Return target creature to its owner's hand. If it was tapped, create a Map token. (It's an artifact with "{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery.")
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, If { cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["map"], keywords: [], abilities: [], named: Some("map"), attacking: None } }] }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["map"], keywords: [], abilities: [], named: Some("map"), attacking: None } }] }])
 
 ## Brokers Charm
 face: Brokers Charm
@@ -244,7 +244,7 @@ type: Creature — Giant Warrior
 cost: {1}{R}{R}
 > At the beginning of your upkeep, reveal the top card of your library. If it's a land card, put it into your graveyard and repeat this process.
 > Whenever a land card is put into your graveyard from anywhere, put a +1/+1 counter on this creature.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [Process([RevealTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }, RepeatProcess] }])], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Process([RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }, RepeatProcess] }])], limits: [] }
 = Triggered { trigger: When(PutInto { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, to: Graveyard(You), from: Anywhere }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Dauthi Trapper
@@ -527,7 +527,7 @@ face: Inspiring Call
 type: Instant
 cost: {2}{G}
 > Draw a card for each creature you control with a +1/+1 counter on it. Those creatures gain indestructible until end of turn. (Damage and effects that say "destroy" don't destroy them.)
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithCounter(Some("+1/+1"))], or: None } }, then: [Draw { who: You, n: N(1) }] }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithCounter(Some("+1/+1"))], or: None } }, then: [Draw { who: You, n: N(1) }] }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }])
 
 ## Intimidation
 face: Intimidation
@@ -588,7 +588,7 @@ cost: {1}{R}{G}
 > At the beginning of your first main phase, exile target card from a graveyard. If it was a land card, add {R} or {G}. Otherwise, you gain 2 life and Klothys deals 2 damage to each opponent.
 = Keywords([Keyword { name: "indestructible", param: None }])
 = Static([AsLongAs { cond: AmountIs { n: Devotion { who: You, to: Listed([Red, Green]) }, op: Lt, value: N(7) }, then: [IsNot { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("creature")] }] }])
-= Triggered { trigger: At(PrecombatMain(Yours)), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }), then: [AddMana(Or([Mana(["R"]), Mana(["G"])]))] }, Otherwise([GainLife { who: You, n: N(2) }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent)] }])], limits: [] }
+= Triggered { trigger: At(PrecombatMain(Yours)), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { order: Leading, cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }), then: [AddMana(Or([Mana(["R"]), Mana(["G"])]))] }, Otherwise([GainLife { who: You, n: N(2) }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent)] }])], limits: [] }
 
 ## Lake of the Dead
 face: Lake of the Dead
@@ -814,7 +814,7 @@ face: Rampaging Classmate
 type: Creature — Lizard Berserker
 cost: {2}{R}
 > Whenever this creature attacks, it gets +1/+0 until end of turn for each other attacking creature.
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Ready to Rumble
 face: Ready to Rumble
@@ -985,7 +985,7 @@ cost: {2}{B}{B}
 > At the beginning of your upkeep, this creature deals 1 damage to each player. Then if you have 10 or less life, put a +1/+1 counter on this creature.
 = Keywords([Keyword { name: "spectacle", param: Some(Cost([Mana(Mana(["1", "B", "B"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }])
-= Triggered { trigger: At(Upkeep(Yours)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(Each)] }, If { cond: LifeAtMost(10), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(Each)] }, If { order: Leading, cond: LifeAtMost(10), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Spider-Girl, Legacy Hero
 face: Spider-Girl, Legacy Hero
@@ -1091,7 +1091,7 @@ cost: {2}{G}
 > IV — Create a Gold token. (It's an artifact with "Sacrifice this token: Add one mana of any color.")
 = Chapter { chapters: [1], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }
 = Chapter { chapters: [2], effect: [PutCounters { n: N(3), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }] }
-= Chapter { chapters: [3], effect: [If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [Draw { who: You, n: N(2) }] }] }
+= Chapter { chapters: [3], effect: [If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [Draw { who: You, n: N(2) }] }] }
 = Chapter { chapters: [4], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["gold"], keywords: [], abilities: [], named: Some("gold"), attacking: None } }] }
 
 ## The Prydwen, Steel Flagship
@@ -1143,7 +1143,7 @@ face: Tribute to the World Tree
 type: Enchantment
 cost: {G}{G}{G}
 > Whenever a creature you control enters, draw a card if its power is 3 or greater. Otherwise, put two +1/+1 counters on it.
-= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [If { cond: AmountIs { n: PowerOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Ge, value: N(3) }, then: [Draw { who: You, n: N(1) }] }, Otherwise([PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: AmountIs { n: PowerOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Ge, value: N(3) }, then: [Draw { who: You, n: N(1) }] }, Otherwise([PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 
 ## Trickster Mage
 face: Trickster Mage
@@ -1166,7 +1166,7 @@ face: Tyrant's Choice
 type: Sorcery
 cost: {1}{B}
 > Will of the council — Starting with you, each player votes for death or torture. If death gets more votes, each opponent sacrifices a creature of their choice. If torture gets more votes or the vote is tied, each opponent loses 4 life.
-= Labelled { label: "will of the council", ability: Spell([StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["death", "torture"]) }] }, If { cond: GetsMoreVotes("death"), then: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }, If { cond: Or([GetsMoreVotes("torture"), VoteTied]), then: [LoseLife { who: EachOpponent, n: N(4) }] }]) }
+= Labelled { label: "will of the council", ability: Spell([StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["death", "torture"]) }] }, If { order: Leading, cond: GetsMoreVotes("death"), then: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }, If { order: Leading, cond: Or([GetsMoreVotes("torture"), VoteTied]), then: [LoseLife { who: EachOpponent, n: N(4) }] }]) }
 
 ## Vedalken Engineer
 face: Vedalken Engineer

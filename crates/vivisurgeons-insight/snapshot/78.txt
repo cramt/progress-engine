@@ -5,7 +5,7 @@ cost: {3}{U}
 > Flying
 > At the beginning of your upkeep, mill a card. If an instant or sorcery card was milled this way, transform this creature. (To mill a card, put the top card of your library into your graveyard.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: At(Upkeep(Yours)), effect: [Mill { who: You, n: N(1) }, If { cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } }, how: Milled }, then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Mill { who: You, n: N(1) }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } }, how: Milled }, then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Aberrant Researcher // Perfected Form
 face: Perfected Form
@@ -224,7 +224,7 @@ cost: {W}{B}
 > Whenever Dark Leo & Shredder deal combat damage to a player, create a 1/1 black Ninja creature token. Then if you control five or more Ninjas, that player loses half their life, rounded up.
 = Keywords([Keyword { name: "sneak", param: Some(Cost([Mana(Mana(["W", "B"]))])) }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Subtype("ninja")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["ninja", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, If { cond: YouControl(Objects { quant: AtLeast(N(5)), filter: Filter { alts: [[Subtype("ninja")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: That, n: Half { of: LifeTotal(That), round_up: true } }] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["ninja", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(5)), filter: Filter { alts: [[Subtype("ninja")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: That, n: Half { of: LifeTotal(That), round_up: true } }] }], limits: [] }
 
 ## Darksteel Plate
 face: Darksteel Plate
@@ -380,7 +380,7 @@ face: Foul-Tongue Shriek
 type: Instant
 cost: {B}
 > Target opponent loses 1 life for each attacking creature you control. You gain that much life.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [LoseLife { who: TargetOpponent, n: N(1) }] }, GainLife { who: You, n: ThatMany }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [LoseLife { who: TargetOpponent, n: N(1) }] }, GainLife { who: You, n: ThatMany }])
 
 ## Foundry Screecher
 face: Foundry Screecher
@@ -426,7 +426,7 @@ cost: {X}{G}
 > {5}{G}: Until end of turn, other Elves you control gain vigilance and get +1/+1 for each +1/+1 counter on Haldir.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: X, kind: "+1/+1" }])
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Activated { cost: [Mana(Mana(["5", "G"]))], effect: [During { dur: UntilEndOfTurn, then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "vigilance", param: None }], dur: Permanent }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["5", "G"]))], effect: [During { dur: UntilEndOfTurn, then: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "vigilance", param: None }], dur: Permanent }] }] }], limits: [] }
 
 ## Haradrim Spearmaster
 face: Haradrim Spearmaster

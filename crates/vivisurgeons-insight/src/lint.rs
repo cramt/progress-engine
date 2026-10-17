@@ -699,6 +699,7 @@ mod tests {
         // "If target creature's power is greater than its power, …"
         let me = || target(creature(), None, vec![]);
         let compare = Ability::Spell(vec![Effect::If {
+            order: ClauseOrder::Leading,
             cond: Condition::Has {
                 what: me(),
                 cmp: Compare {
@@ -717,6 +718,7 @@ mod tests {
                 what: objects(Quant::One, vec![], Some(Noun::Spell), vec![]),
             })),
             effect: vec![Effect::If {
+                order: ClauseOrder::Leading,
                 cond: Condition::Is {
                     what: objects(Quant::Triggering, vec![], None, vec![]),
                     filter: Filter {
@@ -759,6 +761,7 @@ mod tests {
         // player excuses nothing ([that-player-in-effect]).
         let each = |who: Player| {
             Ability::Spell(vec![Effect::ForEach {
+                order: ClauseOrder::Trailing,
                 each: objects(
                     Quant::Plural,
                     vec![vec![Adj::Type("artifact".into())]],

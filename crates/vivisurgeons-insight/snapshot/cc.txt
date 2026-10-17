@@ -643,7 +643,7 @@ face: Overwhelming Forces
 type: Sorcery
 cost: {6}{B}{B}
 > Destroy all creatures target opponent controls. Draw a card for each creature destroyed this way.
-= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, no_regen: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, no_regen: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Phantom Nishoba
 face: Phantom Nishoba
@@ -663,7 +663,7 @@ face: Primal Empathy
 type: Enchantment
 cost: {1}{G}{U}
 > At the beginning of your upkeep, draw a card if you control a creature with the greatest power among creatures on the battlefield. Otherwise, put a +1/+1 counter on a creature you control.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [GreatestAmong { stat: Power, among: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } } }], or: None } }), then: [Draw { who: You, n: N(1) }] }, Otherwise([PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }])], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [GreatestAmong { stat: Power, among: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } } }], or: None } }), then: [Draw { who: You, n: N(1) }] }, Otherwise([PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }])], limits: [] }
 
 ## Punishing Fire
 face: Punishing Fire
@@ -693,7 +693,7 @@ face: Rabbit Response
 type: Instant
 cost: {2}{W}{W}
 > Creatures you control get +2/+1 until end of turn. If you control a Rabbit, scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)
-= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("rabbit")]], kind: None, posts: [], or: None } }), then: [Scry(N(2))] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("rabbit")]], kind: None, posts: [], or: None } }), then: [Scry(N(2))] }])
 
 ## Reckless Wurm
 face: Reckless Wurm
@@ -993,7 +993,7 @@ face: Tune Up
 type: Sorcery
 cost: {3}{W}
 > Return target artifact card from your graveyard to the battlefield. If it's a Vehicle, it becomes an artifact creature.
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } }, then: [Becomes { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Type("artifact"), Type("creature")], gains: [], keeps: OtherTypes, dur: Permanent }] }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } }, then: [Becomes { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Type("artifact"), Type("creature")], gains: [], keeps: OtherTypes, dur: Permanent }] }])
 
 ## Unburial Rites
 face: Unburial Rites
@@ -1060,8 +1060,8 @@ cost: {G}
 > {2}{W/B}{W/B}: If this creature is a Warrior, it becomes a Human Spirit Warrior with trample and lifelink.
 > {3}{W/B}{W/B}{W/B}: If this creature is a Spirit, put five +1/+1 counters on it.
 = Activated { cost: [Mana(Mana(["1", "W/B"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Subtype("human"), Subtype("warrior")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }], limits: [] }
-= Activated { cost: [Mana(Mana(["2", "W/B", "W/B"]))], effect: [If { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("warrior")]], kind: None, posts: [], or: None } }, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Subtype("human"), Subtype("spirit"), Subtype("warrior")], gains: [Keyword { name: "trample", param: None }, Keyword { name: "lifelink", param: None }], keeps: AllButSubtypesOfSet, dur: Permanent }] }], limits: [] }
-= Activated { cost: [Mana(Mana(["3", "W/B", "W/B", "W/B"]))], effect: [If { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(5), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "W/B", "W/B"]))], effect: [If { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("warrior")]], kind: None, posts: [], or: None } }, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Subtype("human"), Subtype("spirit"), Subtype("warrior")], gains: [Keyword { name: "trample", param: None }, Keyword { name: "lifelink", param: None }], keeps: AllButSubtypesOfSet, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3", "W/B", "W/B", "W/B"]))], effect: [If { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(5), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Waterspout Djinn
 face: Waterspout Djinn
@@ -1077,7 +1077,7 @@ face: Wave of Vitriol
 type: Sorcery
 cost: {5}{G}{G}
 > Each player sacrifices all artifacts, enchantments, and nonbasic lands they control. For each land sacrificed this way, its controller may search their library for a basic land card and put it onto the battlefield tapped. Then each player who searched their library this way shuffles.
-= Spell([Sacrifice { who: Each, what: Objects { quant: All, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")], [Non("basic"), Type("land")]], kind: None, posts: [Controller(That)], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [May { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [Search { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), zones: [Library(That)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }] }, Shuffle(DidThisWay { who: Each, did: Searches { who: That, zone: Library(That) } })])
+= Spell([Sacrifice { who: Each, what: Objects { quant: All, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")], [Non("basic"), Type("land")]], kind: None, posts: [Controller(That)], or: None } } }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [May { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [Search { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), zones: [Library(That)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }] }, Shuffle(DidThisWay { who: Each, did: Searches { who: That, zone: Library(That) } })])
 
 ## Weapon Rack
 face: Weapon Rack

@@ -115,7 +115,7 @@ face: Collective Unconscious
 type: Sorcery
 cost: {4}{G}{G}
 > Draw a card for each creature you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Companion of the Trials
 face: Companion of the Trials
@@ -147,7 +147,7 @@ face: Deploy
 type: Instant
 cost: {2}{W}{U}
 > Create two 1/1 colorless Thopter artifact creature tokens with flying, then you gain 1 life for each creature you control.
-= Spell([Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["thopter", "artifact", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
+= Spell([Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["thopter", "artifact", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
 
 ## Diligent Excavator
 face: Diligent Excavator
@@ -567,7 +567,7 @@ type: Creature — Horror
 cost: {5}{B}
 > When this creature enters, each opponent loses 1 life for each creature they control.
 > Transmute {1}{B}{B} ({1}{B}{B}, Discard this card: Search your library for a card with the same mana value as this card, reveal it, put it into your hand, then shuffle. Transmute only as a sorcery.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, then: [LoseLife { who: EachOpponent, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, then: [LoseLife { who: EachOpponent, n: N(1) }] }], limits: [] }
 = Keywords([Keyword { name: "transmute", param: Some(Cost([Mana(Mana(["1", "B", "B"]))])) }])
 
 ## Nine Lives
@@ -826,7 +826,7 @@ cost: {4}{W}
 > Flying
 > When this creature enters, you gain 1 life for each other creature you control.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
 
 ## Splintering Wind
 face: Splintering Wind
@@ -840,7 +840,7 @@ face: Stand United
 type: Instant
 cost: {1}{G/W}
 > Target creature gets +2/+2 until end of turn. If it's an Ally, scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("ally")]], kind: None, posts: [], or: None } }, then: [Scry(N(2))] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("ally")]], kind: None, posts: [], or: None } }, then: [Scry(N(2))] }])
 
 ## Starstorm
 face: Starstorm
@@ -1015,7 +1015,7 @@ face: Waiting in the Weeds
 type: Sorcery
 cost: {1}{G}{G}
 > Each player creates a 1/1 green Cat creature token for each untapped Forest they control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Subtype("forest")]], kind: None, posts: [Controller(That)], or: None } }, then: [Create { who: Each, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["cat", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Subtype("forest")]], kind: None, posts: [Controller(That)], or: None } }, then: [Create { who: Each, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["cat", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Wargling
 face: Wargling

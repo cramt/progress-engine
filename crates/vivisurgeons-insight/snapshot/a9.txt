@@ -686,7 +686,7 @@ face: Mana Geyser
 type: Sorcery
 cost: {3}{R}{R}
 > Add {R} for each tapped land your opponents control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("land")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("land")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }])
 
 ## Mirror Universe
 face: Mirror Universe
@@ -861,7 +861,7 @@ face: Repel Intruders
 type: Instant
 cost: {3}{W/U}
 > Create two 1/1 white Kithkin Soldier creature tokens if {W} was spent to cast this spell. Counter up to one target creature spell if {U} was spent to cast this spell. (Do both if {W}{U} was spent.)
-= Spell([If { cond: ManaSpent { mana: Mana(["W"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["kithkin", "soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }, If { cond: ManaSpent { mana: Mana(["U"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }, unless: None }] }])
+= Spell([If { order: Trailing, cond: ManaSpent { mana: Mana(["W"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["kithkin", "soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }, If { order: Trailing, cond: ManaSpent { mana: Mana(["U"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }, unless: None }] }])
 
 ## Restoration Gearsmith
 face: Restoration Gearsmith

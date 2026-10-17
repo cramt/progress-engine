@@ -178,7 +178,7 @@ cost: {4}{W}
 > Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)
 > When this creature enters, you gain 1 life for each creature you control.
 = Keywords([Keyword { name: "convoke", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
 
 ## Cosmic Cube
 face: Cosmic Cube
@@ -230,7 +230,7 @@ face: Desert's Due
 type: Instant
 cost: {1}{B}
 > Target creature gets -2/-2 until end of turn. It gets an additional -1/-1 until end of turn for each Desert you control.
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("desert")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: BeforeEach, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("desert")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: BeforeEach, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Eddymurk Crab
 face: Eddymurk Crab
@@ -257,7 +257,7 @@ face: Emrakul's Evangel
 type: Creature — Human Horror
 cost: {2}{G}
 > {T}, Sacrifice this creature and any number of other non-Eldrazi creatures: Create a 3/2 colorless Eldrazi Horror creature token for each creature sacrificed this way.
-= Activated { cost: [Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Sacrifice(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Other), Non("eldrazi"), Type("creature")]], kind: None, posts: [], or: None } })], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Colorless], types: ["eldrazi", "horror", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
+= Activated { cost: [Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Sacrifice(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Other), Non("eldrazi"), Type("creature")]], kind: None, posts: [], or: None } })], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Colorless], types: ["eldrazi", "horror", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 
 ## Enigmatic Incarnation
 face: Enigmatic Incarnation
@@ -332,7 +332,7 @@ face: Helldozer
 type: Creature — Zombie Giant
 cost: {3}{B}{B}{B}
 > {B}{B}{B}, {T}: Destroy target land. If that land was nonbasic, untap this creature.
-= Activated { cost: [Mana(Mana(["B", "B", "B"])), Tap], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, no_regen: false }, If { cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Non("basic")]], kind: None, posts: [], or: None } }), then: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["B", "B", "B"])), Tap], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Non("basic")]], kind: None, posts: [], or: None } }), then: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Here Comes a New Hero!
 face: Here Comes a New Hero!
@@ -516,7 +516,7 @@ cost: {3}{U}
 > Minas Tirith Garrison's power is equal to the number of cards in your hand.
 > Whenever this creature attacks, you may tap any number of untapped Humans you control. Draw a card for each Human tapped this way.
 = Static([SetPower { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }) }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Tap(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Untapped), Subtype("human")]], kind: None, posts: [Controller(You)], or: None } })] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [Marked(Tapped)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Tap(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Untapped), Subtype("human")]], kind: None, posts: [Controller(You)], or: None } })] }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [Marked(Tapped)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Mirrormere Guardian
 face: Mirrormere Guardian
@@ -577,7 +577,7 @@ cost: {3}{R}{G}
 > Whenever Pako attacks, exile the top card of each player's library and put a fetch counter on each of them. Put a +1/+1 counter on Pako for each noncreature card exiled this way.
 = Keywords([Keyword { name: "partner with", param: Some(PartnerWith("haldan, avid arcanist")) }])
 = Keywords([Keyword { name: "haste", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Exile(Objects { quant: NFromEach(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(Each))], or: None } }), PutCounters { n: N(1), kind: "fetch", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Exile(Objects { quant: NFromEach(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(Each))], or: None } }), PutCounters { n: N(1), kind: "fetch", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Paradox Gardens
 face: Paradox Gardens
@@ -1082,7 +1082,7 @@ type: Instant
 cost: {R}
 > Ferocious — If you control a creature with power 4 or greater, damage can't be prevented this turn.
 > Wild Slash deals 2 damage to any target.
-= Labelled { label: "ferocious", ability: Spell([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [DamageCantBePrevented(ThisTurn)] }]) }
+= Labelled { label: "ferocious", ability: Spell([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [DamageCantBePrevented(ThisTurn)] }]) }
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Windrider Wizard

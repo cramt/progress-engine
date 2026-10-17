@@ -135,7 +135,7 @@ cost: {3}{B}
 > If the {1}{B} cost was paid, an opponent draws a card.
 > Exile target creature or planeswalker.
 = Static([AlternativeCost([Mana(Mana(["1", "B"]))])])
-= Spell([If { cond: CostPaid(Mana(["1", "B"])), then: [Draw { who: AnOpponent, n: N(1) }] }])
+= Spell([If { order: Leading, cond: CostPaid(Mana(["1", "B"])), then: [Draw { who: AnOpponent, n: N(1) }] }])
 = Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })])
 
 ## Barbarian Riftcutter
@@ -349,7 +349,7 @@ face: Drown in Filth
 type: Sorcery
 cost: {B}{G}
 > Choose target creature. Mill four cards, then that creature gets -1/-1 until end of turn for each land card in your graveyard.
-= Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), Mill { who: You, n: N(4) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [Modify { what: Objects { quant: BeforeEach, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), Mill { who: You, n: N(4) }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [Modify { what: Objects { quant: BeforeEach, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## East Wind Avatar
 face: East Wind Avatar
@@ -461,7 +461,7 @@ cost: {5}{W}{W}
 > Create four 2/2 white Knight creature tokens with vigilance.
 > Spell mastery — If there are two or more instant and/or sorcery cards in your graveyard, creatures you control gain indestructible until end of turn.
 = Spell([Create { who: You, n: N(4), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White], types: ["knight", "creature"], keywords: [Keyword { name: "vigilance", param: None }], abilities: [], named: None, attacking: None } }])
-= Labelled { label: "spell mastery", ability: Spell([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }] }]) }
+= Labelled { label: "spell mastery", ability: Spell([If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }] }]) }
 
 ## Gift of Growth
 face: Gift of Growth
@@ -500,7 +500,7 @@ face: Grave Strength
 type: Sorcery
 cost: {1}{B}
 > Choose target creature. Mill three cards, then put a +1/+1 counter on that creature for each creature card in your graveyard. (To mill three cards, put the top three cards of your library into your graveyard.)
-= Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), Mill { who: You, n: N(3) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: BeforeEach, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }])
+= Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), Mill { who: You, n: N(3) }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: BeforeEach, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }])
 
 ## Gravetiller Wurm
 face: Gravetiller Wurm
@@ -592,7 +592,7 @@ cost: {3}{U}{U}
 > Whenever Iymrith deals combat damage to a player, draw a card. Then if you have fewer than three cards in hand, draw cards equal to the difference.
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["4"]))])) }], per: None }] }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, If { cond: PlayerHasFewerThan { who: You, n: 3, what: CardsInHand }, then: [Draw { who: You, n: TheDifference }] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, If { order: Leading, cond: PlayerHasFewerThan { who: You, n: 3, what: CardsInHand }, then: [Draw { who: You, n: TheDifference }] }], limits: [] }
 
 ## Jungle Barrier
 face: Jungle Barrier
@@ -815,7 +815,7 @@ type: Land
 > This land enters tapped with two depletion counters on it.
 > {T}, Remove a depletion counter from this land: Add {B}{B}. If there are no depletion counters on this land, sacrifice it.
 = BROKE at "counters" after: this land enters tapped with two depletion
-= Activated { cost: [Tap, RemoveCounters { n: N(1), kind: "depletion", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [AddMana(Symbols(Mana(["B", "B"]))), If { cond: Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("depletion") }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Activated { cost: [Tap, RemoveCounters { n: N(1), kind: "depletion", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [AddMana(Symbols(Mana(["B", "B"]))), If { order: Leading, cond: Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("depletion") }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Pendelhaven
 face: Pendelhaven
@@ -968,7 +968,7 @@ face: Scavenging Ooze
 type: Creature — Ooze
 cost: {1}{G}
 > {G}: Exile target card from a graveyard. If it was a creature card, put a +1/+1 counter on this creature and you gain 1 life.
-= Activated { cost: [Mana(Mana(["G"]))], effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, GainLife { who: You, n: N(1) }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["G"]))], effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { order: Leading, cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, GainLife { who: You, n: N(1) }] }], limits: [] }
 
 ## Seismic Assault
 face: Seismic Assault
@@ -1239,7 +1239,7 @@ type: Sorcery
 cost: {2}{B/G}{B/G}{B/G}
 > Create a 1/1 black and green Worm creature token for each land card in your graveyard.
 > Retrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black, Green], types: ["worm", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black, Green], types: ["worm", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 = Keywords([Keyword { name: "retrace", param: None }])
 
 ## Wormwood Treefolk

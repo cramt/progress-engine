@@ -23,7 +23,7 @@ face: Ambitious Assault
 type: Instant
 cost: {2}{R}
 > Creatures you control get +2/+0 until end of turn. If you control a modified creature, draw a card. (Equipment, Auras you control, and counters are modifications.)
-= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[State(Modified), Type("creature")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[State(Modified), Type("creature")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
 
 ## Arbiter of the Ideal
 face: Arbiter of the Ideal
@@ -190,7 +190,7 @@ face: Crypt Incursion
 type: Instant
 cost: {2}{B}
 > Exile all creature cards from target player's graveyard. You gain 3 life for each card exiled this way.
-= Spell([Exile(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(Target))], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [GainLife { who: You, n: N(3) }] }])
+= Spell([Exile(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(Target))], or: None } }), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [GainLife { who: You, n: N(3) }] }])
 
 ## Dark Prophecy
 face: Dark Prophecy
@@ -358,7 +358,7 @@ face: For the Common Good
 type: Sorcery
 cost: {X}{X}{G}
 > Create X tokens that are copies of target token you control. Then tokens you control gain indestructible until your next turn. You gain 1 life for each token you control.
-= Spell([CreateCopy { n: X, tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilYourNextTurn }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
+= Spell([CreateCopy { n: X, tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilYourNextTurn }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
 
 ## Fractured Sanity
 face: Fractured Sanity
@@ -753,7 +753,7 @@ face: Pulse of the Fields
 type: Instant
 cost: {1}{W}{W}
 > You gain 4 life. Then if an opponent has more life than you, return Pulse of the Fields to its owner's hand.
-= Spell([GainLife { who: You, n: N(4) }, If { cond: HasMore { who: AnOpponent, what: Life, than: You }, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }])
+= Spell([GainLife { who: You, n: N(4) }, If { order: Leading, cond: HasMore { who: AnOpponent, what: Life, than: You }, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }])
 
 ## Qarsi Sadist
 face: Qarsi Sadist
@@ -902,7 +902,7 @@ cost: {1}{U}
 > This creature can't be blocked.
 > Threshold — Whenever this creature deals combat damage to a player, draw a card. Then discard a card unless there are seven or more cards in your graveyard.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }])
-= Labelled { label: "threshold", ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, If { cond: Not(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }), then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] } }
+= Labelled { label: "threshold", ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, If { order: Trailing, cond: Not(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }), then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] } }
 
 ## Snooping Page
 face: Snooping Page

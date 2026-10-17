@@ -524,7 +524,7 @@ cost: {2}{W}{W}
 > Kicker {1}{R} (You may pay an additional {1}{R} as you cast this spell.)
 > Creatures you control get +2/+1 until end of turn. If this spell was kicked, those creatures also gain trample until end of turn.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["1", "R"]))])) }])
-= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: WasKicked, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: WasKicked, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }] }])
 
 ## High Tide
 face: High Tide
@@ -714,7 +714,7 @@ face: Multani's Decree
 type: Sorcery
 cost: {3}{G}
 > Destroy all enchantments. You gain 2 life for each enchantment destroyed this way.
-= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
 
 ## Mystic Crusader
 face: Mystic Crusader
@@ -966,7 +966,7 @@ cost: {3}{U}{U}
 > I, II — Heavenly Strike — Tap target creature an opponent controls. Put a stun counter on it. (If a permanent with a stun counter would become untapped, remove one from it instead.)
 > III — Diamond Dust — Draw a card for each tapped creature your opponents control.
 = Chapter { chapters: [1, 2], effect: [Labelled { label: "heavenly strike", then: [Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }), PutCounters { n: N(1), kind: "stun", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }
-= Chapter { chapters: [3], effect: [Labelled { label: "diamond dust", then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, then: [Draw { who: You, n: N(1) }] }] }] }
+= Chapter { chapters: [3], effect: [Labelled { label: "diamond dust", then: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, then: [Draw { who: You, n: N(1) }] }] }] }
 
 ## Tainted Wood
 face: Tainted Wood

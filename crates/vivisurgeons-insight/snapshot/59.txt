@@ -186,7 +186,7 @@ type: Legendary Enchantment Creature — Saga Demon
 > I — Lunge — Ifrit fights up to one other target creature.
 > II, III — Brimstone — Add {R}{R}{R}{R}. If Ifrit has three or more lore counters on it, exile it, then return it to the battlefield (front face up).
 = Chapter { chapters: [1], effect: [Labelled { label: "lunge", then: [Fight { a: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, b: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }] }
-= Chapter { chapters: [2, 3], effect: [Labelled { label: "brimstone", then: [AddMana(Symbols(Mana(["R", "R", "R", "R"]))), If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("lore"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }] }
+= Chapter { chapters: [2, 3], effect: [Labelled { label: "brimstone", then: [AddMana(Symbols(Mana(["R", "R", "R", "R"]))), If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("lore"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }] }
 
 ## Commit // Memory
 face: Commit
@@ -553,7 +553,7 @@ cost: {2}{W}{B}
 = BROKE at "and/or" after: whenever one or more creatures you control
 = Loyalty { change: N(2), effect: [Surveil(N(2)), Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } })] }
 = Loyalty { change: N(1), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White, Black], types: ["spirit", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }] }
-= Loyalty { change: N(-2), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Other)]], kind: Some(Player), posts: [], or: None } }, then: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } })] }] }
+= Loyalty { change: N(-2), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[State(Other)]], kind: Some(Player), posts: [], or: None } }, then: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } })] }] }
 
 ## Kheru Bloodsucker
 face: Kheru Bloodsucker
@@ -932,7 +932,7 @@ type: Sorcery
 cost: {3}{U}
 > Create a 3/3 blue Robot Warrior artifact creature token. Then if this spell was cast from a graveyard, put two +1/+1 counters on that token.
 > Flashback {5}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Blue], types: ["robot", "warrior", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, If { cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: AGraveyard }, then: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }])
+= Spell([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Blue], types: ["robot", "warrior", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, If { order: Leading, cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: AGraveyard }, then: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["5", "U"]))])) }])
 
 ## Returned Pastcaller
@@ -1181,7 +1181,7 @@ cost: {G}{G}
 > Blue creatures don't untap during their controllers' untap steps.
 > At the beginning of each player's upkeep, that player may choose any number of tapped blue creatures they control and pay {U} for each creature chosen this way. If the player does, untap those creatures.
 = BROKE at "untap" after: blue creatures don't untap during their controllers 's
-= Triggered { trigger: At(Upkeep(Each)), effect: [May { who: That, then: [Choose(Objects(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Tapped), Color(Blue), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }))] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } }, then: [Pay { who: You, cost: [Mana(Mana(["U"]))] }] }, IfYouDo([Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])], limits: [] }
+= Triggered { trigger: At(Upkeep(Each)), effect: [May { who: That, then: [Choose(Objects(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Tapped), Color(Blue), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }))] }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } }, then: [Pay { who: You, cost: [Mana(Mana(["U"]))] }] }, IfYouDo([Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])], limits: [] }
 
 ## Thopter Spy Network
 face: Thopter Spy Network
@@ -1244,7 +1244,7 @@ cost: {R}
 > Kicker {3}{R} (You may pay an additional {3}{R} as you cast this spell.)
 > Damage can't be prevented this turn. If this spell was kicked, it deals 5 damage to target player or planeswalker.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3", "R"]))])) }])
-= Spell([DamageCantBePrevented(ThisTurn), If { cond: WasKicked, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }] }])
+= Spell([DamageCantBePrevented(ThisTurn), If { order: Leading, cond: WasKicked, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }] }])
 
 ## Urza, Chief Artificer
 face: Urza, Chief Artificer
@@ -1315,5 +1315,5 @@ cost: {2}{U}{R}{W}
 > First strike
 > At the beginning of combat on your turn, if another Human entered the battlefield under your control this turn, create two 2/2 red Human Knight creature tokens with trample and haste. Then if you control six or more Humans, draw a card.
 = Keywords([Keyword { name: "first strike", param: None }])
-= Triggered { trigger: InterveningIf(At(Combat(Yours)), DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }, under: Some(You), state: None })), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Red], types: ["human", "knight", "creature"], keywords: [Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }], abilities: [], named: None, attacking: None } }, If { cond: YouControl(Objects { quant: AtLeast(N(6)), filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: InterveningIf(At(Combat(Yours)), DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }, under: Some(You), state: None })), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Red], types: ["human", "knight", "creature"], keywords: [Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }], abilities: [], named: None, attacking: None } }, If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(6)), filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }], limits: [] }
 

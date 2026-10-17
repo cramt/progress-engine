@@ -23,7 +23,7 @@ face: Aid from the Cowl
 type: Enchantment
 cost: {3}{G}{G}
 > Revolt — At the beginning of your end step, if a permanent left the battlefield under your control this turn, reveal the top card of your library. If it's a permanent card, you may put it onto the battlefield. Otherwise, you may put it on the bottom of your library.
-= Labelled { label: "revolt", ability: Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You })), effect: [RevealTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [], or: None } }, then: [May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }, Otherwise([May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }])], limits: [] } }
+= Labelled { label: "revolt", ability: Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You })), effect: [RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [], or: None } }, then: [May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }, Otherwise([May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }])], limits: [] } }
 
 ## Air Marshal
 face: Air Marshal
@@ -254,7 +254,7 @@ face: Elvish Promenade
 type: Kindred Sorcery — Elf
 cost: {3}{G}
 > Create a 1/1 green Elf Warrior creature token for each Elf you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["elf", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["elf", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Entangling Trap
 face: Entangling Trap
@@ -347,7 +347,7 @@ face: Fated Return
 type: Instant
 cost: {4}{B}{B}{B}
 > Put target creature card from a graveyard onto the battlefield under your control. It gains indestructible. If it's your turn, scry 2.
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: Permanent }, If { cond: ItsYourTurn, then: [Scry(N(2))] }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: Permanent }, If { order: Leading, cond: ItsYourTurn, then: [Scry(N(2))] }])
 
 ## Feral Lightning
 face: Feral Lightning
@@ -1181,7 +1181,7 @@ face: Wirefly Hive
 type: Artifact
 cost: {3}
 > {3}, {T}: Flip a coin. If you win the flip, create a 2/2 colorless Insect artifact creature token with flying named Wirefly. If you lose the flip, destroy all permanents named Wirefly.
-= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [FlipCoin, If { cond: WonFlip(true), then: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Colorless], types: ["insect", "artifact", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None }, name: "wirefly" }] }, If { cond: WonFlip(false), then: [Destroy { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Permanent), posts: [NamedCard("wirefly")], or: None } }, no_regen: false }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [FlipCoin, If { order: Leading, cond: WonFlip(true), then: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Colorless], types: ["insect", "artifact", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None }, name: "wirefly" }] }, If { order: Leading, cond: WonFlip(false), then: [Destroy { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Permanent), posts: [NamedCard("wirefly")], or: None } }, no_regen: false }] }], limits: [] }
 
 ## Wispdrinker Vampire
 face: Wispdrinker Vampire

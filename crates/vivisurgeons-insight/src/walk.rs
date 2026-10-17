@@ -1037,7 +1037,7 @@ impl Walk for Effect {
                     Walk::walk(x0, v);
                 }
             }
-            Effect::If { cond, then } => {
+            Effect::If { cond, then, .. } => {
                 Walk::walk(cond, v);
                 for x0 in (then).iter_mut() {
                     Walk::walk(x0, v);
@@ -1061,7 +1061,7 @@ impl Walk for Effect {
                     Walk::walk(x0, v);
                 }
             }
-            Effect::ForEach { each, then } => {
+            Effect::ForEach { each, then, .. } => {
                 Walk::walk(each, v);
                 for x0 in (then).iter_mut() {
                     Walk::walk(x0, v);

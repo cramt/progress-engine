@@ -101,7 +101,7 @@ cost: {B}{R}
 > When this enchantment enters, it deals 3 damage to target creature an opponent controls.
 > Whenever one or more creatures die, mill a card and put a bloodstain counter on this enchantment. Then sacrifice it if it has five or more bloodstain counters on it. When you do, return target creature card from your graveyard to your hand.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })] }], limits: [] }
-= Triggered { trigger: When(Dies(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Mill { who: You, n: N(1) }, PutCounters { n: N(1), kind: "bloodstain", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("bloodstain"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, WhenYouDo([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Mill { who: You, n: N(1) }, PutCounters { n: N(1), kind: "bloodstain", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("bloodstain"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, WhenYouDo([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] }
 
 ## Blood Tribute
 face: Blood Tribute
@@ -110,7 +110,7 @@ cost: {4}{B}{B}
 > Kicker—Tap an untapped Vampire you control. (You may tap a Vampire you control in addition to any other costs as you cast this spell.)
 > Target opponent loses half their life, rounded up. If this spell was kicked, you gain life equal to the life lost this way.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([TapUntapped(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Subtype("vampire")]], kind: None, posts: [Controller(You)], or: None } })])) }])
-= Spell([LoseLife { who: TargetOpponent, n: Half { of: LifeTotal(That), round_up: true } }, If { cond: WasKicked, then: [GainLife { who: You, n: LifeLost }] }])
+= Spell([LoseLife { who: TargetOpponent, n: Half { of: LifeTotal(That), round_up: true } }, If { order: Leading, cond: WasKicked, then: [GainLife { who: You, n: LifeLost }] }])
 
 ## Bloodspore Thrinax
 face: Bloodspore Thrinax
@@ -160,7 +160,7 @@ cost: {2}{R}
 > {1}: Look at the top card of your library.
 > {2}: Reveal the top card of your library. If it's a land card, this creature gets +1/+0 and gains first strike until end of turn. Activate only once each turn.
 = Activated { cost: [Mana(Mana(["1"]))], effect: [LookAtTop { who: You, whose: You, n: N(1) }], limits: [] }
-= Activated { cost: [Mana(Mana(["2"]))], effect: [RevealTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }] }], limits: [OncePerTurn] }
+= Activated { cost: [Mana(Mana(["2"]))], effect: [RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }] }], limits: [OncePerTurn] }
 
 ## Callous Bloodmage
 face: Callous Bloodmage
@@ -411,7 +411,7 @@ cost: {4}{U}{U}
 > Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)
 > Choose a creature type. Draw a card for each permanent you control of that type.
 = Keywords([Keyword { name: "convoke", param: None }])
-= Spell([Choose(CreatureType), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You), OfThatType], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Choose(CreatureType), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You), OfThatType], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Hired Claw
 face: Hired Claw
@@ -505,7 +505,7 @@ cost: {2}{U}{U}
 > Enchant artifact you control
 > At the beginning of your upkeep, create a token that's a copy of enchanted artifact. Then if you control eight or more artifacts with the same name as one another, you win the game.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } })) }])
-= Triggered { trigger: At(Upkeep(Yours)), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Enchanted, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, except: [] }, If { cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [SameName], or: None } }), then: [WinGame(You)] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Enchanted, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, except: [] }, If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [SameName], or: None } }), then: [WinGame(You)] }], limits: [] }
 
 ## Mirelurk Queen
 face: Mirelurk Queen
@@ -544,9 +544,9 @@ cost: {X}{U}
 > If X is 2, you may choose a player. They return a creature they control to its owner's hand.
 > If X is 3, create a 4/4 blue and red Elemental creature token.
 > If X is 4 or more, do all of the above.
-= Spell([If { cond: AmountIs { n: X, op: Eq, value: N(1) }, then: [Scry(N(1)), Draw { who: You, n: N(1) }] }])
-= Spell([If { cond: AmountIs { n: X, op: Eq, value: N(2) }, then: [May { who: You, then: [Choose(Player), Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }] }] }])
-= Spell([If { cond: AmountIs { n: X, op: Eq, value: N(3) }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [Blue, Red], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([If { order: Leading, cond: AmountIs { n: X, op: Eq, value: N(1) }, then: [Scry(N(1)), Draw { who: You, n: N(1) }] }])
+= Spell([If { order: Leading, cond: AmountIs { n: X, op: Eq, value: N(2) }, then: [May { who: You, then: [Choose(Player), Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }] }] }])
+= Spell([If { order: Leading, cond: AmountIs { n: X, op: Eq, value: N(3) }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [Blue, Red], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 = BROKE at "all" after: if x is 4 or more , do
 
 ## Nadu, Winged Wisdom
@@ -611,7 +611,7 @@ face: Pledge of Unity
 type: Instant
 cost: {1}{G}{W}
 > Put a +1/+1 counter on each creature you control. You gain 1 life for each creature you control.
-= Spell([PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
+= Spell([PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
 
 ## Power Surge
 face: Power Surge
@@ -779,7 +779,7 @@ face: Slick Sequence
 type: Instant
 cost: {U}{R}
 > Slick Sequence deals 2 damage to any target. If you've cast another spell this turn, draw a card.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [Draw { who: You, n: N(1) }] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { order: Leading, cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [Draw { who: You, n: N(1) }] }])
 
 ## Slithermuse
 face: Slithermuse
@@ -787,7 +787,7 @@ type: Creature — Elemental
 cost: {2}{U}{U}
 > When this creature leaves the battlefield, choose an opponent. If that player has more cards in hand than you, draw cards equal to the difference.
 > Evoke {3}{U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)
-= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Choose(Opponent), If { cond: HasMore { who: That, what: CardsInHand, than: You }, then: [Draw { who: You, n: TheDifference }] }], limits: [] }
+= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Choose(Opponent), If { order: Leading, cond: HasMore { who: That, what: CardsInHand, than: You }, then: [Draw { who: You, n: TheDifference }] }], limits: [] }
 = Keywords([Keyword { name: "evoke", param: Some(Cost([Mana(Mana(["3", "U"]))])) }])
 
 ## Snapping Drake
@@ -824,7 +824,7 @@ cost: {1}{R}
 > When this creature enters, sacrifice it unless {B} was spent to cast it.
 = Keywords([Keyword { name: "fear", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["X"]))] }] }, IfYouDo([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }])], limits: [] }
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { cond: Not(ManaSpent { mana: Mana(["B"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: Not(ManaSpent { mana: Mana(["B"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Stenchskipper
 face: Stenchskipper
@@ -906,7 +906,7 @@ cost: {1}{G}
 > II — Exile up to two target cards from graveyards. For each creature card exiled this way, you gain 1 life.
 > III — Return target creature or land card from your graveyard to your hand.
 = Chapter { chapters: [1], effect: [Mill { who: Each, n: N(3) }] }
-= Chapter { chapters: [2], effect: [Exile(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [GainLife { who: You, n: N(1) }] }] }
+= Chapter { chapters: [2], effect: [Exile(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [GainLife { who: You, n: N(1) }] }] }
 = Chapter { chapters: [3], effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }
 
 ## The Mightstone and Weakstone
@@ -939,7 +939,7 @@ cost: {6}{G}{G}
 > Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)
 > Look at the top twenty cards of your library. You may reveal up to two creature cards from among them. If this spell was bargained, put the revealed cards onto the battlefield. Otherwise, put the revealed cards into your hand. Then shuffle.
 = Keywords([Keyword { name: "bargain", param: None }])
-= Spell([LookAtTop { who: You, whose: You, n: N(20) }, May { who: You, then: [Reveal { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [FromAmongThem], or: None } } }, If { cond: WasBargained, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, Otherwise([Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])] }, Shuffle(You)])
+= Spell([LookAtTop { who: You, whose: You, n: N(20) }, May { who: You, then: [Reveal { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [FromAmongThem], or: None } } }, If { order: Leading, cond: WasBargained, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, Otherwise([Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])] }, Shuffle(You)])
 
 ## Too Greedily, Too Deep
 face: Too Greedily, Too Deep
@@ -972,7 +972,7 @@ face: Track Down
 type: Sorcery
 cost: {1}{G}
 > Scry 3, then reveal the top card of your library. If it's a creature or land card, draw a card. (To scry 3, look at the top three cards of your library, then put any number of them on the bottom and the rest on top in any order.)
-= Spell([Scry(N(3)), RevealTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Scry(N(3)), RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Trap Runner
 face: Trap Runner

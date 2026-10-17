@@ -21,7 +21,7 @@ face: Airborne Aid
 type: Sorcery
 cost: {3}{U}
 > Draw a card for each Bird on the battlefield.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("bird")]], kind: None, posts: [In(Battlefield)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("bird")]], kind: None, posts: [In(Battlefield)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Akroan Line Breaker
 face: Akroan Line Breaker
@@ -135,7 +135,7 @@ cost: {2}{G}
 > Vigilance
 > Sacrifice this creature: Destroy target artifact or enchantment. If that permanent was a legendary enchantment, draw a card. Activate only as a sorcery.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, If { cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Supertype("legendary"), Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Supertype("legendary"), Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }], limits: [SorcerySpeed] }
 
 ## Candlekeep Inspiration
 face: Candlekeep Inspiration
@@ -651,7 +651,7 @@ cost: {1}{U}
 > {T}: Add {U} for each counter on Nardole. Spend this mana only to cast noncreature spells.
 > Undying (When this creature dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.)
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
-= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [AddMana(Symbols(Mana(["U"])))] }], limits: [SpendOnly { uses: [Cast(Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } })], then: None }] }
+= Activated { cost: [Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [AddMana(Symbols(Mana(["U"])))] }], limits: [SpendOnly { uses: [Cast(Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } })], then: None }] }
 = Keywords([Keyword { name: "undying", param: None }])
 = BROKE at "<end>" after: doctor 's companion
 
@@ -831,7 +831,7 @@ cost: {4}{G}
 > Aftermath (Cast this spell only from your graveyard. Then exile it.)
 > Look at the top card of your library. You may put it onto the battlefield if it's a creature card. If you don't, put it into your hand.
 = Keywords([Keyword { name: "aftermath", param: None }])
-= Spell([LookAtTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }, If { cond: Not(ThisWay(Puts { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Battlefield })), then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }])
+= Spell([LookAtTop { who: You, whose: You, n: N(1) }, If { order: Trailing, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }, If { order: Leading, cond: Not(ThisWay(Puts { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Battlefield })), then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }])
 
 ## Restless Bones
 face: Restless Bones
@@ -947,7 +947,7 @@ cost: {G}
 > This creature has deathtouch as long as you control three or more artifacts.
 > Whenever an artifact you control enters, you gain 1 life. If this is the first time this ability has resolved this turn, put a +1/+1 counter on this creature.
 = Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
-= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [GainLife { who: You, n: N(1) }, If { cond: NthResolution(1), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [GainLife { who: You, n: N(1) }, If { order: Leading, cond: NthResolution(1), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Tezzeret's Touch
 face: Tezzeret's Touch

@@ -2156,6 +2156,7 @@ pub fn ability(a: &Ability) -> Out {
             } = e
             {
                 *e = Effect::ForEach {
+                    order: ClauseOrder::Trailing,
                     each: entered_under(what, under),
                     then: std::mem::take(then),
                 };
@@ -7919,7 +7920,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w(",");
             clauses(o, then, cx);
         }
-        Effect::If { cond, then } => {
+        Effect::If { cond, then, .. } => {
             let before = out(|o| {
                 o.w("if");
                 condition(o, cond);
@@ -7995,6 +7996,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             effect(
                 o,
                 &Effect::If {
+                    order: ClauseOrder::Leading,
                     cond,
                     then: rules.clone(),
                 },
@@ -8013,7 +8015,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         }
         // "when each opponent casts their first spell of the game, …": one
         // delayed trigger per opponent, "each" said inside its event.
-        Effect::ForEach { each, then }
+        Effect::ForEach { each, then, .. }
             if each.filter.kind == Some(Noun::Opponent)
                 && matches!(
                     &then[..],
@@ -8053,7 +8055,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             });
             syn::each_in_trigger(o, per, inside);
         }
-        Effect::ForEach { each, then } => {
+        Effect::ForEach { each, then, .. } => {
             let before = out(|o| {
                 o.w("for each");
                 each_objects(o, each);

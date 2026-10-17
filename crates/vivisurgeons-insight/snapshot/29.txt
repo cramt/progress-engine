@@ -163,7 +163,7 @@ face: Chalice of Life
 type: Artifact
 cost: {3}
 > {T}: You gain 1 life. Then if you have at least 10 life more than your starting life total, transform this artifact.
-= Activated { cost: [Tap], effect: [GainLife { who: You, n: N(1) }, If { cond: AmountIs { n: LifeTotal(You), op: Ge, value: Plus(StartingLifeTotal(You), 10) }, then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Tap], effect: [GainLife { who: You, n: N(1) }, If { order: Leading, cond: AmountIs { n: LifeTotal(You), op: Ge, value: Plus(StartingLifeTotal(You), 10) }, then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Chalice of Life // Chalice of Death
 face: Chalice of Death
@@ -294,7 +294,7 @@ face: Festival of Trokin
 type: Sorcery
 cost: {W}
 > You gain 2 life for each creature you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
 
 ## Fevered Visions
 face: Fevered Visions
@@ -365,7 +365,7 @@ cost: {2}{G}
 > Vigilance (Attacking doesn't cause this creature to tap.)
 > Power-up — {4}{G}{G}: Put three +1/+1 counters on this creature. Then draw a card for each creature you control with a counter on it. (Activate each power-up ability only once. Reduce the cost by its mana cost if it entered this turn.)
 = Keywords([Keyword { name: "vigilance", param: None }])
-= KeywordOn { keyword: PowerUp, ability: Activated { cost: [Mana(Mana(["4", "G", "G"]))], effect: [PutCounters { n: N(3), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithCounter(None)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] } }
+= KeywordOn { keyword: PowerUp, ability: Activated { cost: [Mana(Mana(["4", "G", "G"]))], effect: [PutCounters { n: N(3), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithCounter(None)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] } }
 
 ## Gearshift Ace
 face: Gearshift Ace
@@ -444,7 +444,7 @@ face: Run
 type: Instant
 cost: {3}{R}{G}
 > Attacking creatures you control get +1/+0 until end of turn for each other attacking creature.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Hyena Umbra
 face: Hyena Umbra
@@ -539,7 +539,7 @@ face: Kamahl's Summons
 type: Sorcery
 cost: {3}{G}
 > Each player may reveal any number of creature cards from their hand. Then each player creates a 2/2 green Bear creature token for each card they revealed this way.
-= Spell([May { who: Each, then: [Reveal { who: Each, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Hand(That))], or: None } } }] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedBy { how: Revealed, by: That }], or: None } }, then: [Create { who: Each, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["bear", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([May { who: Each, then: [Reveal { who: Each, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Hand(That))], or: None } } }] }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedBy { how: Revealed, by: That }], or: None } }, then: [Create { who: Each, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["bear", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Kessig Flamebreather
 face: Kessig Flamebreather
@@ -725,7 +725,7 @@ face: Peach Garden Oath
 type: Sorcery
 cost: {W}
 > You gain 2 life for each creature you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
 
 ## Pestilent Syphoner
 face: Pestilent Syphoner
@@ -762,7 +762,7 @@ type: Instant
 cost: {1}{B}
 > As an additional cost to cast this spell, you may sacrifice one or more creatures. When you do, copy this spell for each creature sacrificed this way.
 > You draw a card and lose 1 life.
-= Static([OptionalAdditionalCostWhenPaid { cost: [Sacrifice(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Copy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: false }] }] }])
+= Static([OptionalAdditionalCostWhenPaid { cost: [Sacrifice(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], then: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Copy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: false }] }] }])
 = Spell([Draw { who: You, n: N(1) }, LoseLife { who: You, n: N(1) }])
 
 ## Plunge into Winter
@@ -972,7 +972,7 @@ cost: {4}{R}
 > Exhaust — Tap another untapped Mount or Vehicle you control: This Vehicle becomes an artifact creature. Put a +1/+1 counter on it for each Mount and/or Vehicle you control other than this Vehicle. (Activate each exhaust ability only once.)
 > Crew 2
 = Keywords([Keyword { name: "haste", param: None }])
-= KeywordOn { keyword: Exhaust, ability: Activated { cost: [TapUntapped(Objects { quant: Another, filter: Filter { alts: [[State(Untapped), Subtype("mount")], [State(Untapped), Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Type("artifact"), Type("creature")], gains: [], keeps: OtherTypes, dur: Permanent }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("mount")], [Subtype("vehicle")]], kind: None, posts: [Controller(You), OtherThanSelf], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] } }
+= KeywordOn { keyword: Exhaust, ability: Activated { cost: [TapUntapped(Objects { quant: Another, filter: Filter { alts: [[State(Untapped), Subtype("mount")], [State(Untapped), Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Type("artifact"), Type("creature")], gains: [], keeps: OtherTypes, dur: Permanent }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("mount")], [Subtype("vehicle")]], kind: None, posts: [Controller(You), OtherThanSelf], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] } }
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 
 ## Sprouting Vines
@@ -1160,5 +1160,5 @@ cost: {B}{B}
 > Flash
 > When this creature enters, choose target player. You create a tapped Powerstone token for each nonland card in that player's graveyard that was put there from the battlefield this turn. (It's an artifact with "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.")
 = Keywords([Keyword { name: "flash", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Choose(TargetPlayer), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [In(Graveyard(That)), PutThereFromBattlefieldThisTurn], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Choose(TargetPlayer), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [In(Graveyard(That)), PutThereFromBattlefieldThisTurn], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }] }], limits: [] }
 

@@ -697,6 +697,15 @@ pub fn self_ref_in(zone: Vec<Post>) -> Objects {
     }
 }
 
+/// Where a conditional's own clause ("if …", "for each …") is said: before
+/// the effects it governs or after them. Reading order, which a reference
+/// back counts in, follows it ([backref]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClauseOrder {
+    Leading,
+    Trailing,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Quant {
     Target {
@@ -1681,7 +1690,11 @@ pub enum Effect {
         x: Amount,
     },
     IfYouDo(Vec<Effect>),
+    /// "If X, Y" (`Leading`) or "Y if X" (`Trailing`): the order is the
+    /// reading order a reference back counts in ([backref]), so "destroy
+    /// target creature if it's tapped" tests the target.
     If {
+        order: ClauseOrder,
         cond: Condition,
         then: Vec<Effect>,
     },
@@ -1701,7 +1714,12 @@ pub enum Effect {
         who: Player,
         cost: Vec<Cost>,
     },
+    /// "For each creature you control, put a +1/+1 counter on it"
+    /// (`Leading`), "put a +1/+1 counter on it for each creature your
+    /// opponents control" (`Trailing`): in the second, "it" was said before
+    /// the loop's object and is never it ([backref]).
     ForEach {
+        order: ClauseOrder,
         each: Objects,
         then: Vec<Effect>,
     },
@@ -2759,7 +2777,14 @@ pub fn each_player_creates(es: &mut Vec<Effect>) {
             if let Effect::Performed { by, .. } = &mut then[1] {
                 *by = Player::That;
             }
-            es.insert(i, Effect::ForEach { each, then });
+            es.insert(
+                i,
+                Effect::ForEach {
+                    order: ClauseOrder::Leading,
+                    each,
+                    then,
+                },
+            );
         }
         i += 1;
     }
@@ -2794,7 +2819,7 @@ pub fn chosen_for_each_player(es: &mut [Effect]) {
         }
     }
     let Some(i) = es.iter().position(|e| {
-        matches!(e, Effect::ForEach { each, then }
+        matches!(e, Effect::ForEach { each, then, .. }
             if matches!(each.filter.kind, Some(Noun::Opponent | Noun::Player))
                 && matches!(&then[..], [Effect::Choose(Choice::Objects(_))]))
     }) else {
@@ -2921,7 +2946,7 @@ pub fn each_player_creates_said(es: &mut Vec<Effect>) {
     let mut i = 0;
     while i < es.len() {
         let who = match &es[i] {
-            Effect::ForEach { each, then } => match &then[..] {
+            Effect::ForEach { each, then, .. } => match &then[..] {
                 [Effect::Create {
                     who: Player::That, ..
                 }, Effect::Performed {

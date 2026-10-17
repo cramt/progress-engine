@@ -381,7 +381,7 @@ face: Hisoka, Minamo Sensei
 type: Legendary Creature — Human Wizard
 cost: {2}{U}{U}
 > {2}{U}, Discard a card: Counter target spell if it has the same mana value as the discarded card.
-= Activated { cost: [Mana(Mana(["2", "U"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [If { cond: Has { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cmp: Compare { stat: ManaValue, op: Eq, value: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }) } }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "U"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [If { order: Trailing, cond: Has { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cmp: Compare { stat: ManaValue, op: Eq, value: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }) } }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }], limits: [] }
 
 ## Hordewing Skaab
 face: Hordewing Skaab
@@ -399,7 +399,7 @@ face: Horrific Assault
 type: Sorcery
 cost: {G}
 > Target creature you control deals damage equal to its power to target creature or planeswalker you don't control. If you control an Eldrazi, you gain 3 life.
-= Spell([Damage { source: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), n: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [NotControlledBy(You)], or: None } })] }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("eldrazi")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(3) }] }])
+= Spell([Damage { source: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), n: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [NotControlledBy(You)], or: None } })] }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("eldrazi")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(3) }] }])
 
 ## Incinerating Blast
 face: Incinerating Blast
@@ -424,7 +424,7 @@ face: Irradiate
 type: Instant
 cost: {3}{B}
 > Target creature gets -1/-1 until end of turn for each artifact you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Ivy Elemental
 face: Ivy Elemental
@@ -508,7 +508,7 @@ type: Enchantment
 cost: {1}{R}{R}
 > At the beginning of each player's end step, put a charge counter on this enchantment for each untapped land that player controls.
 > Remove a charge counter from this enchantment: Add {C}. Any player may activate this ability but only during their turn before the end step.
-= Triggered { trigger: At(EndStep(Each)), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [Controller(That)], or: None } }, then: [PutCounters { n: N(1), kind: "charge", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: At(EndStep(Each)), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [Controller(That)], or: None } }, then: [PutCounters { n: N(1), kind: "charge", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = BROKE at "may" after: remove a charge counter from this enchantment : add {C} . any player
 
 ## March of Progress
@@ -517,7 +517,7 @@ type: Sorcery
 cost: {2}{U}
 > Choose target artifact creature you control. For each creature chosen this way, create a token that's a copy of it.
 > Overload {6}{U} (You may cast this spell for its overload cost. If you do, change its text by replacing all instances of "target" with "each.")
-= Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }])
+= Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }])
 = Keywords([Keyword { name: "overload", param: Some(Cost([Mana(Mana(["6", "U"]))])) }])
 
 ## Markov Warlord
@@ -599,7 +599,7 @@ cost: {R}{G}{W}{U}
 > When Omnath enters, draw a card.
 > Landfall — Whenever a land you control enters, you gain 4 life if this is the first time this ability has resolved this turn. If it's the second time, add {R}{G}{W}{U}. If it's the third time, Omnath deals 4 damage to each opponent and each planeswalker you don't control.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [If { cond: NthResolution(1), then: [GainLife { who: You, n: N(4) }] }, If { cond: NthResolution(2), then: [AddMana(Symbols(Mana(["R", "G", "W", "U"])))] }, If { cond: NthResolution(3), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Player(EachOpponent), Objects(Objects { quant: Each, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [NotControlledBy(You)], or: None } })] }] }], limits: [] } }
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: NthResolution(1), then: [GainLife { who: You, n: N(4) }] }, If { order: Leading, cond: NthResolution(2), then: [AddMana(Symbols(Mana(["R", "G", "W", "U"])))] }, If { order: Leading, cond: NthResolution(3), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Player(EachOpponent), Objects(Objects { quant: Each, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [NotControlledBy(You)], or: None } })] }] }], limits: [] } }
 
 ## Orvar, the All-Form
 face: Orvar, the All-Form
@@ -691,7 +691,7 @@ face: Quag Feast
 type: Sorcery
 cost: {1}{B}
 > Choose target creature, planeswalker, or Vehicle. Mill two cards, then destroy the chosen permanent if its mana value is less than or equal to the number of cards in your graveyard.
-= Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")], [Subtype("vehicle")]], kind: None, posts: [], or: None } })), Mill { who: You, n: N(2) }, If { cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }, then: [Destroy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [Marked(Chosen)], or: None } }, no_regen: false }] }])
+= Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")], [Subtype("vehicle")]], kind: None, posts: [], or: None } })), Mill { who: You, n: N(2) }, If { order: Trailing, cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }, then: [Destroy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [Marked(Chosen)], or: None } }, no_regen: false }] }])
 
 ## Rainbow Efreet
 face: Rainbow Efreet

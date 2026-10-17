@@ -220,7 +220,7 @@ type: Legendary Creature — Bear
 cost: {2}{R}{G}{W}
 > When Duskana enters, draw a card for each creature you control with base power and toughness 2/2.
 > Whenever a creature you control with base power and toughness 2/2 attacks, it gets +3/+3 until end of turn.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), BasePt(Pt { power: N(2), toughness: N(2), signed: false })], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), BasePt(Pt { power: N(2), toughness: N(2), signed: false })], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 = Triggered { trigger: When(Attacks(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), BasePt(Pt { power: N(2), toughness: N(2), signed: false })], or: None } })), effect: [Modify { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Elder Land Wurm
@@ -346,7 +346,7 @@ cost: {1}{G}
 > As an additional cost to cast this spell, you may behold a Gamma creature. (You may choose a Gamma creature you control or reveal a Gamma creature card from your hand.)
 > Target creature you control deals damage equal to its power to another target creature. If this spell's additional cost was paid, destroy target noncreature artifact or noncreature enchantment.
 = Static([OptionalAdditionalCost([ActionOn { name: "behold", what: Objects { quant: One, filter: Filter { alts: [[Subtype("gamma"), Type("creature")]], kind: None, posts: [], or: None } } }])])
-= Spell([Damage { source: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), n: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Objects(Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }, If { cond: AdditionalCostPaid, then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature"), Type("artifact")], [Non("creature"), Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }] }])
+= Spell([Damage { source: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), n: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Objects(Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }, If { order: Leading, cond: AdditionalCostPaid, then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature"), Type("artifact")], [Non("creature"), Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }] }])
 
 ## Hulkbuster Armor
 face: Hulkbuster Armor
@@ -597,7 +597,7 @@ face: Reprocess
 type: Sorcery
 cost: {2}{B}{B}
 > Sacrifice any number of artifacts, creatures, and/or lands. Draw a card for each permanent sacrificed this way.
-= Spell([Sacrifice { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("land")]], kind: None, posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Marked(Sacrificed)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Sacrifice { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("land")]], kind: None, posts: [], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Marked(Sacrificed)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Returned Reveler
 face: Returned Reveler

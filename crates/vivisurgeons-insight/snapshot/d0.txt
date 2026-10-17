@@ -171,7 +171,7 @@ cost: {B}
 > Deathtouch
 > Darkness — Whenever Cecil deals damage, you lose that much life. Then if your life total is less than or equal to half your starting life total, untap Cecil and transform it.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Labelled { label: "darkness", ability: Triggered { trigger: When(DealsDamage(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: You, n: ThatMany }, If { cond: AmountIs { n: LifeTotal(You), op: Le, value: HalfUnrounded(StartingLifeTotal(You)) }, then: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }
+= Labelled { label: "darkness", ability: Triggered { trigger: When(DealsDamage(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: You, n: ThatMany }, If { order: Leading, cond: AmountIs { n: LifeTotal(You), op: Le, value: HalfUnrounded(StartingLifeTotal(You)) }, then: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }
 
 ## Cecil, Dark Knight // Cecil, Redeemed Paladin
 face: Cecil, Redeemed Paladin
@@ -262,7 +262,7 @@ cost: {1}{B}
 > • Return target creature card from your graveyard to the battlefield if its power is less than or equal to the sacrificed creature's power.
 > • Destroy target creature.
 = Static([AdditionalCost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])])
-= Spell([Modal { choose: OneOrBoth, modes: [[If { cond: AmountIs { n: PowerOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) }, then: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }]] }])
+= Spell([Modal { choose: OneOrBoth, modes: [[If { order: Trailing, cond: AmountIs { n: PowerOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) }, then: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }]] }])
 
 ## Elven Palisade
 face: Elven Palisade

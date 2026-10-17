@@ -494,7 +494,7 @@ face: Jasmine Seer
 type: Creature — Human Wizard
 cost: {3}{W}
 > {2}{W}, {T}: Reveal any number of white cards in your hand. You gain 2 life for each card revealed this way.
-= Activated { cost: [Mana(Mana(["2", "W"])), Tap], effect: [Reveal { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Color(White)]], kind: Some(Card), posts: [In(Hand(You))], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, then: [GainLife { who: You, n: N(2) }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "W"])), Tap], effect: [Reveal { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Color(White)]], kind: Some(Card), posts: [In(Hand(You))], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, then: [GainLife { who: You, n: N(2) }] }], limits: [] }
 
 ## Jeskai Revelation
 face: Jeskai Revelation
@@ -696,7 +696,7 @@ face: Saprazzan Breaker
 type: Creature — Beast
 cost: {4}{U}
 > {U}: Mill a card. If a land card was milled this way, this creature can't be blocked this turn.
-= Activated { cost: [Mana(Mana(["U"]))], effect: [Mill { who: You, n: N(1) }, If { cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, how: Milled }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["U"]))], effect: [Mill { who: You, n: N(1) }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, how: Milled }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }] }], limits: [] }
 
 ## Scroll of the Masters
 face: Scroll of the Masters
@@ -705,7 +705,7 @@ cost: {2}
 > Whenever you cast a noncreature spell, put a lore counter on this artifact.
 > {3}, {T}: Target creature you control gets +1/+1 until end of turn for each lore counter on this artifact.
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "lore", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("lore"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("lore"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Seeker of Skybreak
 face: Seeker of Skybreak
@@ -803,7 +803,7 @@ cost: {3}{U}{B}{R}
 > I — For each opponent, gain control of up to one target nonlegendary creature that player controls for as long as this Saga remains on the battlefield.
 > II — Draw a card for each creature you control but don't own.
 > III — Starting with you, each player chooses a creature. Destroy each creature chosen this way.
-= Chapter { chapters: [1], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [GainControl { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("legendary"), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }) }] }] }
+= Chapter { chapters: [1], effect: [ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [GainControl { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("legendary"), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }) }] }] }
 = BROKE at "but" after: ii — draw a card for each creature you control
 = Chapter { chapters: [3], effect: [StartingWith { first: You, then: [Performed { by: Each, effect: Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }] }, Destroy { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } }, no_regen: false }] }
 

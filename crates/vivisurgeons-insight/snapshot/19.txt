@@ -67,7 +67,7 @@ cost: {2}{B}{R}
 > III — Create a Treasure token for each Villain you control.
 = Chapter { chapters: [1], effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [Black], types: ["villain", "creature"], keywords: [Keyword { name: "menace", param: None }], abilities: [], named: None, attacking: None } }] }
 = Chapter { chapters: [2], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Non("villain"), Type("creature")]], kind: None, posts: [], or: None } }), Player(EachOpponent)] }] }
-= Chapter { chapters: [3], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("villain")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }] }
+= Chapter { chapters: [3], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("villain")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }] }
 
 ## Bandage
 face: Bandage
@@ -151,7 +151,7 @@ cost: {6}{C}{C}
 > When you cast this spell, you gain 1 life for each colorless permanent you control.
 > Hexproof from each color
 > Annihilator 2 (Whenever this creature attacks, defending player sacrifices two permanents of their choice.)
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Color(Colorless)]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Color(Colorless)]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
 = BROKE at "<end>" after: hexproof from each color
 = Keywords([Keyword { name: "annihilator", param: Some(N(N(2))) }])
 
@@ -160,7 +160,7 @@ face: Brightstone Ritual
 type: Instant
 cost: {R}
 > Add {R} for each Goblin on the battlefield.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [In(Battlefield)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [In(Battlefield)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }])
 
 ## Brilliance Unleashed
 face: Brilliance Unleashed
@@ -169,7 +169,7 @@ cost: {4}{U}{R}
 > Choose one or both —
 > • Brilliance Unleashed deals 5 damage to target creature.
 > • Choose target artifact card in your graveyard. Return it to the battlefield if it's an artifact creature card. Otherwise, return it to the battlefield and it's a 3/3 Robot artifact creature with flying.
-= Spell([Modal { choose: OneOrBoth, modes: [[Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], [Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })), If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, Otherwise([Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("robot"), Type("artifact"), Type("creature")], keeps: AllButSubtypesOfSet, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), gains: [Keyword { name: "flying", param: None }] }])]] }])
+= Spell([Modal { choose: OneOrBoth, modes: [[Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], [Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })), If { order: Trailing, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, Otherwise([Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("robot"), Type("artifact"), Type("creature")], keeps: AllButSubtypesOfSet, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), gains: [Keyword { name: "flying", param: None }] }])]] }])
 
 ## Bubble Smuggler
 face: Bubble Smuggler
@@ -441,7 +441,7 @@ type: Legendary Creature — Human Soldier
 cost: {3}{W}{W}
 > At the beginning of your upkeep, you gain 1 life for each card in target opponent's hand.
 > {3}{W}: Tap target creature. Activate only if Gerrard Capashen is attacking.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(TargetOpponent))], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(TargetOpponent))], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
 = Activated { cost: [Mana(Mana(["3", "W"]))], effect: [Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [OnlyIf(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } })] }
 
 ## Gilanra, Caller of Wirewood
@@ -460,7 +460,7 @@ cost: {4}{U}
 > Return up to two target creatures to their owner's hand.
 > Search your library and/or graveyard for a card named Jace, Ingenious Mind-Mage, reveal it, and put it into your hand. If you search your library this way, shuffle.
 = Spell([Move { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
-= Spell([Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("jace, ingenious mind-mage")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
+= Spell([Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("jace, ingenious mind-mage")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
 
 ## Greater Stone Spirit
 face: Greater Stone Spirit
@@ -519,7 +519,7 @@ face: Hour of Promise
 type: Sorcery
 cost: {4}{G}
 > Search your library for up to two land cards, put them onto the battlefield tapped, then shuffle. Then if you control three or more Deserts, create two 2/2 black Zombie creature tokens.
-= Spell([Search { who: You, zones: [Library(You)], what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You), If { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Subtype("desert")]], kind: None, posts: [], or: None } }), then: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([Search { who: You, zones: [Library(You)], what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You), If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Subtype("desert")]], kind: None, posts: [], or: None } }), then: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Imposing Sovereign
 face: Imposing Sovereign
@@ -545,7 +545,7 @@ cost: {2}{U}{U/P}
 > −X: Target player mills three times X cards.
 = Keywords([Keyword { name: "compleated", param: None }])
 = Loyalty { change: N(1), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(0), signed: true }), gains: [], dur: UntilYourNextTurn }] }
-= Loyalty { change: N(-2), effect: [Mill { who: Target, n: N(3) }, If { cond: ZoneHasCards { zone: AGraveyard, op: Ge, n: 20 }, then: [Draw { who: You, n: N(3) }] }, Otherwise([Draw { who: You, n: N(1) }])] }
+= Loyalty { change: N(-2), effect: [Mill { who: Target, n: N(3) }, If { order: Leading, cond: ZoneHasCards { zone: AGraveyard, op: Ge, n: 20 }, then: [Draw { who: You, n: N(3) }] }, Otherwise([Draw { who: You, n: N(1) }])] }
 = Loyalty { change: MinusX, effect: [Mill { who: Target, n: Thrice(X) }] }
 
 ## Jagged Lightning
@@ -604,7 +604,7 @@ face: Liberating Combustion
 type: Sorcery
 cost: {4}{R}
 > Liberating Combustion deals 6 damage to target creature. You may search your library and/or graveyard for a card named Chandra, Pyrogenius, reveal it, and put it into your hand. If you search your library this way, shuffle.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(6), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }, May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("chandra, pyrogenius")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(6), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }, May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("chandra, pyrogenius")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { order: Leading, cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
 
 ## Lightning Axe
 face: Lightning Axe
@@ -1036,5 +1036,5 @@ face: Winter Sky
 type: Sorcery
 cost: {R}
 > Flip a coin. If you win the flip, Winter Sky deals 1 damage to each creature and each player. If you lose the flip, each player draws a card.
-= Spell([FlipCoin, If { cond: WonFlip(true), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Player(Each)] }] }, If { cond: WonFlip(false), then: [Draw { who: Each, n: N(1) }] }])
+= Spell([FlipCoin, If { order: Leading, cond: WonFlip(true), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Player(Each)] }] }, If { order: Leading, cond: WonFlip(false), then: [Draw { who: Each, n: N(1) }] }])
 

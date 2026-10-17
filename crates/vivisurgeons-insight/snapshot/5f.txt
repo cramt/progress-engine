@@ -796,7 +796,7 @@ face: Stench of Evil
 type: Sorcery
 cost: {2}{B}{B}
 > Destroy all Plains. For each land destroyed this way, Stench of Evil deals 1 damage to that land's controller unless they pay {2}.
-= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [Unless { effect: Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }))] }, who: That, cost: [Mana(Mana(["2"]))] }] }])
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [Unless { effect: Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }))] }, who: That, cost: [Mana(Mana(["2"]))] }] }])
 
 ## Stern Marshal
 face: Stern Marshal

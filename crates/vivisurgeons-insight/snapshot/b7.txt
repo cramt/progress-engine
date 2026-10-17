@@ -12,7 +12,7 @@ face: Alien Invasion
 type: Enchantment
 cost: {1}{R}{R}{G}
 > At the beginning of combat on your turn, create a 1/1 red Alien creature token with haste and "This token attacks each combat if able." Put a +1/+1 counter on it for each invasion counter on this enchantment, then put an invasion counter on this enchantment.
-= Triggered { trigger: At(Combat(Yours)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["alien", "creature"], keywords: [Keyword { name: "haste", param: None }], abilities: [Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksEachCombat }])], named: None, attacking: None } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("invasion"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: BeforeEach, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, PutCounters { n: N(1), kind: "invasion", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: At(Combat(Yours)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["alien", "creature"], keywords: [Keyword { name: "haste", param: None }], abilities: [Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksEachCombat }])], named: None, attacking: None } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("invasion"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: BeforeEach, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, PutCounters { n: N(1), kind: "invasion", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Alluring Suitor // Deadly Dancer
 face: Alluring Suitor
@@ -106,7 +106,7 @@ face: Borrowing 100,000 Arrows
 type: Sorcery
 cost: {2}{U}
 > Draw a card for each tapped creature target opponent controls.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Broodheart Engine
 face: Broodheart Engine
@@ -185,7 +185,7 @@ cost: {X}{U}{U}
 > You may exile a blue card with mana value X from your hand rather than pay this spell's mana cost.
 > Counter target spell if its mana value is X.
 = Static([AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Eq, value: X }), In(Hand(You))], or: None } })])])
-= Spell([If { cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Eq, value: X }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }])
+= Spell([If { order: Trailing, cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Eq, value: X }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }])
 
 ## Dollmaker's Shop // Porcelain Gallery
 face: Dollmaker's Shop
@@ -208,7 +208,7 @@ face: Dragonrage
 type: Instant
 cost: {2}{R}
 > Add {R} for each attacking creature you control. Until end of turn, attacking creatures you control gain "{R}: This creature gets +1/+0 until end of turn."
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }, GrantAbility { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Mana(Mana(["R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }, dur: UntilEndOfTurn }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }, GrantAbility { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Mana(Mana(["R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }, dur: UntilEndOfTurn }])
 
 ## Dreampod Druid
 face: Dreampod Druid
@@ -270,7 +270,7 @@ face: Fade Away
 type: Sorcery
 cost: {2}{U}
 > For each creature, its controller sacrifices a permanent of their choice unless they pay {1}.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Unless { effect: Sacrifice { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [ChosenBy(That)], or: None } } }, who: That, cost: [Mana(Mana(["1"]))] }] }])
+= Spell([ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Unless { effect: Sacrifice { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [ChosenBy(That)], or: None } } }, who: That, cost: [Mana(Mana(["1"]))] }] }])
 
 ## Fain, the Broker
 face: Fain, the Broker
@@ -327,7 +327,7 @@ cost: {2}{B}
 > Destroy target creature.
 > Infusion — If you gained life this turn, that creature's controller loses 3 life.
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }])
-= Labelled { label: "infusion", ability: Spell([If { cond: DidThisTurn(GainsLife(You)), then: [LoseLife { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: N(3) }] }]) }
+= Labelled { label: "infusion", ability: Spell([If { order: Leading, cond: DidThisTurn(GainsLife(You)), then: [LoseLife { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: N(3) }] }]) }
 
 ## Fyndhorn Druid
 face: Fyndhorn Druid
@@ -352,7 +352,7 @@ cost: {G}
 > Deathtouch
 > {8}: Until end of turn, this creature gets +1/+1 for each permanent card in your graveyard.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Activated { cost: [Mana(Mana(["8"]))], effect: [During { dur: UntilEndOfTurn, then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: Permanent }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["8"]))], effect: [During { dur: UntilEndOfTurn, then: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: Permanent }] }] }], limits: [] }
 
 ## Great Arashin City
 face: Great Arashin City
@@ -396,7 +396,7 @@ face: Hazardroot Herbalist
 type: Creature — Rabbit Druid
 cost: {2}{G}
 > Whenever you attack, target creature you control gets +1/+0 until end of turn. If that creature is a token, it also gains deathtouch until end of turn.
-= Triggered { trigger: When(YouAttack), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }] }], limits: [] }
+= Triggered { trigger: When(YouAttack), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Healing Hands
 face: Healing Hands

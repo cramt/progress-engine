@@ -224,7 +224,7 @@ cost: {2}
 > Whenever you're dealt combat damage, the attacking player gains control of this artifact and untaps it.
 > {2}, {T}: Draw a card and put a point counter on this artifact. Then if it has five or more point counters on it, sacrifice it and create a Treasure token.
 = BROKE at "," after: whenever you're dealt combat damage
-= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: You, n: N(1) }, PutCounters { n: N(1), kind: "point", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("point"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: You, n: N(1) }, PutCounters { n: N(1), kind: "point", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("point"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }, then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }], limits: [] }
 
 ## Crocanura
 face: Crocanura
@@ -662,7 +662,7 @@ face: Orphans of the Wheat
 type: Creature — Human
 cost: {1}{W}
 > Whenever this creature attacks, tap any number of untapped creatures you control. This creature gets +1/+1 until end of turn for each creature tapped this way.
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Tap(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Tapped)], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Tap(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Tapped)], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Phyrexian Portal
 face: Phyrexian Portal
@@ -733,7 +733,7 @@ cost: {G/W}
 > {2}{G/W}, {T}: Create a 1/1 green and white Elf Warrior creature token.
 > {4}{G/W}{G/W}, {T}: For each creature token you control, create a token that's a copy of that creature.
 = Activated { cost: [Mana(Mana(["2", "G/W"])), Tap], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green, White], types: ["elf", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= Activated { cost: [Mana(Mana(["4", "G/W", "G/W"])), Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [Controller(You)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["4", "G/W", "G/W"])), Tap], effect: [ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [Controller(You)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }] }], limits: [] }
 
 ## Ripscale Predator
 face: Ripscale Predator
@@ -996,7 +996,7 @@ cost: {3}{W}
 > II, III — For each non-Saga permanent, choose a counter on it. You may put an additional counter of that kind on that permanent.
 > IV — Search your library for a Doctor card, reveal it, put it into your hand, then shuffle.
 = Chapter { chapters: [1], effect: [PutCounters { n: N(2), kind: "stun", on: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } } }] }
-= Chapter { chapters: [2, 3], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Non("saga")]], kind: Some(Permanent), posts: [], or: None } }, then: [Choose(CounterOn(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), May { who: You, then: [PutCounters { n: N(1), kind: Chosen, on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }] }] }] }
+= Chapter { chapters: [2, 3], effect: [ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Non("saga")]], kind: Some(Permanent), posts: [], or: None } }, then: [Choose(CounterOn(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), May { who: You, then: [PutCounters { n: N(1), kind: Chosen, on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }] }] }] }
 = Chapter { chapters: [4], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("doctor")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You)] }
 
 ## The Jolly Balloon Man
@@ -1042,7 +1042,7 @@ cost: {2}{B}{B}
 > Infusion — At the beginning of your end step, sacrifice a permanent unless you gained life this turn.
 = Keywords([Keyword { name: "trample", param: None }])
 = Keywords([Keyword { name: "ward", param: Some(Cost([Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])) }])
-= Labelled { label: "infusion", ability: Triggered { trigger: At(EndStep(Yours)), effect: [If { cond: Not(DidThisTurn(GainsLife(You))), then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }] }], limits: [] } }
+= Labelled { label: "infusion", ability: Triggered { trigger: At(EndStep(Yours)), effect: [If { order: Trailing, cond: Not(DidThisTurn(GainsLife(You))), then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }] }], limits: [] } }
 
 ## Turtle Lair
 face: Turtle Lair

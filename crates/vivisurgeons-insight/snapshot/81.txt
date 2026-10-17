@@ -67,7 +67,7 @@ cost: {3}{G}
 > This creature must be blocked if able.
 > When this creature dies, you gain 1 life for each creature that died this turn.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MustBeBlocked }])
-= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [DiedThisTurn], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [DiedThisTurn], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
 
 ## Clarion Cathars
 face: Clarion Cathars
@@ -135,7 +135,7 @@ cost: {1}{B}
 > {1}: Look at the top card of your library.
 > {2}: Reveal the top card of your library. If it's a land card, this creature gains "Whenever this creature deals damage to a creature, destroy that creature" until end of turn. Activate only once each turn.
 = Activated { cost: [Mana(Mana(["1"]))], effect: [LookAtTop { who: You, whose: You, n: N(1) }], limits: [] }
-= Activated { cost: [Mana(Mana(["2"]))], effect: [RevealTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [GrantAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }), effect: [Destroy { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }, dur: UntilEndOfTurn }] }], limits: [OncePerTurn] }
+= Activated { cost: [Mana(Mana(["2"]))], effect: [RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [GrantAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }), effect: [Destroy { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }, dur: UntilEndOfTurn }] }], limits: [OncePerTurn] }
 
 ## Devourer of Memory
 face: Devourer of Memory
@@ -181,7 +181,7 @@ cost: {2}{U}{U}
 > Creatures don't untap during their controllers' untap steps.
 > At the beginning of each player's upkeep, that player may choose any number of tapped nongreen creatures they control and pay {2} for each creature chosen this way. If the player does, untap those creatures.
 = BROKE at "steps" after: creatures don't untap during their controllers 's untap
-= Triggered { trigger: At(Upkeep(Each)), effect: [May { who: That, then: [Choose(Objects(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Tapped), NonColor(Green), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }))] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } }, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])], limits: [] }
+= Triggered { trigger: At(Upkeep(Each)), effect: [May { who: That, then: [Choose(Objects(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Tapped), NonColor(Green), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }))] }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } }, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])], limits: [] }
 
 ## Dromoka Monument
 face: Dromoka Monument
@@ -902,7 +902,7 @@ face: Taken by Nightmares
 type: Instant
 cost: {2}{B}{B}
 > Exile target creature. If you control an enchantment, scry 2.
-= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Scry(N(2))] }])
+= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [Scry(N(2))] }])
 
 ## Tannuk, Steadfast Second
 face: Tannuk, Steadfast Second
@@ -1014,7 +1014,7 @@ cost: {3}
 > {X}{1}, {T}: Put X charge counters on this artifact. Activate only as a sorcery.
 > At the beginning of your first main phase, if this artifact has a charge counter on it, tap it and remove all charge counters from it. Add {C} for each charge counter removed this way.
 = Activated { cost: [Mana(Mana(["X", "1"])), Tap], effect: [PutCounters { n: X, kind: "charge", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [SorcerySpeed] }
-= Triggered { trigger: InterveningIf(At(PrecombatMain(Yours)), HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("charge") }), effect: [Tap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), RemoveAllCountersOf { kind: "charge", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("charge"))), posts: [Marked(Removed)], or: None } }, then: [AddMana(Symbols(Mana(["C"])))] }], limits: [] }
+= Triggered { trigger: InterveningIf(At(PrecombatMain(Yours)), HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("charge") }), effect: [Tap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), RemoveAllCountersOf { kind: "charge", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("charge"))), posts: [Marked(Removed)], or: None } }, then: [AddMana(Symbols(Mana(["C"])))] }], limits: [] }
 
 ## Voidmage Prodigy
 face: Voidmage Prodigy

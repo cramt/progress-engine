@@ -213,7 +213,7 @@ face: Dwarven Priest
 type: Creature — Dwarf Cleric
 cost: {3}{W}
 > When this creature enters, you gain 1 life for each creature you control.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
 
 ## Dwarven Shrine
 face: Dwarven Shrine
@@ -353,7 +353,7 @@ face: Glimmer Seeker
 type: Creature — Human Survivor
 cost: {2}{W}
 > Survival — At the beginning of your second main phase, if this creature is tapped, draw a card if you control a Glimmer creature. If you don't control a Glimmer creature, create a 1/1 white Glimmer enchantment creature token.
-= Labelled { label: "survival", ability: Triggered { trigger: InterveningIf(At(SecondMain(Yours)), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }), effect: [If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("glimmer"), Type("creature")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }, If { cond: YouDontControl(Objects { quant: One, filter: Filter { alts: [[Subtype("glimmer"), Type("creature")]], kind: None, posts: [], or: None } }), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["glimmer", "enchantment", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] } }
+= Labelled { label: "survival", ability: Triggered { trigger: InterveningIf(At(SecondMain(Yours)), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }), effect: [If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("glimmer"), Type("creature")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }, If { order: Leading, cond: YouDontControl(Objects { quant: One, filter: Filter { alts: [[Subtype("glimmer"), Type("creature")]], kind: None, posts: [], or: None } }), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["glimmer", "enchantment", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] } }
 
 ## Goblin Bushwhacker
 face: Goblin Bushwhacker
@@ -645,7 +645,7 @@ face: Regal Force
 type: Creature — Elemental
 cost: {4}{G}{G}{G}
 > When this creature enters, draw a card for each green creature you control.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## River Delta
 face: River Delta
@@ -676,7 +676,7 @@ cost: {2}{B}
 > If this spell was bargained, look at the top four cards of your library, then put up to two of them back on top of your library in any order and the rest into your graveyard.
 > You draw two cards and you lose 2 life.
 = Keywords([Keyword { name: "bargain", param: None }])
-= Spell([If { cond: WasBargained, then: [LookAtTop { who: You, whose: You, n: N(4) }, Move { what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: None, posts: [FromAmongThem], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }] }])
+= Spell([If { order: Leading, cond: WasBargained, then: [LookAtTop { who: You, whose: You, n: N(4) }, Move { what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: None, posts: [FromAmongThem], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }] }])
 = Spell([Draw { who: You, n: N(2) }, LoseLife { who: You, n: N(2) }])
 
 ## Rubblebelt Recluse

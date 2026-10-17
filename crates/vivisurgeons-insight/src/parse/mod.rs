@@ -2720,7 +2720,7 @@ impl Visitor for EntriesThisTurn {
                 true
             }
         }
-        if let Effect::ForEach { each, then } = e {
+        if let Effect::ForEach { each, then, .. } = e {
             let mut each_one = Each(false);
             for t in then.iter_mut() {
                 t.walk(&mut each_one);
@@ -3011,6 +3011,7 @@ fn kicked_it(effect: &mut [Effect]) {
         if let Effect::If {
             cond: Condition::WasKicked,
             then,
+            ..
         } = e
         {
             let mut bare = FirstBare(false);

@@ -605,7 +605,7 @@ cost: {3}{B}
 > As this creature enters, if it was kicked, mill four cards. (To mill a card, put the top card of your library into your graveyard.)
 > Monstrous War-Leech's power and toughness are each equal to the greatest mana value among cards in your graveyard.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["U"]))])) }])
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [If { cond: WasKicked, then: [Mill { who: You, n: N(4) }] }] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [If { order: Leading, cond: WasKicked, then: [Mill { who: You, n: N(4) }] }] }])
 = Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: Greatest { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } } } }])
 
 ## Mugging
@@ -788,7 +788,7 @@ cost: {5}{B}{B}
 > Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)
 > When this creature enters, for each opponent, you may put up to one target creature card from that player's graveyard onto the battlefield under your control.
 = Keywords([Keyword { name: "intimidate", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [May { who: You, then: [Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [May { who: You, then: [Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }] }], limits: [] }
 
 ## Serpentine Kavu
 face: Serpentine Kavu
@@ -805,7 +805,7 @@ cost: {3}{B}
 > Return target creature card from your graveyard to the battlefield. If this spell was kicked, you gain life equal to that card's mana value. Otherwise, you lose that much life.
 > Exile Sheoldred's Restoration.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2", "W"]))])) }])
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { cond: WasKicked, then: [GainLife { who: You, n: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }) }] }, Otherwise([LoseLife { who: You, n: ThatMany }])])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: WasKicked, then: [GainLife { who: You, n: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }) }] }, Otherwise([LoseLife { who: You, n: ThatMany }])])
 = Spell([Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Shriek, Treblemaker
@@ -851,7 +851,7 @@ face: Splitskin Doll
 type: Artifact Creature — Toy
 cost: {1}{W}
 > When this creature enters, draw a card. Then discard a card unless you control another creature with power 2 or less.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, If { cond: Not(YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(2) })], or: None } })), then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, If { order: Trailing, cond: Not(YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(2) })], or: None } })), then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
 
 ## Starry-Eyed Skyrider
 face: Starry-Eyed Skyrider

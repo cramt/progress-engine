@@ -213,7 +213,7 @@ cost: {2}{U}
 face: Braided Quipu
 type: Artifact
 > {3}{U}, {T}: Draw a card for each artifact you control, then put this artifact into its owner's library third from the top.
-= Activated { cost: [Mana(Mana(["3", "U"])), Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }, Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryNthFromTop(3), tapped: false, transformed: false, under: None, order: None }], limits: [] }
+= Activated { cost: [Mana(Mana(["3", "U"])), Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }, Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryNthFromTop(3), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Builder's Bane
 face: Builder's Bane
@@ -241,7 +241,7 @@ face: Cankerous Thirst
 type: Instant
 cost: {3}{B/G}
 > If {B} was spent to cast this spell, you may have target creature get -3/-3 until end of turn. If {G} was spent to cast this spell, you may have target creature get +3/+3 until end of turn. (Do both if {B}{G} was spent.)
-= Spell([If { cond: ManaSpent { mana: Mana(["B"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [May { who: You, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(-3), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }, If { cond: ManaSpent { mana: Mana(["G"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [May { who: You, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }])
+= Spell([If { order: Leading, cond: ManaSpent { mana: Mana(["B"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [May { who: You, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(-3), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }, If { order: Leading, cond: ManaSpent { mana: Mana(["G"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [May { who: You, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }])
 
 ## Cateran Persuader
 face: Cateran Persuader
@@ -571,7 +571,7 @@ cost: {1}{W}
 > (As this Saga enters and after your draw step, add a lore counter.)
 > I, II — Target creature gets +1/+1 until end of turn for each artifact and/or enchantment you control.
 > III — Exile this Saga, then return it to the battlefield transformed under your control.
-= Chapter { chapters: [1, 2], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }
+= Chapter { chapters: [1, 2], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }
 = Chapter { chapters: [3], effect: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: true, under: Some(You), order: None }] }
 
 ## Michiko's Reign of Truth // Portrait of Michiko
@@ -603,7 +603,7 @@ cost: {2}{R}
 > Creatures without flying don't untap during their controllers' untap steps.
 > At the beginning of each player's upkeep, that player may choose any number of tapped creatures without flying they control and pay {2} for each creature chosen this way. If the player does, untap those creatures.
 = BROKE at "untap" after: creatures without flying don't untap during their controllers 's
-= Triggered { trigger: At(Upkeep(Each)), effect: [May { who: That, then: [Choose(Objects(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [WithoutKeyword("flying"), Controller(That)], or: None } }))] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } }, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])], limits: [] }
+= Triggered { trigger: At(Upkeep(Each)), effect: [May { who: That, then: [Choose(Objects(Objects { quant: AnyNumber, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [WithoutKeyword("flying"), Controller(That)], or: None } }))] }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } }, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])], limits: [] }
 
 ## Necropouncer
 face: Necropouncer
@@ -680,7 +680,7 @@ cost: {1}{G}{U}{R}
 > When Omnath enters, it deals damage to any target equal to the number of Elementals you control.
 > Landfall — Whenever a land you control enters, put a +1/+1 counter on target Elemental you control. If you control eight or more lands, draw a card.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("elemental")]], kind: None, posts: [Controller(You)], or: None } }), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
-= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("elemental")]], kind: None, posts: [Controller(You)], or: None } } }, If { cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }], limits: [] } }
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("elemental")]], kind: None, posts: [Controller(You)], or: None } } }, If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }], limits: [] } }
 
 ## Order of the Stars
 face: Order of the Stars
@@ -746,7 +746,7 @@ face: Peppersmoke
 type: Kindred Instant — Faerie
 cost: {B}
 > Target creature gets -1/-1 until end of turn. If you control a Faerie, draw a card.
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("faerie")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("faerie")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
 
 ## Pikemen
 face: Pikemen
@@ -827,7 +827,7 @@ face: Scourge of Numai
 type: Creature — Demon Spirit
 cost: {3}{B}
 > At the beginning of your upkeep, you lose 2 life if you don't control an Ogre.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [If { cond: YouDontControl(Objects { quant: One, filter: Filter { alts: [[Subtype("ogre")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: You, n: N(2) }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [If { order: Trailing, cond: YouDontControl(Objects { quant: One, filter: Filter { alts: [[Subtype("ogre")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: You, n: N(2) }] }], limits: [] }
 
 ## Sear
 face: Sear
@@ -1067,7 +1067,7 @@ cost: {1}{B}{B}
 > Tap enchanted land: Attacking creatures you control get +2/-1 until end of turn. Activate only if enchanted land is untapped.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })) }])
 = Activated { cost: [Sacrifice(Objects { quant: One, filter: Filter { alts: [[Subtype("thrull")]], kind: None, posts: [], or: None } })], effect: [PutCounters { n: N(3), kind: "time", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Triggered { trigger: At(Upkeep(Yours)), effect: [RemoveCounters { n: N(1), kind: "time", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { cond: Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("time") }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [RemoveCounters { n: N(1), kind: "time", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Leading, cond: Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("time") }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = Activated { cost: [TapUntapped(Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [OnlyIf(Is { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } })] }
 
 ## Triton Shorestalker
@@ -1082,7 +1082,7 @@ face: Ultron, Artificial Malevolence
 type: Legendary Artifact Creature — Robot Villain
 cost: {3}
 > Whenever another nontoken artifact you control enters, you may pay {2}. If you do, create a token that's a copy of it. If the token isn't a creature, it becomes a 2/2 Robot Villain creature in addition to its other types.
-= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[State(Nontoken), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }, If { cond: Not(Is { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Becomes { what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), types: [Subtype("robot"), Subtype("villain"), Type("creature")], gains: [], keeps: OtherTypes, dur: Permanent }] }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[State(Nontoken), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }, If { order: Leading, cond: Not(Is { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Becomes { what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), types: [Subtype("robot"), Subtype("villain"), Type("creature")], gains: [], keeps: OtherTypes, dur: Permanent }] }])], limits: [] }
 
 ## Underworld Connections
 face: Underworld Connections
@@ -1100,7 +1100,7 @@ cost: {2}{R}
 > Gift a Food (You may promise an opponent a gift as you cast this spell. If you do, they create a Food token before its other effects. It's an artifact with "{2}, {T}, Sacrifice this token: You gain 3 life.")
 > Creatures you control get +2/+0 until end of turn. If the gift was promised, target creature you control gains first strike until end of turn.
 = Keywords([Keyword { name: "gift", param: Some(Gift(Token { tapped: false, named: "food" })) }])
-= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: GiftPromised, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: GiftPromised, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }] }])
 
 ## Veil of Birds
 face: Veil of Birds

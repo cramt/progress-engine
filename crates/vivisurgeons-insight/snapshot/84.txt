@@ -239,7 +239,7 @@ face: Defile
 type: Instant
 cost: {B}
 > Target creature gets -1/-1 until end of turn for each Swamp you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Deglamer
 face: Deglamer
@@ -724,7 +724,7 @@ face: Rootgrapple
 type: Kindred Instant — Treefolk
 cost: {4}{G}
 > Destroy target noncreature permanent. If you control a Treefolk, draw a card.
-= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("treefolk")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("treefolk")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
 
 ## Rowan, Fearless Sparkmage
 face: Rowan, Fearless Sparkmage
@@ -945,7 +945,7 @@ face: Syphon Mind
 type: Sorcery
 cost: {3}{B}
 > Each other player discards a card. You draw a card for each card discarded this way.
-= Spell([Discard { who: EachOtherPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Discard { who: EachOtherPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Syr Armont, the Redeemer
 face: Syr Armont, the Redeemer

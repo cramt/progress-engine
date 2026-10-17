@@ -77,7 +77,7 @@ cost: {6}{U}
 > Devoid (This card has no color.)
 > When you cast this spell, for each opponent, choose a creature that player controls. Create a token that's a copy of one of those creatures, except its power is equal to the total power of those creatures, its toughness is equal to the total toughness of those creatures, and it's a colorless Eldrazi creature.
 = Keywords([Keyword { name: "devoid", param: None }])
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }))] }, CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } })], or: None } }, except: [StatIs { stat: Power, equal_to: Total { stat: Power, of: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } } } }, StatIs { stat: Toughness, equal_to: Total { stat: Toughness, of: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } } } }, Is { pt: None, adjs: [Color(Colorless), Subtype("eldrazi"), Type("creature")] }] }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }))] }, CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } })], or: None } }, except: [StatIs { stat: Power, equal_to: Total { stat: Power, of: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } } } }, StatIs { stat: Toughness, equal_to: Total { stat: Toughness, of: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None } } } }, Is { pt: None, adjs: [Color(Colorless), Subtype("eldrazi"), Type("creature")] }] }], limits: [] }
 
 ## Blessed Respite
 face: Blessed Respite
@@ -328,7 +328,7 @@ cost: {1}{G}
 > Trample
 > At the beginning of your end step, you may pay {1}. When you do, put a +1/+1 counter on target Shrine for each Shrine you control.
 = Keywords([Keyword { name: "trample", param: None }])
-= Triggered { trigger: At(EndStep(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1"]))] }] }, WhenYouDo([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("shrine")]], kind: None, posts: [Controller(You)], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("shrine")]], kind: None, posts: [], or: None } } }] }])], limits: [] }
+= Triggered { trigger: At(EndStep(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1"]))] }] }, WhenYouDo([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("shrine")]], kind: None, posts: [Controller(You)], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("shrine")]], kind: None, posts: [], or: None } } }] }])], limits: [] }
 
 ## Goldlust Triad
 face: Goldlust Triad
@@ -514,7 +514,7 @@ face: Keep Watch
 type: Instant
 cost: {2}{U}
 > Draw a card for each attacking creature.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Kick in the Door
 face: Kick in the Door
@@ -579,7 +579,7 @@ face: Mass Mutiny
 type: Sorcery
 cost: {3}{R}{R}
 > For each opponent, gain control of up to one target creature that player controls until end of turn. Untap those creatures. They gain haste until end of turn.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [GainControl { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, dur: UntilEndOfTurn }] }, Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }])
+= Spell([ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [GainControl { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, dur: UntilEndOfTurn }] }, Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }])
 
 ## Merfolk Cave-Diver
 face: Merfolk Cave-Diver
@@ -813,7 +813,7 @@ face: Stronghold Discipline
 type: Sorcery
 cost: {2}{B}{B}
 > Each player loses 1 life for each creature they control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, then: [LoseLife { who: Each, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, then: [LoseLife { who: Each, n: N(1) }] }])
 
 ## Student of Warfare
 face: Student of Warfare

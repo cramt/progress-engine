@@ -330,7 +330,7 @@ face: Ertai's Trickery
 type: Instant
 cost: {U}
 > Counter target spell if it was kicked.
-= Spell([If { cond: WasKicked, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }])
+= Spell([If { order: Trailing, cond: WasKicked, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }])
 
 ## Exhume
 face: Exhume
@@ -405,7 +405,7 @@ face: Fumigate
 type: Sorcery
 cost: {3}{W}{W}
 > Destroy all creatures. You gain 1 life for each creature destroyed this way.
-= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
 
 ## Gamble
 face: Gamble
@@ -473,7 +473,7 @@ face: Inner Fire
 type: Sorcery
 cost: {3}{R}
 > Add {R} for each card in your hand.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }])
 
 ## Iona, Shield of Emeria
 face: Iona, Shield of Emeria
@@ -519,7 +519,7 @@ face: Life Burst
 type: Instant
 cost: {1}{W}
 > Target player gains 4 life, then gains 4 life for each card named Life Burst in each graveyard.
-= Spell([GainLife { who: Target, n: N(4) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Life Burst")), In(Graveyard(Each))], or: None } }, then: [GainLife { who: That, n: N(4) }] }])
+= Spell([GainLife { who: Target, n: N(4) }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Life Burst")), In(Graveyard(Each))], or: None } }, then: [GainLife { who: That, n: N(4) }] }])
 
 ## Lu Xun, Scholar General
 face: Lu Xun, Scholar General
@@ -617,7 +617,7 @@ type: Legendary Creature — Elemental
 cost: {4}{R}{G}
 > When Phylath enters, create a 0/1 green Plant creature token for each basic land you control.
 > Landfall — Whenever a land you control enters, put four +1/+1 counters on target Plant you control.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), colors: [Green], types: ["plant", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), colors: [Green], types: ["plant", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 = Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(4), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("plant")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] } }
 
 ## Pouncing Wurm
@@ -905,14 +905,14 @@ cost: {2}{R}{G}{W}
 > Vigilance, trample, ward {3}
 > Whenever Voja attacks, put X +1/+1 counters on each creature you control, where X is the number of Elves you control. Draw a card for each Wolf you control.
 = Keywords([Keyword { name: "vigilance", param: None }, Keyword { name: "trample", param: None }, Keyword { name: "ward", param: Some(Cost([Mana(Mana(["3"]))])) }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Where { then: [PutCounters { n: X, kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("wolf")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Where { then: [PutCounters { n: X, kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }) }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("wolf")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Warren Weirding
 face: Warren Weirding
 type: Kindred Sorcery — Goblin
 cost: {1}{B}
 > Target player sacrifices a creature of their choice. If a Goblin is sacrificed this way, that player creates two 1/1 black Goblin Rogue creature tokens, and those tokens gain haste until end of turn.
-= Spell([Sacrifice { who: Target, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, If { cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [], or: None } }, how: Sacrificed }, then: [Create { who: That, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["goblin", "rogue", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }] }])
+= Spell([Sacrifice { who: Target, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [], or: None } }, how: Sacrificed }, then: [Create { who: That, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["goblin", "rogue", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }] }])
 
 ## Weave Fate
 face: Weave Fate

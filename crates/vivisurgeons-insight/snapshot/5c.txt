@@ -112,7 +112,7 @@ cost: {2}{R}{R}{R}
 > Flying
 > When this creature dies, exile it if it had a death counter on it. Otherwise, return it to the battlefield under your control and put a death counter on it.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [If { cond: Past(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("death") }), then: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, Otherwise([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, PutCounters { n: N(1), kind: "death", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [If { order: Trailing, cond: Past(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("death") }), then: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, Otherwise([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, PutCounters { n: N(1), kind: "death", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 
 ## Bounty of Might
 face: Bounty of Might
@@ -141,7 +141,7 @@ cost: {2}{U}
 > Counter target spell unless its controller pays {3}.
 > Spell mastery — If there are two or more instant and/or sorcery cards in your graveyard, scry 2. (To scry 2, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["3"]))])) }])
-= Labelled { label: "spell mastery", ability: Spell([If { cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [Scry(N(2))] }]) }
+= Labelled { label: "spell mastery", ability: Spell([If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(2) }, then: [Scry(N(2))] }]) }
 
 ## Cathar's Call
 face: Cathar's Call
@@ -168,7 +168,7 @@ cost: {2}{G}
 > Prevent all combat damage that would be dealt this turn.
 > Fateful hour — If you have 5 or less life, tap all attacking creatures. Those creatures don't untap during their controller's next untap step.
 = Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
-= Labelled { label: "fateful hour", ability: Spell([If { cond: LifeAtMost(5), then: [Tap(Objects { quant: All, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } })] }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }]) }
+= Labelled { label: "fateful hour", ability: Spell([If { order: Leading, cond: LifeAtMost(5), then: [Tap(Objects { quant: All, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } })] }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }]) }
 
 ## Cloak of Confusion
 face: Cloak of Confusion
@@ -202,7 +202,7 @@ face: Corpse Appraiser
 type: Creature — Vampire Rogue
 cost: {U}{B}{R}
 > When this creature enters, exile up to one target creature card from a graveyard. If a card is put into exile this way, look at the top three cards of your library, then put one of those cards into your hand and the rest into your graveyard.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { cond: ThisWay(PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, to: Exile, from: Anywhere }), then: [LookAtTop { who: You, whose: You, n: N(3) }, Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { order: Leading, cond: ThisWay(PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, to: Exile, from: Anywhere }), then: [LookAtTop { who: You, whose: You, n: N(3) }, Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Council of Reeds
 face: Council of Reeds
@@ -288,7 +288,7 @@ type: Sorcery
 cost: {3}{W}
 > You gain 2 life for each creature target player controls.
 > Suspend 5—{1}{W} (Rather than cast this card from your hand, you may pay {1}{W} and exile it with five time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost.)
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, then: [GainLife { who: You, n: N(2) }] }])
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(5), cost: [Mana(Mana(["1", "W"]))] }) }])
 
 ## Dream Pillager
@@ -467,7 +467,7 @@ cost: {1}{W}
 > As an additional cost to cast this spell, you may behold a Hero. (You may choose a Hero you control or reveal a Hero card from your hand.)
 > Destroy target tapped creature. If a Hero was beheld, scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)
 = Static([OptionalAdditionalCost([ActionOn { name: "behold", what: Objects { quant: One, filter: Filter { alts: [[Subtype("hero")]], kind: None, posts: [], or: None } } }])])
-= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, If { cond: Beheld(Objects { quant: One, filter: Filter { alts: [[Subtype("hero")]], kind: None, posts: [], or: None } }), then: [Scry(N(2))] }])
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: Beheld(Objects { quant: One, filter: Filter { alts: [[Subtype("hero")]], kind: None, posts: [], or: None } }), then: [Scry(N(2))] }])
 
 ## Iceberg Cancrix
 face: Iceberg Cancrix
@@ -615,7 +615,7 @@ face: Netherborn Altar
 type: Artifact
 cost: {1}{B}
 > {T}, Put a soul counter on this artifact: Put your commander into your hand from the command zone. Then you lose 3 life for each soul counter on this artifact.
-= Activated { cost: [Tap, PutCounters { n: N(1), kind: "soul", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Move { what: Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }, from: Some(CommandZone), to: Hand(You), tapped: false, transformed: false, under: None, order: None }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("soul"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [LoseLife { who: You, n: N(3) }] }], limits: [] }
+= Activated { cost: [Tap, PutCounters { n: N(1), kind: "soul", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Move { what: Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }, from: Some(CommandZone), to: Hand(You), tapped: false, transformed: false, under: None, order: None }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("soul"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [LoseLife { who: You, n: N(3) }] }], limits: [] }
 
 ## Nightwind Glider
 face: Nightwind Glider
@@ -811,7 +811,7 @@ face: Sail into the West
 type: Instant
 cost: {2}{G}{U}
 > Will of the council — Starting with you, each player votes for return or embark. If return gets more votes, each player returns up to two cards from their graveyard to their hand, then you exile Sail into the West. If embark gets more votes or the vote is tied, each player may discard their hand and draw seven cards.
-= Labelled { label: "will of the council", ability: Spell([StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["return", "embark"]) }] }, If { cond: GetsMoreVotes("return"), then: [Performed { by: Each, effect: Move { what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { cond: Or([GetsMoreVotes("embark"), VoteTied]), then: [May { who: Each, then: [DiscardHand(Each), Draw { who: Each, n: N(7) }] }] }]) }
+= Labelled { label: "will of the council", ability: Spell([StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["return", "embark"]) }] }, If { order: Leading, cond: GetsMoreVotes("return"), then: [Performed { by: Each, effect: Move { what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { order: Leading, cond: Or([GetsMoreVotes("embark"), VoteTied]), then: [May { who: Each, then: [DiscardHand(Each), Draw { who: Each, n: N(7) }] }] }]) }
 
 ## Saproling Migration
 face: Saproling Migration

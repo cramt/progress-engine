@@ -12,7 +12,7 @@ cost: {2}{B}
 > Kicker {R} (You may pay an additional {R} as you cast this spell.)
 > Target player discards two cards. If this spell was kicked, it deals 3 damage to that player.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["R"]))])) }])
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { cond: WasKicked, then: [Damage { source: Some(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Player(That)] }] }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: WasKicked, then: [Damage { source: Some(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Player(That)] }] }])
 
 ## Akroan Conscriptor
 face: Akroan Conscriptor
@@ -36,7 +36,7 @@ type: Instant
 cost: {1}{B}
 > Exile target creature if it has mana value 3 or less.
 > Corrupted — Exile that creature instead if its controller has three or more poison counters.
-= Spell([If { cond: Has { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cmp: Compare { stat: ManaValue, op: Le, value: N(3) } }, then: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
+= Spell([If { order: Trailing, cond: Has { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cmp: Compare { stat: ManaValue, op: Le, value: N(3) } }, then: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
 = BROKE at "poison" after: corrupted — exile that creature instead if its controller has three or more
 
 ## Apex of Power
@@ -46,7 +46,7 @@ cost: {7}{R}{R}{R}
 > Exile the top seven cards of your library. Until end of turn, you may cast spells from among them.
 > If this spell was cast from your hand, add ten mana of any one color.
 = Spell([Exile(Objects { quant: N(N(7)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [FromAmongThem], or: None } }, payment: ManaCost, dur: UntilEndOfTurn }] }])
-= Spell([If { cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [AddMana(Of { n: N(10), pick: AnyOneColor, within: None })] }])
+= Spell([If { order: Leading, cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [AddMana(Of { n: N(10), pick: AnyOneColor, within: None })] }])
 
 ## Argoth, Sanctum of Nature
 face: Argoth, Sanctum of Nature
@@ -93,7 +93,7 @@ face: Banishing Slash
 type: Sorcery
 cost: {W}{W}
 > Destroy up to one target artifact, enchantment, or tapped creature. Then if you control an artifact and an enchantment, create a 2/2 white Samurai creature token with vigilance.
-= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")], [State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, If { cond: And([YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } })]), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White], types: ["samurai", "creature"], keywords: [Keyword { name: "vigilance", param: None }], abilities: [], named: None, attacking: None } }] }])
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")], [State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: And([YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } })]), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White], types: ["samurai", "creature"], keywords: [Keyword { name: "vigilance", param: None }], abilities: [], named: None, attacking: None } }] }])
 
 ## Battle Angels of Tyr
 face: Battle Angels of Tyr
@@ -354,7 +354,7 @@ face: Elven Ambush
 type: Instant
 cost: {3}{G}
 > Create a 1/1 green Elf Warrior creature token for each Elf you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["elf", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["elf", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Endbringer's Revel
 face: Endbringer's Revel
@@ -775,7 +775,7 @@ face: Rite of Flame
 type: Sorcery
 cost: {R}
 > Add {R}{R}, then add {R} for each card named Rite of Flame in each graveyard.
-= Spell([AddMana(Symbols(Mana(["R", "R"]))), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Rite of Flame")), In(Graveyard(Each))], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }])
+= Spell([AddMana(Symbols(Mana(["R", "R"]))), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Rite of Flame")), In(Graveyard(Each))], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }])
 
 ## Rix Maadi Guildmage
 face: Rix Maadi Guildmage
@@ -810,7 +810,7 @@ cost: {2}{U}
 > Kicker—Sacrifice a land. (You may sacrifice a land in addition to any other costs as you cast this spell.)
 > Return target nonland permanent to its owner's hand. If this spell was kicked, return another target nonland permanent to its owner's hand.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])) }])
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, If { cond: WasKicked, then: [Move { what: Objects { quant: AnotherTarget, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: WasKicked, then: [Move { what: Objects { quant: AnotherTarget, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }])
 
 ## Sage Owl
 face: Sage Owl

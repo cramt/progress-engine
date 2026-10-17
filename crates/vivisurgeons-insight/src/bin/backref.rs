@@ -30,6 +30,9 @@
 //! …"), leads or trails (the round trip accepts both), so `--flip` reads
 //! every such node the other way and counts the pointers that move.
 
+// The prototype as it came; the library's resolver replaces it.
+#![allow(clippy::all, clippy::doc_lazy_continuation)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
@@ -643,7 +646,7 @@ impl Visitor for Collect {
     fn effect_done(&mut self, e: &mut Effect) {
         let id = self.pop_frame();
         self.frames[id].trail = match e {
-            Effect::If { cond, then } if contains_quant(cond, &Quant::ClauseObject) => {
+            Effect::If { cond, then, .. } if contains_quant(cond, &Quant::ClauseObject) => {
                 let _ = then;
                 Trail::CondLast
             }

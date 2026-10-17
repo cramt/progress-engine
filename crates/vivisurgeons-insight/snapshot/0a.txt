@@ -198,7 +198,7 @@ cost: {2}{U}
 > When this creature enters, sacrifice it unless {W} was spent to cast it.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [LookAtTop { who: You, whose: You, n: N(3) }, Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmongThem], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }], limits: [] }
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { cond: Not(ManaSpent { mana: Mana(["W"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: Not(ManaSpent { mana: Mana(["W"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Crypsis
 face: Crypsis
@@ -325,7 +325,7 @@ face: Dovin's Dismissal
 type: Instant
 cost: {2}{W}{U}
 > Put up to one target tapped creature on top of its owner's library. You may search your library and/or graveyard for a card named Dovin, Architect of Law, reveal it, and put it into your hand. If you search your library this way, shuffle.
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None }, May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("dovin, architect of law")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None }, May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("dovin, architect of law")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { order: Leading, cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
 
 ## Dragon's Herald
 face: Dragon's Herald
@@ -704,7 +704,7 @@ face: Powerbalance
 type: Enchantment
 cost: {R}{R}
 > Whenever an opponent casts a spell, you may reveal the top card of your library. If you do, you may cast that card without paying its mana cost if the two spells have the same mana value.
-= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [RevealTop { who: You, whose: You, n: N(1) }] }, IfYouDo([If { cond: Has { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, cmp: Compare { stat: ManaValue, op: Eq, value: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) } }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }] }])], limits: [] }
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [RevealTop { who: You, whose: You, n: N(1) }] }, IfYouDo([If { order: Trailing, cond: Has { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, cmp: Compare { stat: ManaValue, op: Eq, value: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) } }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }] }])], limits: [] }
 
 ## Prava of the Steel Legion
 face: Prava of the Steel Legion
@@ -731,7 +731,7 @@ face: Predict
 type: Instant
 cost: {1}{U}
 > Choose a card name, then target player mills a card. If a card with the chosen name was milled this way, you draw two cards. Otherwise, you draw a card.
-= Spell([Choose(CardName), Mill { who: Target, n: N(1) }, If { cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }, how: Milled }, then: [Draw { who: You, n: N(2) }] }, Otherwise([Draw { who: You, n: N(1) }])])
+= Spell([Choose(CardName), Mill { who: Target, n: N(1) }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }, how: Milled }, then: [Draw { who: You, n: N(2) }] }, Otherwise([Draw { who: You, n: N(1) }])])
 
 ## Renegade Doppelganger
 face: Renegade Doppelganger
@@ -801,7 +801,7 @@ cost: {7}
 > Flying
 > When this creature enters, choose an opponent. If that player has more cards in hand than you, draw cards equal to the difference.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Choose(Opponent), If { cond: HasMore { who: That, what: CardsInHand, than: You }, then: [Draw { who: You, n: TheDifference }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Choose(Opponent), If { order: Leading, cond: HasMore { who: That, what: CardsInHand, than: You }, then: [Draw { who: You, n: TheDifference }] }], limits: [] }
 
 ## Saw
 face: Saw
@@ -918,7 +918,7 @@ cost: {G}
 > Kicker {2}{W} (You may pay an additional {2}{W} as you cast this spell.)
 > Target creature you control gets +2/+2 until end of turn. If this spell was kicked, put a +1/+1 counter on each creature you control.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2", "W"]))])) }])
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: WasKicked, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: WasKicked, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }] }])
 
 ## Sun Quan, Lord of Wu
 face: Sun Quan, Lord of Wu

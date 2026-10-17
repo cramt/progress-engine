@@ -12,7 +12,7 @@ cost: {5}{B}{B}{B}
 > Demons you control have menace, lifelink, and haste.
 > Starscourge — At the beginning of combat on your turn, exile up to one target creature card from a graveyard. If you exiled a card this way, create a token that's a copy of that card, except it's a 5/5 black Demon.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("demon")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }, Keyword { name: "lifelink", param: None }, Keyword { name: "haste", param: None }], per: None }])
-= Labelled { label: "starscourge", ability: Triggered { trigger: At(Combat(Yours)), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { cond: ThisWay(Exiles { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), adjs: [Color(Black), Subtype("demon")] }] }] }], limits: [] } }
+= Labelled { label: "starscourge", ability: Triggered { trigger: At(Combat(Yours)), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), If { order: Leading, cond: ThisWay(Exiles { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), adjs: [Color(Black), Subtype("demon")] }] }] }], limits: [] } }
 
 ## Aurora Griffin
 face: Aurora Griffin
@@ -95,7 +95,7 @@ type: Land
 > {T}: Add {C}.
 > {3}, {T}: Add {B} for each basic Swamp you control.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Supertype("basic"), Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["B"])))] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Supertype("basic"), Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["B"])))] }], limits: [] }
 
 ## Captain Marvel, Earth's Protector
 face: Captain Marvel, Earth's Protector
@@ -230,7 +230,7 @@ face: Disintegrate
 type: Sorcery
 cost: {X}{R}
 > Disintegrate deals X damage to any target. If it's a creature, it can't be regenerated this turn, and if it would die this turn, exile it instead.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeRegenerated, dur: ThisTurn }, During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeRegenerated, dur: ThisTurn }, During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }])
 
 ## Dragon Shadow
 face: Dragon Shadow
@@ -603,7 +603,7 @@ face: Pack's Disdain
 type: Instant
 cost: {1}{B}
 > Choose a creature type. Target creature gets -1/-1 until end of turn for each permanent of the chosen type you control.
-= Spell([Choose(CreatureType), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [OfChosenType, Controller(You)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([Choose(CreatureType), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [OfChosenType, Controller(You)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Patched Plaything
 face: Patched Plaything
@@ -748,7 +748,7 @@ face: Silent-Chant Zubera
 type: Creature — Zubera Spirit
 cost: {1}{W}
 > When this creature dies, you gain 2 life for each Zubera that died this turn.
-= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("zubera")]], kind: None, posts: [DiedThisTurn], or: None } }, then: [GainLife { who: You, n: N(2) }] }], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("zubera")]], kind: None, posts: [DiedThisTurn], or: None } }, then: [GainLife { who: You, n: N(2) }] }], limits: [] }
 
 ## Skittish Valesk
 face: Skittish Valesk
@@ -778,7 +778,7 @@ face: Songs of the Damned
 type: Instant
 cost: {B}
 > Add {B} for each creature card in your graveyard.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [AddMana(Symbols(Mana(["B"])))] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, then: [AddMana(Symbols(Mana(["B"])))] }])
 
 ## Sparkcaster
 face: Sparkcaster
@@ -880,7 +880,7 @@ cost: {1}{R}{G}{W}
 > Melee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)
 > Whenever one or more creatures you control with power 7 or greater deal combat damage to a player, untap all creatures you control. If it's the first combat phase of your turn, there is an additional combat phase after this phase.
 = Keywords([Keyword { name: "melee", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(7) })], or: None } })), effect: [Untap(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), If { cond: FirstCombatPhase { your_turn: true }, then: [AdditionalPhases { after: None, phases: [Combat] }] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(7) })], or: None } })), effect: [Untap(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), If { order: Leading, cond: FirstCombatPhase { your_turn: true }, then: [AdditionalPhases { after: None, phases: [Combat] }] }], limits: [] }
 
 ## Ulvenwald Oddity // Ulvenwald Behemoth
 face: Ulvenwald Oddity
@@ -915,7 +915,7 @@ face: Venom Connoisseur
 type: Creature — Human Druid
 cost: {1}{G}
 > Alliance — Whenever another creature you control enters, this creature gains deathtouch until end of turn. If this is the second time this ability has resolved this turn, all creatures you control gain deathtouch until end of turn.
-= Labelled { label: "alliance", ability: Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }, If { cond: NthResolution(2), then: [Modify { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }] }], limits: [] } }
+= Labelled { label: "alliance", ability: Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }, If { order: Leading, cond: NthResolution(2), then: [Modify { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }] }], limits: [] } }
 
 ## Victual Sliver
 face: Victual Sliver

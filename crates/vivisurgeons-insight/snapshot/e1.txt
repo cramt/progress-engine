@@ -21,7 +21,7 @@ cost: {2}{U}
 > Return target creature to its owner's hand.
 > Addendum — If you cast this spell during your main phase, draw a card.
 = Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
-= Labelled { label: "addendum", ability: Spell([If { cond: CastDuring(Main(Yours)), then: [Draw { who: You, n: N(1) }] }]) }
+= Labelled { label: "addendum", ability: Spell([If { order: Leading, cond: CastDuring(Main(Yours)), then: [Draw { who: You, n: N(1) }] }]) }
 
 ## Aven Mindcensor
 face: Aven Mindcensor
@@ -500,7 +500,7 @@ face: Mind Sludge
 type: Sorcery
 cost: {4}{B}
 > Target player discards a card for each Swamp you control.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
 
 ## Mindless Null
 face: Mindless Null
@@ -625,7 +625,7 @@ face: Recommission
 type: Sorcery
 cost: {1}{W}
 > Return target artifact or creature card with mana value 3 or less from your graveyard to the battlefield. If a creature enters this way, it enters with an additional +1/+1 counter on it.
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { cond: ThisWay(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), then: [EntersWithCounters { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Additional(N(1)), kind: "+1/+1" }] }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: ThisWay(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), then: [EntersWithCounters { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Additional(N(1)), kind: "+1/+1" }] }])
 
 ## Restore Balance
 face: Restore Balance

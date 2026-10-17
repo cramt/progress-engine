@@ -159,7 +159,7 @@ cost: {1}{U}{B}{R}
 > Whenever Cecily, Haunted Mage attacks, you draw a card and you lose 1 life. Then if you have eleven or more cards in your hand, you may cast an instant or sorcery spell from your hand without paying its mana cost.
 > Partner—Friends forever (You can have two commanders if both have this ability.)
 = Static([MaxHandSizeIs { who: You, n: 11 }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, LoseLife { who: You, n: N(1) }, If { cond: PlayerHas { who: You, at_least: 11, what: CardsInHand }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, LoseLife { who: You, n: N(1) }, If { order: Leading, cond: PlayerHas { who: You, at_least: 11, what: CardsInHand }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
 = Labelled { label: "partner", ability: Keywords([Keyword { name: "friends forever", param: None }]) }
 
 ## Cheeky House-Mouse // Squeak By
@@ -179,7 +179,7 @@ face: Clear the Stage
 type: Instant
 cost: {4}{B}
 > Target creature gets -3/-3 until end of turn. If you control a creature with power 4 or greater, you may return up to one target creature card from your graveyard to your hand.
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(-3), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [May { who: You, then: [Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(-3), signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [May { who: You, then: [Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }])
 
 ## Cleaver Skaab
 face: Cleaver Skaab
@@ -427,14 +427,14 @@ cost: {5}{W}{W}
 face: Fabled Passage
 type: Land
 > {T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land.
-= Activated { cost: [Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You), If { cond: YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You), If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), then: [Untap(Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Fated Infatuation
 face: Fated Infatuation
 type: Instant
 cost: {U}{U}{U}
 > Create a token that's a copy of target creature you control. If it's your turn, scry 2.
-= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }, If { cond: ItsYourTurn, then: [Scry(N(2))] }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }, If { order: Leading, cond: ItsYourTurn, then: [Scry(N(2))] }])
 
 ## First-Time Flyer
 face: First-Time Flyer
@@ -516,7 +516,7 @@ cost: {1}{G}
 > Reach (This creature can block creatures with flying.)
 > Power-up — {4}{G}: Put two +1/+1 counters on Goliath. Then draw a card for each creature you control with power 4 or greater. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)
 = Keywords([Keyword { name: "reach", param: None }])
-= KeywordOn { keyword: PowerUp, ability: Activated { cost: [Mana(Mana(["4", "G"]))], effect: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] } }
+= KeywordOn { keyword: PowerUp, ability: Activated { cost: [Mana(Mana(["4", "G"]))], effect: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] } }
 
 ## Graverobber Spider
 face: Graverobber Spider
@@ -708,7 +708,7 @@ cost: {1}{W}{B}
 > +1: Exile up to two target cards from a single graveyard. You gain 2 life if at least one creature card was exiled this way.
 > −1: Exile target nonland permanent with mana value 1 or less.
 > −5: Kaya deals damage to target player equal to the number of cards that player owns in exile and you gain that much life.
-= Loyalty { change: N(1), effect: [Exile(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(SingleGraveyard)], or: None } }), If { cond: DoneThisWay { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, how: Exiled }, then: [GainLife { who: You, n: N(2) }] }] }
+= Loyalty { change: N(1), effect: [Exile(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(SingleGraveyard)], or: None } }), If { order: Trailing, cond: DoneThisWay { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, how: Exiled }, then: [GainLife { who: You, n: N(2) }] }] }
 = Loyalty { change: N(-1), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [With(Compare { stat: ManaValue, op: Le, value: N(1) })], or: None } })] }
 = Loyalty { change: N(-5), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(That), In(Exile)], or: None } }), to: [Player(Target)] }, GainLife { who: You, n: ThatMany }] }
 
@@ -883,7 +883,7 @@ face: Mitotic Manipulation
 type: Sorcery
 cost: {1}{U}{U}
 > Look at the top seven cards of your library. You may put one of those cards onto the battlefield if it has the same name as a permanent. Put the rest on the bottom of your library in any order.
-= Spell([LookAtTop { who: You, whose: You, n: N(7) }, If { cond: SameName { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, as_any_of: [Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }] }, then: [May { who: You, then: [Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }])
+= Spell([LookAtTop { who: You, whose: You, n: N(7) }, If { order: Trailing, cond: SameName { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, as_any_of: [Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }] }, then: [May { who: You, then: [Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }])
 
 ## Myth Realized
 face: Myth Realized
@@ -991,7 +991,7 @@ face: Play with Fire
 type: Instant
 cost: {R}
 > Play with Fire deals 2 damage to any target. If a player is dealt damage this way, scry 1. (Look at the top card of your library. You may put that card on the bottom.)
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { cond: ThisWay(IsDealtDamage(Objects { quant: One, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })), then: [Scry(N(1))] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { order: Leading, cond: ThisWay(IsDealtDamage(Objects { quant: One, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })), then: [Scry(N(1))] }])
 
 ## Pride of Conquerors
 face: Pride of Conquerors
@@ -1246,7 +1246,7 @@ cost: {3}{B}{B}
 > As an additional cost to cast this spell, sacrifice any number of creatures.
 > Target creature gets +2/+2 until end of turn for each creature sacrificed this way.
 = Static([AdditionalCost([Sacrifice(Objects { quant: AnyNumber, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])])
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Viscerid Armor
 face: Viscerid Armor

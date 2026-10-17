@@ -41,7 +41,7 @@ cost: {2}{U}{R}
 > I — You may draw a card for each artifact you control. If you do, each opponent draws a card.
 > II — Artifact spells you cast this turn cost {1} less to cast.
 > III — This Saga deals X damage to target opponent, where X is the greatest mana value among artifacts you control.
-= Chapter { chapters: [1], effect: [May { who: You, then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }] }, IfYouDo([Draw { who: EachOpponent, n: N(1) }])] }
+= Chapter { chapters: [1], effect: [May { who: You, then: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }] }, IfYouDo([Draw { who: EachOpponent, n: N(1) }])] }
 = Chapter { chapters: [2], effect: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: Some(Spell), posts: [WillCastThisTurn(You)], or: None } }, by: Mana(["1"]), less: true, dur: Permanent }] }
 = Chapter { chapters: [3], effect: [Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Player(TargetOpponent)] }], x: Greatest { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } } } }] }
 
@@ -195,7 +195,7 @@ face: Dryad Greenseeker
 type: Creature — Dryad
 cost: {1}{G}
 > {T}: Look at the top card of your library. If it's a land card, you may reveal it and put it into your hand.
-= Activated { cost: [Tap], effect: [LookAtTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }], limits: [] }
+= Activated { cost: [Tap], effect: [LookAtTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }], limits: [] }
 
 ## Due Respect
 face: Due Respect
@@ -814,5 +814,5 @@ cost: {1}{U}{U}
 > Cleave {4}{G}{U} (You may cast this spell for its cleave cost. If you do, remove the words in square brackets.)
 > Draw a card for each creature you control [with flying].
 = Keywords([Keyword { name: "cleave", param: Some(Cost([Mana(Mana(["4", "G", "U"]))])) }])
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), Cleave([WithKeyword("flying")])], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), Cleave([WithKeyword("flying")])], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 

@@ -360,7 +360,7 @@ cost: {6}{R}{R}
 > Affinity for Equipment (This spell costs {1} less to cast for each Equipment you control.)
 > Create five 2/2 red Rebel creature tokens. They gain haste until end of turn. For each of those tokens, you may attach an Equipment you control to it.
 = Keywords([Keyword { name: "affinity", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } })) }])
-= Spell([Create { who: You, n: N(5), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Red], types: ["rebel", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, ForEach { each: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, then: [May { who: You, then: [Attach { what: Objects { quant: One, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, to: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }])
+= Spell([Create { who: You, n: N(5), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Red], types: ["rebel", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, ForEach { order: Leading, each: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, then: [May { who: You, then: [Attach { what: Objects { quant: One, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, to: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }])
 
 ## Grotag Night-Runner
 face: Grotag Night-Runner
@@ -531,7 +531,7 @@ cost: {5}{W}{B}
 > Vigilance, lifelink
 > Darkforce Inversion — When Mister Negative enters, you may exchange life totals with target opponent. If you lost life this way, draw that many cards.
 = Keywords([Keyword { name: "vigilance", param: None }, Keyword { name: "lifelink", param: None }])
-= Labelled { label: "darkforce inversion", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [ExchangeLifeTotals { who: You, with: TargetOpponent }] }, If { cond: ThisWay(LosesLife(You)), then: [Draw { who: You, n: ThatMany }] }], limits: [] } }
+= Labelled { label: "darkforce inversion", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [ExchangeLifeTotals { who: You, with: TargetOpponent }] }, If { order: Leading, cond: ThisWay(LosesLife(You)), then: [Draw { who: You, n: ThatMany }] }], limits: [] } }
 
 ## Needlepeak Spider
 face: Needlepeak Spider
@@ -635,7 +635,7 @@ cost: {1}{U}
 > Kicker {2} (You may pay an additional {2} as you cast this spell.)
 > Counter target spell if its mana value is 2 or less. If this spell was kicked, counter that spell if its mana value is 4 or less instead.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2"]))])) }])
-= Spell([If { cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: N(2) }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }, Instead { cond: WasKicked, then: [If { cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: N(4) }, then: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }] }])
+= Spell([If { order: Trailing, cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: N(2) }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }, Instead { cond: WasKicked, then: [If { order: Trailing, cond: AmountIs { n: ManaValueOf(Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: N(4) }, then: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }] }])
 
 ## Psychotic Episode
 face: Psychotic Episode
@@ -842,7 +842,7 @@ cost: {2}{U}
 > As an additional cost to cast this spell, sacrifice an artifact.
 > Create two tapped Powerstone tokens. If the sacrificed artifact was legendary, draw a card. (The tokens are artifacts with "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.")
 = Static([AdditionalCost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })])])
-= Spell([Create { who: You, n: N(2), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }, If { cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, filter: Filter { alts: [[Supertype("legendary")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
+= Spell([Create { who: You, n: N(2), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }, If { order: Leading, cond: Past(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, filter: Filter { alts: [[Supertype("legendary")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }] }])
 
 ## Stadium Headliner
 face: Stadium Headliner

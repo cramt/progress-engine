@@ -266,7 +266,7 @@ cost: {2}{B}
 > Amplify 1 (As this creature enters, put a +1/+1 counter on it for each Zombie card you reveal in your hand.)
 > Whenever this creature attacks or blocks, you lose 1 life for each +1/+1 counter on it.
 = Keywords([Keyword { name: "amplify", param: Some(N(N(1))) }])
-= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [LoseLife { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [LoseLife { who: You, n: N(1) }] }], limits: [] }
 
 ## Embrace the Unknown
 face: Embrace the Unknown
@@ -386,7 +386,7 @@ cost: {4}{W}{U}
 > When Gallifrey Stands enters, return all Doctor cards from your graveyard to your hand.
 > At the beginning of your upkeep, you may put a Doctor creature card from your hand onto the battlefield. Then if you control thirteen or more Doctors, you win the game.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: All, filter: Filter { alts: [[Subtype("doctor")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
-= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Subtype("doctor"), Type("creature")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, If { cond: YouControl(Objects { quant: AtLeast(N(13)), filter: Filter { alts: [[Subtype("doctor")]], kind: None, posts: [], or: None } }), then: [WinGame(You)] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Subtype("doctor"), Type("creature")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, If { order: Leading, cond: YouControl(Objects { quant: AtLeast(N(13)), filter: Filter { alts: [[Subtype("doctor")]], kind: None, posts: [], or: None } }), then: [WinGame(You)] }], limits: [] }
 
 ## Gavi, Nest Warden
 face: Gavi, Nest Warden
@@ -424,7 +424,7 @@ face: Gold Rush
 type: Instant
 cost: {1}{G}
 > Create a Treasure token. Until end of turn, up to one target creature gets +2/+2 for each Treasure you control.
-= Spell([Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }, During { dur: UntilEndOfTurn, then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("treasure")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: Permanent }] }] }])
+= Spell([Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }, During { dur: UntilEndOfTurn, then: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("treasure")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: Permanent }] }] }])
 
 ## Golgari Longlegs
 face: Golgari Longlegs
@@ -802,7 +802,7 @@ type: Creature — Dwarf Warrior
 cost: {2}{W}
 > When this creature enters, you may search your library and/or graveyard for a Rune card, reveal it, and put it into your hand. If you search your library this way, shuffle.
 > You may pay {1} rather than pay the mana cost for Rune spells you cast.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("rune")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("rune")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { order: Leading, cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }], limits: [] }
 = Static([CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("rune")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, zone: None, cost: [Mana(Mana(["1"]))], rather: true }])
 
 ## Sanctuary Wall
@@ -841,7 +841,7 @@ cost: {6}{R}
 > Trample
 > Whenever this creature attacks, it gets +3/+0 until end of turn for each other attacking Beast.
 = Keywords([Keyword { name: "trample", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), State(Attacking), Subtype("beast")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), State(Attacking), Subtype("beast")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Skateboard
 face: Skateboard
@@ -995,7 +995,7 @@ face: Town Greeter
 type: Creature — Human Citizen
 cost: {1}{G}
 > When this creature enters, mill four cards. You may put a land card from among them into your hand. If you put a Town card into your hand this way, you gain 2 life. (To mill four cards, a player puts the top four cards of their library into their graveyard.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: You, n: N(4) }, May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [FromAmongThem], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { cond: ThisWay(Puts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("town")]], kind: Some(Card), posts: [], or: None } }, to: Hand(You) }), then: [GainLife { who: You, n: N(2) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: You, n: N(4) }, May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [FromAmongThem], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { order: Leading, cond: ThisWay(Puts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("town")]], kind: Some(Card), posts: [], or: None } }, to: Hand(You) }), then: [GainLife { who: You, n: N(2) }] }], limits: [] }
 
 ## Trigon of Mending
 face: Trigon of Mending

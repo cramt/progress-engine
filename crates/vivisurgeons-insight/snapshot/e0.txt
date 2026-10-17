@@ -99,7 +99,7 @@ face: Black Sun's Twilight
 type: Instant
 cost: {X}{B}
 > Up to one target creature gets -X/-X until end of turn. If X is 5 or more, return a creature card with mana value X or less from your graveyard to the battlefield tapped.
-= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: MinusX, toughness: MinusX, signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: X }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: MinusX, toughness: MinusX, signed: true }), gains: [], dur: UntilEndOfTurn }, If { order: Leading, cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: X }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }])
 
 ## Bloodfire Colossus
 face: Bloodfire Colossus
@@ -266,7 +266,7 @@ face: Desperate Gambit
 type: Instant
 cost: {R}
 > Choose a source you control and flip a coin. If you win the flip, the next time that source would deal damage this turn, it deals double that damage instead. If you lose the flip, the next time it would deal damage this turn, prevent that damage.
-= Spell([Choose(Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } })), FlipCoin, Instead { cond: WonFlip(true), then: [NextTime { event: DealsDamage(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }), dur: ThisTurn, then: [ThatDamage { source: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: None }] }] }, If { cond: WonFlip(false), then: [NextTime { event: DealsDamage(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [PreventThatDamage] }] }])
+= Spell([Choose(Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } })), FlipCoin, Instead { cond: WonFlip(true), then: [NextTime { event: DealsDamage(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }), dur: ThisTurn, then: [ThatDamage { source: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: None }] }] }, If { order: Leading, cond: WonFlip(false), then: [NextTime { event: DealsDamage(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [PreventThatDamage] }] }])
 
 ## Doomed Dissenter
 face: Doomed Dissenter
@@ -286,7 +286,7 @@ cost: {2}{G}
 = Keywords([Keyword { name: "reach", param: None }])
 = BROKE at "are" after: lands you control and land cards you own that aren't on the battlefield
 = Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] } }])
-= Activated { cost: [Tap], effect: [Mill { who: You, n: N(2) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [Marked(Milled)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
+= Activated { cost: [Tap], effect: [Mill { who: You, n: N(2) }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [Marked(Milled)], or: None } }, then: [GainLife { who: You, n: N(1) }] }], limits: [] }
 
 ## Elfhame Wurm
 face: Elfhame Wurm
@@ -419,7 +419,7 @@ type: Land
 > {3}{R}{R}, {T}: If you both own and control this land and a creature named Hanweir Garrison, exile them, then meld them into Hanweir, the Writhing Township.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
 = Activated { cost: [Mana(Mana(["R"])), Tap], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] }
-= Activated { cost: [Mana(Mana(["3", "R", "R"])), Tap], effect: [If { cond: OwnAndControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NamedCard("hanweir garrison")], or: None } }]), then: [Exile(Objects { quant: Listed, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Meld { what: Objects { quant: Listed, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: "hanweir, the writhing township", shares_short_name: false }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3", "R", "R"])), Tap], effect: [If { order: Leading, cond: OwnAndControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NamedCard("hanweir garrison")], or: None } }]), then: [Exile(Objects { quant: Listed, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Meld { what: Objects { quant: Listed, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: "hanweir, the writhing township", shares_short_name: false }] }], limits: [] }
 
 ## Hanweir Militia Captain // Westvale Cult Leader
 face: Hanweir Militia Captain
@@ -563,7 +563,7 @@ face: Master of Ceremonies
 type: Creature — Rhino Druid
 cost: {3}{W}
 > At the beginning of your upkeep, each opponent chooses money, friends, or secrets. For each player who chose money, you and that player each create a Treasure token. For each player who chose friends, you and that player each create a 1/1 green and white Citizen creature token. For each player who chose secrets, you and that player each draw a card.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [Performed { by: EachOpponent, effect: Choose(Words(["money", "friends", "secrets"])) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [ChoseWord("money")], or: None } }, then: [Create { who: EachOf([You, That]), n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [ChoseWord("friends")], or: None } }, then: [Create { who: EachOf([You, That]), n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green, White], types: ["citizen", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [ChoseWord("secrets")], or: None } }, then: [Draw { who: EachOf([You, That]), n: N(1) }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Performed { by: EachOpponent, effect: Choose(Words(["money", "friends", "secrets"])) }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [ChoseWord("money")], or: None } }, then: [Create { who: EachOf([You, That]), n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [ChoseWord("friends")], or: None } }, then: [Create { who: EachOf([You, That]), n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green, White], types: ["citizen", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [ChoseWord("secrets")], or: None } }, then: [Draw { who: EachOf([You, That]), n: N(1) }] }], limits: [] }
 
 ## Mindwhisker
 face: Mindwhisker
@@ -776,7 +776,7 @@ cost: {2}{B}
 > Sneak {B} (You may cast this spell for {B} if you also return an unblocked attacker you control to hand during the declare blockers step.)
 > Destroy target creature or enchantment. If an enchantment was destroyed this way, you lose 2 life.
 = Keywords([Keyword { name: "sneak", param: Some(Cost([Mana(Mana(["B"]))])) }])
-= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, If { cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, how: Destroyed }, then: [LoseLife { who: You, n: N(2) }] }])
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, how: Destroyed }, then: [LoseLife { who: You, n: N(2) }] }])
 
 ## Sidewinder Naga
 face: Sidewinder Naga
@@ -923,7 +923,7 @@ type: Instant
 cost: {2}{B}
 > Draw a card, then discard a card. You lose 1 life. If this spell was cast from your hand, create a 0/1 black Wizard creature token with "Whenever you cast a noncreature spell, this token deals 1 damage to each opponent."
 > Rebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)
-= Spell([Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: You, n: N(1) }, If { cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), colors: [Black], types: ["wizard", "creature"], keywords: [], abilities: [Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }], limits: [] }], named: None, attacking: None } }] }])
+= Spell([Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: You, n: N(1) }, If { order: Leading, cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), colors: [Black], types: ["wizard", "creature"], keywords: [], abilities: [Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }], limits: [] }], named: None, attacking: None } }] }])
 = Keywords([Keyword { name: "rebound", param: None }])
 
 ## Treno, Dark City

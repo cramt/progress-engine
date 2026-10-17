@@ -255,14 +255,14 @@ cost: {3}{B}{R}
 > Flying, deathtouch
 > Whenever Green Goblin attacks, discard a card. Then draw a card for each card you've discarded this turn.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "deathtouch", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [DoneThisTurn { who: You, verbs: [Discarded] }], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [DoneThisTurn { who: You, verbs: [Discarded] }], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Grizzled Angler // Grisly Anglerfish
 face: Grizzled Angler
 type: Creature — Human
 cost: {2}{U}
 > {T}: Mill two cards. Then if there is a colorless creature card in your graveyard, transform this creature. (To mill two cards, put the top two cards of your library into your graveyard.)
-= Activated { cost: [Tap], effect: [Mill { who: You, n: N(2) }, If { cond: ThereAre([Objects { quant: One, filter: Filter { alts: [[Color(Colorless), Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }]), then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Tap], effect: [Mill { who: You, n: N(2) }, If { order: Leading, cond: ThereAre([Objects { quant: One, filter: Filter { alts: [[Color(Colorless), Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }]), then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Grizzled Angler // Grisly Anglerfish
 face: Grisly Anglerfish
@@ -295,7 +295,7 @@ cost: {B}
 > Lifelink
 > Whenever an enchanted creature dies, draw a card for each Aura you controlled that was attached to it.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[State(Enchanted), Type("creature")]], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("aura")]], kind: None, posts: [ControlledThen(You), WasAttachedToIt], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[State(Enchanted), Type("creature")]], kind: None, posts: [], or: None } })), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("aura")]], kind: None, posts: [ControlledThen(You), WasAttachedToIt], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Healer of the Pride
 face: Healer of the Pride
@@ -499,7 +499,7 @@ face: Oriq Loremage
 type: Creature — Human Warlock
 cost: {2}{B}{B}
 > {T}: Search your library for a card, put it into your graveyard, then shuffle. If it's an instant or sorcery card, put a +1/+1 counter on this creature.
-= Activated { cost: [Tap], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You), If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Activated { cost: [Tap], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You), If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Patrician Geist
 face: Patrician Geist
@@ -617,7 +617,7 @@ face: Sarkhan's Rage
 type: Instant
 cost: {4}{R}
 > Sarkhan's Rage deals 5 damage to any target. If you control no Dragons, Sarkhan's Rage deals 2 damage to you.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(You)] }] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { order: Leading, cond: YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(You)] }] }])
 
 ## Scarblade Scout
 face: Scarblade Scout
@@ -703,7 +703,7 @@ cost: {1}{G}
 > Landfall — Whenever a land you control enters, you may pay {1}{G} if this permanent is attached to a creature you control. If you do, create a token that's a copy of that creature. If you didn't create a token this way, create a 1/1 green Insect creature token.
 = Keywords([Keyword { name: "bestow", param: Some(Cost([Mana(Mana(["1", "G"]))])) }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
-= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [If { cond: AttachedTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, then: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1", "G"]))] }] }] }, IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }]), If { cond: Not(ThisWay(Creates { by: Player(You), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, under: None })), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["insect", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] } }
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: AttachedTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, then: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1", "G"]))] }] }] }, IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }]), If { order: Leading, cond: Not(ThisWay(Creates { by: Player(You), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, under: None })), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["insect", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] } }
 
 ## Stingscourger
 face: Stingscourger
@@ -746,7 +746,7 @@ type: Legendary Planeswalker — Tamiyo
 > −3: Return target instant or sorcery card from your graveyard to your hand. If it's a green card, add one mana of any color.
 > −7: Draw cards equal to half the number of cards in your library, rounded up. You get an emblem with "You have no maximum hand size."
 = Loyalty { change: N(2), effect: [During { dur: UntilYourNextTurn, then: [DelayedWhenever { event: AttacksAnyOf { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, to: [Player(You), Objects(Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })] }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }] }
-= Loyalty { change: N(-3), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Green)]], kind: Some(Card), posts: [], or: None } }, then: [AddMana(Of { n: N(1), pick: AnyColor, within: None })] }] }
+= Loyalty { change: N(-3), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Color(Green)]], kind: Some(Card), posts: [], or: None } }, then: [AddMana(Of { n: N(1), pick: AnyColor, within: None })] }] }
 = Loyalty { change: N(-7), effect: [Draw { who: You, n: Half { of: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Library(You))], or: None } }), round_up: true } }, Emblem([Static([MaxHandSize])])] }
 
 ## The Rani
@@ -774,7 +774,7 @@ cost: {3}{G}{W}{U}
 > Flying
 > Whenever Treva deals combat damage to a player, you may pay {2}{W}. If you do, choose a color, then you gain 1 life for each permanent of that color.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2", "W"]))] }] }, IfYouDo([Choose(Color), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [OfThatColor], or: None } }, then: [GainLife { who: You, n: N(1) }] }])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2", "W"]))] }] }, IfYouDo([Choose(Color), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [OfThatColor], or: None } }, then: [GainLife { who: You, n: N(1) }] }])], limits: [] }
 
 ## Triumphant Chomp
 face: Triumphant Chomp
@@ -859,7 +859,7 @@ cost: {2}{B}
 > Kicker {3}{B} (You may pay an additional {3}{B} as you cast this spell.)
 > Exile up to two target cards from a single graveyard. If this spell was kicked, instead exile target player's graveyard. Create a 2/2 black Rogue creature token for each creature card exiled this way.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3", "B"]))])) }])
-= Spell([Exile(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(SingleGraveyard)], or: None } }), Instead { cond: WasKicked, then: [ExileZone(Graveyard(Target))] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["rogue", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([Exile(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(SingleGraveyard)], or: None } }), Instead { cond: WasKicked, then: [ExileZone(Graveyard(Target))] }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["rogue", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Wicked Visitor
 face: Wicked Visitor

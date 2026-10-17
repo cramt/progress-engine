@@ -249,7 +249,7 @@ cost: {2}{W}
 > Destroy target artifact or enchantment.
 > Revolt — If a permanent left the battlefield under your control this turn, you gain 3 life.
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }])
-= Labelled { label: "revolt", ability: Spell([If { cond: DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You }), then: [GainLife { who: You, n: N(3) }] }]) }
+= Labelled { label: "revolt", ability: Spell([If { order: Leading, cond: DidThisTurn(LeftUnderControlOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, who: You }), then: [GainLife { who: You, n: N(3) }] }]) }
 
 ## Defenders of Humanity
 face: Defenders of Humanity
@@ -272,7 +272,7 @@ face: Din of the Fireherd
 type: Sorcery
 cost: {5}{B/R}{B/R}{B/R}
 > Create a 5/5 black and red Elemental creature token. Target opponent sacrifices a creature of their choice for each black creature you control, then sacrifices a land of their choice for each red creature you control.
-= Spell([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), colors: [Black, Red], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Color(Black), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Color(Red), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }])
+= Spell([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), colors: [Black, Red], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Color(Black), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Color(Red), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }])
 
 ## Earthquake Dragon
 face: Earthquake Dragon
@@ -358,7 +358,7 @@ face: Goblin Archaeologist
 type: Creature — Goblin Artificer
 cost: {1}{R}
 > {R}, {T}: Flip a coin. If you win the flip, destroy target artifact and untap this creature. If you lose the flip, sacrifice this creature.
-= Activated { cost: [Mana(Mana(["R"])), Tap], effect: [FlipCoin, If { cond: WonFlip(true), then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, no_regen: false }, Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { cond: WonFlip(false), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["R"])), Tap], effect: [FlipCoin, If { order: Leading, cond: WonFlip(true), then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, no_regen: false }, Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { order: Leading, cond: WonFlip(false), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## God-Pharaoh's Gift
 face: God-Pharaoh's Gift
@@ -378,7 +378,7 @@ type: Sorcery
 cost: {W}{U}
 > Exile target nonlegendary creature, then return it to the battlefield under its owner's control. If it entered under your control, put a +1/+1 counter on it. Otherwise, tap it.
 > Flashback {1}{W}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("legendary"), Type("creature")]], kind: None, posts: [], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, If { cond: Entered { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, under: Some(You) }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, Otherwise([Tap(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })])])
+= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("legendary"), Type("creature")]], kind: None, posts: [], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, If { order: Leading, cond: Entered { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, under: Some(You) }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, Otherwise([Tap(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })])])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["1", "W", "U"]))])) }])
 
 ## Hedron Scrabbler
@@ -766,7 +766,7 @@ face: Scroll of Avacyn
 type: Artifact
 cost: {1}
 > {1}, Sacrifice this artifact: Draw a card. If you control an Angel, you gain 5 life.
-= Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("angel")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(5) }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("angel")]], kind: None, posts: [], or: None } }), then: [GainLife { who: You, n: N(5) }] }], limits: [] }
 
 ## Shadow Stinger
 face: Shadow Stinger
@@ -981,7 +981,7 @@ type: Land — Planet
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"])))], limits: [] }
 = Keywords([Keyword { name: "station", param: None }])
-= Station { at_least: 12, ability: Activated { cost: [Mana(Mana(["U"])), Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["U"])))] }], limits: [] } }
+= Station { at_least: 12, ability: Activated { cost: [Mana(Mana(["U"])), Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["U"])))] }], limits: [] } }
 
 ## Vital Splicer
 face: Vital Splicer

@@ -3,7 +3,7 @@ face: Aetherspouts
 type: Instant
 cost: {3}{U}{U}
 > For each attacking creature, its owner puts it on their choice of the top or bottom of their library.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [Performed { by: OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: TopOrBottomOfLibrary(That), tapped: false, transformed: false, under: None, order: None } }] }])
+= Spell([ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [Performed { by: OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: TopOrBottomOfLibrary(That), tapped: false, transformed: false, under: None, order: None } }] }])
 
 ## Angelic Accord
 face: Angelic Accord
@@ -77,7 +77,7 @@ face: Blinkmoth Urn
 type: Artifact
 cost: {5}
 > At the beginning of each player's first main phase, if this artifact is untapped, that player adds {C} for each artifact they control.
-= Triggered { trigger: InterveningIf(At(PrecombatMain(Each)), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(That)], or: None } }, then: [Performed { by: That, effect: AddMana(Symbols(Mana(["C"]))) }] }], limits: [] }
+= Triggered { trigger: InterveningIf(At(PrecombatMain(Each)), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(That)], or: None } }, then: [Performed { by: That, effect: AddMana(Symbols(Mana(["C"]))) }] }], limits: [] }
 
 ## Blooming Blast
 face: Blooming Blast
@@ -169,7 +169,7 @@ face: Dark Salvation
 type: Sorcery
 cost: {X}{X}{B}
 > Target player creates X 2/2 black Zombie creature tokens, then up to one target creature gets -1/-1 until end of turn for each Zombie that player controls.
-= Spell([Create { who: Target, n: X, token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [Controller(That)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([Create { who: Target, n: X, token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [Controller(That)], or: None } }, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## Deathcap Glade
 face: Deathcap Glade
@@ -233,7 +233,7 @@ face: Eater of the Dead
 type: Creature — Horror
 cost: {4}{B}
 > {0}: If this creature is tapped, exile target creature card from a graveyard and untap this creature.
-= Activated { cost: [Mana(Mana(["0"]))], effect: [If { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }, then: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["0"]))], effect: [If { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }, then: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Elemental Masterpiece
 face: Elemental Masterpiece
@@ -458,7 +458,7 @@ face: Killer Instinct
 type: Enchantment
 cost: {4}{R}{G}
 > At the beginning of your upkeep, reveal the top card of your library. If it's a creature card, put it onto the battlefield. That creature gains haste until end of turn. Sacrifice it at the beginning of the next end step.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [RevealTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }], limits: [] }
 
 ## Krotiq Nestguard
 face: Krotiq Nestguard
@@ -809,7 +809,7 @@ type: Snow Land
 > {T}: Add {C}.
 > {1}{S}, {T}: Look at the top card of your library. If that card is snow, you may reveal it and put it into your hand. ({S} can be paid with one mana from a snow source.)
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "S"])), Tap], effect: [LookAtTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, filter: Filter { alts: [[Supertype("snow")]], kind: None, posts: [], or: None } }, then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "S"])), Tap], effect: [LookAtTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, filter: Filter { alts: [[Supertype("snow")]], kind: None, posts: [], or: None } }, then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }], limits: [] }
 
 ## Seal of Strength
 face: Seal of Strength
@@ -979,7 +979,7 @@ cost: {2}{G}
 > III — Ecliptic Growl — Draw a card if you control the creature with the greatest power or tied for the greatest power.
 = Chapter { chapters: [1], effect: [Labelled { label: "crescent fang", then: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You)] }] }
 = Chapter { chapters: [2], effect: [Labelled { label: "heavenward howl", then: [DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [EntersWithCounters { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: Additional(N(1)), kind: "+1/+1" }] }] }] }
-= Chapter { chapters: [3], effect: [Labelled { label: "ecliptic growl", then: [If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Greatest { stat: Power, or_tied: true }], or: None } }), then: [Draw { who: You, n: N(1) }] }] }] }
+= Chapter { chapters: [3], effect: [Labelled { label: "ecliptic growl", then: [If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Greatest { stat: Power, or_tied: true }], or: None } }), then: [Draw { who: You, n: N(1) }] }] }] }
 
 ## Sunset Revelry
 face: Sunset Revelry
@@ -988,9 +988,9 @@ cost: {1}{W}
 > If an opponent has more life than you, you gain 4 life.
 > If an opponent controls more creatures than you, create two 1/1 white Human creature tokens.
 > If an opponent has more cards in hand than you, draw a card.
-= Spell([If { cond: HasMore { who: AnOpponent, what: Life, than: You }, then: [GainLife { who: You, n: N(4) }] }])
-= Spell([If { cond: ControlsMore { who: AnOpponent, what: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None }, than: You }, then: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
-= Spell([If { cond: HasMore { who: AnOpponent, what: CardsInHand, than: You }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([If { order: Leading, cond: HasMore { who: AnOpponent, what: Life, than: You }, then: [GainLife { who: You, n: N(4) }] }])
+= Spell([If { order: Leading, cond: ControlsMore { who: AnOpponent, what: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None }, than: You }, then: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([If { order: Leading, cond: HasMore { who: AnOpponent, what: CardsInHand, than: You }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Suppress
 face: Suppress
