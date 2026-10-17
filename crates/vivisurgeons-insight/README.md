@@ -159,8 +159,9 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 |---|---|
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
-| EDHREC top 2000 | 3642/3645 (99.9%) |
-| All parsed abilities | 50582/50611 (99.9%) |
+| My decks (pinned) | 2136/2136 (100%) |
+| EDHREC top 2000 | 3643/3645 (99.9%) |
+| All parsed abilities | 50583/50611 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -199,8 +200,12 @@ own" (in Two-Headed Giant a teammate owns cards too), "choose target
 opponent" as "choose an opponent" (which does not target), a Saga's "II —"
 as an ability word, a sorcery's "The next Dragon spell you cast costs …" as
 a static, and a bare "its graveyard" as its controller's (CR 400.3 makes it
-the owner's). The 30 corpus abilities that still do not round-trip are
-listed by `insight roundtrip`.
+the owner's). The 28 corpus abilities that still do not round-trip are
+listed by `insight roundtrip`. Twelve of them say a zone "in" or "from" where
+Oracle is not consistent with itself ("reveal any number of artifact cards in
+your hand", Metalworker; "… from your hand", Arsenal Thresher): the renderer
+picks the preposition from what the sentence does with the object, and the
+round trip no longer takes either word.
 
 After round 4 the parser read an evenly spaced sample of 25 successful parses.
 24 were right. The 25th dropped the subject of "it explores". That led to a

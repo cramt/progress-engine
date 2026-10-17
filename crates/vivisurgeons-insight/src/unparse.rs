@@ -194,6 +194,7 @@ const SAME_PLURAL: &[&str] = &[
     "aetherborn",
     "spacecraft",
     "nephilim",
+    "spawn",
 ];
 
 fn plural(sg: &str) -> String {
@@ -1074,14 +1075,8 @@ mod syn {
         alt(o, vec![adjective, phrase]);
     }
 
-    /// The preposition before a zone in an object phrase follows the verb:
-    /// "return target card from your graveyard", "the number of cards in
-    /// your graveyard". The object is in that zone either way.
-    pub fn in_from(o: &mut Out) {
-        any_of(o, &["from", "in"]);
-    }
-
-    /// The same for the battlefield, which English puts things "on":
+    /// The preposition before the battlefield follows the verb, and English
+    /// puts things "on" it:
     /// "exile all creatures … from the battlefield", "each creature on the
     /// battlefield".
     pub fn on_from(o: &mut Out) {
@@ -1973,11 +1968,16 @@ mod syn {
         alt(o, vec![bare, said]);
     }
 
-    /// "When" and "Whenever" introduce the same kind of trigger (CR 603.1:
-    /// "[When/Whenever/At] [trigger condition or event], [effect]"); Oracle
-    /// style picks "when" for events that happen once.
-    pub fn when(o: &mut Out) {
-        any_of(o, &["whenever", "when"]);
+    /// Named rewrite [when-is-whenever]: a printed "When this creature
+    /// enters" (Oblivion Ring) is "whenever this creature enters". CR 603.1
+    /// writes every trigger "[When/Whenever/At] [trigger condition or event],
+    /// [effect]", CR 603.2 triggers each whenever its event matches, and CR
+    /// 113.3c names the three words alike; no rule reads a printed "when"
+    /// differently. The tree holds no word for it (a once-only trigger with a
+    /// duration is `DelayedWhen`, CR 603.7b), so the renderer says
+    /// "whenever" and the Oracle "when" is taken through this rewrite.
+    pub fn when_is_whenever(o: &mut Out) {
+        alt(o, vec![of("whenever"), of("when")]);
     }
 
     /// "When this creature enters and whenever an opponent draws …" and
@@ -2944,6 +2944,16 @@ fn cost_said(o: &mut Out, c: &Cost) {
 }
 
 fn cost(o: &mut Out, c: &Cost) {
+    // "Exile this card from your graveyard", "reveal a Dinosaur card from
+    // your hand": a cost that takes its objects out of a zone.
+    let moves = match c {
+        Cost::Reveal(x) => reveals_from(x),
+        c => matches!(c, Cost::Exile(_) | Cost::ReturnToHand(_)),
+    };
+    zone_from(moves, || cost_one(o, c))
+}
+
+fn cost_one(o: &mut Out, c: &Cost) {
     match c {
         Cost::Mana(m) if m.0.len() == 2 && m.0[0] == m.0[1] => syn::twice_mana(o, m),
         Cost::Mana(m) => mana(o, m),
@@ -3142,7 +3152,13 @@ fn amount_num(a: &Amount) -> Num {
     }
 }
 
+/// An amount names its objects where they are: "the number of cards in
+/// your hand", even inside a zone-moving effect.
 fn amount(o: &mut Out, a: &Amount) {
+    zone_from(false, || amount_said(o, a))
+}
+
+fn amount_said(o: &mut Out, a: &Amount) {
     match a {
         Amount::AnyOf(v) => {
             for (i, x) in v.iter().enumerate() {
@@ -3223,7 +3239,13 @@ fn stat_name(s: Stat) -> &'static str {
 }
 
 /// What follows "equal to".
+/// An amount said as a measure names its objects where they are, as
+/// `amount` does.
 fn measure(o: &mut Out, a: &Amount) {
+    zone_from(false, || measure_said(o, a))
+}
+
+fn measure_said(o: &mut Out, a: &Amount) {
     match a {
         Amount::N(_)
         | Amount::AnyOf(_)
@@ -3499,9 +3521,84 @@ fn measure(o: &mut Out, a: &Amount) {
 }
 
 thread_local! {
+    /// Set while an effect that takes its objects out of a zone says them,
+    /// so a zone they are in is said "from" ("return target creature card
+    /// from your graveyard"); anywhere else "in" ("the number of cards in
+    /// your graveyard"). The tree holds the zone alone.
+    static ZONE_FROM: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// Set while `sentences` renders the form that says the rounding once
     /// at the end ("Round down each time."), so each half says none.
     static ROUND_LATER: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The preposition before a zone an object is in, picked from what the
+/// sentence does with the object, never a choice the round trip accepts
+/// either way (supervisor, 2026-10-17): "from" for the object of a
+/// zone-moving verb ("return target card from your graveyard", `ZONE_FROM`),
+/// "in" otherwise ("the number of cards in your graveyard"). The tree holds
+/// the zone alone, `Post::In`. Nothing is "in" outside the game or the
+/// command zone.
+fn in_or_from(o: &mut Out, z: &Zone) {
+    let from = matches!(z, Zone::OutsideTheGame | Zone::CommandZone) || ZONE_FROM.with(|z| z.get());
+    o.w(if from { "from" } else { "in" });
+}
+
+/// Runs `f` with `ZONE_FROM` set to `on`, then puts it back.
+fn zone_from<R>(on: bool, f: impl FnOnce() -> R) -> R {
+    let was = ZONE_FROM.with(|z| z.replace(on));
+    let r = f();
+    ZONE_FROM.with(|z| z.set(was));
+    r
+}
+
+/// The effects whose objects leave the zone they are named in: what they
+/// exile, return, put, shuffle, cast or reveal is said "from" that zone.
+fn moves_from_a_zone(e: &Effect) -> bool {
+    matches!(
+        e,
+        Effect::Exile(_)
+            | Effect::ExileFaceDown(_)
+            | Effect::ExileUntilLeaves { .. }
+            | Effect::ExileWithCounters { .. }
+            | Effect::Move { .. }
+            | Effect::ShuffleInto { .. }
+            | Effect::ShuffleAllInto { .. }
+            | Effect::ActionOn { .. }
+            | Effect::Cast { .. }
+            | Effect::CastPaying { .. }
+            | Effect::Reveal { .. }
+    ) && match e {
+        Effect::Reveal { what, .. } => reveals_from(what),
+        // "put the cards in your hand on the bottom of your library"
+        // (Mindmoil), but "return that card from your graveyard" (Stitch
+        // Together).
+        Effect::Move { what, .. } => {
+            !matches!(
+                what.quant,
+                Quant::Bound(_)
+                    | Quant::Bounds(_)
+                    | Quant::LinkedBound { .. }
+                    | Quant::Unresolved(_)
+            ) || !matches!(&what.filter.posts[..], [Post::In(Zone::Hand(_))])
+        }
+        // "manifest a card from your hand", "cloak a card from your hand".
+        Effect::ActionOn { name, .. } => matches!(name.as_str(), "manifest" | "cloak"),
+        _ => true,
+    }
+}
+
+/// "reveal a Dragon card from your hand", "reveal any number of Dragon
+/// cards from your hand", but "reveal any number of green cards in your
+/// hand" (Scent of Ivy) and "reveal a white card in your hand" (Morph,
+/// Watcher of the Roost): Oracle says a reveal of a card or any number of
+/// cards described by their color alone "in" the hand.
+fn reveals_from(x: &Objects) -> bool {
+    let by_color = !x.filter.alts.is_empty()
+        && x.filter
+            .alts
+            .iter()
+            .all(|a| matches!(&a[..], [Adj::Color(_)]));
+    !(by_color && matches!(x.quant, Quant::AnyNumber | Quant::One))
 }
 
 /// ", rounded up", ", rounded down".
@@ -4849,7 +4946,37 @@ fn is_non(a: &Adj) -> bool {
     )
 }
 
+/// "cards you own in exile", "creature cards in your graveyard that were
+/// put there from the battlefield this turn": with an owner who is you or
+/// that player, or with where they came from, Oracle says the zone "in"
+/// whatever the verb. An opponent's cards are put "from exile" (Ruin
+/// Processor), and nothing is "in" outside the game.
 fn posts(o: &mut Out, ps: &[Post], n: Num) {
+    let outside = ps.contains(&Post::In(Zone::OutsideTheGame));
+    // "a card you own in exile with a study counter on it" (Kianne), but
+    // "a card you own with a silver counter on it from exile" (Karn) and
+    // "target card with flashback you own from exile" (Rootcoil Creeper).
+    let more_after_zone = ps
+        .iter()
+        .position(|p| matches!(p, Post::In(_)))
+        .is_some_and(|k| k + 1 < ps.len());
+    let said_in = ps.iter().any(|p| match p {
+        Post::PutThereFromBattlefieldThisTurn => true,
+        // "return all cards in your graveyard destroyed this way"
+        // (Cleansing Meditation), but "the chosen card from your graveyard".
+        Post::Marked(_) => more_after_zone,
+        Post::Owner(Player::AnOpponent | Player::EachOpponent) => false,
+        Post::Owner(_) => !outside && more_after_zone,
+        _ => false,
+    });
+    if said_in {
+        zone_from(false, || posts_said(o, ps, n))
+    } else {
+        posts_said(o, ps, n)
+    }
+}
+
+fn posts_said(o: &mut Out, ps: &[Post], n: Num) {
     let mut i = 0;
     while i < ps.len() {
         // "that each have a different mana value 3 or less": the bound
@@ -4920,7 +5047,7 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("the battlefield");
         }
         Post::In(z) => {
-            syn::in_from(o);
+            in_or_from(o, z);
             zone(o, z);
         }
         Post::CastFrom(z) => {
@@ -5114,7 +5241,17 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             }
         }
         p if p.is_pool() => syn::from_among_them(o),
-        Post::FromAmong(x) => from_among(o, x),
+        // "from among cards in exile with page counters on them" (Tasha).
+        // but "from among face-up cards your opponents own from exile"
+        // (Ashiok).
+        Post::FromAmong(x) => {
+            let theirs = x
+                .filter
+                .posts
+                .iter()
+                .any(|p| matches!(p, Post::Owner(Player::AnOpponent | Player::EachOpponent)));
+            zone_from(theirs, || from_among(o, x))
+        }
         Post::Greatest { stat, or_tied } => {
             o.w("with the greatest");
             o.w(stat_name(*stat));
@@ -7116,6 +7253,10 @@ fn obj_subj(o: &mut Out, x: &Objects, verb: &str) {
 }
 
 fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
+    zone_from(moves_from_a_zone(e), || effect_said(o, e, cx))
+}
+
+fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
     match e {
         Effect::With { then, .. } => clauses(o, then, cx),
         Effect::Draw { who, n } => {
@@ -9567,9 +9708,12 @@ fn move_return_rest(o: &mut Out, e: &Effect) {
         objects(o, what);
         o.add(place.clone());
     });
+    // "return to your hand target artifact card in your graveyard with
+    // lesser mana value" (Scrap Trawler): said after where it goes, the
+    // object is "in" its zone.
     let after = out(|o| {
         o.add(place);
-        objects(o, what);
+        zone_from(false, || objects(o, what));
     });
     syn::position(o, before, after);
     order_words(o, order);
@@ -9645,6 +9789,10 @@ fn replacement(o: &mut Out, would_words: Out, instead: &[Effect], cx: &Cx) {
 
 /// The verbs a player is said to do for an effect that takes none.
 fn performed(o: &mut Out, e: &Effect, n: Num) {
+    zone_from(moves_from_a_zone(e), || performed_said(o, e, n))
+}
+
+fn performed_said(o: &mut Out, e: &Effect, n: Num) {
     match e {
         Effect::Vote(options) => {
             o.verb("vote", n);
@@ -10193,6 +10341,17 @@ fn choice(o: &mut Out, c: &Choice) {
         Choice::Number => o.w("a number"),
         Choice::Player => o.w("a player"),
         Choice::Opponent => o.w("an opponent"),
+        // "choose Island or Swamp", "choose creature or land": a choice
+        // between kinds, said by their names alone.
+        Choice::Objects(x)
+            if x.quant == Quant::Plural
+                && x.filter.kind.is_none()
+                && x.filter.posts.is_empty()
+                && x.filter.or.is_none()
+                && !x.filter.alts.is_empty() =>
+        {
+            filter(o, &x.filter, Num::Sg)
+        }
         Choice::Objects(x) => objects(o, x),
         Choice::Targets(v) => {
             for (i, x) in v.iter().enumerate() {
@@ -10436,7 +10595,7 @@ fn palette_named(o: &mut Out, p: &Palette) {
 fn trigger(o: &mut Out, t: &Trigger) {
     match t {
         Trigger::WhenAndAt(e, s) => {
-            syn::when(o);
+            syn::when_is_whenever(o);
             event(o, e);
             o.w("and at the beginning of");
             printed_step(o, s);
@@ -10446,17 +10605,17 @@ fn trigger(o: &mut Out, t: &Trigger) {
         }
         Trigger::When(e) => {
             let one = out(|o| {
-                syn::when(o);
+                syn::when_is_whenever(o);
                 event(o, e);
             });
             // "When this creature enters and whenever an opponent draws …".
             match &**e {
                 Event::Or(v) if v.len() == 2 => {
                     let two = out(|o| {
-                        syn::when(o);
+                        syn::when_is_whenever(o);
                         event(o, &v[0]);
                         o.w("and");
-                        syn::when(o);
+                        syn::when_is_whenever(o);
                         event(o, &v[1]);
                     });
                     syn::trigger_conditions(o, one, two);
@@ -11282,7 +11441,13 @@ fn would(o: &mut Out, e: &Event) {
 
 // ---------------------------------------------------------------- conditions
 
+/// A condition names its objects where they are: "if there are seven or
+/// more cards in your graveyard".
 fn condition(o: &mut Out, c: &Condition) {
+    zone_from(false, || condition_said(o, c))
+}
+
+fn condition_said(o: &mut Out, c: &Condition) {
     match c {
         Condition::GetsMoreVotes(w) => {
             o.w(w);
@@ -11534,7 +11699,12 @@ fn condition(o: &mut Out, c: &Condition) {
                     o.verb("are", obj_num(what));
                 },
             );
-            o.w(if *z == Zone::Battlefield { "on" } else { "in" });
+            // "as long as this card is on the stack" (Kaervek's Torch).
+            o.w(if matches!(z, Zone::Battlefield | Zone::Stack) {
+                "on"
+            } else {
+                "in"
+            });
             zone(o, z);
         }
         Condition::YouAreStartingPlayer => o.w("you're the starting player"),
@@ -12608,37 +12778,8 @@ fn statics(o: &mut Out, ss: &[Static]) {
             }
         }
         // A run of PlayFrom from one zone is one sentence.
-        if let Static::PlayFrom { zone: z, .. } = s {
-            let mut j = i;
-            while matches!(ss.get(j), Some(Static::PlayFrom { zone: z2, .. }) if z2 == z) {
-                j += 1;
-            }
-            o.w("you may");
-            let mut last_verb = None;
-            for (k, p) in ss[i..j].iter().enumerate() {
-                if k > 0 {
-                    o.w("and");
-                }
-                if let Static::PlayFrom { verb, what, .. } = p {
-                    let word = out(|o| {
-                        o.w(match verb {
-                            CastVerb::Play => "play",
-                            CastVerb::Cast => "cast",
-                        })
-                    });
-                    // "cast artifact spells and colorless spells".
-                    if last_verb == Some(*verb) {
-                        syn::gapped(o, word, Out::default());
-                    } else {
-                        o.add(word);
-                    }
-                    last_verb = Some(*verb);
-                    objects(o, what);
-                }
-            }
-            o.w("from");
-            zone(o, z);
-            i = j;
+        if matches!(s, Static::PlayFrom { .. }) {
+            i += play_from_run(o, ss, i);
             continue;
         }
         // "can't block or be blocked by non-Spirit creatures": two rules,
@@ -13582,7 +13723,7 @@ fn static_other(o: &mut Out, s: &Static) {
             costs(o, c);
             o.w("rather than pay its mana cost");
         }
-        Static::PlayWithTopRevealed(Player::That) => {
+        Static::PlayWithTopRevealed(Player::That | Player::Each) => {
             o.w("players play with the top card of their libraries revealed")
         }
         Static::PlayWithTopRevealed(_) => o.w("play with the top card of your library revealed"),
@@ -13863,6 +14004,45 @@ fn unsaid(o: &mut Out, s: &Static) {
 }
 
 /// Statics inside "as long as …," or "if …,": one sentence, joined.
+/// "you may play lands and cast spells from the top of your library": a
+/// run of `PlayFrom` from one zone, said as one permission. Returns how
+/// many statics it said.
+fn play_from_run(o: &mut Out, ss: &[Static], i: usize) -> usize {
+    let Static::PlayFrom { zone: z, .. } = &ss[i] else {
+        return 0;
+    };
+    let mut j = i;
+    while matches!(ss.get(j), Some(Static::PlayFrom { zone: z2, .. }) if z2 == z) {
+        j += 1;
+    }
+    o.w("you may");
+    let mut last_verb = None;
+    for (k, p) in ss[i..j].iter().enumerate() {
+        if k > 0 {
+            o.w("and");
+        }
+        if let Static::PlayFrom { verb, what, .. } = p {
+            let word = out(|o| {
+                o.w(match verb {
+                    CastVerb::Play => "play",
+                    CastVerb::Cast => "cast",
+                })
+            });
+            // "cast artifact spells and colorless spells".
+            if last_verb == Some(*verb) {
+                syn::gapped(o, word, Out::default());
+            } else {
+                o.add(word);
+            }
+            last_verb = Some(*verb);
+            objects(o, what);
+        }
+    }
+    o.w("from");
+    zone(o, z);
+    j - i
+}
+
 fn statics_joined(o: &mut Out, ss: &[Static]) {
     let mut i = 0;
     while i < ss.len() {
@@ -13878,6 +14058,11 @@ fn statics_joined(o: &mut Out, ss: &[Static]) {
                 i += 1;
                 continue;
             }
+        }
+        // "you may play lands and cast spells from the top of your library".
+        if matches!(s, Static::PlayFrom { .. }) {
+            i += play_from_run(o, ss, i);
+            continue;
         }
         i += sized(o, ss, i);
     }
