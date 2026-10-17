@@ -1825,6 +1825,14 @@ mod syn {
     /// Steed; Dorothea) is "at the beginning of the end of combat step":
     /// abilities that trigger "at end of combat" trigger as that step
     /// begins (CR 511.2).
+    /// Named rewrite [each-player-chose]: "each permanent chosen this way"
+    /// (Druid of Purification) is what "those permanents" or "them" says
+    /// in the sentence after each player chose (The Legend of Yangchen,
+    /// Dredge the Mire): every object the players chose.
+    pub fn each_player_chose(o: &mut Out, spelled: Out, those: Out) {
+        alt(o, vec![spelled, those]);
+    }
+
     pub fn at_end_of_combat(o: &mut Out, spelled: Out) {
         alt(o, vec![spelled, of("at end of combat")]);
     }
@@ -3715,6 +3723,25 @@ fn each_objects(o: &mut Out, x: &Objects) {
 
 fn objects(o: &mut Out, x: &Objects) {
     let f = &x.filter;
+    // "Exile those permanents" after each player chose them
+    // ([each-player-chose]).
+    if x.quant == Quant::Each && f.posts == [Post::Marked(Marked::Chosen)] {
+        let spelled = out(|o| objects_plain(o, x));
+        let those = out(|o| {
+            objects_plain(
+                o,
+                &Objects {
+                    quant: Quant::Antecedent,
+                    filter: Filter {
+                        posts: vec![],
+                        ..f.clone()
+                    },
+                },
+            )
+        });
+        syn::each_player_chose(o, spelled, those);
+        return;
+    }
     // "an exiled card": a card in exile, said by an adjective.
     let quant_word_only = matches!(
         x.quant,

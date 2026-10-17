@@ -2697,6 +2697,60 @@ pub fn each_player_creates(es: &mut Vec<Effect>) {
     }
 }
 
+/// "Starting with you, each player chooses up to one permanent …. Exile
+/// those permanents." (The Legend of Yangchen), "Each opponent chooses a
+/// creature card in their graveyard. Put those cards onto the battlefield
+/// under your control." (Dredge the Mire): a reference back in the next
+/// sentence is every object the players chose, `Each` with
+/// `Marked(Chosen)`, as "Destroy each permanent chosen this way" says it. A
+/// bare `Antecedent` was the last player's choice alone
+/// ([each-player-chose]).
+pub fn each_player_chose(es: &mut [Effect]) {
+    struct Those(bool);
+    impl crate::walk::Visitor for Those {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if self.0 {
+                return false;
+            }
+            self.0 = true;
+            if o.quant == Quant::Antecedent && o.filter.posts.is_empty() && o.filter.or.is_none() {
+                o.quant = Quant::Each;
+                o.filter.posts.push(Post::Marked(Marked::Chosen));
+            }
+            false
+        }
+    }
+    fn chose(e: &Effect) -> bool {
+        match e {
+            Effect::StartingWith { then, .. } => matches!(&then[..], [x] if chose(x)),
+            Effect::Performed {
+                by: Player::Each | Player::EachOpponent,
+                effect,
+            } => matches!(**effect, Effect::Choose(Choice::Objects(_))),
+            _ => false,
+        }
+    }
+    for e in es.iter_mut() {
+        if let Effect::Labelled { then, .. } = e {
+            each_player_chose(then);
+        }
+    }
+    for i in 1..es.len() {
+        // "and sacrifices it" continues the chooser's own clause.
+        let continued = matches!(
+            es[i],
+            Effect::Performed { .. }
+                | Effect::Sacrifice {
+                    who: Player::Each | Player::EachOpponent,
+                    ..
+                }
+        );
+        if chose(&es[i - 1]) && !continued {
+            crate::walk::Walk::walk(&mut es[i], &mut Those(false));
+        }
+    }
+}
+
 /// The renderer's inverse of `each_player_creates`: the pass per player is
 /// said "each player creates … and puts …", as the card says it.
 pub fn each_player_creates_said(es: &mut Vec<Effect>) {

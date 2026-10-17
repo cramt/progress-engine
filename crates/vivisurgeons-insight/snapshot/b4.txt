@@ -231,7 +231,7 @@ face: Dredge the Mire
 type: Sorcery
 cost: {3}{B}
 > Each opponent chooses a creature card in their graveyard. Put those cards onto the battlefield under your control.
-= Spell([Performed { by: EachOpponent, effect: Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } })) }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }])
+= Spell([Performed { by: EachOpponent, effect: Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(That))], or: None } })) }, Move { what: Objects { quant: Each, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Chosen)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }])
 
 ## Elderfang Venom
 face: Elderfang Venom
