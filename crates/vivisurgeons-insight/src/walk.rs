@@ -2936,6 +2936,15 @@ impl Walk for Static {
                 Walk::walk(what, v);
                 Walk::walk(equal_to, v);
             }
+            Static::HasValuesOf {
+                what, of, still, ..
+            } => {
+                Walk::walk(what, v);
+                Walk::walk(of, v);
+                for x0 in (still).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Static::EntersPrepared(f0) => {
                 Walk::walk(f0, v);
             }

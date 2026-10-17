@@ -1520,6 +1520,15 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
                 filter: Filter { kind: Some(Noun::Spell), ..Filter::default() },
             })
         },
+        // Duplicant's "the last creature card exiled with it": only of cards
+        // exiled with an object, where the order they were exiled in is kept.
+        |p| {
+            // Looked ahead, so "the last chosen color" moves no break point.
+            if !p.at("the") || !matches!(p.t.get(p.i + 1), Some(Tok::Word(w)) if w == "last") || !p.ahead("exiled with") { return None; }
+            p.words("the last")?;
+            let f = filter(p)?;
+            f.posts.iter().any(|q| matches!(q, Post::ExiledWith(_))).then_some(Objects { quant: Quant::Last, filter: f })
+        },
         |p| {
             let start = p.i;
             p.one_of(&["that", "those", "the"])?;

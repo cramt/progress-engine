@@ -1001,6 +1001,22 @@ fn static_body_first(p: &mut P) -> Option<Vec<Static>> {
             p.word("ability")?;
             Some(vec![Static::CastFromUsing { zone, keyword }])
         },
+        // Duplicant: "this creature has the power, toughness, and creature
+        // types of the last creature card exiled with it. It's still a
+        // Shapeshifter."
+        |p| {
+            if !p.ahead("has the power") { return None; }
+            let what = objects(p)?;
+            p.words("has the power , toughness , and creature types of")?;
+            let of = objects(p)?;
+            let still = match p.attempt(super::effects::still) {
+                Some(Keeps::Listed(v)) => v,
+                Some(_) => return None,
+                None => vec![],
+            };
+            let values = vec![CopiedValue::Power, CopiedValue::Toughness, CopiedValue::CreatureTypes];
+            Some(vec![Static::HasValuesOf { what, values, of, still }])
+        },
         // "~'s power is equal to … and its toughness is equal to that number
         // plus 1."
         |p| {

@@ -717,6 +717,10 @@ pub enum Quant {
     /// "you control a prime number of lands" (Zimone, All-Questioning): as
     /// many as some prime, 2, 3, 5, 7 ….
     PrimeNumber,
+    /// "the last creature card exiled with it" (Duplicant): of the objects
+    /// the filter names, the one that became one most recently (its
+    /// ruling: the exiled card with the latest timestamp).
+    Last,
     /// "any number of other target creatures" (Kinetic Ooze): as many as the
     /// player picks, each other than this object.
     AnyNumberOfOtherTarget,
@@ -2446,6 +2450,14 @@ pub enum Lost {
     },
 }
 
+/// A value one object takes from another in `Static::HasValuesOf`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CopiedValue {
+    Power,
+    Toughness,
+    CreatureTypes,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Characteristic {
     Abilities,
@@ -3724,6 +3736,18 @@ pub enum Static {
     SetToughness {
         what: Objects,
         equal_to: Amount,
+    },
+    /// "this creature has the power, toughness, and creature types of the
+    /// last creature card exiled with it. It's still a Shapeshifter."
+    /// (Duplicant): those values of `what` are `of`'s. Its rulings: the power
+    /// and toughness are base values (layer 7b, CR 613.4b), so counters and
+    /// other effects still apply; the creature types replace its own
+    /// (layer 4), but for the subtypes `still` keeps.
+    HasValuesOf {
+        what: Objects,
+        values: Vec<CopiedValue>,
+        of: Objects,
+        still: Vec<Adj>,
     },
     /// "This creature enters prepared.": a preparation card (CR 722) whose
     /// copy of its inset spell may be cast while it is prepared.

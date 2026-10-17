@@ -3716,6 +3716,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::NthDuringTurns { .. }
         | Quant::NthOfGame { .. }
         | Quant::Triggering
+        | Quant::Last
         | Quant::Next => Num::Sg,
         Quant::WithAllOthers(_) | Quant::Both => Num::Pl,
         // "your commander", "your commanders": a partner pair is two.
@@ -3853,6 +3854,10 @@ fn objects_plain(o: &mut Out, x: &Objects) {
     let n = obj_num(x);
     let f = &x.filter;
     match &x.quant {
+        Quant::Last => {
+            o.w("the last");
+            filter(o, f, n);
+        }
         Quant::Target { n: k, up_to } => {
             if *k != Amount::N(1) {
                 syn::each_of(o);
@@ -13536,6 +13541,31 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("using its");
             o.w(keyword);
             o.w("ability");
+        }
+        Static::HasValuesOf {
+            what,
+            values,
+            of,
+            still,
+        } => {
+            objects(o, what);
+            o.w("has the");
+            for (i, v) in values.iter().enumerate() {
+                list_sep(o, i, values.len(), "and");
+                o.w(match v {
+                    CopiedValue::Power => "power",
+                    CopiedValue::Toughness => "toughness",
+                    CopiedValue::CreatureTypes => "creature types",
+                });
+            }
+            o.w("of");
+            objects(o, of);
+            if !still.is_empty() {
+                o.w(". it's still a");
+                for a in still {
+                    adj(o, a, None);
+                }
+            }
         }
         Static::SetToughness { what, equal_to } => {
             possessive_of(o, what);
