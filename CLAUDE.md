@@ -122,8 +122,8 @@ what; respect those boundaries.
 
 ## Build and test
 
-Plain `cargo` works: the workspace is Gauntlet, Reality Chip and
-`meldweb-wasm`, and `rust-toolchain.toml` picks the toolchain. Only a cargo
+Plain `cargo` works: the workspace is every product above but Gitaxian Probe,
+and `rust-toolchain.toml` picks the toolchain. Only a cargo
 that reads that file has the wasm32 target, so `pnpm dev` and a wasm32 clippy
 need the devshell; everything native builds with any cargo. The flake devshell (`nix develop`) carries the same toolchain plus
 `jq`, `cargo-nextest` and the web app's node, pnpm, biome and wasm-bindgen, and
@@ -149,8 +149,9 @@ and the rules, never from `crates/`, or it checks nothing.
 **Run `cargo fmt --all` before every commit**, and `pnpm fmt` when the web app
 changed. CI is `nix flake check`, whose checks are fmt, clippy, test, build,
 the Python checker, `cr-citations` (every "CR nnn.n" in the repo names a rule in the pinned CR), `meldweb-web` (biome, tsc, vitest and the site build,
-against the crane-built wasm) and the probe's own fmt, clippy, test, web build
-and web check; a fmt failure aborts the others, so an
+against the crane-built wasm), `wasm-libs` (`mockery-core` and Chancellor built
+for wasm32) and the probe's own fmt, clippy, test, web build and web check; a
+fmt failure aborts the others, so an
 unformatted commit reports red without ever having run the tests. This has
 hidden broken clippy and tests across four commits before.
 
