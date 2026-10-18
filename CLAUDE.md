@@ -82,9 +82,7 @@ and bump the pin only through `cr diff`'s worklist (that crate's README).
 that builds for wasm, and `mockery-cli`, binary `mockery`) prints custom
 cards: a `.card.toml` to a PNG or PDF, or a sheet to cut with Phyrexian
 Metamorph's paper, gap, margin and cut-mark flags, through Typst compiled
-in-process. It refuses a real card, by name or by
-the same cost and rules text under another name, against the card index, and
-points at `metamorph` instead
+in-process
 ([ADR-0039](docs/adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
 Its sheet stays Typst's, not `metamorph-sheet`'s: that one embeds JPEGs, and
 vector cards printed through it came out soft at twelve times the size. It warns where Insight cannot read the rules text. The

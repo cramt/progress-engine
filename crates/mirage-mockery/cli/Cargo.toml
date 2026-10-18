@@ -14,5 +14,4 @@ path = "src/main.rs"
 anyhow.workspace = true
 facet.workspace = true
 figue.workspace = true
-chip-scryfall.workspace = true
 mockery-core.workspace = true

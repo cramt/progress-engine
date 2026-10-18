@@ -1,8 +1,8 @@
 //! Mirage Mockery in the browser: Curator's custom cards page reads, checks
 //! and renders a `.card.toml` with the same `mockery-core` the CLI runs.
 //!
-//! The page does the fetching: the card's art from the repo, and the real
-//! cards to compare it with from Scryfall. Nothing here touches the network.
+//! The page does the fetching of the card's art from the repo. Nothing here
+//! touches the network.
 //! `meldweb-curator/web/src/mockery.gen.ts` is generated from the wire types
 //! below; the test at the bottom fails when it is stale.
 
@@ -13,7 +13,6 @@ use anyhow::anyhow;
 use facet::Facet;
 use mockery_core::card::Card;
 use mockery_core::read::read;
-use mockery_core::real::{cost_of, real_card, telling_word};
 use mockery_core::render::{self, Layout, Paper, Sheet};
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
 
@@ -33,13 +32,6 @@ pub enum Checked {
     Card {
         name: String,
         type_line: String,
-        /// `{2}{U}`, as Oracle text writes it; empty for no cost.
-        cost: String,
-        /// A word any real card with this text has too, to narrow the search
-        /// for one; absent for a card with no rules text, which is never
-        /// refused for it.
-        #[facet(default, skip_serializing_if = Option::is_none)]
-        word: Option<String>,
         /// The art's path, relative to the card file.
         #[facet(default, skip_serializing_if = Option::is_none)]
         art: Option<String>,
@@ -49,13 +41,6 @@ pub enum Checked {
     Refused {
         message: String,
     },
-}
-
-/// A real card to compare with.
-#[derive(Debug, Facet)]
-pub struct Real {
-    pub name: String,
-    pub oracle: String,
 }
 
 /// Portrait, as Phyrexian Metamorph's paper.
@@ -103,8 +88,6 @@ pub fn check_text(text: &str) -> Checked {
         Ok(card) => {
             let reading = read(&card);
             Checked::Card {
-                cost: cost_of(&card),
-                word: telling_word(&card),
                 art: card.art.as_ref().map(|a| a.to_string_lossy().into_owned()),
                 lines: reading.lines as u32,
                 unread: reading
@@ -128,22 +111,6 @@ pub fn check_text(text: &str) -> Checked {
 #[wasm_bindgen]
 pub fn check(text: &str) -> String {
     facet_json::to_string(&check_text(text)).expect("Checked serialises")
-}
-
-/// Why the card is a real one, or nothing: `named` says Magic has a card by
-/// its name, and `same_cost` (JSON of `Real[]`) is every real card at its
-/// cost whose text holds its `word`.
-#[wasm_bindgen]
-pub fn why_real(text: &str, named: bool, same_cost: &str) -> Result<Option<String>, JsError> {
-    let card = parse(text).map_err(js)?;
-    let reals: Vec<Real> =
-        facet_json::from_str(same_cost).map_err(|e| JsError::new(&format!("not Real[]: {e}")))?;
-    real_card(
-        &card,
-        named,
-        reals.into_iter().map(|r| Ok((r.name, r.oracle))),
-    )
-    .map_err(js)
 }
 
 /// Art bytes by the path a card names them by.
@@ -244,7 +211,6 @@ mod tests {
     fn generated_typescript_is_current() {
         let mut g = facet_typescript::TypeScriptGenerator::new();
         g.add_type::<Checked>();
-        g.add_type::<Real>();
         g.add_type::<CardSheet>();
         g.add_type::<SheetCard>();
         let want = format!(
@@ -263,27 +229,11 @@ mod tests {
     }
 
     #[test]
-    fn a_card_reads_with_its_cost_and_a_word_to_search_by() {
+    fn a_card_reads_with_its_name() {
         match check_text(DRONE) {
-            Checked::Card {
-                name, cost, word, ..
-            } => {
-                assert_eq!(name, "Proofsheet Drone");
-                assert_eq!(cost, "{2}{U}{U/P}");
-                assert!(word.is_some_and(|w| DRONE.to_lowercase().contains(&w)));
-            }
+            Checked::Card { name, .. } => assert_eq!(name, "Proofsheet Drone"),
             Checked::Refused { message } => panic!("{message}"),
         }
-    }
-
-    #[test]
-    fn the_same_text_at_the_same_cost_is_a_real_card() {
-        let card = parse(DRONE).unwrap();
-        let text = card.rules.join("\n");
-        let same = vec![Ok(("Some Drone".to_string(), text))];
-        assert!(real_card(&card, false, same).unwrap().is_some());
-        assert!(real_card(&card, false, vec![]).unwrap().is_none());
-        assert!(real_card(&card, true, vec![]).unwrap().is_some());
     }
 
     #[test]

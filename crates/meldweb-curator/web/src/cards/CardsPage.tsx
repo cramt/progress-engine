@@ -20,8 +20,7 @@ import "./cards.css";
 
 /**
  * Custom cards: each `cards/*.card.toml` in the repo, edited as its text
- * beside the card Mirage Mockery draws of it, and printed on a sheet. Real
- * cards are refused, as `mockery` refuses them (ADR-0039).
+ * beside the card Mirage Mockery draws of it, and printed on a sheet.
  */
 export function CardsPage({
   api,
@@ -154,7 +153,7 @@ function CardEditor({
   );
   const save = useSave(store);
   useEffect(() => store.edit(text), [store, text]);
-  const { checked, preview, verdict, missingArt } = useCardChecks(
+  const { checked, preview, missingArt } = useCardChecks(
     api,
     repo,
     file.path,
@@ -185,20 +184,6 @@ function CardEditor({
           {checked.kind === "refused" && (
             <li className="refusal">{checked.message}</li>
           )}
-          {verdict.kind === "real" && (
-            <li className="refusal">
-              {verdict.why}. Proxies of real cards are a deck's Proxies… button.
-            </li>
-          )}
-          {verdict.kind === "unchecked" && (
-            <li className="refusal">
-              Not checked against Magic's cards, so not printable yet:{" "}
-              {verdict.why}
-            </li>
-          )}
-          {verdict.kind === "checking" && checked.kind === "card" && (
-            <li className="hint">Checking it against Magic's cards…</li>
-          )}
           {missingArt && (
             <li className="warning">
               No art at <code>{missingArt}</code> in the repo; drawn without it.
@@ -221,7 +206,7 @@ function CardEditor({
         </ul>
       </div>
       <div className="custom-card-preview">
-        {verdict.kind === "real" ? null : preview?.kind === "png" ? (
+        {preview?.kind === "png" ? (
           <img
             crossOrigin="anonymous"
             src={preview.url}

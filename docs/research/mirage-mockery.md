@@ -1,12 +1,12 @@
 # Mirage Mockery: printing custom cards
 
 A custom card is a `.card.toml`. Mirage Mockery renders it to a PNG or a PDF,
-lays cards out on sheets to print and cut, and checks two things first: that
-it is not a real card, which is Phyrexian Metamorph's to print (a refusal,
-[ADR-0039](../adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)),
-and whether Vivisurgeon's Insight can read its rules text (a warning).
+lays cards out on sheets to print and cut, and first asks whether
+Vivisurgeon's Insight can read its rules text (a warning). It used to refuse a
+real card too; that was dropped
+([ADR-0039](../adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
 
-The second check is why this belongs in progress-engine rather than being
+That check is why this belongs in progress-engine rather than being
 another card maker. A homebrew card whose text Insight reads is Magic the
 family understands. Chancellor will eventually be able to play it, and
 Gauntlet to count it.
@@ -40,10 +40,6 @@ Measured in a throwaway prototype before building it (2026-10-17):
   downloads from its binary, but rustls' ring in its library's tree had
   quietly broken Chancellor's wasm build as well. The flake's `wasm-libs`
   check now builds both.
-- Checking the index for a real card under another name parses only the cards
-  with the same mana cost, found in the index's text before any JSON is
-  parsed (`IndexFile::costing`). Parsing all 35k took 4.5 s of CPU; the check
-  now takes 0.4 s, nearly all of it opening the index.
 - Every card the format accepts prints on one page or is refused for space,
   naming the name, the type line or the rules text: a property test over
   generated cards (any mix of types, so a Class creature or a Saga battle too),

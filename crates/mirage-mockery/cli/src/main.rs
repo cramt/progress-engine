@@ -4,13 +4,12 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
-use chip_scryfall::index::{Index, IndexFile};
 use facet::Facet;
 use figue::{self as args, DriverError};
 
 use mockery_core::card::Card;
+use mockery_core::read;
 use mockery_core::render::{self, Layout, Paper, Sheet};
-use mockery_core::{read, real};
 
 #[derive(Facet)]
 struct Cli {
@@ -35,9 +34,6 @@ enum Command {
         /// Pixels per inch for a PNG.
         #[facet(args::named, default = 300)]
         ppi: u32,
-        /// Card index, as built by `gauntlet sync` (default: the synced one).
-        #[facet(args::named, default)]
-        index: Option<PathBuf>,
     },
     /// As many cards as fit a page, as a PDF to print and cut. The flags are
     /// Phyrexian Metamorph's, so a proxy sheet and a custom one print alike.
@@ -58,15 +54,11 @@ enum Command {
         /// Lines in the margin along every card edge.
         #[facet(args::named, default = true)]
         cut_marks: bool,
-        #[facet(args::named, default)]
-        index: Option<PathBuf>,
     },
-    /// Check cards without rendering: not a real card, and what Insight reads.
+    /// Check cards without rendering: what Insight reads.
     Check {
         #[facet(args::positional)]
         cards: Vec<PathBuf>,
-        #[facet(args::named, default)]
-        index: Option<PathBuf>,
     },
 }
 
@@ -108,24 +100,15 @@ fn parse_args() -> Cli {
     }
 }
 
-/// Every card read, refused if real, and read by Insight, before any render.
-fn load(paths: &[PathBuf], index: Option<PathBuf>) -> Result<Vec<Card>> {
+/// Every card read, and read by Insight, before any render.
+fn load(paths: &[PathBuf]) -> Result<Vec<Card>> {
     if paths.is_empty() {
         bail!("no cards given");
     }
-    let index_path = index.unwrap_or_else(Index::default_path);
-    let index = IndexFile::open(&index_path).with_context(|| {
-        format!(
-            "Mirage Mockery checks every card against the card index so it never prints a real one, \
-             and there is none at {}: run `gauntlet sync`, or pass --index decks/index.jsonl",
-            index_path.display()
-        )
-    })?;
     let cards = paths
         .iter()
         .map(|p| Card::open(p))
         .collect::<Result<Vec<_>>>()?;
-    real::refuse_real(&cards, &index)?;
     for card in &cards {
         let reading = read::read(card);
         let read_ok = reading.lines - reading.unread.len();
@@ -148,13 +131,8 @@ fn write(path: &Path, bytes: &[u8]) -> Result<()> {
 
 fn main() -> Result<()> {
     match parse_args().command {
-        Command::Render {
-            cards,
-            out,
-            ppi,
-            index,
-        } => {
-            let loaded = load(&cards, index)?;
+        Command::Render { cards, out, ppi } => {
+            let loaded = load(&cards)?;
             let out = out.unwrap_or_else(|| cards[0].with_extension("").with_extension("png"));
             let doc = render::compile(&loaded, Layout::Cards)?;
             match out.extension().and_then(|e| e.to_str()) {
@@ -171,7 +149,6 @@ fn main() -> Result<()> {
             gap,
             margin,
             cut_marks,
-            index,
         } => {
             let paper = match paper {
                 PaperArg::A4 => Paper::A4,
@@ -180,10 +157,10 @@ fn main() -> Result<()> {
                 PaperArg::Legal => Paper::Legal,
             };
             let sheet = Sheet::new(paper, gap, margin, cut_marks)?;
-            let loaded = load(&cards, index)?;
+            let loaded = load(&cards)?;
             let doc = render::compile(&loaded, Layout::Sheet(sheet))?;
             write(&out, &render::pdf(&doc)?)
         }
-        Command::Check { cards, index } => load(&cards, index).map(drop),
+        Command::Check { cards } => load(&cards).map(drop),
     }
 }

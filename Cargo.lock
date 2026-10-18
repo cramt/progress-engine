@@ -2036,7 +2036,6 @@ name = "mockery-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chip-scryfall",
  "facet",
  "figue",
  "mockery-core",
@@ -2047,7 +2046,6 @@ name = "mockery-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chip-scryfall",
  "facet",
  "facet-toml",
  "proptest",

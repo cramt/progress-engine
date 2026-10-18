@@ -25,18 +25,10 @@ export interface CardSheet {
 export type SheetPaper = "a4" | "a3" | "letter" | "legal";
 
 /**
- * A real card to compare with.
- */
-export interface Real {
-  name: string;
-  oracle: string;
-}
-
-/**
  * A `.card.toml`, read.
  */
 export type Checked =
-  | { kind: "card"; name: string; type_line: string; cost: string; word?: string; art?: string; lines: number; unread: Unread[] }
+  | { kind: "card"; name: string; type_line: string; art?: string; lines: number; unread: Unread[] }
   | { kind: "refused"; message: string };
 
 /**

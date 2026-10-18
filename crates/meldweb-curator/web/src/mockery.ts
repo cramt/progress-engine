@@ -4,16 +4,15 @@
  * are most of its size and only this page needs them. Call `loadMockery`
  * before anything else here.
  */
-import type { CardSheet, Checked, Real, SheetCard } from "./mockery.gen";
+import type { CardSheet, Checked, SheetCard } from "./mockery.gen";
 import init, {
   check,
   render_png,
   sheet_pdf,
-  why_real,
 } from "./wasm/mockery/mockery_wasm.js";
 import packed from "./wasm/mockery/mockery_wasm_bg.wasm-gz?url";
 
-export type { CardSheet, Checked, Real, SheetCard } from "./mockery.gen";
+export type { CardSheet, Checked, SheetCard } from "./mockery.gen";
 
 let loading: Promise<unknown> | null = null;
 
@@ -45,15 +44,6 @@ export function loadMockery(): Promise<void> {
 
 export function checkCard(text: string): Checked {
   return JSON.parse(check(text)) as Checked;
-}
-
-/** Why the card is a real one, or null; see `realCandidates`. */
-export function whyReal(
-  text: string,
-  named: boolean,
-  sameCost: readonly Real[],
-): string | null {
-  return why_real(text, named, JSON.stringify(sameCost)) ?? null;
 }
 
 /** The card alone, as a PNG; `art` is its art's bytes when it names some. */

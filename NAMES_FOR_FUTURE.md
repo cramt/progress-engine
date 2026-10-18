@@ -35,7 +35,7 @@ the narrow tag has come up empty, which it has not yet.
 | **Meldweb Curator** | The git-backed deck editor: a decklist in a repo is the deck, and saving is a commit. `crates/meldweb-curator/`. | yes |
 | **Vivisurgeon's Insight** | A spike: Oracle text read into a typed ability tree, and a count of how much of Magic that covers. `crates/vivisurgeons-insight/`, binary `insight`. | yes |
 | **Phyrexian Metamorph** | Proxies: a list of printings, or a deck less what the collection owns, as a PDF to print and cut. `crates/phyrexian-metamorph/`, binary `metamorph`. | yes |
-| **Mirage Mockery** | Custom cards from a `.card.toml` to PDF and PNG, never a real card. `crates/mirage-mockery/`, binary `mockery`. | yes |
+| **Mirage Mockery** | Custom cards from a `.card.toml` to PDF and PNG. `crates/mirage-mockery/`, binary `mockery`. | yes |
 | **Chancellor of the Spires** | The rules engine: the game as a typed Rust state machine, and ascent rules deriving what is true now from Insight's trees. `crates/chancellor-of-the-spires/`. Planned in docs/research/rules-engine.md. | yes |
 
 A gauntlet is a set of trials you put something through, which is what a
@@ -81,7 +81,7 @@ card is a mockup, a mirage of a card that was never printed. The card, `{2}{U}`,
 creates a token that's a copy of a creature you control. What kept it from the
 proxy maker is what suits it here: a token stands in for a card without being
 one, and a custom card is not a card of Magic. Mockery and Metamorph split
-printing at that line: Metamorph copies real cards, and Mockery refuses to.
+printing at that line: Metamorph copies real cards, and Mockery makes new ones.
 
 ### Why Reality Chip is in here without the tag
 

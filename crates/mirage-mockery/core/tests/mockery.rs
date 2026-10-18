@@ -1,19 +1,13 @@
-//! A custom card renders; a real one, by name or under another, never gets
-//! that far.
+//! A custom card renders, and Insight says what it reads of it.
 
 use std::path::{Path, PathBuf};
 
-use chip_scryfall::index::IndexFile;
 use mockery_core::card::Card;
+use mockery_core::read;
 use mockery_core::render::{self, Layout, Paper, Sheet};
-use mockery_core::{read, real};
 
 fn here(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(rel)
-}
-
-fn index() -> IndexFile {
-    IndexFile::open(&here("../../../decks/index.jsonl")).unwrap()
 }
 
 fn drone() -> Card {
@@ -79,41 +73,6 @@ fn a_symbol_with_no_svg_is_named() {
     let c = card("name = \"x\"\ncost = \"{K}\"\ntype = \"Instant\"");
     let err = render::compile(&[c], Layout::Cards).unwrap_err();
     assert!(format!("{err:#}").contains("no symbol {K}"), "{err:#}");
-}
-
-#[test]
-fn a_custom_card_is_not_refused() {
-    real::refuse_real(&[drone()], &index()).unwrap();
-}
-
-#[test]
-fn a_real_card_by_name_is_refused() {
-    let c = card(
-        "name = \"Serum Visions\"\ncost = \"{U}\"\ntype = \"Sorcery\"\nrules = \"Draw a card.\"",
-    );
-    let err = real::refuse_real(&[c], &index()).unwrap_err();
-    assert!(err.to_string().contains("is a real card"), "{err}");
-}
-
-#[test]
-fn a_real_card_under_another_name_is_refused() {
-    let c = card(
-        "name = \"Serum Glimpse\"\ncost = \"{U}\"\ntype = \"Sorcery\"\nrules = \"Draw a card. Scry 2.\"",
-    );
-    let err = real::refuse_real(&[c], &index()).unwrap_err();
-    assert!(
-        err.to_string()
-            .contains("\"Serum Visions\" under another name"),
-        "{err}"
-    );
-}
-
-#[test]
-fn a_vanilla_card_matching_a_real_vanilla_is_not_a_copy() {
-    let c = card(
-        "name = \"Thicket Bruin\"\ncost = \"{1}{G}\"\ntype = \"Creature — Bear\"\npt = \"2/2\"",
-    );
-    real::refuse_real(&[c], &index()).unwrap();
 }
 
 #[test]

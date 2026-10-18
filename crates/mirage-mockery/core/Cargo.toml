@@ -11,7 +11,6 @@ anyhow.workspace = true
 facet.workspace = true
 facet-toml.workspace = true
 serde_json.workspace = true
-chip-scryfall.workspace = true
 vivisurgeons-insight.workspace = true
 typst = "0.15.1"
 typst-layout = "0.15.1"

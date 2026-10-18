@@ -7,11 +7,10 @@ import { downloadPdf } from "../ui/download";
 import { PrintIcon } from "../ui/icons";
 import { messageOf, Sheet } from "../ui/Sheet";
 import { SheetLayoutFields } from "../ui/SheetLayoutFields";
-import { artFor, verdictFor } from "./useCardChecks";
+import { artFor } from "./useCardChecks";
 
 /**
- * A sheet of custom cards to print and cut, as `mockery sheet` makes it: each
- * checked against Magic's cards first, and a real one stops the sheet.
+ * A sheet of custom cards to print and cut, as `mockery sheet` makes it.
  */
 export function PrintCards({
   api,
@@ -70,18 +69,12 @@ function PrintDialog({
     try {
       const wanted = cards.filter((c) => (qty[c.path] ?? 0) > 0);
       if (wanted.length === 0) throw new Error("No cards to print.");
-      setStep("Checking against Magic's cards…");
+      setStep("Reading the cards…");
       const art = new Map<string, Uint8Array>();
       for (const c of wanted) {
         const checked = checkCard(c.text);
         if (checked.kind === "refused")
           throw new Error(`${c.path}: ${checked.message}`);
-        const verdict = await verdictFor(c.text, checked);
-        if (verdict.kind === "real") throw new Error(verdict.why);
-        if (verdict.kind === "unchecked")
-          throw new Error(
-            `${checked.name} could not be checked against Magic's cards: ${verdict.why}`,
-          );
         if (checked.art) {
           const bytes = await artFor(
             api,
