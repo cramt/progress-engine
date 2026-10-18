@@ -1959,6 +1959,7 @@ dependencies = [
  "facet-json",
  "facet-toml",
  "facet-typescript",
+ "metamorph-sheet",
  "wasm-bindgen",
 ]
 

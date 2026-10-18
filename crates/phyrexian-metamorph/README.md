@@ -37,6 +37,16 @@ metamorph deck decks/insider-trading.deck.toml --no-basics --minus collection.to
 does a copy sleeved in another deck. A run prints what it left out, and
 stdout lists what went on the sheet, one line per card.
 
+## In Curator
+
+A deck page's **Proxies…** button makes the same sheet in the browser:
+`metamorph-sheet` compiled into `meldweb-wasm`, the count from the same
+`Supply::to_print` the CLI calls, and Scryfall's `large` images fetched by the
+page. It offers the whole deck or what the collection lacks, without basics or
+with, and the paper, gap, margin, cut-mark and sides choices below. The
+`lantern` deck less the mock collection, 105 proxies on 12 A4 pages, came to
+17.0 MB in 7 s on 2026-10-18.
+
 ## The sheet
 
 | Flag | Default | |

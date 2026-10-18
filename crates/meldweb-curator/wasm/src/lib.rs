@@ -23,6 +23,7 @@ use std::collections::HashMap;
 
 pub mod copy;
 mod preference;
+pub mod proxies;
 
 use chip_decklist::collection::{self, Collection};
 use chip_decklist::collection_import;
@@ -329,7 +330,7 @@ pub fn export_deck(text: &str, target: &str, names: Option<String>) -> Result<St
     .map_err(|e| JsError::new(&e.to_string()))
 }
 
-fn read_names(names: Option<String>) -> Result<HashMap<String, String>, JsError> {
+pub(crate) fn read_names(names: Option<String>) -> Result<HashMap<String, String>, JsError> {
     match names.as_deref() {
         None | Some("") => Ok(HashMap::new()),
         Some(json) => facet_json::from_str(json)
@@ -362,7 +363,7 @@ pub fn declare_category(text: &str, name: &str, kind: &str) -> Result<String, Js
     edit::declare_category(text, name, kind).map_err(|e| JsError::new(&e.to_string()))
 }
 
-fn refused(e: impl ToString) -> JsError {
+pub(crate) fn refused(e: impl ToString) -> JsError {
     JsError::new(&e.to_string())
 }
 
@@ -2099,6 +2100,8 @@ mod tests {
         g.add_type::<chip_scryfall::copy::PrintingFacts>();
         g.add_type::<chip_scryfall::copy::SearchAnswer>();
         g.add_type::<copy::StoreStep>();
+        g.add_type::<proxies::SheetLayout>();
+        g.add_type::<proxies::ToPrint>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",

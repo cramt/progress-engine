@@ -1,6 +1,42 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+export type ToPrint =
+  | { kind: "toPrint"; lines: ProxyLine[]; basics: number; owned: number }
+  | { kind: "refused"; message: string };
+
+/**
+ * One deck line's proxies.
+ */
+export interface ProxyLine {
+  /**
+   * The deck line, a `DeckCard.index`.
+   */
+  index: number;
+  qty: number;
+}
+
+/**
+ * How a sheet lays cards out, as `metamorph`'s flags say it.
+ */
+export interface SheetLayout {
+  paper: Paper;
+  /**
+   * Millimetres between cards.
+   */
+  gapMm: number;
+  /**
+   * Millimetres kept clear at the paper's edge.
+   */
+  marginMm: number;
+  cutMarks: boolean;
+}
+
+/**
+ * Portrait.
+ */
+export type Paper = "a4" | "a3" | "letter" | "legal";
+
 /**
  * What [`store_plan`] decided, for the worker to carry out.
  */

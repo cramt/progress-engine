@@ -215,3 +215,25 @@ fn moving_parts_of_several_lines_is_one_edit() {
     );
     assert_eq!(c.cards[2].finish, Finish::Foil);
 }
+
+#[test]
+fn what_is_left_to_print_is_the_need_less_what_the_collection_gave() {
+    let deck = r#"cards = [
+  { printing = "sld/2417", qty = 2 },  # Sol Ring
+  { name = "Island", qty = 3 },
+  { name = "Counterspell" },
+]
+"#;
+    let s = run(deck, MINE, &[]);
+    // Three Sol Rings are owned, so both lines of it are answered.
+    let all = s.to_print(false);
+    assert_eq!(all.lines, [(1, 3), (2, 1)]);
+    assert_eq!((all.basics, all.owned), (0, 2));
+    let no_basics = s.to_print(true);
+    assert_eq!(no_basics.lines, [(2, 1)]);
+    assert_eq!(no_basics.basics, 3);
+
+    let whole = run(deck, "", &[]).to_print(false);
+    assert_eq!(whole.lines, [(0, 2), (1, 3), (2, 1)]);
+    assert_eq!(whole.owned, 0);
+}

@@ -203,32 +203,29 @@ fn run(cli: Cli) -> Result<()> {
                 &[],
                 &names,
             );
-            let mut proxies = Vec::new();
-            let (mut basics, mut owned) = (0, 0);
-            for line in &supply.lines {
-                owned += line.got();
-                let missing = line.need - line.got();
-                let basic = supply.short.iter().any(|s| s.key == line.key && s.basic);
-                if missing == 0 {
-                    continue;
-                }
-                if no_basics && basic {
-                    basics += missing;
-                    continue;
-                }
-                let card = &parsed.cards[line.index].card;
-                let i = cards.iter().position(|c| c == card).expect("looked up");
-                proxies.push(Proxy {
-                    found: found[i].clone(),
-                    qty: missing,
-                });
-            }
+            let to_print = supply.to_print(no_basics);
+            let proxies = to_print
+                .lines
+                .iter()
+                .map(|&(index, qty)| {
+                    let card = &parsed.cards[index].card;
+                    let i = cards.iter().position(|c| c == card).expect("looked up");
+                    Proxy {
+                        found: found[i].clone(),
+                        qty,
+                    }
+                })
+                .collect();
             // The run's numbers depend on what was left out, so it says.
             if no_basics {
-                eprintln!("left out {basics} basic lands (--no-basics)");
+                eprintln!("left out {} basic lands (--no-basics)", to_print.basics);
             }
             if let Some(file) = &minus {
-                eprintln!("left out {owned} cards {} owns (--minus)", file.display());
+                eprintln!(
+                    "left out {} cards {} owns (--minus)",
+                    to_print.owned,
+                    file.display()
+                );
             }
             print(&sheet, proxies)
         }

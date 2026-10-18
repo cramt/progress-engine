@@ -804,6 +804,25 @@ dialog.sheet::backdrop {
   font-size: 13px;
 }
 
+/* A checkbox and what it says, on one line. */
+.sheet .check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* A proxy sheet's paper, gap, margin and cut marks, side by side. */
+.proxy-layout {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.proxy-layout input[type="number"] {
+  width: 100%;
+}
+
 .dialog-buttons {
   display: flex;
   justify-content: flex-end;

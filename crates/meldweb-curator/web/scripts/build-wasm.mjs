@@ -13,6 +13,7 @@ export const watched = [
   `${repo}crates/meldweb-curator/wasm/src`,
   `${repo}crates/reality-chip/decklist/src`,
   `${repo}crates/reality-chip/scryfall/src`,
+  `${repo}crates/phyrexian-metamorph/sheet/src`,
 ];
 
 /**

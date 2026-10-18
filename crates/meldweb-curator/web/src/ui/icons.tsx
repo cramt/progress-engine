@@ -178,3 +178,11 @@ export const HeartIcon = ({ filled = false }: { filled?: boolean }) => (
     <path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z" />
   </svg>
 );
+
+export const PrintIcon = () => (
+  <Icon>
+    <path d="M6 9V3h12v6" />
+    <rect x="3" y="9" width="18" height="8" rx="2" />
+    <path d="M7 14h10v7H7z" />
+  </Icon>
+);

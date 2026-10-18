@@ -37,6 +37,7 @@ import { Description } from "./Description";
 import { HistoryDrawer } from "./HistoryDrawer";
 import "./history.css";
 import { PlaytestArchidekt } from "./PlaytestArchidekt";
+import { PrintProxies } from "./PrintProxies";
 import { ReplaceArchidekt } from "./ReplaceArchidekt";
 import { applyResolved, namesOnly, resolveNames } from "./resolveNames";
 import { SourcingView } from "./SourcingView";
@@ -444,6 +445,15 @@ export function DeckEditor({
               cards={parsed.cards}
               printings={printings}
               onRefusal={setRefusal}
+            />
+            <PrintProxies
+              api={api}
+              repo={repo}
+              path={path}
+              name={stem}
+              text={history.present}
+              cards={parsed.cards}
+              printings={printings}
             />
             <Link
               to="/trade"

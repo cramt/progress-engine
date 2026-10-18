@@ -110,6 +110,40 @@ pub struct Supply {
     pub extra: Vec<Extra>,
 }
 
+/// What is left to print as proxies: Phyrexian Metamorph's sheet, from the
+/// CLI or Curator's deck page, so the two never count a deck apart.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ToPrint {
+    /// Deck line and copies, in deck order.
+    pub lines: Vec<(usize, u32)>,
+    /// Basic lands left out on request.
+    pub basics: u32,
+    /// Copies the collection answered, which are left out.
+    pub owned: u32,
+}
+
+impl Supply {
+    /// Each line's need less what the collection gave it, and with
+    /// `leave_out_basics`, none of the basic lands. Against an empty
+    /// collection that is the whole deck.
+    pub fn to_print(&self, leave_out_basics: bool) -> ToPrint {
+        let mut out = ToPrint::default();
+        for line in &self.lines {
+            out.owned += line.got();
+            let missing = line.need - line.got();
+            if missing == 0 {
+                continue;
+            }
+            if leave_out_basics && is_basic(&line.key) {
+                out.basics += missing;
+                continue;
+            }
+            out.lines.push((line.index, missing));
+        }
+        out
+    }
+}
+
 fn same_printing(a: &Printing, b: &Printing) -> bool {
     a.set.eq_ignore_ascii_case(&b.set) && a.num == b.num
 }

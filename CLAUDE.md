@@ -28,7 +28,8 @@ another player's public `mtg` repo holds of that list or of one deck
 (ADR-0035). A deck's Sourcing view says where each card comes from (owned,
 another printing, a friend in `meldweb.toml`, to get) and its Build view is
 the deck's place against its list, with the collection moves to fix it
-(ADR-0036). It is three
+(ADR-0036). A deck's Proxies… button is Phyrexian Metamorph's sheet, made
+in the browser (ADR-0038). It is three
 parts: `meldweb-wasm`, which is `chip-decklist` compiled for the browser; `web/`, a
 Vite + React + TanStack Router app in the root pnpm workspace; and `worker/`, the
 one Cloudflare Worker that serves the site and trades a GitHub login for tokens
