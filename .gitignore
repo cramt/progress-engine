@@ -29,10 +29,11 @@ version.txt
 __pycache__/
 
 # Meldweb Curator's web app: dependencies, build output, and the wasm package
-# scripts/build-wasm.mjs regenerates from meldweb-wasm.
+# scripts/build-wasm.mjs regenerates from meldweb-wasm and mockery-wasm.
 node_modules/
 crates/meldweb-curator/web/dist/
 crates/meldweb-curator/web/src/wasm/pkg/
+crates/meldweb-curator/web/src/wasm/mockery/
 
 # Meldweb Curator's worker: the symlink to the built site it deploys, wrangler's
 # local state, and the client secret `wrangler dev` reads.

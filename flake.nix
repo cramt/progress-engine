@@ -53,8 +53,8 @@
       # cannot reach a build that does not include them.
       #
       # Meldweb Curator's web app and worker are left out too, so a TypeScript
-      # edit does not rebuild the Rust, except for the one file meldweb-wasm's
-      # test compares against the types it generates.
+      # edit does not rebuild the Rust, except for the two files meldweb-wasm's
+      # and mockery-wasm's tests compare against the types they generate.
       #
       # docs/ (the baselines are JSON) and the pnpm workspace's package.json
       # match the extensions but no Rust reads them, so they are left out too:
@@ -68,7 +68,7 @@
           && (builtins.match ".*/crates/meldweb-curator/worker(/.*)?$" path == null)
           && (
             (builtins.match ".*/crates/meldweb-curator/web(/.*)?$" path == null)
-            || (builtins.match ".*/crates/meldweb-curator/web(/src(/deck\\.gen\\.ts)?)?$" path != null)
+            || (builtins.match ".*/crates/meldweb-curator/web(/src(/(deck|mockery)\\.gen\\.ts)?)?$" path != null)
           )
           # .typ is Mirage Mockery's template, and its symbols are the only .svg
           # any Rust reads: the repo's assets/ has many more.
@@ -129,6 +129,27 @@
           '';
         });
 
+      # Mirage Mockery for the custom cards page: Typst and its fonts, so its
+      # own module that only that page fetches, not part of meldweb-wasm.
+      mockeryWasmArgs =
+        commonArgs
+        // {
+          pname = "mockery-wasm";
+          cargoExtraArgs = "-p mockery-wasm";
+          CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
+          CARGO_PROFILE = "wasm";
+          doCheck = false;
+        };
+      mockeryWasm = craneLib.buildPackage (mockeryWasmArgs
+        // {
+          cargoArtifacts = craneLib.buildDepsOnly mockeryWasmArgs;
+          nativeBuildInputs = [wasmBindgen];
+          installPhaseCommand = ''
+            wasm-bindgen --target web --out-dir $out \
+              target/wasm32-unknown-unknown/wasm/mockery_wasm.wasm
+          '';
+        });
+
       # The libraries that claim to build for the browser, built for it, so the
       # claim cannot go stale unnoticed: Chancellor's did, once Insight's CLI
       # pulled ureq into its library's tree.
@@ -157,6 +178,8 @@
           ./pnpm-workspace.yaml
           ./decks/lantern.deck.toml
           ./decks/loam.deck.toml
+          # Mirage Mockery's example card, the mock repo's custom card
+          ./crates/mirage-mockery/core/tests/cards/proofsheet-drone.card.toml
           # The colour-identity sigils a deck tile draws
           ./assets
           (pkgs.lib.fileset.difference ./crates/meldweb-curator/web
@@ -200,6 +223,7 @@
           runHook preBuild
           mkdir -p crates/meldweb-curator/web/src/wasm
           cp -r --no-preserve=mode ${meldwebWasm} crates/meldweb-curator/web/src/wasm/pkg
+          cp -r --no-preserve=mode ${mockeryWasm} crates/meldweb-curator/web/src/wasm/mockery
           pnpm check
           pnpm test
           pnpm build

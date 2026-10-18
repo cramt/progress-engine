@@ -1,8 +1,10 @@
-// The committed decks and a small collection, as the mock Magic repo starts
+// The committed decks, a small collection and Mirage Mockery's example
+// custom card, as the mock Magic repo starts
 // in dev. Imported only when VITE_MOCK_GITHUB is set, so the real build does
 // not carry them.
 import lantern from "../../../../../decks/lantern.deck.toml?raw";
 import loam from "../../../../../decks/loam.deck.toml?raw";
+import drone from "../../../../mirage-mockery/core/tests/cards/proofsheet-drone.card.toml?raw";
 import {
   commitMessage,
   deckAdd,
@@ -17,6 +19,7 @@ const LANTERN = "decks/lantern.deck.toml";
 export const files: Record<string, string> = {
   VERSION: "1\n",
   "decks/loam.deck.toml": loam,
+  "cards/proofsheet-drone.card.toml": drone,
   "collection.toml": `cards = [
   { printing = "moc/94", at = "Lantern" },  # Rashmi and Ragavan
   { name = "Sol Ring", qty = 3, at = "Bulk" },

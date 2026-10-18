@@ -1,0 +1,21 @@
+[package]
+name = "mockery-wasm"
+description = "mockery-core for Meldweb Curator's custom cards page."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anyhow.workspace = true
+facet.workspace = true
+facet-json.workspace = true
+mockery-core.workspace = true
+# Exact, as meldweb-wasm's: the flake's wasm-bindgen-cli must match it.
+wasm-bindgen = "=0.2.126"
+
+[dev-dependencies]
+facet-typescript = "0.46"

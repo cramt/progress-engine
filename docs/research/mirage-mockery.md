@@ -79,8 +79,8 @@ line.
 - Insight's reminder text: a keyword Insight knows can get the reminder text
   printed beside it on request.
 - A set file: many cards, one sheet run, numbered.
-- Curator: the library builds for wasm, so the browser can render a card the
-  same way.
+- ~~Curator: the library builds for wasm, so the browser can render a card the
+  same way.~~ Done: `/cards` ([ADR-0040](../adr/0040-curator-prints-proxies-and-custom-cards-in-the-browser.md)).
 - Layouts by what a card has, never by a list of frames: chapters for a Saga,
   levels for a Class, a corner for a creature, each placed where it fits. A
   Class creature is levels and a corner, with no frame drawn for that pair.

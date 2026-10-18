@@ -86,6 +86,8 @@ export interface GitHubApi {
    * when there is none there (or the repo is empty).
    */
   getFile(repo: RepoRef, path: string, ref?: string): Promise<FileAt | null>;
+  /** A file's bytes, such as a custom card's art; null when there is none. */
+  getBytes(repo: RepoRef, path: string): Promise<Uint8Array | null>;
   /**
    * A file of someone else's repo, read without the login, so only a public
    * repo answers: a private one reads as `no-repo`.
@@ -178,9 +180,12 @@ export function encodeBase64(text: string): string {
 }
 
 export function decodeBase64(base64: string): string {
+  return new TextDecoder().decode(base64Bytes(base64));
+}
+
+export function base64Bytes(base64: string): Uint8Array {
   const binary = atob(base64.replace(/\s/g, ""));
-  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
+  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
 const encodePath = (path: string) =>
@@ -391,6 +396,20 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       if (r.status === 404) return null;
       if (!r.ok) return fail(r);
       return fileOf(r, path);
+    },
+
+    async getBytes(repo, path) {
+      const r = await request("GET", contents(repo, path));
+      if (r.status === 404) return null;
+      if (!r.ok) return fail(r);
+      const body = (await r.json()) as { encoding?: string; content?: string };
+      if (body.encoding !== "base64" || typeof body.content !== "string") {
+        throw new GitHubError(
+          413,
+          `${path} is over 1 MB, which GitHub will not hand to Curator`,
+        );
+      }
+      return base64Bytes(body.content);
     },
 
     async publicFile(repo, path) {

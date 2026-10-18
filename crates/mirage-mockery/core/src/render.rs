@@ -5,6 +5,7 @@
 //! disk or the network.
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::LazyLock;
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -15,7 +16,7 @@ use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Library, LibraryExt, World};
-use typst_layout::PagedDocument;
+pub use typst_layout::PagedDocument;
 
 use crate::card::{Card, Corner, Frame};
 use crate::symbols::{self, file_name, runs, Run};
@@ -144,8 +145,19 @@ impl World for Job {
     }
 }
 
-/// Lay the cards out. A symbol with no SVG is an error naming it.
+/// Lay the cards out, reading each card's art from disk. A symbol with no SVG
+/// is an error naming it.
 pub fn compile(cards: &[Card], layout: Layout) -> Result<PagedDocument> {
+    compile_with_art(cards, layout, |path| Ok(std::fs::read(path)?))
+}
+
+/// [`compile`], with `art` reading a card's art: the browser has no disk, and
+/// hands over the bytes it fetched from the repo.
+pub fn compile_with_art(
+    cards: &[Card],
+    layout: Layout,
+    mut art_of: impl FnMut(&Path) -> Result<Vec<u8>>,
+) -> Result<PagedDocument> {
     let mut files = HashMap::new();
     let mut symbol = |code: &str| -> Result<Value> {
         let Some(svg) = symbols::svg(code) else {
@@ -183,7 +195,7 @@ pub fn compile(cards: &[Card], layout: Layout) -> Result<PagedDocument> {
             Some(path) => {
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("png");
                 let virt = format!("/art/{i}.{ext}");
-                let bytes = std::fs::read(path)
+                let bytes = art_of(path)
                     .with_context(|| format!("reading {:?}'s art {}", card.name, path.display()))?;
                 art.push((id(&virt), Bytes::new(bytes)));
                 json!(virt)

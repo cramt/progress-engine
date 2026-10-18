@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CardsRouteImport } from './routes/cards'
 import { Route as CollectionRouteImport } from './routes/collection'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TradeRouteImport } from './routes/trade'
@@ -19,6 +20,11 @@ import { Route as DeckSplatRouteImport } from './routes/deck.$'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CardsRoute = CardsRouteImport.update({
+  id: '/cards',
+  path: '/cards',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CollectionRoute = CollectionRouteImport.update({
@@ -49,6 +55,7 @@ const DeckSplatRoute = DeckSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cards': typeof CardsRoute
   '/collection': typeof CollectionRoute
   '/settings': typeof SettingsRoute
   '/trade': typeof TradeRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cards': typeof CardsRoute
   '/collection': typeof CollectionRoute
   '/settings': typeof SettingsRoute
   '/trade': typeof TradeRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cards': typeof CardsRoute
   '/collection': typeof CollectionRoute
   '/settings': typeof SettingsRoute
   '/trade': typeof TradeRoute
@@ -75,12 +84,26 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/collection' | '/settings' | '/trade' | '/wanted' | '/deck/$'
+    | '/'
+    | '/cards'
+    | '/collection'
+    | '/settings'
+    | '/trade'
+    | '/wanted'
+    | '/deck/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/collection' | '/settings' | '/trade' | '/wanted' | '/deck/$'
+  to:
+    | '/'
+    | '/cards'
+    | '/collection'
+    | '/settings'
+    | '/trade'
+    | '/wanted'
+    | '/deck/$'
   id:
     | '__root__'
     | '/'
+    | '/cards'
     | '/collection'
     | '/settings'
     | '/trade'
@@ -90,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CardsRoute: typeof CardsRoute
   CollectionRoute: typeof CollectionRoute
   SettingsRoute: typeof SettingsRoute
   TradeRoute: typeof TradeRoute
@@ -104,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cards': {
+      id: '/cards'
+      path: '/cards'
+      fullPath: '/cards'
+      preLoaderRoute: typeof CardsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/collection': {
@@ -146,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CardsRoute: CardsRoute,
   CollectionRoute: CollectionRoute,
   SettingsRoute: SettingsRoute,
   TradeRoute: TradeRoute,

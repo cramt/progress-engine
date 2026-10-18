@@ -5,7 +5,8 @@
       "**",
       "!src/routeTree.gen.ts",
       "!src/deck.gen.ts",
-      "!src/wasm/pkg",
+      "!src/mockery.gen.ts",
+      "!src/wasm",
       "!dist"
     ]
   },

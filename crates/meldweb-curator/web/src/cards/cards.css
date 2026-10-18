@@ -1,0 +1,87 @@
+/* The custom cards page: the list, the file, and the card drawn from it. */
+.custom-cards {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  padding: 20px 24px;
+}
+
+.custom-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.custom-card-list button {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.custom-card-list button.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.custom-card {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) auto;
+  gap: 24px;
+  align-items: start;
+}
+
+.custom-card-source {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.custom-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.custom-card-source textarea {
+  min-height: 360px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.custom-card-checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.custom-card-checks .warning {
+  color: var(--muted);
+}
+
+.custom-card-preview img {
+  display: block;
+  width: 300px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+}
+
+.print-cards {
+  max-height: 30vh;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.print-cards label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.print-cards input {
+  width: 4em;
+}

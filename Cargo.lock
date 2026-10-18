@@ -2061,6 +2061,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mockery-wasm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "facet",
+ "facet-json",
+ "facet-typescript",
+ "mockery-core",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

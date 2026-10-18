@@ -99,6 +99,13 @@ function Decks({
               Wanted
             </Link>
             <Link
+              to="/cards"
+              className="button"
+              title="Cards of your own making, drawn and printed by Mirage Mockery"
+            >
+              Custom cards
+            </Link>
+            <Link
               to="/settings"
               className="button"
               title="Which printing of a card is offered first"

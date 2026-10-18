@@ -29,7 +29,9 @@ another player's public `mtg` repo holds of that list or of one deck
 another printing, a friend in `meldweb.toml`, to get) and its Build view is
 the deck's place against its list, with the collection moves to fix it
 (ADR-0036). A deck's Proxies… button is Phyrexian Metamorph's sheet, made
-in the browser (ADR-0038). It is three
+in the browser, and `/cards` edits and prints Mirage Mockery's custom cards,
+`cards/*.card.toml` in the same repo, through its own wasm, `mockery-wasm`
+(ADR-0040). It is three
 parts: `meldweb-wasm`, which is `chip-decklist` compiled for the browser; `web/`, a
 Vite + React + TanStack Router app in the root pnpm workspace; and `worker/`, the
 one Cloudflare Worker that serves the site and trades a GitHub login for tokens

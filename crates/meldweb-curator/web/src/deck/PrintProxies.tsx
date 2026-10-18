@@ -4,7 +4,6 @@ import type { GitHubApi, RepoRef } from "../github/api";
 import { loadCollection } from "../github/collection";
 import {
   DEFAULT_LAYOUT,
-  type Paper,
   perPage,
   proxiesOf,
   proxySheet,
@@ -13,16 +12,11 @@ import {
   toPrint,
 } from "../proxies";
 import type { Printings } from "../scryfall";
+import { downloadPdf } from "../ui/download";
 import { PrintIcon } from "../ui/icons";
 import { messageOf, Sheet } from "../ui/Sheet";
+import { SheetLayoutFields } from "../ui/SheetLayoutFields";
 import { printingNames } from "./archidektNames";
-
-const PAPERS: readonly { paper: Paper; label: string }[] = [
-  { paper: "a4", label: "A4" },
-  { paper: "letter", label: "Letter" },
-  { paper: "a3", label: "A3" },
-  { paper: "legal", label: "Legal" },
-];
 
 /**
  * Print proxies: a PDF of the deck's cards to print and cut, from Scryfall's
@@ -120,7 +114,7 @@ function ProxyDialog({
           step: `Fetching images ${done}/${of}…`,
         }),
       );
-      download(pdf, `${name}-proxies.pdf`);
+      downloadPdf(pdf, `${name}-proxies.pdf`);
       const sheets = found.proxies.reduce(
         (n, p) => n + p.qty * p.images.length,
         0,
@@ -191,60 +185,7 @@ function ProxyDialog({
           />
           Front side only for a card with two
         </label>
-        <div className="proxy-layout">
-          <label className="field">
-            Paper
-            <select
-              value={layout.paper}
-              onChange={(e) =>
-                setLayout({ ...layout, paper: e.target.value as Paper })
-              }
-            >
-              {PAPERS.map((p) => (
-                <option key={p.paper} value={p.paper}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Gap (mm)
-            <input
-              type="number"
-              min={0}
-              step={0.5}
-              value={layout.gapMm}
-              onChange={(e) =>
-                setLayout({ ...layout, gapMm: Number(e.target.value) })
-              }
-            />
-          </label>
-          <label className="field">
-            Margin (mm)
-            <input
-              type="number"
-              min={0}
-              step={0.5}
-              value={layout.marginMm}
-              onChange={(e) =>
-                setLayout({ ...layout, marginMm: Number(e.target.value) })
-              }
-            />
-          </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={layout.cutMarks}
-              onChange={(e) =>
-                setLayout({ ...layout, cutMarks: e.target.checked })
-              }
-            />
-            Cut marks
-          </label>
-        </div>
-        <p className="hint field-hint">
-          {typeof fits === "number" ? `${fits} cards to a page.` : fits}
-        </p>
+        <SheetLayoutFields layout={layout} onChange={setLayout} />
         {progress.kind === "done" && <p className="hint">{progress.summary}</p>}
         {refusal && (
           <p className="refusal" role="alert">
@@ -266,15 +207,4 @@ function ProxyDialog({
       </form>
     </Sheet>
   );
-}
-
-function download(bytes: Uint8Array, file: string) {
-  const url = URL.createObjectURL(
-    new Blob([bytes as BlobPart], { type: "application/pdf" }),
-  );
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = file;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
