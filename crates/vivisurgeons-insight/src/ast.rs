@@ -63,6 +63,17 @@ impl From<String> for CounterKind {
     }
 }
 
+/// The card a meld makes (CR 701.42).
+#[derive(Clone, Debug, PartialEq)]
+pub enum MeldInto {
+    /// "meld them into Hanweir, the Writhing Township".
+    Named(String),
+    /// "meld them into ~, Gaea Incarnate": the melded card's name is this
+    /// card's short name (CR 201.5c) and then this, so renaming the card
+    /// renames it too and the tree stays the same.
+    ShortNameAnd(String),
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Ability {
     /// What is fixed as the ability is put on the stack or triggers,
@@ -2290,10 +2301,7 @@ pub enum Effect {
     /// "meld them into Hanweir, the Writhing Township" (CR 701.42).
     Meld {
         what: Objects,
-        into: String,
-        /// The melded card's name begins with this card's short name, which
-        /// the text says as ~ ("meld them into ~, Gaea Incarnate").
-        shares_short_name: bool,
+        into: MeldInto,
     },
     /// "it produces {C} instead of any other type and amount".
     ProducesInstead {

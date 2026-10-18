@@ -1,0 +1,23 @@
+[package]
+name = "mockery-core"
+description = "Custom Magic cards to PDF and PNG through Typst, checked against the card index so a real card is never one of them"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+facet.workspace = true
+facet-toml.workspace = true
+serde_json.workspace = true
+chip-scryfall.workspace = true
+vivisurgeons-insight.workspace = true
+typst = "0.15.1"
+typst-layout = "0.15.1"
+typst-pdf = "0.15.1"
+typst-render = "0.15.1"
+typst-assets = { version = "0.15.1", features = ["fonts"] }
+
+[dev-dependencies]
+proptest.workspace = true

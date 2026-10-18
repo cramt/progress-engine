@@ -197,6 +197,11 @@ const SAME_PLURAL: &[&str] = &[
     "spawn",
 ];
 
+/// Nouns whose plural Oracle text says both ways: Hand of Emrakul's "four
+/// Eldrazi Spawn" (2010) against "Scions and Spawns you control". `plural`
+/// gives the "s"; either is the plural when a text is read back.
+const EITHER_PLURAL: &[&str] = &["spawn"];
+
 fn plural(sg: &str) -> String {
     if SAME_PLURAL.contains(&sg) {
         return sg.to_string();
@@ -265,7 +270,9 @@ impl Far {
 }
 
 fn noun_eq(t: &str, sg: &str, n: Num) -> bool {
-    let is_pl = plural(sg) == t || (t != sg && singulars(t).iter().any(|s| s == sg));
+    let is_pl = plural(sg) == t
+        || (t != sg && singulars(t).iter().any(|s| s == sg))
+        || (t == sg && EITHER_PLURAL.contains(&sg));
     match n {
         Num::Sg => t == sg,
         Num::Pl => is_pl,
@@ -9586,21 +9593,17 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
             clauses(o, then, cx);
         }
         Effect::PreventThatDamage => o.w("prevent that damage"),
-        Effect::Meld {
-            what,
-            into,
-            shares_short_name,
-        } => {
+        Effect::Meld { what, into } => {
             o.w("meld");
             objects(o, what);
             o.w("into");
-            match into.split_once(", ") {
-                Some((_, rest)) if *shares_short_name => {
+            match into {
+                MeldInto::Named(name) => o.w(name),
+                MeldInto::ShortNameAnd(rest) => {
                     o.tok(Tok::SelfRef);
                     o.w(",");
                     o.w(rest);
                 }
-                _ => o.w(into),
             }
         }
         Effect::ProducesInstead { what, mana: m } => {
@@ -12777,9 +12780,8 @@ fn statics(o: &mut Out, ss: &[Static]) {
                 }
             }
         }
-        // A run of PlayFrom from one zone is one sentence.
-        if matches!(s, Static::PlayFrom { .. }) {
-            i += play_from_run(o, ss, i);
+        if let Some(j) = play_from_run(o, ss, i) {
+            i = j;
             continue;
         }
         // "can't block or be blocked by non-Spirit creatures": two rules,
@@ -13723,7 +13725,9 @@ fn static_other(o: &mut Out, s: &Static) {
             costs(o, c);
             o.w("rather than pay its mana cost");
         }
-        Static::PlayWithTopRevealed(Player::That | Player::Each) => {
+        // The parser files "Players play with … their libraries" as each
+        // player (statics.rs), the owners of those libraries.
+        Static::PlayWithTopRevealed(Player::Each) => {
             o.w("players play with the top card of their libraries revealed")
         }
         Static::PlayWithTopRevealed(_) => o.w("play with the top card of your library revealed"),
@@ -14004,12 +14008,12 @@ fn unsaid(o: &mut Out, s: &Static) {
 }
 
 /// Statics inside "as long as …," or "if …,": one sentence, joined.
-/// "you may play lands and cast spells from the top of your library": a
-/// run of `PlayFrom` from one zone, said as one permission. Returns how
-/// many statics it said.
-fn play_from_run(o: &mut Out, ss: &[Static], i: usize) -> usize {
+/// A run of PlayFrom from one zone, as one sentence ("you may play lands and
+/// cast spells from the top of your library"), said at `i`; the index after
+/// it, or `None` when `ss[i]` is no PlayFrom.
+fn play_from_run(o: &mut Out, ss: &[Static], i: usize) -> Option<usize> {
     let Static::PlayFrom { zone: z, .. } = &ss[i] else {
-        return 0;
+        return None;
     };
     let mut j = i;
     while matches!(ss.get(j), Some(Static::PlayFrom { zone: z2, .. }) if z2 == z) {
@@ -14040,7 +14044,7 @@ fn play_from_run(o: &mut Out, ss: &[Static], i: usize) -> usize {
     }
     o.w("from");
     zone(o, z);
-    j - i
+    Some(j)
 }
 
 fn statics_joined(o: &mut Out, ss: &[Static]) {
@@ -14059,9 +14063,8 @@ fn statics_joined(o: &mut Out, ss: &[Static]) {
                 continue;
             }
         }
-        // "you may play lands and cast spells from the top of your library".
-        if matches!(s, Static::PlayFrom { .. }) {
-            i += play_from_run(o, ss, i);
+        if let Some(j) = play_from_run(o, ss, i) {
+            i = j;
             continue;
         }
         i += sized(o, ss, i);

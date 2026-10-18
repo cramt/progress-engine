@@ -9,6 +9,8 @@ members = [
     "crates/vivisurgeons-insight",
     "crates/chancellor-of-the-spires",
     "crates/chancellor-of-the-spires/cr",
+    "crates/phyrexian-metamorph/*",
+    "crates/mirage-mockery/*",
 ]
 # Gitaxian Probe is a workspace of its own (crates/gitaxian-probe/Cargo.toml), so
 # a plain `cargo` here resolves neither V8 nor the build-time download of
@@ -46,6 +48,7 @@ toml_edit = { version = "0.25", default-features = false, features = ["parse", "
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 imbl = "7"
 ascent = { version = "0.8.1", default-features = false }
+pdf-writer = "0.15"
 
 chip-decklist = { path = "crates/reality-chip/decklist" }
 chip-scryfall = { path = "crates/reality-chip/scryfall" }
@@ -54,6 +57,8 @@ gauntlet-toml = { path = "crates/ichormoon-gauntlet/toml" }
 gauntlet-sim = { path = "crates/ichormoon-gauntlet/sim" }
 chip-stats = { path = "crates/reality-chip/stats" }
 vivisurgeons-insight = { path = "crates/vivisurgeons-insight" }
+metamorph-sheet = { path = "crates/phyrexian-metamorph/sheet" }
+mockery-core = { path = "crates/mirage-mockery/core" }
 
 # meldweb-wasm ships over the network, so it trades build time for bytes. A
 # profile of its own leaves Gauntlet's release build as it was.
@@ -69,4 +74,34 @@ strip = true
 [profile.dev.package.vivisurgeons-insight]
 opt-level = 1
 [profile.dev.package.serde_json]
+opt-level = 1
+
+# Mirage Mockery's tests lay out cards through Typst and scan the whole card
+# index for the real-card refusal, which took 195s at opt-level 0 and 3s
+# optimised.
+[profile.dev.package.typst-layout]
+opt-level = 1
+[profile.dev.package.typst-library]
+opt-level = 1
+[profile.dev.package.typst-realize]
+opt-level = 1
+[profile.dev.package.typst-eval]
+opt-level = 1
+[profile.dev.package.typst-render]
+opt-level = 1
+[profile.dev.package.typst-pdf]
+opt-level = 1
+[profile.dev.package.krilla]
+opt-level = 1
+[profile.dev.package.tiny-skia]
+opt-level = 1
+[profile.dev.package.usvg]
+opt-level = 1
+[profile.dev.package.rustybuzz]
+opt-level = 1
+[profile.dev.package.ttf-parser]
+opt-level = 1
+[profile.dev.package.chip-scryfall]
+opt-level = 1
+[profile.dev.package.facet-json]
 opt-level = 1

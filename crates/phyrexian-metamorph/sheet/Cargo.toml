@@ -1,0 +1,11 @@
+[package]
+name = "metamorph-sheet"
+description = "Card images in, a print-and-cut PDF of proxies out."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+pdf-writer.workspace = true
+thiserror.workspace = true

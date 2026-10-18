@@ -1,6 +1,6 @@
 # progress-engine
 
-Three products, one workspace. Read NAMES_FOR_FUTURE.md for why they are named
+Several products, one workspace. Read NAMES_FOR_FUTURE.md for why they are named
 what they are and where a fourth would go.
 
 **Ichormoon Gauntlet** (`crates/ichormoon-gauntlet/`, binary `gauntlet`) is what
@@ -52,6 +52,14 @@ reimplements what a decklist is: parsing, `commander` and `outside` come from
 Rust, and `web/src/deck.gen.ts` is generated from the wire types
 (`UPDATE_TS=1 cargo test -p meldweb-wasm`), with a test that fails when it is stale.
 
+**Phyrexian Metamorph** (`crates/phyrexian-metamorph/`, binary `metamorph`) is
+the proxy maker. `metamorph-sheet` lays card JPEGs out on paper with cut marks
+and knows nothing else about Magic; `metamorph-cli` takes a list of printings,
+or a `.deck.toml` with `--no-basics` and `--minus <collection.toml>`, and fetches
+the images from Scryfall. What a deck still needs is `chip-decklist`'s
+`supply`, as on Curator's Sourcing view, never a count of its own. Its README
+holds the flags and the measured runs.
+
 **Vivisurgeon's Insight** (`crates/vivisurgeons-insight/`, binary `insight`) is a
 spike, not a product: a grammar that reads Oracle text into a typed ability
 tree, and counts how much of Magic it covers. Its README holds the numbers and
@@ -66,6 +74,22 @@ must build for `wasm32-unknown-unknown`, so ascent's `par` (rayon) is on only of
 The Comprehensive Rules are pinned by hash in `crates/chancellor-of-the-spires/cr/pin.json`
 and never committed. Cite a rule as "CR 613.4c" so `cr check` can resolve it,
 and bump the pin only through `cr diff`'s worklist (that crate's README).
+
+**Mirage Mockery** (`crates/mirage-mockery/`: `mockery-core`, the library
+that builds for wasm, and `mockery-cli`, binary `mockery`) prints custom
+cards: a `.card.toml` to a PNG or PDF, or a sheet to cut with Phyrexian
+Metamorph's paper, gap, margin and cut-mark flags, through Typst compiled
+in-process. It refuses a real card, by name or by
+the same cost and rules text under another name, against the card index, and
+points at `metamorph` instead
+([ADR-0039](docs/adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
+Its sheet stays Typst's, not `metamorph-sheet`'s: that one embeds JPEGs, and
+vector cards printed through it came out soft at twelve times the size. It warns where Insight cannot read the rules text. The
+frame is its own. Scryfall's mana symbols are committed in `core/symbols/` and
+compiled in by `build.rs`; `core/symbols/fetch.sh` refreshes them. The
+flake's `wasm-libs` check builds `mockery-core` and Chancellor for wasm32, so
+that claim cannot go stale.
+[docs/research/mirage-mockery.md](docs/research/mirage-mockery.md) is the plan.
 
 Gauntlet stands on **Reality Chip** (`crates/reality-chip/`), the shared core:
 `chip-scryfall` (card index, query syntax), `chip-decklist` (Archidekt parsing)
@@ -98,8 +122,8 @@ what; respect those boundaries.
 
 ## Build and test
 
-Plain `cargo` works: the workspace is Gauntlet, Reality Chip and
-`meldweb-wasm`, and `rust-toolchain.toml` picks the toolchain. Only a cargo
+Plain `cargo` works: the workspace is every product above but Gitaxian Probe,
+and `rust-toolchain.toml` picks the toolchain. Only a cargo
 that reads that file has the wasm32 target, so `pnpm dev` and a wasm32 clippy
 need the devshell; everything native builds with any cargo. The flake devshell (`nix develop`) carries the same toolchain plus
 `jq`, `cargo-nextest` and the web app's node, pnpm, biome and wasm-bindgen, and
@@ -125,8 +149,9 @@ and the rules, never from `crates/`, or it checks nothing.
 **Run `cargo fmt --all` before every commit**, and `pnpm fmt` when the web app
 changed. CI is `nix flake check`, whose checks are fmt, clippy, test, build,
 the Python checker, `cr-citations` (every "CR nnn.n" in the repo names a rule in the pinned CR), `meldweb-web` (biome, tsc, vitest and the site build,
-against the crane-built wasm) and the probe's own fmt, clippy, test, web build
-and web check; a fmt failure aborts the others, so an
+against the crane-built wasm), `wasm-libs` (`mockery-core` and Chancellor built
+for wasm32) and the probe's own fmt, clippy, test, web build and web check; a
+fmt failure aborts the others, so an
 unformatted commit reports red without ever having run the tests. This has
 hidden broken clippy and tests across four commits before.
 

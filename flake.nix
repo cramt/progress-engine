@@ -70,7 +70,10 @@
             (builtins.match ".*/crates/meldweb-curator/web(/.*)?$" path == null)
             || (builtins.match ".*/crates/meldweb-curator/web(/src(/deck\\.gen\\.ts)?)?$" path != null)
           )
-          && ((builtins.match ".*\\.(json|jsonl|txt|ts)$" path != null)
+          # .typ is Mirage Mockery's template, and its symbols are the only .svg
+          # any Rust reads: the repo's assets/ has many more.
+          && ((builtins.match ".*\\.(json|jsonl|txt|ts|typ)$" path != null)
+            || (builtins.match ".*/crates/mirage-mockery/core/symbols/.*\\.svg$" path != null)
             || (craneLib.filterCargoSources path type));
         name = "source";
       };
@@ -124,6 +127,22 @@
             wasm-bindgen --target web --out-dir $out \
               target/wasm32-unknown-unknown/wasm/meldweb_wasm.wasm
           '';
+        });
+
+      # The libraries that claim to build for the browser, built for it, so the
+      # claim cannot go stale unnoticed: Chancellor's did, once Insight's CLI
+      # pulled ureq into its library's tree.
+      wasmLibsArgs =
+        commonArgs
+        // {
+          pname = "wasm-libs";
+          cargoExtraArgs = "-p mockery-core -p chancellor-of-the-spires";
+          CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
+          doCheck = false;
+        };
+      wasmLibs = craneLib.cargoBuild (wasmLibsArgs
+        // {
+          cargoArtifacts = craneLib.buildDepsOnly wasmLibsArgs;
         });
 
       # The web app's check, test and build, as the one derivation CI runs. The
@@ -484,6 +503,13 @@
         meta.description = "Deploy Meldweb Curator's site and worker with wrangler";
         program = pkgs.lib.getExe curatorDeploy;
       };
+      # The default package builds the whole workspace, so `metamorph` is
+      # already in it; this only names the binary for `nix run`.
+      apps.metamorph = {
+        type = "app";
+        meta.description = "Phyrexian Metamorph: a PDF of proxies to print and cut";
+        program = "${gauntlet}/bin/metamorph";
+      };
       apps.infra = {
         type = "app";
         meta.description = "Run OpenTofu on Meldweb Curator's Cloudflare stack";
@@ -493,6 +519,7 @@
       checks = {
         inherit gauntlet;
         meldweb-web = meldwebWeb;
+        wasm-libs = wasmLibs;
         gitaxian-probe-web = probeWeb;
         gitaxian-probe-test = probeTest;
         gitaxian-probe-web-check = probeWebCheck;

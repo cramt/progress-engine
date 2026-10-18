@@ -34,6 +34,8 @@ the narrow tag has come up empty, which it has not yet.
 | **Experimental Augury** | The Monte Carlo cross-checking oracle, if `gauntlet-sim` is ever extracted. | yes |
 | **Meldweb Curator** | The git-backed deck editor: a decklist in a repo is the deck, and saving is a commit. `crates/meldweb-curator/`. | yes |
 | **Vivisurgeon's Insight** | A spike: Oracle text read into a typed ability tree, and a count of how much of Magic that covers. `crates/vivisurgeons-insight/`, binary `insight`. | yes |
+| **Phyrexian Metamorph** | Proxies: a list of printings, or a deck less what the collection owns, as a PDF to print and cut. `crates/phyrexian-metamorph/`, binary `metamorph`. | yes |
+| **Mirage Mockery** | Custom cards from a `.card.toml` to PDF and PNG, never a real card. `crates/mirage-mockery/`, binary `mockery`. | yes |
 | **Chancellor of the Spires** | The rules engine: the game as a typed Rust state machine, and ascent rules deriving what is true now from Insight's trees. `crates/chancellor-of-the-spires/`. Planned in docs/research/rules-engine.md. | yes |
 
 A gauntlet is a set of trials you put something through, which is what a
@@ -63,6 +65,23 @@ or sorcery an opponent wrote, which is what the engine does with Insight's
 trees: it executes card text it did not author. Its opening-hand reveal acts
 before the first turn, a part of the game the engine has to own and Gauntlet
 only approximates.
+
+Phyrexian Metamorph went to the proxy maker over Mirage Mockery, and rests
+on both. Its card enters as a copy of an artifact or creature, *except it's
+an artifact in addition to its other types*: a copy of the card that is
+openly something else, which is what a proxy is. Mirage Mockery's name fits
+as well (an imitation that looks real), but its copies are tokens, which are
+not cards. The Metamorph only copies artifacts and creatures, and a proxy
+copies any card; that is the weak point, and Surgical Metamorph, which copies
+any permanent, would close it at the cost of a word that says nothing about
+printing.
+
+Mirage Mockery went to custom cards instead, and rests on both. A custom
+card is a mockup, a mirage of a card that was never printed. The card, `{2}{U}`,
+creates a token that's a copy of a creature you control. What kept it from the
+proxy maker is what suits it here: a token stands in for a card without being
+one, and a custom card is not a card of Magic. Mockery and Metamorph split
+printing at that line: Metamorph copies real cards, and Mockery refuses to.
 
 ### Why Reality Chip is in here without the tag
 
@@ -113,7 +132,10 @@ Checked 2026-09-21. Free: `ichormoon-gauntlet`, `reality-chip`, `gitaxian-probe`
 `tekuthal`, `glistener`, `phyrexia`, `metatect`, `ichormoon`.
 `vivisurgeons-insight` was checked free on 2026-10-11 and is now spent.
 `chancellor-of-the-spires` and `chancellor` were checked free on 2026-10-13,
-and the first is now spent.
+and the first is now spent. `phyrexian-metamorph` and `mirage-mockery` were
+checked free on 2026-10-17, and both are now spent; bare `metamorph` and
+`mockery` are taken, so their crates are `metamorph-*` and `mockery-*` under
+the whole name, as the probe's are.
 
 Taken as bare words, so those need the full card name: `gauntlet`, `ingester`,
 `curator`, `seer`, `augury`, `chip`, `praetor`, `quicksilver`, `toxic`.
@@ -135,6 +157,8 @@ crates/meldweb-curator/{wasm}                        packages meldweb-*, beside 
 crates/gitaxian-probe/{engine,assets,web-check,bindgen}  packages gitaxian-probe-*
 crates/vivisurgeons-insight                         package vivisurgeons-insight, one crate while it is a spike
 crates/chancellor-of-the-spires/{cr}                package chancellor-of-the-spires at the root, and chancellor-* beneath it
+crates/phyrexian-metamorph/{sheet,cli}              packages metamorph-*
+crates/mirage-mockery/{core,cli}                    packages mockery-*
 ```
 
 The first two shorten the directory to its distinctive word. Gitaxian Probe does
