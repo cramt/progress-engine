@@ -36,16 +36,7 @@ export interface Real {
  * A `.card.toml`, read.
  */
 export type Checked =
-  | {
-      kind: "card";
-      name: string;
-      type_line: string;
-      cost: string;
-      word?: string;
-      art?: string;
-      lines: number;
-      unread: Unread[];
-    }
+  | { kind: "card"; name: string; type_line: string; cost: string; word?: string; art?: string; lines: number; unread: Unread[] }
   | { kind: "refused"; message: string };
 
 /**
