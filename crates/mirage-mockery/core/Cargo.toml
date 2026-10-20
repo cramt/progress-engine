@@ -10,6 +10,7 @@ repository.workspace = true
 anyhow.workspace = true
 facet.workspace = true
 facet-toml.workspace = true
+toml_edit.workspace = true
 serde_json.workspace = true
 vivisurgeons-insight.workspace = true
 typst = "0.15.1"

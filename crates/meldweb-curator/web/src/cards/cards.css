@@ -41,7 +41,7 @@
   align-items: center;
 }
 
-.custom-card-source textarea {
+.custom-card-source > textarea {
   min-height: 360px;
   font-family: var(--mono);
   font-size: 13px;
@@ -84,4 +84,112 @@
 
 .print-cards input {
   width: 4em;
+}
+
+.custom-card-head {
+  gap: 12px;
+}
+
+.custom-card-head code {
+  margin-right: auto;
+}
+
+/* The form: the same file as the TOML, a field at a time. */
+.card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card-form fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.card-form legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.card-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-form-row > .field,
+.card-form-row > input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.card-form-chips,
+.card-form-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.card-form-chips button {
+  --control-h: 26px;
+  font-size: 12px;
+}
+
+.card-form-chips button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.card-form-symbols button,
+.card-form-cost button {
+  --control-h: 28px;
+  padding: 0 4px;
+}
+
+.card-form-symbols img.mana,
+.card-form-cost img.mana {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.card-form-cost {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
+}
+
+.card-form-cost-text {
+  max-width: 14em;
+  font-family: var(--mono);
+}
+
+.card-form-more summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.card-form-pt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.card-form-pt input,
+.card-form-corner-value {
+  width: 4em;
+  text-align: center;
+}
+
+.card-form textarea {
+  font-family: inherit;
+  font-size: 14px;
 }

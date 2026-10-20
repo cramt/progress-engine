@@ -4,15 +4,30 @@
  * are most of its size and only this page needs them. Call `loadMockery`
  * before anything else here.
  */
-import type { CardSheet, Checked, SheetCard } from "./mockery.gen";
+import type {
+  CardSheet,
+  Checked,
+  Form,
+  Opened,
+  SheetCard,
+} from "./mockery.gen";
 import init, {
   check,
+  form_of,
   render_png,
   sheet_pdf,
+  write_form,
 } from "./wasm/mockery/mockery_wasm.js";
 import packed from "./wasm/mockery/mockery_wasm_bg.wasm-gz?url";
 
-export type { CardSheet, Checked, SheetCard } from "./mockery.gen";
+export type {
+  CardSheet,
+  Checked,
+  Form,
+  FormCorner,
+  Opened,
+  SheetCard,
+} from "./mockery.gen";
 
 let loading: Promise<unknown> | null = null;
 
@@ -44,6 +59,16 @@ export function loadMockery(): Promise<void> {
 
 export function checkCard(text: string): Checked {
   return JSON.parse(check(text)) as Checked;
+}
+
+/** The file as the form's fields, or why the form can't hold it. */
+export function formOf(text: string): Opened {
+  return JSON.parse(form_of(text)) as Opened;
+}
+
+/** `text` with the form's fields written in, the rest of it as it was. */
+export function writeForm(text: string, form: Form): string {
+  return write_form(text, JSON.stringify(form));
 }
 
 /** The card alone, as a PNG; `art` is its art's bytes when it names some. */

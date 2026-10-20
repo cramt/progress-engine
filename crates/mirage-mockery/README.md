@@ -32,8 +32,12 @@ example card is in `core/tests/cards/`.
 ## In Curator
 
 Meldweb Curator's `/cards` page edits `cards/*.card.toml` in the Magic repo
-beside the card drawn from it, and prints a sheet of them. That is the third
-crate, `mockery-wasm`, its own module so no other page downloads Typst
+beside the card drawn from it, and prints a sheet of them. A card is edited
+as a form, with buttons for its cost, types and symbols, or as the TOML
+itself, switching freely: the file is the only state, and `core/src/form.rs`
+reads the form out of it and writes edits back in place, so comments and
+order survive. That is the third crate, `mockery-wasm`, its own module so no
+other page downloads Typst
 ([ADR-0040](../../docs/adr/0040-curator-prints-proxies-and-custom-cards-in-the-browser.md)).
 
 Mirage Mockery is unofficial Fan Content permitted under the Fan Content

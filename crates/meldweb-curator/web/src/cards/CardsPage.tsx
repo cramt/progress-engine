@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Banners, SaveStatus, Toolbar } from "../deck/Toolbar";
 import type { GitHubApi, RepoRef } from "../github/api";
 import {
@@ -11,16 +11,18 @@ import {
 import { commitEdit } from "../github/repoFile";
 import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
-import { loadMockery } from "../mockery";
+import { formOf, loadMockery, writeForm } from "../mockery";
 import { Loading } from "../ui/Loading";
 import { messageOf, Sheet, useBusy } from "../ui/Sheet";
+import { CardForm } from "./CardForm";
 import { PrintCards } from "./PrintCards";
 import { useCardChecks } from "./useCardChecks";
 import "./cards.css";
 
 /**
- * Custom cards: each `cards/*.card.toml` in the repo, edited as its text
- * beside the card Mirage Mockery draws of it, and printed on a sheet.
+ * Custom cards: each `cards/*.card.toml` in the repo, edited as a form or
+ * as its text, beside the card Mirage Mockery draws of it, and printed on a
+ * sheet.
  */
 export function CardsPage({
   api,
@@ -152,6 +154,9 @@ function CardEditor({
     }),
   );
   const save = useSave(store);
+  const [mode, setMode] = useState(loadMode);
+  const opened = useMemo(() => formOf(text), [text]);
+  const showing = mode === "form" && opened.kind === "form" ? "form" : "toml";
   useEffect(() => store.edit(text), [store, text]);
   const { checked, preview, missingArt } = useCardChecks(
     api,
@@ -166,6 +171,27 @@ function CardEditor({
         <div className="custom-card-head">
           <code>{file.path}</code>
           <SaveStatus save={save} path={file.path} />
+          <div className="segmented">
+            {MODES.map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={showing === m}
+                title={
+                  m === "form" && opened.kind === "refused"
+                    ? `The form can't open this file: ${opened.message}`
+                    : undefined
+                }
+                disabled={m === "form" && opened.kind === "refused"}
+                onClick={() => {
+                  setMode(m);
+                  saveMode(m);
+                }}
+              >
+                {m === "form" ? "Form" : "TOML"}
+              </button>
+            ))}
+          </div>
         </div>
         <Banners
           save={save}
@@ -174,12 +200,26 @@ function CardEditor({
           onOverwrite={() => void store.overwrite()}
           onDismiss={() => {}}
         />
-        <textarea
-          aria-label="The card file"
-          spellCheck={false}
-          value={text}
-          onChange={(e) => edit(e.target.value)}
-        />
+        {showing === "form" && opened.kind === "form" ? (
+          <CardForm
+            form={opened.form}
+            onChange={(form) => edit(writeForm(text, form))}
+          />
+        ) : (
+          <>
+            {mode === "form" && opened.kind === "refused" && (
+              <p className="hint">
+                The form can't open this file until it reads: {opened.message}
+              </p>
+            )}
+            <textarea
+              aria-label="The card file"
+              spellCheck={false}
+              value={text}
+              onChange={(e) => edit(e.target.value)}
+            />
+          </>
+        )}
         <ul className="custom-card-checks">
           {checked.kind === "refused" && (
             <li className="refusal">{checked.message}</li>
@@ -218,6 +258,29 @@ function CardEditor({
       </div>
     </section>
   );
+}
+
+type Mode = "form" | "toml";
+const MODES: readonly Mode[] = ["form", "toml"];
+const MODE_KEY = "meldweb.cards.mode";
+
+/** The way cards were last edited, the form until one is picked. */
+function loadMode(): Mode {
+  try {
+    return globalThis.localStorage?.getItem(MODE_KEY) === "toml"
+      ? "toml"
+      : "form";
+  } catch {
+    return "form";
+  }
+}
+
+function saveMode(mode: Mode) {
+  try {
+    globalThis.localStorage?.setItem(MODE_KEY, mode);
+  } catch {
+    // storage blocked: the mode lasts this page
+  }
 }
 
 function NewCardDialog({

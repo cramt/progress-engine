@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use anyhow::anyhow;
 use facet::Facet;
 use mockery_core::card::Card;
+use mockery_core::form::Form;
 use mockery_core::read::read;
 use mockery_core::render::{self, Layout, Paper, Sheet};
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
@@ -41,6 +42,15 @@ pub enum Checked {
     Refused {
         message: String,
     },
+}
+
+/// A card file as a form, or why it cannot be one.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum Opened {
+    Form { form: Form },
+    Refused { message: String },
 }
 
 /// Portrait, as Phyrexian Metamorph's paper.
@@ -111,6 +121,28 @@ pub fn check_text(text: &str) -> Checked {
 #[wasm_bindgen]
 pub fn check(text: &str) -> String {
     facet_json::to_string(&check_text(text)).expect("Checked serialises")
+}
+
+/// The file as the form's fields, JSON of [`Opened`]: the custom cards page
+/// edits a card either as its file or as a form, and opens the form from this.
+#[wasm_bindgen]
+pub fn form_of(text: &str) -> String {
+    let opened = match Form::of(text) {
+        Ok(form) => Opened::Form { form },
+        Err(e) => Opened::Refused {
+            message: format!("{e:#}"),
+        },
+    };
+    facet_json::to_string(&opened).expect("Opened serialises")
+}
+
+/// `text` with the form's fields (JSON of `Form`) written into it, the rest
+/// of the file as it was.
+#[wasm_bindgen]
+pub fn write_form(text: &str, form: &str) -> Result<String, JsError> {
+    let form: Form =
+        facet_json::from_str(form).map_err(|e| JsError::new(&format!("not a Form: {e}")))?;
+    form.write_into(text).map_err(js)
 }
 
 /// Art bytes by the path a card names them by.
@@ -213,6 +245,7 @@ mod tests {
         g.add_type::<Checked>();
         g.add_type::<CardSheet>();
         g.add_type::<SheetCard>();
+        g.add_type::<Opened>();
         let want = format!(
             "// Generated from crates/mirage-mockery/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p mockery-wasm rewrites it.\n\n{}",
@@ -234,6 +267,16 @@ mod tests {
             Checked::Card { name, .. } => assert_eq!(name, "Proofsheet Drone"),
             Checked::Refused { message } => panic!("{message}"),
         }
+    }
+
+    #[test]
+    fn a_form_opens_from_the_file_and_writes_back_into_it() {
+        let opened = form_of(DRONE);
+        let form = opened
+            .strip_prefix(r#"{"kind":"form","form":"#)
+            .and_then(|f| f.strip_suffix('}'))
+            .unwrap_or_else(|| panic!("{opened}"));
+        assert_eq!(write_form(DRONE, form).unwrap_or_else(|_| panic!()), DRONE);
     }
 
     #[test]

@@ -2,6 +2,37 @@
 // UPDATE_TS=1 cargo test -p mockery-wasm rewrites it.
 
 /**
+ * A card file as a form, or why it cannot be one.
+ */
+export type Opened =
+  | { kind: "form"; form: Form }
+  | { kind: "refused"; message: string };
+
+/**
+ * Every field of a card file. An empty string is a field the file leaves out.
+ */
+export interface Form {
+  name: string;
+  cost: string;
+  typeLine: string;
+  rules: string;
+  flavor: string;
+  corner: FormCorner;
+  art: string;
+  artist: string;
+}
+
+/**
+ * The bottom-right corner, one of them at most, as [`crate::card::Corner`].
+ * Power and toughness are apart here, as the form asks for them.
+ */
+export type FormCorner =
+  | { kind: "none" }
+  | { kind: "pt"; power: string; toughness: string }
+  | { kind: "loyalty"; value: string }
+  | { kind: "defense"; value: string };
+
+/**
  * One card on a sheet: its text, and its art's bytes when it names some.
  */
 export interface SheetCard {

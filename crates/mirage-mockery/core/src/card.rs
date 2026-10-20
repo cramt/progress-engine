@@ -6,28 +6,35 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use facet::Facet;
 
+/// The file as written, before any of it is checked against the rest.
 #[derive(Facet)]
 #[facet(deny_unknown_fields)]
-struct RawCard {
-    name: String,
+pub(crate) struct RawCard {
+    pub(crate) name: String,
     #[facet(default)]
-    cost: Option<String>,
+    pub(crate) cost: Option<String>,
     #[facet(rename = "type")]
-    type_line: String,
+    pub(crate) type_line: String,
     #[facet(default)]
-    rules: Option<String>,
+    pub(crate) rules: Option<String>,
     #[facet(default)]
-    flavor: Option<String>,
+    pub(crate) flavor: Option<String>,
     #[facet(default)]
-    pt: Option<String>,
+    pub(crate) pt: Option<String>,
     #[facet(default)]
-    loyalty: Option<String>,
+    pub(crate) loyalty: Option<String>,
     #[facet(default)]
-    defense: Option<String>,
+    pub(crate) defense: Option<String>,
     #[facet(default)]
-    art: Option<PathBuf>,
+    pub(crate) art: Option<PathBuf>,
     #[facet(default)]
-    artist: Option<String>,
+    pub(crate) artist: Option<String>,
+}
+
+impl RawCard {
+    pub(crate) fn parse(text: &str) -> Result<Self> {
+        facet_toml::from_str(text).map_err(|e| anyhow::anyhow!("{e}"))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -80,7 +87,7 @@ impl Card {
     }
 
     pub fn parse(text: &str, dir: &Path) -> Result<Self> {
-        let raw: RawCard = facet_toml::from_str(text).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let raw = RawCard::parse(text)?;
         let has = |word: &str| raw.type_line.split_whitespace().any(|w| w == word);
         let corner = match (raw.pt, raw.loyalty, raw.defense) {
             (None, None, None) => Corner::None,
