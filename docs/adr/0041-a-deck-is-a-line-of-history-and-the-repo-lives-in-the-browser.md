@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # A deck is its own line of history, and the repo lives in the browser
@@ -21,9 +21,9 @@ ADR-0024 kept every deck on one `main` and refused branches, because a branch fo
 - **Rolling back** stays ADR-0024's restore: take every change from the revision, as one new commit. History is never rewritten by an edit.
 - **Blame** is per card line, not per text line. A card's line is the commit that last changed that card's line in the deck's file, found by walking the deck's line. It is useful alone, and it is what collaboration will need.
 
-## The repo is in the browser; GitHub is a remote
+## The repo is in the browser, and a remote is optional
 
-The repo is a real bare git repo in the browser's OPFS. It holds loose objects and refs, with no working tree and no index, and the Rust in `meldweb-wasm` reads and writes it through `meldweb-git` (gitoxide's object crates). Every object is a real git object, so another player's commits keep their ids in your repo. **Offline is a repo with no remote.** It moves between computers as a zip of that bare repo, which `git clone` also reads on a desktop. Pushing to and fetching from GitHub is the online mode, through the Worker, because github.com's git endpoints send no CORS headers. It is how a fork reaches someone else's repo.
+The repo is a real bare git repo in the browser's OPFS. It holds loose objects and refs, with no working tree and no index, and the Rust in `meldweb-wasm` reads and writes it through `meldweb-git` (gitoxide's object crates). Every object is a real git object, so another player's commits keep their ids in your repo. **A remote is optional, as in any git repo: offline is a repo with none.** It moves between computers as a zip of that bare repo, which `git clone` also reads on a desktop. Pushing to and fetching from GitHub is the online mode, through the Worker, because github.com's git endpoints send no CORS headers. It is how a fork reaches someone else's repo.
 
 ## Consequences
 
