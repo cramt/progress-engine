@@ -157,7 +157,7 @@
         commonArgs
         // {
           pname = "wasm-libs";
-          cargoExtraArgs = "-p mockery-core -p chancellor-of-the-spires";
+          cargoExtraArgs = "-p mockery-core -p chancellor-of-the-spires -p meldweb-git";
           CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
           doCheck = false;
         };
@@ -563,7 +563,14 @@
             cargoClippyExtraArgs = "--all-targets -- --deny warnings";
           });
         fmt = craneLib.cargoFmt {inherit src;};
-        test = craneLib.cargoTest (commonArgs // {inherit cargoArtifacts;});
+        # meldweb-git's objects are checked against real git, which skips
+        # without it on PATH and fails instead where this is set.
+        test = craneLib.cargoTest (commonArgs
+          // {
+            inherit cargoArtifacts;
+            nativeBuildInputs = (commonArgs.nativeBuildInputs or []) ++ [pkgs.git];
+            MELDWEB_GIT_REQUIRE = "1";
+          });
         # Every "CR nnn.n" anywhere in the repo, docs included, names a rule
         # in the pinned CR. It reads the whole tree rather than the Rust
         # source, which leaves docs/ and Markdown out.

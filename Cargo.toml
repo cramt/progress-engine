@@ -6,6 +6,8 @@ members = [
     "crates/ichormoon-gauntlet/*",
     "crates/reality-chip/*",
     "crates/meldweb-curator/wasm",
+    # The offline repo: real git objects over a storage the browser provides.
+    "crates/meldweb-curator/git",
     "crates/vivisurgeons-insight",
     "crates/chancellor-of-the-spires",
     "crates/chancellor-of-the-spires/cr",

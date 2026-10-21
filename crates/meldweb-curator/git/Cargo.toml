@@ -1,0 +1,21 @@
+[package]
+name = "meldweb-git"
+description = "A bare git repo of loose objects over a storage trait, for Meldweb Curator's offline decks."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# gitoxide's plumbing, not `gix`: object encoding, hashing and name checks,
+# which gitoxide's CI builds for wasm32-unknown-unknown. sha1 is sha1dc, the
+# collision-detecting SHA-1 git itself uses.
+gix-object = { version = "0.66", features = ["sha1"] }
+gix-hash = { version = "0.28", features = ["sha1"] }
+gix-actor = "0.44"
+gix-validate = "0.13"
+flate2.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
