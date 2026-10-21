@@ -132,7 +132,9 @@ do.
   side, each drawn as a small card face, read with the card's left edge at
   the foot. Fuse is read from the text, never declared: when both halves have
   a line opening `Fuse`, it leaves both and prints once on a bar across the
-  foot of the card, blended from the halves' colours (CR 702.102a). One half
+  foot of the card, blended from the halves' colours (CR 702.102a), and the
+  halves' name and type bars point at each other, as printed fuse cards'
+  do. One half
   with fuse keeps it as a line of its own.
 
 Insight reads every face's rules text, each as its own face (CR 712.8,

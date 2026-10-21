@@ -312,14 +312,30 @@
 
 // One face's body, filling the box it is given: a card's whole face, or a
 // split card's half with `art` a share of the half rather than a length.
-#let face-body(c, art: 36.5mm) = {
+// A fused half's name and type bars `point` at the other half, as printed
+// fuse cards' do.
+#let face-body(c, art: 36.5mm, point: none) = {
   let ps = paints(c.frame)
   set text(font: "Libertinus Serif", size: 8.5pt, fill: black)
   set block(spacing: 0.9mm)
-  let bar(body) = block(
-    width: 100%, fill: ps.bar, stroke: 0.4pt + black, radius: 1mm,
-    inset: (x: 1.5mm, y: 1.1mm), body,
-  )
+  let bar(body) = if point == none {
+    block(width: 100%, fill: ps.bar, stroke: 0.4pt + black, radius: 1mm,
+      inset: (x: 1.5mm, y: 1.1mm), body)
+  } else {
+    // The slant starts `a` in from the end and its tip stands `out` past it,
+    // over the gutter between the halves.
+    let (a, out) = (1.6mm, 1.5mm)
+    layout(size => {
+      let inner = block(width: 100%, body,
+        inset: (y: 1.1mm, left: if point == "left" { 1.5mm + a } else { 1.5mm },
+          right: if point == "right" { 1.5mm + a } else { 1.5mm }))
+      let (w, h) = (size.width, measure(block(width: size.width, inner)).height)
+      let ends = if point == "right" {
+        ((0mm, 0mm), (w - a, 0mm), (w + out, h / 2), (w - a, h), (0mm, h))
+      } else { ((w, 0mm), (a, 0mm), (-out, h / 2), (a, h), (w, h)) }
+      block(width: 100%, { place(polygon(fill: ps.bar, stroke: 0.4pt + black, ..ends)); inner })
+    })
+  }
   let type-bar(room: 0mm) = bar(pad(right: room, if c.indicator.len() > 0 {
     grid(columns: (auto, 1fr), column-gutter: 1.2mm, align: horizon,
       indicator(c.indicator), fit-line(c.type_line, 8.5pt, 5.5pt, "the type line"))
@@ -401,13 +417,14 @@
 // A split card: two halves side by side on a card turned on its side, read
 // with the card's left edge at the bottom (CR 709.1), each half a face of its
 // own. Halves that both have fuse print it once, on a bar across the foot of
-// both (CR 702.102a).
+// both (CR 702.102a), and their name and type bars point at each other.
 #let split-card(c) = rotate(-90deg, reflow: true,
   block(width: card-height, height: card-width, fill: black, inset: 2.6mm, radius: 2.5mm, breakable: false, {
     set block(spacing: 0mm)
     block(width: 100%, height: 100%, grid(columns: (1fr, 1fr), column-gutter: 1mm, rows: (1fr, auto), row-gutter: 0.9mm,
-      ..c.halves.map(h => block(width: 100%, height: 100%, fill: paints(h.frame).body,
-        radius: 1.2mm, inset: (x: 1.3mm, top: 1.3mm, bottom: 1.3mm), face-body(h, art: 38%))),
+      ..c.halves.enumerate().map(((i, h)) => block(width: 100%, height: 100%, fill: paints(h.frame).body,
+        radius: 1.2mm, inset: (x: 1.3mm, top: 1.3mm, bottom: 1.3mm),
+        face-body(h, art: 38%, point: if c.fuse == none { none } else if i == 0 { "right" } else { "left" }))),
       ..if c.fuse != none {
         let ends = c.halves.map(h => paints(h.frame).bar)
         (grid.cell(colspan: 2, block(width: 100%, fill: gradient.linear(..ends), stroke: 0.4pt + black,
