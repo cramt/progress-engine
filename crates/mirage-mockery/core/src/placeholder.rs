@@ -60,7 +60,7 @@ impl Look {
         match self {
             Look::Blobs => json!({ "backgroundColor": back.deep, "blobColor": light }),
             Look::Waves => json!({ "backgroundColor": back.deep, "waveColor": light }),
-            Look::Glass => json!({ "backgroundColor": back.mid }),
+            Look::Glass => json!({ "backgroundColor": back.deep }),
             Look::Shapes => json!({
                 "backgroundColor": back.deep,
                 "shape1Color": mid,
