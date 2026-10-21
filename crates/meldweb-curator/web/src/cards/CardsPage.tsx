@@ -155,7 +155,15 @@ function CardEditor({
   );
   const save = useSave(store);
   const [mode, setMode] = useState(loadMode);
-  const opened = useMemo(() => formOf(text), [text]);
+  // The face shown and edited: a card of two has its other face as 1.
+  const [face, setFace] = useState(0);
+  const opened = useMemo(() => {
+    const o = formOf(text, face);
+    // The second face went away under the edit: back to the front.
+    return o.kind === "refused" && face > 0 ? formOf(text, 0) : o;
+  }, [text, face]);
+  const sides = opened.kind === "form" ? opened.sides : 1;
+  const side = Math.min(face, sides - 1);
   const showing = mode === "form" && opened.kind === "form" ? "form" : "toml";
   useEffect(() => store.edit(text), [store, text]);
   const { checked, preview, missingArt } = useCardChecks(
@@ -163,7 +171,9 @@ function CardEditor({
     repo,
     file.path,
     text,
+    side,
   );
+  const isSplit = /^\s*\[right\]/m.test(text);
 
   return (
     <section className="custom-card">
@@ -201,10 +211,20 @@ function CardEditor({
           onDismiss={() => {}}
         />
         {showing === "form" && opened.kind === "form" ? (
-          <CardForm
-            form={opened.form}
-            onChange={(form) => edit(writeForm(text, form))}
-          />
+          <>
+            {sides > 1 && (
+              <FacePicker
+                face={side}
+                labels={isSplit ? SPLIT_LABELS : FACE_LABELS}
+                onPick={setFace}
+              />
+            )}
+            <CardForm
+              key={side}
+              form={opened.form}
+              onChange={(form) => edit(writeForm(text, form, side))}
+            />
+          </>
         ) : (
           <>
             {mode === "form" && opened.kind === "refused" && (
@@ -224,11 +244,11 @@ function CardEditor({
           {checked.kind === "refused" && (
             <li className="refusal">{checked.message}</li>
           )}
-          {missingArt && (
-            <li className="warning">
-              No art at <code>{missingArt}</code> in the repo; drawn without it.
+          {missingArt.map((a) => (
+            <li key={a} className="warning">
+              No art at <code>{a}</code> in the repo; drawn without it.
             </li>
-          )}
+          ))}
           {checked.kind === "card" &&
             checked.unread.map((u) => (
               <li key={u.line} className="warning">
@@ -255,8 +275,40 @@ function CardEditor({
         ) : preview?.kind === "failed" ? (
           <p className="refusal">{preview.why}</p>
         ) : null}
+        {checked.kind === "card" && checked.faces > 1 && (
+          <FacePicker face={side} labels={FACE_LABELS} onPick={setFace} />
+        )}
       </div>
     </section>
+  );
+}
+
+const FACE_LABELS = ["Front", "Back"] as const;
+const SPLIT_LABELS = ["Left half", "Right half"] as const;
+
+/** Which face of a card of two the page shows and edits. */
+function FacePicker({
+  face,
+  labels,
+  onPick,
+}: {
+  face: number;
+  labels: readonly [string, string];
+  onPick: (face: number) => void;
+}) {
+  return (
+    <div className="segmented face-picker">
+      {labels.map((label, i) => (
+        <button
+          key={label}
+          type="button"
+          aria-pressed={face === i}
+          onClick={() => onPick(i)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }
 

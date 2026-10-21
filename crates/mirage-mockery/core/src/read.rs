@@ -21,28 +21,33 @@ pub struct Reading {
     pub unread: Vec<Unread>,
 }
 
+/// Every face's rules text, each read as its own face: a double-faced card's
+/// faces each have their own characteristics (CR 712.8), and so do a split
+/// card's halves on the stack (CR 709.3b).
 pub fn read(card: &Card) -> Reading {
-    let text = card.rules.lines().join("\n");
-    let lines = read_face(
-        &Face {
-            name: &card.name,
-            type_line: &card.type_line,
-            text: &text,
-        },
-        &card.name,
-    );
-    Reading {
-        lines: lines.len(),
-        unread: lines
-            .into_iter()
-            .filter_map(|l| {
-                let broke = l.parsed.err()?;
-                Some(Unread {
-                    line: l.text,
-                    read: broke.read,
-                    at: broke.at,
-                })
+    let mut reading = Reading {
+        lines: 0,
+        unread: Vec::new(),
+    };
+    for face in card.faces() {
+        let text = face.rules.lines().join("\n");
+        let lines = read_face(
+            &Face {
+                name: &face.name,
+                type_line: &face.type_line,
+                text: &text,
+            },
+            &face.name,
+        );
+        reading.lines += lines.len();
+        reading.unread.extend(lines.into_iter().filter_map(|l| {
+            let broke = l.parsed.err()?;
+            Some(Unread {
+                line: l.text,
+                read: broke.read,
+                at: broke.at,
             })
-            .collect(),
+        }));
     }
+    reading
 }

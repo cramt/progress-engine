@@ -12,9 +12,27 @@
 
 use anyhow::{bail, Result};
 use facet::Facet;
-use toml_edit::{DocumentMut, Item, Value};
+use toml_edit::{DocumentMut, Item, Table, Value};
 
-use crate::card::RawCard;
+use crate::card::{RawCard, RawFace};
+
+/// Which face the form edits: the top level, or a two-faced card's other face,
+/// its `[back]` or its `[right]` half. The layout and the face the form is not
+/// editing are left as the file has them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Side {
+    Front,
+    Second,
+}
+
+/// The table a two-faced card keeps its second face in, by what the file has.
+fn second_key(raw: &RawCard) -> Result<&'static str> {
+    match (&raw.back, &raw.right) {
+        (Some(_), _) => Ok("back"),
+        (None, Some(_)) => Ok("right"),
+        (None, None) => bail!("this card has one face"),
+    }
+}
 
 /// Every field of a card file. An empty string is a field the file leaves out.
 #[derive(Debug, Clone, PartialEq, Eq, Facet)]
@@ -48,10 +66,26 @@ impl Form {
     /// The file's fields, or why the form cannot hold them: it is not TOML,
     /// or it says something no form field says.
     pub fn of(text: &str) -> Result<Self> {
+        Self::of_side(text, Side::Front)
+    }
+
+    /// [`Form::of`] for either face.
+    pub fn of_side(text: &str, side: Side) -> Result<Self> {
         // facet_toml reads `type = ` with nothing after it as empty, and the
         // form must be able to write back what it opened.
         text.parse::<DocumentMut>()?;
-        let raw = RawCard::parse(text)?;
+        let card = RawCard::parse(text)?;
+        let raw = match side {
+            Side::Front => card.front,
+            Side::Second => match (card.back, card.right) {
+                (Some(face), _) | (None, Some(face)) => face,
+                (None, None) => bail!("this card has one face"),
+            },
+        };
+        Self::of_face(raw)
+    }
+
+    fn of_face(raw: RawFace) -> Result<Self> {
         let corner = match (raw.pt, raw.loyalty, raw.defense) {
             (None, None, None) => FormCorner::None,
             (Some(pt), None, None) => {
@@ -84,7 +118,23 @@ impl Form {
     /// `text` with this form's fields in it. Fields already as the form has
     /// them are not touched, so their quoting and their comments stay.
     pub fn write_into(&self, text: &str) -> Result<String> {
+        self.write_side(text, Side::Front)
+    }
+
+    /// [`Form::write_into`] for either face. Writing one face never touches
+    /// the other, nor the layout.
+    pub fn write_side(&self, text: &str, side: Side) -> Result<String> {
         let mut doc: DocumentMut = text.parse()?;
+        let table = match side {
+            Side::Front => doc.as_table_mut(),
+            Side::Second => {
+                let key = second_key(&RawCard::parse(text)?)?;
+                let Some(table) = doc.get_mut(key).and_then(Item::as_table_mut) else {
+                    bail!("the form edits a [{key}] table, not an inline one");
+                };
+                table
+            }
+        };
         let (pt, loyalty, defense) = match &self.corner {
             FormCorner::None => (None, None, None),
             FormCorner::Pt { power, toughness } => {
@@ -108,13 +158,13 @@ impl Form {
             ("artist", present(&self.artist)),
         ];
         for (key, want) in fields {
-            set(&mut doc, key, want)?;
+            set(table, key, want)?;
         }
         Ok(doc.to_string())
     }
 }
 
-fn set(doc: &mut DocumentMut, key: &str, want: Option<String>) -> Result<()> {
+fn set(doc: &mut Table, key: &str, want: Option<String>) -> Result<()> {
     let Some(want) = want else {
         doc.remove(key);
         return Ok(());
@@ -241,6 +291,46 @@ mod tests {
         );
         assert!(Form::of("name = \"A\"\ntype = \"Instant\"\nmana = \"{U}\"\n").is_err());
         assert!(Form::of("name = \"A\"\ntype = ").is_err());
+    }
+
+    const SHINOVAR: &str = include_str!("../tests/cards/the-cleansing-of-shinovar.card.toml");
+    const FORCE: &str = include_str!("../tests/cards/force-push-force-pull.card.toml");
+
+    #[test]
+    fn editing_the_front_leaves_the_layout_and_the_second_face_alone() {
+        for text in [SHINOVAR, FORCE] {
+            let mut form = Form::of(text).unwrap();
+            form.name = "Renamed".into();
+            form.flavor = "New flavour.".into();
+            let written = form.write_into(text).unwrap();
+            let (_, tail) = text.split_once("\n[").unwrap();
+            let (_, written_tail) = written.split_once("\n[").unwrap();
+            assert_eq!(written_tail, tail, "{written}");
+            assert!(written.contains("layout = "));
+            assert_eq!(Form::of(&written).unwrap(), form);
+            assert_eq!(
+                Form::of_side(&written, Side::Second).unwrap(),
+                Form::of_side(text, Side::Second).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn the_second_face_is_a_form_too() {
+        let mut back = Form::of_side(SHINOVAR, Side::Second).unwrap();
+        assert_eq!(back.name, "Kaladin, Herald of Second Chances");
+        assert_eq!(back.color_indicator, "WR");
+        back.corner = FormCorner::Pt {
+            power: "5".into(),
+            toughness: "5".into(),
+        };
+        let written = back.write_side(SHINOVAR, Side::Second).unwrap();
+        assert!(written.contains("pt = \"5/5\""));
+        assert_eq!(Form::of(&written).unwrap(), Form::of(SHINOVAR).unwrap());
+        assert_eq!(Form::of_side(&written, Side::Second).unwrap(), back);
+        let unchanged = Form::of_side(FORCE, Side::Second).unwrap();
+        assert_eq!(unchanged.write_side(FORCE, Side::Second).unwrap(), FORCE);
+        assert!(Form::of_side(DRONE, Side::Second).is_err());
     }
 
     proptest! {

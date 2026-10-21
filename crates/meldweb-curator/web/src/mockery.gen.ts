@@ -5,7 +5,7 @@
  * A card file as a form, or why it cannot be one.
  */
 export type Opened =
-  | { kind: "form"; form: Form }
+  | { kind: "form"; form: Form; sides: number }
   | { kind: "refused"; message: string };
 
 /**
@@ -63,7 +63,7 @@ export type SheetPaper = "a4" | "a3" | "letter" | "legal";
  * A `.card.toml`, read.
  */
 export type Checked =
-  | { kind: "card"; name: string; type_line: string; art?: string; lines: number; unread: Unread[] }
+  | { kind: "card"; name: string; type_line: string; arts: string[]; faces: number; lines: number; unread: Unread[] }
   | { kind: "refused"; message: string };
 
 /**

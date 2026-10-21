@@ -1,0 +1,20 @@
+name = "Chunky Chasmfiend"
+cost = "{5}{G}{G}"
+type = "Creature — Crab Beast"
+rules = """
+Reach, trample
+When this creature dies, create two Treasure tokens.
+"""
+flavor = "Twelve bridge crews, one highstorm, and a gemheart the size of a cart."
+pt = "8/8"
+artist = "Mirage Mockery"
+layout = "modal"
+
+[back]
+name = "The Shattered Plains"
+type = "Land"
+rules = """
+As this land enters, you may pay 3 life. If you don't, it enters tapped.
+{T}: Add {G}.
+"""
+artist = "Mirage Mockery"

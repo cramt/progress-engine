@@ -137,7 +137,8 @@ fn rules() -> impl Strategy<Value = (String, bool)> {
     ]
 }
 
-fn card_toml() -> impl Strategy<Value = String> {
+/// One face's fields: its cost line apart, as a split half must have one.
+fn face_toml() -> impl Strategy<Value = (String, String)> {
     (
         "[A-Z][a-z]{0,10}( [A-Z][a-z]{0,10}){0,4}",
         prop::collection::vec(prop::sample::select(SYMBOLS).prop_filter("a cost has no {T}", |s| *s != "T"), 0..8),
@@ -177,22 +178,45 @@ fn card_toml() -> impl Strategy<Value = String> {
             } else {
                 format!("color_indicator = \"{}\"\n", indicator.concat())
             };
-            format!(
-                "name = \"{name}\"\ncost = \"{cost}\"\ntype = \"{type_line}\"\nrules = \"\"\"\n{rules}\n\"\"\"\n{flavor}{corner}{indicator}"
+            (
+                cost,
+                format!(
+                    "name = \"{name}\"\ntype = \"{type_line}\"\nrules = \"\"\"\n{rules}\n\"\"\"\n{flavor}{corner}{indicator}"
+                ),
             )
         })
 }
 
+/// A card of one face, or two in any of the layouts that have two.
+fn card_toml() -> impl Strategy<Value = String> {
+    (face_toml(), face_toml(), 0..4usize).prop_map(|((cost, front), (back_cost, back), kind)| {
+        let cost_line = |c: &str, split: bool| match (c.is_empty(), split) {
+            (true, true) => "cost = \"{1}\"\n".to_string(),
+            (true, false) => String::new(),
+            (false, _) => format!("cost = \"{c}\"\n"),
+        };
+        let split = kind == 3;
+        let top = format!("{}{front}", cost_line(&cost, split));
+        let second = format!("{}{back}", cost_line(&back_cost, split));
+        match kind {
+            0 => top,
+            1 => format!("{top}layout = \"transform\"\n[back]\n{second}"),
+            2 => format!("{top}layout = \"modal\"\n[back]\n{second}"),
+            _ => format!("{top}layout = \"split\"\n[right]\n{second}"),
+        }
+    })
+}
+
 proptest! {
     // A case is a Typst layout: 96 take 10s optimised, which is how the flake
-    // runs them, and the dev profile is slow enough that 24 have to do (12s).
+    // runs them, and the dev profile is slow enough that 24 have to do (14s).
     #![proptest_config(ProptestConfig::with_cases(if cfg!(debug_assertions) { 24 } else { 96 }))]
 
     #[test]
     fn every_card_the_format_accepts_prints_or_is_refused_for_space(toml in card_toml()) {
         let card = Card::parse(&toml, Path::new(".")).expect("the generator writes only valid cards");
-        match render::compile(&[card], Layout::Cards) {
-            Ok(doc) => prop_assert_eq!(doc.pages().len(), 1),
+        match render::compile(std::slice::from_ref(&card), Layout::Cards) {
+            Ok(doc) => prop_assert_eq!(doc.pages().len(), card.images()),
             Err(e) => {
                 let e = format!("{e:#}");
                 prop_assert!(e.contains("does not fit"), "{}\n{}", e, toml);

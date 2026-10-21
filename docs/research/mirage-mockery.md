@@ -43,10 +43,11 @@ Measured in a throwaway prototype before building it (2026-10-17):
 - Every card the format accepts prints on one page or is refused for space,
   naming the name, the type line or the rules text: a property test over
   generated cards (any mix of types, so a Class creature or a Saga battle too,
-  and every layout below, colour indicators included). 96 cases took 7 s
-  optimised with plain text only; the striated layouts lay each section out
-  twice, and stepping down a quarter point at a time took that to 25 s, so the
-  size is now found by halving: 10 s.
+  and every layout below, colour indicators and cards of two parts included).
+  96 cases took 7 s optimised with plain text only; the striated layouts lay
+  each section out twice, and stepping down a quarter point at a time took
+  that to 25 s, so the size is now found by halving: 10 s. A quarter of the
+  cases being two faces left it at 9.8 s (2026-10-21).
 
 ## The card file
 
@@ -83,6 +84,69 @@ transform card's back face will need.
 
 Text is set with curly quotes, `don't` as `don’t` and `"…"` as `“…”`; the
 file keeps what was typed.
+
+### Cards of two parts
+
+A card with two faces, or two halves, says which: the top level is the front
+face (a split card's left half), and the other is a table holding the same
+fields.
+
+```toml
+name = "The Cleansing of Shinovar"
+cost = "{2}{R}{W}"
+type = "Enchantment — Saga"
+rules = """…IV — Exile this Saga, then return it to the battlefield transformed under your control."""
+layout = "transform"     # or "modal", with [back]; or "split", with [right]
+
+[back]
+name = "Kaladin, Herald of Second Chances"
+type = "Legendary Enchantment Creature — Human Knight"
+color_indicator = "WR"
+rules = "Flying, vigilance\n…"
+pt = "4/4"
+```
+
+`card.rs` holds a card as one of four shapes, a single face, a transforming
+pair, a modal pair or a split pair, so a `[back]` with no layout, a layout
+with no second face, or a split card's half under `[back]` (it has a card
+back) is refused by name. Each face is checked as a card is. A split card's
+halves each need a cost: every printed one has one, and the card's cost is
+the two together (CR 709.4b). A back face may have a cost: Plant a Sapling //
+Fully-Grown Treefolk's back costs {G}, and a modal card's faces usually both
+do.
+
+- **Transform** (CR 712.2): each face is a card image, marked on the name
+  bar's left as printed ones are (CR 712.2a–b), with Mockery's own mark: a
+  dark disc with a chevron up on the front and down on the back. A front
+  whose back is a creature prints the back's power and toughness in grey
+  beside its own corner, or on its type line's end when it has none, as a
+  transforming Saga does (CR 712.2c).
+- **Modal** (CR 712.3): marked by a tab, one chevron on the front and two on
+  the back, dark on the front and light on the back (CR 712.3a–b). Each face
+  has a hint bar at its foot's left about the other (CR 712.3c): its
+  subtypes, or its card types with none, as Kazandu Mammoth's says
+  "Elephant" and Emeria's Call's "Land"; then its cost or, for a land, its
+  `{T}: Add …` ability. The bar is dark on the front and light on the back,
+  as printed ones are.
+- **Split** (CR 709): the two halves side by side on a card turned on its
+  side, each drawn as a small card face, read with the card's left edge at
+  the foot. Fuse is read from the text, never declared: when both halves have
+  a line opening `Fuse`, it leaves both and prints once on a bar across the
+  foot of the card, blended from the halves' colours (CR 702.102a). One half
+  with fuse keeps it as a line of its own.
+
+Insight reads every face's rules text, each as its own face (CR 712.8,
+709.3b). Matched against Scryfall's images of Fable of the Mirror-Breaker,
+Delver of Secrets, Emeria's Call, Turntimber Symbiosis, Valki, God of Lies,
+Kazandu Mammoth, Agadeem's Awakening, Far // Away, Turn // Burn and Wear //
+Tear, with their Oracle text rendered through Mockery beside them. The face
+marks, the hint bar and the fuse bar are Mockery's own drawing, not Wizards'
+symbols
+([ADR-0039](../adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
+
+Curator's form edits either face: a picker above the form chooses the front
+or the back (left or right half), and writing one never touches the other or
+the layout. The preview has the same picker for a double-faced card.
 
 ### Layouts, from what the text says
 
@@ -124,8 +188,12 @@ Elevator; Khalni Garden, Overgrown Tomb and Dryad Arbor.
 ## Next
 
 - Art cropping control (focus point), set symbol and rarity, collector line.
-- Double-faced and split layouts. ~~Saga and class frames.~~ Done, with
-  station cards, from the text: see *Layouts, from what the text says*.
+- ~~Double-faced and split layouts.~~ Done: transform, modal and split with
+  fuse, see *Cards of two parts*. Not yet: adventure, flip, meld, Rooms
+  (split with a shared type line, CR 709.5), aftermath, and a planeswalker's
+  loyalty abilities laid out as printed.
+  ~~Saga and class frames.~~ Done, with station cards, from the text: see
+  *Layouts, from what the text says*.
 - Insight's reminder text: a keyword Insight knows can get the reminder text
   printed beside it on request.
 - A set file: many cards, one sheet run, numbered.

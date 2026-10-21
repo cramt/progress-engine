@@ -14,6 +14,7 @@ in; `core/symbols/fetch.sh` refreshes them when a set adds one.
 
 ```
 mockery render my-card.card.toml                  # my-card.png beside it, 300 ppi
+                                                  # (a double-faced card: and my-card.back.png)
 mockery render a.card.toml b.card.toml -o set.pdf # one card a page
 mockery sheet *.card.toml -o sheet.pdf --paper letter --gap 2  # Metamorph's flags
 mockery check *.card.toml                         # no render: Insight's reading
@@ -30,6 +31,13 @@ bars a Class, station thresholds a Spacecraft's striations, each refused when
 numbered out of order. A `color_indicator` colours a card with no cost, and a
 colourless land is tinted by the mana it adds.
 
+A card of two parts declares it: `layout = "transform"` or `"modal"` with a
+`[back]` face, or `"split"` with a `[right]` half. A double-faced card is two
+card images, front and back: two pages of a PDF, `x.png` and `x.back.png`, or
+two slots on a sheet, its back beside its front. A split card is one image,
+turned on its side, and halves that both say Fuse print it once across the
+foot.
+
 The card format, the layouts and what comes next are in
 [docs/research/mirage-mockery.md](../../docs/research/mirage-mockery.md).
 Example cards, one per layout, are in `core/tests/cards/`.
@@ -39,7 +47,8 @@ Example cards, one per layout, are in `core/tests/cards/`.
 Meldweb Curator's `/cards` page edits `cards/*.card.toml` in the Magic repo
 beside the card drawn from it, and prints a sheet of them. A card is edited
 as a form, with buttons for its cost, types, colour indicator and symbols, or as the TOML
-itself, switching freely: the file is the only state, and `core/src/form.rs`
+itself (a card of two parts picks its face above the form and below the
+preview), switching freely: the file is the only state, and `core/src/form.rs`
 reads the form out of it and writes edits back in place, so comments and
 order survive. That is the third crate, `mockery-wasm`, its own module so no
 other page downloads Typst

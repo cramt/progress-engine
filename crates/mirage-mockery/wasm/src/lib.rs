@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use anyhow::anyhow;
 use facet::Facet;
 use mockery_core::card::Card;
-use mockery_core::form::Form;
+use mockery_core::form::{Form, Side};
 use mockery_core::read::read;
 use mockery_core::render::{self, Layout, Paper, Sheet};
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
@@ -31,11 +31,15 @@ pub struct Unread {
 #[facet(tag = "kind", rename_all = "camelCase")]
 pub enum Checked {
     Card {
+        /// Both names of a card of two, `Far // Away`.
         name: String,
+        /// The front face's, or the left half's.
         type_line: String,
-        /// The art's path, relative to the card file.
-        #[facet(default, skip_serializing_if = Option::is_none)]
-        art: Option<String>,
+        /// Every face's art path, relative to the card file, front first.
+        arts: Vec<String>,
+        /// The card images it prints: 2 for a double-faced card, whose
+        /// back [`render_png`] draws as face 1.
+        faces: u32,
         lines: u32,
         unread: Vec<Unread>,
     },
@@ -49,8 +53,15 @@ pub enum Checked {
 #[repr(u8)]
 #[facet(tag = "kind", rename_all = "camelCase")]
 pub enum Opened {
-    Form { form: Box<Form> },
-    Refused { message: String },
+    Form {
+        form: Box<Form>,
+        /// The faces the form can edit: 2 for a card of two faces or halves,
+        /// its `[back]` or `[right]` being side 1.
+        sides: u32,
+    },
+    Refused {
+        message: String,
+    },
 }
 
 /// Portrait, as Phyrexian Metamorph's paper.
@@ -98,7 +109,13 @@ pub fn check_text(text: &str) -> Checked {
         Ok(card) => {
             let reading = read(&card);
             Checked::Card {
-                art: card.art.as_ref().map(|a| a.to_string_lossy().into_owned()),
+                arts: card
+                    .faces()
+                    .iter()
+                    .filter_map(|f| f.art.as_ref())
+                    .map(|a| a.to_string_lossy().into_owned())
+                    .collect(),
+                faces: card.images() as u32,
                 lines: reading.lines as u32,
                 unread: reading
                     .unread
@@ -109,8 +126,8 @@ pub fn check_text(text: &str) -> Checked {
                         at: u.at,
                     })
                     .collect(),
-                name: card.name,
-                type_line: card.type_line,
+                name: card.name(),
+                type_line: card.faces()[0].type_line.clone(),
             }
         }
     }
@@ -123,13 +140,27 @@ pub fn check(text: &str) -> String {
     facet_json::to_string(&check_text(text)).expect("Checked serialises")
 }
 
-/// The file as the form's fields, JSON of [`Opened`]: the custom cards page
-/// edits a card either as its file or as a form, and opens the form from this.
+fn side(n: u32) -> Side {
+    if n == 0 {
+        Side::Front
+    } else {
+        Side::Second
+    }
+}
+
+/// One face of the file as the form's fields, JSON of [`Opened`]: the custom
+/// cards page edits a card either as its file or as a form, and opens the
+/// form from this. `face` 0 is the top level, 1 the `[back]` or `[right]`.
 #[wasm_bindgen]
-pub fn form_of(text: &str) -> String {
-    let opened = match Form::of(text) {
+pub fn form_of(text: &str, face: u32) -> String {
+    let opened = match Form::of_side(text, side(face)) {
         Ok(form) => Opened::Form {
             form: Box::new(form),
+            sides: if Form::of_side(text, Side::Second).is_ok() {
+                2
+            } else {
+                1
+            },
         },
         Err(e) => Opened::Refused {
             message: format!("{e:#}"),
@@ -138,13 +169,13 @@ pub fn form_of(text: &str) -> String {
     facet_json::to_string(&opened).expect("Opened serialises")
 }
 
-/// `text` with the form's fields (JSON of `Form`) written into it, the rest
-/// of the file as it was.
+/// `text` with the form's fields (JSON of `Form`) written into face `face`,
+/// the rest of the file, the other face and the layout as they were.
 #[wasm_bindgen]
-pub fn write_form(text: &str, form: &str) -> Result<String, JsError> {
+pub fn write_form(text: &str, form: &str, face: u32) -> Result<String, JsError> {
     let form: Form =
         facet_json::from_str(form).map_err(|e| JsError::new(&format!("not a Form: {e}")))?;
-    form.write_into(text).map_err(js)
+    form.write_side(text, side(face)).map_err(js)
 }
 
 /// Art bytes by the path a card names them by.
@@ -166,29 +197,25 @@ fn arts(paths: &str, images: &[u8], ends: &[u32]) -> Result<HashMap<PathBuf, Vec
     Ok(out)
 }
 
-fn compile(
-    cards: &[Card],
-    layout: Layout,
-    art: &HashMap<PathBuf, Vec<u8>>,
-) -> Result<render::PagedDocument, JsError> {
-    render::compile_with_art(cards, layout, |path| {
-        art.get(path)
-            .cloned()
-            .ok_or_else(|| anyhow!("no art {} in the repo", path.display()))
-    })
-    .map_err(js)
-}
-
-/// The card as a PNG at `ppi`. `art` is its art's bytes, empty for none.
+/// The card's face `face` as a PNG at `ppi`: 0 is the front, 1 a
+/// double-faced card's back. The art is packed as for [`sheet_pdf`]; a face
+/// whose art is not among it is drawn without, and the page says so.
 #[wasm_bindgen]
-pub fn render_png(text: &str, art: &[u8], ppi: f32) -> Result<Vec<u8>, JsError> {
+pub fn render_png(
+    text: &str,
+    art_paths: &str,
+    images: &[u8],
+    ends: &[u32],
+    face: u32,
+    ppi: f32,
+) -> Result<Vec<u8>, JsError> {
     let card = parse(text).map_err(js)?;
-    let arts = match &card.art {
-        Some(path) if !art.is_empty() => HashMap::from([(path.clone(), art.to_vec())]),
-        _ => HashMap::new(),
-    };
-    let doc = compile(std::slice::from_ref(&card), Layout::Cards, &arts)?;
-    render::png(&doc, 0, ppi).map_err(js)
+    let arts = arts(art_paths, images, ends)?;
+    let doc = render::compile_with_art(std::slice::from_ref(&card), Layout::Cards, |path| {
+        Ok(arts.get(path).cloned())
+    })
+    .map_err(js)?;
+    render::png(&doc, face as usize, ppi).map_err(js)
 }
 
 /// A sheet to print and cut, as a PDF. `cards` is JSON of `SheetCard[]`,
@@ -227,7 +254,15 @@ pub fn sheet_pdf(
     if all.is_empty() {
         return Err(JsError::new("no cards to print"));
     }
-    let doc = compile(&all, Layout::Sheet(sheet), &arts(art_paths, images, ends)?)?;
+    let arts = arts(art_paths, images, ends)?;
+    // A double-faced card takes two slots, its back beside its front.
+    let doc = render::compile_with_art(&all, Layout::Sheet(sheet), |path| {
+        arts.get(path)
+            .cloned()
+            .map(Some)
+            .ok_or_else(|| anyhow!("no art {} in the repo", path.display()))
+    })
+    .map_err(js)?;
     render::pdf(&doc).map_err(js)
 }
 
@@ -273,17 +308,39 @@ mod tests {
 
     #[test]
     fn a_form_opens_from_the_file_and_writes_back_into_it() {
-        let opened = form_of(DRONE);
+        let opened = form_of(DRONE, 0);
         let form = opened
             .strip_prefix(r#"{"kind":"form","form":"#)
-            .and_then(|f| f.strip_suffix('}'))
+            .and_then(|f| f.strip_suffix(r#","sides":1}"#))
             .unwrap_or_else(|| panic!("{opened}"));
-        assert_eq!(write_form(DRONE, form).unwrap_or_else(|_| panic!()), DRONE);
+        assert_eq!(
+            write_form(DRONE, form, 0).unwrap_or_else(|_| panic!()),
+            DRONE
+        );
     }
 
     #[test]
     fn a_card_renders_to_a_png() {
-        let png = render_png(DRONE, &[], 72.0).unwrap_or_else(|_| panic!("render"));
+        let png = render_png(DRONE, "[]", &[], &[], 0, 72.0).unwrap_or_else(|_| panic!("render"));
         assert_eq!(&png[1..4], b"PNG");
+    }
+
+    #[test]
+    fn a_double_faced_card_renders_each_face_and_says_it_has_two() {
+        const SHINOVAR: &str =
+            include_str!("../../core/tests/cards/the-cleansing-of-shinovar.card.toml");
+        match check_text(SHINOVAR) {
+            Checked::Card { name, faces, .. } => {
+                assert_eq!(
+                    name,
+                    "The Cleansing of Shinovar // Kaladin, Herald of Second Chances"
+                );
+                assert_eq!(faces, 2);
+            }
+            Checked::Refused { message } => panic!("{message}"),
+        }
+        let front = render_png(SHINOVAR, "[]", &[], &[], 0, 72.0).unwrap_or_else(|_| panic!());
+        let back = render_png(SHINOVAR, "[]", &[], &[], 1, 72.0).unwrap_or_else(|_| panic!());
+        assert_ne!(front, back);
     }
 }

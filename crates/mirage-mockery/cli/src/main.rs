@@ -24,6 +24,7 @@ struct Cli {
 #[repr(u8)]
 enum Command {
     /// Render cards, each a page of its own: a PNG for one card, or a PDF.
+    /// A double-faced card is two pages, or `x.png` and its back `x.back.png`.
     Render {
         /// `.card.toml` files.
         #[facet(args::positional)]
@@ -114,7 +115,8 @@ fn load(paths: &[PathBuf]) -> Result<Vec<Card>> {
         let read_ok = reading.lines - reading.unread.len();
         eprintln!(
             "{}: Insight read {read_ok}/{} lines",
-            card.name, reading.lines
+            card.name(),
+            reading.lines
         );
         for u in &reading.unread {
             eprintln!("  stopped at {:?} after {:?} in: {}", u.at, u.read, u.line);
@@ -129,6 +131,11 @@ fn write(path: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
+/// `x.png`'s back face: `x.back.png`.
+fn back_of(front: &Path) -> PathBuf {
+    front.with_extension("back.png")
+}
+
 fn main() -> Result<()> {
     match parse_args().command {
         Command::Render { cards, out, ppi } => {
@@ -137,7 +144,14 @@ fn main() -> Result<()> {
             let doc = render::compile(&loaded, Layout::Cards)?;
             match out.extension().and_then(|e| e.to_str()) {
                 Some("pdf") => write(&out, &render::pdf(&doc)?),
-                Some("png") if loaded.len() == 1 => write(&out, &render::png(&doc, 0, ppi as f32)?),
+                Some("png") if loaded.len() == 1 => {
+                    write(&out, &render::png(&doc, 0, ppi as f32)?)?;
+                    // A double-faced card's back goes beside its front.
+                    if loaded[0].images() == 2 {
+                        write(&back_of(&out), &render::png(&doc, 1, ppi as f32)?)?;
+                    }
+                    Ok(())
+                }
                 Some("png") => bail!("a PNG holds one card; render several to a .pdf"),
                 _ => bail!("{} is neither .png nor .pdf", out.display()),
             }

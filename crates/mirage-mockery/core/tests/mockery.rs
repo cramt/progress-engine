@@ -86,21 +86,63 @@ fn insight_reads_every_line_of_the_drone_or_says_where_it_stopped() {
 
 #[test]
 fn each_layout_the_text_asks_for_prints_on_one_page() {
-    use mockery_core::card::{Color, Colors, Frame};
+    use mockery_core::card::{Color, Colors, Face, Frame};
     use mockery_core::rules::Rules;
     let open = |name: &str| Card::open(&here(&format!("tests/cards/{name}.card.toml"))).unwrap();
-    let saga = open("the-cleansing-of-shinovar");
-    let class = open("jedi-knight-class");
-    let station = open("vindicator");
-    let land = open("the-shattered-plains");
-    let kaladin = open("kaladin-herald-of-second-chances");
+    let single = |card: &Card| -> Face {
+        match card {
+            Card::Single(face) => face.clone(),
+            other => panic!("one face expected, not {other:?}"),
+        }
+    };
+    let Card::Transform {
+        front: saga,
+        back: kaladin,
+    } = open("the-cleansing-of-shinovar")
+    else {
+        panic!("The Cleansing of Shinovar transforms");
+    };
+    let class = single(&open("jedi-knight-class"));
+    let station = single(&open("vindicator"));
+    let land = single(&open("the-shattered-plains"));
     assert!(matches!(saga.rules, Rules::Saga(_)));
     assert!(matches!(class.rules, Rules::Class(_)));
     assert!(matches!(station.rules, Rules::Station(_)));
     assert_eq!(land.frame(), Frame::Land(Colors::of_letters("G").unwrap()));
     assert_eq!(kaladin.frame(), Frame::Gold);
     assert!(kaladin.color_indicator.contains(Color::Red));
-    let cards = [saga, class, station, land, kaladin];
+    let cards = [class, station, land].map(Card::Single);
     let doc = render::compile(&cards, Layout::Cards).unwrap();
     assert_eq!(doc.pages().len(), cards.len());
+}
+
+#[test]
+fn a_double_faced_card_is_two_pages_and_a_split_card_one() {
+    let open = |name: &str| Card::open(&here(&format!("tests/cards/{name}.card.toml"))).unwrap();
+    let transform = open("the-cleansing-of-shinovar");
+    let modal = open("chunky-chasmfiend");
+    let split = open("force-push-force-pull");
+    assert!(matches!(modal, Card::Modal { .. }));
+    assert_eq!(split.name(), "Force Push // Force Pull");
+    assert_eq!(
+        split.fuse().as_deref(),
+        Some("Fuse (You may cast one or both halves of this card from your hand.)")
+    );
+    for (card, pages) in [(&transform, 2), (&modal, 2), (&split, 1)] {
+        assert_eq!(card.images(), pages);
+        let doc = render::compile(std::slice::from_ref(card), Layout::Cards).unwrap();
+        assert_eq!(doc.pages().len(), pages, "{}", card.name());
+    }
+    // A sheet gives each face a slot: 2 + 2 + 1 of A4's nine.
+    let doc = render::compile(&[transform, modal, split], Layout::Sheet(Sheet::default())).unwrap();
+    assert_eq!(doc.pages().len(), 1);
+}
+
+#[test]
+fn insight_reads_every_face() {
+    let open = |name: &str| Card::open(&here(&format!("tests/cards/{name}.card.toml"))).unwrap();
+    // The Saga's four chapters and Kaladin's two abilities: the reminder is
+    // not an ability.
+    assert_eq!(read::read(&open("the-cleansing-of-shinovar")).lines, 5);
+    assert_eq!(read::read(&open("force-push-force-pull")).lines, 4);
 }

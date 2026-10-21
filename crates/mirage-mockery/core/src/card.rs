@@ -8,10 +8,11 @@ use facet::Facet;
 
 pub use crate::rules::Rules;
 
-/// The file as written, before any of it is checked against the rest.
+/// One face as the file writes it: the top level is the front face (or a
+/// split card's left half), and `[back]` or `[right]` the other.
 #[derive(Facet)]
 #[facet(deny_unknown_fields)]
-pub(crate) struct RawCard {
+pub(crate) struct RawFace {
     pub(crate) name: String,
     #[facet(default)]
     pub(crate) cost: Option<String>,
@@ -35,14 +36,54 @@ pub(crate) struct RawCard {
     pub(crate) artist: Option<String>,
 }
 
+/// The file as written, before any of it is checked against the rest.
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+pub(crate) struct RawCard {
+    #[facet(flatten)]
+    pub(crate) front: RawFace,
+    #[facet(default)]
+    pub(crate) layout: Option<String>,
+    #[facet(default)]
+    pub(crate) back: Option<RawFace>,
+    #[facet(default)]
+    pub(crate) right: Option<RawFace>,
+}
+
 impl RawCard {
     pub(crate) fn parse(text: &str) -> Result<Self> {
         facet_toml::from_str(text).map_err(|e| anyhow::anyhow!("{e}"))
     }
 }
 
+/// A card: one face, or two. Which two is the layout the file declares, and
+/// each kind has exactly the faces it prints, so a back without a layout, or
+/// a layout without its second face, cannot be held.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Card {
+pub enum Card {
+    Single(Face),
+    /// A nonmodal double-faced card: the front transforms into the back
+    /// (CR 712.2).
+    Transform {
+        front: Face,
+        back: Face,
+    },
+    /// A modal double-faced card: either face can be cast or played
+    /// (CR 712.3).
+    Modal {
+        front: Face,
+        back: Face,
+    },
+    /// Two halves on one card, each with its own cost (CR 709.1).
+    Split {
+        left: Face,
+        right: Face,
+    },
+}
+
+/// One face of a card, as a single-faced card is its only face.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Face {
     pub name: String,
     /// The mana cost's symbols, each without its braces: `["2", "U", "U/P"]`.
     pub cost: Vec<String>,
@@ -196,6 +237,103 @@ impl Card {
 
     pub fn parse(text: &str, dir: &Path) -> Result<Self> {
         let raw = RawCard::parse(text)?;
+        let face = |raw: RawFace, which: &str| {
+            Face::of(raw, dir).with_context(|| format!("in the {which}"))
+        };
+        let layout = raw.layout.as_deref().map(str::trim);
+        let card = match (layout, raw.back, raw.right) {
+            (None, None, None) => Card::Single(Face::of(raw.front, dir)?),
+            (Some("transform"), Some(back), None) => Card::Transform {
+                front: face(raw.front, "front face")?,
+                back: face(back, "back face")?,
+            },
+            (Some("modal"), Some(back), None) => Card::Modal {
+                front: face(raw.front, "front face")?,
+                back: face(back, "back face")?,
+            },
+            (Some("split"), None, Some(right)) => {
+                let card = Card::Split {
+                    left: face(raw.front, "left half")?,
+                    right: face(right, "right half")?,
+                };
+                // Every printed split card's halves each have a cost, and
+                // the card's cost is the two together (CR 709.4b).
+                for half in card.faces() {
+                    if half.cost.is_empty() {
+                        bail!("{:?} is half a split card and needs a cost", half.name);
+                    }
+                }
+                card
+            }
+            (None, Some(_), _) => {
+                bail!("a [back] needs a layout: layout = \"transform\" or \"modal\"")
+            }
+            (None, _, Some(_)) => bail!("a [right] half needs layout = \"split\""),
+            (Some(l @ ("transform" | "modal")), None, None) => {
+                bail!("a {l} card needs its [back] face")
+            }
+            (Some("split"), None, None) => bail!("a split card needs its [right] half"),
+            (Some(l @ ("transform" | "modal")), _, Some(_)) => {
+                bail!("a {l} card's second face is [back], not [right]")
+            }
+            (Some("split"), Some(_), _) => {
+                bail!("a split card's second half is [right], not [back]: it has a card back")
+            }
+            (Some(other), _, _) => {
+                bail!("layout is \"transform\", \"modal\" or \"split\", not {other:?}")
+            }
+        };
+        Ok(card)
+    }
+
+    /// The faces it prints, front (or left) first.
+    pub fn faces(&self) -> Vec<&Face> {
+        match self {
+            Card::Single(f) => vec![f],
+            Card::Transform { front, back } | Card::Modal { front, back } => vec![front, back],
+            Card::Split { left, right } => vec![left, right],
+        }
+    }
+
+    /// How many card images it prints: a double-faced card's two faces are
+    /// two, a split card's halves share one.
+    pub fn images(&self) -> usize {
+        match self {
+            Card::Single(_) | Card::Split { .. } => 1,
+            Card::Transform { .. } | Card::Modal { .. } => 2,
+        }
+    }
+
+    /// Both names, `Far // Away`, as Oracle writes a card of two (CR 709.4a,
+    /// 712.19).
+    pub fn name(&self) -> String {
+        self.faces()
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect::<Vec<_>>()
+            .join(" // ")
+    }
+
+    /// A split card whose halves both have fuse prints the keyword once,
+    /// on a bar across both (CR 702.102a): the line, as the left half has it.
+    pub fn fuse(&self) -> Option<String> {
+        let Card::Split { left, right } = self else {
+            return None;
+        };
+        let fuse = |f: &Face| f.rules.lines().into_iter().find(|l| is_fuse(l));
+        fuse(right)?;
+        fuse(left)
+    }
+}
+
+/// `Fuse`, alone or with its reminder.
+pub(crate) fn is_fuse(line: &str) -> bool {
+    line.strip_prefix("Fuse")
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '(']))
+}
+
+impl Face {
+    fn of(raw: RawFace, dir: &Path) -> Result<Self> {
         let has = |word: &str| raw.type_line.split_whitespace().any(|w| w == word);
         let rules = Rules::parse(
             raw.rules
@@ -240,7 +378,7 @@ impl Card {
         if has("Creature") && !matches!(corner, Corner::PowerToughness { .. }) {
             bail!("a creature needs pt");
         }
-        Ok(Card {
+        Ok(Face {
             cost: match raw.cost {
                 Some(c) => symbols_of(&c)?,
                 None => Vec::new(),
@@ -276,6 +414,20 @@ impl Card {
             [one] => Frame::Mono(*one),
             _ => Frame::Gold,
         }
+    }
+
+    /// The mana ability a land prints, `{T}: Add {G}.`, to its first full
+    /// stop: what a modal double-faced card's hint names of a land face
+    /// (CR 712.3c).
+    pub fn mana_ability(&self) -> Option<String> {
+        self.rules.lines().into_iter().find_map(|line| {
+            let at = line.find("{T}: Add ")?;
+            let rest = &line[at..];
+            Some(match rest.find('.') {
+                Some(stop) => rest[..=stop].to_string(),
+                None => rest.trim_end_matches(')').to_string(),
+            })
+        })
     }
 
     /// The colours of mana the rules text adds: the symbols after "Add" up to
@@ -314,7 +466,14 @@ fn symbols_of(cost: &str) -> Result<Vec<String>> {
 mod tests {
     use super::*;
 
-    fn parse(text: &str) -> Result<Card> {
+    fn parse(text: &str) -> Result<Face> {
+        match Card::parse(text, Path::new("."))? {
+            Card::Single(face) => Ok(face),
+            other => panic!("one face expected, not {other:?}"),
+        }
+    }
+
+    fn card(text: &str) -> Result<Card> {
         Card::parse(text, Path::new("."))
     }
 
@@ -420,6 +579,62 @@ pt = "2/3"
             Frame::Land(colors(""))
         );
         assert_eq!(colors("WG").ordered(), [Color::Green, Color::White]);
+    }
+
+    const FAR: &str = "name = \"Far\"\ncost = \"{1}{U}\"\ntype = \"Instant\"\nrules = \"\"\"\nReturn target creature to its owner's hand.\nFuse (You may cast one or both halves of this card from your hand.)\n\"\"\"\nlayout = \"split\"\n";
+    const AWAY: &str = "[right]\nname = \"Away\"\ncost = \"{2}{B}\"\ntype = \"Instant\"\nrules = \"\"\"\nTarget player sacrifices a creature of their choice.\nFuse (You may cast one or both halves of this card from your hand.)\n\"\"\"\n";
+
+    #[test]
+    fn a_second_face_and_its_layout_come_together() {
+        let front = "name = \"Delver of Secrets\"\ncost = \"{U}\"\ntype = \"Creature — Human Wizard\"\npt = \"1/1\"\n";
+        let back = "[back]\nname = \"Insectile Aberration\"\ntype = \"Creature — Human Insect\"\npt = \"3/2\"\ncolor_indicator = \"U\"\n";
+        let err = |text: &str| format!("{:#}", card(text).unwrap_err());
+        assert!(matches!(
+            card(&format!("{front}layout = \"transform\"\n{back}")).unwrap(),
+            Card::Transform { .. }
+        ));
+        assert!(matches!(
+            card(&format!("{front}layout = \"modal\"\n{back}")).unwrap(),
+            Card::Modal { .. }
+        ));
+        assert!(err(&format!("{front}{back}")).contains("needs a layout"));
+        assert!(err(&format!("{front}layout = \"transform\"\n")).contains("needs its [back]"));
+        assert!(err(&format!("{front}layout = \"split\"\n{back}")).contains("[right], not [back]"));
+        assert!(err(&format!("{front}layout = \"flip\"\n{back}")).contains("not \"flip\""));
+        // A face is checked as a card is: the back's creature needs its pt.
+        let no_pt = back.replace("pt = \"3/2\"\n", "");
+        assert!(err(&format!("{front}layout = \"transform\"\n{no_pt}")).contains("back face"));
+    }
+
+    #[test]
+    fn a_transform_back_may_have_a_cost() {
+        // Plant a Sapling // Fully-Grown Treefolk's back costs {G}.
+        let text = "name = \"Plant a Sapling\"\ncost = \"{G}\"\ntype = \"Sorcery\"\nlayout = \"transform\"\n[back]\nname = \"Fully-Grown Treefolk\"\ncost = \"{G}\"\ntype = \"Creature — Treefolk\"\npt = \"3/3\"\n";
+        assert!(card(text).is_ok());
+    }
+
+    #[test]
+    fn split_halves_each_need_a_cost_and_fuse_is_read_from_both() {
+        let far_away = card(&format!("{FAR}{AWAY}")).unwrap();
+        assert_eq!(far_away.name(), "Far // Away");
+        assert!(far_away.fuse().is_some());
+        // Fuse on one half only is not a fused card.
+        let one = AWAY.replace(
+            "Fuse (You may cast one or both halves of this card from your hand.)\n",
+            "",
+        );
+        assert_eq!(card(&format!("{FAR}{one}")).unwrap().fuse(), None);
+        let costless = AWAY.replace("cost = \"{2}{B}\"\n", "");
+        assert!(
+            format!("{:#}", card(&format!("{FAR}{costless}")).unwrap_err())
+                .contains("needs a cost")
+        );
+    }
+
+    #[test]
+    fn a_land_face_names_its_mana_ability() {
+        let land = parse("name = \"x\"\ntype = \"Land\"\nrules = \"\"\"\nAs this land enters, you may pay 3 life.\n{T}: Add {W}.\n\"\"\"").unwrap();
+        assert_eq!(land.mana_ability().as_deref(), Some("{T}: Add {W}."));
     }
 
     #[test]

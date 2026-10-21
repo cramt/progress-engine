@@ -18,7 +18,7 @@ use typst::utils::LazyHash;
 use typst::{Library, LibraryExt, World};
 pub use typst_layout::PagedDocument;
 
-use crate::card::{Card, Color, Colors, Corner, Frame};
+use crate::card::{is_fuse, Card, Color, Colors, Corner, Face, Frame};
 use crate::rules::{numeral, Rules};
 use crate::symbols::{self, file_name, runs, Run};
 
@@ -149,43 +149,222 @@ impl World for Job {
 /// Lay the cards out, reading each card's art from disk. A symbol with no SVG
 /// is an error naming it.
 pub fn compile(cards: &[Card], layout: Layout) -> Result<PagedDocument> {
-    compile_with_art(cards, layout, |path| Ok(std::fs::read(path)?))
+    compile_with_art(cards, layout, |path| Ok(Some(std::fs::read(path)?)))
 }
 
 /// [`compile`], with `art` reading a card's art: the browser has no disk, and
-/// hands over the bytes it fetched from the repo.
+/// hands over the bytes it fetched from the repo. `None` draws the face
+/// without its art, as a preview does while the repo lacks it.
+///
+/// A double-faced card is two card images, front then back, each a page of
+/// its own or a slot on a sheet; a split card is one.
 pub fn compile_with_art(
     cards: &[Card],
     layout: Layout,
-    mut art_of: impl FnMut(&Path) -> Result<Vec<u8>>,
+    art_of: impl FnMut(&Path) -> Result<Option<Vec<u8>>>,
 ) -> Result<PagedDocument> {
-    let mut files = HashMap::new();
-    let mut symbol = |code: &str| -> Result<Value> {
+    let mut files = Files {
+        files: HashMap::new(),
+        arts: 0,
+        art_of,
+    };
+    let mut out = Vec::new();
+    for card in cards {
+        match card {
+            Card::Single(face) => out.push(files.face(face, Extras::default())?),
+            Card::Transform { front, back } => {
+                // The front carries the back's power and toughness in grey
+                // above its own corner, as reminder (CR 712.2c).
+                let back_pt = match &back.corner {
+                    Corner::PowerToughness { power, toughness } => {
+                        json!(format!("{power}/{toughness}"))
+                    }
+                    _ => Value::Null,
+                };
+                out.push(files.face(
+                    front,
+                    Extras {
+                        marker: "transform-front",
+                        back_pt,
+                        ..Extras::default()
+                    },
+                )?);
+                out.push(files.face(
+                    back,
+                    Extras {
+                        marker: "transform-back",
+                        ..Extras::default()
+                    },
+                )?);
+            }
+            Card::Modal { front, back } => {
+                // Each face's hint bar says what the other face is
+                // (CR 712.3c).
+                let to_front = files.hint(front)?;
+                let to_back = files.hint(back)?;
+                out.push(files.face(
+                    front,
+                    Extras {
+                        marker: "modal-front",
+                        hint: to_back,
+                        ..Extras::default()
+                    },
+                )?);
+                out.push(files.face(
+                    back,
+                    Extras {
+                        marker: "modal-back",
+                        hint: to_front,
+                        ..Extras::default()
+                    },
+                )?);
+            }
+            Card::Split { left, right } => {
+                let fuse = card.fuse();
+                let half = |files: &mut Files<_>, f| {
+                    files.face(
+                        f,
+                        Extras {
+                            drop_fuse: fuse.is_some(),
+                            ..Extras::default()
+                        },
+                    )
+                };
+                let halves = [half(&mut files, left)?, half(&mut files, right)?];
+                let artists: Vec<&str> = card
+                    .faces()
+                    .iter()
+                    .filter_map(|f| f.artist.as_deref())
+                    .collect();
+                out.push(json!({
+                    "kind": "split",
+                    "halves": halves,
+                    "fuse": match &fuse {
+                        Some(line) => files.paragraph(line).with_context(|| format!("in {:?}'s fuse", card.name()))?,
+                        None => Value::Null,
+                    },
+                    "artist": if artists.is_empty() { Value::Null } else {
+                        let mut a = artists;
+                        a.dedup();
+                        json!(a.join(" & "))
+                    },
+                }));
+            }
+        }
+    }
+    let mut files = files.files;
+    let job = json!({
+        "layout": match layout { Layout::Cards => "card", Layout::Sheet(_) => "sheet" },
+        "sheet": match layout {
+            Layout::Cards => Value::Null,
+            Layout::Sheet(sheet) => json!({
+                "width_mm": sheet.paper.size_mm().0,
+                "height_mm": sheet.paper.size_mm().1,
+                "gap_mm": sheet.gap_mm,
+                "margin_mm": sheet.margin_mm,
+                "cut_marks": sheet.cut_marks,
+            }),
+        },
+        "cards": out,
+    });
+    files.insert(id("/job.json"), Bytes::new(serde_json::to_vec(&job)?));
+    let main = id("/main.typ");
+    let world = Job {
+        main,
+        source: Source::new(main, TEMPLATE.into()),
+        files,
+    };
+    let compiled = typst::compile::<PagedDocument>(&world);
+    compiled.output.map_err(|errors| explain(&errors))
+}
+
+/// What a face of a two-faced card prints beyond itself.
+#[derive(Default)]
+struct Extras {
+    /// Which face it is, on the name bar's left: `transform-front`,
+    /// `transform-back`, `modal-front` or `modal-back`; empty for none.
+    marker: &'static str,
+    /// A transforming front's reminder of its back's power and toughness.
+    back_pt: Value,
+    /// A modal face's hint bar about the other face.
+    hint: Value,
+    /// A fused split card prints its Fuse line once across both halves.
+    drop_fuse: bool,
+}
+
+/// The files a job hands Typst: each symbol once, and each face's art.
+struct Files<F> {
+    files: HashMap<FileId, Bytes>,
+    arts: usize,
+    art_of: F,
+}
+
+impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
+    fn symbol(&mut self, code: &str) -> Result<Value> {
         let Some(svg) = symbols::svg(code) else {
             bail!("no symbol {{{code}}}");
         };
         let path = format!("/symbols/{}", file_name(code));
-        files.entry(id(&path)).or_insert_with(|| Bytes::new(svg));
+        self.files
+            .entry(id(&path))
+            .or_insert_with(|| Bytes::new(svg));
         Ok(json!(path))
-    };
-    let mut out = Vec::new();
-    let mut art = Vec::new();
-    for (i, card) in cards.iter().enumerate() {
-        let cost = card
-            .cost
+    }
+
+    fn paragraph(&mut self, line: &str) -> Result<Value> {
+        paragraph(line, &mut |code: &str| self.symbol(code))
+    }
+
+    fn cost(&mut self, face: &Face) -> Result<Value> {
+        face.cost
             .iter()
-            .map(|s| symbol(s))
+            .map(|s| self.symbol(s))
             .collect::<Result<Vec<_>>>()
-            .with_context(|| format!("in {:?}'s cost", card.name))?;
+            .map(Value::from)
+            .with_context(|| format!("in {:?}'s cost", face.name))
+    }
+
+    /// What a modal face's hint bar says of `other`: its subtypes, or its
+    /// card types when it has none, and its cost or, for a land with none,
+    /// the mana it adds (CR 712.3c). Printed hints say "Elephant" for a
+    /// creature and "Land" for a land, so this does too.
+    fn hint(&mut self, other: &Face) -> Result<Value> {
+        let (types, subtypes) = other
+            .type_line
+            .split_once('—')
+            .unwrap_or((&other.type_line, ""));
+        let types = match subtypes.trim() {
+            "" => types
+                .split_whitespace()
+                .filter(|w| !matches!(*w, "Legendary" | "Basic" | "Snow" | "World"))
+                .collect::<Vec<_>>()
+                .join(" "),
+            subtypes => subtypes.to_string(),
+        };
+        let land = other.type_line.split_whitespace().any(|w| w == "Land");
+        let mana = match other.mana_ability() {
+            Some(m) if land && other.cost.is_empty() => self.paragraph(&m)?,
+            _ => Value::Null,
+        };
+        Ok(json!({
+            "type": curl(&types),
+            "cost": self.cost(other)?,
+            "mana": mana,
+        }))
+    }
+
+    fn face(&mut self, face: &Face, extras: Extras) -> Result<Value> {
+        let cost = self.cost(face)?;
         let mut set = |lines: &[String]| -> Result<Value> {
             lines
                 .iter()
-                .map(|l| paragraph(l, &mut symbol))
+                .filter(|l| !(extras.drop_fuse && is_fuse(l)))
+                .map(|l| self.paragraph(l))
                 .collect::<Result<Vec<_>>>()
                 .map(Value::from)
-                .with_context(|| format!("in {:?}'s rules text", card.name))
+                .with_context(|| format!("in {:?}'s rules text", face.name))
         };
-        let rules = match &card.rules {
+        let rules = match &face.rules {
             Rules::Plain(lines) => json!({ "kind": "plain", "lines": set(lines)? }),
             Rules::Saga(saga) => json!({
                 "kind": "saga",
@@ -214,65 +393,50 @@ pub fn compile_with_art(
                 }))).collect::<Result<Vec<_>>>()?,
             }),
         };
-        let art_path = match &card.art {
+        let bytes = match &face.art {
+            None => None,
+            Some(path) => (self.art_of)(path)
+                .with_context(|| format!("reading {:?}'s art {}", face.name, path.display()))?
+                .map(|b| (path, b)),
+        };
+        let art = match bytes {
             None => Value::Null,
-            Some(path) => {
+            Some((path, bytes)) => {
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("png");
-                let virt = format!("/art/{i}.{ext}");
-                let bytes = art_of(path)
-                    .with_context(|| format!("reading {:?}'s art {}", card.name, path.display()))?;
-                art.push((id(&virt), Bytes::new(bytes)));
+                let virt = format!("/art/{}.{ext}", self.arts);
+                self.arts += 1;
+                self.files.insert(id(&virt), Bytes::new(bytes));
                 json!(virt)
             }
         };
-        out.push(json!({
-            "name": curl(&card.name),
+        Ok(json!({
+            "kind": "face",
+            "name": curl(&face.name),
             "cost": cost,
-            "type_line": curl(&card.type_line),
-            "indicator": names(card.color_indicator),
+            "type_line": curl(&face.type_line),
+            "indicator": names(face.color_indicator),
             "rules": rules,
-            "flavor": card.flavor.as_deref().map(curl),
-            "corner": match &card.corner {
+            "flavor": face.flavor.as_deref().map(curl),
+            "corner": match &face.corner {
                 Corner::None => Value::Null,
                 Corner::PowerToughness { power, toughness } => json!(format!("{power}/{toughness}")),
                 Corner::Loyalty(l) => json!(l),
                 Corner::Defense(d) => json!(d),
             },
-            "frame": match card.frame() {
+            "frame": match face.frame() {
                 Frame::Mono(c) => json!({ "base": color_name(c), "tint": [] }),
                 Frame::Gold => json!({ "base": "gold", "tint": [] }),
                 Frame::Artifact => json!({ "base": "artifact", "tint": [] }),
                 Frame::Colorless => json!({ "base": "colorless", "tint": [] }),
                 Frame::Land(colors) => json!({ "base": "land", "tint": names(colors) }),
             },
-            "art": art_path,
-            "artist": card.artist,
-        }));
+            "art": art,
+            "artist": face.artist,
+            "marker": if extras.marker.is_empty() { Value::Null } else { json!(extras.marker) },
+            "back_pt": extras.back_pt,
+            "hint": extras.hint,
+        }))
     }
-    files.extend(art);
-    let job = json!({
-        "layout": match layout { Layout::Cards => "card", Layout::Sheet(_) => "sheet" },
-        "sheet": match layout {
-            Layout::Cards => Value::Null,
-            Layout::Sheet(sheet) => json!({
-                "width_mm": sheet.paper.size_mm().0,
-                "height_mm": sheet.paper.size_mm().1,
-                "gap_mm": sheet.gap_mm,
-                "margin_mm": sheet.margin_mm,
-                "cut_marks": sheet.cut_marks,
-            }),
-        },
-        "cards": out,
-    });
-    files.insert(id("/job.json"), Bytes::new(serde_json::to_vec(&job)?));
-    let main = id("/main.typ");
-    let world = Job {
-        main,
-        source: Source::new(main, TEMPLATE.into()),
-        files,
-    };
-    let compiled = typst::compile::<PagedDocument>(&world);
-    compiled.output.map_err(|errors| explain(&errors))
 }
 
 /// A paragraph as the runs the template sets, its quotes curled first so a

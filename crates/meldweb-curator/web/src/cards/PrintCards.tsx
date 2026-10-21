@@ -75,17 +75,13 @@ function PrintDialog({
         const checked = checkCard(c.text);
         if (checked.kind === "refused")
           throw new Error(`${c.path}: ${checked.message}`);
-        if (checked.art) {
-          const bytes = await artFor(
-            api,
-            repo,
-            besideCard(c.path, checked.art),
-          );
+        for (const a of checked.arts) {
+          const bytes = await artFor(api, repo, besideCard(c.path, a));
           if (!bytes)
             throw new Error(
-              `${checked.name}'s art ${besideCard(c.path, checked.art)} is not in the repo`,
+              `${checked.name}'s art ${besideCard(c.path, a)} is not in the repo`,
             );
-          art.set(checked.art, bytes);
+          art.set(a, bytes);
         }
       }
       setStep("Laying out…");
@@ -97,8 +93,15 @@ function PrintDialog({
         art,
       );
       downloadPdf(pdf, "custom-cards.pdf");
+      // A double-faced card prints both faces, each a slot to cut.
       const n = wanted.reduce((s, c) => s + (qty[c.path] ?? 0), 0);
-      setDone(`${n} cards, ${(pdf.length / 1e3).toFixed(0)} KB.`);
+      const slots = wanted.reduce((s, c) => {
+        const k = checkCard(c.text);
+        return s + (qty[c.path] ?? 0) * (k.kind === "card" ? k.faces : 1);
+      }, 0);
+      setDone(
+        `${n} cards${slots > n ? ` (${slots} faces)` : ""}, ${(pdf.length / 1e3).toFixed(0)} KB.`,
+      );
     } catch (e) {
       setRefusal(messageOf(e));
     } finally {

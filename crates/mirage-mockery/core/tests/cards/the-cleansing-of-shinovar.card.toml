@@ -9,3 +9,16 @@ IV — Exile this Saga, then return it to the battlefield transformed under your
 """
 flavor = "Ten monasteries, ten Honorblades, and one stubborn Windrunner with a pot of stew."
 artist = "Mirage Mockery"
+layout = "transform"
+
+[back]
+name = "Kaladin, Herald of Second Chances"
+type = "Legendary Enchantment Creature — Human Knight"
+color_indicator = "WR"
+rules = """
+Flying, vigilance
+Whenever another nontoken creature you control dies, return it to the battlefield under its owner's control at the beginning of the next end step. This ability triggers only once each turn.
+"""
+flavor = "Life before death. Strength before weakness. Journey before destination."
+pt = "4/4"
+artist = "Mirage Mockery"

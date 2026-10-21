@@ -27,23 +27,25 @@ export interface CardView {
     | { kind: "png"; url: string }
     | { kind: "failed"; why: string }
     | null;
-  /** The art the card names, missing from the repo. */
-  missingArt: string | null;
+  /** The arts the card names, missing from the repo. */
+  missingArt: readonly string[];
 }
 
 /**
  * What the page shows of `text`: Insight's reading at once, and the picture
- * a moment after typing stops.
+ * of face `face` (a double-faced card's back is 1) a moment after typing
+ * stops.
  */
 export function useCardChecks(
   api: GitHubApi,
   repo: RepoRef,
   path: string,
   text: string,
+  face: number,
 ): CardView {
   const checked = checkCard(text);
   const [preview, setPreview] = useState<CardView["preview"]>(null);
-  const [missingArt, setMissingArt] = useState<string | null>(null);
+  const [missingArt, setMissingArt] = useState<readonly string[]>([]);
 
   useEffect(() => {
     let live = true;
@@ -51,17 +53,18 @@ export function useCardChecks(
     const t = setTimeout(async () => {
       const c = checkCard(text);
       if (c.kind !== "card") return;
-      const artPath = c.art ? besideCard(path, c.art) : null;
-      const art = artPath ? await artFor(api, repo, artPath) : null;
+      const art = new Map<string, Uint8Array>();
+      const missing: string[] = [];
+      for (const a of c.arts) {
+        const bytes = await artFor(api, repo, besideCard(path, a));
+        if (bytes) art.set(a, bytes);
+        else missing.push(besideCard(path, a));
+      }
       if (!live) return;
-      setMissingArt(artPath && !art ? artPath : null);
+      setMissingArt(missing);
       try {
         // Art the repo lacks renders as a card without it, said beside it.
-        const png = renderPng(
-          artPath && !art ? text.replace(/^art\s*=.*$/m, "") : text,
-          art,
-          150,
-        );
+        const png = renderPng(text, art, Math.min(face, c.faces - 1), 150);
         url = URL.createObjectURL(
           new Blob([png as BlobPart], { type: "image/png" }),
         );
@@ -75,7 +78,7 @@ export function useCardChecks(
       clearTimeout(t);
       if (url) setTimeout(() => URL.revokeObjectURL(url as string), 1000);
     };
-  }, [api, repo, path, text]);
+  }, [api, repo, path, text, face]);
 
   return { checked, preview, missingArt };
 }

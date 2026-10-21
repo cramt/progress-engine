@@ -1,0 +1,19 @@
+name = "Force Push"
+cost = "{1}{U}"
+type = "Instant"
+rules = """
+Target creature's owner puts it on their choice of the top or bottom of their library.
+Fuse (You may cast one or both halves of this card from your hand.)
+"""
+artist = "Mirage Mockery"
+layout = "split"
+
+[right]
+name = "Force Pull"
+cost = "{1}{R}"
+type = "Instant"
+rules = """
+Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.
+Fuse (You may cast one or both halves of this card from your hand.)
+"""
+artist = "Mirage Mockery"

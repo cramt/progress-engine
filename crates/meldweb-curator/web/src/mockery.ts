@@ -61,23 +61,32 @@ export function checkCard(text: string): Checked {
   return JSON.parse(check(text)) as Checked;
 }
 
-/** The file as the form's fields, or why the form can't hold it. */
-export function formOf(text: string): Opened {
-  return JSON.parse(form_of(text)) as Opened;
+/**
+ * One face of the file as the form's fields, or why the form can't hold
+ * them: face 0 is the front (or left half), 1 the back (or right half).
+ */
+export function formOf(text: string, face = 0): Opened {
+  return JSON.parse(form_of(text, face)) as Opened;
 }
 
-/** `text` with the form's fields written in, the rest of it as it was. */
-export function writeForm(text: string, form: Form): string {
-  return write_form(text, JSON.stringify(form));
+/** `text` with the form's fields written into one face, the rest as it was. */
+export function writeForm(text: string, form: Form, face = 0): string {
+  return write_form(text, JSON.stringify(form), face);
 }
 
-/** The card alone, as a PNG; `art` is its art's bytes when it names some. */
+/**
+ * One face of the card as a PNG: 0 the front, 1 a double-faced card's back.
+ * `art` holds the arts it names, by path; a face whose art is missing is
+ * drawn without it.
+ */
 export function renderPng(
   text: string,
-  art: Uint8Array | null,
+  art: ReadonlyMap<string, Uint8Array>,
+  face: number,
   ppi: number,
 ): Uint8Array {
-  return render_png(text, art ?? new Uint8Array(), ppi);
+  const { paths, all, ends } = pack(art);
+  return render_png(text, JSON.stringify(paths), all, ends, face, ppi);
 }
 
 /** A sheet to print and cut; `art` holds every art the cards name, by path. */
@@ -86,6 +95,18 @@ export function sheetPdf(
   layout: CardSheet,
   art: ReadonlyMap<string, Uint8Array>,
 ): Uint8Array {
+  const { paths, all, ends } = pack(art);
+  return sheet_pdf(
+    JSON.stringify(cards),
+    JSON.stringify(layout),
+    JSON.stringify(paths),
+    all,
+    ends,
+  );
+}
+
+/** Arts end to end, the `n`th ending at `ends[n]`, as the wasm takes them. */
+function pack(art: ReadonlyMap<string, Uint8Array>) {
   const paths = [...art.keys()];
   const ends = new Uint32Array(paths.length);
   let total = 0;
@@ -98,11 +119,5 @@ export function sheetPdf(
     const b = art.get(p) as Uint8Array;
     all.set(b, (ends[i] as number) - b.length);
   });
-  return sheet_pdf(
-    JSON.stringify(cards),
-    JSON.stringify(layout),
-    JSON.stringify(paths),
-    all,
-    ends,
-  );
+  return { paths, all, ends };
 }

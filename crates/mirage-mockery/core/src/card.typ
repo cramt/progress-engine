@@ -170,7 +170,7 @@
   let striated = r.kind == "station" and r.thresholds.len() > 0
   let corner-in-band = striated and c.corner != none
   block(width: 100%, height: 1fr, fill: ps.box, stroke: 0.4pt + black, clip: false,
-    inset: (x: pad, top: 1.8mm, bottom: if c.corner != none and not corner-in-band { 5.4mm } else { 1.8mm }),
+    inset: (x: pad, top: 1.8mm, bottom: if (c.corner != none and not corner-in-band) or c.hint != none or c.back_pt != none { 5.4mm } else { 1.8mm }),
     fit-box((sz, spare) => text-style(sz, {
       if r.kind == "plain" { paragraphs(r.lines) } else {
         paragraphs(r.before)
@@ -260,8 +260,62 @@
     }
   })))
 
-#let card(c) = {
+// Which face of a two-faced card this is, on the name bar's left, where
+// printed double-faced cards mark theirs (CR 712.2a–b, 712.3a–b). The marks
+// are Mockery's own: a disc for a card that transforms, its chevron up on the
+// front and down on the back; a tab for a modal one, one chevron on the front
+// and two on the back.
+#let face-marker(kind) = {
+  let chevron(dx, dy, up: true, w: 1.1mm, h: 0.65mm, paint: white) = place(top + left, dx: dx, dy: dy,
+    polygon(fill: paint, stroke: none,
+      ..if up { ((0mm, h), (w / 2, 0mm), (w, h), (w, h + 0.45mm), (w / 2, 0.45mm), (0mm, h + 0.45mm)) }
+        else { ((0mm, 0mm), (w / 2, h), (w, 0mm), (w, 0.45mm), (w / 2, h + 0.45mm), (0mm, 0.45mm)) }))
+  if kind == "transform-front" or kind == "transform-back" {
+    box(width: 3.4mm, height: 3.4mm, baseline: 20%, {
+      place(circle(radius: 1.7mm, fill: luma(30), stroke: 0.4pt + white))
+      chevron(1.15mm, 1.05mm, up: kind == "transform-front")
+    })
+  } else {
+    // A tab, round at the left and pointed at the right.
+    let front = kind == "modal-front"
+    let ink = if front { white } else { luma(30) }
+    box(width: 4.6mm, height: 3.2mm, baseline: 20%, {
+      place(polygon(fill: if front { luma(30) } else { white }, stroke: 0.4pt + luma(30),
+        (1.6mm, 0mm), (3.4mm, 0mm), (4.6mm, 1.6mm), (3.4mm, 3.2mm), (1.6mm, 3.2mm), (0mm, 1.6mm)))
+      let arrow(dx) = place(top + left, dx: dx, dy: 0.9mm, polygon(fill: ink, stroke: none,
+        (0mm, 0mm), (0.75mm, 0.7mm), (0mm, 1.4mm), (0mm, 1.0mm), (0.35mm, 0.7mm), (0mm, 0.4mm)))
+      if front { arrow(1.95mm) } else { arrow(1.45mm); arrow(2.35mm) }
+    })
+  }
+}
+
+// A modal face's hint bar: what the other face is, its subtypes or types
+// and its cost or, for a land, the mana it adds (CR 712.3c), at the foot's
+// left behind a chevron pointing off the card. Dark on the front and light on
+// the back, as the face markers are.
+#let hint-bar(hint, front) = {
+  let (bg, fg) = if front { (luma(35), white) } else { (luma(235), black) }
+  box(fill: bg, stroke: 0.4pt + black, radius: (right: 1.4mm),
+    inset: (left: 1mm, right: 1.6mm, y: 0.7mm), {
+    set text(size: 5.2pt, fill: fg)
+    stack(dir: ltr, spacing: 1.2mm,
+      box(baseline: -0.2em, polygon(fill: fg, stroke: none, (0.9mm, 0mm), (0mm, 0.6mm), (0.9mm, 1.2mm))),
+      text(weight: "bold", hint.type),
+      h(0.6mm),
+      if hint.mana != none { paragraph(hint.mana) } else { for s in hint.cost { sym(s, 5.4pt) } })
+  })
+}
+
+// A transforming front's grey reminder of its back's power and toughness
+// (CR 712.2c).
+#let back-pt(c) = text(size: 6.5pt, weight: "bold", fill: luma(105), c.back_pt)
+
+// One face's body, filling the box it is given: a card's whole face, or a
+// split card's half with `art` a share of the half rather than a length.
+#let face-body(c, art: 36.5mm) = {
   let ps = paints(c.frame)
+  set text(font: "Libertinus Serif", size: 8.5pt, fill: black)
+  set block(spacing: 0.9mm)
   let bar(body) = block(
     width: 100%, fill: ps.bar, stroke: 0.4pt + black, radius: 1mm,
     inset: (x: 1.5mm, y: 1.1mm), body,
@@ -270,61 +324,100 @@
     grid(columns: (auto, 1fr), column-gutter: 1.2mm, align: horizon,
       indicator(c.indicator), fit-line(c.type_line, 8.5pt, 5.5pt, "the type line"))
   } else { fit-line(c.type_line, 8.5pt, 5.5pt, "the type line") }))
-  block(width: card-width, height: card-height, fill: black, inset: 2.6mm, radius: 2.5mm, breakable: false,
-    block(width: 100%, height: 100%, fill: ps.body,
-      radius: 1.2mm, inset: (x: 1.5mm, top: 1.5mm, bottom: 0.6mm), {
-      set text(font: "Libertinus Serif", size: 8.5pt, fill: black)
-      set block(spacing: 0.9mm)
+  // The corner, with a transforming front's reminder of its back's beside it.
+  let foot-right = if c.corner != none and c.back_pt != none {
+    stack(dir: ltr, spacing: 1mm, move(dy: -1.6mm, back-pt(c)), corner-box(c, ps))
+  } else if c.corner != none { corner-box(c, ps) } else if c.back_pt != none {
+    move(dy: -1.3mm, back-pt(c))
+  } else { none }
 
-      // The name gives way to the cost, never the other way round.
-      bar(grid(columns: (1fr, auto), align: horizon,
-        fit-line(c.name, 9.5pt, 6pt, "the name"),
-        { for s in c.cost { sym(s, 9pt) } },
-      ))
+  // The name gives way to the cost, never the other way round.
+  bar(grid(columns: if c.marker != none { (auto, 1fr, auto) } else { (1fr, auto) },
+    column-gutter: 1mm, align: horizon,
+    ..if c.marker != none { (face-marker(c.marker),) },
+    fit-line(c.name, 9.5pt, 6pt, "the name"),
+    { for s in c.cost { sym(s, 9pt) } },
+  ))
 
-      let r = c.rules
-      if r.kind == "saga" or r.kind == "class" {
-        // The art stands down one side and the type line goes to the foot:
-        // on the right of a Saga, the left of a Class (CR 714.1, 716.1).
-        let text-col = column-text(c, ps)
-        let art-col = art-box(c, ps)
-        block(width: 100%, height: 1fr, grid(columns: if r.kind == "saga" { (54%, 1fr) } else { (1fr, 54%) },
-          column-gutter: 0.9mm, rows: (100%,),
-          ..if r.kind == "saga" { (text-col, art-col) } else { (art-col, text-col) }))
-        // A Saga creature's other abilities, and its power and toughness, sit
-        // in a text box below the type line (CR 714.1a). With no abilities
-        // there the box would be empty, so the corner rides on the type line.
-        let after = if r.kind == "saga" { r.after } else { () }
-        let boxed = after.len() > 0
-        type-bar(room: if c.corner != none and not boxed { 11mm } else { 0mm })
-        if boxed {
-          block(width: 100%, height: 9mm, fill: ps.box, stroke: 0.4pt + black,
-            inset: (left: 2mm, right: if c.corner != none { 12mm } else { 2mm }, y: 1.2mm),
-            fit-box((sz, _) => text-style(sz, align(center + horizon, paragraphs(after))),
-              what: "the text below the type line"))
-        }
-        v(4.6mm)
-        if c.corner != none {
-          place(bottom + right, dx: 0.6mm, dy: if boxed { -2.2mm } else { -4.2mm }, corner-box(c, ps))
-        }
-      } else {
-        art-box(c, ps, height: 36.5mm)
-        type-bar()
-        standard-text(c, ps)
-        if c.corner != none and not (r.kind == "station" and r.thresholds.len() > 0) {
-          // On the text box's bottom edge and clear of the footer, with the box's bottom inset
-          // keeping the text clear of it.
-          place(bottom + right, dx: 0.6mm, dy: 0.2mm, corner-box(c, ps))
-        }
-      }
-
-      // Where a real card's legal line sits, this says what it is.
-      set text(size: 4.2pt, fill: white)
-      place(bottom + left, dy: 2.2mm,
-        if c.artist != none [Illus. #c.artist] else [])
-      place(bottom + right, dy: 2.2mm, [Unofficial fan content · not a Magic card])
-    }))
+  let r = c.rules
+  if r.kind == "saga" or r.kind == "class" {
+    // The art stands down one side and the type line goes to the foot:
+    // on the right of a Saga, the left of a Class (CR 714.1, 716.1).
+    let text-col = column-text(c, ps)
+    let art-col = art-box(c, ps)
+    block(width: 100%, height: 1fr, grid(columns: if r.kind == "saga" { (54%, 1fr) } else { (1fr, 54%) },
+      column-gutter: 0.9mm, rows: (100%,),
+      ..if r.kind == "saga" { (text-col, art-col) } else { (art-col, text-col) }))
+    // A Saga creature's other abilities, and its power and toughness, sit
+    // in a text box below the type line (CR 714.1a). With no abilities
+    // there the box would be empty, so the corner rides on the type line.
+    let after = if r.kind == "saga" { r.after } else { () }
+    let boxed = after.len() > 0
+    // A transforming Saga's reminder of its back's power and toughness rides
+    // on the type line's end, the corner being the back's.
+    let reminder = c.back_pt != none and c.corner == none
+    type-bar(room: if c.corner != none and not boxed { 11mm } else if reminder { 7mm } else { 0mm })
+    if reminder { place(bottom + right, dx: -1.6mm, dy: -5.9mm, back-pt(c)) }
+    if boxed {
+      block(width: 100%, height: 9mm, fill: ps.box, stroke: 0.4pt + black,
+        inset: (left: 2mm, right: if c.corner != none { 12mm } else { 2mm }, y: 1.2mm),
+        fit-box((sz, _) => text-style(sz, align(center + horizon, paragraphs(after))),
+          what: "the text below the type line"))
+    }
+    v(4.6mm)
+    if foot-right != none and not reminder {
+      place(bottom + right, dx: 0.6mm, dy: if boxed { -2.2mm } else if c.corner != none { -4.2mm } else { -1.4mm }, foot-right)
+    }
+    if c.hint != none { place(bottom + left, dx: -0.6mm, dy: -0.6mm, hint-bar(c.hint, c.marker == "modal-front")) }
+  } else {
+    art-box(c, ps, height: art)
+    type-bar()
+    standard-text(c, ps)
+    if c.hint != none { place(bottom + left, dx: -0.6mm, dy: -0.2mm, hint-bar(c.hint, c.marker == "modal-front")) }
+    if foot-right != none and not (r.kind == "station" and r.thresholds.len() > 0 and c.back_pt == none) {
+      // On the text box's bottom edge and clear of the footer, with the box's bottom inset
+      // keeping the text clear of it.
+      let in-band = r.kind == "station" and r.thresholds.len() > 0
+      place(bottom + right, dx: 0.6mm, dy: 0.2mm,
+        if in-band { move(dy: -1.3mm, back-pt(c)) } else { foot-right })
+    }
+  }
 }
+
+// Where a real card's legal line sits, this says what it is.
+#let footer(artist) = {
+  set text(font: "Libertinus Serif", size: 4.2pt, fill: white)
+  place(bottom + left, dy: 2.2mm, if artist != none [Illus. #artist] else [])
+  place(bottom + right, dy: 2.2mm, [Unofficial fan content · not a Magic card])
+}
+
+#let face-card(c) = block(width: card-width, height: card-height, fill: black, inset: 2.6mm, radius: 2.5mm, breakable: false,
+  block(width: 100%, height: 100%, fill: paints(c.frame).body,
+    radius: 1.2mm, inset: (x: 1.5mm, top: 1.5mm, bottom: 0.6mm), {
+    face-body(c)
+    footer(c.artist)
+  }))
+
+// A split card: two halves side by side on a card turned on its side, read
+// with the card's left edge at the bottom (CR 709.1), each half a face of its
+// own. Halves that both have fuse print it once, on a bar across the foot of
+// both (CR 702.102a).
+#let split-card(c) = rotate(-90deg, reflow: true,
+  block(width: card-height, height: card-width, fill: black, inset: 2.6mm, radius: 2.5mm, breakable: false, {
+    set block(spacing: 0mm)
+    block(width: 100%, height: 100%, grid(columns: (1fr, 1fr), column-gutter: 1mm, rows: (1fr, auto), row-gutter: 0.9mm,
+      ..c.halves.map(h => block(width: 100%, height: 100%, fill: paints(h.frame).body,
+        radius: 1.2mm, inset: (x: 1.3mm, top: 1.3mm, bottom: 1.3mm), face-body(h, art: 38%))),
+      ..if c.fuse != none {
+        let ends = c.halves.map(h => paints(h.frame).bar)
+        (grid.cell(colspan: 2, block(width: 100%, fill: gradient.linear(..ends), stroke: 0.4pt + black,
+          radius: 1mm, inset: (x: 1.6mm, y: 1mm),
+          text(font: "Libertinus Serif", size: 6.6pt, fill: black, paragraph(c.fuse)))),)
+      }))
+    footer(c.artist)
+  }))
+
+#let card(c) = if c.kind == "split" { split-card(c) } else { face-card(c) }
 
 #let notice = [Unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Made with Mirage Mockery.]
 
