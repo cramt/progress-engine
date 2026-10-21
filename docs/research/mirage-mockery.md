@@ -399,7 +399,7 @@ do.
     goes where Brisela has it: its art and type line stand lower than a
     grown card's, its text box's foot where a card's is, and its black band
     deeper. Each back holds its half of that, read with the card turned a
-    quarter clockwise as a split card is, the cut along its long edge with
+    quarter anticlockwise, the other way from a split card, the cut along its long edge with
     its corners rounded, the notch Scryfall's images show at the seam.
     Against Brisela, the two backs stitched at 1040 by 1490 (Mishra, Lost to
     Phyrexia agrees within a few px):
@@ -411,8 +411,11 @@ do.
     | power and toughness plate | 1310–1385 | 1300–1375 |
     | footer's baseline | 1395 | 1430 |
 
-    Which way a printed back's half is turned was not found in any source
-    checked, so the quarter turn is the split card's, not a measurement.
+    Which way: Eldritch Moon's backs turn the other way from a split card,
+    as those who scanned the six printed backs report
+    (slightlymagic.net, "ELDRITCH MOON", 2016: flipping a split card over,
+    "you turn your head 90° counterclockwise to view", a meld card's
+    "90° clockwise"). Not measured here on a physical card.
 
 Insight reads every face's rules text, each as its own face (CR 712.8,
 709.3b), and an inset spell's as the face it is while cast (CR 715.3b). Matched against Scryfall's images of Fable of the Mirror-Breaker,

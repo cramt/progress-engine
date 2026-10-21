@@ -1499,11 +1499,12 @@
 
 // A meld card's back: its half of the melded card, the top half on the
 // back of the card that melds them and the bottom on its counterpart's, as
-// printed pairs' are, read with the card turned a quarter clockwise, its
-// left edge at the top as a split card's is, so the two laid side by side
-// make the melded card.
+// printed pairs' are, read with the card turned a quarter anticlockwise,
+// its right edge at the top: the other way from a split card, as Eldritch
+// Moon's printed backs are turned. The two laid side by side, the top
+// half's on the right, make the melded card.
 #let meld-back(c) = block(width: card-width, height: card-height, fill: black, radius: 2.5mm, clip: true,
-  breakable: false, rotate(-90deg, reflow: true, block(width: card-height, height: card-width, clip: true,
+  breakable: false, rotate(90deg, reflow: true, block(width: card-height, height: card-width, clip: true,
     place(top + left, dy: if c.half == "top" { 0mm } else { -card-width }, melded-card(c.melded)))))
 
 #let card(c) = if c.kind == "split" {
