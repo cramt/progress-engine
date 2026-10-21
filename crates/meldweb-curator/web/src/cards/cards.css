@@ -239,3 +239,8 @@
 .custom-card-source .face-picker {
   margin-top: 0.6rem;
 }
+
+.custom-card-source .layout-picker {
+  margin-top: 0.6rem;
+  max-width: 16rem;
+}

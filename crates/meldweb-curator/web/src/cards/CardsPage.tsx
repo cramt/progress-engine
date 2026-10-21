@@ -12,10 +12,13 @@ import { commitEdit } from "../github/repoFile";
 import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
 import {
+  type CardLayout,
+  checkCard,
   formOf,
   loadMockery,
   type Parts,
   type Reading,
+  withLayout,
   writeForm,
 } from "../mockery";
 import { Loading } from "../ui/Loading";
@@ -187,10 +190,33 @@ function CardEditor({
   // edits that half, or when turned by hand.
   const [turnedBy, setTurnedBy] = useState({ side, turned: side === 1 });
   const turned = turnedBy.side === side ? turnedBy.turned : side === 1;
-  const pickPart = (part: number) => {
+  const pickPart = (part: number, among = images) => {
     setFace(part);
-    const shown = images.findIndex((i) => i.part === part);
-    if (shown >= 0) setImage(shown);
+    const shown = among.findIndex((i) => i.part === part);
+    setImage(Math.max(shown, 0));
+  };
+  const [relayRefusal, setRelayRefusal] = useState<string | null>(null);
+  // A new layout lands on the part it added or moved, so it is in view.
+  const relay = (layout: CardLayout) => {
+    try {
+      const relaid = withLayout(text, layout);
+      if (
+        relaid.lost.length > 0 &&
+        !window.confirm(
+          `Changing the layout to ${LAYOUT_LABELS[layout]} throws away:\n\n${relaid.lost.map((l) => `• ${l}`).join("\n")}\n\nGo ahead?`,
+        )
+      )
+        return;
+      setRelayRefusal(null);
+      edit(relaid.text);
+      const checked = checkCard(relaid.text);
+      pickPart(
+        layout === "one" ? 0 : 1,
+        checked.kind === "card" ? checked.images : [],
+      );
+    } catch (e) {
+      setRelayRefusal(messageOf(e));
+    }
   };
 
   return (
@@ -230,8 +256,18 @@ function CardEditor({
         />
         {showing === "form" && opened.kind === "form" ? (
           <>
+            <LayoutPicker layout={opened.layout} onPick={relay} />
+            {relayRefusal && (
+              <p className="refusal" role="alert">
+                {relayRefusal}
+              </p>
+            )}
             {labels && (
-              <FacePicker face={side} labels={labels} onPick={pickPart} />
+              <FacePicker
+                face={side}
+                labels={labels}
+                onPick={(part) => pickPart(part)}
+              />
             )}
             <CardForm
               key={side}
@@ -351,6 +387,52 @@ const PART_LABELS: Record<Parts, readonly string[] | null> = {
   flip: ["Upright", "Flipped"],
   meld: ["Card", "Counterpart", "Melded"],
 };
+
+/**
+ * Every layout the form offers. A fused, aftermath or Room card is a split
+ * card its text makes so, and a battle a face its type line makes one, so
+ * none of those is picked here.
+ */
+const LAYOUT_LABELS: Record<CardLayout, string> = {
+  one: "One face",
+  transform: "Transform",
+  modal: "Modal (MDFC)",
+  split: "Split",
+  adventure: "Adventure",
+  omen: "Omen",
+  prepare: "Prepare",
+  flip: "Flip",
+  meld: "Meld",
+};
+const LAYOUTS = Object.keys(LAYOUT_LABELS) as CardLayout[];
+
+/** How the card is laid out: picking another adds or drops its parts. */
+function LayoutPicker({
+  layout,
+  onPick,
+}: {
+  layout: CardLayout;
+  onPick: (layout: CardLayout) => void;
+}) {
+  return (
+    <label className="field layout-picker">
+      Layout
+      <select
+        value={layout}
+        onChange={(e) => {
+          const picked = LAYOUTS.find((l) => l === e.target.value);
+          if (picked) onPick(picked);
+        }}
+      >
+        {LAYOUTS.map((l) => (
+          <option key={l} value={l}>
+            {LAYOUT_LABELS[l]}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 /** Which face of a card of two the page shows and edits. */
 function FacePicker({

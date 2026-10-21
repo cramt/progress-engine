@@ -452,6 +452,17 @@ Curator's form edits every part: a picker above the form chooses the front
 or the back (left or right half, the card or its Adventure or prepare
 spell, the upright or flipped half, or a meld pair's card, counterpart or
 melded card), and writing one never touches the others or the layout. The
+layout is the form's too: a select at its top offers one face, transform,
+modal, split, adventure, Omen, prepare, flip and meld (fuse, aftermath and a
+Room come of a split card's text, a battle of a face's type line, so none
+is offered), and `form::with_layout` rewrites the file for it in place. A
+part the new layout needs is added as a placeholder that checks (an
+Adventure a `Sorcery — Adventure` costing `{1}`, a meld pair's melded card
+with no cost and its card given the line that melds them); a part it keeps
+moves to its new table with its comments, and only what the layout refuses
+of it is rewritten (a spell's Adventure or Omen subtype, a creature made a
+sorcery, a flipped half's cost); a part it has no place for is dropped. The
+page asks before anything is thrown away, and lands on the part added. The
 preview has a picker of the card images too, for a double-faced card's two
 and a meld pair's four, and picking a part shows the image it is drawn on.
 

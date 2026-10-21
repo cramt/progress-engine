@@ -12,7 +12,7 @@
 
 use anyhow::{anyhow, bail, Result};
 use facet::Facet;
-use toml_edit::{DocumentMut, Item, Table, Value};
+use toml_edit::{DocumentMut, Item, Table, TableLike, Value};
 
 use crate::card::{RawCard, RawFace};
 
@@ -240,7 +240,415 @@ impl Form {
     }
 }
 
-fn set(doc: &mut Table, key: &str, want: Option<String>) -> Result<()> {
+/// How a card is laid out, as the form picks it: one face, or what
+/// `layout =` declares, an adventurer and an omen card told apart by their
+/// spell's subtype as [`Card::parse`] tells them. A fused, aftermath or Room
+/// card is a split card its text makes so, and a battle any face its type
+/// line makes one, so none is a layout of its own.
+///
+/// [`Card::parse`]: crate::card::Card::parse
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Facet)]
+#[repr(u8)]
+#[facet(rename_all = "camelCase")]
+pub enum CardLayout {
+    One,
+    Transform,
+    Modal,
+    Split,
+    Adventure,
+    Omen,
+    Prepare,
+    Flip,
+    Meld,
+}
+
+impl CardLayout {
+    pub const ALL: [CardLayout; 9] = [
+        CardLayout::One,
+        CardLayout::Transform,
+        CardLayout::Modal,
+        CardLayout::Split,
+        CardLayout::Adventure,
+        CardLayout::Omen,
+        CardLayout::Prepare,
+        CardLayout::Flip,
+        CardLayout::Meld,
+    ];
+
+    /// What the file's `layout =` says, none for one face.
+    fn word(self) -> Option<&'static str> {
+        Some(match self {
+            CardLayout::One => return None,
+            CardLayout::Transform => "transform",
+            CardLayout::Modal => "modal",
+            CardLayout::Split => "split",
+            // Scryfall lays an omen card out as an adventurer.
+            CardLayout::Adventure | CardLayout::Omen => "adventure",
+            CardLayout::Prepare => "prepare",
+            CardLayout::Flip => "flip",
+            CardLayout::Meld => "meld",
+        })
+    }
+
+    /// The table its second part is in, none for one face. A meld pair's
+    /// third is always `[melded]`.
+    fn second(self) -> Option<&'static str> {
+        Some(match self {
+            CardLayout::One => return None,
+            CardLayout::Transform | CardLayout::Modal => "back",
+            CardLayout::Split => "right",
+            CardLayout::Adventure | CardLayout::Omen | CardLayout::Prepare => "spell",
+            CardLayout::Flip => "flipped",
+            CardLayout::Meld => "counterpart",
+        })
+    }
+
+    /// The layout the file declares, or, where it declares none it knows,
+    /// the one its tables are for.
+    pub fn of(text: &str) -> Result<Self> {
+        let raw = RawCard::parse(text)?;
+        Ok(match raw.layout.as_deref().map(str::trim) {
+            Some("transform") => CardLayout::Transform,
+            Some("modal") => CardLayout::Modal,
+            Some("split") => CardLayout::Split,
+            Some("prepare") => CardLayout::Prepare,
+            Some("flip") => CardLayout::Flip,
+            Some("meld") => CardLayout::Meld,
+            Some("adventure") if spell_is_omen(&raw) => CardLayout::Omen,
+            Some("adventure") => CardLayout::Adventure,
+            _ => match Parts::of(text)? {
+                Parts::One => CardLayout::One,
+                Parts::FrontBack => CardLayout::Transform,
+                Parts::Halves => CardLayout::Split,
+                Parts::Adventure => CardLayout::Adventure,
+                Parts::Omen => CardLayout::Omen,
+                Parts::Prepare => CardLayout::Prepare,
+                Parts::Flip => CardLayout::Flip,
+                Parts::Meld => CardLayout::Meld,
+            },
+        })
+    }
+}
+
+fn spell_is_omen(raw: &RawCard) -> bool {
+    raw.spell
+        .as_ref()
+        .is_some_and(|s| subtypes(&s.type_line).contains(&"Omen"))
+}
+
+/// A type line's words after the dash.
+fn subtypes(type_line: &str) -> Vec<&str> {
+    type_line
+        .split_whitespace()
+        .skip_while(|w| *w != "—")
+        .skip(1)
+        .collect()
+}
+
+/// A card file laid out anew, and what of it that threw away: the parts
+/// dropped and the fields the new layout has no place for, each named for
+/// the page to ask before it does so.
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
+pub struct Relaid {
+    pub text: String,
+    pub lost: Vec<String>,
+}
+
+/// `text` laid out as `to`. A part it gains is filled in as a card that
+/// checks, so the form opens on it; a part it keeps moves to the table the
+/// layout keeps it in, and only what that layout refuses of it is
+/// rewritten; a part it loses is dropped. The rest of the file, comments
+/// and all, is as it was.
+pub fn with_layout(text: &str, to: CardLayout) -> Result<Relaid> {
+    let from = CardLayout::of(text)?;
+    if from == to {
+        return Ok(Relaid {
+            text: text.into(),
+            lost: Vec::new(),
+        });
+    }
+    let mut doc: DocumentMut = text.parse()?;
+    let mut lost = Vec::new();
+    // Every second part the file has, the one the layout reads first.
+    let mut seconds = ["back", "right", "spell", "flipped", "counterpart"]
+        .into_iter()
+        .filter_map(|key| doc.remove(key));
+    let second = seconds.next();
+    lost.extend(seconds.map(|item| part_name(&item)));
+    let melded = doc.remove("melded");
+    let root = doc.as_table_mut();
+    set(root, "layout", to.word().map(String::from))?;
+    if let (CardLayout::Meld, Some(counterpart), Some(melded)) = (from, &second, &melded) {
+        if to != CardLayout::Meld {
+            unmeld(root, counterpart, melded)?;
+        }
+    }
+    let Some(key) = to.second() else {
+        lost.extend(second.iter().chain(&melded).map(part_name));
+        return Ok(Relaid {
+            text: doc.to_string(),
+            lost,
+        });
+    };
+    let mut second = match second {
+        Some(item) => item,
+        None => seed(to, root)?,
+    };
+    fit(&mut second, to, &mut lost)?;
+    if to == CardLayout::Meld {
+        let melded = match melded {
+            Some(item) => item,
+            None => face(&[
+                ("name", "Melded Card"),
+                ("type", "Legendary Creature"),
+                ("pt", "6/6"),
+            ])?,
+        };
+        melds_them(root, &second, &melded)?;
+        root.insert(key, second);
+        root.insert("melded", melded);
+    } else {
+        lost.extend(melded.iter().map(part_name));
+        root.insert(key, second);
+    }
+    Ok(Relaid {
+        text: doc.to_string(),
+        lost,
+    })
+}
+
+fn part_name(item: &Item) -> String {
+    item.get("name")
+        .and_then(Item::as_str)
+        .map_or_else(|| "a part with no name".into(), |n| format!("{n:?}"))
+}
+
+/// A table holding `fields`.
+fn face(fields: &[(&str, &str)]) -> Result<Item> {
+    let mut table = Table::new();
+    for (key, value) in fields {
+        set(&mut table, key, Some((*value).into()))?;
+    }
+    Ok(Item::Table(table))
+}
+
+/// A second part as `to` prints one, a card that checks beside `front`.
+fn seed(to: CardLayout, front: &Table) -> Result<Item> {
+    let front_type = front.get("type").and_then(Item::as_str).unwrap_or("");
+    let words: Vec<&str> = front_type.split_whitespace().collect();
+    face(&match to {
+        CardLayout::One => bail!("one face has no second part"),
+        CardLayout::Transform | CardLayout::Modal => {
+            vec![("name", "Back Face"), ("type", "Creature"), ("pt", "1/1")]
+        }
+        // A Room's doors share one type line, and a spell's other half is
+        // most often a spell of its kind.
+        CardLayout::Split => {
+            let rooms = words.contains(&"Room");
+            let spell = matches!(words.first(), Some(&"Instant" | &"Sorcery"));
+            let type_line = if rooms || spell {
+                front_type
+            } else {
+                "Instant"
+            };
+            vec![("name", "Right Half"), ("cost", "{1}"), ("type", type_line)]
+        }
+        CardLayout::Adventure => vec![
+            ("name", "Adventure Spell"),
+            ("cost", "{1}"),
+            ("type", "Sorcery — Adventure"),
+        ],
+        CardLayout::Omen => vec![
+            ("name", "Omen Spell"),
+            ("cost", "{1}"),
+            ("type", "Sorcery — Omen"),
+        ],
+        CardLayout::Prepare => vec![
+            ("name", "Prepare Spell"),
+            ("cost", "{1}"),
+            ("type", "Sorcery"),
+        ],
+        CardLayout::Flip => vec![
+            ("name", "Flipped Half"),
+            ("type", "Legendary Creature"),
+            ("pt", "1/1"),
+        ],
+        CardLayout::Meld => vec![("name", "Counterpart"), ("type", "Creature"), ("pt", "1/1")],
+    })
+}
+
+/// The second part rewritten where `to` refuses it as it is, each field
+/// that goes named in `lost`.
+fn fit(item: &mut Item, to: CardLayout, lost: &mut Vec<String>) -> Result<()> {
+    let name = part_name(item);
+    let Some(t) = item.as_table_like_mut() else {
+        bail!("the second part is a table, not {}", item.type_name());
+    };
+    let type_line = t
+        .get("type")
+        .and_then(Item::as_str)
+        .unwrap_or("")
+        .to_string();
+    let (types, subs) = match type_line.split_once('—') {
+        Some((types, subs)) => (types.trim(), subs.trim()),
+        None => (type_line.trim(), ""),
+    };
+    let spell = matches!(types, "Instant" | "Sorcery");
+    // An Adventure or an Omen subtype is an inset spell's, and only its.
+    let kept: Vec<&str> = subs
+        .split_whitespace()
+        .filter(|w| !matches!(*w, "Adventure" | "Omen"))
+        .collect();
+    let mut drop = |t: &mut dyn TableLike, fields: &[&str]| {
+        for field in fields {
+            if t.remove(field).is_some() {
+                lost.push(format!("{name}'s {field}"));
+            }
+        }
+    };
+    let joined = |types: &str, subs: &[&str]| match subs {
+        [] => types.to_string(),
+        _ => format!("{types} — {}", subs.join(" ")),
+    };
+    let new_type = match to {
+        CardLayout::Adventure | CardLayout::Omen | CardLayout::Prepare => {
+            // Drawn in the card's text box, an instant or sorcery with a
+            // cost and no corner or art of its own.
+            drop(
+                t,
+                &[
+                    "pt",
+                    "loyalty",
+                    "defense",
+                    "art",
+                    "artist",
+                    "color_indicator",
+                ],
+            );
+            if t.get("cost").is_none() {
+                set(t, "cost", Some("{1}".into()))?;
+            }
+            let mut subs = if spell { kept } else { Vec::new() };
+            subs.extend(match to {
+                CardLayout::Adventure => Some("Adventure"),
+                CardLayout::Omen => Some("Omen"),
+                _ => None,
+            });
+            joined(
+                if types == "Instant" {
+                    "Instant"
+                } else {
+                    "Sorcery"
+                },
+                &subs,
+            )
+        }
+        // A permanent's half, sharing the upright half's cost, colour and art.
+        CardLayout::Flip => {
+            drop(
+                t,
+                &[
+                    "cost",
+                    "color_indicator",
+                    "art",
+                    "artist",
+                    "loyalty",
+                    "defense",
+                ],
+            );
+            if spell {
+                "Creature".into()
+            } else {
+                joined(types, &kept)
+            }
+        }
+        // Each card of a meld pair is a permanent.
+        CardLayout::Meld if spell => "Creature".into(),
+        CardLayout::Split => {
+            if t.get("cost").is_none() {
+                set(t, "cost", Some("{1}".into()))?;
+            }
+            joined(types, &kept)
+        }
+        _ => joined(types, &kept),
+    };
+    if new_type != type_line {
+        // Its subtypes follow its card types; only a change of card type
+        // is something the page asks about.
+        if new_type.split('—').next().map(str::trim) != Some(types) {
+            lost.push(format!("{name}'s type {type_line:?}"));
+        }
+        set(t, "type", Some(new_type.clone()))?;
+    }
+    let creature = new_type.split_whitespace().any(|w| w == "Creature");
+    if creature && t.get("pt").is_none() {
+        set(t, "pt", Some("1/1".into()))?;
+    }
+    Ok(())
+}
+
+/// One card of a meld pair melds them, naming the card they meld into
+/// (CR 712.4a), and the top level is that card: it is given the line if it
+/// has none.
+fn melds_them(front: &mut Table, counterpart: &Item, melded: &Item) -> Result<()> {
+    let line = meld_line(front, counterpart, melded);
+    let named = name_of(melded);
+    let rules = str_of(front.get("rules"));
+    if rules
+        .lines()
+        .any(|l| l.to_lowercase().contains("meld") && l.contains(named.as_str()))
+    {
+        return Ok(());
+    }
+    let mut with = rules.trim_end().to_string();
+    if !with.is_empty() {
+        with.push('\n');
+    }
+    with += &line;
+    if rules.ends_with('\n') {
+        with.push('\n');
+    }
+    set(front, "rules", Some(with))
+}
+
+/// The line [`melds_them`] gives a card taken back out of it, as the pair
+/// goes; a line of the user's own is theirs to keep or not.
+fn unmeld(front: &mut Table, counterpart: &Item, melded: &Item) -> Result<()> {
+    let line = meld_line(front, counterpart, melded);
+    let rules = str_of(front.get("rules"));
+    let without = if rules.contains(&format!("\n{line}")) {
+        rules.replacen(&format!("\n{line}"), "", 1)
+    } else if rules.starts_with(&line) {
+        rules.replacen(&line, "", 1)
+    } else {
+        return Ok(());
+    };
+    set(
+        front,
+        "rules",
+        (!without.trim().is_empty()).then_some(without),
+    )
+}
+
+fn meld_line(front: &Table, counterpart: &Item, melded: &Item) -> String {
+    let this = front.get("name").and_then(Item::as_str).unwrap_or("this");
+    format!(
+        "At the beginning of your end step, if you both own and control {this} and a \
+         permanent named {}, exile them, then meld them into {}.",
+        name_of(counterpart),
+        name_of(melded)
+    )
+}
+
+fn name_of(item: &Item) -> String {
+    str_of(item.get("name"))
+}
+
+fn str_of(item: Option<&Item>) -> String {
+    item.and_then(Item::as_str).unwrap_or("").to_string()
+}
+
+fn set(doc: &mut dyn TableLike, key: &str, want: Option<String>) -> Result<()> {
     let Some(want) = want else {
         doc.remove(key);
         return Ok(());
@@ -482,6 +890,231 @@ mod tests {
         assert_eq!(
             Form::of_side(SQUIRE, Side::Second).unwrap().name,
             "The Lopen, Arm Regrown"
+        );
+    }
+
+    const CHASMFIEND: &str = include_str!("../tests/cards/chunky-chasmfiend.card.toml");
+
+    fn checks(text: &str) -> Result<crate::card::Card> {
+        crate::card::Card::parse(text, std::path::Path::new(""))
+    }
+
+    #[test]
+    fn a_file_names_its_layout() {
+        for (text, layout) in [
+            (DRONE, CardLayout::One),
+            (SHINOVAR, CardLayout::Transform),
+            (CHASMFIEND, CardLayout::Modal),
+            (FORCE, CardLayout::Split),
+            (DETENTION, CardLayout::Split),
+            (SKYBREAKER, CardLayout::Adventure),
+            (SANTHID, CardLayout::Omen),
+            (FABRIALIST, CardLayout::Prepare),
+            (SQUIRE, CardLayout::Flip),
+            (SMUGGLER, CardLayout::Meld),
+        ] {
+            assert_eq!(CardLayout::of(text).unwrap(), layout, "{text}");
+        }
+    }
+
+    #[test]
+    fn a_layout_a_card_has_already_changes_nothing() {
+        for text in [DRONE, SHINOVAR, SKYBREAKER, SMUGGLER] {
+            let relaid = with_layout(text, CardLayout::of(text).unwrap()).unwrap();
+            assert_eq!(relaid.text, text);
+            assert!(relaid.lost.is_empty());
+        }
+    }
+
+    #[test]
+    fn one_face_laid_out_anew_gains_a_part_that_checks_and_the_form_opens() {
+        let text = format!(
+            "# my drone\n{}",
+            DRONE.replace("pt = ", "pt = \"2/3\" # small\n#pt = ")
+        );
+        for to in CardLayout::ALL {
+            let relaid = with_layout(&text, to).unwrap();
+            assert!(relaid.lost.is_empty(), "{to:?}: {:?}", relaid.lost);
+            assert_eq!(CardLayout::of(&relaid.text).unwrap(), to, "{}", relaid.text);
+            if let Err(e) = checks(&relaid.text) {
+                panic!("{to:?}: {e:#}\n{}", relaid.text);
+            }
+            assert!(relaid.text.starts_with("# my drone\n"), "{}", relaid.text);
+            assert!(
+                relaid.text.contains("pt = \"2/3\" # small\n"),
+                "{}",
+                relaid.text
+            );
+            if to != CardLayout::Meld {
+                assert_eq!(Form::of(&relaid.text).unwrap(), Form::of(&text).unwrap());
+            }
+            if to != CardLayout::One {
+                Form::of_side(&relaid.text, Side::Second).unwrap();
+            }
+        }
+        let seeded =
+            |to| Form::of_side(&with_layout(&text, to).unwrap().text, Side::Second).unwrap();
+        assert_eq!(
+            seeded(CardLayout::Adventure).type_line,
+            "Sorcery — Adventure"
+        );
+        assert_eq!(seeded(CardLayout::Adventure).cost, "{1}");
+        assert_eq!(seeded(CardLayout::Omen).type_line, "Sorcery — Omen");
+        assert_eq!(seeded(CardLayout::Split).cost, "{1}");
+        assert_eq!(seeded(CardLayout::Flip).cost, "");
+        let meld = with_layout(&text, CardLayout::Meld).unwrap().text;
+        assert_eq!(Form::of_side(&meld, Side::Third).unwrap().cost, "");
+        assert!(Form::of(&meld)
+            .unwrap()
+            .rules
+            .contains("meld them into Melded Card"));
+    }
+
+    #[test]
+    fn back_to_one_face_drops_the_part_and_leaves_the_file_as_it_was() {
+        let text = format!(
+            "# my drone\n{}",
+            DRONE.replace("flavor", "# the flavour\nflavor")
+        );
+        for to in CardLayout::ALL {
+            let there = with_layout(&text, to).unwrap().text;
+            let back = with_layout(&there, CardLayout::One).unwrap();
+            assert_eq!(back.text, text, "{to:?}");
+            assert_eq!(
+                back.lost.len(),
+                match to {
+                    CardLayout::One => 0,
+                    CardLayout::Meld => 2,
+                    _ => 1,
+                }
+            );
+        }
+        let one = with_layout(SHINOVAR, CardLayout::One).unwrap();
+        assert_eq!(one.lost, ["\"Kaladin, Herald of Second Chances\""]);
+        assert!(!one.text.contains("layout") && !one.text.contains("[back]"));
+        checks(&one.text).unwrap();
+    }
+
+    #[test]
+    fn transform_and_modal_trade_only_the_layout_line() {
+        let modal = with_layout(SHINOVAR, CardLayout::Modal).unwrap();
+        assert!(modal.lost.is_empty());
+        assert_eq!(
+            modal.text,
+            SHINOVAR.replace("layout = \"transform\"", "layout = \"modal\"")
+        );
+        let transform = with_layout(&modal.text, CardLayout::Transform).unwrap();
+        assert_eq!(transform.text, SHINOVAR);
+    }
+
+    #[test]
+    fn a_part_moved_keeps_its_comments_and_what_still_fits() {
+        let text = SHINOVAR
+            .replace("[back]", "# the herald\n[back]")
+            .replace("pt = \"4/4\"", "pt = \"4/4\" # big");
+        for to in [CardLayout::Split, CardLayout::Flip, CardLayout::Meld] {
+            let relaid = with_layout(&text, to).unwrap();
+            let key = to.second().unwrap();
+            assert!(
+                relaid.text.contains(&format!("# the herald\n[{key}]")),
+                "{}",
+                relaid.text
+            );
+            assert!(relaid.text.contains("pt = \"4/4\" # big"));
+            let second = Form::of_side(&relaid.text, Side::Second).unwrap();
+            assert_eq!(second.name, "Kaladin, Herald of Second Chances");
+            assert!(second.rules.starts_with("Flying, vigilance"));
+        }
+        // A flipped half shares the upright half's colour and art.
+        let flip = with_layout(&text, CardLayout::Flip).unwrap();
+        assert_eq!(
+            flip.lost,
+            [
+                "\"Kaladin, Herald of Second Chances\"'s color_indicator",
+                "\"Kaladin, Herald of Second Chances\"'s artist"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_back_made_a_spell_loses_what_no_spell_has_and_says_so() {
+        let relaid = with_layout(SHINOVAR, CardLayout::Adventure).unwrap();
+        let spell = Form::of_side(&relaid.text, Side::Second).unwrap();
+        assert_eq!(spell.type_line, "Sorcery — Adventure");
+        assert_eq!(spell.corner, FormCorner::None);
+        assert_eq!(spell.cost, "{1}");
+        assert_eq!(
+            spell.flavor,
+            Form::of_side(SHINOVAR, Side::Second).unwrap().flavor
+        );
+        let kaladin = "\"Kaladin, Herald of Second Chances\"";
+        assert_eq!(
+            relaid.lost,
+            [
+                format!("{kaladin}'s pt"),
+                format!("{kaladin}'s artist"),
+                format!("{kaladin}'s color_indicator"),
+                format!("{kaladin}'s type \"Legendary Enchantment Creature — Human Knight\""),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_inset_spell_changes_only_its_subtype_between_insets() {
+        let omen = with_layout(SKYBREAKER, CardLayout::Omen).unwrap();
+        assert!(omen.lost.is_empty());
+        assert_eq!(
+            omen.text,
+            SKYBREAKER.replace("Instant — Adventure", "Instant — Omen")
+        );
+        checks(&omen.text).unwrap();
+        let prepare = with_layout(&omen.text, CardLayout::Prepare).unwrap();
+        assert_eq!(
+            Form::of_side(&prepare.text, Side::Second)
+                .unwrap()
+                .type_line,
+            "Instant"
+        );
+        assert!(prepare.text.contains("layout = \"prepare\""));
+        checks(&prepare.text).unwrap();
+        let adventure = with_layout(&prepare.text, CardLayout::Adventure).unwrap();
+        assert_eq!(adventure.text, SKYBREAKER);
+        // Out of the text box it is no Adventure.
+        let transform = with_layout(SKYBREAKER, CardLayout::Transform).unwrap();
+        assert_eq!(
+            Form::of_side(&transform.text, Side::Second)
+                .unwrap()
+                .type_line,
+            "Instant"
+        );
+        assert!(transform.lost.is_empty());
+    }
+
+    #[test]
+    fn a_meld_pair_laid_out_as_two_parts_drops_the_melded_card() {
+        let relaid = with_layout(SMUGGLER, CardLayout::Transform).unwrap();
+        assert_eq!(relaid.lost, ["\"The Kessel Runner\""]);
+        assert_eq!(
+            Form::of_side(&relaid.text, Side::Second).unwrap(),
+            Form::of_side(SMUGGLER, Side::Second).unwrap()
+        );
+        checks(&relaid.text).unwrap();
+        // Back to a pair, its card already melds them: its text is left be.
+        let meld = with_layout(SHINOVAR, CardLayout::Meld).unwrap();
+        let again = with_layout(&meld.text, CardLayout::Meld).unwrap();
+        assert_eq!(again.text, meld.text);
+        // Made a pair again, it melds into a melded card made anew.
+        let smuggler = with_layout(&relaid.text, CardLayout::Meld).unwrap();
+        assert_eq!(
+            Form::of_side(&smuggler.text, Side::Third).unwrap().name,
+            "Melded Card"
+        );
+        checks(&smuggler.text).unwrap();
+        // The line the pair was given goes with it; the card's own stays.
+        let unmelded = with_layout(&smuggler.text, CardLayout::One).unwrap();
+        assert_eq!(
+            Form::of(&unmelded.text).unwrap(),
+            Form::of(SMUGGLER).unwrap()
         );
     }
 

@@ -2,11 +2,32 @@
 // UPDATE_TS=1 cargo test -p mockery-wasm rewrites it.
 
 /**
+ * A card file laid out anew, and what of it that threw away: the parts
+ * dropped and the fields the new layout has no place for, each named for
+ * the page to ask before it does so.
+ */
+export interface Relaid {
+  text: string;
+  lost: string[];
+}
+
+/**
  * A card file as a form, or why it cannot be one.
  */
 export type Opened =
-  | { kind: "form"; form: Form; parts: Parts }
+  | { kind: "form"; form: Form; parts: Parts; layout: CardLayout }
   | { kind: "refused"; message: string };
+
+/**
+ * How a card is laid out, as the form picks it: one face, or what
+ * `layout =` declares, an adventurer and an omen card told apart by their
+ * spell's subtype as [`Card::parse`] tells them. A fused, aftermath or Room
+ * card is a split card its text makes so, and a battle any face its type
+ * line makes one, so none is a layout of its own.
+ *
+ * [`Card::parse`]: crate::card::Card::parse
+ */
+export type CardLayout = "one" | "transform" | "modal" | "split" | "adventure" | "omen" | "prepare" | "flip" | "meld";
 
 /**
  * What a card file's parts are, by the table its second part is in: what

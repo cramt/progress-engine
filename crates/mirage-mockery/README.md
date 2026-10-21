@@ -116,8 +116,10 @@ Meldweb Curator's `/cards` page edits `cards/*.card.toml` in the Magic repo
 beside the card drawn from it, and prints a sheet of them. A card is edited
 as a form, with buttons for its cost (each symbol added where Oracle text
 writes it, `core/src/cost.rs`), types, colour indicator and symbols, or as the TOML
-itself (a card of two parts picks its face above the form, and a
-double-faced one below the preview too), switching freely: the file is the only state, and `core/src/form.rs`
+itself (the form's Layout select makes a card of one face double-faced,
+split, an adventurer and so on, adding the part it needs and dropping it
+again after asking, `form::with_layout`; a card of two parts picks its face
+above the form, and a double-faced one below the preview too), switching freely: the file is the only state, and `core/src/form.rs`
 reads the form out of it and writes edits back in place, so comments and
 order survive. The preview turns a card read on its side so it reads upright:
 a split card, a Room and a battle's front a quarter clockwise, a meld card's

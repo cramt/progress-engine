@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use anyhow::anyhow;
 use facet::Facet;
 use mockery_core::card::{Card, Reading};
-use mockery_core::form::{Form, Parts, Side};
+use mockery_core::form::{self, CardLayout, Form, Parts, Relaid, Side};
 use mockery_core::read::read;
 use mockery_core::render::{self, Layout, Paper, Sheet};
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
@@ -94,6 +94,8 @@ pub enum Opened {
         /// The parts the form can edit: a card of two has its `[back]`,
         /// `[right]` or `[spell]` as side 1.
         parts: Parts,
+        /// How the card is laid out, what the form's layout picker shows.
+        layout: CardLayout,
     },
     Refused {
         message: String,
@@ -201,6 +203,7 @@ pub fn form_of(text: &str, face: u32) -> String {
         Ok(form) => Opened::Form {
             form: Box::new(form),
             parts: Parts::of(text).unwrap_or(Parts::One),
+            layout: CardLayout::of(text).unwrap_or(CardLayout::One),
         },
         Err(e) => Opened::Refused {
             message: format!("{e:#}"),
@@ -216,6 +219,17 @@ pub fn write_form(text: &str, form: &str, face: u32) -> Result<String, JsError> 
     let form: Form =
         facet_json::from_str(form).map_err(|e| JsError::new(&format!("not a Form: {e}")))?;
     form.write_side(text, side(face)).map_err(js)
+}
+
+/// `text` laid out as `layout` (JSON of `CardLayout`), JSON of `Relaid`:
+/// the file with the part the layout needs added, moved or dropped, and
+/// what that threw away, for the page to ask about first.
+#[wasm_bindgen]
+pub fn with_layout(text: &str, layout: &str) -> Result<String, JsError> {
+    let layout: CardLayout = facet_json::from_str(layout)
+        .map_err(|e| JsError::new(&format!("not a CardLayout: {e}")))?;
+    let relaid: Relaid = form::with_layout(text, layout).map_err(js)?;
+    Ok(facet_json::to_string(&relaid).expect("Relaid serialises"))
 }
 
 /// Art bytes by the path a card names them by.
@@ -323,6 +337,7 @@ mod tests {
         g.add_type::<CardSheet>();
         g.add_type::<SheetCard>();
         g.add_type::<Opened>();
+        g.add_type::<Relaid>();
         let want = format!(
             "// Generated from crates/mirage-mockery/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p mockery-wasm rewrites it.\n\n{}",
@@ -351,12 +366,45 @@ mod tests {
         let opened = form_of(DRONE, 0);
         let form = opened
             .strip_prefix(r#"{"kind":"form","form":"#)
-            .and_then(|f| f.strip_suffix(r#","parts":"one"}"#))
+            .and_then(|f| f.strip_suffix(r#","parts":"one","layout":"one"}"#))
             .unwrap_or_else(|| panic!("{opened}"));
         assert_eq!(
             write_form(DRONE, form, 0).unwrap_or_else(|_| panic!()),
             DRONE
         );
+    }
+
+    #[test]
+    fn every_layout_a_card_is_laid_out_as_checks_and_opens_on_its_new_part() {
+        // Short enough that a split card's half has room for it: what the
+        // file already says is the user's to fit, and only the part added
+        // is checked here.
+        const ELF: &str = "name = \"Elf\"\ncost = \"{G}\"\ntype = \"Creature — Elf\"\nrules = \"Vigilance\"\npt = \"1/1\"\n";
+        for layout in CardLayout::ALL {
+            let name = facet_json::to_string(&layout).unwrap();
+            let relaid = with_layout(ELF, &name).unwrap_or_else(|_| panic!("{name}"));
+            let relaid: Relaid = facet_json::from_str(&relaid).unwrap();
+            assert!(relaid.lost.is_empty());
+            assert!(
+                matches!(check_text(&relaid.text), Checked::Card { .. }),
+                "{name}: {}",
+                relaid.text
+            );
+            let card = parse(&relaid.text).unwrap();
+            let doc = render::compile(std::slice::from_ref(&card), Layout::Cards)
+                .unwrap_or_else(|e| panic!("{name}: {e:#}"));
+            for page in 0..doc.pages().len() {
+                render::png(&doc, page, 36.0).unwrap_or_else(|e| panic!("{name}: {e:#}"));
+            }
+            let face = if layout == CardLayout::One { 0 } else { 1 };
+            let opened = form_of(&relaid.text, face);
+            assert!(
+                opened.ends_with(&format!(r#""layout":{name}}}"#)),
+                "{opened}"
+            );
+        }
+        // A Room is a split card its doors make so, no layout of its own.
+        assert!(facet_json::from_str::<CardLayout>(r#""room""#).is_err());
     }
 
     #[test]
@@ -397,7 +445,10 @@ mod tests {
         }
         let spell = form_of(SKYBREAKER, 1);
         assert!(spell.contains(r#""name":"Full Lashing""#), "{spell}");
-        assert!(spell.ends_with(r#","parts":"adventure"}"#), "{spell}");
+        assert!(
+            spell.ends_with(r#","parts":"adventure","layout":"adventure"}"#),
+            "{spell}"
+        );
     }
 
     #[test]
@@ -412,7 +463,10 @@ mod tests {
         }
         let melded = form_of(SMUGGLER, 2);
         assert!(melded.contains(r#""name":"The Kessel Runner""#), "{melded}");
-        assert!(melded.ends_with(r#","parts":"meld"}"#), "{melded}");
+        assert!(
+            melded.ends_with(r#","parts":"meld","layout":"meld"}"#),
+            "{melded}"
+        );
         let back = render_png(SMUGGLER, "[]", &[], &[], 3, 72.0).unwrap_or_else(|_| panic!());
         assert_eq!(&back[1..4], b"PNG");
     }

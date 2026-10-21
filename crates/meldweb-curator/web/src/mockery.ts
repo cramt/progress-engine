@@ -5,10 +5,12 @@
  * before anything else here.
  */
 import type {
+  CardLayout,
   CardSheet,
   Checked,
   Form,
   Opened,
+  Relaid,
   SheetCard,
 } from "./mockery.gen";
 import init, {
@@ -17,11 +19,13 @@ import init, {
   render_png,
   sheet_pdf,
   sort_cost,
+  with_layout,
   write_form,
 } from "./wasm/mockery/mockery_wasm.js";
 import packed from "./wasm/mockery/mockery_wasm_bg.wasm-gz?url";
 
 export type {
+  CardLayout,
   CardSheet,
   Checked,
   Form,
@@ -29,6 +33,7 @@ export type {
   Opened,
   Parts,
   Reading,
+  Relaid,
   SheetCard,
 } from "./mockery.gen";
 
@@ -80,6 +85,14 @@ export function formOf(text: string, face = 0): Opened {
 /** `text` with the form's fields written into one face, the rest as it was. */
 export function writeForm(text: string, form: Form, face = 0): string {
   return write_form(text, JSON.stringify(form), face);
+}
+
+/**
+ * `text` laid out as `layout`: the part it needs added, moved or dropped,
+ * and what that threw away, for the page to ask about before it does.
+ */
+export function withLayout(text: string, layout: CardLayout): Relaid {
+  return JSON.parse(with_layout(text, JSON.stringify(layout))) as Relaid;
 }
 
 /**
