@@ -66,8 +66,9 @@ Rust DiceBear core is patched to drop jsonschema's network features, which
 cannot build for wasm (`vendor/README.md`).
 
 A card of two parts declares it: `layout = "transform"` or `"modal"` with a
-`[back]` face, `"split"` with a `[right]` half, `"adventure"` or
-`"prepare"` with the `[spell]` drawn in its text box, or `"flip"` with the
+`[back]` face, `"split"` with a `[right]` half, `"adventure"` (an
+Adventure, or an Omen when the spell's type line says Omen, as Scryfall lays
+both out) or `"prepare"` with the `[spell]` drawn in its text box, or `"flip"` with the
 `[flipped]` half printed upside down under the art. A meld pair is one file
 of two cards, `layout = "meld"` with the card that melds them at the top
 level, its `[counterpart]` and the `[melded]` card their backs make. A double-faced card is two
@@ -81,10 +82,13 @@ both `Enchantment — Room` are a Room's doors, under one picture, one shared
 type line and their shared unlock reminder on a band across the card.
 Aftermath on the left half, aftermath with fuse or on anything but instants
 and sorceries, and a Room whose halves' type lines differ are refused. An Adventure is the left-hand page of a text box opened like a book,
-under its own name and type bars in its colour; a prepare spell stands in a
-frame inset on the right of the box, its bars shaped as the card's. Either
-is refused unless it is an instant or sorcery with a cost and plain text,
-an Adventure with the Adventure subtype, and only a permanent is prepared.
+under its own name and type bars in its colour; an Omen stands in a frame
+in its colour inset on the left of the box, its bars shaped as the card's
+over a box tinted with its colour; a prepare spell stands in a frame inset
+on the right of the box, its bars shaped as the card's. Each is refused
+unless it is an instant or sorcery with a cost and plain text, an Adventure
+with the Adventure subtype and an Omen with the Omen subtype, and only a
+permanent is prepared.
 A flip card prints as Budoka Gardener and Nezumi Graverobber do in the
 modern frame: the upright half's name bar, text box and type line over the
 art, the flipped half's under it upside down, each half's power and

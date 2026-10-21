@@ -938,6 +938,44 @@
   ))
 }
 
+// An Omen: the spell in a frame inset on the left of the text box and the
+// card's own text on the right (CR 720.1–720.2), the frame in the spell's
+// colour holding its name and type on bars of the card's shape, the name
+// bar lighter than the type bar, over a box of its own tinted with the
+// spell's colour that runs to the foot of the card's. Measured on Marang
+// River Regent, Twinmaw Stormbrood, Sagu Wildling and Scavenger Regent at
+// 745 by 1040 px: the halves meet at the box's middle, the bars' fills 40 px
+// (3.4mm) deep and 6 px apart, the name bar's 3 px under the card's box.
+#let omen-text(c, ps) = {
+  let s = c.inset.spell
+  let tone = spell-tone(s.frame)
+  let solid = if type(tone) == color { tone } else { rgb("#77787c") }
+  let bar-h = 3.4mm
+  let size = 8pt
+  let bar(body, paint) = layout(size => block(width: 100%, {
+    plate(size.width, bar-h, (rim: solid.darken(30%), bar: paint), over: 0.3mm)
+    block(width: 100%, height: bar-h, inset: (left: 1.1mm, right: 0.9mm), align(horizon, body))
+  }))
+  let sps = paints(s.frame)
+  let tint = shade(tone, c => color.mix((paper, 68%), (c, 32%)))
+  block(width: 100%, height: 1fr, grid(columns: (1fr, 1fr), rows: (100%,), column-gutter: 0.6mm,
+    block(width: 100%, height: 100%, fill: solid.lighten(32%), stroke: 0.4pt + black,
+      inset: (left: 0.5mm, right: 0.6mm, top: 0.45mm, bottom: 0.6mm), {
+      set block(spacing: 0mm)
+      {
+        set text(fill: white)
+        bar(spell-name(s, size), shade(tone, c => c.lighten(30%)))
+        v(0.5mm)
+        bar(spell-type(s, size), shade(tone, c => c.darken(28%)))
+      }
+      v(0.75mm)
+      standard-text(s, sps, max: half-max, height: 1fr, top: 1mm, clear: 1mm, centre-lone: false,
+        fill: tint, stroke: 0.4pt + solid.darken(45%))
+    }),
+    standard-text(c, ps, max: half-max, height: 100%, centre-lone: false),
+  ))
+}
+
 // One face's body, filling the box it is given: a card's whole face, or
 // half a card. `g` puts its parts, and a half's says how far its bars stand
 // out (`over`), its type line's size and its text's largest. A fused half's
@@ -1036,6 +1074,7 @@
     // in the card shares its text box.
     if c.inset == none { standard-text(c, ps, max: g.at("text-max", default: 9.5pt)) }
     else if c.inset.kind == "adventure" { adventure-text(c, ps) }
+    else if c.inset.kind == "omen" { omen-text(c, ps) }
     else { prepare-text(c, ps) }
     hint
     if foot-right != none and not (r.kind == "station" and r.thresholds.len() > 0 and c.back_pt == none) {

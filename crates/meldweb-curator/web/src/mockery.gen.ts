@@ -12,7 +12,7 @@ export type Opened =
  * What a card file's parts are, by the table its second part is in: what
  * the form's face picker names them.
  */
-export type Parts = "one" | "frontBack" | "halves" | "adventure" | "prepare" | "flip" | "meld";
+export type Parts = "one" | "frontBack" | "halves" | "adventure" | "omen" | "prepare" | "flip" | "meld";
 
 /**
  * Every field of a card file. An empty string is a field the file leaves out.

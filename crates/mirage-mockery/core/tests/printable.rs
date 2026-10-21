@@ -221,7 +221,7 @@ fn face_toml() -> impl Strategy<Value = (String, String)> {
 }
 
 /// An inset spell: an instant or a sorcery of plain lines, with a cost, and
-/// the Adventure subtype on an Adventure.
+/// the Adventure subtype on an Adventure and the Omen subtype on an Omen.
 fn spell_toml() -> impl Strategy<Value = (String, String)> {
     (
         "[A-Z][a-z]{0,10}( [A-Z][a-z]{0,10}){0,3}",
@@ -250,7 +250,7 @@ fn card_toml() -> impl Strategy<Value = String> {
         spell_toml(),
         prop::collection::vec(paragraph(), 0..4),
         any::<bool>(),
-        0..12usize,
+        0..13usize,
     )
         .prop_map(|((cost, front), (back_cost, back), (spell_type, spell), (other_type, other), plain, reminder, kind)| {
         let cost_line = |c: &str, split: bool| match (c.is_empty(), split) {
@@ -339,6 +339,7 @@ fn card_toml() -> impl Strategy<Value = String> {
             3 => format!("{top}layout = \"split\"\n[right]\n{second}"),
             4 => inset("adventure", &format!("{spell_type} — Adventure")),
             5 => inset("prepare", &spell_type),
+            12 => inset("adventure", &format!("{spell_type} — Omen")),
             6 => battle(""),
             7 => format!("{}layout = \"transform\"\n[back]\n{second}", battle(" — Siege")),
             _ => unreachable!(),

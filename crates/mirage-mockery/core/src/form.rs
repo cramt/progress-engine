@@ -42,6 +42,8 @@ pub enum Parts {
     Halves,
     /// A card and the Adventure in its `[spell]`.
     Adventure,
+    /// A card and the Omen in its `[spell]`.
+    Omen,
     /// A card and the prepare spell in its `[spell]`.
     Prepare,
     /// An upright half and a `[flipped]` one.
@@ -62,8 +64,19 @@ impl Parts {
             Ok("flipped") => Parts::Flip,
             Ok("counterpart") => Parts::Meld,
             // A spell whose layout is not settled yet is named as the
-            // commoner of the two.
+            // commoner of the three; an omen card's layout is an
+            // adventurer's, and its spell's Omen subtype says which.
             Ok(_) if raw.layout.as_deref().map(str::trim) == Some("prepare") => Parts::Prepare,
+            Ok(_)
+                if raw.spell.as_ref().is_some_and(|s| {
+                    s.type_line
+                        .split_whitespace()
+                        .skip_while(|w| *w != "—")
+                        .any(|w| w == "Omen")
+                }) =>
+            {
+                Parts::Omen
+            }
             Ok(_) => Parts::Adventure,
         })
     }
@@ -360,6 +373,7 @@ mod tests {
     const FORCE: &str = include_str!("../tests/cards/force-push-force-pull.card.toml");
     const SKYBREAKER: &str = include_str!("../tests/cards/skybreaker-initiate.card.toml");
     const FABRIALIST: &str = include_str!("../tests/cards/ardent-fabrialist.card.toml");
+    const SANTHID: &str = include_str!("../tests/cards/purelake-santhid.card.toml");
     const CHASM: &str = include_str!("../tests/cards/chasm-run-gemhearts.card.toml");
     const DETENTION: &str =
         include_str!("../tests/cards/detention-block-trash-compactor.card.toml");
@@ -411,6 +425,7 @@ mod tests {
             (FORCE, Parts::Halves),
             (SKYBREAKER, Parts::Adventure),
             (FABRIALIST, Parts::Prepare),
+            (SANTHID, Parts::Omen),
             (CHASM, Parts::Halves),
             (DETENTION, Parts::Halves),
             (SQUIRE, Parts::Flip),
@@ -422,9 +437,10 @@ mod tests {
 
     #[test]
     fn an_inset_spell_is_the_second_face() {
-        for text in [SKYBREAKER, FABRIALIST] {
+        for text in [SKYBREAKER, FABRIALIST, SANTHID] {
             let mut spell = Form::of_side(text, Side::Second).unwrap();
-            assert!(spell.type_line == "Instant — Adventure" || spell.type_line == "Sorcery");
+            assert!(["Instant — Adventure", "Sorcery", "Instant — Omen"]
+                .contains(&spell.type_line.as_str()));
             assert_eq!(spell.write_side(text, Side::Second).unwrap(), text);
             spell.cost = "{2}{U}".into();
             let written = spell.write_side(text, Side::Second).unwrap();

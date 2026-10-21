@@ -1,0 +1,17 @@
+name = "Purelake Santhid"
+cost = "{4}{U}{U}"
+type = "Creature — Santhid"
+rules = """
+Ward {2}
+When this creature enters, tap up to two target creatures your opponents control. They don't untap during their controllers' next untap steps.
+"""
+pt = "5/7"
+layout = "adventure"
+
+[spell]
+name = "Lure of the Deep"
+cost = "{2}{U}"
+type = "Instant — Omen"
+rules = """
+Look at the top four cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order. (Then shuffle this card into its owner's library.)
+"""

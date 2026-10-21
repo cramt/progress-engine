@@ -246,8 +246,9 @@ do.
     a split card. Turning the image instead would give the front a size of
     its own in every output and a slot no sheet grid has.
 
-- **Adventure** (CR 715) and **prepare** (CR 722): a card with a spell drawn
-  inside its text box, `layout = "adventure"` or `"prepare"` with the spell
+- **Adventure** (CR 715), **Omen** (CR 720) and **prepare** (CR 722): a card
+  with a spell drawn inside its text box, `layout = "adventure"` or
+  `"prepare"` with the spell
   in `[spell]`. The table is `[spell]` for both because the CR names both
   the same way, an inset frame holding a spell's alternative characteristics
   (CR 715.2, 722.2a), and because neither is a face: the card has one image
@@ -294,12 +295,30 @@ do.
     | Printed prepare (Adventurous Eater) | 63.3–67.3% | 68.1–72.1% | 73.1–88.6% | 62.9–92.2% |
     | Ours | 63.2–67.0% | 68.0–71.8% | 73.0–88.7% | 62.5–92.6% |
 
+  - An Omen (CR 720, Tarkir: Dragonstorm) is `layout = "adventure"` with a
+    `[spell]` whose type line has the Omen subtype, as Scryfall gives every
+    one of the 13 printed omen cards layout `adventure`: the rules print the
+    two alike (CR 715.1–715.2, 720.1–720.2) and the spell type is what tells
+    them apart, so pasting Scryfall's layout and Oracle's `Instant — Omen` is
+    enough. It is drawn as Marang River Regent, Twinmaw Stormbrood, Sagu
+    Wildling, Scavenger Regent and Dirgur Island Dragon print it, not as an
+    Adventure's book: a frame in the spell's colour inset on the left of the
+    box, its name and type on bars of the card's shape, the name bar light
+    and the type bar deep in the spell's colour with white type, over a box
+    of its own tinted with that colour that runs to the foot of the card's;
+    the card's own text is the right half. The halves meet at the box's
+    middle. Its "(Then shuffle this card…)" closes the spell's text, as an
+    Adventure's reminder does. Ours puts each bar about where print does
+    (`omen-text` in `card.typ`); a spell of two colours, which no printed
+    Omen is, gets blended bars over a box tinted with the blend.
+
   What a card with a spell inset must be, each refused by name otherwise:
-  - The spell is an instant or a sorcery (CR 715.2, 722.3c: a copy of it is
-    cast), and an Adventure's has the Adventure subtype (CR 205.3k), as every
-    printed one's does, so pasting Oracle's `Sorcery — Adventure` is enough
-    and `Sorcery — Omen` is refused: Omen cards (CR 720) are another frame. A
-    prepare spell with the Adventure subtype is pointed at `layout =
+  - The spell is an instant or a sorcery (CR 715.2, 720.2, 722.3c: a copy of
+    it is cast), an Adventure's has the Adventure subtype and an Omen's the
+    Omen subtype (CR 205.3k), as every printed one's does, so pasting
+    Oracle's `Sorcery — Adventure` or `Instant — Omen` is enough. A spell
+    with neither under `layout = "adventure"`, or with both, is refused. A
+    prepare spell with the Adventure or Omen subtype is pointed at `layout =
     "adventure"`.
   - The spell has a cost: it is cast for it, and every printed one of the
     186 has one.

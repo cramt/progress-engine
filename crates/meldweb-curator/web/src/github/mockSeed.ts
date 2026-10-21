@@ -11,6 +11,7 @@ import compactor from "../../../../mirage-mockery/core/tests/cards/detention-blo
 import forcePush from "../../../../mirage-mockery/core/tests/cards/force-push-force-pull.card.toml?raw";
 import squire from "../../../../mirage-mockery/core/tests/cards/herdazian-squire.card.toml?raw";
 import drone from "../../../../mirage-mockery/core/tests/cards/proofsheet-drone.card.toml?raw";
+import santhid from "../../../../mirage-mockery/core/tests/cards/purelake-santhid.card.toml?raw";
 import narak from "../../../../mirage-mockery/core/tests/cards/siege-of-narak.card.toml?raw";
 import skybreaker from "../../../../mirage-mockery/core/tests/cards/skybreaker-initiate.card.toml?raw";
 import shinovar from "../../../../mirage-mockery/core/tests/cards/the-cleansing-of-shinovar.card.toml?raw";
@@ -32,6 +33,7 @@ export const files: Record<string, string> = {
   "cards/the-cleansing-of-shinovar.card.toml": shinovar,
   "cards/skybreaker-initiate.card.toml": skybreaker,
   "cards/ardent-fabrialist.card.toml": fabrialist,
+  "cards/purelake-santhid.card.toml": santhid,
   "cards/herdazian-squire.card.toml": squire,
   "cards/corellian-smuggler.card.toml": smuggler,
   "cards/force-push-force-pull.card.toml": forcePush,

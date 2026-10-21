@@ -336,7 +336,7 @@ function turnOf(reading: Reading, turned: boolean): string | null {
 
 /**
  * What the face picker calls a card's two parts, by the table its second is
- * in; a card of one face has no picker. An Adventure, a prepare spell and a
+ * in; a card of one face has no picker. An Adventure, an Omen, a prepare spell and a
  * flipped half are drawn on the card's one face, so the preview stays one
  * image while the form edits either; a meld pair's melded card is half on
  * each card's back.
@@ -346,6 +346,7 @@ const PART_LABELS: Record<Parts, readonly string[] | null> = {
   frontBack: ["Front", "Back"],
   halves: ["Left half", "Right half"],
   adventure: ["Card", "Adventure"],
+  omen: ["Card", "Omen"],
   prepare: ["Card", "Prepare spell"],
   flip: ["Upright", "Flipped"],
   meld: ["Card", "Counterpart", "Melded"],

@@ -181,10 +181,13 @@ fn a_card_with_a_spell_inset_is_one_image() {
     let open = |name: &str| Card::open(&here(&format!("tests/cards/{name}.card.toml"))).unwrap();
     let adventure = open("skybreaker-initiate");
     let prepare = open("ardent-fabrialist");
+    let omen = open("purelake-santhid");
     assert!(matches!(adventure, Card::Adventure { .. }));
     assert!(matches!(prepare, Card::Prepare { .. }));
+    assert!(matches!(omen, Card::Omen { .. }));
     assert_eq!(adventure.name(), "Skybreaker Initiate // Full Lashing");
-    for card in [&adventure, &prepare] {
+    assert_eq!(omen.name(), "Purelake Santhid // Lure of the Deep");
+    for card in [&adventure, &prepare, &omen] {
         assert_eq!(card.images(), 1);
         let doc = render::compile(std::slice::from_ref(card), Layout::Cards).unwrap();
         assert_eq!(doc.pages().len(), 1, "{}", card.name());

@@ -215,11 +215,13 @@ pub fn compile_with_art(
                     },
                 )?);
             }
-            Card::Adventure { main, spell } | Card::Prepare { main, spell } => {
+            Card::Adventure { main, spell }
+            | Card::Omen { main, spell }
+            | Card::Prepare { main, spell } => {
                 // One card image: the spell is drawn in the card's text box,
-                // on the left page of a book for an Adventure (CR 715.2) and
-                // in a frame inset on the right for a prepare spell
-                // (CR 722.2).
+                // on the left page of a book for an Adventure (CR 715.2), in
+                // a frame inset on the left for an Omen (CR 720.2) and in one
+                // on the right for a prepare spell (CR 722.2).
                 let spell = files.face(
                     spell,
                     Extras {
@@ -231,7 +233,11 @@ pub fn compile_with_art(
                     main,
                     Extras {
                         inset: json!({
-                            "kind": if matches!(card, Card::Adventure { .. }) { "adventure" } else { "prepare" },
+                            "kind": match card {
+                                Card::Adventure { .. } => "adventure",
+                                Card::Omen { .. } => "omen",
+                                _ => "prepare",
+                            },
                             "spell": spell,
                         }),
                         ..Extras::default()
@@ -374,8 +380,8 @@ struct Extras<'a> {
     drop_fuse: bool,
     /// A Room prints its doors' shared reminder once, under the type line.
     drop_line: Option<&'a str>,
-    /// The spell inset in this face's text box, an Adventure or a prepare
-    /// spell, with which it is.
+    /// The spell inset in this face's text box, an Adventure, an Omen or a
+    /// prepare spell, with which it is.
     inset: Value,
     /// This face has no art of its own: a spell drawn in another's text
     /// box, or a flip card's flipped half, under the upright half's art.

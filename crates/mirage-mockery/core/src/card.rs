@@ -10,8 +10,8 @@ use crate::rules::Frames;
 pub use crate::rules::Rules;
 
 /// One face as the file writes it: the top level is the front face (or a
-/// split card's left half, the card an adventure or a prepare spell is inset
-/// in, a flip card's upright half or a meld pair's first card), and
+/// split card's left half, the card an Adventure, an Omen or a prepare spell
+/// is inset in, a flip card's upright half or a meld pair's first card), and
 /// `[back]`, `[right]`, `[spell]`, `[flipped]`, `[counterpart]` or `[melded]`
 /// another.
 #[derive(Facet)]
@@ -96,6 +96,15 @@ pub enum Card {
     /// A card with an Adventure inset on the left of its text box: an
     /// instant or sorcery it may be cast as instead (CR 715.2, 715.3).
     Adventure {
+        main: Face,
+        spell: Face,
+    },
+    /// A card with an Omen inset on the left of its text box: an instant or
+    /// sorcery it may be cast as instead, shuffled into its owner's library
+    /// as it resolves (CR 720.2, 720.3). Scryfall lays it out as an
+    /// Adventure, and so does the file: its spell's Omen subtype tells them
+    /// apart.
+    Omen {
         main: Face,
         spell: Face,
     },
@@ -364,7 +373,10 @@ impl Card {
             }
             (None, ["right", ..]) => bail!("a [right] half needs layout = \"split\""),
             (None, ["spell", ..]) => {
-                bail!("a [spell] needs a layout: layout = \"adventure\" or \"prepare\"")
+                bail!(
+                    "a [spell] needs a layout: layout = \"adventure\" (an Adventure or an \
+                     Omen) or \"prepare\""
+                )
             }
             (None, ["flipped", ..]) => bail!("a [flipped] half needs layout = \"flip\""),
             (None, _) => {
@@ -457,21 +469,19 @@ impl Card {
             Some(l) => {
                 let spell = raw.spell.expect("checked");
                 let main = face(raw.front, "card")?;
-                let spell = Inset::check(spell, dir, l == "adventure")?;
+                let (spell, kind) = Inset::check(spell, dir, l == "adventure")?;
                 if main.rules.is_framed() {
                     bail!(
                         "{:?}'s text shares its box with its {}, so it is plain lines: \
                          no Saga, Class, planeswalker or station frame has room for both",
                         main.name,
-                        if l == "adventure" {
-                            "Adventure"
-                        } else {
-                            "prepare spell"
-                        }
+                        kind.what()
                     );
                 }
-                if l == "adventure" {
+                if kind == InsetKind::Adventure {
                     Card::Adventure { main, spell }
+                } else if kind == InsetKind::Omen {
+                    Card::Omen { main, spell }
                 } else {
                     // Prepared is a permanent's designation, and only a
                     // permanent with a prepare spell can have it (CR 722.3a).
@@ -497,6 +507,7 @@ impl Card {
     fn check_battles(&self) -> Result<()> {
         if let Card::Split { .. }
         | Card::Adventure { .. }
+        | Card::Omen { .. }
         | Card::Prepare { .. }
         | Card::Flip { .. }
         | Card::Meld { .. } = self
@@ -532,7 +543,9 @@ impl Card {
             Card::Single(f) => vec![f],
             Card::Transform { front, back } | Card::Modal { front, back } => vec![front, back],
             Card::Split { left, right, .. } => vec![left, right],
-            Card::Adventure { main, spell } | Card::Prepare { main, spell } => vec![main, spell],
+            Card::Adventure { main, spell }
+            | Card::Omen { main, spell }
+            | Card::Prepare { main, spell } => vec![main, spell],
             Card::Flip { upright, flipped } => vec![upright, flipped],
             Card::Meld {
                 front,
@@ -557,6 +570,7 @@ impl Card {
             Card::Single(_)
             | Card::Split { .. }
             | Card::Adventure { .. }
+            | Card::Omen { .. }
             | Card::Prepare { .. }
             | Card::Flip { .. } => &[""],
             Card::Transform { .. } | Card::Modal { .. } => &["", "back"],
@@ -590,7 +604,10 @@ impl Card {
                 turn: Anticlockwise,
             }],
             Card::Split { .. } => vec![Reading::Turned { turn: Clockwise }],
-            Card::Adventure { .. } | Card::Prepare { .. } | Card::Flip { .. } => {
+            Card::Adventure { .. }
+            | Card::Omen { .. }
+            | Card::Prepare { .. }
+            | Card::Flip { .. } => {
                 vec![Reading::Upright]
             }
             // Eldritch Moon's backs turn the other way from a split card.
@@ -765,17 +782,84 @@ fn article(layout: &str) -> &'static str {
     }
 }
 
-/// The spell inset in a card's text box, an Adventure or a prepare spell:
-/// checked as a face is, and then as printed ones are.
+/// Which spell a card's text box holds, by its layout and, under
+/// `layout = "adventure"`, its spell type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InsetKind {
+    Adventure,
+    Omen,
+    Prepare,
+}
+
+impl InsetKind {
+    fn what(self) -> &'static str {
+        match self {
+            InsetKind::Adventure => "Adventure",
+            InsetKind::Omen => "Omen",
+            InsetKind::Prepare => "prepare spell",
+        }
+    }
+}
+
+/// The spell inset in a card's text box, an Adventure, an Omen or a prepare
+/// spell: checked as a face is, and then as printed ones are.
 struct Inset;
 
 impl Inset {
-    fn check(raw: RawFace, dir: &Path, adventure: bool) -> Result<Face> {
-        let what = if adventure {
-            "Adventure"
-        } else {
-            "prepare spell"
+    fn check(raw: RawFace, dir: &Path, adventure: bool) -> Result<(Face, InsetKind)> {
+        let words: Vec<&str> = raw.type_line.split_whitespace().collect();
+        let (types, subtypes) = match words.iter().position(|w| *w == "—") {
+            Some(at) => (&words[..at], &words[at + 1..]),
+            None => (&words[..], &words[..0]),
         };
+        let instant_or_sorcery = matches!(types, ["Instant"] | ["Sorcery"]);
+        let (is_adventure, is_omen) = (subtypes.contains(&"Adventure"), subtypes.contains(&"Omen"));
+        // Adventurer and omen cards are printed alike (CR 715.1, 720.1), and
+        // Scryfall lays out both as adventures, so the spell type says which.
+        let kind = match (adventure, is_adventure, is_omen) {
+            (false, _, _) => InsetKind::Prepare,
+            (true, true, true) => bail!(
+                "{:?} is an Adventure and an Omen, and a card is printed with one inset or \
+                 the other: its type line has one of the two",
+                raw.name
+            ),
+            (true, _, true) => InsetKind::Omen,
+            (true, true, _) => InsetKind::Adventure,
+            (true, false, false) => bail!(
+                // An Adventure is an instant or sorcery spell with the
+                // Adventure spell type, an Omen one with the Omen spell type
+                // (CR 715.2, 720.2, 205.3k).
+                "{:?} is an Adventure or an Omen, an instant or sorcery with the Adventure or \
+                 Omen subtype like \"Sorcery — Adventure\" or \"Instant — Omen\", not a {:?}",
+                raw.name,
+                raw.type_line.trim()
+            ),
+        };
+        let what = kind.what();
+        if !instant_or_sorcery {
+            bail!(
+                "{:?} is {} {what}, an instant or a sorcery, not a {:?}",
+                raw.name,
+                if kind == InsetKind::Prepare {
+                    "a"
+                } else {
+                    "an"
+                },
+                raw.type_line.trim()
+            );
+        }
+        if kind == InsetKind::Prepare && (is_adventure || is_omen) {
+            bail!(
+                "{:?} has the {} subtype, so the card is {}: layout = \"adventure\"",
+                raw.name,
+                if is_omen { "Omen" } else { "Adventure" },
+                if is_omen {
+                    "an omen card, which Scryfall lays out as an adventurer"
+                } else {
+                    "an adventurer"
+                }
+            );
+        }
         // It is drawn in the card's text box, under the card's art and
         // artist, and every printed one is coloured by its cost.
         for (field, set) in [
@@ -791,38 +875,8 @@ impl Inset {
             }
         }
         let face = Face::of(raw, dir).with_context(|| format!("in the {what}"))?;
-        let words: Vec<&str> = face.type_line.split_whitespace().collect();
-        let (types, subtypes) = match words.iter().position(|w| *w == "—") {
-            Some(at) => (&words[..at], &words[at + 1..]),
-            None => (&words[..], &words[..0]),
-        };
-        let instant_or_sorcery = matches!(types, ["Instant"] | ["Sorcery"]);
-        let is_adventure = subtypes.contains(&"Adventure");
-        if adventure && !(instant_or_sorcery && is_adventure) {
-            // An Adventure is an instant or sorcery spell with the Adventure
-            // spell type (CR 715.2, 205.3k).
-            bail!(
-                "{:?} is an Adventure, an instant or sorcery with the Adventure subtype \
-                 like \"Sorcery — Adventure\", not a {:?}",
-                face.name,
-                face.type_line
-            );
-        }
-        if !adventure && !instant_or_sorcery {
-            bail!(
-                "{:?} is a prepare spell, an instant or a sorcery, not a {:?}",
-                face.name,
-                face.type_line
-            );
-        }
-        if !adventure && is_adventure {
-            bail!(
-                "{:?} has the Adventure subtype, so the card is an adventurer: layout = \"adventure\"",
-                face.name
-            );
-        }
-        // Both are cast for their own cost (CR 715.3a, 722.3c), and every
-        // printed one has one.
+        // Each is cast for its own cost (CR 715.3a, 720.3a, 722.3c), and
+        // every printed one has one.
         if face.cost.is_empty() {
             bail!("{:?} is the card's {what} and needs a cost", face.name);
         }
@@ -832,7 +886,7 @@ impl Inset {
                 face.name
             );
         }
-        Ok(face)
+        Ok((face, kind))
     }
 }
 
@@ -1441,6 +1495,15 @@ pt = "2/3"
         assert_eq!(giant.images(), 1);
         let eater = card(&format!("{EATER}layout = \"prepare\"\n[spell]\n{BITE}")).unwrap();
         assert!(matches!(eater, Card::Prepare { .. }));
+        // An Omen is laid out as an Adventure, as Scryfall lays it out, and
+        // its spell's Omen subtype makes it one (CR 720).
+        let omen = card(&format!(
+            "{GIANT}layout = \"adventure\"\n[spell]\n{}",
+            STOMP.replace("Adventure", "Omen")
+        ))
+        .unwrap();
+        assert!(matches!(omen, Card::Omen { .. }));
+        assert_eq!(omen.images(), 1);
         // Twice Upon a Time is an adventurer sorcery, and the Virtues
         // enchantments: an adventurer is any card.
         let sorcery = GIANT
@@ -1475,9 +1538,29 @@ pt = "2/3"
         ))
         .contains("two parts at most"));
         // An Adventure is an instant or sorcery with the Adventure subtype.
-        assert!(err(adventure(&STOMP.replace(" — Adventure", ""))).contains("Adventure subtype"));
+        assert!(err(adventure(&STOMP.replace(" — Adventure", "")))
+            .contains("Adventure or Omen subtype"));
         assert!(err(adventure(&STOMP.replace("Instant", "Enchantment"))).contains("not a"));
-        assert!(err(adventure(&STOMP.replace("Adventure", "Omen"))).contains("Adventure subtype"));
+        assert!(err(adventure(
+            &STOMP.replace("Instant — Adventure", "Instant — Arcane")
+        ))
+        .contains("Adventure or Omen subtype"));
+        // An Omen is an instant or sorcery too, and never both at once.
+        assert!(err(adventure(
+            &STOMP.replace("Instant — Adventure", "Enchantment — Omen")
+        ))
+        .contains("is an Omen, an instant or a sorcery"));
+        assert!(
+            err(adventure(&STOMP.replace("Adventure", "Adventure Omen")))
+                .contains("an Adventure and an Omen")
+        );
+        assert!(err(adventure(&format!(
+            "{}art = \"x.png\"\n",
+            STOMP.replace("Adventure", "Omen")
+        )))
+        .contains("card's Omen"));
+        // An Omen on a prepare card is pointed at the adventure layout.
+        assert!(err(prepare(EATER, &STOMP.replace("Adventure", "Omen"))).contains("omen card"));
         assert!(err(adventure(&STOMP.replace("cost = \"{1}{R}\"\n", ""))).contains("needs a cost"));
         assert!(err(adventure(&format!("{STOMP}art = \"stomp.png\"\n"))).contains("no art"));
         // A prepare spell is an instant or a sorcery, and no Adventure.
