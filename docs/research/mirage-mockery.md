@@ -176,20 +176,28 @@ layout from the markers in it, never from a list of frames
   Levels count up from 2.
 - **Planeswalker**, when a planeswalker's line opens with a loyalty cost,
   `+1: …`, `−2: …`, `0: …` or `−X: …` (CR 606.2), typed with Oracle's minus
-  sign, a hyphen or an en dash and printed with the minus sign. The standard
-  layout, its text box holding static abilities across it and each loyalty
-  ability in a band of its own, shaded in turn, with its cost on a badge
-  straddling the box's left edge and a colon after it; the bands share the
-  height left over, and the last ability makes room for the loyalty in the
-  corner beside its text rather than the box stopping short of it. The
-  badges are Mockery's own shapes: a dark plate whose top rises to a point
-  for a cost that adds loyalty, whose foot drops to one for a cost that
-  removes it, and flat for `0`. The loyalty itself is on a dark shield,
-  pointed at the foot. A cost of `+0` or `−0` is refused: Oracle writes it
-  `0`. Loyalty costs on a card that is not a planeswalker stay plain lines: a
-  loyalty ability there is legal ("normally, only planeswalkers have loyalty
-  abilities", CR 606.2), and a frame with no badges prints it as the
-  activated ability it is.
+  sign, a hyphen or an en dash and printed with the minus sign. A frame of its
+  own, in the proportions measured on printed modern-frame planeswalkers
+  (Teferi, Hero of Dominaria; Karn, the Great Creator; Liliana of the Veil
+  from DMU; Ugin from M21; Chandra, Torch of Defiance; Minsc & Boo): a
+  rounded art window with a light keyline, the type line, and a text box
+  narrower than the frame, its corners rounded, the art running on behind it
+  under a pale wash. Three abilities or fewer keep a window near a
+  creature's, the type line at 59% of the card's height as printed; four or
+  more take the printed tall variant, the window shorter and the type line at
+  52%. Static abilities run across the box; each loyalty ability is a band of
+  its own, shaded in turn, never shallower than its badge with a margin, the
+  bands sharing the height left over. Its cost sits on a badge standing out
+  over the frame left of the box, 6 by 3.7mm as printed ones are, with a
+  colon after it. The badges are Mockery's own shapes: a dark plate with a
+  light rim whose top rises to a point for a cost that adds loyalty, whose
+  foot drops to one for a cost that removes it, and flat for `0`. The loyalty
+  is on a dark shield, pointed at the foot, across the box's bottom right
+  corner in a collar cut into the box. A cost of `+0` or `−0` is refused:
+  Oracle writes it `0`. Loyalty costs on a card that is not a planeswalker
+  stay plain lines: a loyalty ability there is legal ("normally, only
+  planeswalkers have loyalty abilities", CR 606.2), and a frame with no
+  badges prints it as the activated ability it is.
 - **Station**, when a line opens `3+ | …` (CR 721.2): the standard layout,
   with each threshold a striation of the text box a step darker than the one
   above, its number on a disc at the box's left edge, and the lines after it
@@ -242,10 +250,26 @@ which printed Sagas rarely carry, not because the column is narrow; the
 Classes' columns are already wider than printed ones, so they were left as
 they are. Fable keeps its 7.75pt because its last chapter now holds the
 back's power and toughness. A test holds the striated test cards above a
-floor. Planeswalkers measured the same way: Teferi, Hero of Dominaria 8.25pt,
-Ugin 8.5pt, Chandra, Torch of Defiance and Gideon Blackblade 7.5pt, Karn,
-the Great Creator 6.75pt and Minsc & Boo 6pt, the last two near their
-printed sizes too.
+floor.
+
+Planeswalkers were measured the same way, then put in their printed
+proportions. Fractions of the card's height, the real cards' read off
+Scryfall's images, ours off renders at the same scale:
+
+| | Art window | Type line | Text box |
+|---|---|---|---|
+| Printed, 3 abilities | 9.5–55.5% | 56.5–62% | 62.5–91% |
+| Ours before | 11.5–53.5% | 54.5–59.5% | 60–95% |
+| Ours, 3 abilities | 11.5–55% | 56–61% | 62–91% |
+| Printed, 4 abilities | 9.5–48.5% | 49.5–55% | 55.5–91% |
+| Ours, 4 abilities | 11.5–48.5% | 49.5–54.5% | 55.5–91% |
+
+The window's top stays at 11.5%: the name bar is every card's. The box is
+shorter and narrower than it was, as printed ones are, so the sizes fell:
+Teferi 8.25 to 6.75pt, Ugin 8.5 to 7pt, Chandra 7.5 to 6.5pt, Karn 6.75 to
+6pt, Liliana of the Veil 9 to 7pt, Minsc & Boo 6pt either way. In line pitch
+that is the printed cards' or a little more (Teferi's lines 2.46mm apart in
+print and in ours), Libertinus being the smaller face at a given size.
 
 ### Ability and flavor words
 

@@ -67,6 +67,7 @@
       bar: base.lighten(55%),
       box: paper,
       accent: base,
+      foot: base,
     )
   } else if tint.len() == 1 {
     let c = tint.first()
@@ -76,6 +77,7 @@
       bar: c.lighten(55%),
       box: c.lighten(68%),
       accent: c,
+      foot: mixed,
     )
   } else if tint.len() == 2 {
     // Blended across rather than cut, as a dual land's text box is.
@@ -85,6 +87,7 @@
       bar: base.lighten(55%),
       box: gradient.linear(..tint.map(c => c.lighten(50%))),
       accent: base,
+      foot: mixed.last(),
     )
   } else {
     let mixed = color.mix((base, 25%), (palette.gold, 75%))
@@ -93,6 +96,7 @@
       bar: palette.gold.lighten(55%),
       box: palette.gold.lighten(68%),
       accent: palette.gold,
+      foot: mixed,
     )
   }
 }
@@ -145,7 +149,7 @@
 // rises to a point for a cost that adds counters, whose foot drops to one for
 // a cost that removes them, and flat for neither.
 #let loyalty-badge(cost, sign) = {
-  let (w, h, tip) = (7mm, 4.2mm, 1mm)
+  let (w, h, tip) = (6mm, 3.7mm, 0.9mm)
   let pts = if sign == "plus" {
     ((0mm, tip), (w / 2, 0mm), (w, tip), (w, h), (0mm, h))
   } else if sign == "minus" {
@@ -154,20 +158,22 @@
     ((0.6mm, 0mm), (w - 0.6mm, 0mm), (w, h / 2), (w - 0.6mm, h), (0.6mm, h), (0mm, h / 2))
   }
   box(width: w, height: h, {
-    place(polygon(fill: luma(28), stroke: 0.5pt + white, ..pts))
+    place(polygon(fill: luma(28), stroke: 0.9pt + luma(215), ..pts))
     place(center + horizon, dy: if sign == "plus" { 0.3mm } else if sign == "minus" { -0.3mm } else { 0mm },
-      text(size: 7.4pt, weight: "bold", fill: white, cost))
+      text(size: 7pt, weight: "bold", fill: white, cost))
   })
 }
+
+#let walker-shield = (9.2mm, 5.2mm)
 
 // The corner: power and toughness or defense on a bar-coloured plate, and a
 // planeswalker's loyalty on a dark shield, flat at the top and pointed at the
 // foot, so loyalty never reads as a power and toughness.
 #let corner-box(c, ps) = if c.corner_kind == "loyalty" {
-  let (w, h) = (9mm, 5.6mm)
+  let (w, h) = walker-shield
   box(width: w, height: h, {
-    place(polygon(fill: luma(28), stroke: 0.5pt + white,
-      (0mm, 0mm), (w, 0mm), (w, h - 1.4mm), (w / 2, h), (0mm, h - 1.4mm)))
+    place(polygon(fill: luma(28), stroke: 0.9pt + luma(215),
+      (0mm, 0mm), (w, 0mm), (w, h - 1.3mm), (w / 2, h), (0mm, h - 1.3mm)))
     place(center + horizon, dy: -0.5mm, text(weight: "bold", size: 10pt, fill: white, c.corner))
   })
 } else {
@@ -202,44 +208,11 @@
   let pad = 2mm
   let striated = r.kind == "station" and r.thresholds.len() > 0
   let corner-in-band = striated and c.corner != none
-  // A planeswalker's last band makes room for the loyalty beside its text,
-  // as printed ones do, rather than the whole box stopping above it.
-  let walker-corner = (r.kind == "planeswalker" and c.flavor == none and c.hint == none
-    and c.back_pt == none and r.abilities.len() > 0)
-  let bottom = if walker-corner { 1.8mm } else if (c.corner != none and not corner-in-band) or c.hint != none or c.back_pt != none { 5.4mm } else { 1.8mm }
+  let bottom = if (c.corner != none and not corner-in-band) or c.hint != none or c.back_pt != none { 5.4mm } else { 1.8mm }
   block(width: 100%, height: 1fr, fill: ps.box, stroke: 0.4pt + black, clip: false,
     inset: (x: pad, top: 1.8mm, bottom: bottom),
     fit-box((sz, spare) => text-style(sz, {
-      if r.kind == "plain" { paragraphs(r.lines) } else if r.kind == "planeswalker" {
-        // Static abilities across the box; each loyalty ability a band of
-        // its own, shaded in turn, its badge straddling the box's left edge
-        // and the bands sharing the height left over, as printed
-        // planeswalkers' text boxes are (CR 606).
-        let bands = r.abilities.filter(a => a.loyalty != none).len()
-        let share = spare / calc.max(bands, 1)
-        let (badge, gap) = (7mm, 1.5mm)
-        let indent = badge / 2 + gap - pad
-        let n = 0
-        let last = r.abilities.len() - 1
-        for (i, a) in r.abilities.enumerate() {
-          let room = if i == last and walker-corner and c.corner != none { 9.5mm - pad } else { 0mm }
-          if a.loyalty == none { block(above: 1.2mm, below: 1.2mm, inset: (right: room), paragraphs(a.text)) } else {
-            let shade = if calc.rem(n, 2) == 0 { black.transparentize(93%) } else { white.transparentize(55%) }
-            n += 1
-            let band(h) = block(width: 100%, height: h, breakable: false, fill: shade,
-              // The first and last bands run to the box's edges.
-              outset: (x: pad, top: if i == 0 { 1.8mm } else { 0mm },
-                bottom: if i == last and c.flavor == none { bottom } else { 0mm }),
-              above: 0mm, below: 0mm,
-              inset: (left: indent, right: room, y: 0.8mm), {
-                place(left + horizon, dx: -indent - pad - badge / 2, loyalty-badge(a.loyalty.cost, a.loyalty.sign))
-                place(left + horizon, dx: -gap + 0.35mm, text(weight: "bold", [:]))
-                align(horizon, paragraphs(a.text))
-              })
-            layout(size => band(measure(band(auto), width: size.width).height + share))
-          }
-        }
-      } else {
+      if r.kind == "plain" { paragraphs(r.lines) } else {
         paragraphs(r.before)
         let last = r.thresholds.len() - 1
         for (i, t) in r.thresholds.enumerate() {
@@ -394,6 +367,107 @@
 }
 
 
+// A planeswalker below its name, in the proportions of a printed one's
+// frame: a rounded art window, the type line, and a text box narrower than
+// the frame, its loyalty badges standing out over the frame on its left and
+// the loyalty shield in a collar cut into its foot. The art runs on behind a
+// pale wash in the text box, as printed planeswalkers' does. A planeswalker
+// of four abilities or more takes a shorter window and a taller box, as
+// printed ones do; three or fewer keep a window near a creature's (CR 606).
+#let walker-body(c, ps, type-bar, foot-right) = layout(size => {
+  let r = c.rules
+  let gap = 0.9mm
+  let art-h = if r.abilities.len() >= 4 { 32.3mm } else { 38.4mm }
+  // Measured on printed planeswalkers, from the frame's inner edges: the box
+  // starts 3.1mm in from the left and 0.5mm from the right, the badges are
+  // centred 1.3mm outside it, and the shield's foot stands 1.7mm clear of the
+  // frame's.
+  let (inl, inr) = (3.1mm, 0.5mm)
+  let (sw, sh) = walker-shield
+  let shield-foot = 1.7mm
+  let collar = 0.7mm
+  let box-bottom = size.height - shield-foot - sh + 2.1mm
+  let box-top = art-h + gap + measure(block(width: size.width, type-bar)).height + gap
+  let box-h = box-bottom - box-top
+  let bw = size.width - inl - inr
+  let art = if c.art != none {
+    image(c.art, width: size.width, height: box-bottom, fit: "cover")
+  } else {
+    let k = if c.frame.tint.len() > 0 { palette.at(c.frame.tint.first()) } else { palette.at(c.frame.base) }
+    rect(width: size.width, height: box-bottom, stroke: none,
+      fill: gradient.linear(k.darken(35%), k.lighten(10%), angle: 60deg))
+  }
+  block(width: size.width, height: size.height, {
+  let keyline(radius) = place(top + left, rect(width: 100%, height: 100%, radius: radius, stroke: 0.4pt + black))
+
+  block(width: 100%, height: art-h, radius: 2.2mm, clip: true, below: gap, {
+    place(top + left, art)
+    place(top + left, dx: 0.35mm, dy: 0.35mm, rect(width: size.width - 0.7mm, height: art-h - 0.7mm,
+      radius: 1.9mm, stroke: 0.5pt + white.transparentize(30%)))
+    keyline(2.2mm)
+  })
+  block(below: gap, type-bar)
+
+  let radius = (top-left: 1.6mm, top-right: 1mm, bottom-left: 3mm, bottom-right: 3mm)
+  let (badge, colon, text-at, pad) = (6mm, 2.9mm, 4mm, 1.4mm)
+  let bottom-in = sh - 2.1mm + collar - 0.6mm
+  place(top + left, dx: inl, dy: box-top, block(width: bw, height: box-h, {
+    place(top + left, block(width: 100%, height: 100%, radius: radius, clip: true, {
+      place(dx: -inl, dy: -box-top, art)
+      place(top + left, rect(width: 100%, height: 100%, stroke: none, fill: ps.box.transparentize(18%)))
+    }))
+    block(width: 100%, height: 100%, inset: (left: pad, right: 1.6mm, top: 1.3mm, bottom: bottom-in),
+      fit-box((sz, spare) => text-style(sz, {
+        // Static abilities across the box; each loyalty ability a band of
+        // its own, shaded in turn, and the bands sharing the height left
+        // over, as printed planeswalkers' text boxes are (CR 606).
+        set block(spacing: 0mm)
+        let bands = r.abilities.filter(a => a.loyalty != none).len()
+        let share = spare / calc.max(bands, 1)
+        let n = 0
+        let last = r.abilities.len() - 1
+        for (i, a) in r.abilities.enumerate() {
+          if a.loyalty == none { block(above: 1.2mm, below: 1.2mm, paragraphs(a.text)) } else {
+            let shade = if calc.rem(n, 2) == 0 { black.transparentize(92%) } else { white.transparentize(60%) }
+            n += 1
+            let (first, tail) = (i == 0, i == last and c.flavor == none)
+            let band(h) = block(width: 100%, height: h, breakable: false, fill: shade,
+              // The first and last bands run to the box's edges, round
+              // where it is.
+              radius: (top-left: if first { radius.top-left } else { 0mm },
+                top-right: if first { radius.top-right } else { 0mm },
+                bottom-left: if tail { radius.bottom-left } else { 0mm },
+                bottom-right: if tail { radius.bottom-right } else { 0mm }),
+              outset: (left: pad, right: 1.6mm, top: if first { 1.3mm } else { 0mm },
+                bottom: if tail { bottom-in } else { 0mm }),
+              above: 0mm, below: 0mm,
+              inset: (left: text-at - pad, y: 0.9mm), {
+                place(left + horizon, dx: -text-at - 1.3mm - badge / 2, loyalty-badge(a.loyalty.cost, a.loyalty.sign))
+                place(left + horizon, dx: colon - text-at, text(weight: "bold", [:]))
+                align(horizon, paragraphs(a.text))
+              })
+            // No band is shallower than its badge with a margin round it,
+            // so badges never crowd each other as printed ones never do.
+            layout(size => band(calc.max(measure(band(auto), width: size.width).height, 3.7mm + 2.2mm) + share))
+          }
+        }
+        if c.flavor != none {
+          block(above: 1.2mm, below: 1.2mm, line(length: 100%, stroke: 0.3pt))
+          flavor-text(c)
+        }
+      })))
+    keyline(radius)
+  }))
+  if foot-right != none {
+    // The collar: the frame cut into the box's foot around the shield.
+    place(bottom + right, dx: 0.8mm + collar, dy: -shield-foot + collar,
+      rect(width: sw + 2 * collar, height: sh + 2 * collar, radius: 1.6mm,
+        fill: ps.foot, stroke: 0.4pt + black))
+    place(bottom + right, dx: 0.8mm, dy: -shield-foot, foot-right)
+  }
+})
+})
+
 // One face's body, filling the box it is given: a card's whole face, or a
 // split card's half with `art` a share of the half rather than a length.
 // A fused half's name and type bars `point` at the other half, as printed
@@ -469,6 +543,9 @@
       place(bottom + right, dx: 0.6mm, dy: if boxed { -2.2mm } else if c.corner != none { -4.2mm } else { -1.4mm }, foot-right)
     }
     if c.hint != none { place(bottom + left, dx: -0.6mm, dy: -0.6mm, hint-bar(c.hint, c.marker == "modal-front")) }
+  } else if r.kind == "planeswalker" {
+    block(width: 100%, height: 1fr, spacing: 0mm, walker-body(c, ps, type-bar(), foot-right))
+    if c.hint != none { place(bottom + left, dx: -0.6mm, dy: -0.2mm, hint-bar(c.hint, c.marker == "modal-front")) }
   } else {
     art-box(c, ps, height: art)
     type-bar()
