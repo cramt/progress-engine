@@ -227,7 +227,12 @@
   })
 }
 
-#let walker-shield = (9.2mm, 5.2mm)
+// The loyalty shield, rim and all, and how far its horns stand above the text
+// box's foot: measured on Teferi, Chandra, Minsc & Boo, Karn, Liliana and
+// Ugin, which agree to a pixel, 107 by 67 px of 745 by 1040 with the horns
+// 35 px over the box's foot.
+#let walker-shield = (8.96mm, 5.67mm)
+#let shield-rise = 2.9mm
 
 // Power and toughness on a raised plate in the bars' colours, its corners
 // cut, as printed modern frames' plate is. Measured on Lotus Cobra and
@@ -254,14 +259,40 @@
 }
 
 // The corner: power and toughness or defense on a bar-coloured plate, and a
-// planeswalker's loyalty on a dark shield, flat at the top and pointed at the
-// foot, so loyalty never reads as a power and toughness.
+// planeswalker's loyalty on a dark shield, pointed at the foot, so loyalty
+// never reads as a power and toughness. The shield is Mockery's drawing of
+// printed walkers' shape: its top low at the corners, rising to a sharp horn
+// either side of the middle and scooped round between the horns down to the
+// corners' height, its sides dented in as they fall to where its foot runs
+// to a point, under a thin light rim. Measured inside the rim on the six
+// walkers above, as fractions of that 93 by 54 px: the corners 19% down, the
+// horns 18% either side of the middle, the sides' feet 7% in and 76% down.
 #let corner-box(c, ps) = if c.corner_kind == "loyalty" {
   let (w, h) = walker-shield
+  let rim = 0.36mm
+  let (iw, ih) = (w - 2 * rim, h - 2 * rim)
+  let mid = iw / 2
+  let (corner, horn, side-in, side-foot) = (0.19 * ih, 0.18 * iw, 0.07 * iw, 0.76 * ih)
+  let fall = side-foot - corner
+  let outline(..style) = place(dx: rim, dy: rim, curve(..style,
+    curve.move((0mm, corner)),
+    curve.line((mid - horn, 0mm)),
+    // Steeply off the horn, rounding into the scoop's foot.
+    curve.cubic((mid - horn + 0.05 * iw, 0.55 * corner), (mid - 0.08 * iw, corner), (mid, corner)),
+    curve.cubic((mid + 0.08 * iw, corner), (mid + horn - 0.05 * iw, 0.55 * corner), (mid + horn, 0mm)),
+    curve.line((iw, corner)),
+    curve.cubic((iw - 0.8 * side-in, corner + 0.25 * fall), (iw - side-in, side-foot - 0.45 * fall), (iw - side-in, side-foot)),
+    curve.line((mid, ih)),
+    curve.line((side-in, side-foot)),
+    curve.cubic((side-in, side-foot - 0.45 * fall), (0.8 * side-in, corner + 0.25 * fall), (0mm, corner)),
+    curve.close(mode: "straight")))
   box(width: w, height: h, {
-    place(polygon(fill: luma(28), stroke: 0.9pt + luma(215),
-      (0mm, 0mm), (w, 0mm), (w, h - 1.3mm), (w / 2, h), (0mm, h - 1.3mm)))
-    place(center + horizon, dy: -0.5mm, text(weight: "bold", size: 10pt, fill: white, c.corner))
+    // The rim is the outline's stroke, edged grey outside, and the dark fill
+    // over its inner half.
+    outline(stroke: (paint: luma(115), thickness: 2 * rim + 0.5pt, join: "miter", miter-limit: 3))
+    outline(stroke: (paint: luma(222), thickness: 2 * rim, join: "miter", miter-limit: 3))
+    outline(fill: luma(20), stroke: none)
+    place(center + horizon, dy: 0.3mm, text(weight: "bold", size: 10pt, fill: white, c.corner))
   })
 } else if c.corner_kind == "pt" {
   pt-plate(c.corner, ps)
@@ -486,17 +517,42 @@
   // Measured on printed planeswalkers, from the frame's inner edges: the box
   // starts 3.1mm in from the left and 0.5mm from the right, the badges are
   // centred 1.3mm outside it, the box's foot is 0.75mm above the frame's,
-  // and the shield's top 2.1mm above the box's foot, so the shield stands
-  // out over the black band under the frame.
+  // and the shield's horns 2.9mm above the box's foot, so the shield stands
+  // out over the black band under the frame. The band flares into its
+  // shoulder, 2.1mm above the box's foot.
   let (inl, inr) = (3.1mm, 0.5mm)
   let (sw, sh) = walker-shield
   let box-bottom = size.height - (layout-of("planeswalker").foot - layout-of("planeswalker").box-bottom)
-  let shield-foot = size.height - box-bottom + 2.1mm - sh
+  let shield-foot = size.height - box-bottom + shield-rise - sh
+  let shoulder = box-bottom - 2.1mm
   let box-top = art-h + gap + measure(block(width: size.width, type-bar)).height + gap
   let box-h = box-bottom - box-top
   let bw = size.width - inl - inr
+  // The window's sides at its widest, mid-height.
+  let side-mid = 0.38mm
+  // Printed walkers show their art in the window as Scryfall's art_crop of
+  // them has it: as wide as the window at its widest, from the window's top
+  // to its foot (measured on the six walkers above, each art_crop landing on
+  // the card at its own size). The art runs on behind the text box. So a
+  // user's art, which is an illustration and not a crop of the window and the
+  // box together, is fitted to the window's width and hung from its top,
+  // cropped only if it would not fill the window; behind the box, where it
+  // runs out, it carries on mirrored, which under the wash reads as the art
+  // going on.
   let art = if c.art != none {
-    image(c.art, width: size.width, height: box-bottom, fit: "cover")
+    let natural = measure(image(c.art))
+    let s = calc.max((size.width - 2 * side-mid) / natural.width, art-h / natural.height)
+    let (iw, ih) = (natural.width * s, natural.height * s)
+    let at = (size.width - iw) / 2
+    block(width: size.width, height: box-bottom, clip: true, {
+      place(top + left, dx: at, image(c.art, width: iw, height: ih))
+      let below = ih
+      while below < box-bottom {
+        place(top + left, dx: at, dy: below, scale(y: -100%, image(c.art, width: iw, height: ih)))
+        place(top + left, dx: at, dy: below + ih, image(c.art, width: iw, height: ih))
+        below += 2 * ih
+      }
+    })
   } else {
     let k = if c.frame.tint.len() > 0 { palette.at(c.frame.tint.first()) } else { palette.at(c.frame.base) }
     rect(width: size.width, height: box-bottom, stroke: none,
@@ -514,7 +570,7 @@
     // mid-height, the band's outer edge 5.5% at mid-height, and the necks
     // 7% at the top and 6.6% at the foot, where the band runs into the bars'
     // rims. The band is in the rims' paint, as printed bands are.
-    let (side-end, side-mid, corner) = (2.2mm, 0.38mm, 1.3mm)
+    let (side-end, corner) = (2.2mm, 1.3mm)
     let (neck, neck-foot, neck-at, foot-at) = (0.3mm, 0.05mm, 1.4mm, 1.1mm)
     let bulge(end, end2, mid) = (8 * mid - end - end2) / 6
     let side-c = bulge(side-end, side-end, side-mid)
@@ -591,12 +647,12 @@
     curve.move((0.4mm, head)),
     curve.line((w - 0.4mm, head)),
     curve.cubic((w - 0.35mm, head + 0.7mm), (w - side, head + 0.6mm), (w - side, head + 1.6mm)),
-    curve.line((w - side, shield-top - 1.6mm)),
+    curve.line((w - side, shoulder - 1.6mm)),
     // Into the shield's shoulder, then out of its side under the box.
-    curve.cubic((w - side, shield-top - 0.6mm), (w - 0.2mm, shield-top - 0.2mm), (w - 0.9mm, shield-top + 0.2mm)),
+    curve.cubic((w - side, shoulder - 0.6mm), (w - 0.2mm, shoulder - 0.2mm), (w - 0.9mm, shoulder + 0.2mm)),
     curve.line((shield-left + sw / 2, shield-top + sh / 2)),
-    curve.line((shield-left + 0.3mm, foot + 0.9mm)),
-    curve.cubic((shield-left - 0.4mm, foot + 0.2mm), (shield-left - 0.9mm, foot), (shield-left - 1.8mm, foot)),
+    curve.line((shield-left + 1.2mm, foot + 0.3mm)),
+    curve.cubic((shield-left + 0.2mm, foot), (shield-left - 0.9mm, foot), (shield-left - 1.8mm, foot)),
     ..bow(foot),
     curve.line((side + round, foot)),
     curve.cubic((side + round * 0.45, foot), (side, foot - round * 0.45), (side, foot - round)),
@@ -606,7 +662,7 @@
   // The frame stops where the band sweeps into the black band under it:
   // from the frame's edge 8mm above the band's foot, down and round in a
   // curve that runs out flat 9.5mm in, and on the right from 2.9mm above
-  // the shield's top into the band's side over it, as Teferi, Hero of
+  // the shield's shoulder into the band's side over it, as Teferi, Hero of
   // Dominaria's does. Black over the frame and the band beyond those
   // curves, under the box and the shield.
   let edge = -1.5mm - 0.1mm
@@ -615,8 +671,8 @@
     curve.cubic((edge, foot - 2.96mm), (edge + 2.96mm, foot), (edge + 9.47mm, foot)),
     curve.line((edge + 9.47mm, H + 1mm)), curve.line((edge, H + 1mm)), curve.close(mode: "straight")))
   place(top + left, curve(fill: black, stroke: none,
-    curve.move((w - edge, shield-top - 2.9mm)),
-    curve.cubic((w - edge, shield-top - 1.6mm), (w - side, shield-top - 1.4mm), (w - side, shield-top - 0.2mm)),
+    curve.move((w - edge, shoulder - 2.9mm)),
+    curve.cubic((w - edge, shoulder - 1.6mm), (w - side, shoulder - 1.4mm), (w - side, shoulder - 0.2mm)),
     curve.line((w - side, H + 1mm)), curve.line((w - edge, H + 1mm)), curve.close(mode: "straight")))
   // The box's outline, its foot bowed as the band's is, `x` and `y` from its
   // own corner.

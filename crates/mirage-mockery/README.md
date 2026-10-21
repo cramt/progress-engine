@@ -40,8 +40,9 @@ A card's layout comes from its Oracle text: chapter lines make a Saga, level
 bars a Class, station thresholds a Spacecraft's striations, loyalty costs a
 planeswalker's frame in printed walkers' proportions, its art window bowed
 out at the sides like a barrel inside a band that necks under the name and
-type bars, over a narrower text box of badged bands in a band that arches
-over the card's foot and flares into the loyalty shield, each refused when
+type bars and holding the art as printed walkers frame theirs, over a
+narrower text box of badged bands that the art runs on behind, in a band that
+arches over the card's foot and flares into a horned loyalty shield, each refused when
 numbered out of order.
 Chapters on a card that is no Saga and level bars on one that is no Class are
 refused too; loyalty costs on a card that is no planeswalker print as plain

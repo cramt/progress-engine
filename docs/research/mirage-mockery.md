@@ -188,7 +188,12 @@ layout from the markers in it, never from a list of frames
   narrower than the frame in a band of its own that flares out of the type
   line, rounds its foot's left corner, arches over the middle of the card's
   foot and flares into the loyalty shield over the box's right corner, the
-  art running on behind the box under a pale wash. Three abilities or fewer keep a window near a
+  art running on behind the box under a pale wash. The art is framed as
+  printed: Scryfall's `art_crop` of each of those six lands on the card at its
+  own size, as wide as the window at its widest and from the window's top to
+  its foot, so a user's art is fitted to the window's width and hung from its
+  top, cropped only when it would not fill the window, and carries on
+  mirrored behind the box where it runs out. Three abilities or fewer keep a window near a
   creature's, the type line at 59% of the card's height as printed; four or
   more take the printed tall variant, the window shorter and the type line at
   52%. Static abilities run across the box; each loyalty ability is a band of
@@ -198,8 +203,12 @@ layout from the markers in it, never from a list of frames
   colon after it. The badges are Mockery's own shapes: a dark plate with a
   light rim whose top rises to a point for a cost that adds loyalty, whose
   foot drops to one for a cost that removes it, and flat for `0`. The loyalty
-  is on a dark shield, pointed at the foot, across the box's bottom right
-  corner in a collar cut into the box. A cost of `+0` or `−0` is refused:
+  is on a dark shield under a thin light rim, its top low at the corners,
+  rising to a sharp horn either side of the middle and scooped round between
+  them, its sides dented in as they fall to a foot that runs to a point:
+  Mockery's drawing of the printed shield, measured on the six walkers above,
+  which agree to a pixel, at 107 by 67 px of 745 by 1040 with its horns 35 px
+  over the box's foot. A cost of `+0` or `−0` is refused:
   Oracle writes it `0`. Loyalty costs on a card that is not a planeswalker
   stay plain lines: a loyalty ability there is legal ("normally, only
   planeswalkers have loyalty abilities", CR 606.2), and a frame with no
