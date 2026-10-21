@@ -49,7 +49,8 @@ Measured in a throwaway prototype before building it (2026-10-17):
   96 cases took 7 s optimised with plain text only; the striated layouts lay
   each section out twice, and stepping down a quarter point at a time took
   that to 25 s, so the size is now found by halving: 10 s. A quarter of the
-  cases being two faces left it at 9.8 s (2026-10-21).
+  cases being two faces left it at 9.8 s, and adding aftermath cards and
+  Rooms 11–14 s over four runs (2026-10-21).
 
 ## The card file
 
@@ -134,13 +135,83 @@ do.
   `{T}: Add …` ability. The bar is dark on the front and light on the back,
   as printed ones are.
 - **Split** (CR 709): the two halves side by side on a card turned on its
-  side, each drawn as a small card face, read with the card's left edge at
-  the foot. Fuse is read from the text, never declared: when both halves have
-  a line opening `Fuse`, it leaves both and prints once on a bar across the
-  foot of the card, blended from the halves' colours (CR 702.102a), and the
-  halves' name and type bars point at each other, as printed fuse cards'
-  do. One half
-  with fuse keeps it as a line of its own.
+  side, each drawn as a small card face, read with the card turned a quarter
+  clockwise: its left edge at the top and its foot, with the footer, on the
+  left, as Scryfall's images of Wear // Tear, Far // Away and every Room
+  read. What the halves are is read from them, never declared, so pasting a
+  printed card's Oracle text in prints its frame, and a file cannot say one
+  frame while its text says another (`SplitKind` in `card.rs`):
+  - **Fuse**: when both halves have a line opening `Fuse`, it leaves both
+    and prints once on a bar across the foot of the card (CR 702.102a), and
+    the halves' name and type bars point at each other, as printed fuse
+    cards' do. The bar has the name and type bars' shape (`plate` in
+    `card.typ`): D-shaped ends, a rim and a shadow, its fill and its rim
+    each blended from the halves' colours, its fill 3.5mm deep as Wear //
+    Tear's and Far // Away's are (41 of 745 px), standing over the halves'
+    frames' foot. One half with fuse keeps it as a line of its own.
+  - **Aftermath** (CR 702.127), when the right half has a line opening
+    `Aftermath`: the left half stands upright on the card's top half, a card
+    face in small, and the right half, the one cast from a graveyard, lies on
+    its side below it, read with the card turned a quarter anticlockwise, its
+    name bar toward the card's right edge, as Cut // Ribbons, Never //
+    Return, Spring // Mind and Commit // Memory print theirs. The lower
+    half's frame is full depth along its middle and steps in round its bars'
+    rounded ends, as printed ones' do. It is no `layout` of its own, though
+    the card prints in a frame of its own, for the same reason fuse is none:
+    Scryfall and Oracle call all 27 aftermath cards (`keyword:aftermath`)
+    `split`, and the keyword says which half is which. Refused, by name:
+    aftermath on the left half (the half printed upright is the one cast
+    from a hand); aftermath with fuse on either half (fuse casts from a hand,
+    an aftermath half only from a graveyard, CR 702.127a, 702.102a); and a
+    half that is no instant or sorcery, or has a Saga's, Class's or other
+    frame's text: all 27 printed ones' halves are plain instants and
+    sorceries.
+  - **Room** (CR 709.5), when a half's subtypes say Room: the doors side by
+    side, each a frame of its own with its name bar and text box, under one
+    picture across both, one shared type line (CR 709.5a) and a band with
+    the doors' unlock reminder, as Ticket Booth // Tunnel of Hate,
+    Bottomless Pool // Locker Room, Dazzling Theater // Prop Room and Smoky
+    Lounge // Misty Salon print theirs. How it differs from an instant or
+    sorcery split card: the art and the type line run across both doors, so
+    the doors part only at the name bars and the text boxes; the type line
+    is printed once, dark and see-through over the art with white type,
+    rimmed in both doors' colours blended; Oracle gives each door the same
+    reminder, "(You may cast either half. …)", and the card prints it once,
+    white italic on a dark band across the art under the type line; and
+    each door's frame rounds off beside its text box toward the card's
+    foot, the box running on to the border, rimmed in the door's colour.
+    The reminder is lifted into the band when both doors' text ends with
+    the same line in parentheses, and otherwise the band is empty and each
+    door keeps its text. The art is the left half's `art`, one picture; an
+    `art` on the right half is refused. Refused, by name: a Room half beside
+    a half that is not one, halves whose type lines differ (they share one,
+    CR 709.5a), a door with a corner or a framed text, and fuse or aftermath
+    on a Room. All 28 Rooms on Scryfall (`t:room`) are `Enchantment — Room`
+    on both doors.
+  - The halves' parts stand where printed ones' do, in px at 745 by 1040
+    (an aftermath card as it is held, a Room read on its side at 1040 by
+    744), real against ours:
+
+    | | Printed | Ours |
+    |---|---|---|
+    | Aftermath, upright half: name bar fill | 53–108 | 54–106 |
+    | art | 115–350 | 113–353 |
+    | type bar fill | 359–408 | 361–405 |
+    | text box | 422–555 | 420–555 |
+    | Aftermath, half on its side, read: name bar fill | 56–113 | 56–110 |
+    | art | 122–336 | 124–334 |
+    | type bar fill | 346–395 | 348–393 |
+    | text box | 408–688 | 409–686 |
+    | its text box along the card | 584–950 | 585–946 |
+    | Room, read: name bar fill | 37–92 | 38–90 |
+    | art's top | 100 | 97 |
+    | type bar, rim and all | 396–447 | 395–446 |
+    | reminder band | 448–512 | 449–510 |
+    | text box, rim and all | 515–712 | 516–712 |
+    | gap between the doors | 534–551 | 535–551 |
+
+    Text in either tops out at 9pt, as the printed halves' lines stand
+    32–35 px apart.
 - **Battle** (CR 310): not a declared layout. A face whose type line says
   Battle prints on a card turned on its side, as Invasion of Ikoria,
   Gobakhan, Tarkir, Zendikar and Alara print theirs: read with the card
@@ -251,8 +322,11 @@ do.
 Insight reads every face's rules text, each as its own face (CR 712.8,
 709.3b), and an inset spell's as the face it is while cast (CR 715.3b). Matched against Scryfall's images of Fable of the Mirror-Breaker,
 Delver of Secrets, Emeria's Call, Turntimber Symbiosis, Valki, God of Lies,
-Kazandu Mammoth, Agadeem's Awakening, Far // Away, Turn // Burn and Wear //
-Tear, with their Oracle text rendered through Mockery beside them. The face
+Kazandu Mammoth, Agadeem's Awakening, Far // Away, Turn // Burn, Wear //
+Tear, Cut // Ribbons, Never // Return, Spring // Mind, Commit // Memory,
+Ticket Booth // Tunnel of Hate, Bottomless Pool // Locker Room, Dazzling
+Theater // Prop Room, Smoky Lounge // Misty Salon, Roaring Furnace //
+Steaming Sauna and Restricted Office // Lecture Hall, with their Oracle text rendered through Mockery beside them. The face
 marks, the hint bar and the fuse bar are Mockery's own drawing, not Wizards'
 symbols
 ([ADR-0039](../adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).

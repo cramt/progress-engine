@@ -78,10 +78,12 @@ pub enum Card {
         front: Face,
         back: Face,
     },
-    /// Two halves on one card, each with its own cost (CR 709.1).
+    /// Two halves on one card, each with its own cost (CR 709.1), standing
+    /// as what their text and type lines say they are.
     Split {
         left: Face,
         right: Face,
+        kind: SplitKind,
     },
     /// A card with an Adventure inset on the left of its text box: an
     /// instant or sorcery it may be cast as instead (CR 715.2, 715.3).
@@ -96,6 +98,26 @@ pub enum Card {
         main: Face,
         spell: Face,
     },
+}
+
+/// How a split card's halves stand, read from what they say rather than
+/// declared, as every other frame is.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SplitKind {
+    /// Side by side on a card turned on its side.
+    Halves,
+    /// Side by side, each with fuse, the line printed once across the foot
+    /// of both (CR 702.102a): the line, as the left half has it.
+    Fused(String),
+    /// The right half has aftermath (CR 702.127): the left half stands
+    /// upright on the top of the card and the right lies on its side below
+    /// it, read by turning the card, as every printed aftermath card's do.
+    Aftermath,
+    /// Two doors of one Room (CR 709.5j) under one shared type line
+    /// (CR 709.5), side by side on a card turned on its side, their art one
+    /// picture across both. The reminder both doors' text ends with is
+    /// printed once, in a band across the card under the type line.
+    Room { reminder: Option<String> },
 }
 
 /// One face of a card, as a single-faced card is its only face.
@@ -319,18 +341,17 @@ impl Card {
                 back: face(raw.back.expect("checked"), "back face")?,
             },
             (Some("split"), _) => {
-                let card = Card::Split {
-                    left: face(raw.front, "left half")?,
-                    right: face(raw.right.expect("checked"), "right half")?,
-                };
+                let left = face(raw.front, "left half")?;
+                let right = face(raw.right.expect("checked"), "right half")?;
                 // Every printed split card's halves each have a cost, and
                 // the card's cost is the two together (CR 709.4b).
-                for half in card.faces() {
+                for half in [&left, &right] {
                     if half.cost.is_empty() {
                         bail!("{:?} is half a split card and needs a cost", half.name);
                     }
                 }
-                card
+                let kind = SplitKind::of(&left, &right)?;
+                Card::Split { left, right, kind }
             }
             (Some(l), _) => {
                 let spell = raw.spell.expect("checked");
@@ -399,7 +420,7 @@ impl Card {
         match self {
             Card::Single(f) => vec![f],
             Card::Transform { front, back } | Card::Modal { front, back } => vec![front, back],
-            Card::Split { left, right } => vec![left, right],
+            Card::Split { left, right, .. } => vec![left, right],
             Card::Adventure { main, spell } | Card::Prepare { main, spell } => vec![main, spell],
         }
     }
@@ -428,13 +449,130 @@ impl Card {
 
     /// A split card whose halves both have fuse prints the keyword once,
     /// on a bar across both (CR 702.102a): the line, as the left half has it.
-    pub fn fuse(&self) -> Option<String> {
-        let Card::Split { left, right } = self else {
-            return None;
+    pub fn fuse(&self) -> Option<&str> {
+        match self {
+            Card::Split {
+                kind: SplitKind::Fused(line),
+                ..
+            } => Some(line),
+            _ => None,
+        }
+    }
+}
+
+impl SplitKind {
+    /// What two halves are, or why no split card is printed so.
+    fn of(left: &Face, right: &Face) -> Result<Self> {
+        let keyword = |f: &Face, is: fn(&str) -> bool| f.rules.lines().into_iter().find(|l| is(l));
+        let (fuse, aftermath) = (
+            [keyword(left, is_fuse), keyword(right, is_fuse)],
+            [keyword(left, is_aftermath), keyword(right, is_aftermath)],
+        );
+        if aftermath[0].is_some() {
+            bail!(
+                "{:?} is the left half, and aftermath is the right half's: the half cast \
+                 from a graveyard is the one printed on its side under the other, as on \
+                 every printed aftermath card (CR 702.127a)",
+                left.name
+            );
+        }
+        if left.is_room() || right.is_room() {
+            return Self::room(
+                left,
+                right,
+                fuse.iter().any(Option::is_some) || aftermath[1].is_some(),
+            );
+        }
+        if aftermath[1].is_some() {
+            if fuse.iter().any(Option::is_some) {
+                bail!(
+                    "{:?} has aftermath, cast only from a graveyard (CR 702.127a), so no \
+                     fuse can cast it from a hand with the other half (CR 702.102a)",
+                    right.name
+                );
+            }
+            for half in [left, right] {
+                if !half.is_spell() {
+                    bail!(
+                        "{:?} is half an aftermath card, an instant or a sorcery as every \
+                         printed one's halves are, not a {:?}",
+                        half.name,
+                        half.type_line
+                    );
+                }
+                if half.rules.is_framed() {
+                    bail!(
+                        "{:?} is half an aftermath card, a few plain lines: it has no frame \
+                         of its own",
+                        half.name
+                    );
+                }
+            }
+            return Ok(SplitKind::Aftermath);
+        }
+        Ok(match fuse {
+            [Some(line), Some(_)] => SplitKind::Fused(line),
+            _ => SplitKind::Halves,
+        })
+    }
+
+    /// Two doors of one Room: both Room enchantments under one shared type
+    /// line (CR 709.5a, 205.3h), plain text with no corner, and the line
+    /// both end with lifted into the band if it is reminder text.
+    fn room(left: &Face, right: &Face, keyword: bool) -> Result<Self> {
+        for door in [left, right] {
+            if !(door.is_room() && door.has_type("Enchantment")) {
+                bail!(
+                    "{:?} is half of a Room, so it is an \"Enchantment — Room\" as the \
+                     other half is: a Room's halves share one type line (CR 709.5a), not {:?}",
+                    door.name,
+                    door.type_line
+                );
+            }
+        }
+        if left.type_line.trim() != right.type_line.trim() {
+            bail!(
+                "a Room's doors share one type line (CR 709.5a), but {:?} says {:?} and {:?} \
+                 says {:?}",
+                left.name,
+                left.type_line,
+                right.name,
+                right.type_line
+            );
+        }
+        for door in [left, right] {
+            if door.corner != Corner::None {
+                bail!("{:?} is a Room's door, which has no corner", door.name);
+            }
+            if door.rules.is_framed() {
+                bail!(
+                    "{:?} is a Room's door, a few plain lines in a box of its own: it has \
+                     no frame of its own",
+                    door.name
+                );
+            }
+        }
+        if right.art.is_some() {
+            bail!(
+                "a Room's art is one picture across both doors, so it is the left half's \
+                 art, and {:?} has none of its own",
+                right.name
+            );
+        }
+        if keyword {
+            bail!(
+                "a Room is a permanent, each door unlocked on its own (CR 709.5e): no fuse \
+                 or aftermath has a place on it"
+            );
+        }
+        let (l, r) = (left.rules.lines(), right.rules.lines());
+        let reminder = match (l.last(), r.last()) {
+            (Some(a), Some(b)) if a == b && a.starts_with('(') && a.ends_with(')') => {
+                Some(a.clone())
+            }
+            _ => None,
         };
-        let fuse = |f: &Face| f.rules.lines().into_iter().find(|l| is_fuse(l));
-        fuse(right)?;
-        fuse(left)
+        Ok(SplitKind::Room { reminder })
     }
 }
 
@@ -519,7 +657,16 @@ impl Inset {
 
 /// `Fuse`, alone or with its reminder.
 pub(crate) fn is_fuse(line: &str) -> bool {
-    line.strip_prefix("Fuse")
+    is_keyword(line, "Fuse")
+}
+
+/// `Aftermath`, alone or with its reminder.
+fn is_aftermath(line: &str) -> bool {
+    is_keyword(line, "Aftermath")
+}
+
+fn is_keyword(line: &str, keyword: &str) -> bool {
+    line.strip_prefix(keyword)
         .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '(']))
 }
 
@@ -611,8 +758,21 @@ impl Face {
 
     /// An instant or a sorcery: a card that is never a permanent.
     pub fn is_spell(&self) -> bool {
-        let has = |word: &str| self.type_line.split_whitespace().any(|w| w == word);
-        has("Instant") || has("Sorcery")
+        self.has_type("Instant") || self.has_type("Sorcery")
+    }
+
+    fn has_type(&self, word: &str) -> bool {
+        let types = self
+            .type_line
+            .split_once('—')
+            .map_or(&*self.type_line, |(t, _)| t);
+        types.split_whitespace().any(|w| w == word)
+    }
+
+    /// A door of a Room, the enchantment type (CR 205.3h).
+    pub fn is_room(&self) -> bool {
+        let subtypes = self.type_line.split_once('—').map_or("", |(_, s)| s);
+        subtypes.split_whitespace().any(|w| w == "Room")
     }
 
     /// A battle prints on a card turned on its side, its defense in a
@@ -886,6 +1046,76 @@ pt = "2/3"
             format!("{:#}", card(&format!("{FAR}{costless}")).unwrap_err())
                 .contains("needs a cost")
         );
+    }
+
+    const CUT: &str = "name = \"Cut\"\ncost = \"{1}{R}\"\ntype = \"Sorcery\"\nrules = \"Cut deals 4 damage to target creature.\"\nlayout = \"split\"\n";
+    const RIBBONS: &str = "[right]\nname = \"Ribbons\"\ncost = \"{X}{B}{B}\"\ntype = \"Sorcery\"\nrules = \"\"\"\nAftermath (Cast this spell only from your graveyard. Then exile it.)\nEach opponent loses X life.\n\"\"\"\n";
+
+    #[test]
+    fn aftermath_is_read_from_the_right_half_and_refused_where_print_has_none() {
+        let split = |text: &str| match card(text).unwrap() {
+            Card::Split { kind, .. } => kind,
+            other => panic!("a split card expected, not {other:?}"),
+        };
+        let err = |text: String| format!("{:#}", card(&text).unwrap_err());
+        assert_eq!(split(&format!("{CUT}{RIBBONS}")), SplitKind::Aftermath);
+        // On the left half, the one printed upright, it is refused.
+        let left = CUT.replace(
+            "rules = \"Cut",
+            "rules = \"Aftermath (Cast this spell only from your graveyard. Then exile it.)\\nCut",
+        );
+        let plain = RIBBONS.replace(
+            "Aftermath (Cast this spell only from your graveyard. Then exile it.)\n",
+            "",
+        );
+        assert!(err(format!("{left}{plain}")).contains("aftermath is the right half's"));
+        // Fuse casts from a hand, which an aftermath half never is.
+        let fused = RIBBONS.replace("Each opponent", "Fuse\nEach opponent");
+        assert!(err(format!("{CUT}{fused}")).contains("no fuse"));
+        // Every printed aftermath card's halves are instants or sorceries.
+        let creature = CUT.replace(
+            "type = \"Sorcery\"",
+            "type = \"Creature — Ogre\"\npt = \"2/2\"",
+        );
+        assert!(err(format!("{creature}{RIBBONS}")).contains("an instant or a sorcery"));
+    }
+
+    const POOL: &str = "name = \"Bottomless Pool\"\ncost = \"{U}\"\ntype = \"Enchantment — Room\"\nrules = \"\"\"\nWhen you unlock this door, return up to one target creature to its owner's hand.\n(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)\n\"\"\"\nlayout = \"split\"\n";
+    const LOCKER: &str = "[right]\nname = \"Locker Room\"\ncost = \"{4}{U}\"\ntype = \"Enchantment — Room\"\nrules = \"\"\"\nWhenever one or more creatures you control deal combat damage to a player, draw a card.\n(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)\n\"\"\"\n";
+
+    #[test]
+    fn a_room_is_two_enchantment_rooms_under_one_type_line() {
+        let Card::Split { kind, .. } = card(&format!("{POOL}{LOCKER}")).unwrap() else {
+            panic!("a Room is a split card");
+        };
+        assert_eq!(
+            kind,
+            SplitKind::Room {
+                reminder: Some("(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)".into())
+            }
+        );
+        // Without the same reminder on both doors, none is lifted.
+        let bare = LOCKER.replace("(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)\n", "");
+        let Card::Split { kind, .. } = card(&format!("{POOL}{bare}")).unwrap() else {
+            panic!("a Room is a split card");
+        };
+        assert_eq!(kind, SplitKind::Room { reminder: None });
+        let err = |text: String| format!("{:#}", card(&text).unwrap_err());
+        let instant = LOCKER.replace("type = \"Enchantment — Room\"", "type = \"Instant\"");
+        assert!(
+            err(format!("{POOL}{instant}")).contains("\"Enchantment — Room\" as the other half is")
+        );
+        let artifact = LOCKER.replace(
+            "type = \"Enchantment — Room\"",
+            "type = \"Artifact — Room\"",
+        );
+        assert!(err(format!("{POOL}{artifact}")).contains("share one type line"));
+        let legendary = LOCKER.replace("type = \"Enchantment", "type = \"Legendary Enchantment");
+        assert!(err(format!("{POOL}{legendary}")).contains("share one type line"));
+        let art = LOCKER.replace("[right]\n", "[right]\nart = \"x.png\"\n");
+        assert!(err(format!("{POOL}{art}")).contains("one picture across both doors"));
+        let fused = LOCKER.replace("Whenever", "Fuse\nWhenever");
+        assert!(err(format!("{POOL}{fused}")).contains("no fuse or aftermath"));
     }
 
     const GIANT: &str = "name = \"Bonecrusher Giant\"\ncost = \"{2}{R}\"\ntype = \"Creature — Giant\"\npt = \"4/3\"\n";

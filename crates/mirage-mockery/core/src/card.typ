@@ -767,6 +767,10 @@
 // width in from the card's, the fill's end bulging some 12 px, the rim 6 px.
 #let bar-depth = 1.05mm
 #let bar-rim = 0.55mm
+// A colour, or a gradient across colours, with `f` applied to each.
+#let shade(paint, f) = if type(paint) == gradient {
+  gradient.linear(..paint.stops().map(((c, at)) => (f(c), at)), angle: paint.angle())
+} else { f(paint) }
 #let plate(w, h, ps, ends: ("round", "round"), over: 0.5mm) = {
   let k = 0.5523
   // The outline grown by `g` past the fill's, clockwise from the top left.
@@ -802,10 +806,13 @@
   // A soft shadow under the plate, then the rim, outlined dark inside and out.
   place(top + left, dy: 0.3mm, curve(fill: black.transparentize(70%), stroke: none, ..outline(bar-rim + 0.1mm)))
   shape(bar-rim, fill: ps.rim, stroke: 0.9pt + luma(25))
-  shape(0mm, fill: ps.bar.darken(28%), stroke: none)
-  // The fill shifted up and right off its own shadow, the bevel.
+  shape(0mm, fill: shade(ps.bar, c => c.darken(28%)), stroke: none)
+  // The fill shifted up and right off its own shadow, the bevel. A bar
+  // blended across, as a fuse bar is, keeps its blend and loses the bevel's
+  // shading down it, which one gradient cannot hold as well.
   place(top + left, dx: 0.22mm, dy: -0.25mm, curve(stroke: none,
-    fill: gradient.linear(ps.bar.lighten(20%), ps.bar, ps.bar.darken(12%), angle: 90deg),
+    fill: if type(ps.bar) == gradient { shade(ps.bar, c => c.lighten(10%)) }
+      else { gradient.linear(ps.bar.lighten(20%), ps.bar, ps.bar.darken(12%), angle: 90deg) },
     ..outline(-0.18mm)))
   shape(0mm, fill: none, stroke: 0.45pt + luma(25))
 }
@@ -917,11 +924,11 @@
   ))
 }
 
-// One face's body, filling the box it is given: a card's whole face, or a
-// split card's half with `art` a share of the half rather than a length.
-// A fused half's name and type bars `point` at the other half, as printed
-// fuse cards' do.
-#let face-body(c, g, point: none, split: false) = {
+// One face's body, filling the box it is given: a card's whole face, or
+// half a card. `g` puts its parts, and a half's says how far its bars stand
+// out (`over`), its type line's size and its text's largest. A fused half's
+// name and type bars `point` at the other half, as printed fuse cards' do.
+#let face-body(c, g, point: none) = {
   let ps = paints(c.frame)
   set text(font: "Libertinus Serif", size: 8.5pt, fill: black)
   // The face's parts stand where `g` puts them, so nothing between them is
@@ -929,7 +936,7 @@
   set block(spacing: 0mm)
   // The plate stands out past the face's own edge, as printed bars do past
   // the art and the text box; a split half's less far, to stay in its half.
-  let over = if split { 0.3mm } else { 0.5mm }
+  let over = g.at("over", default: 0.5mm)
   let bar(body, h) = layout(size => {
     // A pointed end's slant starts 1.6mm in, so the text keeps clear of it.
     let inner = block(width: 100%, height: h, align(horizon, body), inset: (
@@ -939,7 +946,7 @@
     block(width: 100%, { plate(size.width, h, ps, ends: ends, over: over); inner })
   })
   // A split half's type line is set smaller, in its shallower bar.
-  let type-size = if split { 6.5pt } else { 8.5pt }
+  let type-size = g.at("type-size", default: 8.5pt)
   let type-bar(room: 0mm) = bar(pad(right: room, if c.indicator.len() > 0 {
     grid(columns: (auto, 1fr), column-gutter: 1.2mm, align: horizon,
       indicator(c.indicator), fit-line(c.type_line, type-size, 5pt, "the type line"))
@@ -954,7 +961,7 @@
   // the frame's edge and its foot just above the frame's, as Emeria's Call's
   // is.
   let hint = if c.hint != none {
-    place(bottom + left, dx: if split { -1.3mm } else { -1.5mm }, dy: -0.4mm, hint-bar(c.hint, c.marker == "modal-front"))
+    place(bottom + left, dx: -1.5mm, dy: -0.4mm, hint-bar(c.hint, c.marker == "modal-front"))
   }
 
   // The name gives way to the cost, never the other way round.
@@ -1011,10 +1018,9 @@
     v(g.type-top - g.art-bottom)
     type-bar()
     v(g.box-top - g.type-top - g.type-h)
-    // A split half's text tops out smaller, as Wear // Tear's does, its
-    // x-height 1.18mm against a whole card's 1.48mm. A spell inset in the
-    // card shares its text box.
-    if c.inset == none { standard-text(c, ps, max: if split { 7.5pt } else { 9.5pt }) }
+    // A half's text may top out smaller than a whole card's. A spell inset
+    // in the card shares its text box.
+    if c.inset == none { standard-text(c, ps, max: g.at("text-max", default: 9.5pt)) }
     else if c.inset.kind == "adventure" { adventure-text(c, ps) }
     else { prepare-text(c, ps) }
     hint
@@ -1052,35 +1058,212 @@
 }
 
 // A split half, read with the card on its side, from its top: measured on
-// Wear // Tear at 1040 by 745 px. The frame's top is the card's border.
+// Wear // Tear at 1040 by 745 px. The frame's top is the card's border. Its
+// bars stand out less far than a whole card's, to stay in its half, and its
+// type line and text are set smaller, as Wear // Tear's are: the text's
+// x-height 1.18mm against a whole card's 1.48mm.
 #let split-layout = (name-top: 4.5mm, name-h: 4.2mm, art-top: 9.3mm, art-bottom: 33.5mm,
-  type-top: 34.3mm, type-h: 2.8mm, box-top: 38.2mm)
+  type-top: 34.3mm, type-h: 2.8mm, box-top: 38.2mm, over: 0.3mm, type-size: 6.5pt, text-max: 7.5pt)
 // The black band along the card's foot, which is the split card's left
 // side read on its side.
 #let split-band = 6.2mm
+// A fused card's Fuse bar, its fill as deep as Wear // Tear's and Far //
+// Away's, 41 of 745 px.
+#let fuse-h = 3.5mm
+
+// Paints side by side, blended across: a fuse bar's or a Room's type line's,
+// in each half's colour from its own side.
+#let across(paints) = {
+  let colors = paints.map(p => if type(p) == gradient { p.stops().map(s => s.first()) } else { (p,) }).flatten()
+  if colors.len() == 1 { colors.first() } else { gradient.linear(..colors) }
+}
 
 // A split card: two halves side by side on a card turned on its side, read
-// with the card's left edge at the bottom (CR 709.1), each half a face of its
-// own. Halves that both have fuse print it once, on a bar across the foot of
-// both (CR 702.102a), and their name and type bars point at each other. The
-// footer runs along the card's foot as any card's does, which read on its
-// side is the left.
+// with the card turned a quarter clockwise, its left edge at the top and its
+// foot on the left (CR 709.1), each half a face of its own. Halves that both
+// have fuse print it once, on a bar across the foot of both (CR 702.102a),
+// shaped as the name and type bars are, and their name and type bars point
+// at each other. The footer runs along the card's foot as any card's does,
+// which read on its side is the left.
 #let split-card(c) = rotate(-90deg, reflow: true,
   block(width: card-height, height: card-width, fill: black, radius: 2.5mm, breakable: false,
     inset: (left: split-band, right: border-side, top: border-side, bottom: 3.2mm), {
     set block(spacing: 0mm)
-    block(width: 100%, height: 100%, grid(columns: (1fr, 1fr), column-gutter: 1mm, rows: (1fr, auto), row-gutter: 0mm,
+    let fused = c.style == "fused"
+    // A fused card's halves stop short of the bar, which stands over their
+    // frames' foot as printed fuse bars do.
+    let under = if fused { fuse-h + 2 * bar-rim + 1.5mm } else { 0.3mm }
+    block(width: 100%, height: 100%, grid(columns: (1fr, 1fr), column-gutter: 1mm, rows: (100%,),
       ..c.halves.enumerate().map(((i, h)) => block(width: 100%, height: 100%, fill: paints(h.frame).body,
-        radius: 1.2mm, inset: (x: 1.3mm, top: split-layout.name-top - border-side, bottom: 0.3mm),
-        face-body(h, split-layout, split: true, point: if c.fuse == none { none } else if i == 0 { "right" } else { "left" }))),
-      ..if c.fuse != none {
-        let ends = c.halves.map(h => paints(h.frame).bar)
-        (grid.cell(colspan: 2, block(width: 100%, fill: gradient.linear(..ends), stroke: 0.4pt + black,
-          radius: 1mm, inset: (x: 1.6mm, y: 0.9mm),
-          text(font: "Libertinus Serif", size: 6.6pt, fill: black, paragraph(c.fuse)))),)
+        radius: 1.2mm, inset: (x: 1.3mm, top: split-layout.name-top - border-side, bottom: under),
+        face-body(h, split-layout, point: if not fused { none } else if i == 0 { "right" } else { "left" })))))
+    if fused {
+      let ps = (rim: across(c.halves.map(h => paints(h.frame).rim)), bar: across(c.halves.map(h => paints(h.frame).bar)))
+      place(bottom + left, dx: 1.3mm, dy: -1.2mm, block(width: card-height - split-band - border-side - 2.6mm, height: fuse-h, {
+        layout(size => plate(size.width, fuse-h, ps))
+        block(width: 100%, height: 100%, inset: (x: 1.4mm), align(horizon,
+          text(font: "Libertinus Serif", size: 7.5pt, fill: black, paragraph(c.shared))))
       }))
+    }
     place(top + left, dx: -split-band, dy: -border-side, rotate(90deg, reflow: true, footer(c.artist, card-width)))
   }))
+
+// An aftermath card's halves, measured on Cut // Ribbons, Never // Return,
+// Spring // Mind and Commit // Memory at 745 by 1040 px, which agree to a
+// pixel or two. The left half stands upright on the card's top half, a card
+// face in small, its frame from `frame-top` to `foot` from the card's top
+// edge; its text box is 2.1mm in from the frame's sides, not a whole card's
+// 1.5mm.
+#let aftermath-top = (frame-top: 2.6mm, inset: 2mm, name-top: 4.48mm, name-h: 4.65mm, art-top: 9.75mm,
+  art-bottom: 29.5mm, type-top: 30.35mm, type-h: 4.15mm, box-top: 35.7mm, box-bottom: 47mm, foot: 47.4mm,
+  type-size: 8pt, text-max: 9pt)
+// The right half lies on its side below it, `at` from the card's top and
+// `length` along it, read with the card turned a quarter anticlockwise and
+// measured from the card's top as it is then read. Its frame runs from
+// `frame-top` to `frame-bottom` except over its `ends`, where it steps in to
+// `end-top` and `end-bottom` round the bars' rounded ends, as printed ones'
+// frames do.
+#let aftermath-bottom = (at: 48.6mm, length: 32.1mm, frame-top: 2.54mm, frame-bottom: 60.3mm,
+  end-top: 4.23mm, end-bottom: 58.7mm, ends: (3.1mm, 2.8mm), step: 1.5mm, inset: (left: 0.75mm, right: 0.45mm),
+  name-top: 4.8mm, name-h: 4.7mm, art-top: 10.3mm, art-bottom: 28.4mm, type-top: 29.3mm, type-h: 4.15mm,
+  box-top: 34.5mm, box-bottom: 58.2mm, over: 0.8mm, type-size: 8pt, text-max: 9pt)
+
+// The aftermath half's frame: full depth along its middle, stepping in over
+// each end along an S, with rounded corners.
+#let aftermath-frame(g, fill) = {
+  let (l, a, b, c, d) = (g.length, g.end-top, g.frame-top, g.frame-bottom, g.end-bottom)
+  let (e0, e1, f, r, k) = (g.ends.first(), g.length - g.ends.last(), g.step, 1.2mm, 0.5523)
+  curve(fill: fill, stroke: none,
+    curve.move((r, a)),
+    curve.line((e0 - f, a)), curve.cubic((e0 - f / 2, a), (e0 - f / 2, b), (e0, b)),
+    curve.line((e1, b)), curve.cubic((e1 + f / 2, b), (e1 + f / 2, a), (e1 + f, a)),
+    curve.line((l - r, a)), curve.cubic((l - r + k * r, a), (l, a + r - k * r), (l, a + r)),
+    curve.line((l, d - r)), curve.cubic((l, d - r + k * r), (l - r + k * r, d), (l - r, d)),
+    curve.line((e1 + f, d)), curve.cubic((e1 + f / 2, d), (e1 + f / 2, c), (e1, c)),
+    curve.line((e0, c)), curve.cubic((e0 - f / 2, c), (e0 - f / 2, d), (e0 - f, d)),
+    curve.line((r, d)), curve.cubic((r - k * r, d), (0mm, d - r + k * r), (0mm, d - r)),
+    curve.line((0mm, a + r)), curve.cubic((0mm, a + r - k * r), (r - k * r, a), (r, a)),
+    curve.close(mode: "straight"))
+}
+
+// An aftermath card (CR 702.127): the left half upright on the top of the
+// card, and the right half, the one cast from a graveyard, on its side below
+// it, read with the card turned a quarter anticlockwise, its name toward the
+// card's right edge. The footer is the card's own, under both.
+#let aftermath-card(c) = {
+  let (t, g) = (aftermath-top, aftermath-bottom)
+  let (upper, lower) = (c.halves.first(), c.halves.last())
+  block(width: card-width, height: card-height, fill: black, radius: 2.5mm, breakable: false, {
+    place(top + left, dx: border-side, dy: t.frame-top,
+      block(width: card-width - 2 * border-side, height: t.foot - t.frame-top, fill: paints(upper.frame).body,
+        radius: 1.2mm, inset: (x: t.inset, top: t.name-top - t.frame-top, bottom: t.foot - t.box-bottom),
+        face-body(upper, t)))
+    place(top + left, dy: g.at, rotate(90deg, reflow: true, block(width: g.length, height: card-width, {
+      place(top + left, aftermath-frame(g, paints(lower.frame).body))
+      place(top + left, block(width: g.length, height: card-width,
+        inset: (..g.inset, top: g.name-top, bottom: card-width - g.box-bottom), face-body(lower, g)))
+    })))
+    place(bottom + left, footer(c.artist, card-width))
+  })
+}
+
+// A Room's parts, read with the card on its side, from the card's top left
+// corner: measured on Ticket Booth // Tunnel of Hate, Bottomless Pool //
+// Locker Room, Dazzling Theater // Prop Room and Smoky Lounge // Misty Salon
+// at 1040 by 744 px. Each door is a frame of its own, `gap` apart, holding
+// its name bar `bar-in` in from its sides and its text box `box-in`; between
+// them the art runs across both, `art-in` in from the frame's sides, behind
+// the shared type line and the reminder band under it. A door's frame rounds
+// off beside its text box from `body-bottom` up, `foot-r` across and up, and
+// the box runs on to the card's border.
+#let room-layout = (band: 6.5mm, top: 2.45mm, right: 2.55mm, bottom: 2.6mm, gap: 1.52mm,
+  name-top: 3.13mm, name-h: 4.66mm, bar-in: 2.1mm, art-in: 2.1mm, art-top: 8.46mm,
+  type-top: 34.05mm, type-h: 3.05mm, type-in: (1.27mm, 0.85mm), band-top: 37.9mm, band-bottom: 43.3mm,
+  box-top: 43.55mm, box-in: 1.6mm, box-rim: 0.45mm, body-bottom: 58.4mm, foot-r: (1.6mm, 5mm))
+
+// A door's frame, `w` by `h`: round at the top, and at the foot curving in
+// to the text box's sides over `foot-r`.
+#let door-frame(w, h, foot-r, fill) = {
+  let (r, k) = (1.2mm, 0.5523)
+  let (fx, fy) = foot-r
+  curve(fill: fill, stroke: none,
+    curve.move((r, 0mm)),
+    curve.line((w - r, 0mm)), curve.cubic((w - r + k * r, 0mm), (w, r - k * r), (w, r)),
+    curve.line((w, h - fy)), curve.cubic((w, h - fy + k * fy), (w - fx + k * fx, h), (w - fx, h)),
+    curve.line((fx, h)), curve.cubic((fx - k * fx, h), (0mm, h - fy + k * fy), (0mm, h - fy)),
+    curve.line((0mm, r)), curve.cubic((0mm, r - k * r), (r - k * r, 0mm), (r, 0mm)),
+    curve.close(mode: "straight"))
+}
+
+// A Room (CR 709.5): two doors on a card turned on its side and read as a
+// split card is, each with its own name bar and text box, under one picture
+// across both and one shared type line (CR 709.5a), dark and see-through
+// over the art and rimmed in both doors' colours, with the doors' shared
+// unlock reminder on a dark band across the card under it.
+#let room-card(c) = rotate(-90deg, reflow: true, {
+  let g = room-layout
+  let (x0, x1) = (g.band, card-height - g.right)
+  let door-w = (x1 - x0 - g.gap) / 2
+  let doors = c.halves.enumerate().map(((i, h)) => (h, paints(h.frame), x0 + i * (door-w + g.gap)))
+  block(width: card-height, height: card-width, fill: black, radius: 2.5mm, breakable: false, {
+    set text(font: "Libertinus Serif", size: 8.5pt, fill: black)
+    set block(spacing: 0mm)
+    for (h, ps, x) in doors {
+      place(top + left, dx: x, dy: g.top, door-frame(door-w, g.body-bottom - g.top, g.foot-r, ps.body))
+    }
+    // The art: one picture across both doors, fitted to cover the window
+    // from the name bars to the type line as printed Rooms' art_crop is, and
+    // carried on mirrored behind the type line and the band.
+    let (ax, aw) = (x0 + g.art-in, x1 - x0 - 2 * g.art-in)
+    let (win-h, art-h) = (g.type-top - g.art-top, g.band-bottom - g.art-top)
+    let art = c.halves.first().art
+    place(top + left, dx: ax, dy: g.art-top, block(width: aw, height: art-h, clip: true, stroke: 0.4pt + black, context {
+      let natural = measure(image(art))
+      let s = calc.max(aw / natural.width, win-h / natural.height)
+      let (iw, ih) = (natural.width * s, natural.height * s)
+      let (at, y0) = ((aw - iw) / 2, (win-h - ih) / 2)
+      place(top + left, dx: at, dy: y0, image(art, width: iw, height: ih))
+      let (below, flip) = (y0 + ih, true)
+      while below < art-h {
+        place(top + left, dx: at, dy: below, if flip { scale(y: -100%, image(art, width: iw, height: ih)) } else { image(art, width: iw, height: ih) })
+        below += ih
+        flip = not flip
+      }
+    }))
+    // The band: the shared reminder, white and italic on the art darkened.
+    place(top + left, dx: ax, dy: g.band-top, block(width: aw, height: g.band-bottom - g.band-top,
+      fill: black.transparentize(22%), inset: (x: 3mm, y: 0.6mm),
+      if c.shared != none {
+        fit-box(max: 6.75pt, what: "the Room's reminder", (sz, spare) => text-style(sz, {
+          set text(fill: white)
+          v(spare / 2)
+          align(center, par(paragraph(c.shared)))
+        }))
+      }))
+    // The shared type line.
+    let (ta, tb) = g.type-in
+    place(top + left, dx: x0 + ta, dy: g.type-top, block(width: x1 - x0 - ta - tb, height: g.type-h, {
+      layout(size => plate(size.width, g.type-h, (rim: across(doors.map(d => d.at(1).rim)), bar: luma(30).transparentize(35%)), over: 0mm))
+      block(width: 100%, height: 100%, inset: (x: 1.6mm), align(horizon,
+        text(fill: white, fit-line(c.type_line, 7.5pt, 5pt, "the type line"))))
+    }))
+    for (h, ps, x) in doors {
+      // Its name bar.
+      place(top + left, dx: x + g.bar-in, dy: g.name-top, block(width: door-w - 2 * g.bar-in, height: g.name-h, {
+        layout(size => plate(size.width, g.name-h, ps))
+        block(width: 100%, height: 100%, inset: (x: 1.5mm), align(horizon,
+          grid(columns: (1fr, auto), column-gutter: 1mm, align: horizon,
+            fit-line(h.name, 9.5pt, 6pt, "the name"), { for s in h.cost { sym(s, 9pt) } })))
+      }))
+      // Its text box, rimmed in its colour.
+      let (bw, bh) = (door-w - 2 * g.box-in, card-width - g.bottom - g.box-top)
+      place(top + left, dx: x + g.box-in, dy: g.box-top, block(width: bw, height: bh, fill: ps.rim,
+        stroke: 0.4pt + luma(25), inset: g.box-rim,
+        standard-text(h, ps, max: 9pt, height: 100%, stroke: 0.4pt + luma(25), top: 1.2mm, clear: 1.2mm)))
+    }
+    place(top + left, rotate(90deg, reflow: true, footer(c.artist, card-width)))
+  })
+})
 
 // Where a battle's front puts its parts, read with the card on its side:
 // measured on Invasion of Ikoria, Gobakhan, Tarkir, Zendikar and Alara at
@@ -1218,7 +1401,9 @@
   })
 })
 
-#let card(c) = if c.kind == "split" { split-card(c) } else if c.kind == "battle" { battle-card(c) } else { face-card(c) }
+#let card(c) = if c.kind == "split" {
+  if c.style == "aftermath" { aftermath-card(c) } else if c.style == "room" { room-card(c) } else { split-card(c) }
+} else if c.kind == "battle" { battle-card(c) } else { face-card(c) }
 
 #let notice = [Unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Made with Mirage Mockery.]
 

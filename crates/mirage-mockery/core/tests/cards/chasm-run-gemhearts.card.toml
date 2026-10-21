@@ -1,0 +1,18 @@
+name = "Chasm Run"
+cost = "{1}{R}"
+type = "Sorcery"
+rules = """
+Chasm Run deals 3 damage to target creature or planeswalker. If that permanent would die this turn, exile it instead.
+"""
+artist = "Mirage Mockery"
+layout = "split"
+
+[right]
+name = "Gemhearts"
+cost = "{X}{G}{G}"
+type = "Sorcery"
+rules = """
+Aftermath (Cast this spell only from your graveyard. Then exile it.)
+Create X Treasure tokens. You gain X life.
+"""
+artist = "Mirage Mockery"

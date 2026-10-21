@@ -18,7 +18,7 @@ use typst::utils::LazyHash;
 use typst::{Library, LibraryExt, World};
 pub use typst_layout::PagedDocument;
 
-use crate::card::{is_fuse, Card, Color, Colors, Corner, Face, Frame};
+use crate::card::{is_fuse, Card, Color, Colors, Corner, Face, Frame, SplitKind};
 use crate::placeholder;
 use crate::rules::{ability_word, numeral, Ability, LoyaltyCost, Rules};
 use crate::symbols::{self, file_name, runs, Run};
@@ -243,13 +243,24 @@ pub fn compile_with_art(
                     },
                 )?);
             }
-            Card::Split { left, right } => {
-                let fuse = card.fuse();
+            Card::Split { left, right, kind } => {
+                // A fused card's Fuse line and a Room's shared reminder are
+                // printed once, across both halves, and left out of each.
+                let (style, shared) = match kind {
+                    SplitKind::Halves => ("halves", None),
+                    SplitKind::Fused(line) => ("fused", Some(line)),
+                    SplitKind::Aftermath => ("aftermath", None),
+                    SplitKind::Room { reminder } => ("room", reminder.as_ref()),
+                };
                 let half = |files: &mut Files<_>, f| {
                     files.face(
                         f,
                         Extras {
-                            drop_fuse: fuse.is_some(),
+                            drop_fuse: matches!(kind, SplitKind::Fused(_)),
+                            drop_line: match kind {
+                                SplitKind::Room { reminder } => reminder.as_deref(),
+                                _ => None,
+                            },
                             ..Extras::default()
                         },
                     )
@@ -262,11 +273,15 @@ pub fn compile_with_art(
                     .collect();
                 out.push(json!({
                     "kind": "split",
+                    "style": style,
                     "halves": halves,
-                    "fuse": match &fuse {
-                        Some(line) => files.paragraph(line).with_context(|| format!("in {:?}'s fuse", card.name()))?,
+                    // The Fuse line, or the Room's reminder.
+                    "shared": match shared {
+                        Some(line) => files.paragraph(line).with_context(|| format!("in {:?}'s shared line", card.name()))?,
                         None => Value::Null,
                     },
+                    // A Room's doors share their type line (CR 709.5).
+                    "type_line": curl(&left.type_line),
                     "artist": if artists.is_empty() { Value::Null } else {
                         let mut a = artists;
                         a.dedup();
@@ -304,7 +319,7 @@ pub fn compile_with_art(
 
 /// What a face of a two-faced card prints beyond itself.
 #[derive(Default)]
-struct Extras {
+struct Extras<'a> {
     /// Which face it is, on the name bar's left: `transform-front`,
     /// `transform-back`, `modal-front` or `modal-back`; empty for none.
     marker: &'static str,
@@ -314,6 +329,8 @@ struct Extras {
     hint: Value,
     /// A fused split card prints its Fuse line once across both halves.
     drop_fuse: bool,
+    /// A Room prints its doors' shared reminder once, under the type line.
+    drop_line: Option<&'a str>,
     /// The spell inset in this face's text box, an Adventure or a prepare
     /// spell, with which it is.
     inset: Value,
@@ -423,7 +440,9 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
         let mut set = |lines: &[String]| -> Result<Value> {
             lines
                 .iter()
-                .filter(|l| !(extras.drop_fuse && is_fuse(l)))
+                .filter(|l| {
+                    !(extras.drop_fuse && is_fuse(l)) && extras.drop_line != Some(l.as_str())
+                })
                 .map(|l| self.paragraph(l))
                 .collect::<Result<Vec<_>>>()
                 .map(Value::from)

@@ -1,0 +1,18 @@
+name = "Detention Block"
+cost = "{1}{W}"
+type = "Enchantment — Room"
+rules = """
+When you unlock this door, tap up to two target creatures. Put a stun counter on each of them.
+(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
+"""
+artist = "Mirage Mockery"
+layout = "split"
+
+[right]
+name = "Trash Compactor"
+cost = "{3}{B}{B}"
+type = "Enchantment — Room"
+rules = """
+At the beginning of your end step, each opponent sacrifices a tapped creature of their choice.
+(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
+"""

@@ -69,8 +69,14 @@ A card of two parts declares it: `layout = "transform"` or `"modal"` with a
 `"prepare"` with the `[spell]` drawn in its text box. A double-faced card is two
 card images, front and back: two pages of a PDF, `x.png` and `x.back.png`, or
 two slots on a sheet, its back beside its front. A split card is one image,
-turned on its side, and halves that both say Fuse print it once across the
-foot. An Adventure is the left-hand page of a text box opened like a book,
+turned on its side, and what its halves say picks its frame: halves that
+both say Fuse print it once on a bar across the foot, shaped as the name and
+type bars are; a right half with Aftermath lies on its side under the left,
+which stands upright, as Cut // Ribbons prints; and two halves that are
+both `Enchantment — Room` are a Room's doors, under one picture, one shared
+type line and their shared unlock reminder on a band across the card.
+Aftermath on the left half, aftermath with fuse or on anything but instants
+and sorceries, and a Room whose halves' type lines differ are refused. An Adventure is the left-hand page of a text box opened like a book,
 under its own name and type bars in its colour; a prepare spell stands in a
 frame inset on the right of the box, its bars shaped as the card's. Either
 is refused unless it is an instant or sorcery with a cost and plain text,

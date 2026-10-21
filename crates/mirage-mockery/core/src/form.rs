@@ -332,6 +332,9 @@ mod tests {
     const FORCE: &str = include_str!("../tests/cards/force-push-force-pull.card.toml");
     const SKYBREAKER: &str = include_str!("../tests/cards/skybreaker-initiate.card.toml");
     const FABRIALIST: &str = include_str!("../tests/cards/ardent-fabrialist.card.toml");
+    const CHASM: &str = include_str!("../tests/cards/chasm-run-gemhearts.card.toml");
+    const DETENTION: &str =
+        include_str!("../tests/cards/detention-block-trash-compactor.card.toml");
 
     #[test]
     fn editing_the_front_leaves_the_layout_and_the_second_face_alone() {
@@ -378,6 +381,8 @@ mod tests {
             (FORCE, Parts::Halves),
             (SKYBREAKER, Parts::Adventure),
             (FABRIALIST, Parts::Prepare),
+            (CHASM, Parts::Halves),
+            (DETENTION, Parts::Halves),
         ] {
             assert_eq!(Parts::of(text).unwrap(), parts);
         }
@@ -413,6 +418,10 @@ mod tests {
                 Just((SHINOVAR, Side::Front)),
                 Just((SHINOVAR, Side::Second)),
                 Just((FORCE, Side::Second)),
+                Just((CHASM, Side::Front)),
+                Just((CHASM, Side::Second)),
+                Just((DETENTION, Side::Front)),
+                Just((DETENTION, Side::Second)),
                 Just((SKYBREAKER, Side::Front)),
                 Just((SKYBREAKER, Side::Second)),
                 Just((FABRIALIST, Side::Front)),

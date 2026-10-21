@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use mockery_core::card::Card;
+use mockery_core::card::{Card, SplitKind};
 use mockery_core::read;
 use mockery_core::render::{self, Layout, Paper, Sheet};
 
@@ -132,10 +132,32 @@ fn a_double_faced_card_is_two_pages_and_a_split_card_one() {
     assert!(matches!(modal, Card::Modal { .. }));
     assert_eq!(split.name(), "Force Push // Force Pull");
     assert_eq!(
-        split.fuse().as_deref(),
+        split.fuse(),
         Some("Fuse (You may cast one or both halves of this card from your hand.)")
     );
-    for (card, pages) in [(&transform, 2), (&modal, 2), (&split, 1)] {
+    let aftermath = open("chasm-run-gemhearts");
+    let room = open("detention-block-trash-compactor");
+    assert!(matches!(
+        aftermath,
+        Card::Split {
+            kind: SplitKind::Aftermath,
+            ..
+        }
+    ));
+    assert!(matches!(
+        room,
+        Card::Split {
+            kind: SplitKind::Room { reminder: Some(_) },
+            ..
+        }
+    ));
+    for (card, pages) in [
+        (&transform, 2),
+        (&modal, 2),
+        (&split, 1),
+        (&aftermath, 1),
+        (&room, 1),
+    ] {
         assert_eq!(card.images(), pages);
         let doc = render::compile(std::slice::from_ref(card), Layout::Cards).unwrap();
         assert_eq!(doc.pages().len(), pages, "{}", card.name());

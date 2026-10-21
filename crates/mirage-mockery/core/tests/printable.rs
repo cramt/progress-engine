@@ -241,7 +241,16 @@ fn spell_toml() -> impl Strategy<Value = (String, String)> {
 
 /// A card of one face, or two in any of the layouts that have two.
 fn card_toml() -> impl Strategy<Value = String> {
-    (face_toml(), face_toml(), spell_toml(), prop::collection::vec(paragraph(), 0..4), 0..8usize).prop_map(|((cost, front), (back_cost, back), (spell_type, spell), plain, kind)| {
+    (
+        face_toml(),
+        face_toml(),
+        spell_toml(),
+        spell_toml(),
+        prop::collection::vec(paragraph(), 0..4),
+        any::<bool>(),
+        0..10usize,
+    )
+        .prop_map(|((cost, front), (back_cost, back), (spell_type, spell), (other_type, other), plain, reminder, kind)| {
         let cost_line = |c: &str, split: bool| match (c.is_empty(), split) {
             (true, true) => "cost = \"{1}\"\n".to_string(),
             (true, false) => String::new(),
@@ -268,21 +277,50 @@ fn card_toml() -> impl Strategy<Value = String> {
                 plain.join("\n"),
             )
         };
+        // An aftermath card's halves are instants or sorceries of plain
+        // lines, the right one with aftermath.
+        let aftermath = format!(
+            "{spell}type = \"{spell_type}\"\nlayout = \"split\"\n[right]\n{}type = \"{other_type}\"\n",
+            other.replacen("rules = \"\"\"\n", "rules = \"\"\"\nAftermath (Cast this spell only from your graveyard. Then exile it.)\n", 1)
+        );
+        // A Room's doors are enchantment Rooms of plain lines, maybe ending
+        // in the same reminder.
+        let unlock = if reminder {
+            "\n(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)"
+        } else {
+            ""
+        };
+        let door = |name: &str, cost: &str, text: &[String]| {
+            format!(
+                "name = \"{name}\"\n{}type = \"Enchantment — Room\"\nrules = \"\"\"\n{}{unlock}\n\"\"\"\n",
+                cost_line(cost, true),
+                text.join("\n"),
+            )
+        };
+        let half = plain.len() / 2;
+        let room = format!(
+            "{}layout = \"split\"\n[right]\n{}",
+            door("Left Door", &cost, &plain[..half]),
+            door("Right Door", &back_cost, &plain[half..]),
+        );
         match kind {
             0 => top,
+            8 => aftermath,
+            9 => room,
             1 => format!("{top}layout = \"transform\"\n[back]\n{second}"),
             2 => format!("{top}layout = \"modal\"\n[back]\n{second}"),
             3 => format!("{top}layout = \"split\"\n[right]\n{second}"),
             4 => inset("adventure", &format!("{spell_type} — Adventure")),
             5 => inset("prepare", &spell_type),
             6 => battle(""),
-            _ => format!("{}layout = \"transform\"\n[back]\n{second}", battle(" — Siege")),
+            7 => format!("{}layout = \"transform\"\n[back]\n{second}", battle(" — Siege")),
+            _ => unreachable!(),
         }
     })
 }
 
 proptest! {
-    // A case is a Typst layout: 96 take 10s optimised, which is how the flake
+    // A case is a Typst layout: 96 take 11-14s optimised, which is how the flake
     // runs them, and the dev profile is slow enough that 24 have to do (14s).
     #![proptest_config(ProptestConfig::with_cases(if cfg!(debug_assertions) { 24 } else { 96 }))]
 
