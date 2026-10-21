@@ -28,7 +28,13 @@ safeguard
 
 Every card's name bar and type line are printed modern frames' bar, in
 Mockery's own drawing: wider than the art and text box, round D-shaped ends,
-a rim in the card's colours and a raised fill.
+a rim in the card's colours and a raised fill. A face's parts stand where
+printed M15-frame cards put theirs, measured as fractions of the card's
+height: the type line at 56–62%, a text box of 26mm, the power and
+toughness on a raised plate straddling the box's corner, and the frame
+stopping just under the box over a black band that holds the footer.
+Rules text fits from 9.5pt, a printed card's largest, and a short text is
+centred in its box.
 
 A card's layout comes from its Oracle text: chapter lines make a Saga, level
 bars a Class, station thresholds a Spacecraft's striations, loyalty costs a

@@ -33,6 +33,33 @@
 #let card-width = 63mm
 #let card-height = 88mm
 
+// Where a face's parts stand, from the card's top edge, measured on printed
+// M15-frame cards at 745 by 1040 px (Lotus Cobra, Lightning Helix, Llanowar
+// Elves, Counterspell, Wurmcoil Engine, Kolaghan's Command, Fabled Passage
+// and Emeria's Call agree to a pixel or two). A bar's top and height are its
+// fill's; its rim stands round that. The frame stops just under the text box,
+// and the black band under it, 7% of the card, holds the footer, where a
+// printed card's collector line is.
+#let border-top = 2.3mm
+#let border-side = 2.6mm
+#let layout-of(kind) = if kind == "saga" or kind == "class" {
+  // A Saga's or a Class's columns run down to the type line at the foot
+  // (Fable of the Mirror-Breaker, Wizard Class).
+  (name-top: 4.06mm, name-h: 4.4mm, art-top: 9.4mm, art-bottom: 73.6mm,
+    type-top: 74.3mm, type-h: 4.55mm, foot: 80.8mm)
+} else if kind == "planeswalker" {
+  // A planeswalker's name bar stands higher and shallower than other
+  // cards', and its window starts just under it (Teferi, Hero of Dominaria;
+  // Chandra, Torch of Defiance).
+  (name-top: 3.4mm, name-h: 4.05mm, art-top: 8.7mm, type-h: 4.55mm,
+    box-bottom: 80.4mm, foot: 81.15mm)
+} else {
+  // The art runs from just under the name bar's rim to under the type
+  // line's, which stands over its foot.
+  (name-top: 4.06mm, name-h: 4.4mm, art-top: 9.55mm, art-bottom: 49.5mm,
+    type-top: 49.6mm, type-h: 4.55mm, box-top: 55.1mm, box-bottom: 81.4mm, foot: 81.75mm)
+}
+
 #let sym(path, size) = box(baseline: 14%, image(path, height: size))
 
 #let paragraph(runs) = {
@@ -139,16 +166,17 @@
 })
 
 // Text set to fill a box: printed cards shrink their type to fit rather than
-// spill, so this does too, to the quarter point. `body(sz, spare)` is the
+// spill, so this does too, to the quarter point, from 9.5pt, where
+// Libertinus's x-height is a printed card's largest rules text's, 1.48mm. `body(sz, spare)` is the
 // text at a size, handed the height left over so sections can share it out.
 // The largest quarter point that fits is found by halving, not by stepping
 // down: every try lays the text out, and a Saga's sections each twice.
-#let fit-box(body, what: "the rules text") = layout(size => {
+#let fit-box(body, what: "the rules text", max: 9.5pt) = layout(size => {
   let floor = 5pt
   let height(sz) = measure(block(width: size.width, body(sz, 0pt))).height
   let fits(q) = height(floor + q * 0.25pt) <= size.height
-  // Quarter points above the floor: 0 is 5pt, 16 is 9pt.
-  let (lo, hi) = (0, 16)
+  // Quarter points above the floor: 0 is 5pt, 18 is 9.5pt.
+  let (lo, hi) = (0, calc.round((max - floor) / 0.25pt))
   if not fits(lo) { panic(what + " does not fit its box even at " + repr(floor)) }
   if fits(hi) { lo = hi }
   while hi - lo > 1 {
@@ -159,15 +187,26 @@
   body(sz, size.height - height(sz))
 })
 
+// Lines and paragraphs spaced as printed: measured on Lotus Cobra, Lightning
+// Helix, Kolaghan's Command, Questing Beast and Teferi, a printed card's
+// lines stand 2.15 x-heights apart at any size, and its paragraphs 0.5-1mm
+// further. Libertinus's x-height is 0.44em.
 #let text-style(sz, body) = {
   set text(size: sz)
-  set par(leading: 0.42em, spacing: 0.75em, justify: false)
+  set block(spacing: 0.9mm)
+  set par(leading: 0.3em, spacing: 0.3em + 0.7mm, justify: false)
   body
 }
 
 #let paragraphs(lines) = for p in lines { par(paragraph(p)) }
 
 #let flavor-text(c) = text(style: "italic", c.flavor)
+
+// The rule between rules text and flavor text: a hairline fading out at both
+// ends, 0.63em under the rules text's last baseline and 0.48em over the
+// flavor text's capitals, as Lotus Cobra's and Lightning Helix's are.
+#let divider() = block(above: 0.63em, below: 0.48em, width: 100%, height: 0.4pt,
+  fill: gradient.linear(luma(120).transparentize(100%), luma(120), luma(120), luma(120).transparentize(100%)))
 
 // A loyalty cost's badge (CR 606.4), Mockery's own: a dark plate whose top
 // rises to a point for a cost that adds counters, whose foot drops to one for
@@ -190,6 +229,30 @@
 
 #let walker-shield = (9.2mm, 5.2mm)
 
+// Power and toughness on a raised plate in the bars' colours, its corners
+// cut, as printed modern frames' plate is. Measured on Lotus Cobra and
+// Wurmcoil Engine: 16% of the card's width by 5.6% of its height, rim and
+// all, wider for a longer power and toughness.
+#let pt-plate(pt, ps) = context {
+  let label = text(weight: "bold", size: 10pt, pt)
+  let (w, h) = (calc.max(10.15mm, measure(label).width + 3.4mm), 4.9mm)
+  let cut = 0.9mm
+  let shape(g) = (
+    (cut - g * 0.4, -g), (w - cut + g * 0.4, -g), (w + g, cut - g * 0.4), (w + g, h - cut + g * 0.4),
+    (w - cut + g * 0.4, h + g), (cut - g * 0.4, h + g), (-g, h - cut + g * 0.4), (-g, cut - g * 0.4))
+  let rim = 0.5mm
+  box(width: w, height: h, {
+    place(dy: 0.3mm, polygon(fill: black.transparentize(65%), stroke: none, ..shape(0mm)))
+    place(polygon(fill: ps.rim, stroke: 0.8pt + luma(25), ..shape(0mm)))
+    place(polygon(fill: ps.bar.darken(28%), stroke: none, ..shape(-rim)))
+    place(dx: 0.2mm, dy: -0.22mm, polygon(stroke: none,
+      fill: gradient.linear(ps.bar.lighten(20%), ps.bar, ps.bar.darken(12%), angle: 90deg),
+      ..shape(-rim - 0.18mm)))
+    place(polygon(fill: none, stroke: 0.45pt + luma(25), ..shape(-rim)))
+    place(center + horizon, dy: 0.1mm, label)
+  })
+}
+
 // The corner: power and toughness or defense on a bar-coloured plate, and a
 // planeswalker's loyalty on a dark shield, flat at the top and pointed at the
 // foot, so loyalty never reads as a power and toughness.
@@ -200,6 +263,8 @@
       (0mm, 0mm), (w, 0mm), (w, h - 1.3mm), (w / 2, h), (0mm, h - 1.3mm)))
     place(center + horizon, dy: -0.5mm, text(weight: "bold", size: 10pt, fill: white, c.corner))
   })
+} else if c.corner_kind == "pt" {
+  pt-plate(c.corner, ps)
 } else {
   box(fill: ps.bar, stroke: 0.4pt + black, radius: 1mm, inset: (x: 2mm, y: 1mm),
     text(weight: "bold", size: 10pt, c.corner))
@@ -227,16 +292,28 @@
 // The standard text box: plain paragraphs, or a station card's striations,
 // each threshold a band down to the next with its mark on the box's left
 // edge, and the last band holding the power and toughness (CR 721.2b).
-#let standard-text(c, ps) = {
+#let standard-text(c, ps, max: 9.5pt) = {
   let r = c.rules
-  let pad = 2mm
+  // Printed rules text runs to within 1mm of the box's sides.
+  let pad = 1.2mm
   let striated = r.kind == "station" and r.thresholds.len() > 0
   let corner-in-band = striated and c.corner != none
-  let bottom = if (c.corner != none and not corner-in-band) or c.hint != none or c.back_pt != none { 5.4mm } else { 1.8mm }
+  // Clear of what stands over the box's foot: the hint bar, the power and
+  // toughness plate's upper part, or a back's reminder.
+  let bottom = if c.hint != none { 4.2mm } else if c.corner != none and not corner-in-band { 3.6mm } else if c.back_pt != none { 3.2mm } else { 1.8mm }
   block(width: 100%, height: 1fr, fill: ps.box, stroke: 0.4pt + black, clip: false,
     inset: (x: pad, top: 1.8mm, bottom: bottom),
-    fit-box((sz, spare) => text-style(sz, {
-      if r.kind == "plain" { paragraphs(r.lines) } else {
+    fit-box(max: max, (sz, spare) => text-style(sz, {
+      // Text that leaves room is centred in the box, as printed cards set a
+      // short text; a striated box fills it instead.
+      if not striated { v(spare / 2) }
+      // A lone line of rules text is centred across the box, as
+      // Counterspell's and Wear // Tear's are.
+      let lone = r.kind == "plain" and r.lines.len() == 1 and c.flavor == none
+      if lone { layout(room => {
+        let line = paragraph(r.lines.first())
+        if measure(line).width <= room.width { align(center, par(line)) } else { par(line) }
+      }) } else if r.kind == "plain" { paragraphs(r.lines) } else {
         paragraphs(r.before)
         let last = r.thresholds.len() - 1
         for (i, t) in r.thresholds.enumerate() {
@@ -260,7 +337,7 @@
         }
       }
       if c.flavor != none {
-        if r.kind != "plain" or r.lines.len() > 0 { line(length: 100%, stroke: 0.3pt) }
+        if r.kind != "plain" or r.lines.len() > 0 { divider() }
         flavor-text(c)
       }
     })))
@@ -377,19 +454,20 @@
 // and its cost or, for a land, the mana it adds (CR 712.3c), at the foot's
 // left behind a chevron pointing off the card. Dark on the front and light on
 // the back, as the face markers are.
-#let hint-bar(hint, front) = {
+#let hint-bar(hint, front) = context {
   let (bg, fg) = if front { (luma(35), white) } else { (luma(235), black) }
-  box(fill: bg, stroke: 0.4pt + black, radius: (right: 1.4mm),
-    inset: (left: 1mm, right: 1.6mm, y: 0.7mm), {
-    set text(size: 5.2pt, fill: fg)
-    stack(dir: ltr, spacing: 1.2mm,
-      box(baseline: -0.2em, polygon(fill: fg, stroke: none, (0.9mm, 0mm), (0mm, 0.6mm), (0.9mm, 1.2mm))),
-      text(weight: "bold", hint.type),
-      h(0.6mm),
-      if hint.mana != none { paragraph(hint.mana) } else { for s in hint.cost { sym(s, 5.4pt) } })
-  })
+  set text(size: 6pt, fill: fg)
+  let arrow = box(baseline: -0.2em, polygon(fill: fg, stroke: none, (1mm, 0mm), (0mm, 0.7mm), (1mm, 1.4mm)))
+  let what = text(weight: "bold", hint.type)
+  let pays = if hint.mana != none { paragraph(hint.mana) } else { for s in hint.cost { sym(s, 6.2pt) } }
+  let inset = (left: 1.2mm, right: 1.8mm)
+  // As wide as Emeria's Call's, 43% of the card, its type at the left and its
+  // cost at the right, or wider for a longer hint.
+  let natural = measure(stack(dir: ltr, spacing: 1.4mm, arrow, what, pays)).width + 3mm + inset.left + inset.right
+  box(width: calc.max(27mm, natural), height: 3.1mm, fill: bg, stroke: 0.4pt + black, radius: (right: 1.5mm),
+    inset: inset, align(horizon, grid(columns: (auto, auto, 1fr, auto), column-gutter: 1.4mm, align: horizon,
+      arrow, what, [], pays)))
 }
-
 
 // A planeswalker below its name, in the proportions of a printed one's
 // frame: a barrel-shaped art window, the type line, and a text box narrower
@@ -402,15 +480,18 @@
 #let walker-body(c, ps, type-bar, foot-right) = layout(size => {
   let r = c.rules
   let gap = 0.9mm
-  let art-h = if r.abilities.len() >= 4 { 32.3mm } else { 38.4mm }
+  // The window's foot where printed ones' is: 55.4% of the card's height
+  // with three abilities or fewer, 48.4% with four or more.
+  let art-h = if r.abilities.len() >= 4 { 33.85mm } else { 40.05mm }
   // Measured on printed planeswalkers, from the frame's inner edges: the box
   // starts 3.1mm in from the left and 0.5mm from the right, the badges are
-  // centred 1.3mm outside it, and the shield's foot stands 1.7mm clear of the
-  // frame's.
+  // centred 1.3mm outside it, the box's foot is 0.75mm above the frame's,
+  // and the shield's top 2.1mm above the box's foot, so the shield stands
+  // out over the black band under the frame.
   let (inl, inr) = (3.1mm, 0.5mm)
   let (sw, sh) = walker-shield
-  let shield-foot = 1.7mm
-  let box-bottom = size.height - shield-foot - sh + 2.1mm
+  let box-bottom = size.height - (layout-of("planeswalker").foot - layout-of("planeswalker").box-bottom)
+  let shield-foot = size.height - box-bottom + 2.1mm - sh
   let box-top = art-h + gap + measure(block(width: size.width, type-bar)).height + gap
   let box-h = box-bottom - box-top
   let bw = size.width - inl - inr
@@ -492,7 +573,8 @@
   // corner some 4mm round, and the arch 15% of the width across, rising 1%
   // of the height.
   let (w, H) = (size.width, size.height)
-  let radius = (top-left: 1.3mm, top-right: 0.8mm, bottom-left: 1.2mm, bottom-right: 1mm)
+  // The box's foot rounds off on the left in a wide curve, as Teferi's does.
+  let radius = (top-left: 1.3mm, top-right: 0.8mm, bottom-left: 4mm, bottom-right: 1mm)
   let (side, band-foot, round) = (-0.45mm, 0.9mm, 3.8mm)
   let (mid, arch, rise) = (w / 2, 4.6mm, 0.9mm)
   let head = box-top - gap + 0.07mm
@@ -521,6 +603,21 @@
     curve.line((side, head + 1.6mm)),
     curve.cubic((side, head + 0.6mm), (0.35mm, head + 0.7mm), (0.4mm, head)),
     curve.close(mode: "straight")))
+  // The frame stops where the band sweeps into the black band under it:
+  // from the frame's edge 8mm above the band's foot, down and round in a
+  // curve that runs out flat 9.5mm in, and on the right from 2.9mm above
+  // the shield's top into the band's side over it, as Teferi, Hero of
+  // Dominaria's does. Black over the frame and the band beyond those
+  // curves, under the box and the shield.
+  let edge = -1.5mm - 0.1mm
+  place(top + left, curve(fill: black, stroke: none,
+    curve.move((edge, foot - 7.95mm)),
+    curve.cubic((edge, foot - 2.96mm), (edge + 2.96mm, foot), (edge + 9.47mm, foot)),
+    curve.line((edge + 9.47mm, H + 1mm)), curve.line((edge, H + 1mm)), curve.close(mode: "straight")))
+  place(top + left, curve(fill: black, stroke: none,
+    curve.move((w - edge, shield-top - 2.9mm)),
+    curve.cubic((w - edge, shield-top - 1.6mm), (w - side, shield-top - 1.4mm), (w - side, shield-top - 0.2mm)),
+    curve.line((w - side, H + 1mm)), curve.line((w - edge, H + 1mm)), curve.close(mode: "straight")))
   // The box's outline, its foot bowed as the band's is, `x` and `y` from its
   // own corner.
   let outline(fill: none) = curve(fill: fill, stroke: 0.4pt + black,
@@ -649,41 +746,50 @@
 // split card's half with `art` a share of the half rather than a length.
 // A fused half's name and type bars `point` at the other half, as printed
 // fuse cards' do.
-#let face-body(c, art: 36.5mm, point: none, split: false) = {
+#let face-body(c, g, point: none, split: false) = {
   let ps = paints(c.frame)
   set text(font: "Libertinus Serif", size: 8.5pt, fill: black)
-  set block(spacing: 0.9mm)
+  // The face's parts stand where `g` puts them, so nothing between them is
+  // left to block spacing.
+  set block(spacing: 0mm)
   // The plate stands out past the face's own edge, as printed bars do past
   // the art and the text box; a split half's less far, to stay in its half.
   let over = if split { 0.3mm } else { 0.5mm }
-  // The name bar a little taller than the type line's, as printed ones are.
-  let bar(body, y: 1.2mm) = layout(size => {
+  let bar(body, h) = layout(size => {
     // A pointed end's slant starts 1.6mm in, so the text keeps clear of it.
-    let inner = block(width: 100%, body, inset: (y: y,
+    let inner = block(width: 100%, height: h, align(horizon, body), inset: (
       left: if point == "left" { 3.1mm } else { 1.5mm },
       right: if point == "right" { 3.1mm } else { 1.5mm }))
-    let (w, h) = (size.width, measure(block(width: size.width, inner)).height)
     let ends = if point == "right" { ("round", "point") } else if point == "left" { ("point", "round") } else { ("round", "round") }
-    block(width: 100%, { plate(w, h, ps, ends: ends, over: over); inner })
+    block(width: 100%, { plate(size.width, h, ps, ends: ends, over: over); inner })
   })
+  // A split half's type line is set smaller, in its shallower bar.
+  let type-size = if split { 6.5pt } else { 8.5pt }
   let type-bar(room: 0mm) = bar(pad(right: room, if c.indicator.len() > 0 {
     grid(columns: (auto, 1fr), column-gutter: 1.2mm, align: horizon,
-      indicator(c.indicator), fit-line(c.type_line, 8.5pt, 5.5pt, "the type line"))
-  } else { fit-line(c.type_line, 8.5pt, 5.5pt, "the type line") }))
+      indicator(c.indicator), fit-line(c.type_line, type-size, 5pt, "the type line"))
+  } else { fit-line(c.type_line, type-size, 5pt, "the type line") }), g.type-h)
   // The corner, with a transforming front's reminder of its back's beside it.
   let foot-right = if c.corner != none and c.back_pt != none {
     stack(dir: ltr, spacing: 1mm, move(dy: -1.6mm, back-pt(c)), corner-box(c, ps))
   } else if c.corner != none { corner-box(c, ps) } else if c.back_pt != none {
     move(dy: -1.3mm, back-pt(c))
   } else { none }
+  // A modal face's hint bar over the foot of the text box, its left end at
+  // the frame's edge and its foot just above the frame's, as Emeria's Call's
+  // is.
+  let hint = if c.hint != none {
+    place(bottom + left, dx: if split { -1.3mm } else { -1.5mm }, dy: -0.4mm, hint-bar(c.hint, c.marker == "modal-front"))
+  }
 
   // The name gives way to the cost, never the other way round.
-  bar(y: 1mm, grid(columns: if c.marker != none { (auto, 1fr, auto) } else { (1fr, auto) },
+  bar(grid(columns: if c.marker != none { (auto, 1fr, auto) } else { (1fr, auto) },
     column-gutter: 1mm, align: horizon,
     ..if c.marker != none { (face-marker(c.marker),) },
     fit-line(c.name, 9.5pt, 6pt, "the name"),
     { for s in c.cost { sym(s, 9pt) } },
-  ))
+  ), g.name-h)
+  v(g.art-top - g.name-top - g.name-h)
 
   let r = c.rules
   if r.kind == "saga" or r.kind == "class" {
@@ -694,6 +800,7 @@
     block(width: 100%, height: 1fr, grid(columns: if r.kind == "saga" { (54%, 1fr) } else { (1fr, 54%) },
       column-gutter: 0.9mm, rows: (100%,),
       ..if r.kind == "saga" { (text-col, art-col) } else { (art-col, text-col) }))
+    v(g.type-top - g.art-bottom)
     // A Saga creature's other abilities, and its power and toughness, sit
     // in a text box below the type line (CR 714.1a). With no abilities
     // there the box would be empty, so the corner rides on the type line.
@@ -702,69 +809,99 @@
     // A transforming Saga's reminder of its back's power and toughness rides
     // on the type line's end, the corner being the back's.
     let reminder = c.back_pt != none and c.corner == none and r.kind != "saga"
+    // Under the type line, the frame's foot, or room for a hint bar; a
+    // split half's Saga keeps a millimetre over its half's foot.
+    let under = if c.hint != none { 4mm } else if "foot" in g { g.foot - g.type-top - g.type-h } else { 1mm }
     type-bar(room: if c.corner != none and not boxed { 11mm } else if reminder { 7mm } else { 0mm })
-    if reminder { place(bottom + right, dx: -1.6mm, dy: -5.9mm, back-pt(c)) }
+    if reminder { place(bottom + right, dx: -1.6mm, dy: -under - g.type-h / 2 + 0.75mm, back-pt(c)) }
     if boxed {
+      v(0.9mm)
       block(width: 100%, height: 9mm, fill: ps.box, stroke: 0.4pt + black,
         inset: (left: 2mm, right: if c.corner != none { 12mm } else { 2mm }, y: 1.2mm),
         fit-box((sz, _) => text-style(sz, align(center + horizon, paragraphs(after))),
           what: "the text below the type line"))
     }
-    v(4.6mm)
+    v(under)
     if foot-right != none and not (c.back_pt != none and c.corner == none) {
-      place(bottom + right, dx: 0.6mm, dy: if boxed { -2.2mm } else if c.corner != none { -4.2mm } else { -1.4mm }, foot-right)
+      // Over the box's foot as on any card, or centred on the type line.
+      place(bottom + right, dx: if boxed { 0.85mm } else { 0.6mm },
+        dy: if boxed { -under + 1.9mm } else { -under - g.type-h / 2 + 2.45mm }, foot-right)
     }
-    if c.hint != none { place(bottom + left, dx: -0.6mm, dy: -0.6mm, hint-bar(c.hint, c.marker == "modal-front")) }
+    hint
   } else if r.kind == "planeswalker" {
-    block(width: 100%, height: 1fr, spacing: 0mm, walker-body(c, ps, type-bar(), foot-right))
-    if c.hint != none { place(bottom + left, dx: -0.6mm, dy: -0.2mm, hint-bar(c.hint, c.marker == "modal-front")) }
+    block(width: 100%, height: 1fr, walker-body(c, ps, type-bar(), foot-right))
+    hint
   } else {
-    art-box(c, ps, height: art)
+    art-box(c, ps, height: g.art-bottom - g.art-top)
+    v(g.type-top - g.art-bottom)
     type-bar()
-    standard-text(c, ps)
-    if c.hint != none { place(bottom + left, dx: -0.6mm, dy: -0.2mm, hint-bar(c.hint, c.marker == "modal-front")) }
+    v(g.box-top - g.type-top - g.type-h)
+    // A split half's text tops out smaller, as Wear // Tear's does, its
+    // x-height 1.18mm against a whole card's 1.48mm.
+    standard-text(c, ps, max: if split { 7.5pt } else { 9.5pt })
+    hint
     if foot-right != none and not (r.kind == "station" and r.thresholds.len() > 0 and c.back_pt == none) {
-      // On the text box's bottom edge and clear of the footer, with the box's bottom inset
-      // keeping the text clear of it.
+      // The plate straddles the text box's bottom right corner, standing
+      // 0.85mm out past its side and 1.9mm below its foot, as Lotus Cobra's
+      // does, with the box's bottom inset keeping the text clear of it.
       let in-band = r.kind == "station" and r.thresholds.len() > 0
-      place(bottom + right, dx: 0.6mm, dy: 0.2mm,
-        if in-band { move(dy: -1.3mm, back-pt(c)) } else { foot-right })
+      if in-band { place(bottom + right, dx: 0.6mm, dy: 0.2mm, move(dy: -1.3mm, back-pt(c))) }
+      else { place(bottom + right, dx: 0.85mm, dy: 1.9mm, foot-right) }
     }
   }
 }
 
-// Where a real card's legal line sits, this says what it is.
-#let footer(artist) = {
-  set text(font: "Libertinus Serif", size: 4.2pt, fill: white)
-  place(bottom + left, dy: 2.2mm, if artist != none [Illus. #artist] else [])
-  place(bottom + right, dy: 2.2mm, [Unofficial fan content · not a Magic card])
+// Where a real card's collector line sits, in the black band under the
+// frame, this says what it is: the artist on the left and that it is no
+// Magic card on the right, a band `width` wide with its baseline 3mm off the
+// card's edge, as a printed card's lower collector line is.
+#let footer(artist, width) = block(width: width, height: 6mm, inset: (left: 2.9mm, right: 4mm), {
+  set text(font: "Libertinus Serif", size: 4.4pt, fill: white)
+  place(bottom + left, dy: -3mm, if artist != none [Illus. #artist] else [])
+  place(bottom + right, dy: -3mm, [Unofficial fan content · not a Magic card])
+})
+
+#let face-card(c) = {
+  let g = layout-of(c.rules.kind)
+  block(width: card-width, height: card-height, fill: black, radius: 2.5mm, breakable: false, {
+    place(top + left, dx: border-side, dy: border-top,
+      block(width: card-width - 2 * border-side, height: g.foot - border-top, fill: paints(c.frame).body,
+        radius: 1.2mm, inset: (x: 1.5mm, top: g.name-top - border-top,
+          bottom: if "box-top" in g { g.foot - g.box-bottom } else { 0mm }),
+        face-body(c, g)))
+    place(bottom + left, footer(c.artist, card-width))
+  })
 }
 
-#let face-card(c) = block(width: card-width, height: card-height, fill: black, inset: 2.6mm, radius: 2.5mm, breakable: false,
-  block(width: 100%, height: 100%, fill: paints(c.frame).body,
-    radius: 1.2mm, inset: (x: 1.5mm, top: 1.5mm, bottom: 0.6mm), {
-    face-body(c)
-    footer(c.artist)
-  }))
+// A split half, read with the card on its side, from its top: measured on
+// Wear // Tear at 1040 by 745 px. The frame's top is the card's border.
+#let split-layout = (name-top: 4.5mm, name-h: 4.2mm, art-top: 9.3mm, art-bottom: 33.5mm,
+  type-top: 34.3mm, type-h: 2.8mm, box-top: 38.2mm)
+// The black band along the card's foot, which is the split card's left
+// side read on its side.
+#let split-band = 6.2mm
 
 // A split card: two halves side by side on a card turned on its side, read
 // with the card's left edge at the bottom (CR 709.1), each half a face of its
 // own. Halves that both have fuse print it once, on a bar across the foot of
-// both (CR 702.102a), and their name and type bars point at each other.
+// both (CR 702.102a), and their name and type bars point at each other. The
+// footer runs along the card's foot as any card's does, which read on its
+// side is the left.
 #let split-card(c) = rotate(-90deg, reflow: true,
-  block(width: card-height, height: card-width, fill: black, inset: 2.6mm, radius: 2.5mm, breakable: false, {
+  block(width: card-height, height: card-width, fill: black, radius: 2.5mm, breakable: false,
+    inset: (left: split-band, right: border-side, top: border-side, bottom: 3.2mm), {
     set block(spacing: 0mm)
-    block(width: 100%, height: 100%, grid(columns: (1fr, 1fr), column-gutter: 1mm, rows: (1fr, auto), row-gutter: 0.9mm,
+    block(width: 100%, height: 100%, grid(columns: (1fr, 1fr), column-gutter: 1mm, rows: (1fr, auto), row-gutter: 0mm,
       ..c.halves.enumerate().map(((i, h)) => block(width: 100%, height: 100%, fill: paints(h.frame).body,
-        radius: 1.2mm, inset: (x: 1.3mm, top: 1.3mm, bottom: 1.3mm),
-        face-body(h, art: 38%, split: true, point: if c.fuse == none { none } else if i == 0 { "right" } else { "left" }))),
+        radius: 1.2mm, inset: (x: 1.3mm, top: split-layout.name-top - border-side, bottom: 0.3mm),
+        face-body(h, split-layout, split: true, point: if c.fuse == none { none } else if i == 0 { "right" } else { "left" }))),
       ..if c.fuse != none {
         let ends = c.halves.map(h => paints(h.frame).bar)
         (grid.cell(colspan: 2, block(width: 100%, fill: gradient.linear(..ends), stroke: 0.4pt + black,
-          radius: 1mm, inset: (x: 1.6mm, y: 1mm),
+          radius: 1mm, inset: (x: 1.6mm, y: 0.9mm),
           text(font: "Libertinus Serif", size: 6.6pt, fill: black, paragraph(c.fuse)))),)
       }))
-    footer(c.artist)
+    place(top + left, dx: -split-band, dy: -border-side, rotate(90deg, reflow: true, footer(c.artist, card-width)))
   }))
 
 #let card(c) = if c.kind == "split" { split-card(c) } else { face-card(c) }

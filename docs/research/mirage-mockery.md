@@ -23,6 +23,7 @@ Measured in a throwaway prototype before building it (2026-10-17):
 
 - Scryfall's symbol SVGs set inline in rules text, at the text's baseline.
 - **Rules text shrinks to fit its box**, to the quarter point from 9pt
+  (since 2026-10-21 9.5pt, printed cards' largest, see *The card's height*)
   down to a floor of 5pt, which is what printed cards do. The prototype's first
   render without this ran off the bottom of the box. The template measures the
   laid-out text against the box with `layout` and `measure`.
@@ -315,8 +316,9 @@ two dark lines (a gold card's in its two colours, left to right, a land's in
 the colours it is or makes), and a fill lighter at the top than the foot over
 a shadow along its foot and left end, so the bar reads as raised. A gold card
 and a colourless land fill theirs in the frame's own tone, as printed ones
-do; other cards keep a pale fill. Name and type bar share the shape, the
-name bar a little taller. A fused split half keeps its pointed inner end and
+do; other cards keep a pale fill. Name and type bar share the shape; since
+*The card's height* below, their fills are 4.4 and 4.55mm deep, as measured,
+and a planeswalker's name bar 4.05mm. A fused split half keeps its pointed inner end and
 takes the round end outside. Measured at 745 × 1040 px on Lotus Cobra,
 Kolaghan's Command, Wurmcoil Engine, Fabled Passage, Fable of the
 Mirror-Breaker, Wizard Class and Teferi, Hero of Dominaria:
@@ -328,6 +330,115 @@ Mirror-Breaker, Wizard Class and Teferi, Hero of Dominaria:
 | Ours | 33-34 px, 4.5% | 42 px | ~13 px | 70-75 px, 6.7-7.2% | 6 px |
 
 The text sizes did not move: every test card and walker is set where it was.
+
+### The card's height
+
+Every face stands where printed M15-frame cards put their parts, measured as
+fractions of the card's height at 745 × 1040 px on Lotus Cobra, Lightning
+Helix, Llanowar Elves, Counterspell, Wurmcoil Engine, Kolaghan's Command,
+Fabled Passage and Emeria's Call, which agree to a pixel or two, then Teferi,
+Hero of Dominaria and Chandra, Torch of Defiance for planeswalkers, Fable of
+the Mirror-Breaker and Wizard Class for Sagas and Classes, and Wear // Tear
+(read on its side, fractions of its 63mm) for split cards. A bar's figures
+are its fill's; its rim stands round it. `layout-of` in `core/src/card.typ`
+holds them.
+
+| | Name bar | Art | Type bar | Text box | Frame stops | P/T plate |
+|---|---|---|---|---|---|---|
+| Printed | 4.6–9.6% | 10.9–56.2% | 56.4–61.5% | 62.6–92.5% | 92.9% | 89.0–94.7% |
+| Ours before | 4.7–10.1% | 11.5–52.9% | 53.9–58.4% | 59.3–96.2% | 96.9% | inside the box, 91–95.5% |
+| Ours | 4.6–9.6% | 10.9–56.3% | 56.4–61.5% | 62.6–92.5% | 92.9% | 88.9–94.4% |
+| Printed walker, 3 abilities | 3.9–8.5% | window 9.9–55.4% | 56.0–61.2% | 62.4–91.3% | 92.2% | |
+| Ours before | 4.7–10.1% | window 11.5–55% | 56–61% | 62–91% | 96.9% | |
+| Ours | 3.9–8.5% | window 9.9–55.4% | 56.4–61.6% | 62.6–91.4% | 92.2% | |
+| Printed walker, 4 abilities | 3.9–8.5% | window 9.8–48.4% | 49.2–54.4% | 55.7–91.3% | 92.1% | |
+| Ours | 3.9–8.5% | window 9.9–48.4% | 49.4–54.6% | 55.7–91.4% | 92.2% | |
+| Printed Saga, Class | 4.6–9.6% | columns 10.9–83.6% | 84.4–89.6% | | 91.7–91.9% | |
+| Ours before | 4.7–10.1% | columns 11.5–85% | 85.6–90.6% | | 96.9% | |
+| Ours | 4.6–9.6% | columns 10.9–83.6% | 84.5–89.6% | | 91.8% | |
+| Printed split half | 7.1–13.7% | 14.8–53.2% | 54.5–58.9% | 60.7–89.5% | fuse foot 94.8% | |
+| Ours before | 7–13.6% | 14–46.2% | 46.9–54% | 54.9–86.4% | fuse foot 95.6% | |
+| Ours | 7.1–13.8% | 14.8–53.2% | 54.4–58.9% | 60.6–88.8% | fuse foot 94.6% | |
+
+What changed with it:
+
+- The art is taller and the type line lower, so the text box is 26.3mm deep
+  where it was 32.
+- The frame stops just under the text box, and a black band, 7% of the card,
+  holds the footer where a printed card's collector line is: the artist on
+  the left and "Unofficial fan content · not a Magic card" on the right, at
+  4.4pt, its baseline 3mm off the card's edge. A split card's runs along the
+  card's foot, which read on its side is its left.
+- The power and toughness sit on a raised plate in the bars' colours, its
+  corners cut, 10.15 × 4.9mm as Cobra's is, straddling the text box's bottom
+  right corner: 0.85mm out past its side and 1.9mm below its foot. The
+  loyalty shield and the defense box are as they were.
+- A planeswalker's name bar stands higher and shallower than other cards',
+  as printed ones do, so its window starts at 9.9% where ours started at
+  11.5%; the window's foot stayed where it was. The frame stops where the
+  band round the text box sweeps into the black band, from the frame's edge
+  8mm above the band's foot round to 9.5mm in, as Teferi's does, and on the
+  right into the band's side over the shield; the box's own foot rounds off
+  4mm on the left.
+- A modal face's hint bar is Emeria's Call's: 3.1mm deep and at least 43% of
+  the card across, its type at the left and its cost at the right, over the
+  text box's foot with its left end at the frame's edge.
+- A split half's type bar is shallower and set at 6.5pt, as Wear // Tear's.
+
+Rules text is spaced as printed. Measured with the same rows on Cobra, Helix,
+Kolaghan's Command, Wurmcoil, Questing Beast, Gigantosaurus, Colossal
+Dreadmaw and Teferi, a printed card's lines stand 2.15 x-heights apart at
+any size, its paragraphs 0.5–1mm further, and its divider 2.1mm under the
+rules text's last baseline and 1.6mm over the flavor text's capitals, a
+hairline fading out at its ends. The largest printed rules text has an
+x-height of 1.48mm (Cobra, Helix, Llanowar, Counterspell), which Libertinus,
+with an x-height of 0.44em, reaches at 9.5pt, so text now fits from 9.5pt
+rather than 9pt; Wear // Tear's tops out at 1.18mm, 7.5pt in a split half.
+Ours had lines 2.42 x-heights apart, so the leading went from 0.42em to
+0.3em. A short text is centred in the box at that size, as printed ones are,
+rather than set at the top: the printed gaps do not grow with the room
+(Cobra's rules-to-flavor pitch is Helix's, 5.7mm, though Helix fills its box
+and Cobra does not), so neither do ours. A lone line is centred across the
+box too, as Counterspell's is. The text runs to 1.2mm of the box's sides
+where it stood 2mm in, near printed cards' 1mm.
+
+Body sizes before and after (`core/tests/sizes.rs`; the printed figure is
+the x-height read off Scryfall's image, as the Libertinus size with that
+x-height). The size most glyphs are set at is the footer's on a card with
+almost no text (Counterspell) and the fuse bar's on Wear // Tear.
+
+| Card | Printed | Before | After |
+|---|---|---|---|
+| Lotus Cobra | 9.5pt | 9pt | 9.5pt |
+| Lightning Helix | 9.75pt | 9pt | 8.75pt |
+| Kolaghan's Command | 9.5pt | 9pt | 8.75pt |
+| Llanowar Elves | 9.5pt | 9pt | 9.5pt |
+| Wurmcoil Engine | 9.25pt | 9pt | 9.5pt |
+| Gigantosaurus | 9.25pt | 9pt | 9.5pt |
+| Colossal Dreadmaw | 9.25pt | 9pt | 9.5pt |
+| Fabled Passage | | 9pt | 8.5pt |
+| Questing Beast | 7pt | 7.25pt | 7pt |
+| Emeria's Call | | 9pt | 9pt |
+| Fable of the Mirror-Breaker | 8.25pt | 7.75pt | 8pt |
+| Wizard Class | 8.75pt | 9pt | 9.5pt |
+| Teferi, Hero of Dominaria | 7.25pt | 6.75pt | 7.5pt |
+| Chandra, Torch of Defiance | | 6.5pt | 6.5pt |
+| Karn, Liliana, Minsc & Boo, Ugin | | 6, 7, 6, 7pt | 6.25, 7, 6, 7.5pt |
+| Bridge Four Windrunner (test card) | | 8pt | 7.5pt |
+| Chunky Chasmfiend // The Shattered Plains | | 9, 9pt | 9.5, 9.5pt |
+| Force Push // Force Pull | | 8.75pt | 7.5pt |
+| Proofsheet Drone | | 7.5pt | 7.25pt |
+| The Cleansing of Shinovar | | 6.75pt | 7pt |
+| Jedi Knight Class | | 8pt | 8.5pt |
+| Jasnah, Veristitalian Scholar | | 8.75pt | 9pt |
+| Vindicator-Class Heavy Cruiser | | 5.25pt | 5pt, flavor dropped |
+
+The cards that fill their box came out smaller (Helix, Kolaghan's Command,
+Passage, Force Push) and the ones that do not came out at the printed size:
+Libertinus at a printed x-height is wider than Wizards' face, so a full box
+holds fewer words. The Vindicator test card's text, longer than any printed
+Spacecraft's, no longer fits with its flavor line at 5pt, and printed
+Spacecraft carry none, so the line went.
 
 ### Ability and flavor words
 
