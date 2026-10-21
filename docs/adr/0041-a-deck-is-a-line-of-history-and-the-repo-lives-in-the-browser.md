@@ -27,6 +27,7 @@ The repo is a real bare git repo in the browser's OPFS. It holds loose objects a
 
 ## Consequences
 
+- Logging in with GitHub is not a gate. The first visit makes an empty repo in the browser and opens the deck list, and the player can build, branch, tag and export without an account. Connecting GitHub is adding a remote, in the settings, beside importing a zip. The onboarding that sends a player to create `mtg` and install the app moves there, and it runs only for a player who wants a remote. What needs someone else's repo, a trade or a fork of a friend's deck, asks for that then.
 - Repo version 2. The migration rewrites each deck's commits into its own line, keeping messages, authors and dates. It moves each snapshot tag to the rewritten commit, turns every `variant_of` into a fork whose first commit has its parent's commit as parent, and leaves one commit on `main` that removes `decks/`. Commit ids change once, here.
 - GitHub's default view shows `main` with no decks on it. A player browses decks through the branch list, or through Curator.
 - The commit's author offline is a name and email set once per browser. It is kept outside the repo, as git keeps it outside.
