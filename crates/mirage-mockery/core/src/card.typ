@@ -165,6 +165,13 @@
   set-at(sz)
 })
 
+// A paint made `amount` see-through: a colour as Typst does it, and a
+// gradient (a land's box, tinted by every colour it makes) stop by stop,
+// which Typst's gradients have no method for.
+#let see-through(paint, amount) = if type(paint) == gradient {
+  gradient.linear(..paint.stops().map(((c, at)) => (c.transparentize(amount), at)), angle: paint.angle())
+} else { paint.transparentize(amount) }
+
 // Text set to fill a box: printed cards shrink their type to fit rather than
 // spill, so this does too, to the quarter point, from 9.5pt, where
 // Libertinus's x-height is a printed card's largest rules text's, 1.48mm. `body(sz, spare)` is the
@@ -694,7 +701,7 @@
   place(top + left, dx: inl, dy: box-top, block(width: bw, height: box-h, {
     place(top + left, block(width: 100%, height: 100%, radius: radius, clip: true, {
       place(dx: -inl, dy: -box-top, art)
-      place(top + left, rect(width: 100%, height: 100%, stroke: none, fill: ps.box.transparentize(18%)))
+      place(top + left, rect(width: 100%, height: 100%, stroke: none, fill: see-through(ps.box, 18%)))
     }))
     place(top + left, outline())
     block(width: 100%, height: 100%, inset: (left: pad, right: 1.6mm, top: 1.3mm, bottom: bottom-in),

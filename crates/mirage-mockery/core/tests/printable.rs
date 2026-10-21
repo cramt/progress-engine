@@ -299,6 +299,18 @@ proptest! {
     }
 }
 
+/// Found by the property above: a land's box is a gradient of the colours it
+/// makes, which a planeswalker's see-through wash has to handle.
+#[test]
+fn a_land_planeswalker_of_two_colours_prints() {
+    let card = Card::parse(
+        "name = \"A\"\ntype = \"Land Planeswalker\"\nrules = \"+1: Draw a card.\"\nloyalty = \"4\"\ncolor_indicator = \"WR\"\n",
+        Path::new("."),
+    )
+    .unwrap();
+    render::compile(&[card], Layout::Cards).unwrap();
+}
+
 #[test]
 fn rules_text_too_long_for_any_size_is_refused() {
     let rules = "Draw a card. ".repeat(200);
