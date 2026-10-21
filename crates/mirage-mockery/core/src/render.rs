@@ -11,10 +11,12 @@ use std::sync::LazyLock;
 use anyhow::{anyhow, bail, Context, Result};
 use serde_json::{json, Value};
 use typst::diag::{FileError, FileResult, SourceDiagnostic};
-use typst::foundations::{Bytes, Datetime, Duration};
+use typst::foundations::{Bytes, Datetime, Duration, Label, Selector, Value as TypstValue};
+use typst::introspection::{Introspector, MetadataElem};
 use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
+use typst::utils::PicoStr;
 use typst::{Library, LibraryExt, World};
 pub use typst_layout::PagedDocument;
 
@@ -149,8 +151,40 @@ impl World for Job {
 
 /// Lay the cards out, reading each card's art from disk. A symbol with no SVG
 /// is an error naming it.
+///
+/// A card whose text does not fit even at its smallest size is refused, in
+/// plain words, so nothing is printed clipped; [`preview_with_art`] draws it.
 pub fn compile(cards: &[Card], layout: Layout) -> Result<PagedDocument> {
     compile_with_art(cards, layout, |path| Ok(Some(std::fs::read(path)?)))
+}
+
+/// Text that does not fit even at its smallest size: drawn clipped or
+/// squeezed in a preview, and refused in a print.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Overflow {
+    /// The card's name, both halves' for a card of two.
+    pub card: String,
+    /// What to tell the user, without the card's name.
+    pub message: String,
+}
+
+/// A card laid out for the screen: what overflows is drawn anyway, and said.
+pub struct Preview {
+    pub doc: PagedDocument,
+    pub overflows: Vec<Overflow>,
+}
+
+/// [`compile_with_art`], but text that does not fit is drawn at its smallest
+/// size, clipped to its box or squeezed into its bar, and said in
+/// `overflows`, so a card being typed never stops drawing.
+pub fn preview_with_art(
+    cards: &[Card],
+    layout: Layout,
+    art_of: impl FnMut(&Path) -> Result<Option<Vec<u8>>>,
+) -> Result<Preview> {
+    let doc = lay_out(cards, layout, art_of)?;
+    let overflows = overflows(&doc);
+    Ok(Preview { doc, overflows })
 }
 
 /// [`compile`], with `art` reading a card's art: the browser has no disk, and
@@ -164,6 +198,23 @@ pub fn compile_with_art(
     layout: Layout,
     art_of: impl FnMut(&Path) -> Result<Option<Vec<u8>>>,
 ) -> Result<PagedDocument> {
+    let doc = lay_out(cards, layout, art_of)?;
+    let overflows = overflows(&doc);
+    if overflows.is_empty() {
+        return Ok(doc);
+    }
+    let lines: Vec<String> = overflows
+        .iter()
+        .map(|o| format!("{}: {}", o.card, o.message))
+        .collect();
+    bail!("{}", lines.join("\n"))
+}
+
+fn lay_out(
+    cards: &[Card],
+    layout: Layout,
+    art_of: impl FnMut(&Path) -> Result<Option<Vec<u8>>>,
+) -> Result<PagedDocument> {
     let mut files = Files {
         files: HashMap::new(),
         arts: 0,
@@ -171,6 +222,7 @@ pub fn compile_with_art(
     };
     let mut out = Vec::new();
     for card in cards {
+        let first = out.len();
         match card {
             Card::Single(face) => out.push(files.face(face, Extras::default())?),
             Card::Transform { front, back } => {
@@ -337,6 +389,10 @@ pub fn compile_with_art(
                     },
                 }));
             }
+        }
+        // Whose images these are, for an overflow to name on a sheet.
+        for image in &mut out[first..] {
+            image["card"] = json!(card.name());
         }
     }
     let mut files = files.files;
@@ -657,9 +713,69 @@ pub fn curl(text: &str) -> String {
     out
 }
 
+/// What the template drew past its room, each said once: a melded card is
+/// drawn on both its halves' backs.
+fn overflows(doc: &PagedDocument) -> Vec<Overflow> {
+    let label = Label::new(PicoStr::intern("overflow")).expect("a label");
+    let mut out: Vec<Overflow> = Vec::new();
+    for found in doc.introspector().query(&Selector::Label(label)) {
+        let Some(meta) = found.to_packed::<MetadataElem>() else {
+            continue;
+        };
+        let TypstValue::Dict(d) = &meta.value else {
+            continue;
+        };
+        let text = |key: &str| match d.get(key) {
+            Ok(TypstValue::Str(s)) => s.to_string(),
+            _ => String::new(),
+        };
+        let floor = match d.get("floor") {
+            Ok(TypstValue::Float(f)) => *f,
+            Ok(TypstValue::Int(i)) => *i as f64,
+            _ => 5.0,
+        };
+        let what = text("what");
+        let mut what_up = what.clone();
+        if let Some(c) = what_up.get_mut(0..1) {
+            c.make_ascii_uppercase();
+        }
+        let floor = format!("{}", (floor * 100.0).round() / 100.0);
+        let message = if text("kind") == "box" {
+            format!(
+                "{what_up} doesn't fit its box, even at the smallest size ({floor}pt). Cut some text."
+            )
+        } else {
+            format!(
+                "{what_up} doesn't fit its bar, even at the smallest size ({floor}pt). Shorten it."
+            )
+        };
+        let o = Overflow {
+            card: text("card"),
+            message,
+        };
+        if !out.contains(&o) {
+            out.push(o);
+        }
+    }
+    out
+}
+
 fn explain<'a>(errors: impl IntoIterator<Item = &'a SourceDiagnostic>) -> anyhow::Error {
+    let errors: Vec<_> = errors.into_iter().collect();
+    // The template panics only to refuse a layout, a sheet's margin with no
+    // room, and says why in words meant for the user, not for Typst.
+    let refusals: Option<Vec<String>> = errors
+        .iter()
+        .map(|e| {
+            let said = e.message.strip_prefix("panicked with: ")?;
+            Some(said.trim_matches('"').to_string())
+        })
+        .collect();
+    if let Some(refusals) = refusals.filter(|r| !r.is_empty()) {
+        return anyhow!("{}", refusals.join("; "));
+    }
     let lines: Vec<String> = errors
-        .into_iter()
+        .iter()
         .map(|e| {
             let hints = e.hints.iter().map(|h| format!(" (hint: {})", h.v));
             format!("{}{}", e.message, hints.collect::<String>())

@@ -350,6 +350,16 @@ function CardEditor({
             <p className="refusal">{preview.why}</p>
           ) : null}
         </div>
+        {preview?.kind === "png" && preview.overflows.length > 0 && (
+          <ul className="custom-card-checks">
+            {preview.overflows.map((o) => (
+              <li key={o} className="warning">
+                {o} The preview draws it anyway; printing refuses it until it
+                fits.
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );

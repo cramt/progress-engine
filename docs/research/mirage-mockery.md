@@ -26,7 +26,14 @@ Measured in a throwaway prototype before building it (2026-10-17):
   (since 2026-10-21 9.5pt, printed cards' largest, see *The card's height*)
   down to a floor of 5pt, which is what printed cards do. The prototype's first
   render without this ran off the bottom of the box. The template measures the
-  laid-out text against the box with `layout` and `measure`.
+  laid-out text against the box with `layout` and `measure`. Text that does
+  not fit even at its floor used to `panic`, which in Curator took the whole
+  preview down with it while the user typed. Since 2026-10-21 the template
+  draws it at the floor, clipped to its box or squeezed into its bar, and
+  leaves a `metadata(..) <overflow>` that render.rs reads back through the
+  document's introspector: `compile` refuses the card in plain words, and
+  `preview_with_art` returns the document with the messages for the
+  preview to show as warnings.
 - One card, 63 × 88 mm, is a page. A sheet takes Phyrexian Metamorph's
   parameters: paper (A4, A3, Letter, Legal), gap, margin and cut marks, with as
   many cards as fit, centred. A4, Letter and Legal hold 9 and A3 holds 16. The

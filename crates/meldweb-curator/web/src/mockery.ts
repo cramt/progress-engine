@@ -98,16 +98,22 @@ export function withLayout(text: string, layout: CardLayout): Relaid {
 /**
  * One face of the card as a PNG: 0 the front, 1 a double-faced card's back.
  * `art` holds the arts it names, by path; a face whose art is missing is
- * drawn without it.
+ * drawn without it. Text too long for its box or bar is drawn clipped or
+ * squeezed, and `overflows` says what to cut: a print refuses the card.
  */
 export function renderPng(
   text: string,
   art: ReadonlyMap<string, Uint8Array>,
   face: number,
   ppi: number,
-): Uint8Array {
+): { png: Uint8Array; overflows: string[] } {
   const { paths, all, ends } = pack(art);
-  return render_png(text, JSON.stringify(paths), all, ends, face, ppi);
+  const r = render_png(text, JSON.stringify(paths), all, ends, face, ppi);
+  try {
+    return { png: r.png, overflows: r.overflows };
+  } finally {
+    r.free();
+  }
 }
 
 /** A sheet to print and cut; `art` holds every art the cards name, by path. */

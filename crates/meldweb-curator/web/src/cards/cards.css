@@ -72,6 +72,11 @@
   width: var(--card-long);
 }
 
+/* What the preview draws clipped, said under the card it is about. */
+.custom-card-preview > .custom-card-checks {
+  margin-top: 12px;
+}
+
 .custom-card-preview-controls {
   display: flex;
   flex-wrap: wrap;

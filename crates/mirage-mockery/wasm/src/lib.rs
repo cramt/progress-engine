@@ -251,9 +251,34 @@ fn arts(paths: &str, images: &[u8], ends: &[u32]) -> Result<HashMap<PathBuf, Vec
     Ok(out)
 }
 
+/// A card image for the preview, and what on the card does not fit.
+#[wasm_bindgen]
+pub struct Rendered {
+    png: Vec<u8>,
+    overflows: Vec<String>,
+}
+
+#[wasm_bindgen]
+impl Rendered {
+    #[wasm_bindgen(getter)]
+    pub fn png(&self) -> Vec<u8> {
+        self.png.clone()
+    }
+
+    /// Text that does not fit even at its smallest size, drawn clipped or
+    /// squeezed, in words for the user: a print refuses the card until
+    /// it is cut.
+    #[wasm_bindgen(getter)]
+    pub fn overflows(&self) -> Vec<String> {
+        self.overflows.clone()
+    }
+}
+
 /// The card's face `face` as a PNG at `ppi`: 0 is the front, 1 a
 /// double-faced card's back. The art is packed as for [`sheet_pdf`]; a face
-/// whose art is not among it is drawn without, and the page says so.
+/// whose art is not among it is drawn without, and the page says so. Text
+/// that overflows is drawn anyway and said, so a card being typed never
+/// stops drawing.
 #[wasm_bindgen]
 pub fn render_png(
     text: &str,
@@ -262,14 +287,17 @@ pub fn render_png(
     ends: &[u32],
     face: u32,
     ppi: f32,
-) -> Result<Vec<u8>, JsError> {
+) -> Result<Rendered, JsError> {
     let card = parse(text).map_err(js)?;
     let arts = arts(art_paths, images, ends)?;
-    let doc = render::compile_with_art(std::slice::from_ref(&card), Layout::Cards, |path| {
+    let preview = render::preview_with_art(std::slice::from_ref(&card), Layout::Cards, |path| {
         Ok(arts.get(path).cloned())
     })
     .map_err(js)?;
-    render::png(&doc, face as usize, ppi).map_err(js)
+    Ok(Rendered {
+        png: render::png(&preview.doc, face as usize, ppi).map_err(js)?,
+        overflows: preview.overflows.into_iter().map(|o| o.message).collect(),
+    })
 }
 
 /// A sheet to print and cut, as a PDF. `cards` is JSON of `SheetCard[]`,
@@ -409,8 +437,24 @@ mod tests {
 
     #[test]
     fn a_card_renders_to_a_png() {
-        let png = render_png(DRONE, "[]", &[], &[], 0, 72.0).unwrap_or_else(|_| panic!("render"));
-        assert_eq!(&png[1..4], b"PNG");
+        let r = render_png(DRONE, "[]", &[], &[], 0, 72.0).unwrap_or_else(|_| panic!("render"));
+        assert_eq!(&r.png[1..4], b"PNG");
+        assert!(r.overflows.is_empty());
+    }
+
+    #[test]
+    fn a_card_whose_text_overflows_renders_with_a_warning() {
+        let long = DRONE.replace(
+            "name = \"Proofsheet Drone\"",
+            "name = \"Proofsheet Drone of the Ninefold Spires and All Their Endless Galleys\"",
+        );
+        assert_ne!(long, DRONE);
+        let r = render_png(&long, "[]", &[], &[], 0, 72.0).unwrap_or_else(|_| panic!("render"));
+        assert_eq!(&r.png[1..4], b"PNG");
+        assert_eq!(
+            r.overflows,
+            ["The name doesn't fit its bar, even at the smallest size (6pt). Shorten it."]
+        );
     }
 
     #[test]
@@ -429,7 +473,7 @@ mod tests {
         }
         let front = render_png(SHINOVAR, "[]", &[], &[], 0, 72.0).unwrap_or_else(|_| panic!());
         let back = render_png(SHINOVAR, "[]", &[], &[], 1, 72.0).unwrap_or_else(|_| panic!());
-        assert_ne!(front, back);
+        assert_ne!(front.png, back.png);
     }
 
     #[test]
@@ -468,7 +512,7 @@ mod tests {
             "{melded}"
         );
         let back = render_png(SMUGGLER, "[]", &[], &[], 3, 72.0).unwrap_or_else(|_| panic!());
-        assert_eq!(&back[1..4], b"PNG");
+        assert_eq!(&back.png[1..4], b"PNG");
     }
 
     #[test]

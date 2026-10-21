@@ -36,6 +36,12 @@ toughness on a raised plate straddling the box's corner, and the frame
 stopping just under the box over a black band that holds the footer.
 Rules text fits from 9.5pt, a printed card's largest, and a short text is
 centred in its box.
+Text that does not fit even at its smallest size, 5pt for rules text and a
+type line and 6pt for a name, is refused by `render` and `sheet`, naming the
+card and what to cut ("The rules text doesn't fit its box, even at the
+smallest size (5pt). Cut some text."), so nothing prints clipped. Curator's
+preview draws the same card anyway, the text clipped to its box or a line
+squeezed into its bar, with that message beside it as a warning.
 
 A card's layout comes from its Oracle text: chapter lines make a Saga, level
 bars a Class, station thresholds a Spacecraft's striations, loyalty costs a

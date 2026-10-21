@@ -28,7 +28,13 @@ export interface CardView {
    * never shown turned while the upright one before it is still up.
    */
   preview:
-    | { kind: "png"; url: string; reading: Reading }
+    | {
+        kind: "png";
+        url: string;
+        reading: Reading;
+        /** What is drawn clipped or squeezed for want of room. */
+        overflows: readonly string[];
+      }
     | { kind: "failed"; why: string }
     | null;
   /** The arts the card names, missing from the repo. */
@@ -70,12 +76,12 @@ export function useCardChecks(
       try {
         // Art the repo lacks renders as a card without it, said beside it.
         const shown = Math.min(face, c.images.length - 1);
-        const png = renderPng(text, art, shown, 150);
+        const { png, overflows } = renderPng(text, art, shown, 150);
         url = URL.createObjectURL(
           new Blob([png as BlobPart], { type: "image/png" }),
         );
         const reading = c.images[shown]?.reading ?? { kind: "upright" };
-        setPreview({ kind: "png", url, reading });
+        setPreview({ kind: "png", url, reading, overflows });
       } catch (e) {
         setPreview({ kind: "failed", why: messageOf(e) });
       }

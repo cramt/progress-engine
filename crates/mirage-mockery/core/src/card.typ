@@ -152,17 +152,29 @@
   }
 }
 
+// Which card is being drawn, so an overflow can say whose it is on a sheet.
+#let card-name = state("card-name", none)
+
+// Text that does not fit even at its floor is drawn anyway, squeezed or
+// clipped, and said so here: render.rs reads these back, and a preview shows
+// them beside the card while a print refuses it, so clipped text is never
+// printed. Never a panic, which would take the whole preview with it.
+#let overflow(what, kind, floor) = [#metadata((
+  what: what, kind: kind, floor: floor / 1pt, card: card-name.get(),
+)) <overflow>]
+
 // A line that has one line to itself, the name or the type line, shrinks to
-// fit it as printed cards do, and a card it still overflows is refused
-// rather than printed with its frame pushed out of place.
+// fit it as printed cards do, and one it still overflows is squeezed into it
+// rather than pushing its frame out of place.
 #let fit-line(body, start, floor, what) = layout(size => {
   let set-at(sz) = text(size: sz, weight: "bold", body)
   let sz = start
   while sz > floor and measure(set-at(sz)).width > size.width { sz -= 0.25pt }
-  if measure(set-at(sz)).width > size.width {
-    panic(what + " does not fit on one line even at " + repr(floor))
-  }
-  set-at(sz)
+  let width = measure(set-at(sz)).width
+  if width > size.width {
+    overflow(what, "line", floor)
+    box(width: size.width, scale(x: size.width / width * 100%, origin: left, reflow: true, set-at(sz)))
+  } else { set-at(sz) }
 })
 
 // A paint made `amount` see-through: a colour as Typst does it, and a
@@ -187,14 +199,18 @@
   let fits(q) = height(floor + q * 0.25pt) <= size.height
   // Quarter points above the floor: 0 is 5pt, 18 is 9.5pt.
   let (lo, hi) = (0, calc.floor((max - floor) / 0.25pt))
-  if not fits(lo) { panic(what + " does not fit its box even at " + repr(floor)) }
-  if fits(hi) { lo = hi }
-  while hi - lo > 1 {
-    let mid = calc.quo(lo + hi, 2)
-    if fits(mid) { lo = mid } else { hi = mid }
+  if not fits(lo) {
+    overflow(what, "box", floor)
+    block(width: size.width, height: size.height, clip: true, body(floor, 0pt))
+  } else {
+    if fits(hi) { lo = hi }
+    while hi - lo > 1 {
+      let mid = calc.quo(lo + hi, 2)
+      if fits(mid) { lo = mid } else { hi = mid }
+    }
+    let sz = floor + lo * 0.25pt
+    body(sz, size.height - height(sz))
   }
-  let sz = floor + lo * 0.25pt
-  body(sz, size.height - height(sz))
 })
 
 // Lines and paragraphs spaced as printed: measured on Lotus Cobra, Lightning
@@ -1546,9 +1562,11 @@
   breakable: false, rotate(90deg, reflow: true, block(width: card-height, height: card-width, clip: true,
     place(top + left, dy: if c.half == "top" { 0mm } else { -card-width }, melded-card(c.melded)))))
 
-#let card(c) = if c.kind == "split" {
+#let draw-card(c) = if c.kind == "split" {
   if c.style == "aftermath" { aftermath-card(c) } else if c.style == "room" { room-card(c) } else { split-card(c) }
 } else if c.kind == "battle" { battle-card(c) } else if c.kind == "flip" { flip-card(c) } else if c.kind == "meld-back" { meld-back(c) } else { face-card(c) }
+
+#let card(c) = { card-name.update(c.at("card", default: none)); draw-card(c) }
 
 #let notice = [Unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Made with Mirage Mockery.]
 

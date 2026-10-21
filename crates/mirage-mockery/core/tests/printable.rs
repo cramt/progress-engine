@@ -359,7 +359,13 @@ proptest! {
             Ok(doc) => prop_assert_eq!(doc.pages().len(), card.images()),
             Err(e) => {
                 let e = format!("{e:#}");
-                prop_assert!(e.contains("does not fit"), "{}\n{}", e, toml);
+                prop_assert!(e.contains("doesn't fit"), "{}\n{}", e, toml);
+                prop_assert!(!e.contains("typst") && !e.contains("panicked"), "{}", e);
+                // What a print refuses, the preview draws and says.
+                let preview = render::preview_with_art(std::slice::from_ref(&card), Layout::Cards, |_| Ok(None))
+                    .expect("a preview draws whatever a print refuses for space");
+                prop_assert_eq!(preview.doc.pages().len(), card.images());
+                prop_assert!(!preview.overflows.is_empty());
             }
         }
     }
@@ -377,32 +383,82 @@ fn a_land_planeswalker_of_two_colours_prints() {
     render::compile(&[card], Layout::Cards).unwrap();
 }
 
+/// A card that overflows is refused for print in plain words, naming the
+/// card and what overflowed, and drawn for the preview with the same words
+/// as a warning.
+fn refused_in_print_and_previewed(toml: &str, card_name: &str, message: &str) {
+    let card = Card::parse(toml, Path::new(".")).unwrap();
+    let err = format!(
+        "{:#}",
+        render::compile(std::slice::from_ref(&card), Layout::Cards).unwrap_err()
+    );
+    assert_eq!(err, format!("{card_name}: {message}"));
+    let preview =
+        render::preview_with_art(std::slice::from_ref(&card), Layout::Cards, |_| Ok(None)).unwrap();
+    assert_eq!(preview.doc.pages().len(), card.images());
+    let said: Vec<&str> = preview
+        .overflows
+        .iter()
+        .map(|o| o.message.as_str())
+        .collect();
+    assert_eq!(said, [message]);
+    assert_eq!(preview.overflows[0].card, card_name);
+    render::png(&preview.doc, 0, 36.0).unwrap();
+}
+
 #[test]
-fn rules_text_too_long_for_any_size_is_refused() {
+fn rules_text_too_long_for_any_size_is_refused_and_previewed_clipped() {
     let rules = "Draw a card. ".repeat(200);
-    let card = Card::parse(
+    refused_in_print_and_previewed(
         &format!("name = \"Wall of Text\"\ntype = \"Sorcery\"\nrules = \"{rules}\""),
-        Path::new("."),
-    )
-    .unwrap();
-    let err = render::compile(&[card], Layout::Cards).unwrap_err();
-    assert!(
-        format!("{err:#}").contains("the rules text does not fit"),
-        "{err:#}"
+        "Wall of Text",
+        "The rules text doesn't fit its box, even at the smallest size (5pt). Cut some text.",
     );
 }
 
 #[test]
-fn a_name_too_long_for_one_line_is_refused() {
-    let card = Card::parse(
-        "name = \"Gitaxian Progress Tyrant of the Ninefold Spires and All Their Proofsheets\"\ntype = \"Sorcery\"",
+fn a_name_too_long_for_one_line_is_refused_and_previewed_squeezed() {
+    let name = "Gitaxian Progress Tyrant of the Ninefold Spires and All Their Proofsheets";
+    refused_in_print_and_previewed(
+        &format!("name = \"{name}\"\ntype = \"Sorcery\""),
+        name,
+        "The name doesn't fit its bar, even at the smallest size (6pt). Shorten it.",
+    );
+}
+
+#[test]
+fn a_type_line_too_long_for_one_line_is_refused_and_previewed_squeezed() {
+    refused_in_print_and_previewed(
+        "name = \"Everything\"\ntype = \"Legendary Artifact Enchantment Creature — Human Elf Dwarf Goblin Wizard Cleric Rogue Warrior Shaman Druid Knight\"\npt = \"1/1\"",
+        "Everything",
+        "The type line doesn't fit its bar, even at the smallest size (5pt). Shorten it.",
+    );
+}
+
+/// Found in Curator: a split half's name bar is half a card's, and this one
+/// took the whole preview down with it.
+#[test]
+fn a_split_half_with_a_long_name_is_refused_and_previewed_squeezed() {
+    refused_in_print_and_previewed(
+        "name = \"Knights of Wind and Truth\"\ncost = \"{2}{W}{U}{B}\"\ntype = \"Sorcery\"\nrules = \"Create two 2/2 white Knight creature tokens.\"\nlayout = \"split\"\n[right]\nname = \"Truth\"\ncost = \"{U}\"\ntype = \"Instant\"\nrules = \"Draw a card.\"\n",
+        "Knights of Wind and Truth // Truth",
+        "The name doesn't fit its bar, even at the smallest size (6pt). Shorten it.",
+    );
+}
+
+#[test]
+fn a_sheet_names_the_card_that_overflows() {
+    let fits = Card::parse("name = \"Short\"\ntype = \"Sorcery\"", Path::new(".")).unwrap();
+    let rules = "Draw a card. ".repeat(200);
+    let wall = Card::parse(
+        &format!("name = \"Wall of Text\"\ntype = \"Sorcery\"\nrules = \"{rules}\""),
         Path::new("."),
     )
     .unwrap();
-    let err = render::compile(&[card], Layout::Cards).unwrap_err();
-    assert!(
-        format!("{err:#}").contains("the name does not fit"),
-        "{err:#}"
+    let err = render::compile(&[fits, wall], Layout::Sheet(render::Sheet::default())).unwrap_err();
+    assert_eq!(
+        format!("{err:#}"),
+        "Wall of Text: The rules text doesn't fit its box, even at the smallest size (5pt). Cut some text."
     );
 }
 
