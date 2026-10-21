@@ -1,0 +1,25 @@
+# A battle: its front prints on the card turned on its side, its defense in
+# the shield on the text box's corner and its back's power and toughness on
+# the tab beside it. A Siege is always a transforming card's front.
+name = "Siege of Narak"
+cost = "{3}{W}"
+type = "Battle — Siege"
+rules = """
+(As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)
+When this Siege enters, create two 1/1 white Soldier creature tokens. They gain haste until end of turn.
+"""
+defense = "5"
+artist = "Mirage Mockery"
+layout = "transform"
+
+[back]
+name = "Bondsmith of Narak"
+type = "Legendary Creature — Human Knight"
+color_indicator = "W"
+rules = """
+Vigilance
+Other creatures you control get +1/+1.
+"""
+flavor = "\"Unite them.\""
+pt = "4/4"
+artist = "Mirage Mockery"

@@ -43,7 +43,8 @@ Measured in a throwaway prototype before building it (2026-10-17):
   check now builds both.
 - Every card the format accepts prints on one page or is refused for space,
   naming the name, the type line or the rules text: a property test over
-  generated cards (any mix of types, so a Class creature or a Saga battle too,
+  generated cards (any mix of types, so a Class creature or a land planeswalker,
+  battles alone or as a Siege's front,
   and every layout below, colour indicators and cards of two parts included).
   96 cases took 7 s optimised with plain text only; the striated layouts lay
   each section out twice, and stepping down a quarter point at a time took
@@ -140,6 +141,37 @@ do.
   halves' name and type bars point at each other, as printed fuse cards'
   do. One half
   with fuse keeps it as a line of its own.
+- **Battle** (CR 310): not a declared layout. A face whose type line says
+  Battle prints on a card turned on its side, as Invasion of Ikoria,
+  Gobakhan, Tarkir, Zendikar and Alara print theirs: read with the card
+  turned a quarter clockwise, the same way as a split card, its foot (and
+  the footer) on the left. The art is the frame, edge to edge, fitted to
+  cover the window between the name bar and the type line as Scryfall's
+  art_crop of a battle is, and carried on mirrored behind the bars and the
+  text box, which stand across the art's foot with a strip of it either
+  side. The defense is in a shield on the text box's bottom right corner,
+  Mockery's drawing of printed battles': a dark square burst into eight
+  points, at its corners and its sides' middles, under a light rim. A
+  Siege's front has a tab bent out of the box's right side, 53% down it,
+  with its back's power and toughness beside it in grey at the text's size
+  (CR 712.2c); its back is an ordinary card. The text tops out at 8.25pt,
+  Zendikar's 32.5 px line pitch at 1040 px.
+  - Every battle needs `defense`, which its corner holds alone (CR 310.4a),
+    so it is no creature or planeswalker too; its text is plain lines.
+  - A Siege is cast transformed when it is defeated (CR 310.12b), so it is
+    refused anywhere but the front of `layout = "transform"`. A battle of
+    no type, or another type, may stand alone or be either face of a
+    double-faced card (CR 310.8, 310.9a). No such card has been printed:
+    all 36 battles on Scryfall (`t:battle`) are Sieges, so its frame is the
+    Siege's without the tab.
+  - A battle is never a split half and never shares its box with an
+    Adventure or a prepare spell: it prints sideways on a card to itself.
+  - Orientation: every output is the card as it is held, 63 × 88mm, as
+    Scryfall's 745 × 1040 battle images are. A PNG and a PDF page are
+    portrait with the front drawn sideways; a sheet slot is an ordinary
+    card's, so it cuts at card size; Curator's preview is that PNG, as for
+    a split card. Turning the image instead would give the front a size of
+    its own in every output and a slot no sheet grid has.
 
 - **Adventure** (CR 715) and **prepare** (CR 722): a card with a spell drawn
   inside its text box, `layout = "adventure"` or `"prepare"` with the spell
@@ -446,6 +478,9 @@ holds them.
 | Printed split half | 7.1–13.7% | 14.8–53.2% | 54.5–58.9% | 60.7–89.5% | fuse foot 94.8% | |
 | Ours before | 7–13.6% | 14–46.2% | 46.9–54% | 54.9–86.4% | fuse foot 95.6% | |
 | Ours | 7.1–13.8% | 14.8–53.2% | 54.4–58.9% | 60.6–88.8% | fuse foot 94.6% | |
+| Printed battle front, on its side | 4.8–11.8% | frame 3.8–96.4% | 58.3–65.2% | 66.8–96.1% | 96.4% | shield centre 92.5% down, 94.0% across |
+| Ours before | portrait card | | | | | defense in the P/T plate |
+| Ours | 4.8–11.8% | frame 3.8–96.3% | 58.3–65.3% | 66.9–96.2% | 96.3% | shield centre 91.8% down, 94.0% across |
 
 What changed with it:
 

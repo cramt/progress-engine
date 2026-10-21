@@ -2,7 +2,8 @@
 //!
 //! The frame is Mirage Mockery's own, so no combination of types is
 //! unprintable for want of a frame drawn for it: an enchantment creature
-//! Class, a Saga battle, a land planeswalker. What can fail is space, and that
+//! Class, a land planeswalker. A battle prints on its side, its defense in its
+//! corner and its text plain, so it is drawn apart. What can fail is space, and that
 //! must be a refusal naming what overflowed, never a card printed with its
 //! text spilling out of the frame or a Typst error.
 
@@ -15,7 +16,6 @@ use proptest::prelude::*;
 const SYMBOLS: &[&str] = &["1", "2", "X", "W", "U", "B", "R", "G", "U/P", "T"];
 const TYPES: &[&str] = &[
     "Artifact",
-    "Battle",
     "Creature",
     "Enchantment",
     "Instant",
@@ -24,15 +24,7 @@ const TYPES: &[&str] = &[
     "Planeswalker",
     "Sorcery",
 ];
-const SUBTYPES: &[&str] = &[
-    "Class",
-    "Saga",
-    "Vehicle",
-    "Equipment",
-    "Elf",
-    "Phyrexian",
-    "Siege",
-];
+const SUBTYPES: &[&str] = &["Class", "Saga", "Vehicle", "Equipment", "Elf", "Phyrexian"];
 const WORDS: &[&str] = &[
     "target",
     "creature",
@@ -205,8 +197,6 @@ fn face_toml() -> impl Strategy<Value = (String, String)> {
                 "pt = \"3/3\"\n"
             } else if has("Planeswalker") {
                 "loyalty = \"4\"\n"
-            } else if has("Battle") {
-                "defense = \"5\"\n"
             } else if station_pt {
                 "pt = \"4/4\"\n"
             } else {
@@ -251,7 +241,7 @@ fn spell_toml() -> impl Strategy<Value = (String, String)> {
 
 /// A card of one face, or two in any of the layouts that have two.
 fn card_toml() -> impl Strategy<Value = String> {
-    (face_toml(), face_toml(), spell_toml(), prop::collection::vec(paragraph(), 0..4), 0..6usize).prop_map(|((cost, front), (back_cost, back), (spell_type, spell), plain, kind)| {
+    (face_toml(), face_toml(), spell_toml(), prop::collection::vec(paragraph(), 0..4), 0..8usize).prop_map(|((cost, front), (back_cost, back), (spell_type, spell), plain, kind)| {
         let cost_line = |c: &str, split: bool| match (c.is_empty(), split) {
             (true, true) => "cost = \"{1}\"\n".to_string(),
             (true, false) => String::new(),
@@ -269,13 +259,24 @@ fn card_toml() -> impl Strategy<Value = String> {
                 plain.join("\n"),
             )
         };
+        // A battle's text is plain lines, and a Siege is always a
+        // transforming card's front.
+        let battle = |sub: &str| {
+            format!(
+                "name = \"Battle\"\n{}type = \"Battle{sub}\"\ndefense = \"5\"\nrules = \"\"\"\n{}\n\"\"\"\n",
+                cost_line(&cost, false),
+                plain.join("\n"),
+            )
+        };
         match kind {
             0 => top,
             1 => format!("{top}layout = \"transform\"\n[back]\n{second}"),
             2 => format!("{top}layout = \"modal\"\n[back]\n{second}"),
             3 => format!("{top}layout = \"split\"\n[right]\n{second}"),
             4 => inset("adventure", &format!("{spell_type} — Adventure")),
-            _ => inset("prepare", &spell_type),
+            5 => inset("prepare", &spell_type),
+            6 => battle(""),
+            _ => format!("{}layout = \"transform\"\n[back]\n{second}", battle(" — Siege")),
         }
     })
 }

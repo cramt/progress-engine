@@ -356,7 +356,38 @@ impl Card {
                 }
             }
         };
+        card.check_battles()?;
         Ok(card)
+    }
+
+    /// A battle prints sideways on a card to itself, and a Siege is cast
+    /// transformed when it is defeated (CR 310.12b), so it is always a
+    /// transforming card's front. A battle with no battle type, or any other
+    /// type than Siege, may stand alone (CR 310.8, 310.9a).
+    fn check_battles(&self) -> Result<()> {
+        if let Card::Split { .. } | Card::Adventure { .. } | Card::Prepare { .. } = self {
+            if let Some(battle) = self.faces().into_iter().find(|f| f.is_battle()) {
+                bail!(
+                    "{:?} is a battle, which prints sideways on a card to itself: \
+                     no half of a split card, and no text box shared with a spell",
+                    battle.name
+                );
+            }
+        }
+        let front = match self {
+            Card::Transform { front, .. } => Some(front),
+            _ => None,
+        };
+        for face in self.faces() {
+            if face.is_siege() && !front.is_some_and(|f| std::ptr::eq(f, face)) {
+                bail!(
+                    "{:?} is a Siege, cast transformed when it is defeated (CR 310.12b), \
+                     so it is the front face of a layout = \"transform\" card",
+                    face.name
+                );
+            }
+        }
+        Ok(())
     }
 
     /// The faces it prints, front (or left) first.
@@ -532,6 +563,26 @@ impl Face {
                 raw.type_line
             );
         }
+        if has("Battle") {
+            // Every battle prints its defense in its corner, so the corner
+            // holds nothing else (CR 310.4a).
+            if !matches!(corner, Corner::Defense(_)) {
+                bail!(
+                    "a battle needs defense, printed in its corner (CR 310.4a){}",
+                    if has("Creature") || has("Planeswalker") {
+                        ", so it is no creature or planeswalker as well"
+                    } else {
+                        ""
+                    }
+                );
+            }
+            if rules.is_framed() {
+                bail!(
+                    "a battle's text box is plain lines, beside its art on a card turned \
+                     on its side: no Saga, Class, planeswalker or station frame fits it"
+                );
+            }
+        }
         if has("Creature") && !matches!(corner, Corner::PowerToughness { .. }) {
             bail!("a creature needs pt");
         }
@@ -558,6 +609,18 @@ impl Face {
     pub fn is_spell(&self) -> bool {
         let has = |word: &str| self.type_line.split_whitespace().any(|w| w == word);
         has("Instant") || has("Sorcery")
+    }
+
+    /// A battle prints on a card turned on its side, its defense in a
+    /// shield in the corner (CR 310).
+    pub fn is_battle(&self) -> bool {
+        self.type_line.split_whitespace().any(|w| w == "Battle")
+    }
+
+    /// A battle of the Siege type (CR 310.12).
+    pub fn is_siege(&self) -> bool {
+        let subtypes = self.type_line.split_once('—').map_or("", |(_, s)| s);
+        self.is_battle() && subtypes.split_whitespace().any(|w| w == "Siege")
     }
 
     /// The face's colours: its cost's and its colour indicator's (CR 202.2,
@@ -871,6 +934,46 @@ pt = "2/3"
         assert!(
             err(format!("{saga}layout = \"adventure\"\n[spell]\n{STOMP}")).contains("plain lines")
         );
+    }
+
+    #[test]
+    fn a_battle_has_defense_and_a_siege_transforms() {
+        let err = |text: &str| format!("{:#}", card(text).unwrap_err());
+        const SIEGE: &str =
+            "name = \"Siege\"\ncost = \"{2}{W}\"\ntype = \"Battle — Siege\"\ndefense = \"4\"\n";
+        const BACK: &str =
+            "name = \"Back\"\ntype = \"Creature — Human\"\ncolor_indicator = \"W\"\npt = \"3/3\"\n";
+        assert!(matches!(
+            card(&format!("{SIEGE}layout = \"transform\"\n[back]\n{BACK}")),
+            Ok(Card::Transform { .. })
+        ));
+        // A Siege is cast transformed when it is defeated, so it is always a
+        // transforming card's front (CR 310.12b).
+        assert!(err(SIEGE).contains("front face of a layout = \"transform\""));
+        assert!(err(&format!("{SIEGE}layout = \"modal\"\n[back]\n{BACK}")).contains("Siege"));
+        assert!(err(&format!(
+            "{}layout = \"transform\"\n[back]\n{}",
+            BACK.replace("Back", "Front"),
+            SIEGE
+        ))
+        .contains("Siege"));
+        // A battle of no type, or another type, may stand alone (CR 310.8).
+        let lone = parse("name = \"x\"\ntype = \"Battle\"\ndefense = \"3\"").unwrap();
+        assert!(lone.is_battle() && !lone.is_siege());
+        // Every battle prints its defense (CR 310.4a), in a corner that holds
+        // nothing else.
+        assert!(err("name = \"x\"\ntype = \"Battle\"").contains("needs defense"));
+        assert!(
+            err("name = \"x\"\ntype = \"Battle Creature\"\npt = \"1/1\"")
+                .contains("no creature or planeswalker")
+        );
+        assert!(err("name = \"x\"\ntype = \"Battle\"\ndefense = \"3\"\nrules = \"\"\"\n10+ | Flying\n\"\"\"")
+            .contains("plain lines"));
+        // It prints on a card turned on its side, to itself.
+        assert!(err(
+            "name = \"x\"\ncost = \"{1}\"\ntype = \"Battle\"\ndefense = \"3\"\nlayout = \"split\"\n[right]\nname = \"y\"\ncost = \"{1}\"\ntype = \"Instant\"\n"
+        )
+        .contains("sideways"));
     }
 
     #[test]

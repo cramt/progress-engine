@@ -482,7 +482,8 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
             self.art(face)?
         };
         Ok(json!({
-            "kind": "face",
+            // A battle is drawn on its side, its type line says so (CR 310).
+            "kind": if face.is_battle() { "battle" } else { "face" },
             "name": curl(&face.name),
             "cost": cost,
             "type_line": curl(&face.type_line),

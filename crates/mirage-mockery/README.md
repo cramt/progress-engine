@@ -44,6 +44,14 @@ type bars and holding the art as printed walkers frame theirs, over a
 narrower text box of badged bands that the art runs on behind, in a band that
 arches over the card's foot and flares into a horned loyalty shield, each refused when
 numbered out of order.
+A face whose type line says Battle prints as printed battles do, on a card
+turned on its side and read the way a split card is: its art filling the
+frame, the type line and text box across its foot and its defense in a
+shield on the box's corner, a Siege's front with its back's power and
+toughness on a tab out of the box. Every battle needs `defense`, and a Siege
+is refused anywhere but the front of `layout = "transform"`, as it is cast
+transformed (CR 310.12b). The image is still the card's own size, the front
+drawn sideways in it, so a sheet cuts it as any other.
 Chapters on a card that is no Saga and level bars on one that is no Class are
 refused too; loyalty costs on a card that is no planeswalker print as plain
 lines. Ability and flavor words before a line's " — " are set in italics. A `color_indicator` colours a card with no cost, and a

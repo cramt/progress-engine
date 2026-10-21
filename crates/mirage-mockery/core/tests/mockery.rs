@@ -171,3 +171,21 @@ fn a_card_with_a_spell_inset_is_one_image() {
     // (CR 715.3b): the card's two lines and the spell's one.
     assert_eq!(read::read(&prepare).lines, 3);
 }
+
+#[test]
+fn a_battle_prints_sideways_at_the_card_size() {
+    let siege = Card::open(&here("tests/cards/siege-of-narak.card.toml")).unwrap();
+    let Card::Transform { front, back } = &siege else {
+        panic!("a Siege transforms");
+    };
+    assert!(front.is_siege() && !back.is_battle());
+    let doc = render::compile(std::slice::from_ref(&siege), Layout::Cards).unwrap();
+    // Both images are the card as it is held, the front drawn on its side,
+    // so a sheet cuts it as any other.
+    for page in 0..2 {
+        let png = render::png(&doc, page, 300.0).unwrap();
+        let width = u32::from_be_bytes(png[16..20].try_into().unwrap());
+        let height = u32::from_be_bytes(png[20..24].try_into().unwrap());
+        assert_eq!((width, height), (744, 1039), "page {page}");
+    }
+}

@@ -323,7 +323,7 @@
 // The standard text box: plain paragraphs, or a station card's striations,
 // each threshold a band down to the next with its mark on the box's left
 // edge, and the last band holding the power and toughness (CR 721.2b).
-#let standard-text(c, ps, max: 9.5pt, height: 1fr, fill: auto, stroke: 0.4pt + black, top: 1.8mm, clear: auto, centre-lone: true) = {
+#let standard-text(c, ps, max: 9.5pt, height: 1fr, fill: auto, stroke: 0.4pt + black, top: 1.8mm, clear: auto, pad-right: auto, centre-lone: true) = {
   let r = c.rules
   // Printed rules text runs to within 1mm of the box's sides.
   let pad = 1.2mm
@@ -333,7 +333,7 @@
   // toughness plate's upper part, or a back's reminder.
   let bottom = if clear != auto { clear } else if c.hint != none { 4.2mm } else if c.corner != none and not corner-in-band { 3.6mm } else if c.back_pt != none { 3.2mm } else { 1.8mm }
   block(width: 100%, height: height, fill: if fill == auto { ps.box } else { fill }, stroke: stroke, clip: false,
-    inset: (x: pad, top: top, bottom: bottom),
+    inset: (left: pad, right: if pad-right == auto { pad } else { pad-right }, top: top, bottom: bottom),
     fit-box(max: max, (sz, spare) => text-style(sz, {
       // Text that leaves room is centred in the box, as printed cards set a
       // short text; a striated box fills it instead.
@@ -1075,7 +1075,143 @@
     place(top + left, dx: -split-band, dy: -border-side, rotate(90deg, reflow: true, footer(c.artist, card-width)))
   }))
 
-#let card(c) = if c.kind == "split" { split-card(c) } else { face-card(c) }
+// Where a battle's front puts its parts, read with the card on its side:
+// measured on Invasion of Ikoria, Gobakhan, Tarkir, Zendikar and Alara at
+// 1040 by 745 px, which agree to a pixel or two, from the frame's top left.
+// The frame is the art from edge to edge, under a name bar at its top and a
+// type line and text box across its foot, both narrower than the frame by a
+// strip of art either side. The black band along the left, 7mm, holds the
+// footer: it is the card's foot, as a split card's is.
+#let battle-layout = (
+  band: 7mm, top: 2.37mm, right: 2.45mm, bottom: 2.3mm,
+  // A bar's block, its fill and its rim standing 1.05mm round it.
+  bar-x: 3mm, name-top: 0.68mm, name-h: 4.4mm, type-top: 34.36mm, type-h: 4.4mm,
+  // The text box, rim and all.
+  box-left: 2.96mm, box-right: 2.98mm, box-top: 39.77mm, box-bottom: 0.11mm, box-rim: 0.42mm,
+  // The defense shield's centre from the frame's bottom right corner, and
+  // the back's reminder and its tab 53% down the box.
+  shield-in: 2.85mm, shield-up: 2.85mm, tab-at: 53%,
+)
+
+// The defense shield (CR 310.4a), Mockery's drawing of printed battles':
+// a dark square burst into eight points, at its corners and the middles of
+// its sides, under a thin light rim. Measured on the five battles above at
+// 80 by 82 px: the corners square, the side points 8% further out than the
+// corners' sides, and the notches between them 22% in from the square's
+// edge and 29% along it.
+#let defense-shield(value) = {
+  let (w, h) = (6.8mm, 6.9mm)
+  let rim = 0.36mm
+  let (hw, hh) = (w / 2 - rim, h / 2 - rim)
+  let (tip, notch-in, notch-along) = (1.08, 0.78, 0.42)
+  let pt(x, y) = (w / 2 + x * hw, h / 2 + y * hh)
+  // Clockwise from the top left corner.
+  let points = (
+    pt(-1, -1), pt(-notch-along, -notch-in), pt(0, -tip), pt(notch-along, -notch-in),
+    pt(1, -1), pt(notch-in, -notch-along), pt(tip, 0), pt(notch-in, notch-along),
+    pt(1, 1), pt(notch-along, notch-in), pt(0, tip), pt(-notch-along, notch-in),
+    pt(-1, 1), pt(-notch-in, notch-along), pt(-tip, 0), pt(-notch-in, -notch-along),
+  )
+  box(width: w, height: h, {
+    place(polygon(stroke: (paint: luma(115), thickness: 2 * rim + 0.5pt, join: "miter", miter-limit: 4), ..points))
+    place(polygon(stroke: (paint: luma(222), thickness: 2 * rim, join: "miter", miter-limit: 4), ..points))
+    place(polygon(fill: luma(20), stroke: none, ..points))
+    place(center + horizon, dy: 0.25mm, text(font: "Libertinus Serif", weight: "bold", size: 11pt, fill: white, value))
+  })
+}
+
+// A battle's front: a card turned on its side, read with its left edge at
+// the top, as a split card is, its art filling the frame and its name across
+// the top, its type line and text box over the art's foot and its defense in
+// a shield on the box's bottom right corner (CR 310). A Siege's front says it
+// transforms on a tab out of the box's right side, where it carries its
+// back's power and toughness (CR 712.2c).
+#let battle-card(c) = rotate(-90deg, reflow: true, {
+  let g = battle-layout
+  let ps = paints(c.frame)
+  let (W, H) = (card-height - g.band - g.right, card-width - g.top - g.bottom)
+  block(width: card-height, height: card-width, fill: black, radius: 2.5mm, breakable: false,
+    inset: (left: g.band, right: g.right, top: g.top, bottom: g.bottom), {
+    set text(font: "Libertinus Serif", size: 8.5pt, fill: black)
+    set block(spacing: 0mm)
+    // The art is the frame: fitted to cover the window between the bars, as
+    // printed battles' art_crop is, and carried on mirrored above and below
+    // it, where the bars and the box stand over it.
+    let (win-top, win-bottom) = (g.name-top + g.name-h + bar-rim, g.type-top - bar-rim)
+    let win-h = win-bottom - win-top
+    block(width: W, height: H, radius: 1.2mm, clip: true, fill: ps.body, context {
+      if c.art != none {
+        let natural = measure(image(c.art))
+        let s = calc.max(W / natural.width, win-h / natural.height)
+        let (iw, ih) = (natural.width * s, natural.height * s)
+        let (at, y0) = ((W - iw) / 2, win-top - (ih - win-h) / 2)
+        let art(flip) = if flip { scale(y: -100%, image(c.art, width: iw, height: ih)) } else { image(c.art, width: iw, height: ih) }
+        place(top + left, dx: at, dy: y0, art(false))
+        place(top + left, dx: at, dy: y0 - ih, art(true))
+        let (below, flip) = (y0 + ih, true)
+        while below < H {
+          place(top + left, dx: at, dy: below, art(flip))
+          below += ih
+          flip = not flip
+        }
+      }
+    })
+    let bar(body, h, y) = place(top + left, dx: g.bar-x, dy: y, block(width: W - 2 * g.bar-x, {
+      plate(W - 2 * g.bar-x, h, ps)
+      block(width: 100%, height: h, inset: (x: 1.5mm), align(horizon, body))
+    }))
+    bar(grid(columns: if c.marker != none { (auto, 1fr, auto) } else { (1fr, auto) },
+      column-gutter: 1mm, align: horizon,
+      ..if c.marker != none { (face-marker(c.marker),) },
+      fit-line(c.name, 9.5pt, 6pt, "the name"),
+      { for s in c.cost { sym(s, 9pt) } },
+    ), g.name-h, g.name-top)
+    bar(if c.indicator.len() > 0 {
+      grid(columns: (auto, 1fr), column-gutter: 1.2mm, align: horizon,
+        indicator(c.indicator), fit-line(c.type_line, 8.5pt, 5pt, "the type line"))
+    } else { fit-line(c.type_line, 8.5pt, 5pt, "the type line") }, g.type-h, g.type-top)
+
+    // The text box, rimmed in the bars' colour. Its text keeps clear of the
+    // back's reminder or, without one, of the shield over the corner.
+    let (bw, bh) = (W - g.box-left - g.box-right, H - g.box-top - g.box-bottom)
+    let tabbed = c.marker == "transform-front"
+    let (tab-w, tab-h) = (2.1mm, 3.3mm)
+    let tab-y = bh * g.tab-at
+    place(top + left, dx: g.box-left, dy: g.box-top, block(width: bw, height: bh, {
+      if tabbed {
+        // The tab: the rim bent out into a point off the box's right side.
+        let tab(grow, fill) = place(top + left, dx: bw - g.box-rim - grow, dy: tab-y - tab-h / 2 - grow,
+          polygon(fill: fill, stroke: 0.4pt + luma(25),
+            (0mm, 0mm), (tab-w + g.box-rim + 2 * grow, tab-h / 2 + grow), (0mm, tab-h + 2 * grow)))
+        tab(0.6mm, ps.rim)
+        tab(0mm, ps.box)
+      }
+      place(top + left, rect(width: bw, height: bh, fill: ps.rim, stroke: 0.4pt + luma(25)))
+      place(top + left, dx: g.box-rim, dy: g.box-rim,
+        standard-text(c, ps, max: 8.25pt, height: bh - 2 * g.box-rim, fill: ps.box, stroke: 0.4pt + luma(25),
+          top: 1.1mm, clear: 1.2mm, pad-right: if c.back_pt != none { 5.4mm } else { 3.4mm }))
+      if tabbed {
+        // The tab's mouth, open into the box.
+        place(top + left, dx: bw - g.box-rim - 0.2mm, dy: tab-y - tab-h / 2 + 0.25mm,
+          rect(width: g.box-rim + 0.5mm, height: tab-h - 0.5mm, fill: ps.box, stroke: none))
+      }
+      if c.back_pt != none {
+        // Set as printed battles set it: as large as the text, in grey.
+        place(top + right, dx: -g.box-rim - 0.5mm, dy: tab-y - 1.5mm,
+          text(size: 8pt, fill: luma(95), c.back_pt))
+      }
+      if c.hint != none {
+        place(bottom + left, dx: -1.2mm, dy: -0.4mm, hint-bar(c.hint, c.marker == "modal-front"))
+      }
+    }))
+    if c.corner != none {
+      place(top + left, dx: W - g.shield-in - 3.4mm, dy: H - g.shield-up - 3.45mm, defense-shield(c.corner))
+    }
+    place(top + left, dx: -g.band, dy: -g.top, rotate(90deg, reflow: true, footer(c.artist, card-width)))
+  })
+})
+
+#let card(c) = if c.kind == "split" { split-card(c) } else if c.kind == "battle" { battle-card(c) } else { face-card(c) }
 
 #let notice = [Unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Made with Mirage Mockery.]
 
