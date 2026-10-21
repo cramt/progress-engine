@@ -49,7 +49,7 @@ pub enum Checked {
 #[repr(u8)]
 #[facet(tag = "kind", rename_all = "camelCase")]
 pub enum Opened {
-    Form { form: Form },
+    Form { form: Box<Form> },
     Refused { message: String },
 }
 
@@ -128,7 +128,9 @@ pub fn check(text: &str) -> String {
 #[wasm_bindgen]
 pub fn form_of(text: &str) -> String {
     let opened = match Form::of(text) {
-        Ok(form) => Opened::Form { form },
+        Ok(form) => Opened::Form {
+            form: Box::new(form),
+        },
         Err(e) => Opened::Refused {
             message: format!("{e:#}"),
         },

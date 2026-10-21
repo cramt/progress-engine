@@ -77,6 +77,66 @@ fn paragraph() -> impl Strategy<Value = String> {
     prop::collection::vec(piece, 1..40).prop_map(|p| p.join(" "))
 }
 
+const NUMERALS: &[&str] = &[
+    "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII",
+];
+
+/// Rules text in each layout a card's text can ask for, numbered as the
+/// format accepts: plain paragraphs, a Saga's chapters, a Class's levels or
+/// a station card's thresholds, the last maybe with power and toughness.
+fn rules() -> impl Strategy<Value = (String, bool)> {
+    let paragraphs = |n| prop::collection::vec(paragraph(), n);
+    prop_oneof![
+        paragraphs(0..6).prop_map(|p| (p.join("\n"), false)),
+        (
+            paragraphs(0..2),
+            prop::collection::vec((1usize..4, paragraph()), 1..5),
+            paragraphs(0..2)
+        )
+            .prop_map(|(before, chapters, after)| {
+                let mut lines = before;
+                let mut next = 0;
+                for (span, text) in chapters {
+                    let numerals = &NUMERALS[next..next + span];
+                    next += span;
+                    lines.push(format!("{} — {text}", numerals.join(", ")));
+                }
+                lines.extend(after);
+                (lines.join("\n"), false)
+            }),
+        (
+            paragraphs(0..3),
+            prop::collection::vec(
+                (prop::collection::vec(symbol(), 1..4), paragraphs(0..3)),
+                1..4
+            )
+        )
+            .prop_map(|(before, levels)| {
+                let mut lines = before;
+                for (n, (cost, text)) in levels.into_iter().enumerate() {
+                    lines.push(format!("{}: Level {}", cost.concat(), n + 2));
+                    lines.extend(text);
+                }
+                (lines.join("\n"), false)
+            }),
+        (
+            paragraphs(0..3),
+            prop::collection::vec((1u32..6, paragraph(), paragraphs(0..2)), 1..4),
+            any::<bool>()
+        )
+            .prop_map(|(before, thresholds, pt)| {
+                let mut lines = before;
+                let mut at = 0;
+                for (step, first, rest) in thresholds {
+                    at += step;
+                    lines.push(format!("{at}+ | {first}"));
+                    lines.extend(rest);
+                }
+                (lines.join("\n"), pt)
+            }),
+    ]
+}
+
 fn card_toml() -> impl Strategy<Value = String> {
     (
         "[A-Z][a-z]{0,10}( [A-Z][a-z]{0,10}){0,4}",
@@ -84,10 +144,11 @@ fn card_toml() -> impl Strategy<Value = String> {
         any::<bool>(),
         prop::sample::subsequence(TYPES, 1..4),
         prop::sample::subsequence(SUBTYPES, 0..3),
-        prop::collection::vec(paragraph(), 0..6),
+        rules(),
         prop::option::of(paragraph()),
+        prop::sample::subsequence(&["W", "U", "B", "R", "G"][..], 0..3),
     )
-        .prop_map(|(name, cost, legendary, types, subtypes, rules, flavor)| {
+        .prop_map(|(name, cost, legendary, types, subtypes, (rules, station_pt), flavor, indicator)| {
             let mut type_line = String::new();
             if legendary {
                 type_line.push_str("Legendary ");
@@ -104,21 +165,27 @@ fn card_toml() -> impl Strategy<Value = String> {
                 "loyalty = \"4\"\n"
             } else if has("Battle") {
                 "defense = \"5\"\n"
+            } else if station_pt {
+                "pt = \"4/4\"\n"
             } else {
                 ""
             };
             let cost: String = cost.iter().map(|s| format!("{{{s}}}")).collect();
             let flavor = flavor.map(|f| format!("flavor = \"{f}\"\n")).unwrap_or_default();
+            let indicator = if indicator.is_empty() {
+                String::new()
+            } else {
+                format!("color_indicator = \"{}\"\n", indicator.concat())
+            };
             format!(
-                "name = \"{name}\"\ncost = \"{cost}\"\ntype = \"{type_line}\"\nrules = \"\"\"\n{}\n\"\"\"\n{flavor}{corner}",
-                rules.join("\n")
+                "name = \"{name}\"\ncost = \"{cost}\"\ntype = \"{type_line}\"\nrules = \"\"\"\n{rules}\n\"\"\"\n{flavor}{corner}{indicator}"
             )
         })
 }
 
 proptest! {
-    // A case is a Typst layout: 96 take 7s optimised, which is how the flake
-    // runs them, and two minutes at the dev profile, where 24 have to do.
+    // A case is a Typst layout: 96 take 10s optimised, which is how the flake
+    // runs them, and the dev profile is slow enough that 24 have to do (12s).
     #![proptest_config(ProptestConfig::with_cases(if cfg!(debug_assertions) { 24 } else { 96 }))]
 
     #[test]

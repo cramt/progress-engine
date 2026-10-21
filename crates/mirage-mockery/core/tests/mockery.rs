@@ -83,3 +83,24 @@ fn insight_reads_every_line_of_the_drone_or_says_where_it_stopped() {
         assert!(!u.at.is_empty());
     }
 }
+
+#[test]
+fn each_layout_the_text_asks_for_prints_on_one_page() {
+    use mockery_core::card::{Color, Colors, Frame};
+    use mockery_core::rules::Rules;
+    let open = |name: &str| Card::open(&here(&format!("tests/cards/{name}.card.toml"))).unwrap();
+    let saga = open("the-cleansing-of-shinovar");
+    let class = open("jedi-knight-class");
+    let station = open("vindicator");
+    let land = open("the-shattered-plains");
+    let kaladin = open("kaladin-herald-of-second-chances");
+    assert!(matches!(saga.rules, Rules::Saga(_)));
+    assert!(matches!(class.rules, Rules::Class(_)));
+    assert!(matches!(station.rules, Rules::Station(_)));
+    assert_eq!(land.frame(), Frame::Land(Colors::of_letters("G").unwrap()));
+    assert_eq!(kaladin.frame(), Frame::Gold);
+    assert!(kaladin.color_indicator.contains(Color::Red));
+    let cards = [saga, class, station, land, kaladin];
+    let doc = render::compile(&cards, Layout::Cards).unwrap();
+    assert_eq!(doc.pages().len(), cards.len());
+}

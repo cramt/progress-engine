@@ -26,6 +26,8 @@ pub struct Form {
     pub rules: String,
     pub flavor: String,
     pub corner: FormCorner,
+    /// The colour indicator's letters in WUBRG, like `"WR"`.
+    pub color_indicator: String,
     pub art: String,
     pub artist: String,
 }
@@ -70,6 +72,7 @@ impl Form {
             rules: raw.rules.unwrap_or_default(),
             flavor: raw.flavor.unwrap_or_default(),
             corner,
+            color_indicator: raw.color_indicator.unwrap_or_default(),
             art: raw
                 .art
                 .map(|a| a.to_string_lossy().into_owned())
@@ -100,6 +103,7 @@ impl Form {
             ("pt", pt),
             ("loyalty", loyalty),
             ("defense", defense),
+            ("color_indicator", present(&self.color_indicator)),
             ("art", present(&self.art)),
             ("artist", present(&self.artist)),
         ];
@@ -216,6 +220,21 @@ mod tests {
     }
 
     #[test]
+    fn a_colour_indicator_is_a_field_and_survives_other_edits() {
+        let text = "name = \"Kaladin\"\ntype = \"Creature — Human\"\npt = \"4/4\"\ncolor_indicator = \"WR\" # the back face's\n";
+        let mut form = Form::of(text).unwrap();
+        assert_eq!(form.color_indicator, "WR");
+        form.name = "Kaladin, Herald".into();
+        let written = form.write_into(text).unwrap();
+        assert!(
+            written.contains("color_indicator = \"WR\" # the back face's"),
+            "{written}"
+        );
+        form.color_indicator.clear();
+        assert!(!form.write_into(text).unwrap().contains("color_indicator"));
+    }
+
+    #[test]
     fn a_file_the_form_cannot_hold_is_refused() {
         assert!(
             Form::of("name = \"A\"\ntype = \"Creature\"\npt = \"1/1\"\nloyalty = \"3\"\n").is_err()
@@ -233,6 +252,7 @@ mod tests {
             flavor in "(\\PC|\n|\"){0,30}",
             power in "[0-9*+-]{0,2}",
             toughness in "[0-9*+-]{0,2}",
+            color_indicator in "[WUBRG]{0,2}",
         ) {
             let form = Form {
                 name,
@@ -241,6 +261,7 @@ mod tests {
                 rules,
                 flavor,
                 corner: FormCorner::Pt { power, toughness },
+                color_indicator,
                 art: String::new(),
                 artist: String::new(),
             };

@@ -1,0 +1,12 @@
+name = "Vindicator-Class Heavy Cruiser"
+cost = "{3}{B}{B}"
+type = "Artifact — Spacecraft"
+rules = """
+Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 7+.)
+3+ | At the beginning of combat on your turn, tap target creature an opponent controls. It doesn't untap during its controller's next untap step.
+7+ | Flying
+Whenever this Spacecraft attacks, create two 1/1 black Human Pilot creature tokens with flying that are tapped and attacking.
+"""
+flavor = "Kuat Drive Yards sold the Empire six hundred meters of reassurance."
+pt = "6/6"
+artist = "Mirage Mockery"

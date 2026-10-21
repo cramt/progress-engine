@@ -10,6 +10,7 @@ import {
   insertAt,
   SUPERTYPES,
   splitType,
+  toggleColor,
   toggleType,
   withGeneric,
 } from "./cardForm";
@@ -84,6 +85,28 @@ export function CardForm({
           value={form.typeLine}
           onChange={(e) => set("typeLine", e.target.value)}
         />
+      </fieldset>
+
+      <fieldset className="field">
+        <legend>Colour indicator</legend>
+        <div className="card-form-chips card-form-symbols">
+          {(["W", "U", "B", "R", "G"] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              title={`{${c}}`}
+              aria-pressed={form.colorIndicator.includes(c)}
+              onClick={() =>
+                set("colorIndicator", toggleColor(form.colorIndicator, c))
+              }
+            >
+              <ManaText text={`{${c}}`} />
+            </button>
+          ))}
+        </div>
+        <span className="hint">
+          Colours a card with no mana cost, like a back face
+        </span>
       </fieldset>
 
       <RulesField rules={form.rules} onChange={(r) => set("rules", r)} />

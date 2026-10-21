@@ -18,6 +18,10 @@ export interface Form {
   rules: string;
   flavor: string;
   corner: FormCorner;
+  /**
+   * The colour indicator's letters in WUBRG, like `"WR"`.
+   */
+  colorIndicator: string;
   art: string;
   artist: string;
 }

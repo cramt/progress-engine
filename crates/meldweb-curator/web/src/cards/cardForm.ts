@@ -44,6 +44,16 @@ export function dropSymbol(cost: string, index: number): string {
   return costText(costSymbols(cost).filter((_, i) => i !== index));
 }
 
+const WUBRG = ["W", "U", "B", "R", "G"] as const;
+
+/** The colour indicator with `color` in it or out of it, kept in WUBRG order. */
+export function toggleColor(indicator: string, color: string): string {
+  const has = new Set(indicator.toUpperCase());
+  if (has.has(color)) has.delete(color);
+  else has.add(color);
+  return WUBRG.filter((c) => has.has(c)).join("");
+}
+
 /** The words before the dash, in the order a type line puts them. */
 export const SUPERTYPES = ["Legendary", "Basic", "Snow", "World"] as const;
 export const CARD_TYPES = [

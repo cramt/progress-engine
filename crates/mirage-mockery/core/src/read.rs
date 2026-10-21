@@ -22,7 +22,7 @@ pub struct Reading {
 }
 
 pub fn read(card: &Card) -> Reading {
-    let text = card.rules.join("\n");
+    let text = card.rules.lines().join("\n");
     let lines = read_face(
         &Face {
             name: &card.name,

@@ -22,7 +22,7 @@ source.
 Measured in a throwaway prototype before building it (2026-10-17):
 
 - Scryfall's symbol SVGs set inline in rules text, at the text's baseline.
-- **Rules text shrinks to fit its box**, a quarter point at a time from 9pt
+- **Rules text shrinks to fit its box**, to the quarter point from 9pt
   down to a floor of 5pt, which is what printed cards do. The prototype's first
   render without this ran off the bottom of the box. The template measures the
   laid-out text against the box with `layout` and `measure`.
@@ -42,8 +42,11 @@ Measured in a throwaway prototype before building it (2026-10-17):
   check now builds both.
 - Every card the format accepts prints on one page or is refused for space,
   naming the name, the type line or the rules text: a property test over
-  generated cards (any mix of types, so a Class creature or a Saga battle too),
-  96 cases in 7 s optimised.
+  generated cards (any mix of types, so a Class creature or a Saga battle too,
+  and every layout below, colour indicators included). 96 cases took 7 s
+  optimised with plain text only; the striated layouts lay each section out
+  twice, and stepping down a quarter point at a time took that to 25 s, so the
+  size is now found by halving: 10 s.
 
 ## The card file
 
@@ -57,28 +60,81 @@ Flying
 """
 flavor = "…"
 pt = "2/3"          # or loyalty = "4", or defense = "5"
+color_indicator = "WR"  # optional: colours a card with no cost
 art = "drone.png"   # relative to this file
 artist = "…"
 ```
 
 The corner holds at most one of `pt`, `loyalty` and `defense`, and only the
-one the type line asks for: a creature or Vehicle (CR 208.1, 301.7a), a
+one the card asks for: a creature or Vehicle (CR 208.1, 301.7a), a station
+card, whose power and toughness belong to its last striation (CR 721.2b), a
 planeswalker (CR 306.5a) or a battle (CR 310.4a). A creature without `pt` is
-an error. The frame colour comes from the cost's colours (CR 105.2): two or
-more colours are gold, and none is land, artifact or colorless by the type
-line.
+an error.
+
+The frame colour comes from the cost's colours (CR 105.2) and the colour
+indicator's (CR 204.2): two or more colours are gold, and none is artifact or
+colorless by the type line. A land's frame is always a land's, tinted by its
+colours or, with none, by the coloured mana its text adds (`{T}: Add {G}.`,
+`({T}: Add {B} or {G}.)`): one colour tints it, two blend across it as a dual
+land's text box does, three or more make it gold. "Any color" names no colour
+and leaves it plain. The colour indicator is a dot left of the type line
+(CR 204.1), split corner to corner when it has more than one colour, which a
+transform card's back face will need.
+
+Text is set with curly quotes, `don't` as `don’t` and `"…"` as `“…”`; the
+file keeps what was typed.
+
+### Layouts, from what the text says
+
+`rules` stays Oracle text: paste a card's Oracle text in and it takes its
+layout from the markers in it, never from a list of frames
+(`core/src/rules.rs`). The template gets the text already read into one of:
+
+- **Plain**: one paragraph after another, art above, text below.
+- **Saga**, when a line opens with chapter numerals, `I — …` or `II, III —
+  …` (CR 714.2): the art stands down the right and the type line goes to the
+  foot (CR 714.1). The text column holds what comes before the chapters (the
+  reminder, read ahead) across its top, then a section a chapter ability with
+  its numerals as hexagons in a strip down the left, the sections sharing the
+  height left over. Lines after the last chapter are a Saga creature's other
+  abilities, set with its power and toughness in a box below the type line
+  (CR 714.1a). The chapters must count up from I with none missed and none
+  out of place.
+- **Class**, when a line is a level bar, `{2}{U}: Level 2` (CR 716.2): the
+  art stands down the left, the type line at the foot (CR 716.1). The level 1
+  section comes first, its reminder set smaller and ruled off; then each level
+  bar, its cost on the left and "Level N" on the right, over its abilities.
+  Levels count up from 2.
+- **Station**, when a line opens `3+ | …` (CR 721.2): the standard layout,
+  with each threshold a striation of the text box a step darker than the one
+  above, its number on a disc at the box's left edge, and the lines after it
+  belonging to it. What comes before the first threshold holds at all times,
+  the station keyword among it. The last striation runs to the foot of the box
+  and holds the power and toughness. Thresholds must climb.
+
+A text with the markers of more than one of these is refused. These follow
+where printed cards put chapters, levels and thresholds; the shapes, colours
+and fonts are Mockery's own frame
+([ADR-0039](../adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
+They were matched by rendering real cards' Oracle text next to their Scryfall
+images: The Eldest Reborn, History of Benalia and Summon: Bahamut; Wizard and
+Ranger Class; Exploration Broodship, Uthros Research Craft and The Eternity
+Elevator; Khalni Garden, Overgrown Tomb and Dryad Arbor.
 
 ## Next
 
 - Art cropping control (focus point), set symbol and rarity, collector line.
-- Double-faced and split layouts; saga and class frames.
+- Double-faced and split layouts. ~~Saga and class frames.~~ Done, with
+  station cards, from the text: see *Layouts, from what the text says*.
 - Insight's reminder text: a keyword Insight knows can get the reminder text
   printed beside it on request.
 - A set file: many cards, one sheet run, numbered.
 - ~~Curator: the library builds for wasm, so the browser can render a card the
   same way.~~ Done: `/cards` ([ADR-0040](../adr/0040-curator-prints-proxies-and-custom-cards-in-the-browser.md)).
-- Layouts by what a card has, never by a list of frames: chapters for a Saga,
+- ~~Layouts by what a card has, never by a list of frames: chapters for a Saga,
   levels for a Class, a corner for a creature, each placed where it fits. A
-  Class creature is levels and a corner, with no frame drawn for that pair.
+  Class creature is levels and a corner, with no frame drawn for that pair.~~
+  Done: a Class or Saga creature with nothing below its type line carries its
+  corner on the type line's end.
 - A deck with custom cards in it: Metamorph prints its real cards and Mockery
   its custom ones, on one sheet.

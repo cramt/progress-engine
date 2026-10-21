@@ -1,0 +1,7 @@
+name = "The Shattered Plains"
+type = "Land"
+rules = """
+As this land enters, you may pay 3 life. If you don't, it enters tapped.
+{T}: Add {G}.
+"""
+artist = "Mirage Mockery"

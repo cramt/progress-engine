@@ -18,7 +18,8 @@ use typst::utils::LazyHash;
 use typst::{Library, LibraryExt, World};
 pub use typst_layout::PagedDocument;
 
-use crate::card::{Card, Corner, Frame};
+use crate::card::{Card, Color, Colors, Corner, Frame};
+use crate::rules::{numeral, Rules};
 use crate::symbols::{self, file_name, runs, Run};
 
 const TEMPLATE: &str = include_str!("card.typ");
@@ -176,20 +177,43 @@ pub fn compile_with_art(
             .map(|s| symbol(s))
             .collect::<Result<Vec<_>>>()
             .with_context(|| format!("in {:?}'s cost", card.name))?;
-        let mut rules = Vec::new();
-        for paragraph in &card.rules {
-            let mut set = Vec::new();
-            for run in runs(paragraph) {
-                set.push(match run {
-                    Run::Words { text, reminder } => json!({ "text": text, "reminder": reminder }),
-                    Run::Symbol(code) => json!({
-                        "symbol": symbol(&code)
-                            .with_context(|| format!("in {:?}'s rules text", card.name))?
-                    }),
-                });
-            }
-            rules.push(set);
-        }
+        let mut set = |lines: &[String]| -> Result<Value> {
+            lines
+                .iter()
+                .map(|l| paragraph(l, &mut symbol))
+                .collect::<Result<Vec<_>>>()
+                .map(Value::from)
+                .with_context(|| format!("in {:?}'s rules text", card.name))
+        };
+        let rules = match &card.rules {
+            Rules::Plain(lines) => json!({ "kind": "plain", "lines": set(lines)? }),
+            Rules::Saga(saga) => json!({
+                "kind": "saga",
+                "before": set(&saga.before)?,
+                "chapters": saga.chapters().map(|(span, text)| Ok(json!({
+                    "numerals": span.map(numeral).collect::<Vec<_>>(),
+                    "text": set(&[text.to_string()])?,
+                }))).collect::<Result<Vec<_>>>()?,
+                "after": set(&saga.after)?,
+            }),
+            Rules::Class(class) => json!({
+                "kind": "class",
+                "before": set(&class.before)?,
+                "levels": class.levels().map(|(cost, n, text)| Ok(json!({
+                    "cost": set(&[cost.to_string()])?,
+                    "level": n,
+                    "text": set(text)?,
+                }))).collect::<Result<Vec<_>>>()?,
+            }),
+            Rules::Station(station) => json!({
+                "kind": "station",
+                "before": set(&station.before)?,
+                "thresholds": station.thresholds().map(|(at, text)| Ok(json!({
+                    "at": format!("{at}+"),
+                    "text": set(text)?,
+                }))).collect::<Result<Vec<_>>>()?,
+            }),
+        };
         let art_path = match &card.art {
             None => Value::Null,
             Some(path) => {
@@ -202,11 +226,12 @@ pub fn compile_with_art(
             }
         };
         out.push(json!({
-            "name": card.name,
+            "name": curl(&card.name),
             "cost": cost,
-            "type_line": card.type_line,
+            "type_line": curl(&card.type_line),
+            "indicator": names(card.color_indicator),
             "rules": rules,
-            "flavor": card.flavor,
+            "flavor": card.flavor.as_deref().map(curl),
             "corner": match &card.corner {
                 Corner::None => Value::Null,
                 Corner::PowerToughness { power, toughness } => json!(format!("{power}/{toughness}")),
@@ -214,15 +239,11 @@ pub fn compile_with_art(
                 Corner::Defense(d) => json!(d),
             },
             "frame": match card.frame() {
-                Frame::White => "white",
-                Frame::Blue => "blue",
-                Frame::Black => "black",
-                Frame::Red => "red",
-                Frame::Green => "green",
-                Frame::Gold => "gold",
-                Frame::Artifact => "artifact",
-                Frame::Land => "land",
-                Frame::Colorless => "colorless",
+                Frame::Mono(c) => json!({ "base": color_name(c), "tint": [] }),
+                Frame::Gold => json!({ "base": "gold", "tint": [] }),
+                Frame::Artifact => json!({ "base": "artifact", "tint": [] }),
+                Frame::Colorless => json!({ "base": "colorless", "tint": [] }),
+                Frame::Land(colors) => json!({ "base": "land", "tint": names(colors) }),
             },
             "art": art_path,
             "artist": card.artist,
@@ -252,6 +273,57 @@ pub fn compile_with_art(
     };
     let compiled = typst::compile::<PagedDocument>(&world);
     compiled.output.map_err(|errors| explain(&errors))
+}
+
+/// A paragraph as the runs the template sets, its quotes curled first so a
+/// quote beside a symbol still knows which way it faces.
+fn paragraph(line: &str, symbol: &mut impl FnMut(&str) -> Result<Value>) -> Result<Value> {
+    runs(&curl(line))
+        .into_iter()
+        .map(|run| {
+            Ok(match run {
+                Run::Words { text, reminder } => json!({ "text": text, "reminder": reminder }),
+                Run::Symbol(code) => json!({ "symbol": symbol(&code)? }),
+            })
+        })
+        .collect::<Result<Vec<_>>>()
+        .map(Value::from)
+}
+
+fn color_name(c: Color) -> &'static str {
+    match c {
+        Color::White => "white",
+        Color::Blue => "blue",
+        Color::Black => "black",
+        Color::Red => "red",
+        Color::Green => "green",
+    }
+}
+
+fn names(colors: Colors) -> Vec<&'static str> {
+    colors.ordered().into_iter().map(color_name).collect()
+}
+
+/// Straight quotes as printed cards set them: `don't` as `don’t`, and
+/// `"…"` as `“…”`. A quote opens after a space, a bracket, a dash or another
+/// opening quote, and closes (or is an apostrophe) anywhere else. The file
+/// keeps what was typed; only the print is curled.
+pub fn curl(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut before: Option<char> = None;
+    for c in text.chars() {
+        let opens = before.is_none_or(|b| b.is_whitespace() || "([{—–-“‘".contains(b));
+        let set = match c {
+            '\'' if opens => '‘',
+            '\'' => '’',
+            '"' if opens => '“',
+            '"' => '”',
+            c => c,
+        };
+        out.push(set);
+        before = Some(set);
+    }
+    out
 }
 
 fn explain<'a>(errors: impl IntoIterator<Item = &'a SourceDiagnostic>) -> anyhow::Error {
@@ -284,4 +356,19 @@ pub fn png(doc: &PagedDocument, page: usize, ppi: f32) -> Result<Vec<u8>> {
     pixmap
         .encode_png()
         .map_err(|e| anyhow!("encoding png: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::curl;
+
+    #[test]
+    fn quotes_curl_the_way_they_face() {
+        assert_eq!(curl("you don't control"), "you don’t control");
+        assert_eq!(curl("it has \"{T}: Add {G}.\""), "it has “{T}: Add {G}.”");
+        assert_eq!(
+            curl("\"Say 'no' twice.\" —Ajani's rule"),
+            "“Say ‘no’ twice.” —Ajani’s rule"
+        );
+    }
 }

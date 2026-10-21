@@ -3,8 +3,10 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use facet::Facet;
+
+pub use crate::rules::Rules;
 
 /// The file as written, before any of it is checked against the rest.
 #[derive(Facet)]
@@ -26,6 +28,8 @@ pub(crate) struct RawCard {
     #[facet(default)]
     pub(crate) defense: Option<String>,
     #[facet(default)]
+    pub(crate) color_indicator: Option<String>,
+    #[facet(default)]
     pub(crate) art: Option<PathBuf>,
     #[facet(default)]
     pub(crate) artist: Option<String>,
@@ -43,8 +47,10 @@ pub struct Card {
     /// The mana cost's symbols, each without its braces: `["2", "U", "U/P"]`.
     pub cost: Vec<String>,
     pub type_line: String,
-    /// The rules text, one paragraph per line, as Oracle text is laid out.
-    pub rules: Vec<String>,
+    /// The rules text, read into the layout it asks for.
+    pub rules: Rules,
+    /// The colour indicator by the type line (CR 204.1), empty for none.
+    pub color_indicator: Colors,
     pub flavor: Option<String>,
     pub corner: Corner,
     /// Resolved against the card file's directory.
@@ -53,9 +59,10 @@ pub struct Card {
 }
 
 /// What the bottom-right corner prints. One of these at most, and only the one
-/// the type line asks for: a creature or Vehicle has power and toughness
-/// (CR 208.1, 301.7a), a planeswalker loyalty (CR 306.5a), a battle defense
-/// (CR 310.4a).
+/// the card asks for: a creature or Vehicle has power and toughness
+/// (CR 208.1, 301.7a), and so does a station card in the striation where it
+/// becomes a creature (CR 721.2b); a planeswalker loyalty (CR 306.5a), a battle
+/// defense (CR 310.4a).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Corner {
     None,
@@ -64,18 +71,119 @@ pub enum Corner {
     Defense(String),
 }
 
-/// The frame's colour, from the colours of the mana cost (CR 105.2).
+/// The frame: the colours of the mana cost (CR 105.2) and the colour
+/// indicator (CR 204.2). A land's frame is a land's, tinted by its colours or,
+/// with none, by the colours of mana it adds, as printed lands are.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Frame {
+    Mono(Color),
+    Gold,
+    Artifact,
+    Colorless,
+    Land(Colors),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Color {
     White,
     Blue,
     Black,
     Red,
     Green,
-    Gold,
-    Artifact,
-    Land,
-    Colorless,
+}
+
+impl Color {
+    pub const ALL: [Color; 5] = [
+        Color::White,
+        Color::Blue,
+        Color::Black,
+        Color::Red,
+        Color::Green,
+    ];
+
+    pub fn letter(self) -> char {
+        match self {
+            Color::White => 'W',
+            Color::Blue => 'U',
+            Color::Black => 'B',
+            Color::Red => 'R',
+            Color::Green => 'G',
+        }
+    }
+
+    pub fn of_letter(c: char) -> Option<Self> {
+        Color::ALL.into_iter().find(|k| k.letter() == c)
+    }
+
+    fn bit(self) -> u8 {
+        1 << Color::ALL.iter().position(|&k| k == self).expect("in ALL")
+    }
+}
+
+/// A set of colours.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Colors(u8);
+
+impl Colors {
+    /// `"WR"`: each of W, U, B, R and G at most once.
+    pub fn of_letters(letters: &str) -> Result<Self> {
+        let mut out = Colors::default();
+        for c in letters.chars().filter(|c| !c.is_whitespace()) {
+            let Some(color) = Color::of_letter(c.to_ascii_uppercase()) else {
+                bail!("a colour is one of W, U, B, R and G, not {c:?}");
+            };
+            if out.contains(color) {
+                bail!("{c} twice in {letters:?}");
+            }
+            out.insert(color);
+        }
+        Ok(out)
+    }
+
+    pub fn insert(&mut self, c: Color) {
+        self.0 |= c.bit();
+    }
+
+    pub fn contains(self, c: Color) -> bool {
+        self.0 & c.bit() != 0
+    }
+
+    pub fn union(self, other: Colors) -> Colors {
+        Colors(self.0 | other.0)
+    }
+
+    pub fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    pub fn len(self) -> usize {
+        self.0.count_ones() as usize
+    }
+
+    /// In the order a pair is printed, as hybrid symbols and dual lands are:
+    /// W/U, U/B, B/R, R/G, G/W and W/B, U/R, B/G, R/W, G/U. Otherwise WUBRG.
+    pub fn ordered(self) -> Vec<Color> {
+        let all: Vec<Color> = Color::ALL
+            .into_iter()
+            .filter(|&c| self.contains(c))
+            .collect();
+        match all.as_slice() {
+            [Color::White, Color::Green] => vec![Color::Green, Color::White],
+            [Color::White, Color::Red] => vec![Color::Red, Color::White],
+            [Color::Blue, Color::Green] => vec![Color::Green, Color::Blue],
+            _ => all,
+        }
+    }
+
+    fn of_symbols<'a>(symbols: impl IntoIterator<Item = &'a str>) -> Colors {
+        let mut out = Colors::default();
+        for s in symbols {
+            for c in s.chars().filter_map(Color::of_letter) {
+                out.insert(c);
+            }
+        }
+        out
+    }
 }
 
 impl Card {
@@ -89,6 +197,17 @@ impl Card {
     pub fn parse(text: &str, dir: &Path) -> Result<Self> {
         let raw = RawCard::parse(text)?;
         let has = |word: &str| raw.type_line.split_whitespace().any(|w| w == word);
+        let rules = Rules::parse(
+            raw.rules
+                .as_deref()
+                .unwrap_or_default()
+                .lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty())
+                .map(String::from)
+                .collect(),
+        )?;
+        let stationed = matches!(rules, Rules::Station(_));
         let corner = match (raw.pt, raw.loyalty, raw.defense) {
             (None, None, None) => Corner::None,
             (Some(pt), None, None) => {
@@ -106,7 +225,9 @@ impl Card {
         };
         let wanted = match &corner {
             Corner::None => None,
-            Corner::PowerToughness { .. } => Some(("pt", has("Creature") || has("Vehicle"))),
+            Corner::PowerToughness { .. } => {
+                Some(("pt", has("Creature") || has("Vehicle") || stationed))
+            }
             Corner::Loyalty(_) => Some(("loyalty", has("Planeswalker"))),
             Corner::Defense(_) => Some(("defense", has("Battle"))),
         };
@@ -126,14 +247,11 @@ impl Card {
             },
             name: raw.name,
             type_line: raw.type_line,
-            rules: raw
-                .rules
-                .unwrap_or_default()
-                .lines()
-                .map(str::trim)
-                .filter(|l| !l.is_empty())
-                .map(String::from)
-                .collect(),
+            rules,
+            color_indicator: match raw.color_indicator {
+                Some(c) => Colors::of_letters(&c).map_err(|e| anyhow!("color_indicator: {e}"))?,
+                None => Colors::default(),
+            },
             flavor: raw.flavor,
             corner,
             art: raw.art.map(|a| dir.join(a)),
@@ -142,25 +260,39 @@ impl Card {
     }
 
     pub fn frame(&self) -> Frame {
-        let mut colors: Vec<char> = Vec::new();
-        for s in &self.cost {
-            for c in s.chars().filter(|c| "WUBRG".contains(*c)) {
-                if !colors.contains(&c) {
-                    colors.push(c);
-                }
-            }
+        let colors =
+            Colors::of_symbols(self.cost.iter().map(String::as_str)).union(self.color_indicator);
+        let has = |word: &str| self.type_line.split_whitespace().any(|w| w == word);
+        if has("Land") {
+            return Frame::Land(if colors.is_empty() {
+                self.mana_made()
+            } else {
+                colors
+            });
         }
-        match colors.as_slice() {
-            [] if self.type_line.contains("Land") => Frame::Land,
-            [] if self.type_line.contains("Artifact") => Frame::Artifact,
+        match colors.ordered().as_slice() {
+            [] if has("Artifact") => Frame::Artifact,
             [] => Frame::Colorless,
-            ['W'] => Frame::White,
-            ['U'] => Frame::Blue,
-            ['B'] => Frame::Black,
-            ['R'] => Frame::Red,
-            ['G'] => Frame::Green,
+            [one] => Frame::Mono(*one),
             _ => Frame::Gold,
         }
+    }
+
+    /// The colours of mana the rules text adds: the symbols after "Add" up to
+    /// the end of its sentence, in `{T}: Add {G}.` and `({T}: Add {B} or {G}.)`.
+    fn mana_made(&self) -> Colors {
+        let mut out = Colors::default();
+        for line in self.rules.lines() {
+            for (i, _) in line.match_indices("Add ") {
+                let sentence = line[i..].split('.').next().unwrap_or_default();
+                let symbols = sentence
+                    .split('{')
+                    .skip(1)
+                    .filter_map(|s| s.split_once('}').map(|(sym, _)| sym));
+                out = out.union(Colors::of_symbols(symbols));
+            }
+        }
+        out
     }
 }
 
@@ -202,7 +334,10 @@ pt = "2/3"
         )
         .unwrap();
         assert_eq!(card.cost, ["2", "U", "U/P"]);
-        assert_eq!(card.rules, ["Flying", "{1}{U}, {T}: Scry 1."]);
+        assert_eq!(
+            card.rules,
+            Rules::Plain(vec!["Flying".into(), "{1}{U}, {T}: Scry 1.".into()])
+        );
         assert_eq!(
             card.corner,
             Corner::PowerToughness {
@@ -210,7 +345,7 @@ pt = "2/3"
                 toughness: "3".into()
             }
         );
-        assert_eq!(card.frame(), Frame::Blue);
+        assert_eq!(card.frame(), Frame::Mono(Color::Blue));
     }
 
     #[test]
@@ -238,7 +373,53 @@ pt = "2/3"
         assert_eq!(frame("{1}{W}{U}", "Instant"), Frame::Gold);
         assert_eq!(frame("{W/U}", "Instant"), Frame::Gold);
         assert_eq!(frame("{3}", "Artifact"), Frame::Artifact);
-        assert_eq!(frame("{R/P}", "Instant"), Frame::Red);
+        assert_eq!(frame("{R/P}", "Instant"), Frame::Mono(Color::Red));
+    }
+
+    #[test]
+    fn a_spacecraft_prints_the_pt_it_has_at_its_threshold() {
+        // Exploration Broodship prints 4/4 (CR 721.2b).
+        let broodship = "name = \"x\"\ncost = \"{G}\"\ntype = \"Artifact — Spacecraft\"\npt = \"4/4\"\nrules = \"\"\"\nStation (Tap another creature you control.)\n3+ | You may play an additional land on each of your turns.\n8+ | Flying\n\"\"\"";
+        assert!(parse(broodship).is_ok());
+        let unstationed = "name = \"x\"\ntype = \"Artifact — Spacecraft\"\npt = \"4/4\"";
+        assert!(parse(unstationed).is_err());
+    }
+
+    #[test]
+    fn a_colour_indicator_colours_a_card_with_no_cost() {
+        let card = |indicator: &str| {
+            parse(&format!(
+                "name = \"x\"\ntype = \"Creature — Human\"\npt = \"4/4\"\ncolor_indicator = \"{indicator}\""
+            ))
+        };
+        assert_eq!(card("G").unwrap().frame(), Frame::Mono(Color::Green));
+        assert_eq!(card("WR").unwrap().frame(), Frame::Gold);
+        assert!(card("WW").is_err());
+        assert!(card("K").is_err());
+    }
+
+    #[test]
+    fn a_land_is_tinted_by_the_mana_it_adds() {
+        let land = |rules: &str| {
+            parse(&format!(
+                "name = \"x\"\ntype = \"Land\"\nrules = \"\"\"\n{rules}\n\"\"\""
+            ))
+            .unwrap()
+            .frame()
+        };
+        let colors = |l: &str| Colors::of_letters(l).unwrap();
+        assert_eq!(land("{T}: Add {G}."), Frame::Land(colors("G")));
+        assert_eq!(
+            land("({T}: Add {B} or {G}.)\nAs this land enters, you may pay 2 life."),
+            Frame::Land(colors("BG"))
+        );
+        assert_eq!(land("{T}: Add {C}."), Frame::Land(colors("")));
+        // Gemstone Caverns: "any color" names no colour.
+        assert_eq!(
+            land("{T}: Add {C}. If this land has a luck counter on it, instead add one mana of any color."),
+            Frame::Land(colors(""))
+        );
+        assert_eq!(colors("WG").ordered(), [Color::Green, Color::White]);
     }
 
     #[test]

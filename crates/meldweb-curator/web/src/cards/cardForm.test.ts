@@ -5,6 +5,7 @@ import {
   dropSymbol,
   genericOf,
   insertAt,
+  toggleColor,
   toggleType,
   withGeneric,
 } from "./cardForm";
@@ -50,5 +51,13 @@ describe("the rules text's symbol buttons", () => {
       text: "Pay {T}: draw",
       caret: 7,
     });
+  });
+});
+
+describe("the form's colour indicator buttons", () => {
+  it("toggle a colour, keeping WUBRG order", () => {
+    expect(toggleColor("", "R")).toBe("R");
+    expect(toggleColor("R", "W")).toBe("WR");
+    expect(toggleColor("WR", "R")).toBe("W");
   });
 });

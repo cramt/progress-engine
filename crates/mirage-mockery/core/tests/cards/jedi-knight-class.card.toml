@@ -1,0 +1,12 @@
+name = "Jedi Knight Class"
+cost = "{1}{W}"
+type = "Enchantment — Class"
+rules = """
+(Gain the next level as a sorcery to add its ability.)
+At the beginning of combat on your turn, target creature you control gains first strike until end of turn.
+{2}{W}: Level 2
+When this Class becomes level 2, create a 2/2 white Human Knight creature token with vigilance.
+{3}{W}: Level 3
+Knights you control get +1/+1 and have ward {2}.
+"""
+artist = "Mirage Mockery"

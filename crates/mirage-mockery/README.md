@@ -25,15 +25,20 @@ whether a card is a real one: that refusal was dropped, as more nuisance than
 safeguard
 ([ADR-0039](../../docs/adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
 
-The card format, the layout and what comes next are in
-[docs/research/mirage-mockery.md](../../docs/research/mirage-mockery.md). An
-example card is in `core/tests/cards/`.
+A card's layout comes from its Oracle text: chapter lines make a Saga, level
+bars a Class, station thresholds a Spacecraft's striations, each refused when
+numbered out of order. A `color_indicator` colours a card with no cost, and a
+colourless land is tinted by the mana it adds.
+
+The card format, the layouts and what comes next are in
+[docs/research/mirage-mockery.md](../../docs/research/mirage-mockery.md).
+Example cards, one per layout, are in `core/tests/cards/`.
 
 ## In Curator
 
 Meldweb Curator's `/cards` page edits `cards/*.card.toml` in the Magic repo
 beside the card drawn from it, and prints a sheet of them. A card is edited
-as a form, with buttons for its cost, types and symbols, or as the TOML
+as a form, with buttons for its cost, types, colour indicator and symbols, or as the TOML
 itself, switching freely: the file is the only state, and `core/src/form.rs`
 reads the form out of it and writes edits back in place, so comments and
 order survive. That is the third crate, `mockery-wasm`, its own module so no
