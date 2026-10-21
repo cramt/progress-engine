@@ -29,6 +29,9 @@ const HYBRID = [
   "G/U",
 ];
 const PHYREXIAN = ["W/P", "U/P", "B/P", "R/P", "G/P"];
+const HYBRID_PHYREXIAN = HYBRID.map((h) => `${h}/P`);
+const TWOBRID = ["2/W", "2/U", "2/B", "2/R", "2/G"];
+const COLORLESS_HYBRID = ["C/W", "C/U", "C/B", "C/R", "C/G"];
 const RULES_SYMBOLS = ["T", "Q", "W", "U", "B", "R", "G", "C", "X", "E"];
 const CORNERS: readonly { kind: FormCorner["kind"]; label: string }[] = [
   { kind: "none", label: "None" },
@@ -182,7 +185,13 @@ function CostField({
       <details className="card-form-more">
         <summary>Hybrid and Phyrexian</summary>
         <SymbolButtons
-          symbols={[...HYBRID, ...PHYREXIAN]}
+          symbols={[
+            ...HYBRID,
+            ...TWOBRID,
+            ...COLORLESS_HYBRID,
+            ...PHYREXIAN,
+            ...HYBRID_PHYREXIAN,
+          ]}
           onPick={(s) => onChange(addSymbol(cost, s))}
         />
       </details>
