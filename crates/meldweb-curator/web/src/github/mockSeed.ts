@@ -1,14 +1,17 @@
-// The committed decks, a small collection and four of Mirage Mockery's example
-// custom cards, one double-faced, one with an Adventure and one with a
-// prepare spell, as the mock Magic repo starts
-// in dev. Imported only when VITE_MOCK_GITHUB is set, so the real build does
+// The committed decks, a small collection and Mirage Mockery's example custom
+// cards of every layout, the sideways ones among them, as the mock Magic repo
+// starts in dev. Imported only when VITE_MOCK_GITHUB is set, so the real build does
 // not carry them.
 import lantern from "../../../../../decks/lantern.deck.toml?raw";
 import loam from "../../../../../decks/loam.deck.toml?raw";
 import fabrialist from "../../../../mirage-mockery/core/tests/cards/ardent-fabrialist.card.toml?raw";
+import gemhearts from "../../../../mirage-mockery/core/tests/cards/chasm-run-gemhearts.card.toml?raw";
 import smuggler from "../../../../mirage-mockery/core/tests/cards/corellian-smuggler.card.toml?raw";
+import compactor from "../../../../mirage-mockery/core/tests/cards/detention-block-trash-compactor.card.toml?raw";
+import forcePush from "../../../../mirage-mockery/core/tests/cards/force-push-force-pull.card.toml?raw";
 import squire from "../../../../mirage-mockery/core/tests/cards/herdazian-squire.card.toml?raw";
 import drone from "../../../../mirage-mockery/core/tests/cards/proofsheet-drone.card.toml?raw";
+import narak from "../../../../mirage-mockery/core/tests/cards/siege-of-narak.card.toml?raw";
 import skybreaker from "../../../../mirage-mockery/core/tests/cards/skybreaker-initiate.card.toml?raw";
 import shinovar from "../../../../mirage-mockery/core/tests/cards/the-cleansing-of-shinovar.card.toml?raw";
 import {
@@ -31,6 +34,10 @@ export const files: Record<string, string> = {
   "cards/ardent-fabrialist.card.toml": fabrialist,
   "cards/herdazian-squire.card.toml": squire,
   "cards/corellian-smuggler.card.toml": smuggler,
+  "cards/force-push-force-pull.card.toml": forcePush,
+  "cards/chasm-run-gemhearts.card.toml": gemhearts,
+  "cards/detention-block-trash-compactor.card.toml": compactor,
+  "cards/siege-of-narak.card.toml": narak,
   "collection.toml": `cards = [
   { printing = "moc/94", at = "Lantern" },  # Rashmi and Ragavan
   { name = "Sol Ring", qty = 3, at = "Bulk" },

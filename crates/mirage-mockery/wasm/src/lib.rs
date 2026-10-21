@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
 use facet::Facet;
-use mockery_core::card::Card;
+use mockery_core::card::{Card, Reading};
 use mockery_core::form::{Form, Parts, Side};
 use mockery_core::read::read;
 use mockery_core::render::{self, Layout, Paper, Sheet};
@@ -56,6 +56,9 @@ pub struct Image {
     /// The form's part: 0 the top level, 1 the second table, 2 a meld
     /// pair's `[melded]` card.
     pub part: u32,
+    /// How it is read: the PNG is always the portrait card, and the preview
+    /// turns the ones read on their side.
+    pub reading: Reading,
 }
 
 fn images_of(card: &Card) -> Vec<Image> {
@@ -72,9 +75,11 @@ fn images_of(card: &Card) -> Vec<Image> {
     };
     images
         .iter()
-        .map(|&(label, part)| Image {
+        .zip(card.readings())
+        .map(|(&(label, part), reading)| Image {
             label: label.into(),
             part,
+            reading,
         })
         .collect()
 }
@@ -410,5 +415,49 @@ mod tests {
         assert!(melded.ends_with(r#","parts":"meld"}"#), "{melded}");
         let back = render_png(SMUGGLER, "[]", &[], &[], 3, 72.0).unwrap_or_else(|_| panic!());
         assert_eq!(&back[1..4], b"PNG");
+    }
+
+    #[test]
+    fn each_image_says_which_way_it_is_read() {
+        use mockery_core::card::Turn::{Anticlockwise, Clockwise};
+        use Reading::*;
+        let readings = |text: &str| match check_text(text) {
+            Checked::Card { images, .. } => {
+                let card = parse(text).unwrap();
+                let doc = render::compile(std::slice::from_ref(&card), Layout::Cards).unwrap();
+                assert_eq!(doc.pages().len(), images.len());
+                images.into_iter().map(|i| i.reading).collect::<Vec<_>>()
+            }
+            Checked::Refused { message } => panic!("{message}"),
+        };
+        let card = |name| {
+            std::fs::read_to_string(format!(
+                "{}/../core/tests/cards/{name}.card.toml",
+                env!("CARGO_MANIFEST_DIR")
+            ))
+            .unwrap()
+        };
+        let clockwise = Turned { turn: Clockwise };
+        let anticlockwise = Turned {
+            turn: Anticlockwise,
+        };
+        assert_eq!(readings(DRONE), [Upright]);
+        assert_eq!(readings(&card("herdazian-squire")), [Upright]);
+        assert_eq!(readings(&card("force-push-force-pull")), [clockwise]);
+        assert_eq!(
+            readings(&card("detention-block-trash-compactor")),
+            [clockwise]
+        );
+        assert_eq!(
+            readings(&card("chasm-run-gemhearts")),
+            [LowerTurned {
+                turn: Anticlockwise
+            }]
+        );
+        assert_eq!(readings(&card("siege-of-narak")), [clockwise, Upright]);
+        assert_eq!(
+            readings(&card("corellian-smuggler")),
+            [Upright, anticlockwise, Upright, anticlockwise]
+        );
     }
 }

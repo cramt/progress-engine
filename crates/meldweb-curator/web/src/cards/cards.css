@@ -61,11 +61,53 @@
   color: var(--muted);
 }
 
-.custom-card-preview img {
-  display: block;
-  width: 300px;
+/* A square as wide as the card is long, so a card turned on its side to read
+   it lies across it at the upright card's size, as legible, and nothing
+   around the preview moves when a card turns: its controls stand above it,
+   in a row kept for them, and a turned card leaves the square's foot empty. The PNG is always the portrait
+   card; a turned one is turned here. */
+.custom-card-preview {
+  --card-short: 300px;
+  --card-long: calc(var(--card-short) * 88 / 63);
+  width: var(--card-long);
+}
+
+.custom-card-preview-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: var(--control-h);
+  margin-bottom: 12px;
+}
+
+.custom-card-frame {
+  position: relative;
+  width: var(--card-long);
+  height: var(--card-long);
+}
+
+.custom-card-frame img {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--card-short);
+  height: var(--card-long);
+  transform: translateX(-50%);
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
+}
+
+/* Turned about its centre, then lifted to the frame's top. */
+.custom-card-frame img[data-turn] {
+  top: calc((var(--card-short) - var(--card-long)) / 2);
+}
+
+.custom-card-frame img[data-turn="clockwise"] {
+  transform: translateX(-50%) rotate(90deg);
+}
+
+.custom-card-frame img[data-turn="anticlockwise"] {
+  transform: translateX(-50%) rotate(-90deg);
 }
 
 .print-cards {
@@ -194,6 +236,6 @@
   font-size: 14px;
 }
 
-.face-picker {
+.custom-card-source .face-picker {
   margin-top: 0.6rem;
 }

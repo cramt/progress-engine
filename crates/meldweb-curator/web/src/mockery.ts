@@ -28,6 +28,7 @@ export type {
   FormCorner,
   Opened,
   Parts,
+  Reading,
   SheetCard,
 } from "./mockery.gen";
 

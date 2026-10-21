@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { GitHubApi, RepoRef } from "../github/api";
 import { besideCard } from "../github/cards";
-import { type Checked, checkCard, renderPng } from "../mockery";
+import { type Checked, checkCard, type Reading, renderPng } from "../mockery";
 import { messageOf } from "../ui/Sheet";
 
 /** Art read once a page, by repo path; null where the repo has none. */
@@ -22,9 +22,13 @@ export function artFor(
 
 export interface CardView {
   checked: Checked;
-  /** An object URL of the rendered card, or why it did not render. */
+  /**
+   * An object URL of the rendered card and how it is read, or why it did not
+   * render. The reading comes with the picture, so a card on its side is
+   * never shown turned while the upright one before it is still up.
+   */
   preview:
-    | { kind: "png"; url: string }
+    | { kind: "png"; url: string; reading: Reading }
     | { kind: "failed"; why: string }
     | null;
   /** The arts the card names, missing from the repo. */
@@ -65,16 +69,13 @@ export function useCardChecks(
       setMissingArt(missing);
       try {
         // Art the repo lacks renders as a card without it, said beside it.
-        const png = renderPng(
-          text,
-          art,
-          Math.min(face, c.images.length - 1),
-          150,
-        );
+        const shown = Math.min(face, c.images.length - 1);
+        const png = renderPng(text, art, shown, 150);
         url = URL.createObjectURL(
           new Blob([png as BlobPart], { type: "image/png" }),
         );
-        setPreview({ kind: "png", url });
+        const reading = c.images[shown]?.reading ?? { kind: "upright" };
+        setPreview({ kind: "png", url, reading });
       } catch (e) {
         setPreview({ kind: "failed", why: messageOf(e) });
       }

@@ -11,7 +11,13 @@ import {
 import { commitEdit } from "../github/repoFile";
 import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
-import { formOf, loadMockery, type Parts, writeForm } from "../mockery";
+import {
+  formOf,
+  loadMockery,
+  type Parts,
+  type Reading,
+  writeForm,
+} from "../mockery";
 import { Loading } from "../ui/Loading";
 import { messageOf, Sheet, useBusy } from "../ui/Sheet";
 import { CardForm } from "./CardForm";
@@ -176,6 +182,11 @@ function CardEditor({
     image,
   );
   const images = checked.kind === "card" ? checked.images : [];
+  // An aftermath card is held upright, the half cast from the hand readable,
+  // and turned to read the half cast from the graveyard: while the form
+  // edits that half, or when turned by hand.
+  const [turnedBy, setTurnedBy] = useState({ side, turned: side === 1 });
+  const turned = turnedBy.side === side ? turnedBy.turned : side === 1;
   const pickPart = (part: number) => {
     setFace(part);
     const shown = images.findIndex((i) => i.part === part);
@@ -269,28 +280,58 @@ function CardEditor({
         </ul>
       </div>
       <div className="custom-card-preview">
-        {preview?.kind === "png" ? (
-          <img
-            crossOrigin="anonymous"
-            src={preview.url}
-            alt={checked.kind === "card" ? checked.name : "The card"}
-          />
-        ) : preview?.kind === "failed" ? (
-          <p className="refusal">{preview.why}</p>
-        ) : null}
-        {images.length > 1 && (
-          <FacePicker
-            face={Math.min(image, images.length - 1)}
-            labels={images.map((i) => i.label)}
-            onPick={(i) => {
-              setImage(i);
-              setFace(images[i]?.part ?? 0);
-            }}
-          />
-        )}
+        <div className="custom-card-preview-controls">
+          {images.length > 1 && (
+            <FacePicker
+              face={Math.min(image, images.length - 1)}
+              labels={images.map((i) => i.label)}
+              onPick={(i) => {
+                setImage(i);
+                setFace(images[i]?.part ?? 0);
+              }}
+            />
+          )}
+          {preview?.kind === "png" &&
+            preview.reading.kind === "lowerTurned" && (
+              <button
+                type="button"
+                aria-pressed={turned}
+                onClick={() => setTurnedBy({ side, turned: !turned })}
+              >
+                {turned ? "Hold upright" : "Turn to read the bottom half"}
+              </button>
+            )}
+        </div>
+        <div className="custom-card-frame">
+          {preview?.kind === "png" ? (
+            <img
+              crossOrigin="anonymous"
+              src={preview.url}
+              alt={checked.kind === "card" ? checked.name : "The card"}
+              data-turn={turnOf(preview.reading, turned) ?? undefined}
+            />
+          ) : preview?.kind === "failed" ? (
+            <p className="refusal">{preview.why}</p>
+          ) : null}
+        </div>
       </div>
     </section>
   );
+}
+
+/**
+ * Which way the preview turns a card image so it reads upright, or null to
+ * leave it as it prints. An aftermath card turns only when `turned`.
+ */
+function turnOf(reading: Reading, turned: boolean): string | null {
+  switch (reading.kind) {
+    case "upright":
+      return null;
+    case "turned":
+      return reading.turn;
+    case "lowerTurned":
+      return turned ? reading.turn : null;
+  }
 }
 
 /**

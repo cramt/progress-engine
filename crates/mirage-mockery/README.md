@@ -115,7 +115,13 @@ writes it, `core/src/cost.rs`), types, colour indicator and symbols, or as the T
 itself (a card of two parts picks its face above the form, and a
 double-faced one below the preview too), switching freely: the file is the only state, and `core/src/form.rs`
 reads the form out of it and writes edits back in place, so comments and
-order survive. That is the third crate, `mockery-wasm`, its own module so no
+order survive. The preview turns a card read on its side so it reads upright:
+a split card, a Room and a battle's front a quarter clockwise, a meld card's
+back a quarter anticlockwise, each lying across a square as wide as the card
+is long, at the upright card's size. An aftermath card is held upright and
+turned to read its bottom half while the form edits that half, or by hand.
+Which way each image is read is `Card::readings` in `core/src/card.rs`, handed
+to the page with the image; the PNG and the sheet stay portrait. That is the third crate, `mockery-wasm`, its own module so no
 other page downloads Typst
 ([ADR-0040](../../docs/adr/0040-curator-prints-proxies-and-custom-cards-in-the-browser.md)).
 

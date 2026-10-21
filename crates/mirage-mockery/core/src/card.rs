@@ -145,6 +145,31 @@ pub enum SplitKind {
     Room { reminder: Option<String> },
 }
 
+/// How a card image is read. The image itself is always the portrait card,
+/// as it prints; a reader turns the card to read what lies on its side.
+#[derive(Debug, Clone, Copy, PartialEq, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum Reading {
+    /// Held upright, as most cards are.
+    Upright,
+    /// All of it on its side: read with the card turned this way, as a
+    /// split card, a battle's front or a meld card's back is.
+    Turned { turn: Turn },
+    /// Its top half upright and its bottom half on its side, read with the
+    /// card turned this way: an aftermath card (CR 702.127).
+    LowerTurned { turn: Turn },
+}
+
+/// Which way a card is turned a quarter to read it, as one looks down on it.
+#[derive(Debug, Clone, Copy, PartialEq, Facet)]
+#[repr(u8)]
+#[facet(rename_all = "camelCase")]
+pub enum Turn {
+    Clockwise,
+    Anticlockwise,
+}
+
 /// One face of a card, as a single-faced card is its only face.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Face {
@@ -536,6 +561,51 @@ impl Card {
             | Card::Flip { .. } => &[""],
             Card::Transform { .. } | Card::Modal { .. } => &["", "back"],
             Card::Meld { .. } => &["", "back", "counterpart", "counterpart.back"],
+        }
+    }
+
+    /// How each card image is read, in the order they print. Every image
+    /// is a portrait card; these are the ones `card.typ` draws on a card
+    /// turned on its side.
+    pub fn readings(&self) -> Vec<Reading> {
+        use Turn::*;
+        let face = |f: &Face| {
+            if f.is_battle() {
+                Reading::Turned { turn: Clockwise }
+            } else {
+                Reading::Upright
+            }
+        };
+        match self {
+            Card::Single(f) => vec![face(f)],
+            Card::Transform { front, back } | Card::Modal { front, back } => {
+                vec![face(front), face(back)]
+            }
+            // The left half stands upright on the card's top, the right on
+            // its side below it.
+            Card::Split {
+                kind: SplitKind::Aftermath,
+                ..
+            } => vec![Reading::LowerTurned {
+                turn: Anticlockwise,
+            }],
+            Card::Split { .. } => vec![Reading::Turned { turn: Clockwise }],
+            Card::Adventure { .. } | Card::Prepare { .. } | Card::Flip { .. } => {
+                vec![Reading::Upright]
+            }
+            // Eldritch Moon's backs turn the other way from a split card.
+            Card::Meld {
+                front, counterpart, ..
+            } => vec![
+                face(front),
+                Reading::Turned {
+                    turn: Anticlockwise,
+                },
+                face(counterpart),
+                Reading::Turned {
+                    turn: Anticlockwise,
+                },
+            ],
         }
     }
 

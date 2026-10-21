@@ -92,4 +92,23 @@ export interface Image {
    * pair's `[melded]` card.
    */
   part: number;
+  /**
+   * How it is read: the PNG is always the portrait card, and the preview
+   * turns the ones read on their side.
+   */
+  reading: Reading;
 }
+
+/**
+ * How a card image is read. The image itself is always the portrait card,
+ * as it prints; a reader turns the card to read what lies on its side.
+ */
+export type Reading =
+  | { kind: "upright" }
+  | { kind: "turned"; turn: Turn }
+  | { kind: "lowerTurned"; turn: Turn };
+
+/**
+ * Which way a card is turned a quarter to read it, as one looks down on it.
+ */
+export type Turn = "clockwise" | "anticlockwise";
