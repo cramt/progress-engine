@@ -16,6 +16,7 @@ import init, {
   form_of,
   render_png,
   sheet_pdf,
+  sort_cost,
   write_form,
 } from "./wasm/mockery/mockery_wasm.js";
 import packed from "./wasm/mockery/mockery_wasm_bg.wasm-gz?url";
@@ -60,6 +61,11 @@ export function loadMockery(): Promise<void> {
 
 export function checkCard(text: string): Checked {
   return JSON.parse(check(text)) as Checked;
+}
+
+/** `cost`'s symbols in the order Oracle text writes them. */
+export function sortCost(cost: string): string {
+  return sort_cost(cost);
 }
 
 /**

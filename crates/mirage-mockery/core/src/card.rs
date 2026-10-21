@@ -218,19 +218,23 @@ impl Colors {
         self.0.count_ones() as usize
     }
 
-    /// In the order a pair is printed, as hybrid symbols and dual lands are:
-    /// W/U, U/B, B/R, R/G, G/W and W/B, U/R, B/G, R/W, G/U. Otherwise WUBRG.
+    /// In the order Oracle text writes them, round the colour wheel WUBRG:
+    /// from the first of a run of neighbours (W/U, G/W, Bant's G W U, a
+    /// four-colour R G W U), or from a centre colour to its two enemies
+    /// (W/B, R/W, Jeskai's U R W). Every colour set is one or the other.
     pub fn ordered(self) -> Vec<Color> {
-        let all: Vec<Color> = Color::ALL
-            .into_iter()
-            .filter(|&c| self.contains(c))
-            .collect();
-        match all.as_slice() {
-            [Color::White, Color::Green] => vec![Color::Green, Color::White],
-            [Color::White, Color::Red] => vec![Color::Red, Color::White],
-            [Color::Blue, Color::Green] => vec![Color::Green, Color::Blue],
-            _ => all,
-        }
+        let at: Vec<usize> = (0..5).filter(|&i| self.contains(Color::ALL[i])).collect();
+        let n = at.len();
+        let neighbours: Vec<usize> = (0..n).collect();
+        let enemies: Vec<usize> = (0..n).map(|i| 2 * i).collect();
+        at.iter()
+            .find_map(|&start| {
+                let mut steps: Vec<usize> = at.iter().map(|&i| (i + 5 - start) % 5).collect();
+                steps.sort_unstable();
+                (steps == neighbours || steps == enemies)
+                    .then(|| steps.iter().map(|s| Color::ALL[(start + s) % 5]).collect())
+            })
+            .unwrap_or_default()
     }
 
     fn of_symbols<'a>(symbols: impl IntoIterator<Item = &'a str>) -> Colors {
@@ -809,7 +813,29 @@ pt = "2/3"
             land("{T}: Add {C}. If this land has a luck counter on it, instead add one mana of any color."),
             Frame::Land(colors(""))
         );
-        assert_eq!(colors("WG").ordered(), [Color::Green, Color::White]);
+        let ordered = |letters: &str| -> String {
+            colors(letters)
+                .ordered()
+                .into_iter()
+                .map(Color::letter)
+                .collect()
+        };
+        for (set, printed) in [
+            ("WG", "GW"),
+            ("WB", "WB"),
+            ("WR", "RW"),
+            ("UG", "GU"),
+            ("WUG", "GWU"),
+            ("WRG", "RGW"),
+            ("WUR", "URW"),
+            ("WBG", "WBG"),
+            ("UBG", "BGU"),
+            ("WURG", "RGWU"),
+            ("WUBRG", "WUBRG"),
+            ("", ""),
+        ] {
+            assert_eq!(ordered(set), printed, "{set}");
+        }
     }
 
     const FAR: &str = "name = \"Far\"\ncost = \"{1}{U}\"\ntype = \"Instant\"\nrules = \"\"\"\nReturn target creature to its owner's hand.\nFuse (You may cast one or both halves of this card from your hand.)\n\"\"\"\nlayout = \"split\"\n";

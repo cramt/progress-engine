@@ -4,6 +4,7 @@
 //! ([`read`]). docs/research/mirage-mockery.md is the plan.
 
 pub mod card;
+pub mod cost;
 pub mod form;
 pub mod placeholder;
 pub mod read;

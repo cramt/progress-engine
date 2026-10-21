@@ -148,6 +148,13 @@ fn side(n: u32) -> Side {
     }
 }
 
+/// `cost`'s symbols in the order Oracle text writes them, for the card form's
+/// cost buttons to add a symbol where a printed cost would have it.
+#[wasm_bindgen]
+pub fn sort_cost(cost: &str) -> String {
+    mockery_core::cost::in_order(cost)
+}
+
 /// One face of the file as the form's fields, JSON of [`Opened`]: the custom
 /// cards page edits a card either as its file or as a form, and opens the
 /// form from this. `face` 0 is the top level, 1 the `[back]`, `[right]` or

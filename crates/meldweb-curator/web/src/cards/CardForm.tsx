@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { ManaText } from "../card/ManaText";
-import type { Form, FormCorner } from "../mockery";
+import { type Form, type FormCorner, sortCost } from "../mockery";
 import {
   addSymbol,
   CARD_TYPES,
@@ -164,7 +164,7 @@ function CostField({
             type="button"
             aria-label="Less generic mana"
             disabled={generic === 0}
-            onClick={() => onChange(withGeneric(cost, generic - 1))}
+            onClick={() => onChange(sortCost(withGeneric(cost, generic - 1)))}
           >
             −
           </button>
@@ -172,14 +172,14 @@ function CostField({
           <button
             type="button"
             aria-label="More generic mana"
-            onClick={() => onChange(withGeneric(cost, generic + 1))}
+            onClick={() => onChange(sortCost(withGeneric(cost, generic + 1)))}
           >
             +
           </button>
         </div>
         <SymbolButtons
           symbols={COLOURS}
-          onPick={(s) => onChange(addSymbol(cost, s))}
+          onPick={(s) => onChange(sortCost(addSymbol(cost, s)))}
         />
       </div>
       <details className="card-form-more">
@@ -192,7 +192,7 @@ function CostField({
             ...PHYREXIAN,
             ...HYBRID_PHYREXIAN,
           ]}
-          onPick={(s) => onChange(addSymbol(cost, s))}
+          onPick={(s) => onChange(sortCost(addSymbol(cost, s)))}
         />
       </details>
       <div className="card-form-row">
