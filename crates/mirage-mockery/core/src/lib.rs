@@ -5,6 +5,7 @@
 
 pub mod card;
 pub mod form;
+pub mod placeholder;
 pub mod read;
 pub mod render;
 pub mod rules;

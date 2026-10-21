@@ -36,6 +36,13 @@ refused too; loyalty costs on a card that is no planeswalker print as plain
 lines. Ability and flavor words before a line's " — " are set in italics. A `color_indicator` colours a card with no cost, and a
 colourless land is tinted by the mana it adds.
 
+A face with no `art`, or whose art Curator does not have yet, prints a
+placeholder drawn by DiceBear (`core/src/placeholder.rs`): one of its CC0
+abstract styles (blobs, glass, shapes or waves), picked and seeded by the
+card's name so the card always draws the same one, in the card's colours. The
+Rust DiceBear core is patched to drop jsonschema's network features, which
+cannot build for wasm (`vendor/README.md`).
+
 A card of two parts declares it: `layout = "transform"` or `"modal"` with a
 `[back]` face, or `"split"` with a `[right]` half. A double-faced card is two
 card images, front and back: two pages of a PDF, `x.png` and `x.back.png`, or

@@ -19,6 +19,7 @@ use typst::{Library, LibraryExt, World};
 pub use typst_layout::PagedDocument;
 
 use crate::card::{is_fuse, Card, Color, Colors, Corner, Face, Frame};
+use crate::placeholder;
 use crate::rules::{ability_word, numeral, Ability, LoyaltyCost, Rules};
 use crate::symbols::{self, file_name, runs, Run};
 
@@ -416,16 +417,32 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
                 .with_context(|| format!("reading {:?}'s art {}", face.name, path.display()))?
                 .map(|b| (path, b)),
         };
-        let art = match bytes {
-            None => Value::Null,
-            Some((path, bytes)) => {
-                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("png");
-                let virt = format!("/art/{}.{ext}", self.arts);
-                self.arts += 1;
-                self.files.insert(id(&virt), Bytes::new(bytes));
-                json!(virt)
+        // A face with no art, or whose art the browser does not have yet,
+        // prints a placeholder drawn for it.
+        let (ext, bytes) = match bytes {
+            Some((path, bytes)) => (
+                path.extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("png")
+                    .to_string(),
+                bytes,
+            ),
+            None => {
+                let frame = face.frame();
+                let colors = match frame {
+                    Frame::Land(made) => made.ordered(),
+                    _ => face.colors().ordered(),
+                };
+                (
+                    "svg".to_string(),
+                    placeholder::art(&face.name, frame, &colors)?.into_bytes(),
+                )
             }
         };
+        let virt = format!("/art/{}.{ext}", self.arts);
+        self.arts += 1;
+        self.files.insert(id(&virt), Bytes::new(bytes));
+        let art = json!(virt);
         Ok(json!({
             "kind": "face",
             "name": curl(&face.name),

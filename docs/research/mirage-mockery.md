@@ -62,7 +62,7 @@ Flying
 flavor = "…"
 pt = "2/3"          # or loyalty = "4", or defense = "5"
 color_indicator = "WR"  # optional: colours a card with no cost
-art = "drone.png"   # relative to this file
+art = "drone.png"   # relative to this file; without it, DiceBear placeholder art
 artist = "…"
 ```
 

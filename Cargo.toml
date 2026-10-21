@@ -15,7 +15,9 @@ members = [
 # Gitaxian Probe is a workspace of its own (crates/gitaxian-probe/Cargo.toml), so
 # a plain `cargo` here resolves neither V8 nor the build-time download of
 # Delver's engine files, and the flake never sees either.
-exclude = ["crates/gitaxian-probe"]
+# vendor/ holds patched copies of crates.io crates (vendor/README.md), which are
+# neither members nor held to the workspace's lints.
+exclude = ["crates/gitaxian-probe", "vendor"]
 
 [workspace.metadata.crane]
 # crane reads the package name from the root Cargo.toml, which a virtual
@@ -49,6 +51,8 @@ flate2 = { version = "1", default-features = false, features = ["rust_backend"] 
 imbl = "7"
 ascent = { version = "0.8.1", default-features = false }
 pdf-writer = "0.15"
+dicebear-core = "=11.0.0-rc.2"
+dicebear-styles = { version = "=11.0.0-rc.3", default-features = false, features = ["blobs", "glass", "shapes", "waves"] }
 
 chip-decklist = { path = "crates/reality-chip/decklist" }
 chip-scryfall = { path = "crates/reality-chip/scryfall" }
@@ -105,3 +109,10 @@ opt-level = 1
 opt-level = 1
 [profile.dev.package.facet-json]
 opt-level = 1
+
+[patch.crates-io]
+# DiceBear's core turns jsonschema's default features on, and with them reqwest
+# and aws-lc-rs, which cannot build for wasm32; the copy turns them off and
+# changes nothing else. Remove it when dicebear-core depends on jsonschema with
+# `default-features = false` (vendor/README.md).
+dicebear-core = { path = "vendor/dicebear-core" }

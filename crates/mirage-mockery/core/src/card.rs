@@ -399,9 +399,14 @@ impl Face {
         })
     }
 
+    /// The face's colours: its cost's and its colour indicator's (CR 202.2,
+    /// 204).
+    pub fn colors(&self) -> Colors {
+        Colors::of_symbols(self.cost.iter().map(String::as_str)).union(self.color_indicator)
+    }
+
     pub fn frame(&self) -> Frame {
-        let colors =
-            Colors::of_symbols(self.cost.iter().map(String::as_str)).union(self.color_indicator);
+        let colors = self.colors();
         let has = |word: &str| self.type_line.split_whitespace().any(|w| w == word);
         if has("Land") {
             return Frame::Land(if colors.is_empty() {
