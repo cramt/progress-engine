@@ -2,10 +2,21 @@
 //!
 //! A card's layout comes from what its text says, never from a list of
 //! frames: chapter lines make a Saga's chapters (CR 714), level bars a Class's
-//! levels (CR 716), station symbols a Spacecraft's striations (CR 721). The
-//! numbering each implies is held so it cannot be out of order: a Saga's
-//! chapters are spans counted from I, a Class's levels count from 2, and a
-//! station card's thresholds only climb.
+//! levels (CR 716), station symbols a Spacecraft's striations (CR 721), and
+//! loyalty costs a planeswalker's loyalty abilities (CR 606). The numbering
+//! each implies is held so it cannot be out of order: a Saga's chapters are
+//! spans counted from I, a Class's levels count from 2, and a station card's
+//! thresholds only climb.
+//!
+//! The type line says which of those markers it has a frame for. Chapters
+//! belong to a Saga (CR 714.1) and level bars to a Class (CR 716.1), so either
+//! on a card that is not one is refused, as a power and toughness on a
+//! noncreature is: it is a type line missing its subtype far more often than
+//! a card meant that way. A loyalty ability on a card that is not a
+//! planeswalker is legal Magic ("normally, only planeswalkers have loyalty
+//! abilities", CR 606.2), and a frame with no loyalty badges prints it as the
+//! activated ability it is, so it stays a plain line. Station symbols need
+//! no type: a station card is any card printed with them (CR 702.184b).
 
 use std::num::NonZeroU8;
 
@@ -21,6 +32,76 @@ pub enum Rules {
     Saga(Saga),
     Class(Class),
     Station(Station),
+    Planeswalker(Planeswalker),
+}
+
+/// What the type line has a frame for, of the layouts rules text can ask for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Frames {
+    pub saga: bool,
+    pub class: bool,
+    pub planeswalker: bool,
+}
+
+impl Frames {
+    pub fn of(type_line: &str) -> Self {
+        let has = |word: &str| type_line.split_whitespace().any(|w| w == word);
+        Frames {
+            saga: has("Saga"),
+            class: has("Class"),
+            planeswalker: has("Planeswalker"),
+        }
+    }
+}
+
+/// A planeswalker's text box: its abilities in order, static ones printed
+/// across the box and loyalty abilities each in a band beside its cost
+/// (CR 606.2). It holds at least one loyalty ability; with none it is plain.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Planeswalker {
+    abilities: Vec<Ability>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Ability {
+    Static(Line),
+    Loyalty(LoyaltyCost, Line),
+}
+
+/// A loyalty symbol's cost: loyalty counters put on, removed, or neither
+/// (CR 606.4). Adding or removing none is `Zero`, so `+0` cannot be held.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoyaltyCost {
+    Plus(Amount),
+    Minus(Amount),
+    Zero,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Amount {
+    Number(std::num::NonZeroU32),
+    X,
+}
+
+impl std::fmt::Display for LoyaltyCost {
+    /// As Oracle text writes it, with a true minus sign: `+1`, `−X`, `0`.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let amount = |a: &Amount| match a {
+            Amount::Number(n) => n.to_string(),
+            Amount::X => "X".into(),
+        };
+        match self {
+            LoyaltyCost::Plus(a) => write!(f, "+{}", amount(a)),
+            LoyaltyCost::Minus(a) => write!(f, "\u{2212}{}", amount(a)),
+            LoyaltyCost::Zero => write!(f, "0"),
+        }
+    }
+}
+
+impl Planeswalker {
+    pub fn abilities(&self) -> &[Ability] {
+        &self.abilities
+    }
 }
 
 /// A Saga's text box: what comes before the chapters (its reminder, read
@@ -105,10 +186,45 @@ enum Marked<'a> {
     Chapter(Vec<u8>, &'a str),
     LevelBar(&'a str, u32),
     Threshold(u32, &'a str),
+    Loyalty(Result<LoyaltyCost>, &'a str),
     Plain,
 }
 
+/// `+1: …`, `−2: …`, `0: …`, `−X: …`, with Oracle's minus sign or a typed
+/// hyphen or en dash. A cost of none is written `0`; `+0` or `−0` is the
+/// marker of a loyalty ability, but one that is refused.
+fn loyalty(line: &str) -> Option<(Result<LoyaltyCost>, &str)> {
+    let (cost, text) = line.split_once(": ")?;
+    let (sign, amount) = match cost.chars().next()? {
+        '+' => (Some(true), &cost[1..]),
+        c @ ('\u{2212}' | '-' | '\u{2013}') => (Some(false), &cost[c.len_utf8()..]),
+        _ => (None, cost),
+    };
+    let amount = match amount {
+        "X" => Some(Amount::X),
+        n if !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) && !n.starts_with('0') => {
+            Some(Amount::Number(n.parse().ok()?))
+        }
+        "0" => None,
+        _ => return None,
+    };
+    let cost = match (sign, amount) {
+        (Some(true), Some(a)) => Ok(LoyaltyCost::Plus(a)),
+        (Some(false), Some(a)) => Ok(LoyaltyCost::Minus(a)),
+        (None, None) => Ok(LoyaltyCost::Zero),
+        (Some(_), None) => Err(anyhow::anyhow!(
+            "a loyalty cost of nothing is written \"0:\", not {cost:?}"
+        )),
+        // A bare number is no loyalty cost: `2: …` is not Oracle text.
+        (None, Some(_)) => return None,
+    };
+    Some((cost, text))
+}
+
 fn marked(line: &str) -> Marked<'_> {
+    if let Some((cost, text)) = loyalty(line) {
+        return Marked::Loyalty(cost, text);
+    }
     if let Some((head, text)) = line.split_once(" — ") {
         let numerals: Option<Vec<u8>> = head.split(", ").map(roman).collect();
         if let Some(numerals) = numerals {
@@ -150,20 +266,50 @@ pub(crate) fn numeral(n: u8) -> String {
 }
 
 impl Rules {
-    /// Read the lines of rules text into the layout their markers ask for.
-    pub fn parse(lines: Vec<Line>) -> Result<Self> {
-        let kinds: Vec<Marked> = lines.iter().map(|l| marked(l)).collect();
-        let saga = kinds.iter().any(|k| matches!(k, Marked::Chapter(..)));
-        let class = kinds.iter().any(|k| matches!(k, Marked::LevelBar(..)));
-        let station = kinds.iter().any(|k| matches!(k, Marked::Threshold(..)));
-        match (saga, class, station) {
-            (false, false, false) => Ok(Rules::Plain(lines)),
-            (true, false, false) => saga_of(&lines, kinds).map(Rules::Saga),
-            (false, true, false) => class_of(&lines, kinds).map(Rules::Class),
-            (false, false, true) => station_of(&lines, kinds).map(Rules::Station),
+    /// Read the lines of rules text into the layout their markers ask for,
+    /// on a card whose type line has `frames`.
+    pub fn parse(lines: Vec<Line>, frames: Frames) -> Result<Self> {
+        let mut kinds: Vec<Marked> = lines.iter().map(|l| marked(l)).collect();
+        if !frames.planeswalker {
+            for k in &mut kinds {
+                if matches!(k, Marked::Loyalty(..)) {
+                    *k = Marked::Plain;
+                }
+            }
+        }
+        let first = |want: fn(&Marked) -> bool| {
+            lines
+                .iter()
+                .zip(&kinds)
+                .find(|(_, k)| want(k))
+                .map(|(l, _)| l)
+        };
+        let saga = first(|k| matches!(k, Marked::Chapter(..)));
+        let class = first(|k| matches!(k, Marked::LevelBar(..)));
+        let station = first(|k| matches!(k, Marked::Threshold(..)));
+        let walker = first(|k| matches!(k, Marked::Loyalty(..)));
+        if let (Some(line), false) = (saga, frames.saga) {
+            bail!(
+                "{line:?} is a Saga's chapter, but the type line has no Saga: \
+                 chapters print only on a Saga's frame"
+            );
+        }
+        if let (Some(line), false) = (class, frames.class) {
+            bail!(
+                "{line:?} is a Class's level bar, but the type line has no Class: \
+                 levels print only on a Class's frame"
+            );
+        }
+        match (saga, class, station, walker) {
+            (None, None, None, None) => Ok(Rules::Plain(lines)),
+            (Some(_), None, None, None) => saga_of(&lines, kinds).map(Rules::Saga),
+            (None, Some(_), None, None) => class_of(&lines, kinds).map(Rules::Class),
+            (None, None, Some(_), None) => station_of(&lines, kinds).map(Rules::Station),
+            (None, None, None, Some(_)) => walker_of(&lines, kinds).map(Rules::Planeswalker),
             _ => bail!(
                 "rules text has the markers of more than one of a Saga's chapters, \
-                 a Class's levels and a Spacecraft's station thresholds"
+                 a Class's levels, a Spacecraft's station thresholds and a \
+                 planeswalker's loyalty abilities"
             ),
         }
     }
@@ -189,6 +335,14 @@ impl Rules {
                 }
                 out
             }
+            Rules::Planeswalker(p) => p
+                .abilities
+                .iter()
+                .map(|a| match a {
+                    Ability::Static(line) => line.clone(),
+                    Ability::Loyalty(cost, text) => format!("{cost}: {text}"),
+                })
+                .collect(),
             Rules::Station(s) => {
                 let mut out = s.before.clone();
                 for (at, text) in s.thresholds() {
@@ -300,12 +454,89 @@ fn station_of(lines: &[Line], kinds: Vec<Marked>) -> Result<Station> {
     Ok(station)
 }
 
+fn walker_of(lines: &[Line], kinds: Vec<Marked>) -> Result<Planeswalker> {
+    let abilities = lines
+        .iter()
+        .zip(kinds)
+        .map(|(line, kind)| {
+            Ok(match kind {
+                Marked::Loyalty(cost, text) => Ability::Loyalty(cost?, text.into()),
+                _ => Ability::Static(line.clone()),
+            })
+        })
+        .collect::<Result<_>>()?;
+    Ok(Planeswalker { abilities })
+}
+
+/// Words that open an ability before a long dash and are printed in
+/// italics: an ability word (CR 207.2c) or a flavor word (CR 207.2d), as
+/// `Landfall — …` and `Vicious Mockery — …` are. The CR lists ability words
+/// but not flavor words, which each set coins, so rather than a list this
+/// takes any words at a line's start before " — ", and leaves upright what
+/// printed cards set upright in that place:
+///
+/// - a keyword the CR writes with a long dash after it, as `Companion —` and
+///   `Exhaust —` are (CR 702);
+/// - anything with a symbol in it, a cost: `Prototype {2}{R} —`, spree's
+///   `+ {1} —`;
+/// - a mode's name after a bullet, `• Khans —`, which Citadel Siege prints
+///   upright;
+/// - an instruction whose options follow the dash: `Choose one — …; or …`
+///   (CR 700.2) and `… faces a villainous choice — …, or …` (CR 701.55a);
+/// - a Saga's chapter numerals, and anything not opening with a letter, as a
+///   die roll's `1 —` does.
+///
+/// Returns the words and the rest of the line from the dash on.
+pub fn ability_word(line: &str) -> Option<(&str, &str)> {
+    // The CR's own forms, `“Boast — [Cost]: [Effect]”` and the like.
+    const DASHED_KEYWORDS: &[&str] = &[
+        "Boast",
+        "Companion",
+        "Exhaust",
+        "Forecast",
+        "Max speed",
+        "Power-up",
+        "Solved",
+        "To solve",
+        "Visit",
+    ];
+    let at = line.find(" — ")?;
+    let (words, rest) = line.split_at(at);
+    let opens_with_letter = words.chars().next().is_some_and(char::is_alphabetic);
+    if !opens_with_letter
+        || words.contains(['{', '(', '"', '“'])
+        || rest.trim_start_matches(" — ").is_empty()
+        || words.starts_with("Choose ")
+        || words.ends_with("villainous choice")
+        || words.split(", ").all(|n| roman(n).is_some())
+        || DASHED_KEYWORDS
+            .iter()
+            .any(|k| words.eq_ignore_ascii_case(k))
+    {
+        return None;
+    }
+    Some((words, rest))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// On a card with every frame, as each test reads one layout.
     fn parse(text: &str) -> Result<Rules> {
-        Rules::parse(text.lines().map(String::from).collect())
+        let all = Frames {
+            saga: true,
+            class: true,
+            planeswalker: true,
+        };
+        Rules::parse(text.lines().map(String::from).collect(), all)
+    }
+
+    fn parse_on(text: &str, type_line: &str) -> Result<Rules> {
+        Rules::parse(
+            text.lines().map(String::from).collect(),
+            Frames::of(type_line),
+        )
     }
 
     const ELDEST: &str = "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)
@@ -410,6 +641,7 @@ Station (Tap another creature you control: Put charge counters equal to its powe
             "Station (x)\n3+ | a\n8+ | Flying\nb",
             "Flying\n{T}: Add {G}.",
             "Read ahead\nI, II, III — a\nIV — b\nMenace",
+            "a\n+1: b\n\u{2212}X: c\n0: d\ne",
         ] {
             assert_eq!(parse(text).unwrap().lines().join("\n"), text);
         }
@@ -424,6 +656,122 @@ Station (Tap another creature you control: Put charge counters equal to its powe
             "As long as this has 3+ counters, it has flying.",
         ] {
             assert!(matches!(parse(text).unwrap(), Rules::Plain(_)), "{text}");
+        }
+    }
+
+    #[test]
+    fn a_planeswalker_is_its_abilities_loyalty_ones_beside_their_costs() {
+        // Karn, the Great Creator's Oracle text: a static ability first.
+        let karn = "Activated abilities of artifacts your opponents control can't be activated.
++1: Until your next turn, up to one target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value.
+\u{2212}2: You may reveal an artifact card you own from outside the game or choose a face-up artifact card you own in exile. Put that card into your hand.";
+        let Rules::Planeswalker(walker) = parse_on(karn, "Legendary Planeswalker — Karn").unwrap()
+        else {
+            panic!("not a planeswalker")
+        };
+        let one = Amount::Number(1.try_into().unwrap());
+        let two = Amount::Number(2.try_into().unwrap());
+        let costs: Vec<_> = walker
+            .abilities()
+            .iter()
+            .map(|a| match a {
+                Ability::Static(_) => None,
+                Ability::Loyalty(cost, _) => Some(*cost),
+            })
+            .collect();
+        assert_eq!(
+            costs,
+            [
+                None,
+                Some(LoyaltyCost::Plus(one)),
+                Some(LoyaltyCost::Minus(two))
+            ]
+        );
+    }
+
+    #[test]
+    fn a_loyalty_cost_may_be_typed_with_a_hyphen_and_is_written_with_a_minus() {
+        // Ugin, the Spirit Dragon's −X, typed as -X.
+        let rules = parse_on(
+            "+2: Ugin deals 3 damage to any target.\n-X: Exile each permanent with mana value X or less that's one or more colors.\n0: Draw a card.",
+            "Legendary Planeswalker — Ugin",
+        )
+        .unwrap();
+        let lines = rules.lines();
+        assert!(lines[1].starts_with("\u{2212}X: Exile"), "{lines:?}");
+        assert!(lines[2].starts_with("0: Draw"));
+    }
+
+    #[test]
+    fn a_loyalty_cost_of_plus_or_minus_nothing_is_refused() {
+        let e = format!(
+            "{:#}",
+            parse_on("+0: Draw a card.", "Planeswalker — Jace").unwrap_err()
+        );
+        assert!(e.contains("written \"0:\""), "{e}");
+    }
+
+    #[test]
+    fn loyalty_abilities_on_a_card_that_is_no_planeswalker_are_plain_lines() {
+        let text = "+1: Draw a card.\n\u{2212}2: Discard a card.";
+        assert!(matches!(
+            parse_on(text, "Legendary Creature — Human Wizard").unwrap(),
+            Rules::Plain(_)
+        ));
+        // And a bare number is no cost at all.
+        assert!(matches!(
+            parse_on("2: Draw a card.", "Planeswalker — Jace").unwrap(),
+            Rules::Plain(_)
+        ));
+    }
+
+    #[test]
+    fn chapters_and_levels_need_the_type_line_that_has_their_frame() {
+        let err = |text: &str, ty: &str| format!("{:#}", parse_on(text, ty).unwrap_err());
+        assert!(err(ELDEST, "Enchantment").contains("has no Saga"));
+        assert!(err("a\n{2}{U}: Level 2\nb", "Enchantment — Aura").contains("has no Class"));
+        assert!(matches!(
+            parse_on(ELDEST, "Enchantment — Saga").unwrap(),
+            Rules::Saga(_)
+        ));
+        // A station card is any card with station symbols (CR 702.184b).
+        assert!(matches!(
+            parse_on("Station\n3+ | Flying", "Artifact").unwrap(),
+            Rules::Station(_)
+        ));
+    }
+
+    #[test]
+    fn ability_and_flavor_words_are_the_words_before_a_dash_that_are_no_keyword() {
+        fn word(line: &str) -> Option<&str> {
+            ability_word(line).map(|(w, _)| w)
+        }
+        // Lotus Cobra, Vivisection Evangelist (corrupted is not in CR
+        // 207.2c's list), Insufferable Balladeer and Kain, Traitorous
+        // Dragoon, as Scryfall has them.
+        for (line, want) in [
+            ("Landfall — Whenever a land you control enters, add one mana of any color.", "Landfall"),
+            ("Corrupted — When this creature enters, if an opponent has three or more poison counters, destroy target creature or planeswalker an opponent controls.", "Corrupted"),
+            ("Vicious Mockery — When this creature enters, target creature an opponent controls can't block this turn.", "Vicious Mockery"),
+            ("Jump — During your turn, Kain has flying.", "Jump"),
+            ("Mega Flare — This creature deals damage equal to the total mana value of other permanents you control to each opponent.", "Mega Flare"),
+            ("Descend 4 — This creature gets +1/+1.", "Descend 4"),
+        ] {
+            assert_eq!(word(line), Some(want), "{line}");
+        }
+        for line in [
+            "Companion — Each nonland card in your starting deck has a different name.",
+            "Exhaust — {4}: Draw a card.",
+            "• Khans — At the beginning of combat on your turn, put two +1/+1 counters on target creature you control.",
+            "Choose one — Noxious Hydra Breath deals 5 damage to each player; or destroy each tapped non-Head creature.",
+            "Each opponent faces a villainous choice — They lose 3 life, or you draw a card.",
+            "Prototype {2}{R} — 3/2",
+            "I, II — Draw a card.",
+            "Suspend 4—{U}",
+            "Flying",
+            "Choose one —",
+        ] {
+            assert_eq!(word(line), None, "{line}");
         }
     }
 }

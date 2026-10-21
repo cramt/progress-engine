@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, bail, Context, Result};
 use facet::Facet;
 
+use crate::rules::Frames;
 pub use crate::rules::Rules;
 
 /// One face as the file writes it: the top level is the front face (or a
@@ -344,6 +345,7 @@ impl Face {
                 .filter(|l| !l.is_empty())
                 .map(String::from)
                 .collect(),
+            Frames::of(&raw.type_line),
         )?;
         let stationed = matches!(rules, Rules::Station(_));
         let corner = match (raw.pt, raw.loyalty, raw.defense) {

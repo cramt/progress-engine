@@ -27,8 +27,11 @@ safeguard
 ([ADR-0039](../../docs/adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
 
 A card's layout comes from its Oracle text: chapter lines make a Saga, level
-bars a Class, station thresholds a Spacecraft's striations, each refused when
-numbered out of order. A `color_indicator` colours a card with no cost, and a
+bars a Class, station thresholds a Spacecraft's striations, loyalty costs a
+planeswalker's badged bands, each refused when numbered out of order.
+Chapters on a card that is no Saga and level bars on one that is no Class are
+refused too; loyalty costs on a card that is no planeswalker print as plain
+lines. Ability and flavor words before a line's " — " are set in italics. A `color_indicator` colours a card with no cost, and a
 colourless land is tinted by the mana it adds.
 
 A card of two parts declares it: `layout = "transform"` or `"modal"` with a

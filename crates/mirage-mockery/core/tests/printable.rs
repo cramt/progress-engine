@@ -81,13 +81,49 @@ const NUMERALS: &[&str] = &[
     "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII",
 ];
 
+/// What a layout needs its type line to have: chapters a Saga, level bars a
+/// Class. Loyalty abilities are drawn as bands only on a planeswalker, and a
+/// plain line anywhere else, so they need nothing.
+#[derive(Debug, Clone, Copy)]
+enum Needs {
+    Nothing,
+    Subtype(&'static str),
+}
+
+const COSTS: &[&str] = &[
+    "+1",
+    "+2",
+    "\u{2212}1",
+    "\u{2212}3",
+    "\u{2212}X",
+    "+X",
+    "0",
+    "-7",
+];
+
 /// Rules text in each layout a card's text can ask for, numbered as the
-/// format accepts: plain paragraphs, a Saga's chapters, a Class's levels or
-/// a station card's thresholds, the last maybe with power and toughness.
-fn rules() -> impl Strategy<Value = (String, bool)> {
+/// format accepts: plain paragraphs, a Saga's chapters, a Class's levels,
+/// a station card's thresholds, the last maybe with power and toughness, or
+/// loyalty abilities among static ones.
+fn rules() -> impl Strategy<Value = (String, bool, Needs)> {
     let paragraphs = |n| prop::collection::vec(paragraph(), n);
     prop_oneof![
-        paragraphs(0..6).prop_map(|p| (p.join("\n"), false)),
+        paragraphs(0..6).prop_map(|p| (p.join("\n"), false, Needs::Nothing)),
+        (
+            paragraphs(0..2),
+            prop::collection::vec((prop::sample::select(COSTS), paragraph()), 1..5),
+            paragraphs(0..2)
+        )
+            .prop_map(|(before, abilities, after)| {
+                let mut lines = before;
+                lines.extend(
+                    abilities
+                        .into_iter()
+                        .map(|(cost, text)| format!("{cost}: {text}")),
+                );
+                lines.extend(after);
+                (lines.join("\n"), false, Needs::Nothing)
+            }),
         (
             paragraphs(0..2),
             prop::collection::vec((1usize..4, paragraph()), 1..5),
@@ -102,7 +138,7 @@ fn rules() -> impl Strategy<Value = (String, bool)> {
                     lines.push(format!("{} — {text}", numerals.join(", ")));
                 }
                 lines.extend(after);
-                (lines.join("\n"), false)
+                (lines.join("\n"), false, Needs::Subtype("Saga"))
             }),
         (
             paragraphs(0..3),
@@ -117,7 +153,7 @@ fn rules() -> impl Strategy<Value = (String, bool)> {
                     lines.push(format!("{}: Level {}", cost.concat(), n + 2));
                     lines.extend(text);
                 }
-                (lines.join("\n"), false)
+                (lines.join("\n"), false, Needs::Subtype("Class"))
             }),
         (
             paragraphs(0..3),
@@ -132,7 +168,7 @@ fn rules() -> impl Strategy<Value = (String, bool)> {
                     lines.push(format!("{at}+ | {first}"));
                     lines.extend(rest);
                 }
-                (lines.join("\n"), pt)
+                (lines.join("\n"), pt, Needs::Nothing)
             }),
     ]
 }
@@ -149,7 +185,12 @@ fn face_toml() -> impl Strategy<Value = (String, String)> {
         prop::option::of(paragraph()),
         prop::sample::subsequence(&["W", "U", "B", "R", "G"][..], 0..3),
     )
-        .prop_map(|(name, cost, legendary, types, subtypes, (rules, station_pt), flavor, indicator)| {
+        .prop_map(|(name, cost, legendary, types, mut subtypes, (rules, station_pt, needs), flavor, indicator)| {
+            if let Needs::Subtype(sub) = needs {
+                if !subtypes.contains(&sub) {
+                    subtypes.push(sub);
+                }
+            }
             let mut type_line = String::new();
             if legendary {
                 type_line.push_str("Legendary ");

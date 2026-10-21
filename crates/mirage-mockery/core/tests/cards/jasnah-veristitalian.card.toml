@@ -1,0 +1,11 @@
+name = "Jasnah, Veristitalian Scholar"
+cost = "{2}{U}{B}"
+type = "Legendary Planeswalker — Jasnah"
+rules = """
+Spells your opponents cast that target Jasnah cost {2} more to cast.
++1: Draw a card, then discard a card.
+0: Target opponent reveals their hand.
+−X: Destroy target creature with mana value X.
+"""
+loyalty = "4"
+artist = "Mirage Mockery"

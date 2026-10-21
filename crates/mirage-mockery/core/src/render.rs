@@ -19,7 +19,7 @@ use typst::{Library, LibraryExt, World};
 pub use typst_layout::PagedDocument;
 
 use crate::card::{is_fuse, Card, Color, Colors, Corner, Face, Frame};
-use crate::rules::{numeral, Rules};
+use crate::rules::{ability_word, numeral, Ability, LoyaltyCost, Rules};
 use crate::symbols::{self, file_name, runs, Run};
 
 const TEMPLATE: &str = include_str!("card.typ");
@@ -384,6 +384,23 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
                     "text": set(text)?,
                 }))).collect::<Result<Vec<_>>>()?,
             }),
+            Rules::Planeswalker(walker) => json!({
+                "kind": "planeswalker",
+                "abilities": walker.abilities().iter().map(|a| Ok(match a {
+                    Ability::Static(line) => json!({ "loyalty": Value::Null, "text": set(std::slice::from_ref(line))? }),
+                    Ability::Loyalty(cost, text) => json!({
+                        "loyalty": {
+                            "cost": cost.to_string(),
+                            "sign": match cost {
+                                LoyaltyCost::Plus(_) => "plus",
+                                LoyaltyCost::Minus(_) => "minus",
+                                LoyaltyCost::Zero => "zero",
+                            },
+                        },
+                        "text": set(std::slice::from_ref(text))?,
+                    }),
+                })).collect::<Result<Vec<_>>>()?,
+            }),
             Rules::Station(station) => json!({
                 "kind": "station",
                 "before": set(&station.before)?,
@@ -423,6 +440,12 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
                 Corner::Loyalty(l) => json!(l),
                 Corner::Defense(d) => json!(d),
             },
+            "corner_kind": match &face.corner {
+                Corner::None => Value::Null,
+                Corner::PowerToughness { .. } => json!("pt"),
+                Corner::Loyalty(_) => json!("loyalty"),
+                Corner::Defense(_) => json!("defense"),
+            },
             "frame": match face.frame() {
                 Frame::Mono(c) => json!({ "base": color_name(c), "tint": [] }),
                 Frame::Gold => json!({ "base": "gold", "tint": [] }),
@@ -440,16 +463,22 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
 }
 
 /// A paragraph as the runs the template sets, its quotes curled first so a
-/// quote beside a symbol still knows which way it faces.
+/// quote beside a symbol still knows which way it faces, and an ability or
+/// flavor word opening it marked to be set in italics.
 fn paragraph(line: &str, symbol: &mut impl FnMut(&str) -> Result<Value>) -> Result<Value> {
-    runs(&curl(line))
+    let line = curl(line);
+    let (word, rest) = match ability_word(&line) {
+        Some((word, rest)) => (Some(word), rest),
+        None => (None, line.as_str()),
+    };
+    word.map(|w| Ok(json!({ "text": w, "reminder": false, "word": true })))
         .into_iter()
-        .map(|run| {
+        .chain(runs(rest).into_iter().map(|run| {
             Ok(match run {
                 Run::Words { text, reminder } => json!({ "text": text, "reminder": reminder }),
                 Run::Symbol(code) => json!({ "symbol": symbol(&code)? }),
             })
-        })
+        }))
         .collect::<Result<Vec<_>>>()
         .map(Value::from)
 }
@@ -524,7 +553,29 @@ pub fn png(doc: &PagedDocument, page: usize, ppi: f32) -> Result<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use super::curl;
+    use super::{curl, paragraph};
+    use serde_json::json;
+
+    #[test]
+    fn an_ability_word_is_its_own_run_set_in_italics() {
+        let mut no_symbol = |_: &str| unreachable!();
+        let runs = paragraph(
+            "Landfall — Whenever a land you control enters, draw a card.",
+            &mut no_symbol,
+        )
+        .unwrap();
+        assert_eq!(
+            runs[0],
+            json!({ "text": "Landfall", "reminder": false, "word": true })
+        );
+        assert_eq!(
+            runs[1]["text"],
+            " — Whenever a land you control enters, draw a card."
+        );
+        let runs = paragraph("Flying", &mut no_symbol).unwrap();
+        assert_eq!(runs.as_array().unwrap().len(), 1);
+        assert!(runs[0].get("word").is_none());
+    }
 
     #[test]
     fn quotes_curl_the_way_they_face() {

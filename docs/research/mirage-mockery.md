@@ -119,8 +119,9 @@ do.
   bar's left as printed ones are (CR 712.2a–b), with Mockery's own mark: a
   dark disc with a chevron up on the front and down on the back. A front
   whose back is a creature prints the back's power and toughness in grey
-  beside its own corner, or on its type line's end when it has none, as a
-  transforming Saga does (CR 712.2c).
+  beside its own corner (CR 712.2c). A transforming Saga, with no corner of
+  its own, prints it in its last chapter's bottom corner under the chapter
+  symbols, as Fable of the Mirror-Breaker does.
 - **Modal** (CR 712.3): marked by a tab, one chevron on the front and two on
   the back, dark on the front and light on the back (CR 712.3a–b). Each face
   has a hint bar at its foot's left about the other (CR 712.3c): its
@@ -161,8 +162,10 @@ layout from the markers in it, never from a list of frames
   …` (CR 714.2): the art stands down the right and the type line goes to the
   foot (CR 714.1). The text column holds what comes before the chapters (the
   reminder, read ahead) across its top, then a section a chapter ability with
-  its numerals as hexagons in a strip down the left, the sections sharing the
-  height left over. Lines after the last chapter are a Saga creature's other
+  its numerals as hexagons straddling the column's left edge, as printed
+  Sagas' do, the sections sharing the height left over. They used to sit in
+  a strip of their own inside the column, which cost the text 3 mm of its
+  26 mm width. Lines after the last chapter are a Saga creature's other
   abilities, set with its power and toughness in a box below the type line
   (CR 714.1a). The chapters must count up from I with none missed and none
   out of place.
@@ -171,6 +174,22 @@ layout from the markers in it, never from a list of frames
   section comes first, its reminder set smaller and ruled off; then each level
   bar, its cost on the left and "Level N" on the right, over its abilities.
   Levels count up from 2.
+- **Planeswalker**, when a planeswalker's line opens with a loyalty cost,
+  `+1: …`, `−2: …`, `0: …` or `−X: …` (CR 606.2), typed with Oracle's minus
+  sign, a hyphen or an en dash and printed with the minus sign. The standard
+  layout, its text box holding static abilities across it and each loyalty
+  ability in a band of its own, shaded in turn, with its cost on a badge
+  straddling the box's left edge and a colon after it; the bands share the
+  height left over, and the last ability makes room for the loyalty in the
+  corner beside its text rather than the box stopping short of it. The
+  badges are Mockery's own shapes: a dark plate whose top rises to a point
+  for a cost that adds loyalty, whose foot drops to one for a cost that
+  removes it, and flat for `0`. The loyalty itself is on a dark shield,
+  pointed at the foot. A cost of `+0` or `−0` is refused: Oracle writes it
+  `0`. Loyalty costs on a card that is not a planeswalker stay plain lines: a
+  loyalty ability there is legal ("normally, only planeswalkers have loyalty
+  abilities", CR 606.2), and a frame with no badges prints it as the
+  activated ability it is.
 - **Station**, when a line opens `3+ | …` (CR 721.2): the standard layout,
   with each threshold a striation of the text box a step darker than the one
   above, its number on a disc at the box's left edge, and the lines after it
@@ -178,22 +197,89 @@ layout from the markers in it, never from a list of frames
   the station keyword among it. The last striation runs to the foot of the box
   and holds the power and toughness. Thresholds must climb.
 
-A text with the markers of more than one of these is refused. These follow
+A text with the markers of more than one of these is refused, and so are
+chapters on a card whose type line has no Saga and level bars on one with no
+Class: they print only on that frame (CR 714.1, 716.1), and either on another
+card is a type line missing its subtype far more often than a card meant that
+way, as a power and toughness on a noncreature is. Station symbols need no
+type: a station card is any card printed with them (CR 702.184b). These follow
 where printed cards put chapters, levels and thresholds; the shapes, colours
 and fonts are Mockery's own frame
 ([ADR-0039](../adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
 They were matched by rendering real cards' Oracle text next to their Scryfall
 images: The Eldest Reborn, History of Benalia and Summon: Bahamut; Wizard and
 Ranger Class; Exploration Broodship, Uthros Research Craft and The Eternity
-Elevator; Khalni Garden, Overgrown Tomb and Dryad Arbor.
+Elevator; Khalni Garden, Overgrown Tomb and Dryad Arbor; Liliana of the
+Veil, Teferi, Hero of Dominaria, Chandra, Torch of Defiance, Karn, the Great
+Creator, Gideon Blackblade, Ugin, the Spirit Dragon and Minsc & Boo,
+Timeless Heroes (2026-10-21).
+
+### How big the text comes out
+
+Text in a striated layout is measured as the size most of a card's glyphs
+are set at (`core/tests/sizes.rs`, which takes any cards through
+`MOCKERY_SIZES`), over real cards' Oracle text rendered through Mockery, so a
+column's proportions are judged by the size printed text comes out at rather
+than by a test card's own length. Before and after the chapter symbols moved
+onto the column's edge (2026-10-21):
+
+| Card | Before | After |
+|---|---|---|
+| Fable of the Mirror-Breaker | 7.75pt | 7.75pt |
+| The Eldest Reborn | 8pt | 8.5pt |
+| The Akroan War | 7.75pt | 8pt |
+| Urza's Saga | 7.25pt | 7.5pt |
+| Summon: Bahamut | 7pt | 7.25pt |
+| Wizard, Ranger, Bard, Druid, Barbarian Class | 9, 8.25, 8, 7.5, 8.5pt | unchanged |
+| The Cleansing of Shinovar (test card) | 6.25pt | 6.75pt |
+| Jedi Knight Class (test card) | 8pt | 8pt |
+
+Set beside Scryfall's images at the same scale, every real Saga and Class
+above already comes out at or a little above its printed size, Libertinus
+having a smaller x-height than the printed face. The Cleansing of Shinovar is
+small because its text is half again as long as Fable's and has flavor text,
+which printed Sagas rarely carry, not because the column is narrow; the
+Classes' columns are already wider than printed ones, so they were left as
+they are. Fable keeps its 7.75pt because its last chapter now holds the
+back's power and toughness. A test holds the striated test cards above a
+floor. Planeswalkers measured the same way: Teferi, Hero of Dominaria 8.25pt,
+Ugin 8.5pt, Chandra, Torch of Defiance and Gideon Blackblade 7.5pt, Karn,
+the Great Creator 6.75pt and Minsc & Boo 6pt, the last two near their
+printed sizes too.
+
+### Ability and flavor words
+
+A line opening with words before " — " sets those words in italics, as
+printed cards set ability words (CR 207.2c, `Landfall —`) and flavor words
+(CR 207.2d, `Vicious Mockery —`, `Mega Flare —` in Summon: Bahamut's fourth
+chapter). The CR lists ability words but no flavor words, which each set
+coins, and corrupted, printed in italics, is in neither list, so the rule is
+the position rather than a list (`ability_word` in `core/src/rules.rs`),
+less what printed cards set upright there:
+
+- a keyword the CR writes with a long dash, as `Companion —` and `Exhaust —`
+  (CR 702.139a, 702.177a);
+- a cost, anything with a symbol: `Prototype {2}{R} —`, spree's `+ {1} —`;
+- a mode's name after a bullet, as Citadel Siege prints `• Khans —` upright;
+- an instruction whose options follow the dash, `Choose one — …; or …` and
+  `… faces a villainous choice — …` (CR 701.55a);
+- a Saga's chapter numerals, and anything not opening with a letter, as a
+  die roll's `1 —`.
+
+Run over every Oracle text in Scryfall's bulk data, the words this sets in
+italics are ability words, flavor words, and a handful of Un-set heads
+(`Prize —`) whose printing was not checked. Matched against Lotus Cobra,
+Insufferable Balladeer, Kain, Traitorous Dragoon, Vivisection Evangelist,
+Lutri, the Spellchaser and Citadel Siege.
 
 ## Next
 
 - Art cropping control (focus point), set symbol and rarity, collector line.
 - ~~Double-faced and split layouts.~~ Done: transform, modal and split with
   fuse, see *Cards of two parts*. Not yet: adventure, flip, meld, Rooms
-  (split with a shared type line, CR 709.5), aftermath, and a planeswalker's
-  loyalty abilities laid out as printed.
+  (split with a shared type line, CR 709.5) and aftermath. ~~A
+  planeswalker's loyalty abilities laid out as printed.~~ Done, see
+  *Planeswalker* under *Layouts*.
   ~~Saga and class frames.~~ Done, with station cards, from the text: see
   *Layouts, from what the text says*.
 - Insight's reminder text: a keyword Insight knows can get the reminder text

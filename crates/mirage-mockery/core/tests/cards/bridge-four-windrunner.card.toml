@@ -1,0 +1,11 @@
+name = "Bridge Four Windrunner"
+cost = "{1}{W}"
+type = "Creature — Human Soldier"
+rules = """
+Vigilance
+Landfall — Whenever a land you control enters, this creature gets +1/+1 until end of turn.
+Lashing — {1}{W}, {T}: Another target creature you control gains flying until end of turn.
+"""
+flavor = "Life before death."
+pt = "2/2"
+artist = "Mirage Mockery"

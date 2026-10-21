@@ -105,13 +105,20 @@ fn each_layout_the_text_asks_for_prints_on_one_page() {
     let class = single(&open("jedi-knight-class"));
     let station = single(&open("vindicator"));
     let land = single(&open("the-shattered-plains"));
+    let walker = single(&open("jasnah-veristitalian"));
+    let words = single(&open("bridge-four-windrunner"));
     assert!(matches!(saga.rules, Rules::Saga(_)));
     assert!(matches!(class.rules, Rules::Class(_)));
     assert!(matches!(station.rules, Rules::Station(_)));
+    let Rules::Planeswalker(jasnah) = &walker.rules else {
+        panic!("Jasnah is a planeswalker");
+    };
+    assert_eq!(jasnah.abilities().len(), 4);
+    assert!(matches!(words.rules, Rules::Plain(_)));
     assert_eq!(land.frame(), Frame::Land(Colors::of_letters("G").unwrap()));
     assert_eq!(kaladin.frame(), Frame::Gold);
     assert!(kaladin.color_indicator.contains(Color::Red));
-    let cards = [class, station, land].map(Card::Single);
+    let cards = [class, station, land, walker, words].map(Card::Single);
     let doc = render::compile(&cards, Layout::Cards).unwrap();
     assert_eq!(doc.pages().len(), cards.len());
 }

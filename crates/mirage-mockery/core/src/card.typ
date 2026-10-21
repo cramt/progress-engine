@@ -37,7 +37,9 @@
 
 #let paragraph(runs) = {
   for r in runs {
-    if "symbol" in r { sym(r.symbol, 0.9em) } else if r.reminder { emph(r.text) } else { r.text }
+    // An ability or flavor word opening the paragraph is italic, as is
+    // reminder text (CR 207.2a, 207.2c–d).
+    if "symbol" in r { sym(r.symbol, 0.9em) } else if r.reminder or r.at("word", default: false) { emph(r.text) } else { r.text }
   }
 }
 
@@ -139,8 +141,39 @@
 
 #let flavor-text(c) = text(style: "italic", c.flavor)
 
-#let corner-box(c, ps) = box(fill: ps.bar, stroke: 0.4pt + black, radius: 1mm, inset: (x: 2mm, y: 1mm),
-  text(weight: "bold", size: 10pt, c.corner))
+// A loyalty cost's badge (CR 606.4), Mockery's own: a dark plate whose top
+// rises to a point for a cost that adds counters, whose foot drops to one for
+// a cost that removes them, and flat for neither.
+#let loyalty-badge(cost, sign) = {
+  let (w, h, tip) = (7mm, 4.2mm, 1mm)
+  let pts = if sign == "plus" {
+    ((0mm, tip), (w / 2, 0mm), (w, tip), (w, h), (0mm, h))
+  } else if sign == "minus" {
+    ((0mm, 0mm), (w, 0mm), (w, h - tip), (w / 2, h), (0mm, h - tip))
+  } else {
+    ((0.6mm, 0mm), (w - 0.6mm, 0mm), (w, h / 2), (w - 0.6mm, h), (0.6mm, h), (0mm, h / 2))
+  }
+  box(width: w, height: h, {
+    place(polygon(fill: luma(28), stroke: 0.5pt + white, ..pts))
+    place(center + horizon, dy: if sign == "plus" { 0.3mm } else if sign == "minus" { -0.3mm } else { 0mm },
+      text(size: 7.4pt, weight: "bold", fill: white, cost))
+  })
+}
+
+// The corner: power and toughness or defense on a bar-coloured plate, and a
+// planeswalker's loyalty on a dark shield, flat at the top and pointed at the
+// foot, so loyalty never reads as a power and toughness.
+#let corner-box(c, ps) = if c.corner_kind == "loyalty" {
+  let (w, h) = (9mm, 5.6mm)
+  box(width: w, height: h, {
+    place(polygon(fill: luma(28), stroke: 0.5pt + white,
+      (0mm, 0mm), (w, 0mm), (w, h - 1.4mm), (w / 2, h), (0mm, h - 1.4mm)))
+    place(center + horizon, dy: -0.5mm, text(weight: "bold", size: 10pt, fill: white, c.corner))
+  })
+} else {
+  box(fill: ps.bar, stroke: 0.4pt + black, radius: 1mm, inset: (x: 2mm, y: 1mm),
+    text(weight: "bold", size: 10pt, c.corner))
+}
 
 // Split corner to corner, the first colour top left, as printed indicators are.
 #let indicator(colors) = circle(radius: 1.35mm, stroke: 0.4pt + black,
@@ -169,10 +202,44 @@
   let pad = 2mm
   let striated = r.kind == "station" and r.thresholds.len() > 0
   let corner-in-band = striated and c.corner != none
+  // A planeswalker's last band makes room for the loyalty beside its text,
+  // as printed ones do, rather than the whole box stopping above it.
+  let walker-corner = (r.kind == "planeswalker" and c.flavor == none and c.hint == none
+    and c.back_pt == none and r.abilities.len() > 0)
+  let bottom = if walker-corner { 1.8mm } else if (c.corner != none and not corner-in-band) or c.hint != none or c.back_pt != none { 5.4mm } else { 1.8mm }
   block(width: 100%, height: 1fr, fill: ps.box, stroke: 0.4pt + black, clip: false,
-    inset: (x: pad, top: 1.8mm, bottom: if (c.corner != none and not corner-in-band) or c.hint != none or c.back_pt != none { 5.4mm } else { 1.8mm }),
+    inset: (x: pad, top: 1.8mm, bottom: bottom),
     fit-box((sz, spare) => text-style(sz, {
-      if r.kind == "plain" { paragraphs(r.lines) } else {
+      if r.kind == "plain" { paragraphs(r.lines) } else if r.kind == "planeswalker" {
+        // Static abilities across the box; each loyalty ability a band of
+        // its own, shaded in turn, its badge straddling the box's left edge
+        // and the bands sharing the height left over, as printed
+        // planeswalkers' text boxes are (CR 606).
+        let bands = r.abilities.filter(a => a.loyalty != none).len()
+        let share = spare / calc.max(bands, 1)
+        let (badge, gap) = (7mm, 1.5mm)
+        let indent = badge / 2 + gap - pad
+        let n = 0
+        let last = r.abilities.len() - 1
+        for (i, a) in r.abilities.enumerate() {
+          let room = if i == last and walker-corner and c.corner != none { 9.5mm - pad } else { 0mm }
+          if a.loyalty == none { block(above: 1.2mm, below: 1.2mm, inset: (right: room), paragraphs(a.text)) } else {
+            let shade = if calc.rem(n, 2) == 0 { black.transparentize(93%) } else { white.transparentize(55%) }
+            n += 1
+            let band(h) = block(width: 100%, height: h, breakable: false, fill: shade,
+              // The first and last bands run to the box's edges.
+              outset: (x: pad, top: if i == 0 { 1.8mm } else { 0mm },
+                bottom: if i == last and c.flavor == none { bottom } else { 0mm }),
+              above: 0mm, below: 0mm,
+              inset: (left: indent, right: room, y: 0.8mm), {
+                place(left + horizon, dx: -indent - pad - badge / 2, loyalty-badge(a.loyalty.cost, a.loyalty.sign))
+                place(left + horizon, dx: -gap + 0.35mm, text(weight: "bold", [:]))
+                align(horizon, paragraphs(a.text))
+              })
+            layout(size => band(measure(band(auto), width: size.width).height + share))
+          }
+        }
+      } else {
         paragraphs(r.before)
         let last = r.thresholds.len() - 1
         for (i, t) in r.thresholds.enumerate() {
@@ -211,6 +278,10 @@
       fill: gradient.linear(k.darken(35%), k.lighten(10%), angle: 60deg))
   })
 
+// A transforming front's grey reminder of its back's power and toughness
+// (CR 712.2c).
+#let back-pt(c) = text(size: 6.5pt, weight: "bold", fill: luma(105), c.back_pt)
+
 // A Saga's or a Class's text column: a first section across the column, then
 // sections that share the height left over, as printed Sagas and Classes are
 // striated (CR 714.1, 716.1).
@@ -237,14 +308,30 @@
       })
     }
     if r.kind == "saga" {
-      for ch in sections {
-        fill-to(h => block(width: 100%, height: h, stroke: (top: 0.3pt + black),
-          grid(columns: (5.4mm, 1fr), rows: (if h == auto { auto } else { h },),
-            block(width: 100%, height: if h == auto { auto } else { 100% }, fill: ps.bar,
-              stroke: (right: 0.3pt + black), inset: (y: 1mm),
-              align(center + horizon, stack(spacing: 0.6mm, ..ch.numerals.map(n => chapter-mark(n, ps))))),
-            block(inset: pad, height: if h == auto { auto } else { 100% },
-              align(horizon, paragraphs(ch.text))))))
+      // The chapter symbols straddle the column's left edge, as printed
+      // Sagas' do, so the text runs from just past them. A transforming
+      // Saga's reminder of its back's power and toughness sits in the last
+      // chapter's corner under them, as Fable of the Mirror-Breaker's does
+      // (CR 712.2c), the section tall enough to hold both.
+      let back-reminder = c.back_pt != none and c.corner == none
+      let mark-w = 5.2mm
+      let into = 0.4mm
+      let text-at = mark-w / 2 + into + 0.9mm
+      let last = sections.len() - 1
+      for (i, ch) in sections.enumerate() {
+        let tail = i == last and back-reminder
+        let marks = stack(spacing: 0.6mm, ..ch.numerals.map(n => chapter-mark(n, ps)))
+        let section(h) = block(width: 100%, height: h, stroke: (top: 0.3pt + black),
+          inset: (left: text-at, top: pad.y, right: pad.y, bottom: if tail { 3mm } else { pad.y }), {
+            place(left + horizon, dx: -text-at - mark-w / 2 + into, marks)
+            if tail { place(left + bottom, dx: -text-at + 0.6mm, dy: 2.4mm, back-pt(c)) }
+            align(horizon, block(width: 100%, inset: (right: pad.x - pad.y), paragraphs(ch.text)))
+          })
+        let floor = measure(marks).height + if tail { 6mm } else { 2mm }
+        layout(size => {
+          let h = measure(block(width: size.width, section(auto))).height
+          section(calc.max(h + share, floor))
+        })
       }
     } else {
       for lv in sections {
@@ -306,9 +393,6 @@
   })
 }
 
-// A transforming front's grey reminder of its back's power and toughness
-// (CR 712.2c).
-#let back-pt(c) = text(size: 6.5pt, weight: "bold", fill: luma(105), c.back_pt)
 
 // One face's body, filling the box it is given: a card's whole face, or a
 // split card's half with `art` a share of the half rather than a length.
@@ -371,7 +455,7 @@
     let boxed = after.len() > 0
     // A transforming Saga's reminder of its back's power and toughness rides
     // on the type line's end, the corner being the back's.
-    let reminder = c.back_pt != none and c.corner == none
+    let reminder = c.back_pt != none and c.corner == none and r.kind != "saga"
     type-bar(room: if c.corner != none and not boxed { 11mm } else if reminder { 7mm } else { 0mm })
     if reminder { place(bottom + right, dx: -1.6mm, dy: -5.9mm, back-pt(c)) }
     if boxed {
@@ -381,7 +465,7 @@
           what: "the text below the type line"))
     }
     v(4.6mm)
-    if foot-right != none and not reminder {
+    if foot-right != none and not (c.back_pt != none and c.corner == none) {
       place(bottom + right, dx: 0.6mm, dy: if boxed { -2.2mm } else if c.corner != none { -4.2mm } else { -1.4mm }, foot-right)
     }
     if c.hint != none { place(bottom + left, dx: -0.6mm, dy: -0.6mm, hint-bar(c.hint, c.marker == "modal-front")) }
