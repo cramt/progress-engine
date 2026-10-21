@@ -29,6 +29,18 @@
   align-items: start;
 }
 
+/* Too narrow for the form beside the card: the card goes above it, where it
+   stays in view while the form is edited, rather than off the page's edge. */
+@media (max-width: 1080px) {
+  .custom-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .custom-card-preview {
+    order: -1;
+  }
+}
+
 .custom-card-source {
   display: flex;
   flex-direction: column;
@@ -61,10 +73,12 @@
   color: var(--muted);
 }
 
-/* A square as wide as the card is long, so a card turned on its side to read
-   it lies across it at the upright card's size, as legible, and nothing
-   around the preview moves when a card turns: its controls stand above it,
-   in a row kept for them, and a turned card leaves the square's foot empty. The PNG is always the portrait
+/* As wide as the card is long, so a card turned on its side to read it lies
+   across the frame at the upright card's size, as legible. The frame is as
+   tall as its card's images need: the card's width when every image lies on
+   its side, and otherwise its length, a square an upright card stands in and
+   one with both turns in without moving anything. Its controls
+   stand above it, in a row kept for them. The PNG is always the portrait
    card; a turned one is turned here. */
 .custom-card-preview {
   --card-short: 300px;
@@ -89,6 +103,10 @@
   position: relative;
   width: var(--card-long);
   height: var(--card-long);
+}
+
+.custom-card-frame[data-sideways] {
+  height: var(--card-short);
 }
 
 .custom-card-frame img {

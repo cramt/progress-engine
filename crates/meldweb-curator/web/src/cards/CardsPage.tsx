@@ -185,6 +185,10 @@ function CardEditor({
     image,
   );
   const images = checked.kind === "card" ? checked.images : [];
+  // Held while the text is refused, so the frame keeps its shape as you type.
+  const [sideways, setSideways] = useState(() => liesSideways(images));
+  if (images.length > 0 && liesSideways(images) !== sideways)
+    setSideways(liesSideways(images));
   // An aftermath card is held upright, the half cast from the hand readable,
   // and turned to read the half cast from the graveyard: while the form
   // edits that half, or when turned by hand.
@@ -338,7 +342,10 @@ function CardEditor({
               </button>
             )}
         </div>
-        <div className="custom-card-frame">
+        <div
+          className="custom-card-frame"
+          data-sideways={sideways || undefined}
+        >
           {preview?.kind === "png" ? (
             <img
               crossOrigin="anonymous"
@@ -363,6 +370,15 @@ function CardEditor({
       </div>
     </section>
   );
+}
+
+/**
+ * Whether every image of a card is read on its side, so the preview's frame
+ * lies landscape with no empty band under it. A card with an upright image
+ * too, or an aftermath card turned by hand, keeps a frame both fit in.
+ */
+function liesSideways(images: readonly { reading: Reading }[]): boolean {
+  return images.length > 0 && images.every((i) => i.reading.kind === "turned");
 }
 
 /**
