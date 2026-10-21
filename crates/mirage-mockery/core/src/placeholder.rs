@@ -48,7 +48,7 @@ impl Look {
         }
     }
 
-    /// The style's colour options: the first colour's dark tone behind and
+    /// The style's colour options: the darkest colour's dark tone behind and
     /// the others' over it, so every colour of a gold card shows. DiceBear
     /// picks one value of a list per layer, so a list of several colours
     /// would show one of them.
@@ -102,13 +102,25 @@ impl Tones {
     };
 }
 
+/// `#rrggbb`'s relative luminance, near enough to order tones by.
+fn luminance(hex: &str) -> u32 {
+    let channel = |i: usize| u32::from_str_radix(&hex[i..i + 2], 16).expect("a tone is #rrggbb");
+    2126 * channel(1) + 7152 * channel(3) + 722 * channel(5)
+}
+
 /// The SVG a face with no art prints, for a face named `name` with frame
 /// `frame` and colours `colors`, in WUBRG order.
 pub fn art(name: &str, frame: Frame, colors: &[Color]) -> Result<String> {
     let tones: Vec<Tones> = match (frame, colors) {
         (Frame::Land(_), []) => vec![Tones::LAND],
         (_, []) => vec![Tones::COLORLESS],
-        (_, colors) => colors.iter().copied().map(Tones::of).collect(),
+        (_, colors) => {
+            // The darkest colour goes behind: a light colour over a dark one
+            // shows, where black over blue all but vanished.
+            let mut tones: Vec<Tones> = colors.iter().copied().map(Tones::of).collect();
+            tones.sort_by_key(|t| luminance(t.deep));
+            tones
+        }
     };
     let look = Look::of(name, tones.len());
     let style =
