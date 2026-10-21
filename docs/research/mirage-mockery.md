@@ -97,7 +97,8 @@ name = "The Cleansing of Shinovar"
 cost = "{2}{R}{W}"
 type = "Enchantment — Saga"
 rules = """…IV — Exile this Saga, then return it to the battlefield transformed under your control."""
-layout = "transform"     # or "modal", with [back]; or "split", with [right]
+layout = "transform"     # or "modal", with [back]; "split", with [right];
+                         # or "adventure" or "prepare", with [spell]
 
 [back]
 name = "Kaladin, Herald of Second Chances"
@@ -107,8 +108,9 @@ rules = "Flying, vigilance\n…"
 pt = "4/4"
 ```
 
-`card.rs` holds a card as one of four shapes, a single face, a transforming
-pair, a modal pair or a split pair, so a `[back]` with no layout, a layout
+`card.rs` holds a card as one of six shapes, a single face, a transforming
+pair, a modal pair, a split pair, or a card with an Adventure or a prepare
+spell, so a `[back]` with no layout, a layout
 with no second face, or a split card's half under `[back]` (it has a card
 back) is refused by name. Each face is checked as a card is. A split card's
 halves each need a cost: every printed one has one, and the card's cost is
@@ -139,8 +141,83 @@ do.
   do. One half
   with fuse keeps it as a line of its own.
 
+- **Adventure** (CR 715) and **prepare** (CR 722): a card with a spell drawn
+  inside its text box, `layout = "adventure"` or `"prepare"` with the spell
+  in `[spell]`. The table is `[spell]` for both because the CR names both
+  the same way, an inset frame holding a spell's alternative characteristics
+  (CR 715.2, 722.2a), and because neither is a face: the card has one image
+  and one set of normal characteristics (CR 715.2c, 722.2c), so `[back]`
+  would wrongly promise a card back and `[right]` a split card's half. The
+  top level stays the card, as with every other layout. One image, printed
+  as Scryfall's images of Bonecrusher Giant, Murderous Rider, Brazen
+  Borrower, Lovestruck Beast, Giant Killer and Gingerbread Hunter, and of
+  Adventurous Eater, Blazing Firesinger, Abigale, Poet Laureate, Emeritus of
+  Ideation and Lluwen, Exchange Student (Secrets of Strixhaven, `sos`, whose
+  Scryfall layout is `prepare`) show:
+  - An Adventure opens the text box like a book (CR 715.1): its left page is
+    the Adventure, under a name bar with its cost and a type bar, each 3.8mm
+    (45 of 1040 px) across the page's top in the spell's own colour with white
+    type, the name bar lighter than the type bar, as Stomp's red, Swift End's
+    black and Chop Down's warm grey are; a spell of two colours blends them,
+    as Bring Back's does. The card's own text is the right page. The pages
+    meet at the box's middle, each shaded toward the spine.
+  - A prepare spell stands in a frame inset on the right of the box
+    (CR 722.1–722.2), the card's text on the left. Its name and type sit on
+    bars of the card's own shape, flat against the card's text and round at
+    the frame's edge, their fills 3.55mm (42 px) deep and 0.7mm apart, in the
+    spell's colour with white type, or silver for a spell of two colours as
+    Heroic Stanza's and Pest Friend's are; under them the spell's own box, a
+    shade darker than the card's, stops 3.25mm above the card's box's foot,
+    leaving the frame for the power and toughness plate.
+  - Reminder text goes where Oracle writes it, so it needs no place of its
+    own: an Adventure's "(Then exile this card…)" closes the spell's text on
+    the left page, and a prepare card's "(While it's prepared…)" follows
+    "enters prepared" or "becomes prepared" in the card's own text.
+  - Text in a half box tops out at 8.5pt, the size of the lines on the
+    printed halves that have room to spare: Lovestruck Beast's left page and
+    Adventurous Eater's and Blazing Firesinger's card text stand 32-34 px
+    apart, and ours come out 32 and 33.5 px. Bonecrusher Giant's pages,
+    printed at 31 and 27 px, come out 34 and 29 px, Libertinus being the
+    narrower face so Stomp wraps to fewer lines.
+  - The pitches and positions, fractions of the card's height at 745 by
+    1040 px:
+
+    | | Spell name bar | Spell type bar | Spell's own box | Card's box |
+    |---|---|---|---|---|
+    | Printed Adventure (Bonecrusher Giant) | 62.1–67.2% | 67.2–71.8% | page to 92.9% | 62.6–92.9% |
+    | Ours | 62.6–66.8% | 66.8–71.2% | page to 92.3% | 62.6–92.6% |
+    | Printed prepare (Adventurous Eater) | 63.3–67.3% | 68.1–72.1% | 73.1–88.6% | 62.9–92.2% |
+    | Ours | 63.2–67.0% | 68.0–71.8% | 73.0–88.7% | 62.5–92.6% |
+
+  What a card with a spell inset must be, each refused by name otherwise:
+  - The spell is an instant or a sorcery (CR 715.2, 722.3c: a copy of it is
+    cast), and an Adventure's has the Adventure subtype (CR 205.3k), as every
+    printed one's does, so pasting Oracle's `Sorcery — Adventure` is enough
+    and `Sorcery — Omen` is refused: Omen cards (CR 720) are another frame. A
+    prepare spell with the Adventure subtype is pointed at `layout =
+    "adventure"`.
+  - The spell has a cost: it is cast for it, and every printed one of the
+    186 has one.
+  - The spell has no `art`, `artist` or `color_indicator`: it is drawn in the
+    card's text box under the card's art and artist, and no printed one has
+    an indicator, so any is a mistake.
+  - Neither half is a Saga, Class, planeswalker or station layout: the two
+    share one text box and no frame has room for both.
+  - Only a permanent has a prepare spell: prepared is a permanent's
+    designation (CR 722.3a), so an instant or sorcery card with one is
+    refused. An adventurer may be any card, as Twice Upon a Time, a sorcery,
+    and the Virtues, enchantments, are.
+  - `[spell]` with `[back]` or `[right]`, `[spell]` without a layout, an
+    adventure or prepare layout without `[spell]`, and the spell under
+    `[back]` (it has no card back) are refused as the other layouts' are.
+
+  Searched on Scryfall (`layout:adventure`, 167 cards, of which 150 are
+  Adventures and 17 Omens; `set:sos layout:prepare`, 36) on 2026-10-21. No
+  printed spell half carries flavor text, so none of ours does in the test
+  cards, though the format allows it.
+
 Insight reads every face's rules text, each as its own face (CR 712.8,
-709.3b). Matched against Scryfall's images of Fable of the Mirror-Breaker,
+709.3b), and an inset spell's as the face it is while cast (CR 715.3b). Matched against Scryfall's images of Fable of the Mirror-Breaker,
 Delver of Secrets, Emeria's Call, Turntimber Symbiosis, Valki, God of Lies,
 Kazandu Mammoth, Agadeem's Awakening, Far // Away, Turn // Burn and Wear //
 Tear, with their Oracle text rendered through Mockery beside them. The face
@@ -149,7 +226,8 @@ symbols
 ([ADR-0039](../adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
 
 Curator's form edits either face: a picker above the form chooses the front
-or the back (left or right half), and writing one never touches the other or
+or the back (left or right half, or the card or its Adventure or prepare
+spell), and writing one never touches the other or
 the layout. The preview has the same picker for a double-faced card.
 
 ### Layouts, from what the text says
@@ -478,7 +556,8 @@ Lutri, the Spellchaser and Citadel Siege.
 
 - Art cropping control (focus point), set symbol and rarity, collector line.
 - ~~Double-faced and split layouts.~~ Done: transform, modal and split with
-  fuse, see *Cards of two parts*. Not yet: adventure, flip, meld, Rooms
+  fuse, and adventure and prepare, see *Cards of two parts*. Not yet: omen,
+  flip, meld, Rooms
   (split with a shared type line, CR 709.5) and aftermath. ~~A
   planeswalker's loyalty abilities laid out as printed.~~ Done, see
   *Planeswalker* under *Layouts*.

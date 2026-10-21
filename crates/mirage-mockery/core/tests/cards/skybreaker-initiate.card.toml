@@ -1,0 +1,18 @@
+name = "Skybreaker Initiate"
+cost = "{2}{W}"
+type = "Creature — Human Knight"
+rules = """
+Vigilance
+Whenever this creature attacks, if it has flying, it gets +1/+0 until end of turn.
+"""
+flavor = "The ground let go of her, and she fell up."
+pt = "2/3"
+layout = "adventure"
+
+[spell]
+name = "Full Lashing"
+cost = "{W}"
+type = "Instant — Adventure"
+rules = """
+Untap target creature you control. It gains flying until end of turn. (Then exile this card. You may cast the creature later from exile.)
+"""

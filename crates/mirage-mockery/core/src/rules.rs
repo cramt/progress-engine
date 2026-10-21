@@ -314,6 +314,11 @@ impl Rules {
         }
     }
 
+    /// Laid out in a frame of its own rather than as plain paragraphs.
+    pub fn is_framed(&self) -> bool {
+        !matches!(self, Rules::Plain(_))
+    }
+
     /// The lines as Oracle text writes them.
     pub fn lines(&self) -> Vec<Line> {
         match self {

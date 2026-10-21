@@ -323,7 +323,7 @@
 // The standard text box: plain paragraphs, or a station card's striations,
 // each threshold a band down to the next with its mark on the box's left
 // edge, and the last band holding the power and toughness (CR 721.2b).
-#let standard-text(c, ps, max: 9.5pt) = {
+#let standard-text(c, ps, max: 9.5pt, height: 1fr, fill: auto, stroke: 0.4pt + black, top: 1.8mm, clear: auto, centre-lone: true) = {
   let r = c.rules
   // Printed rules text runs to within 1mm of the box's sides.
   let pad = 1.2mm
@@ -331,16 +331,17 @@
   let corner-in-band = striated and c.corner != none
   // Clear of what stands over the box's foot: the hint bar, the power and
   // toughness plate's upper part, or a back's reminder.
-  let bottom = if c.hint != none { 4.2mm } else if c.corner != none and not corner-in-band { 3.6mm } else if c.back_pt != none { 3.2mm } else { 1.8mm }
-  block(width: 100%, height: 1fr, fill: ps.box, stroke: 0.4pt + black, clip: false,
-    inset: (x: pad, top: 1.8mm, bottom: bottom),
+  let bottom = if clear != auto { clear } else if c.hint != none { 4.2mm } else if c.corner != none and not corner-in-band { 3.6mm } else if c.back_pt != none { 3.2mm } else { 1.8mm }
+  block(width: 100%, height: height, fill: if fill == auto { ps.box } else { fill }, stroke: stroke, clip: false,
+    inset: (x: pad, top: top, bottom: bottom),
     fit-box(max: max, (sz, spare) => text-style(sz, {
       // Text that leaves room is centred in the box, as printed cards set a
       // short text; a striated box fills it instead.
       if not striated { v(spare / 2) }
       // A lone line of rules text is centred across the box, as
       // Counterspell's and Wear // Tear's are.
-      let lone = r.kind == "plain" and r.lines.len() == 1 and c.flavor == none
+      // A half box's, as Seething Song's, is set from the left.
+      let lone = centre-lone and r.kind == "plain" and r.lines.len() == 1 and c.flavor == none
       if lone { layout(room => {
         let line = paragraph(r.lines.first())
         if measure(line).width <= room.width { align(center, par(line)) } else { par(line) }
@@ -752,7 +753,9 @@
 // a half ellipse bulging out past them, under a rim in the card's colour, and
 // filled lighter at the top than the foot over a shadow along its foot and
 // left end, so it reads as raised. An end that is "point" is a fused split
-// half's, pointing across the gutter at the other half (CR 702.102a).
+// half's, pointing across the gutter at the other half (CR 702.102a), and
+// one that is "flat" a prepare spell's, standing against the card's own text
+// box.
 // Measured on printed cards at 745 px wide: the rim's outer edge 4.7% of the
 // width in from the card's, the fill's end bulging some 12 px, the rim 6 px.
 #let bar-depth = 1.05mm
@@ -761,13 +764,13 @@
   let k = 0.5523
   // The outline grown by `g` past the fill's, clockwise from the top left.
   let outline(g) = {
-    let (x0, x1, top, foot, mid) = (-over - g, w + over + g, -g, h + g, h / 2)
+    let (x0, x1, top, foot, mid) = (if ends.first() == "flat" { -g } else { -over - g }, w + over + g, -g, h + g, h / 2)
     let rx = bar-depth + g / 2
     let ry = h / 2 + g
     let (l, r) = ends
     let (lx, rx-at) = (x0 + rx, x1 - rx)
     let (pa, pout) = (1.6mm, 1mm)
-    let segs = (curve.move((if l == "point" { pa - over } else { lx }, top)),)
+    let segs = (curve.move((if l == "point" { pa - over } else if l == "flat" { x0 } else { lx }, top)),)
     if r == "point" {
       segs += (curve.line((w - pa + over, top)), curve.line((w + pout + g * 1.3, mid)),
         curve.line((w - pa + over, foot)))
@@ -779,6 +782,8 @@
     if l == "point" {
       segs += (curve.line((pa - over, foot)), curve.line((-pout - g * 1.3, mid)),
         curve.line((pa - over, top)))
+    } else if l == "flat" {
+      segs += (curve.line((x0, foot)), curve.line((x0, top)))
     } else {
       segs += (curve.line((lx, foot)),
         curve.cubic((lx - k * rx, foot), (x0, mid + k * ry), (x0, mid)),
@@ -796,6 +801,113 @@
     fill: gradient.linear(ps.bar.lighten(20%), ps.bar, ps.bar.darken(12%), angle: 90deg),
     ..outline(-0.18mm)))
   shape(0mm, fill: none, stroke: 0.45pt + luma(25))
+}
+
+// The deep tone an inset spell's bars are filled in, by its colour, with
+// white type on them, as printed Adventures' and prepare spells' bars are:
+// Stomp's red, Swift End's black, Chop Down's a warm grey for white. A spell
+// of two colours or more is the two blended on an Adventure (Bring Back) and
+// silver on a prepare spell (Heroic Stanza, Pest Friend).
+#let deep = (
+  white: rgb("#968b78"),
+  blue: rgb("#2c6aa6"),
+  black: rgb("#3a3536"),
+  red: rgb("#b13d29"),
+  green: rgb("#2e6c45"),
+)
+#let spell-names(frame) = if frame.base in deep { (frame.base,) } else if frame.base == "gold" { frame.at("colors", default: ()) } else { () }
+#let spell-tone(frame, blend: true) = {
+  let names = spell-names(frame)
+  if names.len() == 1 { deep.at(names.first()) }
+  else if names.len() == 2 and blend { gradient.linear(..names.map(k => deep.at(k))) }
+  else { rgb("#77787c") }
+}
+
+// Text in half a text box tops out smaller than a whole box's: measured on
+// Lovestruck Beast, Adventurous Eater and Blazing Firesinger, whose half
+// boxes have room to spare, their lines stand 31-34 px apart at 745 px wide,
+// an x-height of Libertinus at 8.5pt.
+#let half-max = 8.5pt
+
+// A paper paint shaded toward the book's spine, `toward` the side it is on.
+#let page-paint(box, toward) = if type(box) == color {
+  let (a, b) = (box, box.darken(9%))
+  gradient.linear(..if toward == "right" { (a, a, b) } else { (b, a, a) })
+} else { box }
+
+// An inset spell's name and cost, and its type line, set in white bold.
+#let spell-name(s, size) = grid(columns: (1fr, auto), column-gutter: 1mm, align: horizon,
+  fit-line(s.name, size, 5pt, "the spell's name"), { for x in s.cost { sym(x, size * 0.95) } })
+#let spell-type(s, size) = fit-line(s.type_line, size, 5pt, "the spell's type line")
+
+// An Adventure: the text box is an open book, the Adventure on its left page
+// under its own name and type bars in the spell's colour, and the card's own
+// text on the right (CR 715.1–715.2). Measured on Bonecrusher Giant, Murderous
+// Rider, Brazen Borrower, Lovestruck Beast, Giant Killer and Gingerbread
+// Hunter at 745 by 1040 px: the pages meet at the box's middle, the name and
+// type bars each 45 px (3.8mm) deep across the left page's top, and the
+// spell's text set as large as the card's.
+#let adventure-text(c, ps) = {
+  let s = c.inset.spell
+  let tone = spell-tone(s.frame)
+  let bar-h = 3.8mm
+  let size = 7.5pt
+  block(width: 100%, height: 1fr, grid(columns: (1fr, 1fr), rows: (100%,), column-gutter: 0mm,
+    block(width: 100%, height: 100%, fill: page-paint(ps.box, "right"), stroke: 0.4pt + black,
+      radius: (top-left: 0.5mm, top-right: 1.6mm), clip: true, {
+      set block(spacing: 0mm)
+      set text(fill: white)
+      // The name bar lighter than the type bar under it, as Stomp's is.
+      block(width: 100%, height: bar-h, fill: tone, stroke: (bottom: 0.4pt + black),
+        block(width: 100%, height: 100%, fill: white.transparentize(84%), inset: (left: 1.3mm, right: 1mm),
+          align(horizon, spell-name(s, size))))
+      block(width: 100%, height: bar-h, fill: tone, stroke: (bottom: 0.4pt + black),
+        block(width: 100%, height: 100%, fill: black.transparentize(68%), inset: (x: 1.3mm),
+          align(horizon, spell-type(s, size))))
+      set text(fill: black)
+      standard-text(s, paints(s.frame), max: half-max, height: 1fr, fill: none, stroke: none, clear: 1.6mm, centre-lone: false)
+    }),
+    standard-text(c, ps, max: half-max, height: 100%, fill: page-paint(ps.box, "left"), centre-lone: false),
+  ))
+}
+
+// A prepare spell: the card's own text in the left of its text box, and the
+// spell in a frame inset on the right (CR 722.1–722.2), its name and type on
+// bars shaped as the card's are, flat against the card's text and round at
+// the frame's edge, in the spell's colour, over a text box of its own that
+// stops short of the card's foot, leaving the frame for the power and
+// toughness. Measured on Adventurous Eater, Blazing Firesinger, Abigale, Poet
+// Laureate, Emeritus of Ideation and Lluwen, Exchange Student at 745 by 1040
+// px: the bars' fills 42 px (3.55mm) deep and 8 px apart, starting 4 px under
+// the card's box, the spell's box from 10 px under them to 38 px above the
+// card's box's foot, and the halves meeting at the box's middle.
+#let prepare-text(c, ps) = {
+  let s = c.inset.spell
+  let tone = spell-tone(s.frame, blend: false)
+  let bar-h = 3.55mm
+  let size = 8pt
+  let bar(body, paint) = layout(size => block(width: 100%, {
+    plate(size.width, bar-h, (rim: paint.darken(35%), bar: paint), ends: ("flat", "round"))
+    block(width: 100%, height: bar-h, inset: (left: 1.2mm, right: 1.3mm), align(horizon, body))
+  }))
+  block(width: 100%, height: 1fr, grid(columns: (1fr, 1fr), rows: (100%,), column-gutter: 0.8mm,
+    standard-text(c, ps, max: half-max, height: 100%, clear: 1.8mm, centre-lone: false),
+    block(width: 100%, height: 100%, {
+      set block(spacing: 0mm)
+      v(bar-rim - 0.1mm)
+      {
+        set text(fill: white)
+        bar(spell-name(s, size), tone.lighten(12%))
+        v(0.7mm)
+        bar(spell-type(s, size), tone.darken(18%))
+      }
+      v(0.85mm)
+      let sps = paints(s.frame)
+      standard-text(s, sps, max: half-max, height: 1fr, top: 1mm, clear: 1mm, centre-lone: false,
+        fill: if type(sps.box) == color { sps.box.darken(14%) } else { sps.box })
+      v(3.25mm)
+    }),
+  ))
 }
 
 // One face's body, filling the box it is given: a card's whole face, or a
@@ -893,8 +1005,11 @@
     type-bar()
     v(g.box-top - g.type-top - g.type-h)
     // A split half's text tops out smaller, as Wear // Tear's does, its
-    // x-height 1.18mm against a whole card's 1.48mm.
-    standard-text(c, ps, max: if split { 7.5pt } else { 9.5pt })
+    // x-height 1.18mm against a whole card's 1.48mm. A spell inset in the
+    // card shares its text box.
+    if c.inset == none { standard-text(c, ps, max: if split { 7.5pt } else { 9.5pt }) }
+    else if c.inset.kind == "adventure" { adventure-text(c, ps) }
+    else { prepare-text(c, ps) }
     hint
     if foot-right != none and not (r.kind == "station" and r.thresholds.len() > 0 and c.back_pt == none) {
       // The plate straddles the text box's bottom right corner, standing

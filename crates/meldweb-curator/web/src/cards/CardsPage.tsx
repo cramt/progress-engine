@@ -11,7 +11,7 @@ import {
 import { commitEdit } from "../github/repoFile";
 import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
-import { formOf, loadMockery, writeForm } from "../mockery";
+import { formOf, loadMockery, type Parts, writeForm } from "../mockery";
 import { Loading } from "../ui/Loading";
 import { messageOf, Sheet, useBusy } from "../ui/Sheet";
 import { CardForm } from "./CardForm";
@@ -162,8 +162,8 @@ function CardEditor({
     // The second face went away under the edit: back to the front.
     return o.kind === "refused" && face > 0 ? formOf(text, 0) : o;
   }, [text, face]);
-  const sides = opened.kind === "form" ? opened.sides : 1;
-  const side = Math.min(face, sides - 1);
+  const labels = PART_LABELS[opened.kind === "form" ? opened.parts : "one"];
+  const side = labels ? Math.min(face, 1) : 0;
   const showing = mode === "form" && opened.kind === "form" ? "form" : "toml";
   useEffect(() => store.edit(text), [store, text]);
   const { checked, preview, missingArt } = useCardChecks(
@@ -173,7 +173,6 @@ function CardEditor({
     text,
     side,
   );
-  const isSplit = /^\s*\[right\]/m.test(text);
 
   return (
     <section className="custom-card">
@@ -212,12 +211,8 @@ function CardEditor({
         />
         {showing === "form" && opened.kind === "form" ? (
           <>
-            {sides > 1 && (
-              <FacePicker
-                face={side}
-                labels={isSplit ? SPLIT_LABELS : FACE_LABELS}
-                onPick={setFace}
-              />
+            {labels && (
+              <FacePicker face={side} labels={labels} onPick={setFace} />
             )}
             <CardForm
               key={side}
@@ -276,15 +271,27 @@ function CardEditor({
           <p className="refusal">{preview.why}</p>
         ) : null}
         {checked.kind === "card" && checked.faces > 1 && (
-          <FacePicker face={side} labels={FACE_LABELS} onPick={setFace} />
+          <FacePicker face={side} labels={FRONT_BACK} onPick={setFace} />
         )}
       </div>
     </section>
   );
 }
 
-const FACE_LABELS = ["Front", "Back"] as const;
-const SPLIT_LABELS = ["Left half", "Right half"] as const;
+/**
+ * What the face picker calls a card's two parts, by the table its second is
+ * in; a card of one face has no picker. An Adventure and a prepare spell are
+ * drawn inside the card, so the preview stays one image while the form edits
+ * either.
+ */
+const FRONT_BACK = ["Front", "Back"] as const;
+const PART_LABELS: Record<Parts, readonly [string, string] | null> = {
+  one: null,
+  frontBack: FRONT_BACK,
+  halves: ["Left half", "Right half"],
+  adventure: ["Card", "Adventure"],
+  prepare: ["Card", "Prepare spell"],
+};
 
 /** Which face of a card of two the page shows and edits. */
 function FacePicker({

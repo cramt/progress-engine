@@ -5,8 +5,14 @@
  * A card file as a form, or why it cannot be one.
  */
 export type Opened =
-  | { kind: "form"; form: Form; sides: number }
+  | { kind: "form"; form: Form; parts: Parts }
   | { kind: "refused"; message: string };
+
+/**
+ * What a card file's parts are, by the table its second part is in: what
+ * the form's face picker names them.
+ */
+export type Parts = "one" | "frontBack" | "halves" | "adventure" | "prepare";
 
 /**
  * Every field of a card file. An empty string is a field the file leaves out.

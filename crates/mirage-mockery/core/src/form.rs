@@ -17,20 +17,55 @@ use toml_edit::{DocumentMut, Item, Table, Value};
 use crate::card::{RawCard, RawFace};
 
 /// Which face the form edits: the top level, or a two-faced card's other face,
-/// its `[back]` or its `[right]` half. The layout and the face the form is not
-/// editing are left as the file has them.
+/// its `[back]`, its `[right]` half or the `[spell]` inset in it. The layout
+/// and the face the form is not editing are left as the file has them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
     Front,
     Second,
 }
 
+/// What a card file's parts are, by the table its second part is in: what
+/// the form's face picker names them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Facet)]
+#[repr(u8)]
+#[facet(rename_all = "camelCase")]
+pub enum Parts {
+    /// One face.
+    One,
+    /// A front and a `[back]`.
+    FrontBack,
+    /// A left and a `[right]` half.
+    Halves,
+    /// A card and the Adventure in its `[spell]`.
+    Adventure,
+    /// A card and the prepare spell in its `[spell]`.
+    Prepare,
+}
+
+impl Parts {
+    /// The file's parts, or why it is no card file.
+    pub fn of(text: &str) -> Result<Self> {
+        let raw = RawCard::parse(text)?;
+        Ok(match second_key(&raw) {
+            Err(_) => Parts::One,
+            Ok("back") => Parts::FrontBack,
+            Ok("right") => Parts::Halves,
+            // A spell whose layout is not settled yet is named as the
+            // commoner of the two.
+            Ok(_) if raw.layout.as_deref().map(str::trim) == Some("prepare") => Parts::Prepare,
+            Ok(_) => Parts::Adventure,
+        })
+    }
+}
+
 /// The table a two-faced card keeps its second face in, by what the file has.
 fn second_key(raw: &RawCard) -> Result<&'static str> {
-    match (&raw.back, &raw.right) {
-        (Some(_), _) => Ok("back"),
-        (None, Some(_)) => Ok("right"),
-        (None, None) => bail!("this card has one face"),
+    match (&raw.back, &raw.right, &raw.spell) {
+        (Some(_), _, _) => Ok("back"),
+        (None, Some(_), _) => Ok("right"),
+        (None, None, Some(_)) => Ok("spell"),
+        (None, None, None) => bail!("this card has one face"),
     }
 }
 
@@ -77,9 +112,9 @@ impl Form {
         let card = RawCard::parse(text)?;
         let raw = match side {
             Side::Front => card.front,
-            Side::Second => match (card.back, card.right) {
-                (Some(face), _) | (None, Some(face)) => face,
-                (None, None) => bail!("this card has one face"),
+            Side::Second => match (card.back, card.right, card.spell) {
+                (Some(face), _, _) | (None, Some(face), _) | (None, None, Some(face)) => face,
+                (None, None, None) => bail!("this card has one face"),
             },
         };
         Self::of_face(raw)
@@ -295,10 +330,12 @@ mod tests {
 
     const SHINOVAR: &str = include_str!("../tests/cards/the-cleansing-of-shinovar.card.toml");
     const FORCE: &str = include_str!("../tests/cards/force-push-force-pull.card.toml");
+    const SKYBREAKER: &str = include_str!("../tests/cards/skybreaker-initiate.card.toml");
+    const FABRIALIST: &str = include_str!("../tests/cards/ardent-fabrialist.card.toml");
 
     #[test]
     fn editing_the_front_leaves_the_layout_and_the_second_face_alone() {
-        for text in [SHINOVAR, FORCE] {
+        for text in [SHINOVAR, FORCE, SKYBREAKER, FABRIALIST] {
             let mut form = Form::of(text).unwrap();
             form.name = "Renamed".into();
             form.flavor = "New flavour.".into();
@@ -333,8 +370,36 @@ mod tests {
         assert!(Form::of_side(DRONE, Side::Second).is_err());
     }
 
+    #[test]
+    fn a_file_names_its_parts() {
+        for (text, parts) in [
+            (DRONE, Parts::One),
+            (SHINOVAR, Parts::FrontBack),
+            (FORCE, Parts::Halves),
+            (SKYBREAKER, Parts::Adventure),
+            (FABRIALIST, Parts::Prepare),
+        ] {
+            assert_eq!(Parts::of(text).unwrap(), parts);
+        }
+    }
+
+    #[test]
+    fn an_inset_spell_is_the_second_face() {
+        for text in [SKYBREAKER, FABRIALIST] {
+            let mut spell = Form::of_side(text, Side::Second).unwrap();
+            assert!(spell.type_line == "Instant — Adventure" || spell.type_line == "Sorcery");
+            assert_eq!(spell.write_side(text, Side::Second).unwrap(), text);
+            spell.cost = "{2}{U}".into();
+            let written = spell.write_side(text, Side::Second).unwrap();
+            assert_eq!(Form::of_side(&written, Side::Second).unwrap(), spell);
+            assert_eq!(Form::of(&written).unwrap(), Form::of(text).unwrap());
+        }
+    }
+
     proptest! {
-        // Whatever is typed into the form is what the file then says.
+        // Whatever is typed into the form is what the file then says, on
+        // either face of a card of any layout, and the other face is left
+        // as it was.
         #[test]
         fn what_the_form_writes_reads_back(
             name in "\\PC{0,20}",
@@ -343,6 +408,16 @@ mod tests {
             power in "[0-9*+-]{0,2}",
             toughness in "[0-9*+-]{0,2}",
             color_indicator in "[WUBRG]{0,2}",
+            (file, side) in prop_oneof![
+                Just((DRONE, Side::Front)),
+                Just((SHINOVAR, Side::Front)),
+                Just((SHINOVAR, Side::Second)),
+                Just((FORCE, Side::Second)),
+                Just((SKYBREAKER, Side::Front)),
+                Just((SKYBREAKER, Side::Second)),
+                Just((FABRIALIST, Side::Front)),
+                Just((FABRIALIST, Side::Second)),
+            ],
         ) {
             let form = Form {
                 name,
@@ -355,8 +430,18 @@ mod tests {
                 art: String::new(),
                 artist: String::new(),
             };
-            let written = form.write_into(DRONE).unwrap();
-            prop_assert_eq!(Form::of(&written).unwrap(), form);
+            let written = form.write_side(file, side).unwrap();
+            prop_assert_eq!(Form::of_side(&written, side).unwrap(), form);
+            let other = match side {
+                Side::Front => Side::Second,
+                Side::Second => Side::Front,
+            };
+            if file != DRONE {
+                prop_assert_eq!(
+                    Form::of_side(&written, other).unwrap(),
+                    Form::of_side(file, other).unwrap()
+                );
+            }
         }
     }
 }

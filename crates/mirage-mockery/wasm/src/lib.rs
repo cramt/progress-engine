@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use anyhow::anyhow;
 use facet::Facet;
 use mockery_core::card::Card;
-use mockery_core::form::{Form, Side};
+use mockery_core::form::{Form, Parts, Side};
 use mockery_core::read::read;
 use mockery_core::render::{self, Layout, Paper, Sheet};
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
@@ -55,9 +55,9 @@ pub enum Checked {
 pub enum Opened {
     Form {
         form: Box<Form>,
-        /// The faces the form can edit: 2 for a card of two faces or halves,
-        /// its `[back]` or `[right]` being side 1.
-        sides: u32,
+        /// The parts the form can edit: a card of two has its `[back]`,
+        /// `[right]` or `[spell]` as side 1.
+        parts: Parts,
     },
     Refused {
         message: String,
@@ -150,17 +150,14 @@ fn side(n: u32) -> Side {
 
 /// One face of the file as the form's fields, JSON of [`Opened`]: the custom
 /// cards page edits a card either as its file or as a form, and opens the
-/// form from this. `face` 0 is the top level, 1 the `[back]` or `[right]`.
+/// form from this. `face` 0 is the top level, 1 the `[back]`, `[right]` or
+/// `[spell]`.
 #[wasm_bindgen]
 pub fn form_of(text: &str, face: u32) -> String {
     let opened = match Form::of_side(text, side(face)) {
         Ok(form) => Opened::Form {
             form: Box::new(form),
-            sides: if Form::of_side(text, Side::Second).is_ok() {
-                2
-            } else {
-                1
-            },
+            parts: Parts::of(text).unwrap_or(Parts::One),
         },
         Err(e) => Opened::Refused {
             message: format!("{e:#}"),
@@ -311,7 +308,7 @@ mod tests {
         let opened = form_of(DRONE, 0);
         let form = opened
             .strip_prefix(r#"{"kind":"form","form":"#)
-            .and_then(|f| f.strip_suffix(r#","sides":1}"#))
+            .and_then(|f| f.strip_suffix(r#","parts":"one"}"#))
             .unwrap_or_else(|| panic!("{opened}"));
         assert_eq!(
             write_form(DRONE, form, 0).unwrap_or_else(|_| panic!()),
@@ -342,5 +339,21 @@ mod tests {
         let front = render_png(SHINOVAR, "[]", &[], &[], 0, 72.0).unwrap_or_else(|_| panic!());
         let back = render_png(SHINOVAR, "[]", &[], &[], 1, 72.0).unwrap_or_else(|_| panic!());
         assert_ne!(front, back);
+    }
+
+    #[test]
+    fn a_card_with_a_spell_is_one_image_and_two_forms() {
+        const SKYBREAKER: &str =
+            include_str!("../../core/tests/cards/skybreaker-initiate.card.toml");
+        match check_text(SKYBREAKER) {
+            Checked::Card { name, faces, .. } => {
+                assert_eq!(name, "Skybreaker Initiate // Full Lashing");
+                assert_eq!(faces, 1);
+            }
+            Checked::Refused { message } => panic!("{message}"),
+        }
+        let spell = form_of(SKYBREAKER, 1);
+        assert!(spell.contains(r#""name":"Full Lashing""#), "{spell}");
+        assert!(spell.ends_with(r#","parts":"adventure"}"#), "{spell}");
     }
 }

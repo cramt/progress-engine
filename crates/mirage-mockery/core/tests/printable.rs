@@ -228,9 +228,30 @@ fn face_toml() -> impl Strategy<Value = (String, String)> {
         })
 }
 
+/// An inset spell: an instant or a sorcery of plain lines, with a cost, and
+/// the Adventure subtype on an Adventure.
+fn spell_toml() -> impl Strategy<Value = (String, String)> {
+    (
+        "[A-Z][a-z]{0,10}( [A-Z][a-z]{0,10}){0,3}",
+        prop::collection::vec(prop::sample::select(&SYMBOLS[..9]), 1..6),
+        prop::sample::select(&["Instant", "Sorcery"][..]),
+        prop::collection::vec(paragraph(), 0..3),
+    )
+        .prop_map(|(name, cost, ty, rules)| {
+            let cost: String = cost.iter().map(|s| format!("{{{s}}}")).collect();
+            (
+                ty.to_string(),
+                format!(
+                    "name = \"{name}\"\ncost = \"{cost}\"\nrules = \"\"\"\n{}\n\"\"\"\n",
+                    rules.join("\n")
+                ),
+            )
+        })
+}
+
 /// A card of one face, or two in any of the layouts that have two.
 fn card_toml() -> impl Strategy<Value = String> {
-    (face_toml(), face_toml(), 0..4usize).prop_map(|((cost, front), (back_cost, back), kind)| {
+    (face_toml(), face_toml(), spell_toml(), prop::collection::vec(paragraph(), 0..4), 0..6usize).prop_map(|((cost, front), (back_cost, back), (spell_type, spell), plain, kind)| {
         let cost_line = |c: &str, split: bool| match (c.is_empty(), split) {
             (true, true) => "cost = \"{1}\"\n".to_string(),
             (true, false) => String::new(),
@@ -239,11 +260,22 @@ fn card_toml() -> impl Strategy<Value = String> {
         let split = kind == 3;
         let top = format!("{}{front}", cost_line(&cost, split));
         let second = format!("{}{back}", cost_line(&back_cost, split));
+        // A card with a spell inset shares its box with it, so its own text
+        // is plain lines, and only a permanent is prepared: a creature here.
+        let inset = |layout: &str, ty: &str| {
+            format!(
+                "name = \"Inset\"\n{}type = \"Creature — Elf\"\npt = \"2/2\"\nrules = \"\"\"\n{}\n\"\"\"\nlayout = \"{layout}\"\n[spell]\n{spell}type = \"{ty}\"\n",
+                cost_line(&cost, false),
+                plain.join("\n"),
+            )
+        };
         match kind {
             0 => top,
             1 => format!("{top}layout = \"transform\"\n[back]\n{second}"),
             2 => format!("{top}layout = \"modal\"\n[back]\n{second}"),
-            _ => format!("{top}layout = \"split\"\n[right]\n{second}"),
+            3 => format!("{top}layout = \"split\"\n[right]\n{second}"),
+            4 => inset("adventure", &format!("{spell_type} — Adventure")),
+            _ => inset("prepare", &spell_type),
         }
     })
 }

@@ -10,7 +10,8 @@ use crate::rules::Frames;
 pub use crate::rules::Rules;
 
 /// One face as the file writes it: the top level is the front face (or a
-/// split card's left half), and `[back]` or `[right]` the other.
+/// split card's left half, or the card an adventure or a prepare spell is
+/// inset in), and `[back]`, `[right]` or `[spell]` the other.
 #[derive(Facet)]
 #[facet(deny_unknown_fields)]
 pub(crate) struct RawFace {
@@ -49,6 +50,8 @@ pub(crate) struct RawCard {
     pub(crate) back: Option<RawFace>,
     #[facet(default)]
     pub(crate) right: Option<RawFace>,
+    #[facet(default)]
+    pub(crate) spell: Option<RawFace>,
 }
 
 impl RawCard {
@@ -79,6 +82,19 @@ pub enum Card {
     Split {
         left: Face,
         right: Face,
+    },
+    /// A card with an Adventure inset on the left of its text box: an
+    /// instant or sorcery it may be cast as instead (CR 715.2, 715.3).
+    Adventure {
+        main: Face,
+        spell: Face,
+    },
+    /// A card with a prepare spell inset on the right of its text box: an
+    /// instant or sorcery a copy of which may be cast while the permanent is
+    /// prepared (CR 722.2, 722.3).
+    Prepare {
+        main: Face,
+        spell: Face,
     },
 }
 
@@ -242,20 +258,66 @@ impl Card {
             Face::of(raw, dir).with_context(|| format!("in the {which}"))
         };
         let layout = raw.layout.as_deref().map(str::trim);
-        let card = match (layout, raw.back, raw.right) {
-            (None, None, None) => Card::Single(Face::of(raw.front, dir)?),
-            (Some("transform"), Some(back), None) => Card::Transform {
-                front: face(raw.front, "front face")?,
-                back: face(back, "back face")?,
+        let seconds = [
+            ("back", raw.back.is_some()),
+            ("right", raw.right.is_some()),
+            ("spell", raw.spell.is_some()),
+        ];
+        let second = match seconds.iter().filter(|(_, has)| *has).collect::<Vec<_>>()[..] {
+            [] => None,
+            [(key, _)] => Some(*key),
+            _ => bail!("a card has two parts at most: one of [back], [right] and [spell]"),
+        };
+        // Which table each layout keeps its second part in.
+        let wants = |l: &str| match l {
+            "transform" | "modal" => Some("back"),
+            "split" => Some("right"),
+            "adventure" | "prepare" => Some("spell"),
+            _ => None,
+        };
+        let card = match (layout, second) {
+            (None, None) => Card::Single(Face::of(raw.front, dir)?),
+            (None, Some("back")) => {
+                bail!("a [back] needs a layout: layout = \"transform\" or \"modal\"")
+            }
+            (None, Some("right")) => bail!("a [right] half needs layout = \"split\""),
+            (None, Some(_)) => {
+                bail!("a [spell] needs a layout: layout = \"adventure\" or \"prepare\"")
+            }
+            (Some(l), _) if wants(l).is_none() => bail!(
+                "layout is \"transform\", \"modal\", \"split\", \"adventure\" or \"prepare\", not {l:?}"
+            ),
+            (Some(l), None) => match wants(l) {
+                Some("back") => bail!("a {l} card needs its [back] face"),
+                Some("right") => bail!("a split card needs its [right] half"),
+                _ => bail!("an {l} card needs its [spell]"),
             },
-            (Some("modal"), Some(back), None) => Card::Modal {
-                front: face(raw.front, "front face")?,
-                back: face(back, "back face")?,
+            (Some(l), Some(key)) if wants(l) != Some(key) => match key {
+                "back" if l == "split" => {
+                    bail!("a split card's second half is [right], not [back]: it has a card back")
+                }
+                "back" => bail!(
+                    "{} {l} card's spell is [spell], not [back]: it has a card back",
+                    article(l)
+                ),
+                _ => bail!(
+                    "{} {l} card's second part is [{}], not [{key}]",
+                    article(l),
+                    wants(l).expect("a known layout")
+                ),
             },
-            (Some("split"), None, Some(right)) => {
+            (Some("transform"), _) => Card::Transform {
+                front: face(raw.front, "front face")?,
+                back: face(raw.back.expect("checked"), "back face")?,
+            },
+            (Some("modal"), _) => Card::Modal {
+                front: face(raw.front, "front face")?,
+                back: face(raw.back.expect("checked"), "back face")?,
+            },
+            (Some("split"), _) => {
                 let card = Card::Split {
                     left: face(raw.front, "left half")?,
-                    right: face(right, "right half")?,
+                    right: face(raw.right.expect("checked"), "right half")?,
                 };
                 // Every printed split card's halves each have a cost, and
                 // the card's cost is the two together (CR 709.4b).
@@ -266,22 +328,32 @@ impl Card {
                 }
                 card
             }
-            (None, Some(_), _) => {
-                bail!("a [back] needs a layout: layout = \"transform\" or \"modal\"")
-            }
-            (None, _, Some(_)) => bail!("a [right] half needs layout = \"split\""),
-            (Some(l @ ("transform" | "modal")), None, None) => {
-                bail!("a {l} card needs its [back] face")
-            }
-            (Some("split"), None, None) => bail!("a split card needs its [right] half"),
-            (Some(l @ ("transform" | "modal")), _, Some(_)) => {
-                bail!("a {l} card's second face is [back], not [right]")
-            }
-            (Some("split"), Some(_), _) => {
-                bail!("a split card's second half is [right], not [back]: it has a card back")
-            }
-            (Some(other), _, _) => {
-                bail!("layout is \"transform\", \"modal\" or \"split\", not {other:?}")
+            (Some(l), _) => {
+                let spell = raw.spell.expect("checked");
+                let main = face(raw.front, "card")?;
+                let spell = Inset::check(spell, dir, l == "adventure")?;
+                if main.rules.is_framed() {
+                    bail!(
+                        "{:?}'s text shares its box with its {}, so it is plain lines: \
+                         no Saga, Class, planeswalker or station frame has room for both",
+                        main.name,
+                        if l == "adventure" { "Adventure" } else { "prepare spell" }
+                    );
+                }
+                if l == "adventure" {
+                    Card::Adventure { main, spell }
+                } else {
+                    // Prepared is a permanent's designation, and only a
+                    // permanent with a prepare spell can have it (CR 722.3a).
+                    if main.is_spell() {
+                        bail!(
+                            "{:?} is a {:?}, and only a permanent is ever prepared (CR 722.3a)",
+                            main.name,
+                            main.type_line
+                        );
+                    }
+                    Card::Prepare { main, spell }
+                }
             }
         };
         Ok(card)
@@ -293,6 +365,7 @@ impl Card {
             Card::Single(f) => vec![f],
             Card::Transform { front, back } | Card::Modal { front, back } => vec![front, back],
             Card::Split { left, right } => vec![left, right],
+            Card::Adventure { main, spell } | Card::Prepare { main, spell } => vec![main, spell],
         }
     }
 
@@ -300,13 +373,16 @@ impl Card {
     /// two, a split card's halves share one.
     pub fn images(&self) -> usize {
         match self {
-            Card::Single(_) | Card::Split { .. } => 1,
+            Card::Single(_)
+            | Card::Split { .. }
+            | Card::Adventure { .. }
+            | Card::Prepare { .. } => 1,
             Card::Transform { .. } | Card::Modal { .. } => 2,
         }
     }
 
-    /// Both names, `Far // Away`, as Oracle writes a card of two (CR 709.4a,
-    /// 712.19).
+    /// Both names, `Far // Away` or `Bonecrusher Giant // Stomp`, as Oracle
+    /// writes a card of two (CR 709.4a, 712.19).
     pub fn name(&self) -> String {
         self.faces()
             .iter()
@@ -324,6 +400,85 @@ impl Card {
         let fuse = |f: &Face| f.rules.lines().into_iter().find(|l| is_fuse(l));
         fuse(right)?;
         fuse(left)
+    }
+}
+
+fn article(layout: &str) -> &'static str {
+    if layout.starts_with(['a', 'e', 'i', 'o', 'u']) {
+        "an"
+    } else {
+        "a"
+    }
+}
+
+/// The spell inset in a card's text box, an Adventure or a prepare spell:
+/// checked as a face is, and then as printed ones are.
+struct Inset;
+
+impl Inset {
+    fn check(raw: RawFace, dir: &Path, adventure: bool) -> Result<Face> {
+        let what = if adventure {
+            "Adventure"
+        } else {
+            "prepare spell"
+        };
+        // It is drawn in the card's text box, under the card's art and
+        // artist, and every printed one is coloured by its cost.
+        for (field, set) in [
+            ("art", raw.art.is_some()),
+            ("artist", raw.artist.is_some()),
+            ("color_indicator", raw.color_indicator.is_some()),
+        ] {
+            if set {
+                bail!(
+                    "{:?} is the card's {what}, drawn in its text box, and has no {field} of its own",
+                    raw.name
+                );
+            }
+        }
+        let face = Face::of(raw, dir).with_context(|| format!("in the {what}"))?;
+        let words: Vec<&str> = face.type_line.split_whitespace().collect();
+        let (types, subtypes) = match words.iter().position(|w| *w == "—") {
+            Some(at) => (&words[..at], &words[at + 1..]),
+            None => (&words[..], &words[..0]),
+        };
+        let instant_or_sorcery = matches!(types, ["Instant"] | ["Sorcery"]);
+        let is_adventure = subtypes.contains(&"Adventure");
+        if adventure && !(instant_or_sorcery && is_adventure) {
+            // An Adventure is an instant or sorcery spell with the Adventure
+            // spell type (CR 715.2, 205.3k).
+            bail!(
+                "{:?} is an Adventure, an instant or sorcery with the Adventure subtype \
+                 like \"Sorcery — Adventure\", not a {:?}",
+                face.name,
+                face.type_line
+            );
+        }
+        if !adventure && !instant_or_sorcery {
+            bail!(
+                "{:?} is a prepare spell, an instant or a sorcery, not a {:?}",
+                face.name,
+                face.type_line
+            );
+        }
+        if !adventure && is_adventure {
+            bail!(
+                "{:?} has the Adventure subtype, so the card is an adventurer: layout = \"adventure\"",
+                face.name
+            );
+        }
+        // Both are cast for their own cost (CR 715.3a, 722.3c), and every
+        // printed one has one.
+        if face.cost.is_empty() {
+            bail!("{:?} is the card's {what} and needs a cost", face.name);
+        }
+        if face.rules.is_framed() {
+            bail!(
+                "{:?} is the card's {what}, a few plain lines: it has no frame of its own",
+                face.name
+            );
+        }
+        Ok(face)
     }
 }
 
@@ -397,6 +552,12 @@ impl Face {
             art: raw.art.map(|a| dir.join(a)),
             artist: raw.artist,
         })
+    }
+
+    /// An instant or a sorcery: a card that is never a permanent.
+    pub fn is_spell(&self) -> bool {
+        let has = |word: &str| self.type_line.split_whitespace().any(|w| w == word);
+        has("Instant") || has("Sorcery")
     }
 
     /// The face's colours: its cost's and its colour indicator's (CR 202.2,
@@ -635,6 +796,80 @@ pt = "2/3"
         assert!(
             format!("{:#}", card(&format!("{FAR}{costless}")).unwrap_err())
                 .contains("needs a cost")
+        );
+    }
+
+    const GIANT: &str = "name = \"Bonecrusher Giant\"\ncost = \"{2}{R}\"\ntype = \"Creature — Giant\"\npt = \"4/3\"\n";
+    const STOMP: &str = "name = \"Stomp\"\ncost = \"{1}{R}\"\ntype = \"Instant — Adventure\"\nrules = \"Damage can't be prevented this turn. Stomp deals 2 damage to any target.\"\n";
+    const EATER: &str = "name = \"Adventurous Eater\"\ncost = \"{2}{B}\"\ntype = \"Creature — Human Warlock\"\npt = \"3/2\"\nrules = \"This creature enters prepared.\"\n";
+    const BITE: &str = "name = \"Have a Bite\"\ncost = \"{B}\"\ntype = \"Sorcery\"\nrules = \"Put a +1/+1 counter on target creature. You gain 1 life.\"\n";
+
+    #[test]
+    fn an_adventure_and_a_prepare_spell_are_inset_spells() {
+        let giant = card(&format!("{GIANT}layout = \"adventure\"\n[spell]\n{STOMP}")).unwrap();
+        assert!(matches!(giant, Card::Adventure { .. }));
+        assert_eq!(giant.name(), "Bonecrusher Giant // Stomp");
+        assert_eq!(giant.images(), 1);
+        let eater = card(&format!("{EATER}layout = \"prepare\"\n[spell]\n{BITE}")).unwrap();
+        assert!(matches!(eater, Card::Prepare { .. }));
+        // Twice Upon a Time is an adventurer sorcery, and the Virtues
+        // enchantments: an adventurer is any card.
+        let sorcery = GIANT
+            .replace("Creature — Giant", "Sorcery")
+            .replace("pt = \"4/3\"\n", "");
+        assert!(card(&format!(
+            "{sorcery}layout = \"adventure\"\n[spell]\n{STOMP}"
+        ))
+        .is_ok());
+    }
+
+    #[test]
+    fn an_inset_spell_that_does_not_fit_is_refused_by_name() {
+        let err = |text: String| format!("{:#}", card(&text).unwrap_err());
+        let adventure = |spell: &str| format!("{GIANT}layout = \"adventure\"\n[spell]\n{spell}");
+        let prepare =
+            |main: &str, spell: &str| format!("{main}layout = \"prepare\"\n[spell]\n{spell}");
+        assert!(err(format!("{GIANT}layout = \"adventure\"\n")).contains("needs its [spell]"));
+        assert!(err(format!("{GIANT}[spell]\n{STOMP}")).contains("needs a layout"));
+        assert!(
+            err(format!("{GIANT}layout = \"adventure\"\n[back]\n{STOMP}"))
+                .contains("[spell], not [back]")
+        );
+        assert!(
+            err(format!("{GIANT}layout = \"transform\"\n[spell]\n{STOMP}"))
+                .contains("[back], not [spell]")
+        );
+        assert!(err(format!("{GIANT}layout = \"split\"\n[spell]\n{STOMP}"))
+            .contains("[right], not [spell]"));
+        assert!(err(format!(
+            "{GIANT}layout = \"adventure\"\n[spell]\n{STOMP}[back]\n{STOMP}"
+        ))
+        .contains("two parts at most"));
+        // An Adventure is an instant or sorcery with the Adventure subtype.
+        assert!(err(adventure(&STOMP.replace(" — Adventure", ""))).contains("Adventure subtype"));
+        assert!(err(adventure(&STOMP.replace("Instant", "Enchantment"))).contains("not a"));
+        assert!(err(adventure(&STOMP.replace("Adventure", "Omen"))).contains("Adventure subtype"));
+        assert!(err(adventure(&STOMP.replace("cost = \"{1}{R}\"\n", ""))).contains("needs a cost"));
+        assert!(err(adventure(&format!("{STOMP}art = \"stomp.png\"\n"))).contains("no art"));
+        // A prepare spell is an instant or a sorcery, and no Adventure.
+        assert!(err(prepare(
+            EATER,
+            &BITE.replace(
+                "type = \"Sorcery\"",
+                "type = \"Creature — Bear\"\npt = \"2/2\""
+            )
+        ))
+        .contains("prepare spell"));
+        assert!(err(prepare(EATER, STOMP)).contains("layout = \"adventure\""));
+        // Only a permanent is ever prepared.
+        let instant = EATER
+            .replace("Creature — Human Warlock", "Instant")
+            .replace("pt = \"3/2\"\n", "");
+        assert!(err(prepare(&instant, BITE)).contains("only a permanent"));
+        // The two share a text box, so neither is a framed layout.
+        let saga = "name = \"x\"\ncost = \"{1}{R}\"\ntype = \"Enchantment — Saga\"\nrules = \"\"\"\nI — Draw a card.\nII — Draw a card.\n\"\"\"\n";
+        assert!(
+            err(format!("{saga}layout = \"adventure\"\n[spell]\n{STOMP}")).contains("plain lines")
         );
     }
 

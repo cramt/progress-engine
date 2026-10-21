@@ -153,3 +153,21 @@ fn insight_reads_every_face() {
     assert_eq!(read::read(&open("the-cleansing-of-shinovar")).lines, 5);
     assert_eq!(read::read(&open("force-push-force-pull")).lines, 4);
 }
+
+#[test]
+fn a_card_with_a_spell_inset_is_one_image() {
+    let open = |name: &str| Card::open(&here(&format!("tests/cards/{name}.card.toml"))).unwrap();
+    let adventure = open("skybreaker-initiate");
+    let prepare = open("ardent-fabrialist");
+    assert!(matches!(adventure, Card::Adventure { .. }));
+    assert!(matches!(prepare, Card::Prepare { .. }));
+    assert_eq!(adventure.name(), "Skybreaker Initiate // Full Lashing");
+    for card in [&adventure, &prepare] {
+        assert_eq!(card.images(), 1);
+        let doc = render::compile(std::slice::from_ref(card), Layout::Cards).unwrap();
+        assert_eq!(doc.pages().len(), 1, "{}", card.name());
+    }
+    // Insight reads the spell as a face of its own, as it is cast
+    // (CR 715.3b): the card's two lines and the spell's one.
+    assert_eq!(read::read(&prepare).lines, 3);
+}

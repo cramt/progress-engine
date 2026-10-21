@@ -57,11 +57,16 @@ Rust DiceBear core is patched to drop jsonschema's network features, which
 cannot build for wasm (`vendor/README.md`).
 
 A card of two parts declares it: `layout = "transform"` or `"modal"` with a
-`[back]` face, or `"split"` with a `[right]` half. A double-faced card is two
+`[back]` face, `"split"` with a `[right]` half, or `"adventure"` or
+`"prepare"` with the `[spell]` drawn in its text box. A double-faced card is two
 card images, front and back: two pages of a PDF, `x.png` and `x.back.png`, or
 two slots on a sheet, its back beside its front. A split card is one image,
 turned on its side, and halves that both say Fuse print it once across the
-foot.
+foot. An Adventure is the left-hand page of a text box opened like a book,
+under its own name and type bars in its colour; a prepare spell stands in a
+frame inset on the right of the box, its bars shaped as the card's. Either
+is refused unless it is an instant or sorcery with a cost and plain text,
+an Adventure with the Adventure subtype, and only a permanent is prepared.
 
 The card format, the layouts and what comes next are in
 [docs/research/mirage-mockery.md](../../docs/research/mirage-mockery.md).
@@ -72,8 +77,8 @@ Example cards, one per layout, are in `core/tests/cards/`.
 Meldweb Curator's `/cards` page edits `cards/*.card.toml` in the Magic repo
 beside the card drawn from it, and prints a sheet of them. A card is edited
 as a form, with buttons for its cost, types, colour indicator and symbols, or as the TOML
-itself (a card of two parts picks its face above the form and below the
-preview), switching freely: the file is the only state, and `core/src/form.rs`
+itself (a card of two parts picks its face above the form, and a
+double-faced one below the preview too), switching freely: the file is the only state, and `core/src/form.rs`
 reads the form out of it and writes edits back in place, so comments and
 order survive. That is the third crate, `mockery-wasm`, its own module so no
 other page downloads Typst

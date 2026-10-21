@@ -220,6 +220,29 @@ pub fn compile_with_art(
                     },
                 )?);
             }
+            Card::Adventure { main, spell } | Card::Prepare { main, spell } => {
+                // One card image: the spell is drawn in the card's text box,
+                // on the left page of a book for an Adventure (CR 715.2) and
+                // in a frame inset on the right for a prepare spell
+                // (CR 722.2).
+                let spell = files.face(
+                    spell,
+                    Extras {
+                        inset_spell: true,
+                        ..Extras::default()
+                    },
+                )?;
+                out.push(files.face(
+                    main,
+                    Extras {
+                        inset: json!({
+                            "kind": if matches!(card, Card::Adventure { .. }) { "adventure" } else { "prepare" },
+                            "spell": spell,
+                        }),
+                        ..Extras::default()
+                    },
+                )?);
+            }
             Card::Split { left, right } => {
                 let fuse = card.fuse();
                 let half = |files: &mut Files<_>, f| {
@@ -291,6 +314,11 @@ struct Extras {
     hint: Value,
     /// A fused split card prints its Fuse line once across both halves.
     drop_fuse: bool,
+    /// The spell inset in this face's text box, an Adventure or a prepare
+    /// spell, with which it is.
+    inset: Value,
+    /// This face is that spell: drawn in another's text box, with no art.
+    inset_spell: bool,
 }
 
 /// The files a job hands Typst: each symbol once, and each face's art.
@@ -354,6 +382,42 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
         }))
     }
 
+    /// The face's art as a file of the job, or a placeholder drawn for it.
+    fn art(&mut self, face: &Face) -> Result<Value> {
+        let bytes = match &face.art {
+            None => None,
+            Some(path) => (self.art_of)(path)
+                .with_context(|| format!("reading {:?}'s art {}", face.name, path.display()))?
+                .map(|b| (path, b)),
+        };
+        // A face with no art, or whose art the browser does not have yet,
+        // prints a placeholder drawn for it.
+        let (ext, bytes) = match bytes {
+            Some((path, bytes)) => (
+                path.extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("png")
+                    .to_string(),
+                bytes,
+            ),
+            None => {
+                let frame = face.frame();
+                let colors = match frame {
+                    Frame::Land(made) => made.ordered(),
+                    _ => face.colors().ordered(),
+                };
+                (
+                    "svg".to_string(),
+                    placeholder::art(&face.name, frame, &colors)?.into_bytes(),
+                )
+            }
+        };
+        let virt = format!("/art/{}.{ext}", self.arts);
+        self.arts += 1;
+        self.files.insert(id(&virt), Bytes::new(bytes));
+        Ok(json!(virt))
+    }
+
     fn face(&mut self, face: &Face, extras: Extras) -> Result<Value> {
         let cost = self.cost(face)?;
         let mut set = |lines: &[String]| -> Result<Value> {
@@ -411,38 +475,12 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
                 }))).collect::<Result<Vec<_>>>()?,
             }),
         };
-        let bytes = match &face.art {
-            None => None,
-            Some(path) => (self.art_of)(path)
-                .with_context(|| format!("reading {:?}'s art {}", face.name, path.display()))?
-                .map(|b| (path, b)),
+        // The inset spell is drawn in another face's text box, with none.
+        let art = if extras.inset_spell {
+            Value::Null
+        } else {
+            self.art(face)?
         };
-        // A face with no art, or whose art the browser does not have yet,
-        // prints a placeholder drawn for it.
-        let (ext, bytes) = match bytes {
-            Some((path, bytes)) => (
-                path.extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("png")
-                    .to_string(),
-                bytes,
-            ),
-            None => {
-                let frame = face.frame();
-                let colors = match frame {
-                    Frame::Land(made) => made.ordered(),
-                    _ => face.colors().ordered(),
-                };
-                (
-                    "svg".to_string(),
-                    placeholder::art(&face.name, frame, &colors)?.into_bytes(),
-                )
-            }
-        };
-        let virt = format!("/art/{}.{ext}", self.arts);
-        self.arts += 1;
-        self.files.insert(id(&virt), Bytes::new(bytes));
-        let art = json!(virt);
         Ok(json!({
             "kind": "face",
             "name": curl(&face.name),
@@ -476,6 +514,7 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
             "marker": if extras.marker.is_empty() { Value::Null } else { json!(extras.marker) },
             "back_pt": extras.back_pt,
             "hint": extras.hint,
+            "inset": extras.inset,
         }))
     }
 }
