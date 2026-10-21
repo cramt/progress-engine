@@ -6,6 +6,8 @@
 import lantern from "../../../../../decks/lantern.deck.toml?raw";
 import loam from "../../../../../decks/loam.deck.toml?raw";
 import fabrialist from "../../../../mirage-mockery/core/tests/cards/ardent-fabrialist.card.toml?raw";
+import smuggler from "../../../../mirage-mockery/core/tests/cards/corellian-smuggler.card.toml?raw";
+import squire from "../../../../mirage-mockery/core/tests/cards/herdazian-squire.card.toml?raw";
 import drone from "../../../../mirage-mockery/core/tests/cards/proofsheet-drone.card.toml?raw";
 import skybreaker from "../../../../mirage-mockery/core/tests/cards/skybreaker-initiate.card.toml?raw";
 import shinovar from "../../../../mirage-mockery/core/tests/cards/the-cleansing-of-shinovar.card.toml?raw";
@@ -27,6 +29,8 @@ export const files: Record<string, string> = {
   "cards/the-cleansing-of-shinovar.card.toml": shinovar,
   "cards/skybreaker-initiate.card.toml": skybreaker,
   "cards/ardent-fabrialist.card.toml": fabrialist,
+  "cards/herdazian-squire.card.toml": squire,
+  "cards/corellian-smuggler.card.toml": smuggler,
   "collection.toml": `cards = [
   { printing = "moc/94", at = "Lantern" },  # Rashmi and Ragavan
   { name = "Sol Ring", qty = 3, at = "Bulk" },

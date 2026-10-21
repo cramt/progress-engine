@@ -12,7 +12,7 @@ export type Opened =
  * What a card file's parts are, by the table its second part is in: what
  * the form's face picker names them.
  */
-export type Parts = "one" | "frontBack" | "halves" | "adventure" | "prepare";
+export type Parts = "one" | "frontBack" | "halves" | "adventure" | "prepare" | "flip" | "meld";
 
 /**
  * Every field of a card file. An empty string is a field the file leaves out.
@@ -69,7 +69,7 @@ export type SheetPaper = "a4" | "a3" | "letter" | "legal";
  * A `.card.toml`, read.
  */
 export type Checked =
-  | { kind: "card"; name: string; type_line: string; arts: string[]; faces: number; lines: number; unread: Unread[] }
+  | { kind: "card"; name: string; type_line: string; arts: string[]; images: Image[]; lines: number; unread: Unread[] }
   | { kind: "refused"; message: string };
 
 /**
@@ -79,4 +79,17 @@ export interface Unread {
   line: string;
   read: string;
   at: string;
+}
+
+/**
+ * One card image a file prints: what the preview's picker calls it, and
+ * which of the form's parts is drawn on it, so picking one picks the other.
+ */
+export interface Image {
+  label: string;
+  /**
+   * The form's part: 0 the top level, 1 the second table, 2 a meld
+   * pair's `[melded]` card.
+   */
+  part: number;
 }

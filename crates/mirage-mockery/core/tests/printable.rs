@@ -3,7 +3,9 @@
 //! The frame is Mirage Mockery's own, so no combination of types is
 //! unprintable for want of a frame drawn for it: an enchantment creature
 //! Class, a land planeswalker. A battle prints on its side, its defense in its
-//! corner and its text plain, so it is drawn apart. What can fail is space, and that
+//! corner and its text plain, so it is drawn apart. A flip card's halves
+//! and a meld pair's fronts are permanents, and a meld pair's melded card
+//! is any face scaled up to its oversized card. What can fail is space, and that
 //! must be a refusal naming what overflowed, never a card printed with its
 //! text spilling out of the frame or a Typst error.
 
@@ -248,7 +250,7 @@ fn card_toml() -> impl Strategy<Value = String> {
         spell_toml(),
         prop::collection::vec(paragraph(), 0..4),
         any::<bool>(),
-        0..10usize,
+        0..12usize,
     )
         .prop_map(|((cost, front), (back_cost, back), (spell_type, spell), (other_type, other), plain, reminder, kind)| {
         let cost_line = |c: &str, split: bool| match (c.is_empty(), split) {
@@ -303,7 +305,32 @@ fn card_toml() -> impl Strategy<Value = String> {
             door("Left Door", &cost, &plain[..half]),
             door("Right Door", &back_cost, &plain[half..]),
         );
+        // A flip card's halves are permanents of plain lines, the flipped
+        // one with no cost, colour, art or artist of its own.
+        let permanent = |name: &str, cost: &str, pt: &str, text: &[String]| {
+            format!(
+                "name = \"{name}\"\n{cost}type = \"Creature — Elf\"\npt = \"{pt}\"\nrules = \"\"\"\n{}\n\"\"\"\n",
+                text.join("\n"),
+            )
+        };
+        let flip = format!(
+            "{}layout = \"flip\"\n[flipped]\n{}",
+            permanent("Upright", &cost_line(&cost, false), "1/1", &plain[..half]),
+            permanent("Flipped", "", "3/3", &plain[half..]),
+        );
+        // A meld pair: two permanents, the top level melding them, and a
+        // melded card of any frame a face can have, with no cost.
+        let melded = back.split_once('\n').map(|(_, rest)| rest).unwrap_or_default();
+        let meld = format!(
+            "{}layout = \"meld\"\n[counterpart]\n{}[melded]\nname = \"Melded\"\n{}",
+            permanent("Melder", &cost_line(&cost, false), "2/2", &[format!("{} Then meld them into Melded.", plain.join(" "))]),
+            permanent("Counterpart", &cost_line(&back_cost, false), "2/2", &plain[half..]),
+            melded,
+        );
         match kind {
+            10 => flip,
+            11 if !melded.contains("Instant") && !melded.contains("Sorcery") => meld,
+            11 => top,
             0 => top,
             8 => aftermath,
             9 => room,
@@ -376,4 +403,17 @@ fn a_name_too_long_for_one_line_is_refused() {
         format!("{err:#}").contains("the name does not fit"),
         "{err:#}"
     );
+}
+
+/// Urza, Planeswalker's six abilities overflow a card's walker box even at
+/// 5pt, but fit the melded card's, which is half again as big.
+#[test]
+fn a_melded_planeswalker_of_six_abilities_prints() {
+    let card = Card::parse(
+        "name = \"Urza, Lord Protector\"\ncost = \"{1}{W}{U}\"\ntype = \"Legendary Creature — Human Artificer\"\npt = \"2/4\"\nrules = \"{7}: Exile them, then meld them into Urza, Planeswalker.\"\nlayout = \"meld\"\n[counterpart]\nname = \"The Mightstone and Weakstone\"\ncost = \"{5}\"\ntype = \"Legendary Artifact — Powerstone\"\nrules = \"(Melds with Urza, Lord Protector.)\"\n[melded]\nname = \"Urza, Planeswalker\"\ntype = \"Legendary Planeswalker — Urza\"\nloyalty = \"7\"\nrules = \"\"\"\nYou may activate the loyalty abilities of Urza twice each turn rather than only once.\n+2: Artifact, instant, and sorcery spells you cast this turn cost {2} less to cast. You gain 2 life.\n+1: Draw two cards, then discard a card.\n0: Create two 1/1 colorless Soldier artifact creature tokens.\n−3: Exile target nonland permanent.\n−10: Artifacts and planeswalkers you control gain indestructible until end of turn. Destroy all nonland permanents.\n\"\"\"\n",
+        Path::new("."),
+    )
+    .unwrap();
+    let doc = render::compile(&[card], Layout::Cards).unwrap();
+    assert_eq!(doc.pages().len(), 4);
 }

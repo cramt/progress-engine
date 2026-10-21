@@ -176,12 +176,7 @@ pub fn compile_with_art(
             Card::Transform { front, back } => {
                 // The front carries the back's power and toughness in grey
                 // above its own corner, as reminder (CR 712.2c).
-                let back_pt = match &back.corner {
-                    Corner::PowerToughness { power, toughness } => {
-                        json!(format!("{power}/{toughness}"))
-                    }
-                    _ => Value::Null,
-                };
+                let back_pt = pt_of(back);
                 out.push(files.face(
                     front,
                     Extras {
@@ -228,7 +223,7 @@ pub fn compile_with_art(
                 let spell = files.face(
                     spell,
                     Extras {
-                        inset_spell: true,
+                        no_art: true,
                         ..Extras::default()
                     },
                 )?;
@@ -242,6 +237,50 @@ pub fn compile_with_art(
                         ..Extras::default()
                     },
                 )?);
+            }
+            Card::Flip { upright, flipped } => {
+                // One face: the upright half above the art and the flipped
+                // half upside down below it (CR 710.1), the art the upright
+                // half's.
+                let halves = [
+                    files.face(upright, Extras::default())?,
+                    files.face(
+                        flipped,
+                        Extras {
+                            no_art: true,
+                            ..Extras::default()
+                        },
+                    )?,
+                ];
+                out.push(json!({
+                    "kind": "flip",
+                    "halves": halves,
+                    "artist": upright.artist,
+                }));
+            }
+            Card::Meld {
+                front,
+                counterpart,
+                melded,
+            } => {
+                // Each card is its front, marked as a meld card's and with
+                // the melded card's power and toughness in grey as printed
+                // ones are, and half the melded card on its back: the top
+                // half the card that melds them, the bottom its
+                // counterpart's (CR 712.4).
+                let melded_pt = pt_of(melded);
+                let melded = files.face(melded, Extras::default())?;
+                for (face, half) in [(front, "top"), (counterpart, "bottom")] {
+                    out.push(files.face(
+                        face,
+                        Extras {
+                            marker: "meld-front",
+                            back_pt: melded_pt.clone(),
+                            ..Extras::default()
+                        },
+                    )?);
+                    out.push(json!({ "kind": "meld-back", "half": half, "melded": melded }));
+                }
             }
             Card::Split { left, right, kind } => {
                 // A fused card's Fuse line and a Room's shared reminder are
@@ -321,7 +360,8 @@ pub fn compile_with_art(
 #[derive(Default)]
 struct Extras<'a> {
     /// Which face it is, on the name bar's left: `transform-front`,
-    /// `transform-back`, `modal-front` or `modal-back`; empty for none.
+    /// `transform-back`, `modal-front`, `modal-back` or `meld-front`; empty
+    /// for none.
     marker: &'static str,
     /// A transforming front's reminder of its back's power and toughness.
     back_pt: Value,
@@ -334,8 +374,9 @@ struct Extras<'a> {
     /// The spell inset in this face's text box, an Adventure or a prepare
     /// spell, with which it is.
     inset: Value,
-    /// This face is that spell: drawn in another's text box, with no art.
-    inset_spell: bool,
+    /// This face has no art of its own: a spell drawn in another's text
+    /// box, or a flip card's flipped half, under the upright half's art.
+    no_art: bool,
 }
 
 /// The files a job hands Typst: each symbol once, and each face's art.
@@ -494,8 +535,7 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
                 }))).collect::<Result<Vec<_>>>()?,
             }),
         };
-        // The inset spell is drawn in another face's text box, with none.
-        let art = if extras.inset_spell {
+        let art = if extras.no_art {
             Value::Null
         } else {
             self.art(face)?
@@ -536,6 +576,15 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
             "hint": extras.hint,
             "inset": extras.inset,
         }))
+    }
+}
+
+/// A creature face's power and toughness, as a front prints it in grey
+/// for its back or the card it melds into.
+fn pt_of(face: &Face) -> Value {
+    match &face.corner {
+        Corner::PowerToughness { power, toughness } => json!(format!("{power}/{toughness}")),
+        _ => Value::Null,
     }
 }
 

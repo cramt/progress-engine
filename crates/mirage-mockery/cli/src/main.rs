@@ -24,7 +24,9 @@ struct Cli {
 #[repr(u8)]
 enum Command {
     /// Render cards, each a page of its own: a PNG for one card, or a PDF.
-    /// A double-faced card is two pages, or `x.png` and its back `x.back.png`.
+    /// A double-faced card is two pages, or `x.png` and its back `x.back.png`;
+    /// a meld pair four, `x.png`, `x.back.png`, `x.counterpart.png` and
+    /// `x.counterpart.back.png`.
     Render {
         /// `.card.toml` files.
         #[facet(args::positional)]
@@ -131,9 +133,13 @@ fn write(path: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-/// `x.png`'s back face: `x.back.png`.
-fn back_of(front: &Path) -> PathBuf {
-    front.with_extension("back.png")
+/// `x.png`'s other card images, named by what each is: `x.back.png`.
+fn beside(front: &Path, name: &str) -> PathBuf {
+    if name.is_empty() {
+        front.to_path_buf()
+    } else {
+        front.with_extension(format!("{name}.png"))
+    }
 }
 
 fn main() -> Result<()> {
@@ -145,10 +151,10 @@ fn main() -> Result<()> {
             match out.extension().and_then(|e| e.to_str()) {
                 Some("pdf") => write(&out, &render::pdf(&doc)?),
                 Some("png") if loaded.len() == 1 => {
-                    write(&out, &render::png(&doc, 0, ppi as f32)?)?;
-                    // A double-faced card's back goes beside its front.
-                    if loaded[0].images() == 2 {
-                        write(&back_of(&out), &render::png(&doc, 1, ppi as f32)?)?;
+                    // A double-faced card's back goes beside its front, and a
+                    // meld pair's other card beside them.
+                    for (page, name) in loaded[0].image_names().iter().enumerate() {
+                        write(&beside(&out, name), &render::png(&doc, page, ppi as f32)?)?;
                     }
                     Ok(())
                 }

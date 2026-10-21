@@ -10,8 +10,10 @@ use crate::rules::Frames;
 pub use crate::rules::Rules;
 
 /// One face as the file writes it: the top level is the front face (or a
-/// split card's left half, or the card an adventure or a prepare spell is
-/// inset in), and `[back]`, `[right]` or `[spell]` the other.
+/// split card's left half, the card an adventure or a prepare spell is inset
+/// in, a flip card's upright half or a meld pair's first card), and
+/// `[back]`, `[right]`, `[spell]`, `[flipped]`, `[counterpart]` or `[melded]`
+/// another.
 #[derive(Facet)]
 #[facet(deny_unknown_fields)]
 pub(crate) struct RawFace {
@@ -52,6 +54,12 @@ pub(crate) struct RawCard {
     pub(crate) right: Option<RawFace>,
     #[facet(default)]
     pub(crate) spell: Option<RawFace>,
+    #[facet(default)]
+    pub(crate) flipped: Option<RawFace>,
+    #[facet(default)]
+    pub(crate) counterpart: Option<RawFace>,
+    #[facet(default)]
+    pub(crate) melded: Option<RawFace>,
 }
 
 impl RawCard {
@@ -97,6 +105,23 @@ pub enum Card {
     Prepare {
         main: Face,
         spell: Face,
+    },
+    /// A flip card: one face, the upright half's characteristics its own and
+    /// the flipped half's, printed upside down below the art, its
+    /// alternative ones once the permanent flips (CR 710.1).
+    Flip {
+        upright: Face,
+        flipped: Face,
+    },
+    /// A meld pair: two cards, each a front face and half of the melded
+    /// card on its back, which the two backs make together (CR 712.4). One
+    /// file holds the pair, so half a pair cannot be held. The front at the
+    /// top level is the one that melds them (CR 712.4a), and its back holds
+    /// the melded card's top half, as every printed pair's does.
+    Meld {
+        front: Face,
+        counterpart: Face,
+        melded: Box<Face>,
     },
 }
 
@@ -284,44 +309,84 @@ impl Card {
             Face::of(raw, dir).with_context(|| format!("in the {which}"))
         };
         let layout = raw.layout.as_deref().map(str::trim);
-        let seconds = [
+        let tables: Vec<&str> = [
             ("back", raw.back.is_some()),
             ("right", raw.right.is_some()),
             ("spell", raw.spell.is_some()),
-        ];
-        let second = match seconds.iter().filter(|(_, has)| *has).collect::<Vec<_>>()[..] {
-            [] => None,
-            [(key, _)] => Some(*key),
-            _ => bail!("a card has two parts at most: one of [back], [right] and [spell]"),
+            ("flipped", raw.flipped.is_some()),
+            ("counterpart", raw.counterpart.is_some()),
+            ("melded", raw.melded.is_some()),
+        ]
+        .into_iter()
+        .filter_map(|(key, has)| has.then_some(key))
+        .collect();
+        // The tables each layout keeps its other parts in.
+        let wants = |l: &str| -> Option<&[&str]> {
+            match l {
+                "transform" | "modal" => Some(&["back"]),
+                "split" => Some(&["right"]),
+                "adventure" | "prepare" => Some(&["spell"]),
+                "flip" => Some(&["flipped"]),
+                "meld" => Some(&["counterpart", "melded"]),
+                _ => None,
+            }
         };
-        // Which table each layout keeps its second part in.
-        let wants = |l: &str| match l {
-            "transform" | "modal" => Some("back"),
-            "split" => Some("right"),
-            "adventure" | "prepare" => Some("spell"),
-            _ => None,
-        };
-        let card = match (layout, second) {
-            (None, None) => Card::Single(Face::of(raw.front, dir)?),
-            (None, Some("back")) => {
+        let meld_tables = |k: &&str| matches!(*k, "counterpart" | "melded");
+        match (layout, &tables[..]) {
+            (None, []) => {}
+            (None, ["back", ..]) => {
                 bail!("a [back] needs a layout: layout = \"transform\" or \"modal\"")
             }
-            (None, Some("right")) => bail!("a [right] half needs layout = \"split\""),
-            (None, Some(_)) => {
+            (None, ["right", ..]) => bail!("a [right] half needs layout = \"split\""),
+            (None, ["spell", ..]) => {
                 bail!("a [spell] needs a layout: layout = \"adventure\" or \"prepare\"")
             }
+            (None, ["flipped", ..]) => bail!("a [flipped] half needs layout = \"flip\""),
+            (None, _) => {
+                bail!("a meld pair's [counterpart] and [melded] card need layout = \"meld\"")
+            }
             (Some(l), _) if wants(l).is_none() => bail!(
-                "layout is \"transform\", \"modal\", \"split\", \"adventure\" or \"prepare\", not {l:?}"
+                "layout is \"transform\", \"modal\", \"split\", \"adventure\", \"prepare\", \
+                 \"flip\" or \"meld\", not {l:?}"
             ),
-            (Some(l), None) => match wants(l) {
-                Some("back") => bail!("a {l} card needs its [back] face"),
-                Some("right") => bail!("a split card needs its [right] half"),
+            (Some("meld"), _) => {
+                if let Some(other) = tables.iter().find(|k| !meld_tables(k)) {
+                    bail!(
+                        "a meld pair is its card, its [counterpart] and the [melded] card \
+                         their backs make, not a [{other}]"
+                    );
+                }
+                for (key, what) in [
+                    ("counterpart", "the other card of the pair"),
+                    ("melded", "the card the pair's backs make"),
+                ] {
+                    if !tables.contains(&key) {
+                        bail!(
+                            "a meld card is never printed without its pair: the file holds \
+                             both cards and what they meld into (CR 712.4), and this one has \
+                             no [{key}], {what}"
+                        );
+                    }
+                }
+            }
+            (Some(_), [_, _, ..]) => bail!(
+                "a card has two parts at most, a meld pair's three aside: one of [back], \
+                 [right], [spell] and [flipped]"
+            ),
+            (Some(l), []) => match wants(l).expect("a known layout")[0] {
+                "back" => bail!("a {l} card needs its [back] face"),
+                "right" => bail!("a split card needs its [right] half"),
+                "flipped" => bail!("a flip card needs its [flipped] half"),
                 _ => bail!("an {l} card needs its [spell]"),
             },
-            (Some(l), Some(key)) if wants(l) != Some(key) => match key {
+            (Some(l), [key]) if wants(l).expect("a known layout") != [*key] => match *key {
                 "back" if l == "split" => {
                     bail!("a split card's second half is [right], not [back]: it has a card back")
                 }
+                "back" if l == "flip" => bail!(
+                    "a flip card's second half is [flipped], not [back]: both halves are on \
+                     its face, and its back is a card back (CR 710.1)"
+                ),
                 "back" => bail!(
                     "{} {l} card's spell is [spell], not [back]: it has a card back",
                     article(l)
@@ -329,18 +394,22 @@ impl Card {
                 _ => bail!(
                     "{} {l} card's second part is [{}], not [{key}]",
                     article(l),
-                    wants(l).expect("a known layout")
+                    wants(l).expect("a known layout")[0]
                 ),
             },
-            (Some("transform"), _) => Card::Transform {
+            (Some(_), [_]) => {}
+        }
+        let card = match layout {
+            None => Card::Single(Face::of(raw.front, dir)?),
+            Some("transform") => Card::Transform {
                 front: face(raw.front, "front face")?,
                 back: face(raw.back.expect("checked"), "back face")?,
             },
-            (Some("modal"), _) => Card::Modal {
+            Some("modal") => Card::Modal {
                 front: face(raw.front, "front face")?,
                 back: face(raw.back.expect("checked"), "back face")?,
             },
-            (Some("split"), _) => {
+            Some("split") => {
                 let left = face(raw.front, "left half")?;
                 let right = face(raw.right.expect("checked"), "right half")?;
                 // Every printed split card's halves each have a cost, and
@@ -353,7 +422,14 @@ impl Card {
                 let kind = SplitKind::of(&left, &right)?;
                 Card::Split { left, right, kind }
             }
-            (Some(l), _) => {
+            Some("flip") => Flip::check(raw.front, raw.flipped.expect("checked"), dir)?,
+            Some("meld") => Meld::check(
+                raw.front,
+                raw.counterpart.expect("checked"),
+                raw.melded.expect("checked"),
+                dir,
+            )?,
+            Some(l) => {
                 let spell = raw.spell.expect("checked");
                 let main = face(raw.front, "card")?;
                 let spell = Inset::check(spell, dir, l == "adventure")?;
@@ -362,7 +438,11 @@ impl Card {
                         "{:?}'s text shares its box with its {}, so it is plain lines: \
                          no Saga, Class, planeswalker or station frame has room for both",
                         main.name,
-                        if l == "adventure" { "Adventure" } else { "prepare spell" }
+                        if l == "adventure" {
+                            "Adventure"
+                        } else {
+                            "prepare spell"
+                        }
                     );
                 }
                 if l == "adventure" {
@@ -390,11 +470,17 @@ impl Card {
     /// transforming card's front. A battle with no battle type, or any other
     /// type than Siege, may stand alone (CR 310.8, 310.9a).
     fn check_battles(&self) -> Result<()> {
-        if let Card::Split { .. } | Card::Adventure { .. } | Card::Prepare { .. } = self {
+        if let Card::Split { .. }
+        | Card::Adventure { .. }
+        | Card::Prepare { .. }
+        | Card::Flip { .. }
+        | Card::Meld { .. } = self
+        {
             if let Some(battle) = self.faces().into_iter().find(|f| f.is_battle()) {
                 bail!(
                     "{:?} is a battle, which prints sideways on a card to itself: \
-                     no half of a split card, and no text box shared with a spell",
+                     no half of a split or flip card, no text box shared with a spell, \
+                     and no part of a meld pair",
                     battle.name
                 );
             }
@@ -422,24 +508,49 @@ impl Card {
             Card::Transform { front, back } | Card::Modal { front, back } => vec![front, back],
             Card::Split { left, right, .. } => vec![left, right],
             Card::Adventure { main, spell } | Card::Prepare { main, spell } => vec![main, spell],
+            Card::Flip { upright, flipped } => vec![upright, flipped],
+            Card::Meld {
+                front,
+                counterpart,
+                melded,
+            } => vec![front, counterpart, melded],
         }
     }
 
     /// How many card images it prints: a double-faced card's two faces are
-    /// two, a split card's halves share one.
+    /// two, a split or flip card's halves share one, and a meld pair is two
+    /// cards of two faces each.
     pub fn images(&self) -> usize {
+        self.image_names().len()
+    }
+
+    /// What each card image is, in the order they print: the front's a
+    /// `PNG` is named for, and each other's the word it is named with
+    /// beside it, `x.back.png`.
+    pub fn image_names(&self) -> &'static [&'static str] {
         match self {
             Card::Single(_)
             | Card::Split { .. }
             | Card::Adventure { .. }
-            | Card::Prepare { .. } => 1,
-            Card::Transform { .. } | Card::Modal { .. } => 2,
+            | Card::Prepare { .. }
+            | Card::Flip { .. } => &[""],
+            Card::Transform { .. } | Card::Modal { .. } => &["", "back"],
+            Card::Meld { .. } => &["", "back", "counterpart", "counterpart.back"],
         }
     }
 
     /// Both names, `Far // Away` or `Bonecrusher Giant // Stomp`, as Oracle
-    /// writes a card of two (CR 709.4a, 712.19).
+    /// writes a card of two (CR 709.4a, 712.19); a meld pair is two cards,
+    /// and the one they meld into: `Bruna + Gisela → Brisela`.
     pub fn name(&self) -> String {
+        if let Card::Meld {
+            front,
+            counterpart,
+            melded,
+        } = self
+        {
+            return format!("{} + {} → {}", front.name, counterpart.name, melded.name);
+        }
         self.faces()
             .iter()
             .map(|f| f.name.as_str())
@@ -652,6 +763,134 @@ impl Inset {
             );
         }
         Ok(face)
+    }
+}
+
+/// A flip card's halves, checked as faces are and then as printed ones
+/// are: both share one face, so the upright half holds what the card is
+/// everywhere (its cost, colour, art and artist, CR 710.1c, 710.2) and the
+/// flipped half only its name, type line, text and power and toughness
+/// (CR 710.1b).
+struct Flip;
+
+impl Flip {
+    fn check(upright: RawFace, flipped: RawFace, dir: &Path) -> Result<Card> {
+        for (field, set, why) in [
+            (
+                "cost",
+                flipped.cost.is_some(),
+                "a flip card's mana cost is its upright half's, and flipping never changes it (CR 710.1c)",
+            ),
+            (
+                "color_indicator",
+                flipped.color_indicator.is_some(),
+                "a flip card's colour is its upright half's, and flipping never changes it (CR 710.1c)",
+            ),
+            (
+                "art",
+                flipped.art.is_some(),
+                "the art is one picture between the halves, the upright half's",
+            ),
+            (
+                "artist",
+                flipped.artist.is_some(),
+                "the art is one picture between the halves, credited on the upright half",
+            ),
+        ] {
+            if set {
+                bail!("{:?} is the flipped half, with no {field} of its own: {why}", flipped.name);
+            }
+        }
+        let upright = Face::of(upright, dir).context("in the upright half")?;
+        let flipped = Face::of(flipped, dir).context("in the flipped half")?;
+        for half in [&upright, &flipped] {
+            // Only a permanent flips: the flipped half is what it is once
+            // flipped on the battlefield (CR 710.1b, 710.2).
+            if half.is_spell() {
+                bail!(
+                    "{:?} is half a flip card, which only a permanent on the battlefield \
+                     ever flips (CR 710.2), not a {:?}",
+                    half.name,
+                    half.type_line
+                );
+            }
+            if half.rules.is_framed() {
+                bail!(
+                    "{:?} is half a flip card, a few plain lines in a box of its own: no \
+                     Saga, Class, planeswalker or station frame fits it",
+                    half.name
+                );
+            }
+            if matches!(half.corner, Corner::Loyalty(_) | Corner::Defense(_)) {
+                bail!(
+                    "{:?} is half a flip card, whose type line's end holds power and \
+                     toughness or nothing: no loyalty or defense",
+                    half.name
+                );
+            }
+        }
+        Ok(Card::Flip { upright, flipped })
+    }
+}
+
+/// A meld pair, checked as its faces are and then as printed pairs are.
+struct Meld;
+
+impl Meld {
+    fn check(front: RawFace, counterpart: RawFace, melded: RawFace, dir: &Path) -> Result<Card> {
+        if melded.cost.is_some() {
+            bail!(
+                "{:?} is the melded card, which has no mana cost: its mana value is its \
+                 fronts' together (CR 202.3c)",
+                melded.name
+            );
+        }
+        let front = Face::of(front, dir).context("in the card")?;
+        let counterpart = Face::of(counterpart, dir).context("in the counterpart")?;
+        let melded = Face::of(melded, dir).context("in the melded card")?;
+        // Melding puts both cards onto the battlefield as one permanent
+        // (CR 712.4a, 701.42a), so all three are permanents.
+        for face in [&front, &counterpart, &melded] {
+            if face.is_spell() {
+                bail!(
+                    "{:?} is part of a meld pair, which melds into a permanent on the \
+                     battlefield (CR 712.4a), not a {:?}",
+                    face.name,
+                    face.type_line
+                );
+            }
+        }
+        // One card of the pair melds them (CR 712.4a), and every printed one
+        // says so, naming the card they meld into; it is the top level here,
+        // its back the melded card's top half, as printed pairs' is.
+        let melds = |f: &Face| {
+            f.rules
+                .lines()
+                .iter()
+                .any(|l| l.to_lowercase().contains("meld") && l.contains(melded.name.as_str()))
+        };
+        if !melds(&front) {
+            if melds(&counterpart) {
+                bail!(
+                    "{:?} melds the pair, so it is the card at the top level, its back the \
+                     melded card's top half as printed pairs' is, and {:?} is the \
+                     [counterpart]",
+                    counterpart.name,
+                    front.name
+                );
+            }
+            bail!(
+                "one card of a meld pair melds them (CR 712.4a): {:?} needs an ability that \
+                 melds them into {:?}, naming it, as every printed pair's has",
+                front.name,
+                melded.name
+            );
+        }
+        Ok(Card::Meld {
+            front,
+            counterpart,
+            melded: Box::new(melded),
+        })
     }
 }
 
@@ -1017,7 +1256,8 @@ pt = "2/3"
         assert!(err(&format!("{front}{back}")).contains("needs a layout"));
         assert!(err(&format!("{front}layout = \"transform\"\n")).contains("needs its [back]"));
         assert!(err(&format!("{front}layout = \"split\"\n{back}")).contains("[right], not [back]"));
-        assert!(err(&format!("{front}layout = \"flip\"\n{back}")).contains("not \"flip\""));
+        assert!(err(&format!("{front}layout = \"flip\"\n{back}")).contains("[flipped], not [back]"));
+        assert!(err(&format!("{front}layout = \"omen\"\n{back}")).contains("not \"omen\""));
         // A face is checked as a card is: the back's creature needs its pt.
         let no_pt = back.replace("pt = \"3/2\"\n", "");
         assert!(err(&format!("{front}layout = \"transform\"\n{no_pt}")).contains("back face"));
@@ -1230,6 +1470,108 @@ pt = "2/3"
             "name = \"x\"\ncost = \"{1}\"\ntype = \"Battle\"\ndefense = \"3\"\nlayout = \"split\"\n[right]\nname = \"y\"\ncost = \"{1}\"\ntype = \"Instant\"\n"
         )
         .contains("sideways"));
+    }
+
+    const BUDOKA: &str = "name = \"Budoka Gardener\"\ncost = \"{1}{G}\"\ntype = \"Creature — Human Monk\"\nrules = \"{T}: You may put a land card from your hand onto the battlefield. If you control ten or more lands, flip Budoka Gardener.\"\npt = \"2/1\"\nlayout = \"flip\"\n";
+    const DOKAI: &str = "[flipped]\nname = \"Dokai, Weaver of Life\"\ntype = \"Legendary Creature — Human Monk\"\nrules = \"{4}{G}{G}, {T}: Create an X/X green Elemental creature token, where X is the number of lands you control.\"\npt = \"3/3\"\n";
+
+    #[test]
+    fn a_flip_card_is_one_image_whose_flipped_half_has_only_what_flipping_changes() {
+        let budoka = card(&format!("{BUDOKA}{DOKAI}")).unwrap();
+        assert!(matches!(budoka, Card::Flip { .. }));
+        assert_eq!(budoka.name(), "Budoka Gardener // Dokai, Weaver of Life");
+        assert_eq!(budoka.images(), 1);
+        let err = |text: String| format!("{:#}", card(&text).unwrap_err());
+        assert!(err(BUDOKA.to_string()).contains("needs its [flipped] half"));
+        assert!(
+            err(format!("name = \"x\"\ntype = \"Enchantment\"\n{DOKAI}"))
+                .contains("layout = \"flip\"")
+        );
+        // Flipping changes neither cost nor colour (CR 710.1c), and the art
+        // is the upright half's.
+        for (field, line) in [
+            ("cost", "cost = \"{G}\"\n"),
+            ("color_indicator", "color_indicator = \"G\"\n"),
+            ("art", "art = \"x.png\"\n"),
+            ("artist", "artist = \"x\"\n"),
+        ] {
+            let flipped = DOKAI.replace("[flipped]\n", &format!("[flipped]\n{line}"));
+            assert!(
+                err(format!("{BUDOKA}{flipped}")).contains(&format!("no {field}")),
+                "{field}"
+            );
+        }
+        // Only a permanent flips.
+        let sorcery = BUDOKA
+            .replace("type = \"Creature — Human Monk\"", "type = \"Sorcery\"")
+            .replace("pt = \"2/1\"\n", "");
+        assert!(err(format!("{sorcery}{DOKAI}")).contains("only a permanent"));
+        let walker = DOKAI
+            .replace(
+                "Legendary Creature — Human Monk",
+                "Legendary Planeswalker — Dokai",
+            )
+            .replace("pt = \"3/3\"", "loyalty = \"3\"");
+        assert!(err(format!("{BUDOKA}{walker}")).contains("no loyalty or defense"));
+        let saga = DOKAI
+            .replace("Legendary Creature — Human Monk", "Enchantment — Saga")
+            .replace("pt = \"3/3\"\n", "")
+            .replace("rules = \"{4}", "rules = \"I — Draw a card.\\nII — {4}");
+        assert!(err(format!("{BUDOKA}{saga}")).contains("plain lines"));
+        let battle = DOKAI
+            .replace("Legendary Creature — Human Monk", "Battle")
+            .replace("pt = \"3/3\"", "defense = \"3\"");
+        assert!(err(format!("{BUDOKA}{battle}")).contains("no loyalty or defense"));
+    }
+
+    const GISELA: &str = "name = \"Gisela, the Broken Blade\"\ncost = \"{2}{W}{W}\"\ntype = \"Legendary Creature — Angel Horror\"\nrules = \"\"\"\nFlying, first strike, lifelink\nAt the beginning of your end step, if you both own and control Gisela and a creature named Bruna, the Fading Light, exile them, then meld them into Brisela, Voice of Nightmares.\n\"\"\"\npt = \"4/3\"\nlayout = \"meld\"\n";
+    const BRUNA: &str = "[counterpart]\nname = \"Bruna, the Fading Light\"\ncost = \"{5}{W}{W}\"\ntype = \"Legendary Creature — Angel Horror\"\nrules = \"\"\"\nFlying, vigilance\n(Melds with Gisela, the Broken Blade.)\n\"\"\"\npt = \"5/7\"\n";
+    const BRISELA: &str = "[melded]\nname = \"Brisela, Voice of Nightmares\"\ntype = \"Legendary Creature — Eldrazi Angel\"\nrules = \"Flying, first strike, vigilance, lifelink\"\npt = \"9/10\"\n";
+
+    #[test]
+    fn a_meld_pair_is_one_file_of_two_cards_and_never_half_of_one() {
+        let pair = card(&format!("{GISELA}{BRUNA}{BRISELA}")).unwrap();
+        assert!(matches!(pair, Card::Meld { .. }));
+        assert_eq!(pair.images(), 4);
+        assert_eq!(
+            pair.name(),
+            "Gisela, the Broken Blade + Bruna, the Fading Light → Brisela, Voice of Nightmares"
+        );
+        let err = |text: String| format!("{:#}", card(&text).unwrap_err());
+        // Half a pair is refused, either way it is half.
+        assert!(err(format!("{GISELA}{BRUNA}")).contains("no [melded]"));
+        assert!(err(format!("{GISELA}{BRISELA}")).contains("no [counterpart]"));
+        assert!(err(GISELA.to_string()).contains("never printed without its pair"));
+        assert!(
+            err(format!("name = \"x\"\ntype = \"Land\"\n{BRUNA}")).contains("layout = \"meld\"")
+        );
+        assert!(err(format!(
+            "{GISELA}{BRUNA}{BRISELA}[back]\nname = \"x\"\ntype = \"Land\"\n"
+        ))
+        .contains("not a [back]"));
+        // The card that melds them is the top level, whose back is the
+        // melded card's top half.
+        let gisela_below = BRUNA
+            .replace("[counterpart]", "")
+            .replace("pt = \"5/7\"\n", "pt = \"5/7\"\nlayout = \"meld\"\n");
+        let gisela_as_counterpart = format!(
+            "[counterpart]\n{}",
+            GISELA.replace("layout = \"meld\"\n", "")
+        );
+        assert!(
+            err(format!("{gisela_below}{gisela_as_counterpart}{BRISELA}"))
+                .contains("so it is the card at the top level")
+        );
+        let neither = GISELA.replace("then meld them into", "then return");
+        assert!(err(format!("{neither}{BRUNA}{BRISELA}")).contains("melds them into"));
+        // The melded card has no cost (CR 202.3c), and all three are
+        // permanents.
+        let costed = BRISELA.replace("[melded]\n", "[melded]\ncost = \"{9}\"\n");
+        assert!(err(format!("{GISELA}{BRUNA}{costed}")).contains("no mana cost"));
+        let instant = BRUNA
+            .replace("Legendary Creature — Angel Horror", "Instant")
+            .replace("pt = \"5/7\"\n", "");
+        assert!(err(format!("{GISELA}{instant}{BRISELA}")).contains("permanent on the battlefield"));
     }
 
     #[test]

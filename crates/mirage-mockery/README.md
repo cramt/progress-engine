@@ -14,7 +14,8 @@ in; `core/symbols/fetch.sh` refreshes them when a set adds one.
 
 ```
 mockery render my-card.card.toml                  # my-card.png beside it, 300 ppi
-                                                  # (a double-faced card: and my-card.back.png)
+                                                  # (a double-faced card: and my-card.back.png;
+                                                  # a meld pair: and .counterpart.png, .counterpart.back.png)
 mockery render a.card.toml b.card.toml -o set.pdf # one card a page
 mockery sheet *.card.toml -o sheet.pdf --paper letter --gap 2  # Metamorph's flags
 mockery check *.card.toml                         # no render: Insight's reading
@@ -65,8 +66,11 @@ Rust DiceBear core is patched to drop jsonschema's network features, which
 cannot build for wasm (`vendor/README.md`).
 
 A card of two parts declares it: `layout = "transform"` or `"modal"` with a
-`[back]` face, `"split"` with a `[right]` half, or `"adventure"` or
-`"prepare"` with the `[spell]` drawn in its text box. A double-faced card is two
+`[back]` face, `"split"` with a `[right]` half, `"adventure"` or
+`"prepare"` with the `[spell]` drawn in its text box, or `"flip"` with the
+`[flipped]` half printed upside down under the art. A meld pair is one file
+of two cards, `layout = "meld"` with the card that melds them at the top
+level, its `[counterpart]` and the `[melded]` card their backs make. A double-faced card is two
 card images, front and back: two pages of a PDF, `x.png` and `x.back.png`, or
 two slots on a sheet, its back beside its front. A split card is one image,
 turned on its side, and what its halves say picks its frame: halves that
@@ -81,6 +85,22 @@ under its own name and type bars in its colour; a prepare spell stands in a
 frame inset on the right of the box, its bars shaped as the card's. Either
 is refused unless it is an instant or sorcery with a cost and plain text,
 an Adventure with the Adventure subtype, and only a permanent is prepared.
+A flip card prints as Budoka Gardener and Nezumi Graverobber do in the
+modern frame: the upright half's name bar, text box and type line over the
+art, the flipped half's under it upside down, each half's power and
+toughness on its type line's end. The flipped half has no cost, colour
+indicator, art or artist of its own, as flipping changes none of them
+(CR 710.1c), and either half is refused if it is an instant or sorcery, a
+framed text, or has loyalty or defense. A meld pair prints four card
+images, each front with Mockery's meld mark and the melded card's power and
+toughness in grey, and each back half the melded card on its side, the top
+half behind the card that melds them as every printed pair has it: laid
+side by side the two backs are one card 88 by 126mm, the melded face drawn
+in the frame and scaled up as Brisela's and Mishra, Lost to Phyrexia's are.
+Half a pair is refused (no `[counterpart]` or no `[melded]`), and so are a
+melded card with a cost (CR 202.3c), an instant or sorcery anywhere in the
+pair, and a top-level card with no ability melding them into the `[melded]`
+card by name (CR 712.4a), pointed at `[counterpart]` if that one has it.
 
 The card format, the layouts and what comes next are in
 [docs/research/mirage-mockery.md](../../docs/research/mirage-mockery.md).

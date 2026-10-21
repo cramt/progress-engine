@@ -100,7 +100,9 @@ cost = "{2}{R}{W}"
 type = "Enchantment — Saga"
 rules = """…IV — Exile this Saga, then return it to the battlefield transformed under your control."""
 layout = "transform"     # or "modal", with [back]; "split", with [right];
-                         # or "adventure" or "prepare", with [spell]
+                         # "adventure" or "prepare", with [spell];
+                         # "flip", with [flipped]; or "meld", with
+                         # [counterpart] and [melded]
 
 [back]
 name = "Kaladin, Herald of Second Chances"
@@ -110,9 +112,9 @@ rules = "Flying, vigilance\n…"
 pt = "4/4"
 ```
 
-`card.rs` holds a card as one of six shapes, a single face, a transforming
-pair, a modal pair, a split pair, or a card with an Adventure or a prepare
-spell, so a `[back]` with no layout, a layout
+`card.rs` holds a card as one of eight shapes, a single face, a transforming
+pair, a modal pair, a split pair, a card with an Adventure or a prepare
+spell, a flip card, or a meld pair, so a `[back]` with no layout, a layout
 with no second face, or a split card's half under `[back]` (it has a card
 back) is refused by name. Each face is checked as a card is. A split card's
 halves each need a cost: every printed one has one, and the card's cost is
@@ -319,6 +321,99 @@ do.
   printed spell half carries flavor text, so none of ours does in the test
   cards, though the format allows it.
 
+- **Flip** (CR 710), `layout = "flip"` with the flipped half in
+  `[flipped]`: not `[back]`, as a flip card's back is a card back
+  (CR 710.1). One image, as Scryfall's `layout:flip` cards print: the
+  upright half's name bar, text box and type line over the art, and the
+  flipped half's below it, the same three upside down, read by turning the
+  card round (CR 710.1a–b). Of the 45 printings on Scryfall (`layout:flip`,
+  2026-10-21) all are old-frame Kamigawa cards and reprints except Budoka
+  Gardener (Commander 2018) and Nezumi Graverobber (Commander Anthology
+  Volume II) and Wilds of Eldraine's Role tokens, so the frame is measured on
+  those two. Each half's power and toughness stand on its type line's
+  right end, as they do on both. The card's colour is the upright half's,
+  which Mockery paints both halves in.
+  - The flipped half has no `cost` or `color_indicator`: a flip card's
+    mana cost and colour don't change when it flips (CR 710.1c), and no
+    printed flipped half has either. It has no `art` or `artist`: the art
+    is one picture, the upright half's.
+  - Both halves are permanents: only a permanent on the battlefield flips
+    (CR 710.2). Both are plain lines with power and toughness or nothing on
+    the type line's end, no Saga, Class, planeswalker or station frame and
+    no loyalty or defense; a battle is refused as anywhere but its own card.
+  - Their parts, in px at 745 by 1040 down a column clear of text, Budoka
+    Gardener against ours (Nezumi Graverobber agrees to a pixel or two):
+
+    | | Printed | Ours |
+    |---|---|---|
+    | upright name bar, rim and all | 34–98 | 33–100 |
+    | upright text box | 99–235 | 101–232 |
+    | upright type bar | 241–299 | 240–302 |
+    | art | 308–648 | 309–648 |
+    | flipped type bar | 653–715 | 653–715 |
+    | flipped text box | 723–861 | 719–860 |
+    | flipped name bar | 868–925 | 867–926 |
+    | frame's foot | 948 | 947 |
+
+    Text tops out at 8pt: the printed halves' lines stand 32.5 px apart,
+    and ours come out 33–34.
+- **Meld** (CR 712.4, 701.42), `layout = "meld"`: one file holds the pair,
+  the card at the top level, the other in `[counterpart]` (CR 712.4a's
+  word) and the card their backs make in `[melded]`. One file a card, each
+  back naming the melded card and its half, was the other way, and was
+  turned down: both files would carry the melded card, free to disagree,
+  and either could be printed without the other. A pair is never half a
+  pair here: a `"meld"` file with no `[counterpart]` or no `[melded]` is
+  refused. Each printed card is still one card on a sheet: the file prints
+  four card images, front then back, the second card's after, so a sheet
+  gives each its slot at card size, back beside front, and `mockery render`
+  writes `x.png`, `x.back.png`, `x.counterpart.png` and
+  `x.counterpart.back.png`.
+  - Which card is the top level is the print's: the top half of the melded
+    card is on the back of the card with the ability that melds them, and
+    the bottom half on its counterpart's, as the Eldritch Moon release
+    notes say of Gisela and Bruna and The Brothers' War's of Titania and
+    Argoth, and as Scryfall numbers every melded card after the
+    counterpart (Brisela 15b after Bruna's 15, Urza, Planeswalker 238b after
+    The Mightstone and Weakstone). So the top-level card needs a line that
+    melds them into the `[melded]` card by name, as all seven printed pairs'
+    have ("…then meld them into Brisela, Voice of Nightmares."), and a file
+    whose `[counterpart]` has it instead is told to swap them.
+  - The melded card has no cost: its mana value is its fronts' together
+    (CR 202.3c, 712.8g). It may have a `color_indicator`, as The Brothers'
+    War's do; Eldritch Moon's are colourless. All three parts are
+    permanents, as melding puts the pair onto the battlefield (CR 712.4a,
+    701.42a). No battle is part of one.
+  - Each front prints as printed fronts do (Gisela, Bruna, Urza, Lord
+    Protector, The Mightstone and Weakstone, Phyrexian Dragon Engine): a
+    meld mark on the name bar's left, Mockery's own, a dark disc with two
+    points meeting in it; and when the melded card is a creature, its power
+    and toughness in grey beside the front's own, as Gisela's and Bruna's
+    "9/10" and Dragon Engine's "9/9" are. The counterpart's "(Melds with
+    …)" is Oracle text, so it goes in its `rules` like any reminder.
+  - The melded card is an oversized card face (CR 712.4), two cards on
+    their sides, 88 by 126mm, as Scryfall's 1040 by 1490 image of Urza,
+    Planeswalker is. Printed ones are a card's frame grown to that size,
+    text and all, so Mockery draws the melded face a card wide and as tall
+    as that shape, 90.2mm, and scales it by 88/63. The 2.2mm a card lacks
+    goes where Brisela has it: its art and type line stand lower than a
+    grown card's, its text box's foot where a card's is, and its black band
+    deeper. Each back holds its half of that, read with the card turned a
+    quarter clockwise as a split card is, the cut along its long edge with
+    its corners rounded, the notch Scryfall's images show at the seam.
+    Against Brisela, the two backs stitched at 1040 by 1490 (Mishra, Lost to
+    Phyrexia agrees within a few px):
+
+    | | Printed | Ours |
+    |---|---|---|
+    | type bar, rim and all | 828–905 | 835–915 |
+    | text box's foot | 1335 | 1335 |
+    | power and toughness plate | 1310–1385 | 1300–1375 |
+    | footer's baseline | 1395 | 1430 |
+
+    Which way a printed back's half is turned was not found in any source
+    checked, so the quarter turn is the split card's, not a measurement.
+
 Insight reads every face's rules text, each as its own face (CR 712.8,
 709.3b), and an inset spell's as the face it is while cast (CR 715.3b). Matched against Scryfall's images of Fable of the Mirror-Breaker,
 Delver of Secrets, Emeria's Call, Turntimber Symbiosis, Valki, God of Lies,
@@ -331,10 +426,12 @@ marks, the hint bar and the fuse bar are Mockery's own drawing, not Wizards'
 symbols
 ([ADR-0039](../adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
 
-Curator's form edits either face: a picker above the form chooses the front
-or the back (left or right half, or the card or its Adventure or prepare
-spell), and writing one never touches the other or
-the layout. The preview has the same picker for a double-faced card.
+Curator's form edits every part: a picker above the form chooses the front
+or the back (left or right half, the card or its Adventure or prepare
+spell, the upright or flipped half, or a meld pair's card, counterpart or
+melded card), and writing one never touches the others or the layout. The
+preview has a picker of the card images too, for a double-faced card's two
+and a meld pair's four, and picking a part shows the image it is drawn on.
 
 ### Layouts, from what the text says
 
@@ -665,9 +762,8 @@ Lutri, the Spellchaser and Citadel Siege.
 
 - Art cropping control (focus point), set symbol and rarity, collector line.
 - ~~Double-faced and split layouts.~~ Done: transform, modal and split with
-  fuse, and adventure and prepare, see *Cards of two parts*. Not yet: omen,
-  flip, meld, Rooms
-  (split with a shared type line, CR 709.5) and aftermath. ~~A
+  fuse, aftermath and Rooms, adventure and prepare, flip and meld, see
+  *Cards of two parts*. Not yet: omen. ~~A
   planeswalker's loyalty abilities laid out as printed.~~ Done, see
   *Planeswalker* under *Layouts*.
   ~~Saga and class frames.~~ Done, with station cards, from the text: see

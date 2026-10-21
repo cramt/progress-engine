@@ -155,15 +155,17 @@ function CardEditor({
   );
   const save = useSave(store);
   const [mode, setMode] = useState(loadMode);
-  // The face shown and edited: a card of two has its other face as 1.
+  // The part edited (a card of two has its other face as 1, a meld pair its
+  // melded card as 2) and the card image shown, each following the other.
   const [face, setFace] = useState(0);
+  const [image, setImage] = useState(0);
   const opened = useMemo(() => {
     const o = formOf(text, face);
     // The second face went away under the edit: back to the front.
     return o.kind === "refused" && face > 0 ? formOf(text, 0) : o;
   }, [text, face]);
   const labels = PART_LABELS[opened.kind === "form" ? opened.parts : "one"];
-  const side = labels ? Math.min(face, 1) : 0;
+  const side = labels ? Math.min(face, labels.length - 1) : 0;
   const showing = mode === "form" && opened.kind === "form" ? "form" : "toml";
   useEffect(() => store.edit(text), [store, text]);
   const { checked, preview, missingArt } = useCardChecks(
@@ -171,8 +173,14 @@ function CardEditor({
     repo,
     file.path,
     text,
-    side,
+    image,
   );
+  const images = checked.kind === "card" ? checked.images : [];
+  const pickPart = (part: number) => {
+    setFace(part);
+    const shown = images.findIndex((i) => i.part === part);
+    if (shown >= 0) setImage(shown);
+  };
 
   return (
     <section className="custom-card">
@@ -212,7 +220,7 @@ function CardEditor({
         {showing === "form" && opened.kind === "form" ? (
           <>
             {labels && (
-              <FacePicker face={side} labels={labels} onPick={setFace} />
+              <FacePicker face={side} labels={labels} onPick={pickPart} />
             )}
             <CardForm
               key={side}
@@ -270,8 +278,15 @@ function CardEditor({
         ) : preview?.kind === "failed" ? (
           <p className="refusal">{preview.why}</p>
         ) : null}
-        {checked.kind === "card" && checked.faces > 1 && (
-          <FacePicker face={side} labels={FRONT_BACK} onPick={setFace} />
+        {images.length > 1 && (
+          <FacePicker
+            face={Math.min(image, images.length - 1)}
+            labels={images.map((i) => i.label)}
+            onPick={(i) => {
+              setImage(i);
+              setFace(images[i]?.part ?? 0);
+            }}
+          />
         )}
       </div>
     </section>
@@ -280,17 +295,19 @@ function CardEditor({
 
 /**
  * What the face picker calls a card's two parts, by the table its second is
- * in; a card of one face has no picker. An Adventure and a prepare spell are
- * drawn inside the card, so the preview stays one image while the form edits
- * either.
+ * in; a card of one face has no picker. An Adventure, a prepare spell and a
+ * flipped half are drawn on the card's one face, so the preview stays one
+ * image while the form edits either; a meld pair's melded card is half on
+ * each card's back.
  */
-const FRONT_BACK = ["Front", "Back"] as const;
-const PART_LABELS: Record<Parts, readonly [string, string] | null> = {
+const PART_LABELS: Record<Parts, readonly string[] | null> = {
   one: null,
-  frontBack: FRONT_BACK,
+  frontBack: ["Front", "Back"],
   halves: ["Left half", "Right half"],
   adventure: ["Card", "Adventure"],
   prepare: ["Card", "Prepare spell"],
+  flip: ["Upright", "Flipped"],
+  meld: ["Card", "Counterpart", "Melded"],
 };
 
 /** Which face of a card of two the page shows and edits. */
@@ -300,7 +317,7 @@ function FacePicker({
   onPick,
 }: {
   face: number;
-  labels: readonly [string, string];
+  labels: readonly string[];
   onPick: (face: number) => void;
 }) {
   return (

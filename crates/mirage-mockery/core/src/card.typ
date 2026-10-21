@@ -178,12 +178,15 @@
 // text at a size, handed the height left over so sections can share it out.
 // The largest quarter point that fits is found by halving, not by stepping
 // down: every try lays the text out, and a Saga's sections each twice.
-#let fit-box(body, what: "the rules text", max: 9.5pt) = layout(size => {
-  let floor = 5pt
+// The floor is 5pt as printed: a meld pair's melded card is drawn smaller and
+// scaled up, so its face carries a lower `floor` by that scale, and Urza,
+// Planeswalker's six abilities fit its box at the size a card's would.
+#let floor-of(c) = c.at("floor", default: 5pt)
+#let fit-box(body, what: "the rules text", max: 9.5pt, floor: 5pt) = layout(size => {
   let height(sz) = measure(block(width: size.width, body(sz, 0pt))).height
   let fits(q) = height(floor + q * 0.25pt) <= size.height
   // Quarter points above the floor: 0 is 5pt, 18 is 9.5pt.
-  let (lo, hi) = (0, calc.round((max - floor) / 0.25pt))
+  let (lo, hi) = (0, calc.floor((max - floor) / 0.25pt))
   if not fits(lo) { panic(what + " does not fit its box even at " + repr(floor)) }
   if fits(hi) { lo = hi }
   while hi - lo > 1 {
@@ -341,7 +344,7 @@
   let bottom = if clear != auto { clear } else if c.hint != none { 4.2mm } else if c.corner != none and not corner-in-band { 3.6mm } else if c.back_pt != none { 3.2mm } else { 1.8mm }
   block(width: 100%, height: height, fill: if fill == auto { ps.box } else { fill }, stroke: stroke, clip: false,
     inset: (left: pad, right: if pad-right == auto { pad } else { pad-right }, top: top, bottom: bottom),
-    fit-box(max: max, (sz, spare) => text-style(sz, {
+    fit-box(max: max, floor: floor-of(c), (sz, spare) => text-style(sz, {
       // Text that leaves room is centred in the box, as printed cards set a
       // short text; a striated box fills it instead.
       if not striated { v(spare / 2) }
@@ -399,7 +402,7 @@
 // sections that share the height left over, as printed Sagas and Classes are
 // striated (CR 714.1, 716.1).
 #let column-text(c, ps) = block(width: 100%, height: 100%, fill: ps.box, stroke: 0.4pt + black,
-  fit-box((sz, spare) => text-style(sz, {
+  fit-box(floor: floor-of(c), (sz, spare) => text-style(sz, {
     let r = c.rules
     let pad = (x: 1.6mm, y: 1.3mm)
     let sections = if r.kind == "saga" { r.chapters } else { r.levels }
@@ -464,13 +467,20 @@
 // printed double-faced cards mark theirs (CR 712.2a–b, 712.3a–b). The marks
 // are Mockery's own: a disc for a card that transforms, its chevron up on the
 // front and down on the back; a tab for a modal one, one chevron on the front
-// and two on the back.
+// and two on the back; and for a meld card, as printed meld cards mark their
+// fronts, a disc with two points meeting in its middle.
 #let face-marker(kind) = {
   let chevron(dx, dy, up: true, w: 1.1mm, h: 0.65mm, paint: white) = place(top + left, dx: dx, dy: dy,
     polygon(fill: paint, stroke: none,
       ..if up { ((0mm, h), (w / 2, 0mm), (w, h), (w, h + 0.45mm), (w / 2, 0.45mm), (0mm, h + 0.45mm)) }
         else { ((0mm, 0mm), (w / 2, h), (w, 0mm), (w, 0.45mm), (w / 2, h + 0.45mm), (0mm, 0.45mm)) }))
-  if kind == "transform-front" or kind == "transform-back" {
+  if kind == "meld-front" {
+    box(width: 3.4mm, height: 3.4mm, baseline: 20%, {
+      place(circle(radius: 1.7mm, fill: luma(30), stroke: 0.4pt + white))
+      place(polygon(fill: white, stroke: none, (0.55mm, 1.0mm), (1.6mm, 1.7mm), (0.55mm, 2.4mm)))
+      place(polygon(fill: white, stroke: none, (2.85mm, 1.0mm), (1.8mm, 1.7mm), (2.85mm, 2.4mm)))
+    })
+  } else if kind == "transform-front" or kind == "transform-back" {
     box(width: 3.4mm, height: 3.4mm, baseline: 20%, {
       place(circle(radius: 1.7mm, fill: luma(30), stroke: 0.4pt + white))
       chevron(1.15mm, 1.05mm, up: kind == "transform-front")
@@ -705,7 +715,7 @@
     }))
     place(top + left, outline())
     block(width: 100%, height: 100%, inset: (left: pad, right: 1.6mm, top: 1.3mm, bottom: bottom-in),
-      fit-box((sz, spare) => text-style(sz, {
+      fit-box(floor: floor-of(c), (sz, spare) => text-style(sz, {
         // Static abilities across the box; each loyalty ability a band of
         // its own, shaded in turn, and the bands sharing the height left
         // over, as printed planeswalkers' text boxes are (CR 606).
@@ -735,8 +745,12 @@
                 align(horizon, paragraphs(a.text))
               })
             // No band is shallower than its badge with a margin round it,
-            // so badges never crowd each other as printed ones never do.
-            layout(size => band(calc.max(measure(band(auto), width: size.width).height, 3.7mm + 2.2mm) + share))
+            // so badges never crowd each other as printed ones never do. A
+            // melded card's margin is as much smaller as its text floor:
+            // Urza, Planeswalker's five badges stand 6.8mm apart printed,
+            // closer than a card's grown would.
+            let least = calc.max(3.7mm + 0.6mm, (3.7mm + 2.2mm) * (floor-of(c) / 5pt))
+            layout(size => band(calc.max(measure(band(auto), width: size.width).height, least) + share))
           }
         }
         if c.flavor != none {
@@ -1001,7 +1015,7 @@
       block(width: 100%, height: 9mm, fill: ps.box, stroke: 0.4pt + black,
         inset: (left: 2mm, right: if c.corner != none { 12mm } else { 2mm }, y: 1.2mm),
         fit-box((sz, _) => text-style(sz, align(center + horizon, paragraphs(after))),
-          what: "the text below the type line"))
+          what: "the text below the type line", floor: floor-of(c)))
     }
     v(under)
     if foot-right != none and not (c.back_pt != none and c.corner == none) {
@@ -1045,9 +1059,22 @@
   place(bottom + right, dy: -3mm, [Unofficial fan content · not a Magic card])
 })
 
-#let face-card(c) = {
-  let g = layout-of(c.rules.kind)
-  block(width: card-width, height: card-height, fill: black, radius: 2.5mm, breakable: false, {
+// A face `extra` taller than a card: a meld pair's melded card, drawn a
+// card wide and then scaled up. Brisela's art and type line stand lower
+// than a card's grown would, its text box's foot where a card's is and the
+// black band under it deeper, so the art and the type line take the extra
+// height from the box and the band.
+#let taller(g, extra) = {
+  let out = g
+  for k in ("art-bottom", "type-top", "box-top") {
+    if k in g { out.insert(k, g.at(k) + extra) }
+  }
+  out
+}
+
+#let face-card(c, extra: 0mm) = {
+  let g = taller(layout-of(c.rules.kind), extra)
+  block(width: card-width, height: card-height + extra, fill: black, radius: 2.5mm, breakable: false, {
     place(top + left, dx: border-side, dy: border-top,
       block(width: card-width - 2 * border-side, height: g.foot - border-top, fill: paints(c.frame).body,
         radius: 1.2mm, inset: (x: 1.5mm, top: g.name-top - border-top,
@@ -1401,9 +1428,87 @@
   })
 })
 
+// A flip card's parts, measured on Budoka Gardener (Commander 2018) and
+// Nezumi Graverobber (Commander Anthology Volume II), the flip cards printed
+// in the modern frame, at 745 by 1040 px, which agree to a pixel or two. The
+// frame runs from `frame-top` to `foot`; the upright half's name bar, text
+// box and type line stand over the art, from the card's top edge, and the
+// flipped half's under it, measured from the card's foot as it reads turned
+// upside down. A bar's top and height are its fill's.
+#let flip-layout = (frame-top: 2.37mm, foot: 80.2mm, art-top: 26.15mm, art-bottom: 54.85mm,
+  upright: (name-top: 3.55mm, name-h: 4.2mm, box-top: 8.46mm, box-bottom: 19.7mm, type-top: 21mm, type-h: 3.85mm),
+  flipped: (name-top: 10.28mm, name-h: 3.9mm, box-top: 15.23mm, box-bottom: 27.25mm, type-top: 28.22mm, type-h: 3.81mm))
+
+// One half of a flip card, on a card-sized sheet: its name bar, its text
+// box under it and its type line under that, the power and toughness on the
+// type line's right end as printed flip cards carry theirs. `ps` are the
+// card's paints, the upright half's: flipping changes no colour
+// (CR 710.1c).
+#let flip-half(h, ps, g) = {
+  set text(font: "Libertinus Serif", size: 8.5pt, fill: black)
+  set block(spacing: 0mm)
+  let x = border-side + 1.5mm
+  let w = card-width - 2 * x
+  let bar(body, y, height) = place(top + left, dx: x, dy: y, block(width: w, height: height, {
+    plate(w, height, ps)
+    block(width: 100%, height: height, inset: (x: 1.5mm), align(horizon, body))
+  }))
+  bar(grid(columns: (1fr, auto), column-gutter: 1mm, align: horizon,
+    fit-line(h.name, 9.5pt, 6pt, "the name"), { for s in h.cost { sym(s, 9pt) } }), g.name-top, g.name-h)
+  place(top + left, dx: x, dy: g.box-top, block(width: w, height: g.box-bottom - g.box-top,
+    // Budoka Gardener's and Nezumi Graverobber's lines stand 32.5 px apart,
+    // Libertinus's at 8pt.
+    standard-text(h, ps, max: 8pt, height: 100%, top: 1.2mm, clear: 1.2mm)))
+  let room = if h.corner != none { 10mm } else { 0mm }
+  let type-line = fit-line(h.type_line, 8.5pt, 5pt, "the type line")
+  bar(pad(right: room, if h.indicator.len() > 0 {
+    grid(columns: (auto, 1fr), column-gutter: 1.2mm, align: horizon, indicator(h.indicator), type-line)
+  } else { type-line }), g.type-top, g.type-h)
+  if h.corner != none {
+    // Its right end over the bar's, centred on the bar, as Budoka
+    // Gardener's and Nezumi Graverobber's power and toughness stand.
+    place(top + right, dx: -x + 0.5mm, dy: g.type-top + g.type-h / 2 - 2.45mm, corner-box(h, ps))
+  }
+}
+
+// A flip card (CR 710): one face, its upright half above the art and its
+// flipped half below it upside down, read by turning the card round, each
+// with its own name bar, text box and type line, in the card's colour.
+#let flip-card(c) = {
+  let g = flip-layout
+  let (upright, flipped) = (c.halves.first(), c.halves.last())
+  let ps = paints(upright.frame)
+  block(width: card-width, height: card-height, fill: black, radius: 2.5mm, breakable: false, {
+    place(top + left, dx: border-side, dy: g.frame-top, block(width: card-width - 2 * border-side,
+      height: g.foot - g.frame-top, fill: ps.body, radius: 1.2mm))
+    place(top + left, dx: border-side + 1.5mm, dy: g.art-top,
+      block(width: card-width - 2 * border-side - 3mm, art-box(upright, ps, height: g.art-bottom - g.art-top)))
+    place(top + left, block(width: card-width, height: card-height, flip-half(upright, ps, g.upright)))
+    place(top + left, rotate(180deg, block(width: card-width, height: card-height, flip-half(flipped, ps, g.flipped))))
+    place(bottom + left, footer(c.artist, card-width))
+  })
+}
+
+// A meld pair's melded card is half an oversized card on each card's back
+// (CR 712.4): two cards wide on their sides, so 88 by 126mm, drawn as a face
+// a card wide and as tall as that shape is, then scaled up to it, as the
+// printed ones are a card's frame grown, Brisela's and Urza's text and all.
+#let melded-scale = card-height / card-width
+#let melded-card(m) = scale(x: melded-scale * 100%, y: melded-scale * 100%, origin: top + left, reflow: true,
+  face-card(m + (floor: 5pt / melded-scale), extra: 2 * card-width / melded-scale - card-height))
+
+// A meld card's back: its half of the melded card, the top half on the
+// back of the card that melds them and the bottom on its counterpart's, as
+// printed pairs' are, read with the card turned a quarter clockwise, its
+// left edge at the top as a split card's is, so the two laid side by side
+// make the melded card.
+#let meld-back(c) = block(width: card-width, height: card-height, fill: black, radius: 2.5mm, clip: true,
+  breakable: false, rotate(-90deg, reflow: true, block(width: card-height, height: card-width, clip: true,
+    place(top + left, dy: if c.half == "top" { 0mm } else { -card-width }, melded-card(c.melded)))))
+
 #let card(c) = if c.kind == "split" {
   if c.style == "aftermath" { aftermath-card(c) } else if c.style == "room" { room-card(c) } else { split-card(c) }
-} else if c.kind == "battle" { battle-card(c) } else { face-card(c) }
+} else if c.kind == "battle" { battle-card(c) } else if c.kind == "flip" { flip-card(c) } else if c.kind == "meld-back" { meld-back(c) } else { face-card(c) }
 
 #let notice = [Unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Made with Mirage Mockery.]
 

@@ -37,15 +37,46 @@ pub enum Checked {
         type_line: String,
         /// Every face's art path, relative to the card file, front first.
         arts: Vec<String>,
-        /// The card images it prints: 2 for a double-faced card, whose
-        /// back [`render_png`] draws as face 1.
-        faces: u32,
+        /// The card images it prints, in the order [`render_png`] draws
+        /// them: one, a double-faced card's two, or a meld pair's four.
+        images: Vec<Image>,
         lines: u32,
         unread: Vec<Unread>,
     },
     Refused {
         message: String,
     },
+}
+
+/// One card image a file prints: what the preview's picker calls it, and
+/// which of the form's parts is drawn on it, so picking one picks the other.
+#[derive(Debug, Facet)]
+pub struct Image {
+    pub label: String,
+    /// The form's part: 0 the top level, 1 the second table, 2 a meld
+    /// pair's `[melded]` card.
+    pub part: u32,
+}
+
+fn images_of(card: &Card) -> Vec<Image> {
+    let images: &[(&str, u32)] = match card {
+        Card::Transform { .. } | Card::Modal { .. } => &[("Front", 0), ("Back", 1)],
+        // Each card's back is half the melded card.
+        Card::Meld { .. } => &[
+            ("Front", 0),
+            ("Back", 2),
+            ("Counterpart", 1),
+            ("Its back", 2),
+        ],
+        _ => &[("Card", 0)],
+    };
+    images
+        .iter()
+        .map(|&(label, part)| Image {
+            label: label.into(),
+            part,
+        })
+        .collect()
 }
 
 /// A card file as a form, or why it cannot be one.
@@ -115,7 +146,7 @@ pub fn check_text(text: &str) -> Checked {
                     .filter_map(|f| f.art.as_ref())
                     .map(|a| a.to_string_lossy().into_owned())
                     .collect(),
-                faces: card.images() as u32,
+                images: images_of(&card),
                 lines: reading.lines as u32,
                 unread: reading
                     .unread
@@ -141,10 +172,10 @@ pub fn check(text: &str) -> String {
 }
 
 fn side(n: u32) -> Side {
-    if n == 0 {
-        Side::Front
-    } else {
-        Side::Second
+    match n {
+        0 => Side::Front,
+        1 => Side::Second,
+        _ => Side::Third,
     }
 }
 
@@ -157,8 +188,8 @@ pub fn sort_cost(cost: &str) -> String {
 
 /// One face of the file as the form's fields, JSON of [`Opened`]: the custom
 /// cards page edits a card either as its file or as a form, and opens the
-/// form from this. `face` 0 is the top level, 1 the `[back]`, `[right]` or
-/// `[spell]`.
+/// form from this. `face` 0 is the top level, 1 the `[back]`, `[right]`,
+/// `[spell]`, `[flipped]` or `[counterpart]`, and 2 a meld pair's `[melded]`.
 #[wasm_bindgen]
 pub fn form_of(text: &str, face: u32) -> String {
     let opened = match Form::of_side(text, side(face)) {
@@ -334,12 +365,12 @@ mod tests {
         const SHINOVAR: &str =
             include_str!("../../core/tests/cards/the-cleansing-of-shinovar.card.toml");
         match check_text(SHINOVAR) {
-            Checked::Card { name, faces, .. } => {
+            Checked::Card { name, images, .. } => {
                 assert_eq!(
                     name,
                     "The Cleansing of Shinovar // Kaladin, Herald of Second Chances"
                 );
-                assert_eq!(faces, 2);
+                assert_eq!(images.len(), 2);
             }
             Checked::Refused { message } => panic!("{message}"),
         }
@@ -353,14 +384,31 @@ mod tests {
         const SKYBREAKER: &str =
             include_str!("../../core/tests/cards/skybreaker-initiate.card.toml");
         match check_text(SKYBREAKER) {
-            Checked::Card { name, faces, .. } => {
+            Checked::Card { name, images, .. } => {
                 assert_eq!(name, "Skybreaker Initiate // Full Lashing");
-                assert_eq!(faces, 1);
+                assert_eq!(images.len(), 1);
             }
             Checked::Refused { message } => panic!("{message}"),
         }
         let spell = form_of(SKYBREAKER, 1);
         assert!(spell.contains(r#""name":"Full Lashing""#), "{spell}");
         assert!(spell.ends_with(r#","parts":"adventure"}"#), "{spell}");
+    }
+
+    #[test]
+    fn a_meld_pair_is_four_images_and_three_forms() {
+        const SMUGGLER: &str = include_str!("../../core/tests/cards/corellian-smuggler.card.toml");
+        match check_text(SMUGGLER) {
+            Checked::Card { images, .. } => {
+                let parts: Vec<u32> = images.iter().map(|i| i.part).collect();
+                assert_eq!(parts, [0, 2, 1, 2]);
+            }
+            Checked::Refused { message } => panic!("{message}"),
+        }
+        let melded = form_of(SMUGGLER, 2);
+        assert!(melded.contains(r#""name":"The Kessel Runner""#), "{melded}");
+        assert!(melded.ends_with(r#","parts":"meld"}"#), "{melded}");
+        let back = render_png(SMUGGLER, "[]", &[], &[], 3, 72.0).unwrap_or_else(|_| panic!());
+        assert_eq!(&back[1..4], b"PNG");
     }
 }

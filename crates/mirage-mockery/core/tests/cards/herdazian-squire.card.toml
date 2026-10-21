@@ -1,0 +1,18 @@
+name = "Herdazian Squire"
+cost = "{1}{W}"
+type = "Creature — Human Soldier"
+rules = """
+Whenever you gain life, put a +1/+1 counter on this creature. Then if it has three or more +1/+1 counters on it, flip it.
+"""
+pt = "1/2"
+artist = "Mirage Mockery"
+layout = "flip"
+
+[flipped]
+name = "The Lopen, Arm Regrown"
+type = "Legendary Creature — Human Knight"
+rules = """
+Flying, lifelink
+Whenever The Lopen attacks, other creatures you control get +1/+0 until end of turn.
+"""
+pt = "3/4"

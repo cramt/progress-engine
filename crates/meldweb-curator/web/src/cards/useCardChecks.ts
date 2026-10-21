@@ -33,7 +33,8 @@ export interface CardView {
 
 /**
  * What the page shows of `text`: Insight's reading at once, and the picture
- * of face `face` (a double-faced card's back is 1) a moment after typing
+ * of card image `face` (a double-faced card's back is 1, a meld pair's
+ * counterpart 2) a moment after typing
  * stops.
  */
 export function useCardChecks(
@@ -64,7 +65,12 @@ export function useCardChecks(
       setMissingArt(missing);
       try {
         // Art the repo lacks renders as a card without it, said beside it.
-        const png = renderPng(text, art, Math.min(face, c.faces - 1), 150);
+        const png = renderPng(
+          text,
+          art,
+          Math.min(face, c.images.length - 1),
+          150,
+        );
         url = URL.createObjectURL(
           new Blob([png as BlobPart], { type: "image/png" }),
         );

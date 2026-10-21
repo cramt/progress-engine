@@ -93,11 +93,14 @@ function PrintDialog({
         art,
       );
       downloadPdf(pdf, "custom-cards.pdf");
-      // A double-faced card prints both faces, each a slot to cut.
+      // A double-faced card prints both faces, and a meld pair four, each
+      // a slot to cut.
       const n = wanted.reduce((s, c) => s + (qty[c.path] ?? 0), 0);
       const slots = wanted.reduce((s, c) => {
         const k = checkCard(c.text);
-        return s + (qty[c.path] ?? 0) * (k.kind === "card" ? k.faces : 1);
+        return (
+          s + (qty[c.path] ?? 0) * (k.kind === "card" ? k.images.length : 1)
+        );
       }, 0);
       setDone(
         `${n} cards${slots > n ? ` (${slots} faces)` : ""}, ${(pdf.length / 1e3).toFixed(0)} KB.`,

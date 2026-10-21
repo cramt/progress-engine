@@ -1,0 +1,36 @@
+name = "Corellian Smuggler"
+cost = "{2}{R}"
+type = "Legendary Creature — Human Rogue"
+rules = """
+Haste
+At the beginning of combat on your turn, if you both own and control Corellian Smuggler and an artifact named Battered Freighter, exile them, then meld them into The Kessel Runner.
+"""
+flavor = "\"Never tell me the odds.\""
+pt = "3/2"
+artist = "Mirage Mockery"
+layout = "meld"
+
+[counterpart]
+name = "Battered Freighter"
+cost = "{4}"
+type = "Artifact — Vehicle"
+rules = """
+Flying
+Crew 2
+(Melds with Corellian Smuggler.)
+"""
+pt = "4/5"
+artist = "Mirage Mockery"
+
+[melded]
+name = "The Kessel Runner"
+type = "Legendary Artifact Creature — Vehicle"
+color_indicator = "R"
+rules = """
+Flying, haste, trample
+Ward {2}
+Whenever The Kessel Runner attacks, it deals 2 damage to each opponent.
+"""
+flavor = "It made the Kessel Run in less than twelve parsecs."
+pt = "8/8"
+artist = "Mirage Mockery"

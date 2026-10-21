@@ -211,3 +211,33 @@ fn a_battle_prints_sideways_at_the_card_size() {
         assert_eq!((width, height), (744, 1039), "page {page}");
     }
 }
+
+#[test]
+fn a_flip_card_is_one_card_and_a_meld_pair_four_images_of_card_size() {
+    let open = |name: &str| Card::open(&here(&format!("tests/cards/{name}.card.toml"))).unwrap();
+    let flip = open("herdazian-squire");
+    let meld = open("corellian-smuggler");
+    assert!(matches!(flip, Card::Flip { .. }));
+    assert!(matches!(meld, Card::Meld { .. }));
+    for (card, pages) in [(&flip, 1), (&meld, 4)] {
+        assert_eq!(card.images(), pages);
+        let doc = render::compile(std::slice::from_ref(card), Layout::Cards).unwrap();
+        assert_eq!(doc.pages().len(), pages, "{}", card.name());
+        // Every image is a card as it is held, so a sheet cuts each at
+        // card size: a meld card's back holds its half of the melded card
+        // on its side.
+        for page in 0..pages {
+            let png = render::png(&doc, page, 300.0).unwrap();
+            let width = u32::from_be_bytes(png[16..20].try_into().unwrap());
+            let height = u32::from_be_bytes(png[20..24].try_into().unwrap());
+            assert_eq!((width, height), (744, 1039), "page {page}");
+        }
+    }
+    // Each printed card of the pair is two slots, its back beside its front.
+    let doc = render::compile(&[meld, flip], Layout::Sheet(Sheet::default())).unwrap();
+    assert_eq!(doc.pages().len(), 1);
+    // Insight reads every part: the melded card is a face of its own
+    // (CR 712.8). The counterpart's "(Melds with …)" is reminder text, not
+    // an ability.
+    assert_eq!(read::read(&open("corellian-smuggler")).lines, 2 + 2 + 3);
+}
