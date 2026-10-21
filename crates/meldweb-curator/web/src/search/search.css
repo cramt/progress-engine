@@ -80,6 +80,10 @@ body.search-docked main {
 }
 
 .search-tab button {
+  --line: none;
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: 13px;
   height: 34px;
   max-width: 260px;
   padding: 0 10px;
@@ -348,6 +352,10 @@ body.search-docked main {
 }
 
 .result-menu button {
+  --line: none;
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: 13px;
   justify-content: flex-start;
   height: 28px;
   padding: 0 8px;

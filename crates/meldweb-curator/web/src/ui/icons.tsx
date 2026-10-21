@@ -2,7 +2,7 @@
  * The few icons the app draws, as inline SVG in the current colour. Each is
  * decorative: the button holding it carries the label.
  */
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 
 function Icon({ children }: { children: ReactNode }) {
   return (
@@ -93,37 +93,35 @@ export const ScanIcon = () => (
 );
 
 /**
- * Meldweb's mark: two cards fanned, one of them the accent. Drawn rather than
- * loaded, so it is there before anything else is.
+ * The mark: the splash's three sutures at rest, two in polished steel and one
+ * in flesh thread. Drawn rather than loaded, so it is there before anything
+ * else is; the gradient's id is per instance, as a page can hold two marks.
  */
 export function BrandMark() {
+  const steel = useId();
   return (
-    <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-      <rect
-        x="5"
-        y="6"
-        width="15"
-        height="21"
-        rx="2.5"
-        transform="rotate(-12 12.5 16.5)"
-        fill="var(--surface-3)"
-        stroke="var(--border-strong)"
-      />
-      <rect
-        x="12"
-        y="5"
-        width="15"
-        height="21"
-        rx="2.5"
-        transform="rotate(8 19.5 15.5)"
-        fill="var(--accent)"
-      />
-      <path
-        d="M16.2 11.5l3.3 4-3.3 4-3.3-4z"
-        transform="rotate(8 19.5 15.5) translate(3.3 0)"
-        fill="var(--accent-fg)"
-        opacity="0.85"
-      />
+    <svg className="brand-mark" viewBox="0 0 68 68" aria-hidden="true">
+      <defs>
+        <linearGradient id={steel} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#5b6274" />
+          <stop offset=".5" stopColor="#ffffff" />
+          <stop offset="1" stopColor="#5b6274" />
+        </linearGradient>
+      </defs>
+      <g fill="none" strokeWidth="4" strokeLinecap="round">
+        <path
+          stroke={`url(#${steel})`}
+          d="M34 6 C 50 14, 50 30, 34 34 C 18 38, 18 54, 34 62"
+        />
+        <path
+          stroke="var(--flesh)"
+          d="M8 34 C 16 18, 30 18, 34 34 C 38 50, 52 50, 60 34"
+        />
+        <path
+          stroke={`url(#${steel})`}
+          d="M14 14 C 26 20, 28 28, 34 34 C 40 40, 42 48, 54 54"
+        />
+      </g>
     </svg>
   );
 }

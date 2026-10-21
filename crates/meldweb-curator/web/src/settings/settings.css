@@ -117,6 +117,7 @@
 .verb-toggle {
   grid-area: verb;
   display: inline-flex;
+  gap: 12px;
 }
 
 .verb-toggle .verb {
@@ -126,25 +127,14 @@
   box-shadow: none;
 }
 
-.verb-toggle .verb:first-child {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.verb-toggle .verb:last-child {
-  margin-left: -1px;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
 .verb-toggle .verb[aria-pressed="false"] {
+  --line: none;
   color: var(--faint);
 }
 
 .verb-toggle .verb.avoid[aria-pressed="true"] {
   position: relative;
-  border-color: var(--fg);
-  background: var(--surface-3);
+  --line: linear-gradient(90deg, var(--steel-hi), transparent);
   color: var(--fg);
 }
 

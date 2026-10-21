@@ -12,14 +12,42 @@
   gap: 4px;
 }
 
+/* File names, read as text: the open one is marked by a stitched edge. */
 .custom-card-list button {
+  --line: none;
+  position: relative;
   justify-content: flex-start;
+  min-width: 0;
+  padding: 0 10px;
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0;
   text-align: left;
+  text-overflow: ellipsis;
+  text-transform: none;
+}
+
+.custom-card-list button:hover:not(:disabled) {
+  --line: none;
 }
 
 .custom-card-list button.selected {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  background: linear-gradient(90deg, var(--accent-soft), transparent 85%);
+  color: var(--steel-hi);
+}
+
+.custom-card-list button.selected::before {
+  content: "";
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 2px;
+  background: repeating-linear-gradient(
+    180deg,
+    var(--steel-hi) 0 3px,
+    transparent 3px 5px
+  );
 }
 
 .custom-card {
@@ -203,9 +231,9 @@
   font-size: 12px;
 }
 
-.card-form-chips button[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+.card-form-chips button[aria-pressed="false"] {
+  --line: none;
+  color: var(--faint);
 }
 
 .card-form-symbols button,

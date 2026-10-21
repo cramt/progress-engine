@@ -398,6 +398,8 @@
   box-shadow: none;
   color: inherit;
   font-family: inherit;
+  letter-spacing: normal;
+  text-transform: none;
   font-size: inherit;
   text-align: left;
   cursor: pointer;

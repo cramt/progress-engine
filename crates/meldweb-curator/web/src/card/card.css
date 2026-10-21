@@ -133,6 +133,10 @@
 }
 
 .card-menu-list button {
+  --line: none;
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: 13px;
   justify-content: space-between;
   gap: 16px;
   width: 100%;
@@ -478,6 +482,9 @@ img.mana {
 }
 
 .details-categories li button {
+  --line: none;
+  letter-spacing: normal;
+  text-transform: none;
   width: 22px;
   height: 22px;
   padding: 0;

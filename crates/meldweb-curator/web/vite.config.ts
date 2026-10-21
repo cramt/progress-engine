@@ -1,4 +1,4 @@
-import { createReadStream, statSync } from "node:fs";
+import { createReadStream, readFileSync, statSync } from "node:fs";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
@@ -127,10 +127,25 @@ function gitaxianProbe(): Plugin {
   };
 }
 
+// The splash's spinner is src/ui/suture.svg, inlined where index.html says
+// `<!--suture-->` so it paints before any JavaScript, and imported by
+// src/ui/Loading.tsx, which draws the same thing once React is up.
+function sutureSplash(): Plugin {
+  const svg = readFileSync(
+    new URL("./src/ui/suture.svg", import.meta.url),
+    "utf8",
+  );
+  return {
+    name: "progress-engine-suture",
+    transformIndexHtml: (html) => html.replace("<!--suture-->", svg.trim()),
+  };
+}
+
 export default defineConfig({
   // The copy of Scryfall's worker imports the wasm as a module.
   worker: { format: "es" },
   plugins: [
+    sutureSplash(),
     devAuth(),
     gitaxianProbe(),
     decklistWasm(),

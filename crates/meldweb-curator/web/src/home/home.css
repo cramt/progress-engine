@@ -123,21 +123,43 @@
 }
 
 /* Login and onboarding: one card in the middle of the page. */
+/* Over the splash's art, so logging in looks like the splash it follows. */
 .gate {
   display: flex;
   min-height: 100vh;
   align-items: center;
   justify-content: center;
   padding: 24px var(--gutter);
+  background:
+    var(--ribs),
+    radial-gradient(60% 55% at 50% 45%, rgb(8 9 13 / 0.7), rgb(8 9 13 / 0.96)),
+    linear-gradient(rgb(10 11 18 / 0.35), rgb(10 11 18 / 0.35)),
+    url("/splash/font-of-progress.jpg") center 30% / cover,
+    var(--void);
 }
 
 .gate-card {
   width: min(480px, 100%);
   padding: 32px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-lg);
+  border: 1px solid;
+  border-image: linear-gradient(
+      135deg,
+      var(--steel-hi),
+      #3a4052 30%,
+      #1a1418 55%,
+      #7a5a58 80%,
+      #d9c4c0
+    )
+    1;
+  background:
+    var(--ribs),
+    linear-gradient(
+      150deg,
+      rgb(18 20 27 / 0.94),
+      rgb(8 9 13 / 0.94) 60%,
+      rgb(31 21 23 / 0.94)
+    );
+  clip-path: var(--cut-corners);
 }
 
 .gate-card .brand {
