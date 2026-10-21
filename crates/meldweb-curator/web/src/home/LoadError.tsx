@@ -28,7 +28,7 @@ export function LoadError({ error }: ErrorComponentProps) {
   }
   return (
     <main className="home">
-      <h1>Meldweb Curator</h1>
+      <h1 className="wordmark">Progress Engine</h1>
       <p className="refusal" role="alert">
         {error instanceof Error ? error.message : String(error)}
       </p>

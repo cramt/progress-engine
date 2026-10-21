@@ -135,7 +135,8 @@ export function WantedEditor({
         <Toolbar name="Wanted" />
         <div className="banners">
           <p className="refusal" role="alert">
-            {path} is not a wanted list this Curator can read: {parsed.message}
+            {path} is not a wanted list Progress Engine can read:{" "}
+            {parsed.message}
           </p>
         </div>
         <details className="source" open>

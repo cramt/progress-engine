@@ -175,7 +175,7 @@ export function TradeView({ data }: { data: TradeData }) {
           {deckName
             ? `What ${deckName} lacks of your collection is checked against theirs.`
             : "Your wanted list is checked against their collection."}{" "}
-          Their Curator repo has to be public.
+          Their mtg repo has to be public.
         </span>
       </form>
       <Result result={result} offers={offers} />

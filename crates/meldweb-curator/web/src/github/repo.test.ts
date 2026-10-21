@@ -94,7 +94,7 @@ describe("the repo version", () => {
     expect(mock.commits()).toHaveLength(1);
   });
 
-  it("refuses a repo newer than Curator knows, and changes nothing", async () => {
+  it("refuses a repo newer than Progress Engine knows, and changes nothing", async () => {
     const { api, mock, repo } = mockConnection({ files: { VERSION: "2\n" } });
     const opened = await openMagicRepo(api, repo);
     expect(opened.kind).toBe("refused");

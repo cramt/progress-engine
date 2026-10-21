@@ -39,7 +39,7 @@ describe("a commit message", () => {
 
   it("refuses a path that is not a deck, the collection or the settings", () => {
     expect(() => commitMessageFor("VERSION", "1\n", "2\n")).toThrow(
-      "VERSION is not a file Curator edits",
+      "VERSION is not a file Progress Engine edits",
     );
     expect(() => commitMessageFor("decks/notes.md", "", "x")).toThrow();
   });
