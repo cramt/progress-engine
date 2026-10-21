@@ -291,7 +291,7 @@ pub fn compile_with_art(
                     SplitKind::Aftermath => ("aftermath", None),
                     SplitKind::Room { reminder } => ("room", reminder.as_ref()),
                 };
-                let half = |files: &mut Files<_>, f| {
+                let half = |files: &mut Files<_>, f: &Face| {
                     files.face(
                         f,
                         Extras {
@@ -300,6 +300,9 @@ pub fn compile_with_art(
                                 SplitKind::Room { reminder } => reminder.as_deref(),
                                 _ => None,
                             },
+                            // A Room's one picture is both doors'.
+                            art_colors: matches!(kind, SplitKind::Room { .. })
+                                .then(|| left.colors().union(right.colors())),
                             ..Extras::default()
                         },
                     )
@@ -377,6 +380,9 @@ struct Extras<'a> {
     /// This face has no art of its own: a spell drawn in another's text
     /// box, or a flip card's flipped half, under the upright half's art.
     no_art: bool,
+    /// The colours this face's placeholder art is drawn in, where its art
+    /// stands for more than the face: a Room's one picture across both doors.
+    art_colors: Option<Colors>,
 }
 
 /// The files a job hands Typst: each symbol once, and each face's art.
@@ -441,7 +447,7 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
     }
 
     /// The face's art as a file of the job, or a placeholder drawn for it.
-    fn art(&mut self, face: &Face) -> Result<Value> {
+    fn art(&mut self, face: &Face, colors: Option<Colors>) -> Result<Value> {
         let bytes = match &face.art {
             None => None,
             Some(path) => (self.art_of)(path)
@@ -462,7 +468,7 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
                 let frame = face.frame();
                 let colors = match frame {
                     Frame::Land(made) => made.ordered(),
-                    _ => face.colors().ordered(),
+                    _ => colors.unwrap_or_else(|| face.colors()).ordered(),
                 };
                 (
                     "svg".to_string(),
@@ -538,7 +544,7 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
         let art = if extras.no_art {
             Value::Null
         } else {
-            self.art(face)?
+            self.art(face, extras.art_colors)?
         };
         Ok(json!({
             // A battle is drawn on its side, its type line says so (CR 310).

@@ -81,7 +81,7 @@ struct Tones {
 impl Tones {
     fn of(color: Color) -> Tones {
         let (deep, mid, light) = match color {
-            Color::White => ("#c9a94e", "#ecdca6", "#fffbea"),
+            Color::White => ("#c9a94e", "#ecdca6", "#f8e9b4"),
             Color::Blue => ("#1d4f86", "#3f7fb8", "#a9cdea"),
             Color::Black => ("#231d22", "#4d434b", "#9a9192"),
             Color::Red => ("#8f2a1c", "#c8502e", "#f0a787"),
