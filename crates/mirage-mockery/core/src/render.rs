@@ -465,7 +465,8 @@ impl<F: FnMut(&Path) -> Result<Option<Vec<u8>>>> Files<F> {
             },
             "frame": match face.frame() {
                 Frame::Mono(c) => json!({ "base": color_name(c), "tint": [] }),
-                Frame::Gold => json!({ "base": "gold", "tint": [] }),
+                // A gold card's bars are rimmed in its colours, as printed ones are.
+                Frame::Gold => json!({ "base": "gold", "tint": [], "colors": names(face.colors()) }),
                 Frame::Artifact => json!({ "base": "artifact", "tint": [] }),
                 Frame::Colorless => json!({ "base": "colorless", "tint": [] }),
                 Frame::Land(colors) => json!({ "base": "land", "tint": names(colors) }),

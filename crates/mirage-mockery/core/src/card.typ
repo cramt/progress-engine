@@ -58,10 +58,34 @@
 // The frame's paints. A card's colour is its frame; a land's frame is a
 // land's, tinted by the colours it is or makes, and two of them split down
 // the middle as printed dual lands are.
-#let paints(frame) = {
+// The name and type bars' rim, in the card's colour as printed bars' is: a
+// gold card's in its two colours, left to right, and a land's in the colours
+// it is or makes.
+#let rim-paint(frame) = {
+  let rims(names) = if names.len() == 1 { ink.at(names.first()) } else if names.len() == 2 {
+    gradient.linear(..names.map(k => ink.at(k)))
+  } else { palette.gold.darken(30%) }
+  if frame.base in ink { ink.at(frame.base) }
+  else if frame.base == "gold" { rims(frame.at("colors", default: ())) }
+  else if frame.base == "land" { if frame.tint.len() == 0 { rgb("#d9c47c") } else { rims(frame.tint) } }
+  else if frame.base == "artifact" { rgb("#e3e6ec") }
+  else { luma(185) }
+}
+
+#let paints(frame) = (rim: rim-paint(frame)) + {
   let base = palette.at(frame.base)
   let tint = frame.tint.map(t => palette.at(t))
-  if frame.base != "land" or tint.len() == 0 {
+  if frame.base == "gold" or (frame.base == "land" and tint.len() == 0) {
+    // A gold card's bars, and a colourless land's, are filled in their
+    // frame's own tone rather than paled, as printed ones are.
+    (
+      body: gradient.linear(base.lighten(15%), base, angle: 90deg),
+      bar: if frame.base == "gold" { rgb("#c9b27a") } else { rgb("#d8c483") },
+      box: paper,
+      accent: base,
+      foot: base,
+    )
+  } else if frame.base != "land" or tint.len() == 0 {
     (
       body: gradient.linear(base.lighten(15%), base, angle: 90deg),
       bar: base.lighten(55%),
@@ -401,16 +425,16 @@
   block(width: 100%, height: art-h, below: gap, {
     let (w, h) = (size.width, art-h)
     // The window's sides bow out, so it is narrowest at its rounded top and
-    // bottom corners and widest at mid-height; a band of the bars' colour
+    // bottom corners and widest at mid-height; a band of the bars' rim colour
     // runs round it, pinched into a neck under each corner that flares into
     // the name bar above and the type line below. Measured on printed
     // planeswalkers as fractions of the card's width from its edge, which
     // these match: the window's sides 9.5-10% at its corners and 7% at
-    // mid-height, the band's outer edge 5.5% at mid-height. Our bars stand
-    // further in than printed ones, so the necks, printed at 7.5% at the top
-    // and 7% at the foot, are 1mm and 0.7mm in from our bars to keep a flare.
+    // mid-height, the band's outer edge 5.5% at mid-height, and the necks
+    // 7% at the top and 6.6% at the foot, where the band runs into the bars'
+    // rims. The band is in the rims' paint, as printed bands are.
     let (side-end, side-mid, corner) = (2.2mm, 0.38mm, 1.3mm)
-    let (neck, neck-foot, neck-at, foot-at) = (0.96mm, 0.7mm, 1.4mm, 1.1mm)
+    let (neck, neck-foot, neck-at, foot-at) = (0.3mm, 0.05mm, 1.4mm, 1.1mm)
     let bulge(end, end2, mid) = (8 * mid - end - end2) / 6
     let side-c = bulge(side-end, side-end, side-mid)
     let band-c = bulge(neck, neck-foot, -0.5mm)
@@ -446,7 +470,7 @@
       curve.cubic((m(band-c), y2 - (y2 - y1) / 3), (m(band-c), y1 + (y2 - y1) / 3), (m(neck), y1)),
       curve.cubic((m(neck), y1 - 0.8mm), (m(neck - 0.3mm), head), (m(0.4mm), head)),
     )
-    place(top + left, curve(fill: ps.bar, stroke: none,
+    place(top + left, curve(fill: ps.rim, stroke: none,
       curve.move((0.4mm, head)), curve.line((mirror(0.4mm), head)),
       ..outer(mirror), curve.line((0.4mm, foot)), ..upward(same), curve.close(mode: "straight")))
     for m in (same, mirror) {
@@ -458,7 +482,7 @@
   })
   block(below: gap, type-bar)
 
-  // The text box sits in a band of the bars' colour, as the window does:
+  // The text box sits in a band of the bars' rim colour, as the window does:
   // flaring out of the type line's foot, straight down the sides, round at
   // its foot's left corner, arched over the middle of the card's foot, and
   // flaring into the loyalty shield at the right, which stands over the
@@ -469,7 +493,7 @@
   // of the height.
   let (w, H) = (size.width, size.height)
   let radius = (top-left: 1.3mm, top-right: 0.8mm, bottom-left: 1.2mm, bottom-right: 1mm)
-  let (side, band-foot, round) = (-0.3mm, 0.9mm, 3.8mm)
+  let (side, band-foot, round) = (-0.45mm, 0.9mm, 3.8mm)
   let (mid, arch, rise) = (w / 2, 4.6mm, 0.9mm)
   let head = box-top - gap + 0.07mm
   let foot = box-bottom + band-foot
@@ -481,7 +505,7 @@
     curve.cubic((m - arch / 2, y - rise), (m - arch / 2, y), (m - arch, y)),
   )
   let bow(y) = bow-at(y, mid)
-  place(top + left, curve(fill: ps.bar, stroke: 0.4pt + black,
+  place(top + left, curve(fill: ps.rim, stroke: 0.4pt + black,
     curve.move((0.4mm, head)),
     curve.line((w - 0.4mm, head)),
     curve.cubic((w - 0.35mm, head + 0.7mm), (w - side, head + 0.6mm), (w - side, head + 1.6mm)),
@@ -562,7 +586,7 @@
     // The band again over the arch, where the box's corners and shading
     // cannot follow it.
     let m = mid - inl
-    place(top + left, curve(fill: ps.bar, stroke: none,
+    place(top + left, curve(fill: ps.rim, stroke: none,
       curve.move((m + arch, box-h + 0.2mm)), ..bow-at(box-h, m).slice(1), curve.close(mode: "straight")))
     place(top + left, curve(stroke: 0.4pt + black, curve.move((m + arch, box-h)), ..bow-at(box-h, m).slice(1)))
   }))
@@ -570,32 +594,78 @@
 })
 })
 
+// A name or type bar's plate, `w` by `h` for what it holds, in the shape of
+// printed modern frames' bars: wider than the art and the text box, each end
+// a half ellipse bulging out past them, under a rim in the card's colour, and
+// filled lighter at the top than the foot over a shadow along its foot and
+// left end, so it reads as raised. An end that is "point" is a fused split
+// half's, pointing across the gutter at the other half (CR 702.102a).
+// Measured on printed cards at 745 px wide: the rim's outer edge 4.7% of the
+// width in from the card's, the fill's end bulging some 12 px, the rim 6 px.
+#let bar-depth = 1.05mm
+#let bar-rim = 0.55mm
+#let plate(w, h, ps, ends: ("round", "round"), over: 0.5mm) = {
+  let k = 0.5523
+  // The outline grown by `g` past the fill's, clockwise from the top left.
+  let outline(g) = {
+    let (x0, x1, top, foot, mid) = (-over - g, w + over + g, -g, h + g, h / 2)
+    let rx = bar-depth + g / 2
+    let ry = h / 2 + g
+    let (l, r) = ends
+    let (lx, rx-at) = (x0 + rx, x1 - rx)
+    let (pa, pout) = (1.6mm, 1mm)
+    let segs = (curve.move((if l == "point" { pa - over } else { lx }, top)),)
+    if r == "point" {
+      segs += (curve.line((w - pa + over, top)), curve.line((w + pout + g * 1.3, mid)),
+        curve.line((w - pa + over, foot)))
+    } else {
+      segs += (curve.line((rx-at, top)),
+        curve.cubic((rx-at + k * rx, top), (x1, mid - k * ry), (x1, mid)),
+        curve.cubic((x1, mid + k * ry), (rx-at + k * rx, foot), (rx-at, foot)))
+    }
+    if l == "point" {
+      segs += (curve.line((pa - over, foot)), curve.line((-pout - g * 1.3, mid)),
+        curve.line((pa - over, top)))
+    } else {
+      segs += (curve.line((lx, foot)),
+        curve.cubic((lx - k * rx, foot), (x0, mid + k * ry), (x0, mid)),
+        curve.cubic((x0, mid - k * ry), (lx - k * rx, top), (lx, top)))
+    }
+    segs + (curve.close(mode: "straight"),)
+  }
+  let shape(g, ..style) = place(top + left, curve(..style, ..outline(g)))
+  // A soft shadow under the plate, then the rim, outlined dark inside and out.
+  place(top + left, dy: 0.3mm, curve(fill: black.transparentize(70%), stroke: none, ..outline(bar-rim + 0.1mm)))
+  shape(bar-rim, fill: ps.rim, stroke: 0.9pt + luma(25))
+  shape(0mm, fill: ps.bar.darken(28%), stroke: none)
+  // The fill shifted up and right off its own shadow, the bevel.
+  place(top + left, dx: 0.22mm, dy: -0.25mm, curve(stroke: none,
+    fill: gradient.linear(ps.bar.lighten(20%), ps.bar, ps.bar.darken(12%), angle: 90deg),
+    ..outline(-0.18mm)))
+  shape(0mm, fill: none, stroke: 0.45pt + luma(25))
+}
+
 // One face's body, filling the box it is given: a card's whole face, or a
 // split card's half with `art` a share of the half rather than a length.
 // A fused half's name and type bars `point` at the other half, as printed
 // fuse cards' do.
-#let face-body(c, art: 36.5mm, point: none) = {
+#let face-body(c, art: 36.5mm, point: none, split: false) = {
   let ps = paints(c.frame)
   set text(font: "Libertinus Serif", size: 8.5pt, fill: black)
   set block(spacing: 0.9mm)
-  let bar(body) = if point == none {
-    block(width: 100%, fill: ps.bar, stroke: 0.4pt + black, radius: 1mm,
-      inset: (x: 1.5mm, y: 1.1mm), body)
-  } else {
-    // The slant starts `a` in from the end and its tip stands `out` past it,
-    // over the gutter between the halves.
-    let (a, out) = (1.6mm, 1.5mm)
-    layout(size => {
-      let inner = block(width: 100%, body,
-        inset: (y: 1.1mm, left: if point == "left" { 1.5mm + a } else { 1.5mm },
-          right: if point == "right" { 1.5mm + a } else { 1.5mm }))
-      let (w, h) = (size.width, measure(block(width: size.width, inner)).height)
-      let ends = if point == "right" {
-        ((0mm, 0mm), (w - a, 0mm), (w + out, h / 2), (w - a, h), (0mm, h))
-      } else { ((w, 0mm), (a, 0mm), (-out, h / 2), (a, h), (w, h)) }
-      block(width: 100%, { place(polygon(fill: ps.bar, stroke: 0.4pt + black, ..ends)); inner })
-    })
-  }
+  // The plate stands out past the face's own edge, as printed bars do past
+  // the art and the text box; a split half's less far, to stay in its half.
+  let over = if split { 0.3mm } else { 0.5mm }
+  // The name bar a little taller than the type line's, as printed ones are.
+  let bar(body, y: 1.2mm) = layout(size => {
+    // A pointed end's slant starts 1.6mm in, so the text keeps clear of it.
+    let inner = block(width: 100%, body, inset: (y: y,
+      left: if point == "left" { 3.1mm } else { 1.5mm },
+      right: if point == "right" { 3.1mm } else { 1.5mm }))
+    let (w, h) = (size.width, measure(block(width: size.width, inner)).height)
+    let ends = if point == "right" { ("round", "point") } else if point == "left" { ("point", "round") } else { ("round", "round") }
+    block(width: 100%, { plate(w, h, ps, ends: ends, over: over); inner })
+  })
   let type-bar(room: 0mm) = bar(pad(right: room, if c.indicator.len() > 0 {
     grid(columns: (auto, 1fr), column-gutter: 1.2mm, align: horizon,
       indicator(c.indicator), fit-line(c.type_line, 8.5pt, 5.5pt, "the type line"))
@@ -608,7 +678,7 @@
   } else { none }
 
   // The name gives way to the cost, never the other way round.
-  bar(grid(columns: if c.marker != none { (auto, 1fr, auto) } else { (1fr, auto) },
+  bar(y: 1mm, grid(columns: if c.marker != none { (auto, 1fr, auto) } else { (1fr, auto) },
     column-gutter: 1mm, align: horizon,
     ..if c.marker != none { (face-marker(c.marker),) },
     fit-line(c.name, 9.5pt, 6pt, "the name"),
@@ -687,7 +757,7 @@
     block(width: 100%, height: 100%, grid(columns: (1fr, 1fr), column-gutter: 1mm, rows: (1fr, auto), row-gutter: 0.9mm,
       ..c.halves.enumerate().map(((i, h)) => block(width: 100%, height: 100%, fill: paints(h.frame).body,
         radius: 1.2mm, inset: (x: 1.3mm, top: 1.3mm, bottom: 1.3mm),
-        face-body(h, art: 38%, point: if c.fuse == none { none } else if i == 0 { "right" } else { "left" }))),
+        face-body(h, art: 38%, split: true, point: if c.fuse == none { none } else if i == 0 { "right" } else { "left" }))),
       ..if c.fuse != none {
         let ends = c.halves.map(h => paints(h.frame).bar)
         (grid.cell(colspan: 2, block(width: 100%, fill: gradient.linear(..ends), stroke: 0.4pt + black,

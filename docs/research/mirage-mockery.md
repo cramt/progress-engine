@@ -181,7 +181,7 @@ layout from the markers in it, never from a list of frames
   (Teferi, Hero of Dominaria; Karn, the Great Creator; Liliana of the Veil
   from DMU; Ugin from M21; Chandra, Torch of Defiance; Minsc & Boo): an
   art window whose sides bow out, narrowest at its rounded corners and widest
-  at mid-height, inside a band of the bars' colour that is pinched into a
+  at mid-height, inside a band of the bars' rim colour that is pinched into a
   neck under each corner and flares into the name bar above and the type
   line below, then the type line, and a text box
   narrower than the frame in a band of its own that flares out of the type
@@ -285,11 +285,15 @@ lower.
 | | Window side, corners | Window side, mid-height | Band's outer edge, mid | Top neck | Foot neck |
 |---|---|---|---|---|---|
 | Printed | 9–10% | 7% | 5.5% | 7.5% | 7% |
-| Ours | 9.9–10.5% | 7% | 5.6% | 7.9% | 7.4% |
+| Ours | 9.9–10.5% | 7% | 5.6% | 7% | 6.6% |
 
-Printed bars stand 4.7% from the edge and ours 6.4%, so ours flare less out
-of the necks into the bars. The tall four-ability frame takes the same shape
-over its shorter window.
+The band is the bars' rim, in the card's colours (Teferi's white running into
+blue), and flows out of the bars' feet into the necks as printed bands do.
+Measured again on Teferi at 745 px wide once our bars took the printed
+shape, the necks' outer lines stand some 47-50 px from the edges, nearer
+than the 7.5% and 7% above, and ours were moved out to 7% and 6.6% to meet
+them. The tall four-ability frame takes the same shape over its shorter
+window.
 
 The text box was measured the same way on Teferi, Chandra and Liliana of the
 Veil: its outline 11.7% of the width from the left edge and 7.2% from the
@@ -300,6 +304,30 @@ height, where printed cards set their holofoil stamp. Ours has the arch
 with nothing in it. The band's sides stand 5.8% from the edges, and the
 shield stands over the box's corner with the band flaring into its shoulder
 and out of its side, where the box sat in a cut-out collar before.
+
+### The name and type bars
+
+Every card's name bar and type line take printed modern frames' bar, the
+shape of Lotus Cobra's and every M15 frame's, as Mockery's own drawing
+(`plate` in `core/src/card.typ`): wider than the art and the text box, each
+end a half ellipse bulging out past them, a rim in the card's colour between
+two dark lines (a gold card's in its two colours, left to right, a land's in
+the colours it is or makes), and a fill lighter at the top than the foot over
+a shadow along its foot and left end, so the bar reads as raised. A gold card
+and a colourless land fill theirs in the frame's own tone, as printed ones
+do; other cards keep a pale fill. Name and type bar share the shape, the
+name bar a little taller. A fused split half keeps its pointed inner end and
+takes the round end outside. Measured at 745 × 1040 px on Lotus Cobra,
+Kolaghan's Command, Wurmcoil Engine, Fabled Passage, Fable of the
+Mirror-Breaker, Wizard Class and Teferi, Hero of Dominaria:
+
+| | Outer edge from card edge | Inner dark line from edge | End's depth | Height | Rim |
+|---|---|---|---|---|---|
+| Printed | 33-35 px, 4.5-4.7% | 42 px | ~14 px | 72-75 px, 6.9-7.2% | 6 px |
+| Ours before | 48 px, 6.4% (one line, no rim) | 48 px | ~5 px (1mm corner) | 62-64 px, 6.0-6.2% | none |
+| Ours | 33-34 px, 4.5% | 42 px | ~13 px | 70-75 px, 6.7-7.2% | 6 px |
+
+The text sizes did not move: every test card and walker is set where it was.
 
 ### Ability and flavor words
 

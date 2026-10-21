@@ -26,6 +26,10 @@ whether a card is a real one: that refusal was dropped, as more nuisance than
 safeguard
 ([ADR-0039](../../docs/adr/0039-mockery-prints-custom-cards-and-never-a-real-one.md)).
 
+Every card's name bar and type line are printed modern frames' bar, in
+Mockery's own drawing: wider than the art and text box, round D-shaped ends,
+a rim in the card's colours and a raised fill.
+
 A card's layout comes from its Oracle text: chapter lines make a Saga, level
 bars a Class, station thresholds a Spacecraft's striations, loyalty costs a
 planeswalker's frame in printed walkers' proportions, its art window bowed
