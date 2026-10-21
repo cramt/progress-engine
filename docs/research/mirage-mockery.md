@@ -179,10 +179,15 @@ layout from the markers in it, never from a list of frames
   sign, a hyphen or an en dash and printed with the minus sign. A frame of its
   own, in the proportions measured on printed modern-frame planeswalkers
   (Teferi, Hero of Dominaria; Karn, the Great Creator; Liliana of the Veil
-  from DMU; Ugin from M21; Chandra, Torch of Defiance; Minsc & Boo): a
-  rounded art window with a light keyline, the type line, and a text box
-  narrower than the frame, its corners rounded, the art running on behind it
-  under a pale wash. Three abilities or fewer keep a window near a
+  from DMU; Ugin from M21; Chandra, Torch of Defiance; Minsc & Boo): an
+  art window whose sides bow out, narrowest at its rounded corners and widest
+  at mid-height, inside a band of the bars' colour that is pinched into a
+  neck under each corner and flares into the name bar above and the type
+  line below, then the type line, and a text box
+  narrower than the frame in a band of its own that flares out of the type
+  line, rounds its foot's left corner, arches over the middle of the card's
+  foot and flares into the loyalty shield over the box's right corner, the
+  art running on behind the box under a pale wash. Three abilities or fewer keep a window near a
   creature's, the type line at 59% of the card's height as printed; four or
   more take the printed tall variant, the window shorter and the type line at
   52%. Static abilities run across the box; each loyalty ability is a band of
@@ -270,6 +275,31 @@ Teferi 8.25 to 6.75pt, Ugin 8.5 to 7pt, Chandra 7.5 to 6.5pt, Karn 6.75 to
 6pt, Liliana of the Veil 9 to 7pt, Minsc & Boo 6pt either way. In line pitch
 that is the printed cards' or a little more (Teferi's lines 2.46mm apart in
 print and in ours), Libertinus being the smaller face at a given size.
+
+The window's shape was measured on Teferi and Chandra, whose coloured edges
+can be told from their art, as fractions of the card's width from its edge.
+Its top and bottom necks sit just under the bars, its corners just inside
+them; ours are at the same heights relative to our window, which starts
+lower.
+
+| | Window side, corners | Window side, mid-height | Band's outer edge, mid | Top neck | Foot neck |
+|---|---|---|---|---|---|
+| Printed | 9–10% | 7% | 5.5% | 7.5% | 7% |
+| Ours | 9.9–10.5% | 7% | 5.6% | 7.9% | 7.4% |
+
+Printed bars stand 4.7% from the edge and ours 6.4%, so ours flare less out
+of the necks into the bars. The tall four-ability frame takes the same shape
+over its shorter window.
+
+The text box was measured the same way on Teferi, Chandra and Liliana of the
+Veil: its outline 11.7% of the width from the left edge and 7.2% from the
+right, as ours was already; its foot at 91.4% of the height, the band under
+it 0.8% deep with its foot's outer left corner some 4mm round; and an arch
+in the middle of the foot, 15% of the width across and rising 1% of the
+height, where printed cards set their holofoil stamp. Ours has the arch
+with nothing in it. The band's sides stand 5.8% from the edges, and the
+shield stands over the box's corner with the band flaring into its shoulder
+and out of its side, where the box sat in a cut-out collar before.
 
 ### Ability and flavor words
 

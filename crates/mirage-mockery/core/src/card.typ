@@ -368,10 +368,11 @@
 
 
 // A planeswalker below its name, in the proportions of a printed one's
-// frame: a rounded art window, the type line, and a text box narrower than
-// the frame, its loyalty badges standing out over the frame on its left and
-// the loyalty shield in a collar cut into its foot. The art runs on behind a
-// pale wash in the text box, as printed planeswalkers' does. A planeswalker
+// frame: a barrel-shaped art window, the type line, and a text box narrower
+// than the frame in a band that arches over the card's foot, its loyalty
+// badges standing out over the band on its left and the loyalty shield over
+// its foot's right corner. The art runs on behind a pale wash in the text
+// box, as printed planeswalkers' does. A planeswalker
 // of four abilities or more takes a shorter window and a taller box, as
 // printed ones do; three or fewer keep a window near a creature's (CR 606).
 #let walker-body(c, ps, type-bar, foot-right) = layout(size => {
@@ -385,7 +386,6 @@
   let (inl, inr) = (3.1mm, 0.5mm)
   let (sw, sh) = walker-shield
   let shield-foot = 1.7mm
-  let collar = 0.7mm
   let box-bottom = size.height - shield-foot - sh + 2.1mm
   let box-top = art-h + gap + measure(block(width: size.width, type-bar)).height + gap
   let box-h = box-bottom - box-top
@@ -398,24 +398,127 @@
       fill: gradient.linear(k.darken(35%), k.lighten(10%), angle: 60deg))
   }
   block(width: size.width, height: size.height, {
-  let keyline(radius) = place(top + left, rect(width: 100%, height: 100%, radius: radius, stroke: 0.4pt + black))
-
-  block(width: 100%, height: art-h, radius: 2.2mm, clip: true, below: gap, {
-    place(top + left, art)
-    place(top + left, dx: 0.35mm, dy: 0.35mm, rect(width: size.width - 0.7mm, height: art-h - 0.7mm,
-      radius: 1.9mm, stroke: 0.5pt + white.transparentize(30%)))
-    keyline(2.2mm)
+  block(width: 100%, height: art-h, below: gap, {
+    let (w, h) = (size.width, art-h)
+    // The window's sides bow out, so it is narrowest at its rounded top and
+    // bottom corners and widest at mid-height; a band of the bars' colour
+    // runs round it, pinched into a neck under each corner that flares into
+    // the name bar above and the type line below. Measured on printed
+    // planeswalkers as fractions of the card's width from its edge, which
+    // these match: the window's sides 9.5-10% at its corners and 7% at
+    // mid-height, the band's outer edge 5.5% at mid-height. Our bars stand
+    // further in than printed ones, so the necks, printed at 7.5% at the top
+    // and 7% at the foot, are 1mm and 0.7mm in from our bars to keep a flare.
+    let (side-end, side-mid, corner) = (2.2mm, 0.38mm, 1.3mm)
+    let (neck, neck-foot, neck-at, foot-at) = (0.96mm, 0.7mm, 1.4mm, 1.1mm)
+    let bulge(end, end2, mid) = (8 * mid - end - end2) / 6
+    let side-c = bulge(side-end, side-end, side-mid)
+    let band-c = bulge(neck, neck-foot, -0.5mm)
+    // Both sides of a shape, the right mirroring the left, `x` in from the
+    // left edge.
+    let mirror(x) = w - x
+    let window(fill) = curve(fill: fill, stroke: 0.4pt + black,
+      curve.move((side-end + corner, 0mm)),
+      curve.line((mirror(side-end + corner), 0mm)),
+      curve.quad((mirror(side-end), 0mm), (mirror(side-end), corner)),
+      curve.cubic((mirror(side-c), corner + (h - 2 * corner) / 3),
+        (mirror(side-c), h - corner - (h - 2 * corner) / 3), (mirror(side-end), h - corner)),
+      curve.quad((mirror(side-end), h), (mirror(side-end + corner), h)),
+      curve.line((side-end + corner, h)),
+      curve.quad((side-end, h), (side-end, h - corner)),
+      curve.cubic((side-c, h - corner - (h - 2 * corner) / 3),
+        (side-c, corner + (h - 2 * corner) / 3), (side-end, corner)),
+      curve.quad((side-end, 0mm), (side-end + corner, 0mm)),
+      curve.close(mode: "straight"))
+    // The band's outer edge down one side: out of the name bar's foot, into
+    // the neck, bowing out and in again, and out into the type line's head.
+    let (head, foot) = (-gap + 0.07mm, h + gap - 0.07mm)
+    let (y1, y2) = (neck-at, h - foot-at)
+    let outer(m) = (
+      curve.cubic((m(neck - 0.3mm), head), (m(neck), y1 - 0.8mm), (m(neck), y1)),
+      curve.cubic((m(band-c), y1 + (y2 - y1) / 3), (m(band-c), y2 - (y2 - y1) / 3), (m(neck-foot), y2)),
+      curve.cubic((m(neck-foot), y2 + 0.9mm), (m(neck-foot - 0.4mm), foot), (m(0.4mm), foot)),
+    )
+    let same(x) = x
+    // The same edge walked upwards, to close the band's fill.
+    let upward(m) = (
+      curve.cubic((m(neck-foot - 0.4mm), foot), (m(neck-foot), y2 + 0.9mm), (m(neck-foot), y2)),
+      curve.cubic((m(band-c), y2 - (y2 - y1) / 3), (m(band-c), y1 + (y2 - y1) / 3), (m(neck), y1)),
+      curve.cubic((m(neck), y1 - 0.8mm), (m(neck - 0.3mm), head), (m(0.4mm), head)),
+    )
+    place(top + left, curve(fill: ps.bar, stroke: none,
+      curve.move((0.4mm, head)), curve.line((mirror(0.4mm), head)),
+      ..outer(mirror), curve.line((0.4mm, foot)), ..upward(same), curve.close(mode: "straight")))
+    for m in (same, mirror) {
+      place(top + left, curve(stroke: 0.4pt + black, curve.move((m(0.4mm), head)), ..outer(m)))
+    }
+    // Only a box clips, and only to a rounded rectangle, so the window is
+    // filled with the art as a tiling laid from the window's own corner.
+    place(top + left, window(tiling(size: (w, h), relative: "parent", art)))
   })
   block(below: gap, type-bar)
 
-  let radius = (top-left: 1.6mm, top-right: 1mm, bottom-left: 3mm, bottom-right: 3mm)
+  // The text box sits in a band of the bars' colour, as the window does:
+  // flaring out of the type line's foot, straight down the sides, round at
+  // its foot's left corner, arched over the middle of the card's foot, and
+  // flaring into the loyalty shield at the right, which stands over the
+  // box's corner. Measured on printed planeswalkers as fractions of the
+  // card: the box's foot at 91.4% of its height with the band 0.8% below
+  // it, the band's sides 5.8% of its width in from its edges, its foot's
+  // corner some 4mm round, and the arch 15% of the width across, rising 1%
+  // of the height.
+  let (w, H) = (size.width, size.height)
+  let radius = (top-left: 1.3mm, top-right: 0.8mm, bottom-left: 1.2mm, bottom-right: 1mm)
+  let (side, band-foot, round) = (-0.3mm, 0.9mm, 3.8mm)
+  let (mid, arch, rise) = (w / 2, 4.6mm, 0.9mm)
+  let head = box-top - gap + 0.07mm
+  let foot = box-bottom + band-foot
+  let (shield-top, shield-left) = (H - shield-foot - sh, w + 0.8mm - sw)
+  // The foot's edge from right to left at `y`, bowed up over the middle.
+  let bow-at(y, m) = (
+    curve.line((m + arch, y)),
+    curve.cubic((m + arch / 2, y), (m + arch / 2, y - rise), (m, y - rise)),
+    curve.cubic((m - arch / 2, y - rise), (m - arch / 2, y), (m - arch, y)),
+  )
+  let bow(y) = bow-at(y, mid)
+  place(top + left, curve(fill: ps.bar, stroke: 0.4pt + black,
+    curve.move((0.4mm, head)),
+    curve.line((w - 0.4mm, head)),
+    curve.cubic((w - 0.35mm, head + 0.7mm), (w - side, head + 0.6mm), (w - side, head + 1.6mm)),
+    curve.line((w - side, shield-top - 1.6mm)),
+    // Into the shield's shoulder, then out of its side under the box.
+    curve.cubic((w - side, shield-top - 0.6mm), (w - 0.2mm, shield-top - 0.2mm), (w - 0.9mm, shield-top + 0.2mm)),
+    curve.line((shield-left + sw / 2, shield-top + sh / 2)),
+    curve.line((shield-left + 0.3mm, foot + 0.9mm)),
+    curve.cubic((shield-left - 0.4mm, foot + 0.2mm), (shield-left - 0.9mm, foot), (shield-left - 1.8mm, foot)),
+    ..bow(foot),
+    curve.line((side + round, foot)),
+    curve.cubic((side + round * 0.45, foot), (side, foot - round * 0.45), (side, foot - round)),
+    curve.line((side, head + 1.6mm)),
+    curve.cubic((side, head + 0.6mm), (0.35mm, head + 0.7mm), (0.4mm, head)),
+    curve.close(mode: "straight")))
+  // The box's outline, its foot bowed as the band's is, `x` and `y` from its
+  // own corner.
+  let outline(fill: none) = curve(fill: fill, stroke: 0.4pt + black,
+    curve.move((radius.top-left, 0mm)),
+    curve.line((bw - radius.top-right, 0mm)),
+    curve.quad((bw, 0mm), (bw, radius.top-right)),
+    curve.line((bw, box-h - radius.bottom-right)),
+    curve.quad((bw, box-h), (bw - radius.bottom-right, box-h)),
+    ..bow-at(box-h, mid - inl),
+    curve.line((radius.bottom-left, box-h)),
+    curve.quad((0mm, box-h), (0mm, box-h - radius.bottom-left)),
+    curve.line((0mm, radius.top-left)),
+    curve.quad((0mm, 0mm), (radius.top-left, 0mm)),
+    curve.close(mode: "straight"))
   let (badge, colon, text-at, pad) = (6mm, 2.9mm, 4mm, 1.4mm)
-  let bottom-in = sh - 2.1mm + collar - 0.6mm
+  let bottom-in = sh - 2mm
   place(top + left, dx: inl, dy: box-top, block(width: bw, height: box-h, {
     place(top + left, block(width: 100%, height: 100%, radius: radius, clip: true, {
       place(dx: -inl, dy: -box-top, art)
       place(top + left, rect(width: 100%, height: 100%, stroke: none, fill: ps.box.transparentize(18%)))
     }))
+    place(top + left, outline())
     block(width: 100%, height: 100%, inset: (left: pad, right: 1.6mm, top: 1.3mm, bottom: bottom-in),
       fit-box((sz, spare) => text-style(sz, {
         // Static abilities across the box; each loyalty ability a band of
@@ -456,15 +559,14 @@
           flavor-text(c)
         }
       })))
-    keyline(radius)
+    // The band again over the arch, where the box's corners and shading
+    // cannot follow it.
+    let m = mid - inl
+    place(top + left, curve(fill: ps.bar, stroke: none,
+      curve.move((m + arch, box-h + 0.2mm)), ..bow-at(box-h, m).slice(1), curve.close(mode: "straight")))
+    place(top + left, curve(stroke: 0.4pt + black, curve.move((m + arch, box-h)), ..bow-at(box-h, m).slice(1)))
   }))
-  if foot-right != none {
-    // The collar: the frame cut into the box's foot around the shield.
-    place(bottom + right, dx: 0.8mm + collar, dy: -shield-foot + collar,
-      rect(width: sw + 2 * collar, height: sh + 2 * collar, radius: 1.6mm,
-        fill: ps.foot, stroke: 0.4pt + black))
-    place(bottom + right, dx: 0.8mm, dy: -shield-foot, foot-right)
-  }
+  if foot-right != none { place(bottom + right, dx: 0.8mm, dy: -shield-foot, foot-right) }
 })
 })
 
