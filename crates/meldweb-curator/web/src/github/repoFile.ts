@@ -6,14 +6,9 @@
  */
 import { collectionCommitMessage } from "../collection";
 import { commitMessage } from "../deck";
+import { ConflictError, type FileAt, type Repo } from "../repo/api";
 import { settingsCommitMessage } from "../settings/rules";
 import { wantedCommitMessage } from "../wanted";
-import {
-  ConflictError,
-  type FileAt,
-  type GitHubApi,
-  type RepoRef,
-} from "./api";
 import { cardStem, isCardPath } from "./cards";
 import { COLLECTION_PATH } from "./collection";
 import { SETTINGS_PATH } from "./settings";
@@ -69,12 +64,11 @@ export function settled(path: string): Promise<void> {
  * the repo has no such file.
  */
 export async function openFile(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   path: string,
 ): Promise<FileAt | null> {
   await settled(path);
-  return api.getFile(repo, path);
+  return repo.getFile(path);
 }
 
 export type Committed =
@@ -95,8 +89,7 @@ const ATTEMPTS = 3;
  * attempt the `ConflictError` is thrown; an `edit` that throws writes nothing.
  */
 export function commitEdit(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   path: string,
   edit: (text: string | null) => string | null,
 ): Promise<Committed> {
@@ -104,14 +97,14 @@ export function commitEdit(
   const work = (async (): Promise<Committed> => {
     await earlier;
     for (let attempt = 1; ; attempt++) {
-      const file = await api.getFile(repo, path);
+      const file = await repo.getFile(path);
       const was = file?.text ?? null;
       const text = edit(was);
       if (text === null || text === was) {
         return { kind: "unchanged", text: was, sha: file?.sha ?? null };
       }
       try {
-        const { sha } = await api.putFile(repo, path, {
+        const { sha } = await repo.putFile(path, {
           text,
           message: commitMessageFor(path, was ?? "", text),
           sha: file?.sha ?? null,

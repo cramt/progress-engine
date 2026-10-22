@@ -3,16 +3,15 @@
  * saved the way a deck is. A repo without it owns nothing yet, and the first
  * save creates it.
  */
-import type { GitHubApi, RepoRef } from "./api";
+import type { Repo } from "../repo/api";
 import { openFile } from "./repoFile";
 
 export const COLLECTION_PATH = "collection.toml";
 
 /** The collection's text and blob sha; `sha: null` while there is no file. */
 export async function loadCollection(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
 ): Promise<{ text: string; sha: string | null }> {
-  const file = await openFile(api, repo, COLLECTION_PATH);
+  const file = await openFile(repo, COLLECTION_PATH);
   return file ? { text: file.text, sha: file.sha } : { text: "", sha: null };
 }

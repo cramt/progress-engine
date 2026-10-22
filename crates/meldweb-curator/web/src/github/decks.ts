@@ -5,8 +5,8 @@
  */
 import { parseCollection, undeclarePlace } from "../collection";
 import type { CardRef, SetOnly } from "../deck";
+import { ConflictError, type Repo } from "../repo/api";
 import { fetchPrintings, fetchPrintingsInSets, printingKey } from "../scryfall";
-import { ConflictError, type GitHubApi, type RepoRef } from "./api";
 import { COLLECTION_PATH } from "./collection";
 import type { DeckText } from "./deckText";
 import { commitEdit, settled, track } from "./repoFile";
@@ -41,16 +41,15 @@ export function deckStem(path: string): string {
 
 /** Every `decks/*.deck.toml` with its name, sorted by name. */
 export async function listDecks(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   deck: Pick<DeckText, "parseDeck">,
 ): Promise<DeckEntry[]> {
-  const files = (await api.listDir(repo, DECKS_DIR)).filter(
+  const files = (await repo.listDir(DECKS_DIR)).filter(
     (e) => e.type === "file" && e.name.endsWith(DECK_SUFFIX),
   );
   const entries = await Promise.all(
     files.map(async (f): Promise<DeckEntry> => {
-      const file = await api.getFile(repo, f.path);
+      const file = await repo.getFile(f.path);
       if (!file)
         return {
           path: f.path,
@@ -123,8 +122,7 @@ export type CreatedDeck =
  * that is already taken.
  */
 export async function createDeck(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   name: string,
   source: NewDeckSource,
   deck: ImportText & Pick<DeckText, "newDeck" | "setVariantOf">,
@@ -142,7 +140,7 @@ export async function createDeck(
     kind: "refused" as const,
     message: `${path} already exists. A deck's file never moves, so pick another name.`,
   });
-  if (await api.getFile(repo, path)) return taken();
+  if (await repo.getFile(path)) return taken();
 
   let text: string;
   let unreadable: { line: number; text: string; reason: string }[] = [];
@@ -163,9 +161,7 @@ export async function createDeck(
   }
 
   // A deck made at the same path meanwhile is left as it is.
-  const made = await commitEdit(api, repo, path, (t) =>
-    t === null ? text : null,
-  );
+  const made = await commitEdit(repo, path, (t) => (t === null ? text : null));
   if (made.kind === "unchanged") return taken();
   return { kind: "created", path, sha: made.sha, text, unreadable };
 }
@@ -331,12 +327,11 @@ class Kept extends Error {}
  * there meanwhile refuse it then too.
  */
 export async function deleteDeck(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   deck: Pick<DeckEntry, "path" | "sha">,
 ): Promise<DeletedDeck> {
   try {
-    await commitEdit(api, repo, COLLECTION_PATH, (text) => {
+    await commitEdit(repo, COLLECTION_PATH, (text) => {
       if (text === null) return null;
       const parsed = parseCollection(text);
       if (parsed.kind === "refused") {
@@ -364,7 +359,7 @@ export async function deleteDeck(
   try {
     await track(
       deck.path,
-      api.deleteFile(repo, deck.path, {
+      repo.deleteFile(deck.path, {
         message: `${deckStem(deck.path)}: delete`,
         sha: deck.sha,
       }),

@@ -15,6 +15,8 @@ live here:
   saving is a commit. The site serves it, with the family's other browser
   tools, under the name Progress Engine
   ([ADR-0042](docs/adr/0042-the-site-is-progress-engine-in-surgical-metal.md)).
+  The repo lives in the browser and needs no account; it exports as a zip
+  that `git clone` reads.
 - **Gitaxian Probe** (`crates/gitaxian-probe/`): card scanning, hosting
   [Delver X](https://mtg.delver.app)'s recognition engine natively and in the
   browser, where Curator's Scan button uses it. Its
@@ -3537,7 +3539,7 @@ python3 checker/compare.py   # the independent checker, against target/release/g
 
 # Meldweb Curator, inside `nix develop`
 pnpm install
-pnpm dev           # the editor on localhost:5173; VITE_MOCK_GITHUB=1 runs it against a fake GitHub
+pnpm dev           # the editor, its repo in the browser; VITE_MOCK_GITHUB=1 runs it against a fake GitHub
 pnpm check         # biome + tsc; `pnpm test` is vitest, `pnpm build` the site
 ```
 
@@ -3713,7 +3715,8 @@ See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 | `gauntlet-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
 | `gauntlet-sim` | Sampling, validated against `chip-stats` | Shuffling. |
 | `gauntlet-cli` | The `gauntlet` binary, and the library behind it that prepares a run in-process | All of the above. |
-| `meldweb-wasm` | `chip-decklist` and `chip_scryfall::copy` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall` and its deck order, read, checked and written. The copy's wasm functions hold the worker's copy and hand it the default printing preference | Decklist text, the printings of one card it is handed to rank, and the one copy of Scryfall the worker holds. |
+| `meldweb-wasm` | `chip-decklist` and `chip_scryfall::copy` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall` and its deck order, read, checked and written. The copy's wasm functions hold the worker's copy and hand it the default printing preference. `GitRepo` is the browser's repo (ADR-0041) over `meldweb-git`: a mirror of its files with a journal of what each write changed, a write guarded by the file's blob as GitHub's Contents API guards one, history pages, snapshots as annotated tags, and the zip export and import | Decklist text, the printings of one card it is handed to rank, the one copy of Scryfall the worker holds, and the repo's files the worker loads into it. |
+| `meldweb-git` | A bare git repo of loose objects over a synchronous store: commits, branches, annotated tags, a path's history and merge bases. See [its README](crates/meldweb-curator/git/README.md). | Git objects and refs. No decks. |
 | `vivisurgeons-insight` | A spike. Oracle text read into a typed ability tree, and `insight coverage`, which counts how much of Magic parses with no hole. See [its README](crates/vivisurgeons-insight/README.md). | Oracle text and Scryfall's keyword and type catalogs. Nothing in the workspace. Only `chancellor-of-the-spires` depends on it. |
 | `chancellor-of-the-spires` | The rules engine. So far the layer system (CR 613) over a battlefield state, with counters: `characteristics(&State)`. See [its README](crates/chancellor-of-the-spires/README.md). | Its own continuous effects, one per layer, and ascent. Insight's trees once they are lowered (ADR-0037). |
 | `chancellor-cr` | The Comprehensive Rules pinned by hash, `cr check` (every citation in the repo resolves, run by the flake as `cr-citations`), and `cr diff`, a new CR as a worklist of the cited rules that moved. See [its README](crates/chancellor-of-the-spires/cr/README.md). | The CR text and the repo's files. Native only. |

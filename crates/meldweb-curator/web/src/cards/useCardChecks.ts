@@ -1,20 +1,16 @@
 import { useEffect, useState } from "react";
-import type { GitHubApi, RepoRef } from "../github/api";
 import { besideCard } from "../github/cards";
 import { type Checked, checkCard, type Reading, renderPng } from "../mockery";
+import type { Repo } from "../repo/api";
 import { messageOf } from "../ui/Sheet";
 
 /** Art read once a page, by repo path; null where the repo has none. */
 const arts = new Map<string, Promise<Uint8Array | null>>();
 
-export function artFor(
-  api: GitHubApi,
-  repo: RepoRef,
-  path: string,
-): Promise<Uint8Array | null> {
+export function artFor(repo: Repo, path: string): Promise<Uint8Array | null> {
   let art = arts.get(path);
   if (!art) {
-    art = api.getBytes(repo, path).catch(() => null);
+    art = repo.getBytes(path).catch(() => null);
     arts.set(path, art);
   }
   return art;
@@ -48,8 +44,7 @@ export interface CardView {
  * stops.
  */
 export function useCardChecks(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   path: string,
   text: string,
   face: number,
@@ -67,7 +62,7 @@ export function useCardChecks(
       const art = new Map<string, Uint8Array>();
       const missing: string[] = [];
       for (const a of c.arts) {
-        const bytes = await artFor(api, repo, besideCard(path, a));
+        const bytes = await artFor(repo, besideCard(path, a));
         if (bytes) art.set(a, bytes);
         else missing.push(besideCard(path, a));
       }
@@ -91,7 +86,7 @@ export function useCardChecks(
       clearTimeout(t);
       if (url) setTimeout(() => URL.revokeObjectURL(url as string), 1000);
     };
-  }, [api, repo, path, text, face]);
+  }, [repo, path, text, face]);
 
   return { checked, preview, missingArt };
 }

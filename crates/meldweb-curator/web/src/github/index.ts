@@ -1,13 +1,18 @@
 export type {
   DirEntry,
   FileAt,
+  PutFile,
+  Repo,
+} from "../repo/api";
+export { ConflictError } from "../repo/api";
+export type {
   GitHubApi,
   GitHubUser,
   Installation,
-  PutFile,
+  PublicRepos,
   RepoRef,
 } from "./api";
-export { ConflictError, GitHubError, LoggedOutError } from "./api";
+export { GitHubError, LoggedOutError } from "./api";
 export type { Auth } from "./auth";
 export { AUTH_ENDPOINTS } from "./auth";
 export { type Connection, connect } from "./connect";

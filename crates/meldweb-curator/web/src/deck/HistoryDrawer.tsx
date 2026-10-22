@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import type { GitHubApi, RepoRef } from "../github/api";
 import { type DeckEntry, listDecks } from "../github/decks";
 import { deckText } from "../github/deckText";
 import {
@@ -11,6 +10,7 @@ import {
   type Snapshot,
 } from "../github/history";
 import type { SaveStatus } from "../github/save";
+import type { Repo } from "../repo/api";
 import { BranchIcon, CloseIcon, TagIcon } from "../ui/icons";
 import { when } from "./VersionView";
 import { body, byDay, JUMPS, subject, type Viewing } from "./versions";
@@ -48,7 +48,6 @@ function useLoaded<T>(load: () => Promise<T>): Loaded<T> {
  * deck as it is stays in the editor underneath, saving as it does.
  */
 export function HistoryDrawer({
-  api,
   repo,
   path,
   stem,
@@ -61,8 +60,7 @@ export function HistoryDrawer({
   onSnapshot,
   onVariant,
 }: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   path: string;
   stem: string;
   variantOf: string | undefined;
@@ -78,10 +76,7 @@ export function HistoryDrawer({
 }) {
   const snaps = useLoaded(
     // biome-ignore lint/correctness/useExhaustiveDependencies: `refresh` reads them again
-    useCallback(
-      () => deckSnapshots(api, repo, path),
-      [api, repo, path, refresh],
-    ),
+    useCallback(() => deckSnapshots(repo, path), [repo, path, refresh]),
   );
   return (
     <aside className="history-drawer" aria-label="History">
@@ -96,9 +91,8 @@ export function HistoryDrawer({
           <CloseIcon />
         </button>
       </header>
-      <JumpBack api={api} repo={repo} path={path} onView={onView} />
+      <JumpBack repo={repo} path={path} onView={onView} />
       <Variants
-        api={api}
         repo={repo}
         path={path}
         variantOf={variantOf}
@@ -113,7 +107,6 @@ export function HistoryDrawer({
         onSnapshot={onSnapshot}
       />
       <Timeline
-        api={api}
         repo={repo}
         path={path}
         stem={stem}
@@ -127,13 +120,11 @@ export function HistoryDrawer({
 }
 
 function JumpBack({
-  api,
   repo,
   path,
   onView,
 }: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   path: string;
   onView: (viewing: Viewing) => void;
 }) {
@@ -143,7 +134,7 @@ function JumpBack({
     setBusy(true);
     setNotice(null);
     try {
-      const at = await revisionAt(api, repo, path, to);
+      const at = await revisionAt(repo, path, to);
       if (at) onView({ kind: "revision", commit: at.commit });
       else
         setNotice(
@@ -196,7 +187,6 @@ function JumpBack({
 }
 
 function Variants({
-  api,
   repo,
   path,
   variantOf,
@@ -204,17 +194,14 @@ function Variants({
   onView,
   onVariant,
 }: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   path: string;
   variantOf: string | undefined;
   viewing: Viewing;
   onView: (viewing: Viewing) => void;
   onVariant: () => void;
 }) {
-  const decks = useLoaded(
-    useCallback(() => listDecks(api, repo, deckText), [api, repo]),
-  );
+  const decks = useLoaded(useCallback(() => listDecks(repo, deckText), [repo]));
   const all = decks.kind === "ready" ? decks.value : [];
   const parent = variantOf && all.find((d) => d.path === variantOf);
   const children = all.filter((d) => d.variantOf === path);
@@ -324,7 +311,6 @@ function Snapshots({
 }
 
 function Timeline({
-  api,
   repo,
   path,
   stem,
@@ -333,8 +319,7 @@ function Timeline({
   snaps,
   onView,
 }: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   path: string;
   stem: string;
   viewing: Viewing;
@@ -349,12 +334,10 @@ function Timeline({
     // biome-ignore lint/correctness/useExhaustiveDependencies: a save reads the log again
     useCallback(async () => {
       const read = await Promise.all(
-        Array.from({ length: pages }, (_, i) =>
-          revisions(api, repo, path, i + 1),
-        ),
+        Array.from({ length: pages }, (_, i) => revisions(repo, path, i + 1)),
       );
       return { revisions: read.flat(), more: read.at(-1)?.length === PAGE };
-    }, [api, repo, path, pages, saved]),
+    }, [repo, path, pages, saved]),
   );
   const tagsOf = (r: Revision): Snapshot[] =>
     snaps.kind === "ready"

@@ -2,7 +2,7 @@
 // wires them in dev, minus the browser.
 import { readFileSync } from "node:fs";
 import { loadDeckSync } from "../deck";
-import { createGitHubApi } from "./api";
+import { createGitHubApi, createPublicRepos } from "./api";
 import { createAuth, pageLocks } from "./auth";
 import { createMockGitHub, type MockOptions } from "./mock";
 
@@ -33,6 +33,8 @@ export function mockConnection(options: MockOptions = {}) {
     locks: pageLocks(),
     navigate: () => mock.logIn(),
   });
-  const api = createGitHubApi({ auth, fetch: mock.fetch });
-  return { mock, auth, api, repo: { owner: "octocat", name: "mtg" } };
+  const github = createGitHubApi({ auth, fetch: mock.fetch });
+  const repo = github.repo({ owner: "octocat", name: "mtg" });
+  const others = createPublicRepos({ fetch: mock.fetch });
+  return { mock, auth, github, repo, others };
 }

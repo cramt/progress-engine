@@ -1,7 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { use, useRef, useState } from "react";
-import type { RepoRef } from "../github/api";
-import { connect } from "../github/connect";
+import { useRef, useState } from "react";
 import {
   type CreatedDeck,
   createDeck,
@@ -9,6 +7,7 @@ import {
   slugify,
 } from "../github/decks";
 import { deckText } from "../github/deckText";
+import type { Repo } from "../repo/api";
 import { PlusIcon } from "../ui/icons";
 
 const FORMATS = [
@@ -29,8 +28,7 @@ type Unreadable = Extract<CreatedDeck, { kind: "created" }>["unreadable"];
  * New deck (#121): a name and a format, then empty or pasted from Archidekt.
  * The file is `decks/<slug>.deck.toml`, committed at once, and then opened.
  */
-export function NewDeckDialog({ repo }: { repo: RepoRef }) {
-  const { api } = use(connect());
+export function NewDeckDialog({ repo }: { repo: Repo }) {
   const navigate = useNavigate();
   const dialog = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState("");
@@ -53,7 +51,6 @@ export function NewDeckDialog({ repo }: { repo: RepoRef }) {
     setRefusal(null);
     try {
       const r = await createDeck(
-        api,
         repo,
         name.trim(),
         source === "empty"

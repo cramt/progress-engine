@@ -4,6 +4,14 @@
  * "CORS"). Every call carries the user's token and retries once through a
  * refresh on a 401.
  */
+import {
+  ConflictError,
+  type DirEntry,
+  type FileAt,
+  type Repo,
+  type Revision,
+  type Snapshot,
+} from "../repo/api";
 import type { Auth } from "./auth";
 
 export const GITHUB_API = "https://api.github.com";
@@ -23,56 +31,16 @@ export interface Installation {
   account: string;
 }
 
-export interface FileAt {
-  text: string;
-  /** The blob sha, which a later `putFile` sends back as its guard. */
-  sha: string;
-}
-
 export type PublicFile =
   | ({ kind: "file" } & FileAt)
   | { kind: "no-file" }
   | { kind: "no-repo" };
 
-export interface DirEntry {
-  name: string;
-  path: string;
-  sha: string;
-  type: "file" | "dir" | "symlink" | "submodule";
-}
-
-export interface PutFile {
-  text: string;
-  message: string;
-  /** The blob sha being replaced; `null` creates the file and refuses if it exists. */
-  sha: string | null;
-  /** Lets the request outlive the page (`pagehide`), when the body is small enough. */
-  keepalive?: boolean;
-}
-
-/** One commit that touched a file, as its history lists it. */
-export interface Revision {
-  /** The commit sha, which `getFile` reads the file at. */
-  commit: string;
-  message: string;
-  /** When it was committed, ISO 8601. */
-  date: string;
-  /** The GitHub login that made it, when GitHub knows one. */
-  author: string | null;
-}
-
-/** An annotated tag: a version of a file kept under a name of the user's. */
-export interface Snapshot {
-  /** The tag's name without `refs/tags/`, e.g. `decks/lantern/fnm`. */
-  tag: string;
-  /** What the user called it. */
-  label: string;
-  /** The commit it points at. */
-  commit: string;
-  /** When it was taken, ISO 8601. */
-  date: string;
-}
-
+/**
+ * The user's account on GitHub: who they are and which repos the app
+ * reaches. Only the dev mock's onboarding asks these; a repo is local
+ * (ADR-0041), and GitHub as a remote is to come.
+ */
 export interface GitHubApi {
   user(): Promise<GitHubUser>;
   /** `GET /user/installations`: the app's installations this user can reach. */
@@ -81,47 +49,14 @@ export interface GitHubApi {
   installationRepos(installation: number): Promise<RepoRef[]>;
   /** Whether the repo answers at all; a private repo without the app reads as absent. */
   repoExists(repo: RepoRef): Promise<boolean>;
-  /**
-   * The file on the default branch, or at commit `ref` when given; `null`
-   * when there is none there (or the repo is empty).
-   */
-  getFile(repo: RepoRef, path: string, ref?: string): Promise<FileAt | null>;
-  /** A file's bytes, such as a custom card's art; null when there is none. */
-  getBytes(repo: RepoRef, path: string): Promise<Uint8Array | null>;
-  /**
-   * A file of someone else's repo, read without the login, so only a public
-   * repo answers: a private one reads as `no-repo`.
-   */
+  /** The repo on GitHub, read and written through the Contents API. */
+  repo(repo: RepoRef): Repo;
+}
+
+/** Someone else's repo, read without a login, so only a public one answers. */
+export interface PublicRepos {
+  /** The file, `no-file` when the repo lacks it, `no-repo` when it is private or absent. */
   publicFile(repo: RepoRef, path: string): Promise<PublicFile>;
-  /**
-   * The commits on the default branch that touched `path`, newest first, a
-   * page of up to `perPage` (100 at most) at a time, none after `until`.
-   */
-  history(
-    repo: RepoRef,
-    path: string,
-    page?: { until?: string; page?: number; perPage?: number },
-  ): Promise<Revision[]>;
-  /** One commit, or `null` when the repo has none by that sha. */
-  revision(repo: RepoRef, commit: string): Promise<Revision | null>;
-  /** The annotated tags whose names start with `prefix`. */
-  snapshots(repo: RepoRef, prefix: string): Promise<Snapshot[]>;
-  /** Tags `commit` as `tag`. Throws `ConflictError` when the name is taken. */
-  takeSnapshot(
-    repo: RepoRef,
-    snapshot: { tag: string; label: string; commit: string },
-  ): Promise<Snapshot>;
-  dropSnapshot(repo: RepoRef, tag: string): Promise<void>;
-  /** One commit on the default branch. Throws `ConflictError` on a stale or missing sha. */
-  putFile(repo: RepoRef, path: string, put: PutFile): Promise<{ sha: string }>;
-  /** One commit removing the file. Throws `ConflictError` on a stale or missing sha. */
-  deleteFile(
-    repo: RepoRef,
-    path: string,
-    del: { message: string; sha: string },
-  ): Promise<void>;
-  /** A directory's entries, empty when it does not exist. */
-  listDir(repo: RepoRef, path: string): Promise<DirEntry[]>;
 }
 
 export class GitHubError extends Error {
@@ -134,20 +69,13 @@ export class GitHubError extends Error {
   }
 }
 
-/**
- * The file moved on GitHub since its sha was read, or a create found it
- * already there.
- *
- * GitHub's docs list both 409 and 422 for the Contents `PUT` without saying
- * which a stale sha gets. A 409 counts, and so does a 422 whose message is a
- * sha refusal (`isShaRefusal`); any other 422 is a malformed request, which
- * reloading or overwriting would not fix. NEEDS CONFIRMING against real
- * GitHub once the app exists (#125): pin the status and message it sends and
- * narrow this.
- */
-export class ConflictError extends GitHubError {
-  override name = "ConflictError";
-}
+// GitHub's docs list both 409 and 422 for the Contents `PUT` without saying
+// which a stale sha gets. A 409 is a `ConflictError`, and so is a 422 whose
+// message is a sha refusal (`isShaRefusal`); any other 422 is a malformed
+// request, which reloading or overwriting would not fix. NEEDS CONFIRMING
+// against real GitHub once the app exists (#125): pin the status and message
+// it sends and narrow this.
+export { ConflictError };
 
 /**
  * A 422 that is about the sha: GitHub's `"sha" wasn't supplied` for a create
@@ -190,6 +118,38 @@ export function base64Bytes(base64: string): Uint8Array {
 
 const encodePath = (path: string) =>
   path.split("/").map(encodeURIComponent).join("/");
+
+const repoPath = (repo: RepoRef) =>
+  `/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;
+const contents = (repo: RepoRef, path: string) =>
+  `${repoPath(repo)}/contents/${encodePath(path)}`;
+
+/** GitHub's `message` for a failed request, or `""` when it sent none. */
+async function messageOf(r: Response): Promise<string> {
+  try {
+    const body = (await r.json()) as { message?: unknown };
+    return typeof body.message === "string" ? body.message : "";
+  } catch {
+    return "";
+  }
+}
+
+async function fail(r: Response, said?: string): Promise<never> {
+  const message = said ?? (await messageOf(r));
+  throw new GitHubError(
+    r.status,
+    `GitHub answered ${r.status}${message ? `: ${message}` : ""}`,
+  );
+}
+
+type RepoCall = Exclude<keyof Repo, "where" | "onHost">;
+/** A `Repo`'s calls, each told which repo on GitHub it is for. */
+type OnGitHub = {
+  [K in RepoCall]: (
+    repo: RepoRef,
+    ...args: Parameters<Repo[K]>
+  ) => ReturnType<Repo[K]>;
+};
 
 export interface GitHubApiOptions {
   auth: Auth;
@@ -241,24 +201,6 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     return send(again, method, path, json, ka);
   }
 
-  /** GitHub's `message` for a failed request, or `""` when it sent none. */
-  async function messageOf(r: Response): Promise<string> {
-    try {
-      const body = (await r.json()) as { message?: unknown };
-      return typeof body.message === "string" ? body.message : "";
-    } catch {
-      return "";
-    }
-  }
-
-  async function fail(r: Response, said?: string): Promise<never> {
-    const message = said ?? (await messageOf(r));
-    throw new GitHubError(
-      r.status,
-      `GitHub answered ${r.status}${message ? `: ${message}` : ""}`,
-    );
-  }
-
   async function json<T>(method: string, path: string): Promise<T> {
     const r = await request(method, path);
     if (!r.ok) return fail(r);
@@ -281,45 +223,6 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       all.push(...items);
       if (items.length < 100) return all;
     }
-  }
-
-  const repoPath = (repo: RepoRef) =>
-    `/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;
-  const contents = (repo: RepoRef, path: string) =>
-    `${repoPath(repo)}/contents/${encodePath(path)}`;
-
-  // The app's token reaches only the repo it is installed on (ADR-0021), and
-  // GitHub's docs make no exception for public repos, so someone else's is
-  // read as anyone may read it.
-  const anonymous = (path: string) =>
-    fetchImpl(`${base}${path}`, {
-      cache: "no-store",
-      headers: {
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-    });
-
-  /** A Contents API answer for `path` as the file's text and sha. */
-  async function fileOf(r: Response, path: string): Promise<FileAt> {
-    const body = (await r.json()) as {
-      type?: string;
-      encoding?: string;
-      content?: string;
-      sha: string;
-    };
-    if (Array.isArray(body) || body.type !== "file") {
-      throw new GitHubError(422, `${path} is not a file`);
-    }
-    // Anything but base64 is GitHub withholding the content, and reading
-    // it as "" would open, and then save, an empty deck over the file.
-    if (body.encoding !== "base64" || typeof body.content !== "string") {
-      throw new GitHubError(
-        413,
-        `${path} is over 1 MB, which GitHub will not hand to Progress Engine`,
-      );
-    }
-    return { text: decodeBase64(body.content), sha: body.sha };
   }
 
   async function sendJson<T>(method: string, path: string, body: unknown) {
@@ -358,7 +261,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
   // GitHub says concurrent Contents writes conflict, so they go one at a time.
   let writes: Promise<unknown> = Promise.resolve();
 
-  return {
+  const account: Omit<GitHubApi, "repo"> = {
     async user() {
       const u = await json<{ login: string; id: number }>("GET", "/user");
       return { login: u.login, id: u.id };
@@ -389,7 +292,9 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       if (!r.ok) return fail(r);
       return true;
     },
+  };
 
+  const files: OnGitHub = {
     async getFile(repo, path, ref) {
       const at = ref === undefined ? "" : `?ref=${encodeURIComponent(ref)}`;
       const r = await request("GET", `${contents(repo, path)}${at}`);
@@ -410,16 +315,6 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
         );
       }
       return base64Bytes(body.content);
-    },
-
-    async publicFile(repo, path) {
-      const r = await anonymous(contents(repo, path));
-      if (r.ok) return { kind: "file", ...(await fileOf(r, path)) };
-      if (r.status !== 404) return fail(r);
-      const there = await anonymous(repoPath(repo));
-      if (there.ok) return { kind: "no-file" };
-      if (there.status === 404) return { kind: "no-repo" };
-      return fail(there);
     },
 
     async history(repo, path, page = {}) {
@@ -478,7 +373,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       if (r.status === 422) {
         const message = await messageOf(r);
         if (/already exists/i.test(message)) {
-          throw new ConflictError(422, `there is already a snapshot ${tag}`);
+          throw new ConflictError(`there is already a snapshot ${tag}`);
         }
         return fail(r, message);
       }
@@ -509,15 +404,12 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
           put.keepalive ?? false,
         );
         if (r.status === 409) {
-          throw new ConflictError(r.status, `${path} changed on GitHub (409)`);
+          throw new ConflictError(`${path} changed on GitHub (409)`);
         }
         if (r.status === 422) {
           const message = await messageOf(r);
           if (isShaRefusal(message)) {
-            throw new ConflictError(
-              r.status,
-              `${path} changed on GitHub (422)`,
-            );
+            throw new ConflictError(`${path} changed on GitHub (422)`);
           }
           return fail(r, message);
         }
@@ -535,18 +427,12 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
         // A missing file is a 404 here, which for a deck means someone
         // else got there first: the same as a stale sha.
         if (r.status === 409 || r.status === 404) {
-          throw new ConflictError(
-            r.status,
-            `${path} changed on GitHub (${r.status})`,
-          );
+          throw new ConflictError(`${path} changed on GitHub (${r.status})`);
         }
         if (r.status === 422) {
           const message = await messageOf(r);
           if (isShaRefusal(message)) {
-            throw new ConflictError(
-              r.status,
-              `${path} changed on GitHub (422)`,
-            );
+            throw new ConflictError(`${path} changed on GitHub (422)`);
           }
           return fail(r, message);
         }
@@ -570,4 +456,78 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       }));
     },
   };
+
+  return {
+    ...account,
+    repo: (ref) => ({
+      where: `${ref.owner}/${ref.name}`,
+      onHost: (path) => ({
+        host: "GitHub",
+        url: `https://github.com/${ref.owner}/${ref.name}/blob/HEAD/${path}`,
+      }),
+      getFile: (path, at) => files.getFile(ref, path, at),
+      getBytes: (path) => files.getBytes(ref, path),
+      history: (path, page) => files.history(ref, path, page),
+      revision: (commit) => files.revision(ref, commit),
+      snapshots: (prefix) => files.snapshots(ref, prefix),
+      takeSnapshot: (snapshot) => files.takeSnapshot(ref, snapshot),
+      dropSnapshot: (tag) => files.dropSnapshot(ref, tag),
+      putFile: (path, put) => files.putFile(ref, path, put),
+      deleteFile: (path, del) => files.deleteFile(ref, path, del),
+      listDir: (path) => files.listDir(ref, path),
+    }),
+  };
+}
+
+/** Anyone's public repo on GitHub, read as anyone may read it. */
+export function createPublicRepos(
+  options: { fetch?: typeof fetch; base?: string } = {},
+): PublicRepos {
+  const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const base = options.base ?? GITHUB_API;
+  // The app's token reaches only the repo it is installed on (ADR-0021), and
+  // GitHub's docs make no exception for public repos, so someone else's is
+  // read as anyone may read it.
+  const anonymous = (path: string) =>
+    fetchImpl(`${base}${path}`, {
+      cache: "no-store",
+      headers: {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+
+  return {
+    async publicFile(repo, path) {
+      const r = await anonymous(contents(repo, path));
+      if (r.ok) return { kind: "file", ...(await fileOf(r, path)) };
+      if (r.status !== 404) return fail(r);
+      const there = await anonymous(repoPath(repo));
+      if (there.ok) return { kind: "no-file" };
+      if (there.status === 404) return { kind: "no-repo" };
+      return fail(there);
+    },
+  };
+}
+
+/** A Contents API answer for `path` as the file's text and sha. */
+async function fileOf(r: Response, path: string): Promise<FileAt> {
+  const body = (await r.json()) as {
+    type?: string;
+    encoding?: string;
+    content?: string;
+    sha: string;
+  };
+  if (Array.isArray(body) || body.type !== "file") {
+    throw new GitHubError(422, `${path} is not a file`);
+  }
+  // Anything but base64 is GitHub withholding the content, and reading
+  // it as "" would open, and then save, an empty deck over the file.
+  if (body.encoding !== "base64" || typeof body.content !== "string") {
+    throw new GitHubError(
+      413,
+      `${path} is over 1 MB, which GitHub will not hand to Progress Engine`,
+    );
+  }
+  return { text: decodeBase64(body.content), sha: body.sha };
 }

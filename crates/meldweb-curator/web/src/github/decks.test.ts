@@ -27,10 +27,10 @@ const fakeDeck = (imported?: Imported): DeckText => ({
 
 describe("the deck list", () => {
   it("lists lantern and loam by name, the stem where the file names none", async () => {
-    const { api, repo } = mockConnection({
+    const { repo } = mockConnection({
       files: { ...seedDecks(), "decks/notes.md": "x", "README.md": "y" },
     });
-    const decks = await listDecks(api, repo, { parseDeck });
+    const decks = await listDecks(repo, { parseDeck });
     expect(decks.map((d) => [d.path, d.name, d.refused])).toEqual([
       ["decks/lantern.deck.toml", "lantern", undefined],
       ["decks/loam.deck.toml", "loam", undefined],
@@ -39,13 +39,13 @@ describe("the deck list", () => {
   });
 
   it("carries each deck's format, size and commanders, for its tile", async () => {
-    const { api, repo } = mockConnection({
+    const { repo } = mockConnection({
       files: {
         ...seedDecks(),
         "decks/burn.deck.toml": deckText.newDeck("Burn", "modern"),
       },
     });
-    const [burn, lantern, loam] = await listDecks(api, repo, { parseDeck });
+    const [burn, lantern, loam] = await listDecks(repo, { parseDeck });
     expect([burn?.format, burn?.total, burn?.commanders]).toEqual([
       "modern",
       0,
@@ -61,15 +61,15 @@ describe("the deck list", () => {
   });
 
   it("is empty for a repo with no decks directory", async () => {
-    const { api, repo } = mockConnection({ files: { VERSION: "1\n" } });
-    expect(await listDecks(api, repo, { parseDeck })).toEqual([]);
+    const { repo } = mockConnection({ files: { VERSION: "1\n" } });
+    expect(await listDecks(repo, { parseDeck })).toEqual([]);
   });
 
   it("names a file the format refuses, with why", async () => {
-    const { api, repo } = mockConnection({
+    const { repo } = mockConnection({
       files: { "decks/bad.deck.toml": "cards = 3\n" },
     });
-    const [bad] = await listDecks(api, repo, { parseDeck });
+    const [bad] = await listDecks(repo, { parseDeck });
     expect(bad?.name).toBe("bad");
     expect(bad?.refused).toBeTruthy();
   });
@@ -79,18 +79,18 @@ describe("a deck from the list", () => {
   const LANTERN = "decks/lantern.deck.toml";
 
   it("is renamed and given a cover in a commit each, its path staying put", async () => {
-    const { api, mock, repo } = mockConnection({ files: seedDecks() });
-    await commitEdit(api, repo, LANTERN, (t) =>
+    const { mock, repo } = mockConnection({ files: seedDecks() });
+    await commitEdit(repo, LANTERN, (t) =>
       setDeckMeta(t ?? "", "Lantern Control"),
     );
-    await commitEdit(api, repo, LANTERN, (t) =>
+    await commitEdit(repo, LANTERN, (t) =>
       setDeckCover(t ?? "", { set: "cmr", num: "304" }),
     );
     expect(mock.commits().map((c) => c.message)).toEqual([
       'lantern: name: none → "Lantern Control"',
       "lantern: cover: none → Codex Shredder",
     ]);
-    const [lantern] = await listDecks(api, repo, { parseDeck });
+    const [lantern] = await listDecks(repo, { parseDeck });
     expect(lantern).toMatchObject({
       path: LANTERN,
       name: "Lantern Control",
@@ -99,15 +99,15 @@ describe("a deck from the list", () => {
   });
 
   it("is deleted as the list read it, and refused once it changed since", async () => {
-    const { api, mock, repo } = mockConnection({ files: seedDecks() });
-    const [lantern, loam] = await listDecks(api, repo, { parseDeck });
+    const { mock, repo } = mockConnection({ files: seedDecks() });
+    const [lantern, loam] = await listDecks(repo, { parseDeck });
     if (!lantern || !loam) throw new Error("seeded");
-    expect(await deleteDeck(api, repo, lantern)).toEqual({ kind: "deleted" });
+    expect(await deleteDeck(repo, lantern)).toEqual({ kind: "deleted" });
     expect(mock.file(LANTERN)).toBeUndefined();
     expect(mock.commits().at(-1)?.message).toBe("lantern: delete");
 
-    await commitEdit(api, repo, loam.path, (t) => setDeckMeta(t ?? "", "Loam"));
-    expect(await deleteDeck(api, repo, loam)).toMatchObject({
+    await commitEdit(repo, loam.path, (t) => setDeckMeta(t ?? "", "Loam"));
+    expect(await deleteDeck(repo, loam)).toMatchObject({
       kind: "refused",
     });
     expect(mock.file(loam.path)).toBeDefined();
@@ -124,9 +124,9 @@ describe("a deck from the list", () => {
         ),
       },
     });
-    const [lantern] = await listDecks(full.api, full.repo, { parseDeck });
+    const [lantern] = await listDecks(full.repo, { parseDeck });
     if (!lantern) throw new Error("seeded");
-    expect(await deleteDeck(full.api, full.repo, lantern)).toEqual({
+    expect(await deleteDeck(full.repo, lantern)).toEqual({
       kind: "refused",
       message:
         "The collection has 2 copies in Lantern, this deck's place. Move them out in the collection first.",
@@ -136,9 +136,9 @@ describe("a deck from the list", () => {
     const empty = mockConnection({
       files: { ...seedDecks(), "collection.toml": collection("") },
     });
-    const [again] = await listDecks(empty.api, empty.repo, { parseDeck });
+    const [again] = await listDecks(empty.repo, { parseDeck });
     if (!again) throw new Error("seeded");
-    expect(await deleteDeck(empty.api, empty.repo, again)).toEqual({
+    expect(await deleteDeck(empty.repo, again)).toEqual({
       kind: "deleted",
     });
     expect(empty.mock.file("collection.toml")?.text).not.toContain("Lantern");
@@ -151,17 +151,17 @@ describe("a deck from the list", () => {
   const places = `cards = []\n\n[places]\nBulk = {}\nLantern = { deck = "${LANTERN}" }\n`;
 
   it("is refused when copies are put in its place while it is being deleted", async () => {
-    const { api, mock, repo } = mockConnection({
+    const { mock, repo } = mockConnection({
       files: { ...seedDecks(), [COLLECTION_PATH]: places },
     });
-    const [lantern] = await listDecks(api, repo, { parseDeck });
+    const [lantern] = await listDecks(repo, { parseDeck });
     if (!lantern) throw new Error("seeded");
     let first = true;
     const racing = {
-      ...api,
-      getFile: async (...args: Parameters<typeof api.getFile>) => {
-        const file = await api.getFile(...args);
-        if (args[1] === COLLECTION_PATH && first) {
+      ...repo,
+      getFile: async (...args: Parameters<typeof repo.getFile>) => {
+        const file = await repo.getFile(...args);
+        if (args[0] === COLLECTION_PATH && first) {
           first = false;
           mock.editOnGitHub(
             COLLECTION_PATH,
@@ -172,7 +172,7 @@ describe("a deck from the list", () => {
         return file;
       },
     };
-    expect(await deleteDeck(racing, repo, lantern)).toEqual({
+    expect(await deleteDeck(racing, lantern)).toEqual({
       kind: "refused",
       message:
         "The collection has 1 copy in Lantern, this deck's place. Move them out in the collection first.",
@@ -182,14 +182,13 @@ describe("a deck from the list", () => {
   });
 
   it("drops its place after the collection's own save lands, without a conflict", async () => {
-    const { api, mock, repo } = mockConnection({
+    const { mock, repo } = mockConnection({
       files: { ...seedDecks(), [COLLECTION_PATH]: places },
     });
-    const [lantern] = await listDecks(api, repo, { parseDeck });
+    const [lantern] = await listDecks(repo, { parseDeck });
     const loaded = mock.file(COLLECTION_PATH);
     if (!lantern || !loaded) throw new Error("seeded");
     const store = createSaveStore({
-      api,
       repo,
       path: COLLECTION_PATH,
       ...loaded,
@@ -199,7 +198,7 @@ describe("a deck from the list", () => {
     );
     // The collection is left with its edit pending, as on going home.
     void leave(store);
-    expect(await deleteDeck(api, repo, lantern)).toEqual({ kind: "deleted" });
+    expect(await deleteDeck(repo, lantern)).toEqual({ kind: "deleted" });
     store.dispose();
     const collection = mock.file(COLLECTION_PATH)?.text ?? "";
     expect(collection).toContain("Sol Ring");
@@ -222,9 +221,8 @@ describe("a deck's path", () => {
 
 describe("a new deck", () => {
   it("starts empty, as its first commit", async () => {
-    const { api, mock, repo } = mockConnection({ files: seedDecks() });
+    const { mock, repo } = mockConnection({ files: seedDecks() });
     const made = await createDeck(
-      api,
       repo,
       "Sol Ring Tribal",
       { kind: "empty", format: "commander" },
@@ -250,9 +248,8 @@ describe("a new deck", () => {
   });
 
   it("refuses a slug that already exists, and writes nothing", async () => {
-    const { api, mock, repo } = mockConnection({ files: seedDecks() });
+    const { mock, repo } = mockConnection({ files: seedDecks() });
     const made = await createDeck(
-      api,
       repo,
       "LANTERN",
       { kind: "empty", format: "commander" },
@@ -265,15 +262,15 @@ describe("a new deck", () => {
   });
 
   it("refuses a slug taken while it was being made, leaving that deck be", async () => {
-    const { api, mock, repo } = mockConnection({ files: seedDecks() });
+    const { mock, repo } = mockConnection({ files: seedDecks() });
     const path = "decks/burn.deck.toml";
     const theirs = deckText.newDeck("Burn", "modern");
     let checked = false;
     const racing = {
-      ...api,
-      getFile: async (...args: Parameters<typeof api.getFile>) => {
-        const file = await api.getFile(...args);
-        if (args[1] === path && !checked) {
+      ...repo,
+      getFile: async (...args: Parameters<typeof repo.getFile>) => {
+        const file = await repo.getFile(...args);
+        if (args[0] === path && !checked) {
           checked = true;
           mock.editOnGitHub(path, theirs);
         }
@@ -282,7 +279,6 @@ describe("a new deck", () => {
     };
     const made = await createDeck(
       racing,
-      repo,
       "Burn",
       { kind: "empty", format: "legacy" },
       fakeDeck(),
@@ -293,9 +289,8 @@ describe("a new deck", () => {
   });
 
   it("refuses a name with nothing to slug", async () => {
-    const { api, repo } = mockConnection();
+    const { repo } = mockConnection();
     const made = await createDeck(
-      api,
       repo,
       "???",
       { kind: "empty", format: "" },
@@ -305,12 +300,11 @@ describe("a new deck", () => {
   });
 
   it("from Archidekt text takes the import's toml, named, and keeps its unreadable lines", async () => {
-    const { api, mock, repo } = mockConnection();
+    const { mock, repo } = mockConnection();
     const toml =
       'cards = [\n  { name = "Sol Ring", in = ["Ramp"] },\n]\n\n[categories]\nRamp = {}\n';
     const unreadable = [{ line: 3, text: "banana", reason: "no quantity" }];
     const made = await createDeck(
-      api,
       repo,
       "Ramp Pile",
       {
@@ -332,10 +326,9 @@ describe("a new deck", () => {
   });
 
   it("names a card whose line gave only a set by the printing Scryfall has there, and says which it could not", async () => {
-    const { api, mock, repo } = mockConnection();
+    const { mock, repo } = mockConnection();
     const asked: { name: string; set: string }[] = [];
     const made = await createDeck(
-      api,
       repo,
       "Sets Only",
       {
@@ -372,9 +365,8 @@ describe("a new deck", () => {
   });
 
   it("says why an import was refused, and writes nothing", async () => {
-    const { api, mock, repo } = mockConnection();
+    const { mock, repo } = mockConnection();
     const made = await createDeck(
-      api,
       repo,
       "Nothing",
       { kind: "archidekt", text: "" },

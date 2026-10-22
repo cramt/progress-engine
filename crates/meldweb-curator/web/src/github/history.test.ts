@@ -36,79 +36,73 @@ async function lantern() {
 
 describe("a deck's history", () => {
   it("is the commits that touched its path, newest first", async () => {
-    const { api, repo } = await lantern();
-    const log = await revisions(api, repo, PATH);
+    const { repo } = await lantern();
+    const log = await revisions(repo, PATH);
     expect(log.map((r) => r.message)).toEqual([
       "lantern: Island: 2 → 3",
       "lantern: Island: 1 → 2",
       "lantern: Island: 0 → 1",
     ]);
-    expect(await revisions(api, repo, "decks/loam.deck.toml")).toEqual([]);
+    expect(await revisions(repo, "decks/loam.deck.toml")).toEqual([]);
   });
 
   it("answers how the deck looked on a day", async () => {
-    const { api, repo } = await lantern();
-    const at = await revisionAt(api, repo, PATH, new Date(day(15)));
+    const { repo } = await lantern();
+    const at = await revisionAt(repo, PATH, new Date(day(15)));
     expect(at?.date).toBe(day(10));
-    const file = at && (await fileAt(api, repo, PATH, at.commit));
+    const file = at && (await fileAt(repo, PATH, at.commit));
     expect(file?.text).toBe(v(2));
     // The day of a save is that save's version.
-    expect((await revisionAt(api, repo, PATH, new Date(day(20))))?.date).toBe(
+    expect((await revisionAt(repo, PATH, new Date(day(20))))?.date).toBe(
       day(20),
     );
   });
 
   it("before the deck existed, there is no version of it", async () => {
-    const { api, repo } = await lantern();
-    expect(
-      await revisionAt(api, repo, PATH, new Date("2026-08-01T00:00:00Z")),
-    ).toBe(null);
+    const { repo } = await lantern();
+    expect(await revisionAt(repo, PATH, new Date("2026-08-01T00:00:00Z"))).toBe(
+      null,
+    );
   });
 
   it("grows by every save, and a version's file never changes", async () => {
-    const { api, repo, mock } = await lantern();
-    const [oldest] = (await revisions(api, repo, PATH)).slice(-1);
+    const { repo, mock } = await lantern();
+    const [oldest] = (await revisions(repo, PATH)).slice(-1);
     const sha = mock.file(PATH)?.sha ?? null;
-    await api.putFile(repo, PATH, { text: v(4), message: "four", sha });
-    const [latest] = await revisions(api, repo, PATH);
+    await repo.putFile(PATH, { text: v(4), message: "four", sha });
+    const [latest] = await revisions(repo, PATH);
     expect(latest?.message).toBe("four");
-    expect((await fileAt(api, repo, PATH, latest?.commit ?? ""))?.text).toBe(
-      v(4),
-    );
-    expect((await fileAt(api, repo, PATH, oldest?.commit ?? ""))?.text).toBe(
-      v(1),
-    );
+    expect((await fileAt(repo, PATH, latest?.commit ?? ""))?.text).toBe(v(4));
+    expect((await fileAt(repo, PATH, oldest?.commit ?? ""))?.text).toBe(v(1));
   });
 });
 
 describe("snapshots", () => {
   it("are tags under the deck's path, listed with their name", async () => {
-    const { api, repo } = await lantern();
-    const at = await head(api, repo, PATH);
+    const { repo } = await lantern();
+    const at = await head(repo, PATH);
     const taken = await takeSnapshot(
-      api,
       repo,
       PATH,
       "FNM 14 Sep",
       at?.commit ?? "",
     );
     expect(taken.kind).toBe("taken");
-    const snaps = await deckSnapshots(api, repo, PATH);
+    const snaps = await deckSnapshots(repo, PATH);
     expect(snaps.map((s) => [s.tag, s.label, s.commit])).toEqual([
       ["decks/lantern/fnm-14-sep", "FNM 14 Sep", at?.commit],
     ]);
     // Another deck's snapshots are its own.
-    expect(
-      await deckSnapshots(api, repo, "decks/lantern-budget.deck.toml"),
-    ).toEqual([]);
+    expect(await deckSnapshots(repo, "decks/lantern-budget.deck.toml")).toEqual(
+      [],
+    );
   });
 
   it("refuses a name the deck already used", async () => {
-    const { api, repo } = await lantern();
-    const at = await head(api, repo, PATH);
-    await takeSnapshot(api, repo, PATH, "Before the swap", at?.commit ?? "");
+    const { repo } = await lantern();
+    const at = await head(repo, PATH);
+    await takeSnapshot(repo, PATH, "Before the swap", at?.commit ?? "");
     const again = await takeSnapshot(
-      api,
       repo,
       PATH,
       "before the swap!",
@@ -129,11 +123,10 @@ describe("snapshots", () => {
 
 describe("a variant", () => {
   it("is a new deck that names its parent, from any version of it", async () => {
-    const { api, repo, mock } = await lantern();
-    const [, middle] = await revisions(api, repo, PATH);
-    const old = await fileAt(api, repo, PATH, middle?.commit ?? "");
+    const { repo, mock } = await lantern();
+    const [, middle] = await revisions(repo, PATH);
+    const old = await fileAt(repo, PATH, middle?.commit ?? "");
     const made = await createDeck(
-      api,
       repo,
       "Lantern Budget",
       { kind: "variant", text: old?.text ?? "", of: PATH },

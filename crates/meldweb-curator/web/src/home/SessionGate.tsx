@@ -21,6 +21,17 @@ function Gate({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * The GitHub connection, which is the only one that logs in or onboards: the
+ * browser's repo opens without either (ADR-0041).
+ */
+function useGitHub() {
+  const connection = use(connect());
+  if (connection.kind !== "github")
+    throw new Error("only GitHub asks for a login");
+  return connection;
+}
+
 /** What stands between the user and their decks, for any session but `open`. */
 export function SessionGate({
   session,
@@ -50,7 +61,7 @@ export function SessionGate({
 }
 
 function Login({ returnPath }: { returnPath: string }) {
-  const { auth } = use(connect());
+  const { auth } = useGitHub();
   return (
     <Gate>
       <h1>Your decks, in git</h1>
@@ -80,7 +91,7 @@ function Onboarding({
   login: string;
   repoExists: boolean;
 }) {
-  const { onboarding } = use(connect());
+  const { onboarding } = useGitHub();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const recheck = () => {

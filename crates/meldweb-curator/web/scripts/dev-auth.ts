@@ -85,8 +85,9 @@ async function send(res: ServerResponse, response: Response): Promise<void> {
 }
 
 /**
- * Serves `/api/auth/*` from the worker's code in `pnpm dev`, unless
- * `VITE_MOCK_GITHUB` fakes GitHub in the page instead.
+ * Serves `/api/auth/*` from the worker's code in `MELDWEB_DEV_AUTH=1 pnpm dev`.
+ * Plain `pnpm dev` keeps the repo in the browser and logs in nowhere
+ * (ADR-0041), so it leaves this off; it is kept for GitHub as a remote.
  */
 export function devAuth(): Plugin {
   let enabled = false;
@@ -94,7 +95,10 @@ export function devAuth(): Plugin {
     name: "meldweb-dev-auth",
     config(_, { command, mode }) {
       enabled =
-        command === "serve" && mode !== "test" && !process.env.VITE_MOCK_GITHUB;
+        command === "serve" &&
+        mode !== "test" &&
+        process.env.MELDWEB_DEV_AUTH === "1" &&
+        !process.env.VITE_MOCK_GITHUB;
       // The callback URL registered on the app names this port.
       if (enabled) return { server: { port: DEV_PORT, strictPort: true } };
     },

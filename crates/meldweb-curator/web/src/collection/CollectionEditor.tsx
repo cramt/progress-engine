@@ -17,7 +17,6 @@ import {
 import type { Finish } from "../deck";
 import { printingNames } from "../deck/archidektNames";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "../deck/Toolbar";
-import type { GitHubApi, RepoRef } from "../github/api";
 import type { DeckEntry } from "../github/decks";
 import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
@@ -34,6 +33,7 @@ import {
 } from "../prices";
 import { scannerAvailable } from "../probe/scanner";
 import { QuickAdd } from "../quickadd/QuickAdd";
+import type { Repo } from "../repo/api";
 import {
   type Currency,
   cardName,
@@ -69,8 +69,7 @@ export interface CollectionEditorProps {
   /** The file as loaded, `""` and no sha while there is none. */
   text: string;
   sha: string | null;
-  repo: RepoRef;
-  api: GitHubApi;
+  repo: Repo;
   printings: Printings;
   /** The repo's decks, which a place can stand for. */
   decks: readonly DeckEntry[];
@@ -93,7 +92,6 @@ export function CollectionEditor({
   text: loaded,
   sha,
   repo,
-  api,
   printings: loadedPrintings,
   decks,
 }: CollectionEditorProps) {
@@ -142,7 +140,6 @@ export function CollectionEditor({
 
   const [store] = useState(() =>
     createSaveStore({
-      api,
       repo,
       path,
       text: loaded,

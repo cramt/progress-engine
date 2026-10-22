@@ -3,15 +3,12 @@
  * so far which printing of a card to offer first, edited at `/settings`. A
  * repo without it gets the default rules, so the file is never required.
  */
-import type { FileAt, GitHubApi, RepoRef } from "./api";
+import type { FileAt, Repo } from "../repo/api";
 import { openFile } from "./repoFile";
 
 export const SETTINGS_PATH = "meldweb.toml";
 
 /** The settings file, or null when the repo has none. */
-export function loadSettingsFile(
-  api: GitHubApi,
-  repo: RepoRef,
-): Promise<FileAt | null> {
-  return openFile(api, repo, SETTINGS_PATH);
+export function loadSettingsFile(repo: Repo): Promise<FileAt | null> {
+  return openFile(repo, SETTINGS_PATH);
 }

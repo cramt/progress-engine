@@ -1,8 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSettingsFile } from "../card/preference";
 import { Toolbar } from "../deck/Toolbar";
-import type { FileAt, GitHubApi, RepoRef } from "../github/api";
-import { connect } from "../github/connect";
 import { type DeckEntry, listDecks } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { openSession } from "../github/session";
@@ -12,6 +10,7 @@ import { DeckGrid } from "../home/DeckGrid";
 import { NewDeckDialog } from "../home/NewDeckDialog";
 import { SessionGate } from "../home/SessionGate";
 import { moveInSettings } from "../home/variants";
+import type { FileAt, Repo } from "../repo/api";
 import { fetchPrintings, type Printings } from "../scryfall";
 import { readSettings } from "../settings/rules";
 
@@ -20,10 +19,9 @@ export const Route = createFileRoute("/")({
   loader: async () => {
     const session = await openSession();
     if (session.kind !== "open") return { kind: "gate" as const, session };
-    const { api } = await connect();
     const [decks, settings] = await Promise.all([
-      listDecks(api, session.repo, deckText),
-      loadSettingsFile(api, session.repo),
+      listDecks(session.repo, deckText),
+      loadSettingsFile(session.repo),
     ]);
     return {
       kind: "decks" as const,
@@ -31,7 +29,6 @@ export const Route = createFileRoute("/")({
       decks,
       printings: await commanderArt(decks),
       settings,
-      api,
     };
   },
   // A deck made or renamed elsewhere shows up on coming back.
@@ -58,21 +55,19 @@ function Home() {
 }
 
 function Decks({
-  api,
   repo,
   decks,
   printings,
   settings,
 }: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   decks: DeckEntry[];
   printings: Printings;
   settings: FileAt | null;
 }) {
   const { menuFor, dialogs } = useDeckActions(repo);
   // The order is meldweb.toml's (ADR-0028), so it follows the repo to any device.
-  const file = useSettingsFile(settings, api, repo);
+  const file = useSettingsFile(settings, repo);
   const read = readSettings(file.text);
   const order = read.kind === "read" ? read.decks : [];
   return (
@@ -84,9 +79,9 @@ function Decks({
           <>
             <span
               className="home-repo"
-              title="Every deck is a file in this repository"
+              title="Every deck is a file in this git repository"
             >
-              {repo.owner}/{repo.name}
+              {repo.where}
             </span>
             <Link to="/collection" className="button">
               Collection

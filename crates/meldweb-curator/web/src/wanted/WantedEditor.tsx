@@ -4,7 +4,6 @@ import { useGrowingPrintings } from "../card/useGrowingPrintings";
 import type { CardRef, Finish } from "../deck";
 import { printingNames } from "../deck/archidektNames";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "../deck/Toolbar";
-import type { GitHubApi, RepoRef } from "../github/api";
 import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
 import { useHistory, useUndoKeys } from "../history";
@@ -20,6 +19,7 @@ import {
   worth,
 } from "../prices";
 import { QuickAdd } from "../quickadd/QuickAdd";
+import type { Repo } from "../repo/api";
 import {
   type Currency,
   cardName,
@@ -47,8 +47,7 @@ export interface WantedEditorProps {
   /** The file as loaded, `""` and no sha while there is none. */
   text: string;
   sha: string | null;
-  repo: RepoRef;
-  api: GitHubApi;
+  repo: Repo;
   /** `collection.toml` as loaded, which the page reads and never writes. */
   collection: string;
   decks: readonly DeckFile[];
@@ -72,7 +71,6 @@ export function WantedEditor({
   text: loaded,
   sha,
   repo,
-  api,
   collection,
   decks,
   printings: loadedPrintings,
@@ -117,7 +115,6 @@ export function WantedEditor({
 
   const [store] = useState(() =>
     createSaveStore({
-      api,
       repo,
       path,
       text: loaded,

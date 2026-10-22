@@ -7,9 +7,9 @@ import {
   useState,
 } from "react";
 import type { Pin, Ranked, RuleText } from "../deck.gen";
-import type { FileAt, GitHubApi, RepoRef } from "../github/api";
 import { commitEdit } from "../github/repoFile";
 import { SETTINGS_PATH } from "../github/settings";
+import type { FileAt, Repo } from "../repo/api";
 import { readSettings } from "../settings/rules";
 import {
   pin_printing,
@@ -69,11 +69,7 @@ export interface SettingsFile {
  * dragged). An edit is committed at once rather than after the idle wait a
  * deck has: it is one gesture, and what comes next should already see it.
  */
-export function useSettingsFile(
-  file: FileAt | null,
-  api: GitHubApi,
-  repo: RepoRef,
-): SettingsFile {
+export function useSettingsFile(file: FileAt | null, repo: Repo): SettingsFile {
   const [text, setTextState] = useState(file?.text ?? null);
   // What the page shows ahead of GitHub, so two clicks before a render each
   // build on the other.
@@ -92,7 +88,7 @@ export function useSettingsFile(
     if (shown !== null) setText(shown);
     landing.current++;
     try {
-      const made = await commitEdit(api, repo, SETTINGS_PATH, edit);
+      const made = await commitEdit(repo, SETTINGS_PATH, edit);
       if (landing.current === 1) setText(made.text);
       setError(null);
     } catch (e) {
@@ -111,17 +107,15 @@ export function useSettingsFile(
  */
 export function SettingsProvider({
   file,
-  api,
   repo,
   children,
 }: {
   /** The repo's `meldweb.toml`, null when it has none. */
   file: FileAt | null;
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   children: ReactNode;
 }) {
-  const settingsFile = useSettingsFile(file, api, repo);
+  const settingsFile = useSettingsFile(file, repo);
   const { text, apply, error } = settingsFile;
 
   const pins = useMemo(() => {

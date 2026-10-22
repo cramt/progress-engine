@@ -3,7 +3,6 @@ import { parseCollection } from "../collection";
 import { type CardRef, parseDeck } from "../deck";
 import { printingNames } from "../deck/archidektNames";
 import { loadCollection } from "../github/collection";
-import { connect } from "../github/connect";
 import { deckStem } from "../github/decks";
 import { openSession } from "../github/session";
 import { loadTheirCollection, parseLogin } from "../github/trade";
@@ -34,14 +33,13 @@ export const Route = createFileRoute("/trade")({
   loader: async ({ deps }) => {
     const session = await openSession();
     if (session.kind !== "open") return { kind: "session" as const, session };
-    const { api } = await connect();
     const page = (
       decks: { path: string; text: string }[],
       result: TradeResult,
     ) => ({
       kind: "page" as const,
       data: {
-        me: session.repo.owner,
+        me: session.me,
         decks: decks.map((d) => {
           const deck = parseDeck(d.text);
           return {
@@ -54,20 +52,20 @@ export const Route = createFileRoute("/trade")({
       },
     });
     if (deps.with === undefined) {
-      return page(await loadDeckFiles(api, session.repo), { kind: "ask" });
+      return page(await loadDeckFiles(session.repo), { kind: "ask" });
     }
     const who = parseLogin(deps.with);
     if (!who) {
-      return page(await loadDeckFiles(api, session.repo), {
+      return page(await loadDeckFiles(session.repo), {
         kind: "not-a-login",
         text: deps.with,
       });
     }
     const [file, collection, decks, theirs] = await Promise.all([
-      loadWanted(api, session.repo),
-      loadCollection(api, session.repo),
-      loadDeckFiles(api, session.repo),
-      loadTheirCollection(api, who),
+      loadWanted(session.repo),
+      loadCollection(session.repo),
+      loadDeckFiles(session.repo),
+      loadTheirCollection(session.others, who),
     ]);
     if (theirs.kind !== "file") return page(decks, { kind: theirs.kind, who });
     // Every printing the files name, so Rust can tell which card each is

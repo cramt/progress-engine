@@ -3,7 +3,6 @@ import { SettingsProvider } from "../card/preference";
 import { parseCollection } from "../collection";
 import { CollectionEditor } from "../collection/CollectionEditor";
 import { COLLECTION_PATH, loadCollection } from "../github/collection";
-import { connect } from "../github/connect";
 import { listDecks } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { openSession } from "../github/session";
@@ -16,11 +15,10 @@ export const Route = createFileRoute("/collection")({
   loader: async () => {
     const session = await openSession();
     if (session.kind !== "open") return { kind: "session" as const, session };
-    const { api } = await connect();
     const [file, decks, settings] = await Promise.all([
-      loadCollection(api, session.repo),
-      listDecks(api, session.repo, deckText),
-      loadSettingsFile(api, session.repo),
+      loadCollection(session.repo),
+      listDecks(session.repo, deckText),
+      loadSettingsFile(session.repo),
     ]);
     const parsed = parseCollection(file.text);
     return {
@@ -29,7 +27,6 @@ export const Route = createFileRoute("/collection")({
       decks,
       settings,
       repo: session.repo,
-      api,
       // As for a deck: an outage costs the names of printings, not the page.
       printings:
         parsed.kind === "collection"
@@ -48,14 +45,13 @@ function CollectionPage() {
     return <SessionGate session={data.session} returnPath="/collection" />;
   }
   return (
-    <SettingsProvider file={data.settings} api={data.api} repo={data.repo}>
+    <SettingsProvider file={data.settings} repo={data.repo}>
       <CollectionEditor
         key={COLLECTION_PATH}
         path={COLLECTION_PATH}
         text={data.file.text}
         sha={data.file.sha}
         repo={data.repo}
-        api={data.api}
         printings={data.printings}
         decks={data.decks}
       />

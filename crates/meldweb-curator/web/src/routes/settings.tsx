@@ -5,14 +5,22 @@ import { loadSettingsFile } from "../github/settings";
 import { SessionGate } from "../home/SessionGate";
 import { SettingsEditor } from "../settings/SettingsEditor";
 
-// Curator's own settings, `meldweb.toml` at the Magic repo's root (ADR-0026).
+// Curator's own settings, `meldweb.toml` at the Magic repo's root (ADR-0026),
+// and what this browser keeps beside the repo: its author and its zip.
 export const Route = createFileRoute("/settings")({
   loader: async () => {
     const session = await openSession();
     if (session.kind !== "open") return { kind: "session" as const, session };
-    const { api } = await connect();
-    const file = await loadSettingsFile(api, session.repo);
-    return { kind: "settings" as const, file, repo: session.repo, api };
+    const [file, connection] = await Promise.all([
+      loadSettingsFile(session.repo),
+      connect(),
+    ]);
+    return {
+      kind: "settings" as const,
+      file,
+      repo: session.repo,
+      local: connection.kind === "local" ? connection.repo : null,
+    };
   },
   // Never reopen from a cached read: its sha would be stale.
   gcTime: 0,
@@ -29,7 +37,7 @@ function SettingsPage() {
       text={data.file?.text ?? null}
       sha={data.file?.sha ?? null}
       repo={data.repo}
-      api={data.api}
+      local={data.local}
     />
   );
 }

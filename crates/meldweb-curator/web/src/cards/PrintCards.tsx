@@ -1,8 +1,8 @@
 import { useState } from "react";
-import type { GitHubApi, RepoRef } from "../github/api";
 import { besideCard, type CardFile, cardStem } from "../github/cards";
 import { checkCard, sheetPdf } from "../mockery";
 import { DEFAULT_LAYOUT, type SheetLayout } from "../proxies";
+import type { Repo } from "../repo/api";
 import { downloadPdf } from "../ui/download";
 import { PrintIcon } from "../ui/icons";
 import { messageOf, Sheet } from "../ui/Sheet";
@@ -13,12 +13,10 @@ import { artFor } from "./useCardChecks";
  * A sheet of custom cards to print and cut, as `mockery sheet` makes it.
  */
 export function PrintCards({
-  api,
   repo,
   cards,
 }: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   cards: readonly CardFile[];
 }) {
   const [open, setOpen] = useState(false);
@@ -33,25 +31,18 @@ export function PrintCards({
         Print sheet…
       </button>
       {open && (
-        <PrintDialog
-          api={api}
-          repo={repo}
-          cards={cards}
-          onClose={() => setOpen(false)}
-        />
+        <PrintDialog repo={repo} cards={cards} onClose={() => setOpen(false)} />
       )}
     </>
   );
 }
 
 function PrintDialog({
-  api,
   repo,
   cards,
   onClose,
 }: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   cards: readonly CardFile[];
   onClose: () => void;
 }) {
@@ -76,7 +67,7 @@ function PrintDialog({
         if (checked.kind === "refused")
           throw new Error(`${c.path}: ${checked.message}`);
         for (const a of checked.arts) {
-          const bytes = await artFor(api, repo, besideCard(c.path, a));
+          const bytes = await artFor(repo, besideCard(c.path, a));
           if (!bytes)
             throw new Error(
               `${checked.name}'s art ${besideCard(c.path, a)} is not in the repo`,

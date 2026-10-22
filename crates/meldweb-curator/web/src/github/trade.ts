@@ -1,8 +1,8 @@
 /**
  * Another player's Magic repo, read to trade against (ADR-0035). Only a
- * public one can be read: the app is installed on the user's own repo alone.
+ * public one on GitHub can be read, and it is read without a login.
  */
-import type { GitHubApi, PublicFile } from "./api";
+import type { PublicFile, PublicRepos } from "./api";
 import { COLLECTION_PATH } from "./collection";
 import { MAGIC_REPO } from "./repo";
 
@@ -24,8 +24,8 @@ export function parseLogin(text: string): Login | null {
 
 /** Their `collection.toml`, as their public Magic repo has it. */
 export function loadTheirCollection(
-  api: GitHubApi,
+  others: PublicRepos,
   who: Login,
 ): Promise<PublicFile> {
-  return api.publicFile({ owner: who, name: MAGIC_REPO }, COLLECTION_PATH);
+  return others.publicFile({ owner: who, name: MAGIC_REPO }, COLLECTION_PATH);
 }

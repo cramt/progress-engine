@@ -5,7 +5,7 @@
  * of them. A snapshot is an annotated tag on such a commit, named under the
  * deck's path so each deck lists only its own.
  */
-import type { FileAt, GitHubApi, RepoRef, Revision, Snapshot } from "./api";
+import type { FileAt, Repo, Revision, Snapshot } from "../repo/api";
 import { DECK_SUFFIX, slugify } from "./decks";
 import { settled } from "./repoFile";
 
@@ -16,22 +16,20 @@ export const PAGE = 30;
 
 /** The commits that touched `path`, newest first, `PAGE` at a time. */
 export function revisions(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   path: string,
   page = 1,
 ): Promise<Revision[]> {
-  return api.history(repo, path, { page, perPage: PAGE });
+  return repo.history(path, { page, perPage: PAGE });
 }
 
 /** The newest commit to `path` made no later than `when`: the deck as it was then. */
 export async function revisionAt(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   path: string,
   when: Date,
 ): Promise<Revision | null> {
-  const [hit] = await api.history(repo, path, {
+  const [hit] = await repo.history(path, {
     until: when.toISOString(),
     perPage: 1,
   });
@@ -42,33 +40,34 @@ export async function revisionAt(
  * The last commit to `path` once every pending save has landed: what "now"
  * is on GitHub, to snapshot or branch from.
  */
-export async function head(
-  api: GitHubApi,
-  repo: RepoRef,
-  path: string,
-): Promise<Revision | null> {
+export async function head(repo: Repo, path: string): Promise<Revision | null> {
   await settled(path);
-  const [last] = await api.history(repo, path, { perPage: 1 });
+  const [last] = await repo.history(path, { perPage: 1 });
   return last ?? null;
 }
 
 // A commit never changes, so the file at one is read once per page load.
-const versions = new Map<string, Promise<FileAt | null>>();
+const versions = new WeakMap<Repo, Map<string, Promise<FileAt | null>>>();
 
 /** The file at `path` as commit `commit` left it, or `null` if it was not there. */
 export function fileAt(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   path: string,
   commit: string,
 ): Promise<FileAt | null> {
-  const key = `${repo.owner}/${repo.name}@${commit}:${path}`;
-  let file = versions.get(key);
+  const key = `${commit}:${path}`;
+  let known = versions.get(repo);
+  if (!known) {
+    known = new Map();
+    versions.set(repo, known);
+  }
+  const read = known;
+  let file = read.get(key);
   if (!file) {
-    file = api.getFile(repo, path, commit);
-    versions.set(key, file);
+    file = repo.getFile(path, commit);
+    read.set(key, file);
     // A failed read is not a fact about the commit; let the next ask retry.
-    file.catch(() => versions.delete(key));
+    file.catch(() => read.delete(key));
   }
   return file;
 }
@@ -93,11 +92,10 @@ export function snapshotTag(path: string, label: string, now: Date): string {
 
 /** The deck's snapshots, newest first. */
 export async function deckSnapshots(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   path: string,
 ): Promise<Snapshot[]> {
-  const all = await api.snapshots(repo, snapshotPrefix(path));
+  const all = await repo.snapshots(snapshotPrefix(path));
   return all.sort((a, b) => b.date.localeCompare(a.date));
 }
 
@@ -107,8 +105,7 @@ export type TakenSnapshot =
 
 /** Tags `commit` as the snapshot `label` of the deck at `path`. */
 export async function takeSnapshot(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   path: string,
   label: string,
   commit: string,
@@ -120,7 +117,7 @@ export async function takeSnapshot(
   try {
     return {
       kind: "taken",
-      snapshot: await api.takeSnapshot(repo, { tag, label: trimmed, commit }),
+      snapshot: await repo.takeSnapshot({ tag, label: trimmed, commit }),
     };
   } catch (e) {
     if (e instanceof Error && e.name === "ConflictError") {

@@ -81,6 +81,12 @@ fn ids_are_gits_own() {
             meldweb_git::BlobId::from_hex("ce013625030ba8dba906f756967f9e9ca394464a").unwrap()
         )
     );
+    assert_eq!(
+        repo.entry(&c, &path("hello")).unwrap(),
+        Some(entries[0].kind)
+    );
+    assert_eq!(repo.entry(&c, &path("nope")).unwrap(), None);
+    assert_eq!(repo.entry(&c, &path("hello/deeper")).unwrap(), None);
     // Deleting the only file leaves git's well-known empty tree.
     let d = repo
         .commit(&main, Tip::At(c), &edit(vec![delete("hello")], "bye\n", 1))

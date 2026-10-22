@@ -35,12 +35,12 @@ describe("a GitHub login", () => {
 
 describe("their collection", () => {
   it("is read from their public repo without the login's token", async () => {
-    const { api, mock } = mockConnection({
+    const { others, mock } = mockConnection({
       others: { Rival: { "collection.toml": THEIRS } },
     });
     const who = parseLogin("rival");
     if (!who) throw new Error("rival is a login");
-    expect(await loadTheirCollection(api, who)).toMatchObject({
+    expect(await loadTheirCollection(others, who)).toMatchObject({
       kind: "file",
       text: THEIRS,
     });
@@ -50,11 +50,11 @@ describe("their collection", () => {
   });
 
   it("says whether the repo or only the file is missing", async () => {
-    const { api } = mockConnection({ others: { empty: {} } });
+    const { others } = mockConnection({ others: { empty: {} } });
     const read = (login: string) => {
       const who = parseLogin(login);
       if (!who) throw new Error(`${login} is a login`);
-      return loadTheirCollection(api, who);
+      return loadTheirCollection(others, who);
     };
     expect(await read("empty")).toEqual({ kind: "no-file" });
     expect(await read("nobody")).toEqual({ kind: "no-repo" });

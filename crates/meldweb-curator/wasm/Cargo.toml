@@ -16,10 +16,16 @@ facet.workspace = true
 facet-json.workspace = true
 facet-toml.workspace = true
 metamorph-sheet.workspace = true
+meldweb-git = { path = "../git" }
+# The repo's zip export and import (ADR-0041). Deflate only, through the
+# workspace's pure-Rust flate2, so it builds for wasm32.
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+flate2.workspace = true
 # Exact, because the generated JS glue must come from the same wasm-bindgen
 # version as the crate. flake.nix provides the matching wasm-bindgen-cli_0_2_126
 # from nixpkgs; bump both together, to a version nixpkgs has an attr for.
 wasm-bindgen = "=0.2.126"
 
 [dev-dependencies]
+tempfile = "3"
 facet-typescript = "0.46"

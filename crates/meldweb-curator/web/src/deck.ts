@@ -19,6 +19,7 @@ import init, {
   edit_deck_cards,
   export_archidekt,
   export_deck,
+  identity_problem,
   import_archidekt,
   initSync,
   new_deck,
@@ -290,4 +291,12 @@ export function applyChanges(
 /** The deck text as a variant of the deck at `parent`, or alone for `null`. */
 export function setVariantOf(text: string, parent: string | null): string {
   return set_variant_of(text, parent ?? undefined);
+}
+
+/**
+ * Why git would not take `name` and `email` as a commit's author, or null
+ * when it would.
+ */
+export function identityProblem(name: string, email: string): string | null {
+  return identity_problem(name, email) ?? null;
 }

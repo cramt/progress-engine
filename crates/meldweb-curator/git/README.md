@@ -9,7 +9,8 @@ repo, and a fork's commits keep the same ids in every repo that holds them.
 It can:
 
 - init a bare repo (HEAD is the unborn `main`), and open one.
-- read a file, or list a directory, at a commit.
+- read a file, list a directory, or give the entry (and its blob id) at a
+  path, at a commit.
 - commit puts and deletes to several paths at once, rebuilding the nested
   trees. It keeps an executable bit and drops directories that end up empty.
 - move a branch by compare-and-swap. `Tip::Unborn` means the branch must not

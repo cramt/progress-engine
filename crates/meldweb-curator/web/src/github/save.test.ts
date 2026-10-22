@@ -54,7 +54,6 @@ async function setup() {
   await conn.auth.token();
   const file = conn.mock.file(PATH);
   store = createSaveStore({
-    api: conn.api,
     repo: conn.repo,
     path: PATH,
     text: ORIGINAL,
@@ -288,7 +287,6 @@ describe("a save another client got in ahead of", () => {
     const file = conn.mock.file(PATH);
     merged = [];
     store = createSaveStore({
-      api: conn.api,
       repo: conn.repo,
       path: PATH,
       text: file?.text ?? "",

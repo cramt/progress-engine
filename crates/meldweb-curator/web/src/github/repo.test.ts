@@ -6,8 +6,8 @@ import { mockConnection } from "./testkit";
 
 describe("finding the Magic repo", () => {
   it("finds octocat/mtg through the app's installation", async () => {
-    const { api } = mockConnection();
-    expect(await findMagicRepo(api)).toEqual({
+    const { github } = mockConnection();
+    expect(await findMagicRepo(github)).toEqual({
       kind: "found",
       login: "octocat",
       repo: { owner: "octocat", name: "mtg" },
@@ -16,37 +16,37 @@ describe("finding the Magic repo", () => {
 
   it("onboards when the repo is missing, and when the app is not on it", async () => {
     const none = mockConnection({ start: "no-repo" });
-    expect(await findMagicRepo(none.api)).toEqual({
+    expect(await findMagicRepo(none.github)).toEqual({
       kind: "onboarding",
       login: "octocat",
       repoExists: false,
     });
     const bare = mockConnection({ start: "no-install" });
-    expect(await findMagicRepo(bare.api)).toMatchObject({
+    expect(await findMagicRepo(bare.github)).toMatchObject({
       kind: "onboarding",
       repoExists: true,
     });
   });
 
   it("onboarding's two steps end at the repo", async () => {
-    const { api, mock } = mockConnection({ start: "no-repo" });
+    const { github, mock } = mockConnection({ start: "no-repo" });
     mock.createRepo();
-    expect((await findMagicRepo(api)).kind).toBe("onboarding");
+    expect((await findMagicRepo(github)).kind).toBe("onboarding");
     mock.installApp();
-    expect((await findMagicRepo(api)).kind).toBe("found");
+    expect((await findMagicRepo(github)).kind).toBe("found");
   });
 
   it("a logged-out user gets LoggedOutError, not a 401", async () => {
-    const { api } = mockConnection({ loggedIn: false });
-    await expect(findMagicRepo(api)).rejects.toBeInstanceOf(LoggedOutError);
+    const { github } = mockConnection({ loggedIn: false });
+    await expect(findMagicRepo(github)).rejects.toBeInstanceOf(LoggedOutError);
   });
 
   it("a stale token is refreshed once and the call retried", async () => {
-    const { api, auth, mock } = mockConnection();
+    const { github, auth, mock } = mockConnection();
     await auth.token();
     // Another tab rotated the refresh token, killing this one's access token.
     await mock.fetch("/api/auth/refresh", { method: "POST" });
-    expect((await api.user()).login).toBe("octocat");
+    expect((await github.user()).login).toBe("octocat");
   });
 });
 
@@ -79,9 +79,9 @@ describe("onboarding URLs", () => {
 
 describe("the repo version", () => {
   it("writes VERSION 1 into an empty repo", async () => {
-    const { api, mock, repo } = mockConnection({ start: "no-install" });
+    const { mock, repo } = mockConnection({ start: "no-install" });
     mock.installApp();
-    expect(await openMagicRepo(api, repo)).toEqual({
+    expect(await openMagicRepo(repo)).toEqual({
       kind: "open",
       version: 1,
     });
@@ -90,13 +90,13 @@ describe("the repo version", () => {
       "curator: this repo is at version 1",
     ]);
     // Opening again writes nothing.
-    await openMagicRepo(api, repo);
+    await openMagicRepo(repo);
     expect(mock.commits()).toHaveLength(1);
   });
 
   it("refuses a repo newer than Progress Engine knows, and changes nothing", async () => {
-    const { api, mock, repo } = mockConnection({ files: { VERSION: "2\n" } });
-    const opened = await openMagicRepo(api, repo);
+    const { mock, repo } = mockConnection({ files: { VERSION: "2\n" } });
+    const opened = await openMagicRepo(repo);
     expect(opened.kind).toBe("refused");
     if (opened.kind === "refused")
       expect(opened.message).toMatch(/version 2.*up to version 1/);
@@ -104,32 +104,30 @@ describe("the repo version", () => {
   });
 
   it("refuses a VERSION that is not a number", async () => {
-    const { api, repo } = mockConnection({ files: { VERSION: "one" } });
-    expect((await openMagicRepo(api, repo)).kind).toBe("refused");
+    const { repo } = mockConnection({ files: { VERSION: "one" } });
+    expect((await openMagicRepo(repo)).kind).toBe("refused");
   });
 
   it("runs the migrations from an older version, one commit each", async () => {
-    const { api, mock, repo } = mockConnection({ files: { VERSION: "1\n" } });
+    const { mock, repo } = mockConnection({ files: { VERSION: "1\n" } });
     const to2: Migration = {
       from: 1,
-      async migrate(api, repo) {
-        const v = await api.getFile(repo, "VERSION");
-        await api.putFile(repo, "VERSION", {
+      async migrate(repo) {
+        const v = await repo.getFile("VERSION");
+        await repo.putFile("VERSION", {
           text: "2\n",
           message: "curator: repo version 2",
           sha: v?.sha ?? null,
         });
       },
     };
-    expect(
-      await openMagicRepo(api, repo, { known: 2, migrations: [to2] }),
-    ).toEqual({
+    expect(await openMagicRepo(repo, { known: 2, migrations: [to2] })).toEqual({
       kind: "open",
       version: 2,
     });
     expect(mock.file("VERSION")?.text).toBe("2\n");
     expect(
-      (await openMagicRepo(api, repo, { known: 3, migrations: [to2] })).kind,
+      (await openMagicRepo(repo, { known: 3, migrations: [to2] })).kind,
     ).toBe("refused");
   });
 });

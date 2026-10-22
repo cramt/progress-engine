@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ConflictError, createGitHubApi, GITHUB_API, GitHubError } from "./api";
+import { ConflictError } from "../repo/api";
+import { createGitHubApi, GITHUB_API, GitHubError } from "./api";
 import { mockConnection } from "./testkit";
 
 const PATH = "decks/lantern.deck.toml";
@@ -8,19 +9,19 @@ describe("the GitHub client", () => {
   it("never lets the browser answer from its cache", async () => {
     // GitHub sends `Cache-Control: private, max-age=60`, so a cached GET after
     // a save would hand back the old sha and conflict with our own commit.
-    const { api, mock, repo } = mockConnection({ files: { [PATH]: "a" } });
-    const file = await api.getFile(repo, PATH);
-    await api.putFile(repo, PATH, {
+    const { github, mock, repo } = mockConnection({ files: { [PATH]: "a" } });
+    const file = await repo.getFile(PATH);
+    await repo.putFile(PATH, {
       text: "b",
       message: "m",
       sha: file?.sha ?? null,
     });
-    await api.getFile(repo, PATH);
-    await api.listDir(repo, "decks");
-    await api.user();
-    const github = mock.requests().filter((r) => r.url.startsWith(GITHUB_API));
-    expect(github.length).toBeGreaterThan(4);
-    expect(github.map((r) => r.cache)).toEqual(github.map(() => "no-store"));
+    await repo.getFile(PATH);
+    await repo.listDir("decks");
+    await github.user();
+    const sent = mock.requests().filter((r) => r.url.startsWith(GITHUB_API));
+    expect(sent.length).toBeGreaterThan(4);
+    expect(sent.map((r) => r.cache)).toEqual(sent.map(() => "no-store"));
   });
 });
 
@@ -28,15 +29,14 @@ describe("a refused commit", () => {
   /** The mock, but every PUT answered with `status` and `message`. */
   function refusing(status: number, message: string) {
     const conn = mockConnection({ files: { [PATH]: "a" } });
-    const api = createGitHubApi({
+    const repo = createGitHubApi({
       auth: conn.auth,
       fetch: (async (input: RequestInfo | URL, init?: RequestInit) =>
         init?.method === "PUT"
           ? new Response(JSON.stringify({ message }), { status })
           : conn.mock.fetch(input, init)) as typeof fetch,
-    });
-    const put = () =>
-      api.putFile(conn.repo, PATH, { text: "b", message: "m", sha: "0" });
+    }).repo({ owner: "octocat", name: "mtg" });
+    const put = () => repo.putFile(PATH, { text: "b", message: "m", sha: "0" });
     return put;
   }
 
@@ -47,9 +47,9 @@ describe("a refused commit", () => {
   });
 
   it("is a conflict on the 422 GitHub sends for a missing sha", async () => {
-    const { api, repo } = mockConnection({ files: { [PATH]: "a" } });
+    const { repo } = mockConnection({ files: { [PATH]: "a" } });
     await expect(
-      api.putFile(repo, PATH, { text: "b", message: "m", sha: null }),
+      repo.putFile(PATH, { text: "b", message: "m", sha: null }),
     ).rejects.toThrow(ConflictError);
   });
 
@@ -74,7 +74,7 @@ describe("a refused commit", () => {
 describe("reading a file", () => {
   it("refuses one over 1 MB rather than reading it as empty", async () => {
     const big = `# ${"x".repeat(1024 * 1024)}\n`;
-    const { api, auth, mock, repo } = mockConnection({
+    const { auth, mock, repo } = mockConnection({
       files: { [PATH]: big },
     });
     // The mock answers as GitHub does past 1 MB: no content, encoding "none".
@@ -83,6 +83,6 @@ describe("reading a file", () => {
       { headers: { Authorization: `Bearer ${await auth.token()}` } },
     );
     expect(await r.json()).toMatchObject({ content: "", encoding: "none" });
-    await expect(api.getFile(repo, PATH)).rejects.toThrow(/over 1 MB/);
+    await expect(repo.getFile(PATH)).rejects.toThrow(/over 1 MB/);
   });
 });

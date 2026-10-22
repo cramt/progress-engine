@@ -1,6 +1,114 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+/**
+ * What a write to the default branch came to.
+ */
+export type Wrote =
+  | { kind: "committed"; sha?: string; commit: string }
+  | { kind: "conflict"; message: string };
+
+export type Tagged =
+  | { kind: "tagged"; snapshot: TagFacts }
+  | { kind: "conflict"; message: string };
+
+/**
+ * An annotated tag: a snapshot (ADR-0024).
+ */
+export interface TagFacts {
+  tag: string;
+  /**
+   * The tag's message, without the newline git ends it with.
+   */
+  label: string;
+  commit: string;
+  /**
+   * The tagger's time in seconds since the Unix epoch, when it has one.
+   */
+  taggedAt?: number;
+}
+
+export interface Snapshots {
+  snapshots: TagFacts[];
+}
+
+export type RevisionRead =
+  | { kind: "found"; revision: CommitFacts }
+  | { kind: "missing" };
+
+/**
+ * One commit, as a deck's history lists it.
+ */
+export interface CommitFacts {
+  commit: string;
+  /**
+   * Without the newline git ends a message with.
+   */
+  message: string;
+  /**
+   * The committer's time, in seconds since the Unix epoch.
+   */
+  committedAt: number;
+  /**
+   * The author's name.
+   */
+  author: string;
+}
+
+export interface Revisions {
+  revisions: CommitFacts[];
+}
+
+export interface Listing {
+  entries: ListedEntry[];
+}
+
+export interface ListedEntry {
+  name: string;
+  path: string;
+  sha: string;
+  type: EntryType;
+}
+
+export type EntryType = "file" | "dir" | "symlink" | "submodule";
+
+export type FileRead =
+  | { kind: "file"; text: string; sha: string }
+  | { kind: "noFile" };
+
+/**
+ * Who wrote a commit or a tag, and when, as the page knows it: the identity
+ * set in this browser (ADR-0041) and its clock.
+ */
+export interface Who {
+  name: string;
+  email: string;
+  /**
+   * Seconds since the Unix epoch.
+   */
+  seconds: number;
+  /**
+   * Minutes east of UTC, the negation of `getTimezoneOffset()`.
+   */
+  offsetMinutes: number;
+}
+
+/**
+ * What the worker must write through before it answers, in order: objects
+ * before the refs that name them, as `meldweb-git` wrote them.
+ */
+export interface Journal {
+  steps: Step[];
+}
+
+/**
+ * One thing an operation did to the git dir, for the worker to repeat.
+ */
+export type Step =
+  | { kind: "write"; path: string }
+  | { kind: "remove"; path: string }
+  | { kind: "dir"; path: string };
+
 export type ToPrint =
   | { kind: "toPrint"; lines: ProxyLine[]; basics: number; owned: number }
   | { kind: "refused"; message: string };

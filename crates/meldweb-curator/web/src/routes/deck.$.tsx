@@ -3,7 +3,6 @@ import { SettingsProvider } from "../card/preference";
 import { parseDeck } from "../deck";
 import { DeckEditor } from "../deck/DeckEditor";
 import { pageOf, parseSearch, searchFor } from "../deck/versions";
-import { connect } from "../github/connect";
 import { openFile } from "../github/repoFile";
 import { openSession } from "../github/session";
 import { loadSettingsFile } from "../github/settings";
@@ -20,11 +19,10 @@ export const Route = createFileRoute("/deck/$")({
     const session = await openSession();
     if (session.kind !== "open")
       return { kind: "session" as const, session, path };
-    const { api } = await connect();
     const [file, settings] = await Promise.all([
       // Leaving this deck just now may still be saving; read after it lands.
-      openFile(api, session.repo, path),
-      loadSettingsFile(api, session.repo),
+      openFile(session.repo, path),
+      loadSettingsFile(session.repo),
     ]);
     if (!file) return { kind: "missing" as const, path };
     const parsed = parseDeck(file.text);
@@ -34,7 +32,8 @@ export const Route = createFileRoute("/deck/$")({
       file,
       settings,
       repo: session.repo,
-      api,
+      me: session.me,
+      others: session.others,
       // A Scryfall outage costs the pictures, not the deck: each card shows
       // its name instead.
       printings:
@@ -72,14 +71,15 @@ function DeckPage() {
     );
   }
   return (
-    <SettingsProvider file={data.settings} api={data.api} repo={data.repo}>
+    <SettingsProvider file={data.settings} repo={data.repo}>
       <DeckEditor
         key={data.path}
         path={data.path}
         text={data.file.text}
         sha={data.file.sha}
         repo={data.repo}
-        api={data.api}
+        me={data.me}
+        others={data.others}
         printings={data.printings}
         page={pageOf(search)}
         onNavigate={(change) =>

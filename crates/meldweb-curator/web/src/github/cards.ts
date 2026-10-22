@@ -2,7 +2,7 @@
  * Custom cards in the Magic repo: `cards/*.card.toml`, Mirage Mockery's
  * format, with any art beside them (ADR-0039).
  */
-import type { GitHubApi, RepoRef } from "./api";
+import type { Repo } from "../repo/api";
 import { openFile } from "./repoFile";
 
 export const CARDS_DIR = "cards";
@@ -48,16 +48,13 @@ export interface CardFile {
 }
 
 /** Every `cards/*.card.toml`, sorted by path. */
-export async function listCards(
-  api: GitHubApi,
-  repo: RepoRef,
-): Promise<CardFile[]> {
-  const files = (await api.listDir(repo, CARDS_DIR)).filter(
+export async function listCards(repo: Repo): Promise<CardFile[]> {
+  const files = (await repo.listDir(CARDS_DIR)).filter(
     (e) => e.type === "file" && e.name.endsWith(CARD_SUFFIX),
   );
   const read = await Promise.all(
     files.map(async (f) => {
-      const file = await openFile(api, repo, f.path);
+      const file = await openFile(repo, f.path);
       return file ? { path: f.path, text: file.text, sha: file.sha } : null;
     }),
   );

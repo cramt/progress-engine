@@ -1,0 +1,473 @@
+/**
+ * The Magic repo in this browser (ADR-0041): a bare git repo of loose
+ * objects in the origin's private file system, read and written by
+ * `meldweb-git` in the wasm.
+ *
+ * `createLocalCore` runs in the repo's worker. `meldweb-git` reads a store
+ * synchronously and OPFS is asynchronous, so the core loads the repo's files
+ * into the wasm's mirror once, runs every operation there, and writes what
+ * the operation's journal names through to OPFS, objects before refs, before
+ * it answers.
+ *
+ * Tabs share the files but each holds its own mirror. A write holds the
+ * repo's Web Lock and re-reads the refs inside it, loading whatever objects
+ * another tab wrote, so the blob guard and the branch's compare-and-swap
+ * see the repo as it is: two tabs saving one deck end in the same
+ * `ConflictError` as two clients of GitHub's API. A read takes the lock
+ * shared, and re-reads the refs only after another tab said it moved them.
+ *
+ * `createLocalRepo` is the page's side: a `Repo` over whatever carries
+ * requests to the core, postMessage in the browser and a plain call in tests.
+ */
+
+import type {
+  CommitFacts,
+  FileRead,
+  Journal,
+  Listing,
+  RevisionRead,
+  Revisions,
+  Snapshots,
+  TagFacts,
+  Tagged,
+  Who,
+  Wrote,
+} from "../deck.gen";
+import { GitRepo } from "../wasm/pkg/meldweb_wasm.js";
+import {
+  ConflictError,
+  type DirEntry,
+  type FileAt,
+  type Repo,
+  type Revision,
+  type Snapshot,
+} from "./api";
+import type { Author } from "./author";
+import type { Disk } from "./disk";
+
+export type Request =
+  | { kind: "getFile"; path: string; at?: string }
+  | { kind: "getBytes"; path: string }
+  | { kind: "listDir"; path: string }
+  | {
+      kind: "history";
+      path: string;
+      /** Seconds since the Unix epoch. */
+      until?: number;
+      page: number;
+      perPage: number;
+    }
+  | { kind: "revision"; commit: string }
+  | { kind: "snapshots"; prefix: string }
+  | {
+      kind: "takeSnapshot";
+      tag: string;
+      label: string;
+      commit: string;
+      who: Who;
+    }
+  | { kind: "dropSnapshot"; tag: string }
+  | {
+      kind: "putFile";
+      path: string;
+      text: string;
+      sha: string | null;
+      message: string;
+      who: Who;
+    }
+  | {
+      kind: "deleteFile";
+      path: string;
+      sha: string;
+      message: string;
+      who: Who;
+    }
+  | { kind: "exportZip" }
+  | { kind: "importZip"; bytes: Uint8Array };
+
+export interface Results {
+  getFile: FileAt | null;
+  getBytes: Uint8Array | null;
+  listDir: DirEntry[];
+  history: Revision[];
+  revision: Revision | null;
+  snapshots: Snapshot[];
+  takeSnapshot: Snapshot;
+  dropSnapshot: null;
+  putFile: { sha: string };
+  deleteFile: null;
+  exportZip: Uint8Array;
+  importZip: null;
+}
+
+export type Kind = Request["kind"];
+
+/** What crosses back from the core: a result, or why there is none. */
+export type Reply<K extends Kind = Kind> =
+  | { kind: "ok"; value: Results[K] }
+  /** Another tab, or this one, moved the file first: `ConflictError`. */
+  | { kind: "conflict"; message: string }
+  | { kind: "failed"; message: string };
+
+export interface LocalCoreOptions {
+  disk: Disk;
+  /**
+   * Runs `work` holding the repo's lock across every tab: `exclusive` for a
+   * write, `shared` for re-reading the refs.
+   */
+  lock<T>(mode: "exclusive" | "shared", work: () => Promise<T>): Promise<T>;
+  /** Tells every other tab that this one moved the repo. */
+  announce(): void;
+}
+
+export interface LocalCore {
+  handle<K extends Kind>(
+    request: Extract<Request, { kind: K }>,
+  ): Promise<Reply<K>>;
+  /** Another tab moved the repo: re-read the refs before the next read. */
+  moved(): void;
+}
+
+/** The file naming the slot that holds the repo, so an import swaps in whole. */
+const POINTER = "current";
+const FIRST_SLOT = "r1";
+/** How many files are read from storage at once on opening. */
+const READS = 64;
+
+const iso = (seconds: number) => new Date(seconds * 1000).toISOString();
+const text = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
+
+const revisionOf = (c: CommitFacts): Revision => ({
+  commit: c.commit,
+  message: c.message,
+  date: iso(c.committedAt),
+  author: c.author,
+});
+
+const snapshotOf = (t: TagFacts): Snapshot => ({
+  tag: t.tag,
+  label: t.label,
+  commit: t.commit,
+  date: t.taggedAt === undefined ? "" : iso(t.taggedAt),
+});
+
+class Conflict extends Error {}
+
+export function createLocalCore(options: LocalCoreOptions): LocalCore {
+  const { disk, lock, announce } = options;
+  let slot = FIRST_SLOT;
+  /** The mirror, or null until loaded and after storage failed under it. */
+  let git: GitRepo | null = null;
+  /** Whether no other tab has said it moved the refs since they were read. */
+  let fresh = false;
+  // One operation at a time: each may reload the mirror under the others.
+  let queue: Promise<unknown> = Promise.resolve();
+
+  const at = (path: string) => `${slot}/${path}`;
+
+  async function pointer(): Promise<string> {
+    const bytes = await disk.read(POINTER);
+    return bytes ? text(bytes).trim() : FIRST_SLOT;
+  }
+
+  async function readAll(
+    paths: string[],
+    into: (path: string, bytes: Uint8Array) => void,
+  ) {
+    for (let i = 0; i < paths.length; i += READS) {
+      await Promise.all(
+        paths.slice(i, i + READS).map(async (p) => {
+          const bytes = await disk.read(at(p));
+          if (bytes) into(p, bytes);
+        }),
+      );
+    }
+  }
+
+  async function loadAll(): Promise<GitRepo> {
+    const mirror = new GitRepo();
+    const { files, dirs } = await disk.list(slot);
+    for (const d of dirs) mirror.load_dir(d);
+    await readAll(files, (p, bytes) => mirror.load(p, bytes));
+    mirror.open();
+    return mirror;
+  }
+
+  /** The mirror brought up to storage. The caller holds the lock. */
+  async function sync(): Promise<GitRepo> {
+    const named = await pointer();
+    if (!git || named !== slot) {
+      git?.free();
+      git = null;
+      slot = named;
+      git = await loadAll();
+      fresh = true;
+      return git;
+    }
+    const mirror = git;
+    const refs = (await disk.list(at("refs"))).files.map((p) => `refs/${p}`);
+    const paths: string[] = [];
+    const contents: string[] = [];
+    await readAll(["HEAD", "packed-refs", ...refs], (p, bytes) => {
+      paths.push(p);
+      contents.push(text(bytes));
+    });
+    if (mirror.replace_refs(paths, contents)) {
+      // Objects never change, so only the ones this tab lacks are read.
+      const objects = (await disk.list(at("objects"))).files
+        .map((p) => `objects/${p}`)
+        .filter((p) => !mirror.has(p));
+      await readAll(objects, (p, bytes) => mirror.load(p, bytes));
+    }
+    fresh = true;
+    return mirror;
+  }
+
+  /** Writes the mirror's journal through to storage, in order. */
+  async function flush(mirror: GitRepo, into = slot): Promise<void> {
+    const journal = JSON.parse(mirror.take_journal()) as Journal;
+    try {
+      for (const step of journal.steps) {
+        const path = `${into}/${step.path}`;
+        if (step.kind === "dir") await disk.makeDir(path);
+        else if (step.kind === "remove") await disk.remove(path);
+        else {
+          const bytes = mirror.bytes(step.path);
+          if (!bytes) throw new Error(`the mirror lost ${step.path}`);
+          await disk.write(path, bytes);
+        }
+      }
+    } catch (e) {
+      // The mirror is ahead of storage now; the next operation reloads it.
+      if (git === mirror) git = null;
+      mirror.free();
+      throw e;
+    }
+  }
+
+  /** `work` on the mirror, holding the lock, with what it wrote kept. */
+  function writing<T>(work: (mirror: GitRepo) => T): Promise<T> {
+    return lock("exclusive", async () => {
+      const mirror = await sync();
+      if (!mirror.open()) mirror.init();
+      let out: T;
+      try {
+        out = work(mirror);
+      } finally {
+        await flush(mirror);
+        if (!(await disk.read(POINTER))) {
+          await disk.write(POINTER, new TextEncoder().encode(`${slot}\n`));
+        }
+      }
+      announce();
+      return out;
+    });
+  }
+
+  async function reading<T>(work: (mirror: GitRepo) => T): Promise<T> {
+    let mirror = git && fresh ? git : await lock("shared", sync);
+    // No repo yet: the first visit makes an empty one.
+    if (!mirror.open()) {
+      await writing(() => undefined);
+      mirror = git ?? (await lock("shared", sync));
+    }
+    return work(mirror);
+  }
+
+  async function run<K extends Kind>(
+    request: Extract<Request, { kind: K }>,
+  ): Promise<Results[K]> {
+    const r = request as Request;
+    const done = <V>(v: V) => v as unknown as Results[K];
+    switch (r.kind) {
+      case "getFile":
+        return reading((g) => {
+          const read = JSON.parse(g.get_file(r.path, r.at)) as FileRead;
+          return done(
+            read.kind === "file" ? { text: read.text, sha: read.sha } : null,
+          );
+        });
+      case "getBytes":
+        return reading((g) => done(g.get_bytes(r.path) ?? null));
+      case "listDir":
+        return reading((g) =>
+          done((JSON.parse(g.list_dir(r.path)) as Listing).entries),
+        );
+      case "history":
+        return reading((g) => {
+          const page = JSON.parse(
+            g.history(r.path, r.until, r.page, r.perPage),
+          ) as Revisions;
+          return done(page.revisions.map(revisionOf));
+        });
+      case "revision":
+        return reading((g) => {
+          const read = JSON.parse(g.revision(r.commit)) as RevisionRead;
+          return done(read.kind === "found" ? revisionOf(read.revision) : null);
+        });
+      case "snapshots":
+        return reading((g) =>
+          done(
+            (JSON.parse(g.snapshots(r.prefix)) as Snapshots).snapshots.map(
+              snapshotOf,
+            ),
+          ),
+        );
+      case "takeSnapshot":
+        return writing((g) => {
+          const tagged = JSON.parse(
+            g.take_snapshot(r.tag, r.label, r.commit, JSON.stringify(r.who)),
+          ) as Tagged;
+          if (tagged.kind === "conflict") throw new Conflict(tagged.message);
+          return done(snapshotOf(tagged.snapshot));
+        });
+      case "dropSnapshot":
+        return writing((g) => {
+          g.drop_snapshot(r.tag);
+          return done(null);
+        });
+      case "putFile":
+        return writing((g) => {
+          const wrote = JSON.parse(
+            g.put_file(
+              r.path,
+              r.text,
+              r.sha ?? undefined,
+              r.message,
+              JSON.stringify(r.who),
+            ),
+          ) as Wrote;
+          if (wrote.kind === "conflict") throw new Conflict(wrote.message);
+          if (wrote.sha === undefined)
+            throw new Error(`${r.path} was not written`);
+          return done({ sha: wrote.sha });
+        });
+      case "deleteFile":
+        return writing((g) => {
+          const wrote = JSON.parse(
+            g.delete_file(r.path, r.sha, r.message, JSON.stringify(r.who)),
+          ) as Wrote;
+          if (wrote.kind === "conflict") throw new Conflict(wrote.message);
+          return done(null);
+        });
+      case "exportZip":
+        return reading((g) => done(g.export_zip()));
+      case "importZip":
+        return lock("exclusive", async () => {
+          // Refused before storage is touched: a zip that is no repo, or one
+          // `meldweb-git` cannot read, leaves this one as it was.
+          const next = GitRepo.from_zip(r.bytes);
+          const old = await pointer();
+          const n = Number(/^r(\d+)$/.exec(old)?.[1] ?? "1");
+          const into = `r${n + 1}`;
+          await disk.removeDir(into);
+          await flush(next, into);
+          await disk.write(POINTER, new TextEncoder().encode(`${into}\n`));
+          await disk.removeDir(old);
+          git?.free();
+          git = next;
+          slot = into;
+          fresh = true;
+          announce();
+          return done(null);
+        });
+    }
+  }
+
+  return {
+    handle<K extends Kind>(
+      request: Extract<Request, { kind: K }>,
+    ): Promise<Reply<K>> {
+      const answer = queue.then(async (): Promise<Reply<K>> => {
+        try {
+          return { kind: "ok", value: await run(request) };
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          return e instanceof Conflict
+            ? { kind: "conflict", message }
+            : { kind: "failed", message };
+        }
+      });
+      queue = answer;
+      return answer;
+    },
+    moved() {
+      fresh = false;
+    },
+  };
+}
+
+/** The browser's repo as a page holds it, with what only it can do. */
+export interface LocalRepo extends Repo {
+  /** The bare repo, zipped, as `git clone` reads it once unzipped. */
+  exportZip(): Promise<Uint8Array>;
+  /** Replaces the repo with the bare repo zipped in `bytes`; throws when it is refused. */
+  importZip(bytes: Uint8Array): Promise<void>;
+}
+
+/** Carries one request to the core and its reply back. */
+export type Call = <K extends Kind>(
+  request: Extract<Request, { kind: K }>,
+) => Promise<Reply<K>>;
+
+export function createLocalRepo(call: Call, author: () => Author): LocalRepo {
+  async function ask<K extends Kind>(
+    request: Extract<Request, { kind: K }>,
+  ): Promise<Results[K]> {
+    const reply = await call(request);
+    if (reply.kind === "ok") return reply.value;
+    if (reply.kind === "conflict") throw new ConflictError(reply.message);
+    throw new Error(reply.message);
+  }
+  const who = (): Who => {
+    const { name, email } = author();
+    return {
+      name,
+      email,
+      seconds: Math.floor(Date.now() / 1000),
+      offsetMinutes: -new Date().getTimezoneOffset(),
+    };
+  };
+  return {
+    where: "this browser",
+    onHost: null,
+    getFile: (path, ref) =>
+      ask({ kind: "getFile", path, ...(ref === undefined ? {} : { at: ref }) }),
+    getBytes: (path) => ask({ kind: "getBytes", path }),
+    listDir: (path) => ask({ kind: "listDir", path }),
+    history: (path, page = {}) =>
+      ask({
+        kind: "history",
+        path,
+        page: page.page ?? 1,
+        perPage: Math.min(page.perPage ?? 100, 100),
+        ...(page.until
+          ? { until: Math.floor(Date.parse(page.until) / 1000) }
+          : {}),
+      }),
+    revision: (commit) => ask({ kind: "revision", commit }),
+    snapshots: (prefix) => ask({ kind: "snapshots", prefix }),
+    takeSnapshot: ({ tag, label, commit }) =>
+      ask({ kind: "takeSnapshot", tag, label, commit, who: who() }),
+    async dropSnapshot(tag) {
+      await ask({ kind: "dropSnapshot", tag });
+    },
+    async putFile(path, put) {
+      return ask({
+        kind: "putFile",
+        path,
+        text: put.text,
+        sha: put.sha,
+        message: put.message,
+        who: who(),
+      });
+    },
+    async deleteFile(path, del) {
+      await ask({ kind: "deleteFile", path, ...del, who: who() });
+    },
+    exportZip: () => ask({ kind: "exportZip" }),
+    async importZip(bytes) {
+      await ask({ kind: "importZip", bytes });
+    },
+  };
+}

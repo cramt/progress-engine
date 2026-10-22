@@ -252,6 +252,12 @@ impl<S: Store> Repo<S> {
         &self.store
     }
 
+    /// The store itself, for a caller that keeps something of its own
+    /// beside the repo's files, such as a journal of what was written.
+    pub fn store_mut(&mut self) -> &mut S {
+        &mut self.store
+    }
+
     pub fn into_store(self) -> S {
         self.store
     }
@@ -410,6 +416,14 @@ impl<S: Store> Repo<S> {
                 _ => Err(Error::NotAFile(path.clone())),
             },
         }
+    }
+
+    /// What is at `path` at `at`, with its object's id; `None` when nothing
+    /// is. A file's id is the blob id a caller can guard a later write with.
+    pub fn entry(&self, at: &CommitId, path: &RepoPath) -> Result<Option<EntryKind>> {
+        Ok(self
+            .entry_at(self.tree_of(at)?, path)?
+            .map(|(mode, id)| EntryKind::of(mode, id)))
     }
 
     /// The entries of the directory at `dir` (the root when `None`) at `at`,

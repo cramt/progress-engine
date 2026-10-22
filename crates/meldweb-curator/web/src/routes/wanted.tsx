@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { parseCollection } from "../collection";
 import { type CardRef, parseDeck } from "../deck";
 import { loadCollection } from "../github/collection";
-import { connect } from "../github/connect";
 import { openSession } from "../github/session";
 import { loadDeckFiles, loadWanted, WANTED_PATH } from "../github/wanted";
 import { SessionGate } from "../home/SessionGate";
@@ -15,11 +14,10 @@ export const Route = createFileRoute("/wanted")({
   loader: async () => {
     const session = await openSession();
     if (session.kind !== "open") return { kind: "session" as const, session };
-    const { api } = await connect();
     const [file, collection, decks] = await Promise.all([
-      loadWanted(api, session.repo),
-      loadCollection(api, session.repo),
-      loadDeckFiles(api, session.repo),
+      loadWanted(session.repo),
+      loadCollection(session.repo),
+      loadDeckFiles(session.repo),
     ]);
     // Every printing the three files name, so Rust can tell which card each
     // is where a file left no comment saying so.
@@ -41,7 +39,6 @@ export const Route = createFileRoute("/wanted")({
       collection: collection.text,
       decks,
       repo: session.repo,
-      api,
       // As for the collection: an outage costs the names, not the page.
       printings,
     };
@@ -63,7 +60,6 @@ function WantedPage() {
       text={data.file.text}
       sha={data.file.sha}
       repo={data.repo}
-      api={data.api}
       collection={data.collection}
       decks={data.decks}
       printings={data.printings}

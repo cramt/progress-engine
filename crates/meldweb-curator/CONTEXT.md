@@ -5,7 +5,7 @@ The deck editor: a browser front end over decks kept in git, modelled on Archide
 ## Where decks live
 
 **Magic repo**:
-The one GitHub repository per user that Curator reads and writes, always named `mtg`. It holds the user's decks and their collection, and nothing Curator does reaches outside it.
+The one git repository per user that Curator reads and writes: a bare repo kept in the browser ([ADR-0041](../../docs/adr/0041-a-deck-is-a-line-of-history-and-the-repo-lives-in-the-browser.md)), made empty on the first visit, and moved between computers as a zip. It holds the user's decks and their collection, and nothing Curator writes reaches outside it.
 _Avoid_: deck repo, decklists repo, storage
 
 **Repo version**:
@@ -79,12 +79,16 @@ _Avoid_: default printing
 **Edit**:
 One change to a deck's or the collection's text through `chip-decklist`, such as a move, a quantity or a printing, made to one card or to every card selected at once. Undo steps back one edit. A card added by name or by a scan joins the line that already holds it, which Rust finds from the names the browser has for the printings in the file: a name finds a line of its printing, a double-faced card is found by its front face, a scanned printing joins only a line of that printing, and a foil line is another card.
 
+**Author**:
+The name and email this browser's commits carry, set once in the settings and kept in the browser, outside the repo, as git keeps `user.name`. Until set, commits are by `Progress Engine <curator@localhost>`.
+_Avoid_: user, account
+
 **Save**:
 The commit that carries a deck's (or the collection's) pending edits to the Magic repo. Curator makes it by itself once the deck has been idle ten seconds, or at once when the page is being closed or hidden. The user never saves by hand.
 _Avoid_: sync, push
 
 **Conflict**:
-A save refused because the deck changed on GitHub since Curator loaded it. Saving stops until the user chooses to reload or overwrite; nothing is merged or lost silently.
+A save refused because the deck changed in the Magic repo since Curator loaded it: another tab or device saved it first. Saving stops until the user chooses to reload or overwrite; nothing is merged or lost silently.
 
 **Import** / **Copy for**:
 Archidekt text into a deck, and a deck out as the text one tool imports: Archidekt, Cockatrice, Cardmarket or Tabletop Simulator, an entry each however alike their formats are. The Archidekt text is read and written the way Archidekt itself reads it ([archidekt-import-shapes.md](../../docs/research/archidekt-import-shapes.md)). Cockatrice gets each printing it can read back and the commander, companion and sideboard as `SB:` lines, having no commander zone; Cardmarket, for a wants list, one line a card by name with the copies summed; Tabletop Simulator's importer, every printing under `Commander`, `Deck` and `Sideboard` headings, the companion in the sideboard. The maybeboard and cards set aside go to none of them.

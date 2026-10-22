@@ -8,12 +8,11 @@ beforeAll(loadWasm);
 
 describe("the collection file", () => {
   it("is empty while the repo has none, and its first save makes it", async () => {
-    const { api, repo, mock } = mockConnection({ files: seedDecks() });
-    const loaded = await loadCollection(api, repo);
+    const { repo, mock } = mockConnection({ files: seedDecks() });
+    const loaded = await loadCollection(repo);
     expect(loaded).toEqual({ text: "", sha: null });
 
     const store = createSaveStore({
-      api,
       repo,
       path: COLLECTION_PATH,
       ...loaded,
@@ -31,7 +30,7 @@ describe("the collection file", () => {
     expect(mock.commits().at(-1)?.message).toBe(
       "collection: +1 Sol Ring to lantern, +place lantern (decks/lantern.deck.toml)",
     );
-    expect(await loadCollection(api, repo)).toEqual({
+    expect(await loadCollection(repo)).toEqual({
       text,
       sha: mock.file(COLLECTION_PATH)?.sha,
     });

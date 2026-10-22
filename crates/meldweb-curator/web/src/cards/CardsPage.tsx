@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Banners, SaveStatus, Toolbar } from "../deck/Toolbar";
-import type { GitHubApi, RepoRef } from "../github/api";
 import {
   type CardFile,
   cardPath,
@@ -21,6 +20,7 @@ import {
   withLayout,
   writeForm,
 } from "../mockery";
+import type { Repo } from "../repo/api";
 import { Loading } from "../ui/Loading";
 import { messageOf, Sheet, useBusy } from "../ui/Sheet";
 import { CardForm } from "./CardForm";
@@ -34,14 +34,12 @@ import "./cards.css";
  * sheet.
  */
 export function CardsPage({
-  api,
   repo,
   cards: loaded,
   selected,
   onSelect,
 }: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   cards: readonly CardFile[];
   selected: string | undefined;
   onSelect: (path: string | undefined) => void;
@@ -69,7 +67,7 @@ export function CardsPage({
               New card
             </button>
             {renderer.kind === "ready" && cards.length > 0 && (
-              <PrintCards api={api} repo={repo} cards={cards} />
+              <PrintCards repo={repo} cards={cards} />
             )}
           </>
         }
@@ -79,12 +77,12 @@ export function CardsPage({
           onClose={() => setMaking(false)}
           onMake={async (name) => {
             const path = cardPath(name);
-            const made = await commitEdit(api, repo, path, (t) =>
+            const made = await commitEdit(repo, path, (t) =>
               t === null ? newCardText(name) : null,
             );
             if (made.kind === "unchanged")
               return `${path} is taken; name the card something else`;
-            setCards(await listCards(api, repo));
+            setCards(await listCards(repo));
             onSelect(path);
             return null;
           }}
@@ -120,7 +118,6 @@ export function CardsPage({
           </nav>
           <CardEditor
             key={open.path}
-            api={api}
             repo={repo}
             file={open}
             onSaved={(text) =>
@@ -136,13 +133,11 @@ export function CardsPage({
 }
 
 function CardEditor({
-  api,
   repo,
   file,
   onSaved,
 }: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   file: CardFile;
   onSaved: (text: string) => void;
 }) {
@@ -154,7 +149,6 @@ function CardEditor({
   };
   const [store] = useState(() =>
     createSaveStore({
-      api,
       repo,
       path: file.path,
       text: file.text,
@@ -178,7 +172,6 @@ function CardEditor({
   const showing = mode === "form" && opened.kind === "form" ? "form" : "toml";
   useEffect(() => store.edit(text), [store, text]);
   const { checked, preview, missingArt } = useCardChecks(
-    api,
     repo,
     file.path,
     text,

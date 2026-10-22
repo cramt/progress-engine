@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CardsPage } from "../cards/CardsPage";
 import { listCards } from "../github/cards";
-import { connect } from "../github/connect";
 import { openSession } from "../github/session";
 import { SessionGate } from "../home/SessionGate";
 
@@ -12,9 +11,8 @@ export const Route = createFileRoute("/cards")({
   loader: async () => {
     const session = await openSession();
     if (session.kind !== "open") return { kind: "session" as const, session };
-    const { api } = await connect();
-    const cards = await listCards(api, session.repo);
-    return { kind: "cards" as const, cards, repo: session.repo, api };
+    const cards = await listCards(session.repo);
+    return { kind: "cards" as const, cards, repo: session.repo };
   },
   // Never reopen from a cached read: its sha would be stale.
   gcTime: 0,
@@ -30,7 +28,6 @@ function Cards() {
   }
   return (
     <CardsPage
-      api={data.api}
       repo={data.repo}
       cards={data.cards}
       selected={card}

@@ -15,7 +15,7 @@ import {
   setCardPrinting,
   setDeckDescription,
 } from "../deck";
-import type { GitHubApi, RepoRef } from "../github/api";
+import type { PublicRepos } from "../github/api";
 import { createDeck, deckStem } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { head, takeSnapshot } from "../github/history";
@@ -25,6 +25,7 @@ import { useHistory, useUndoKeys } from "../history";
 import { ScanDialog } from "../probe/ScanDialog";
 import { scannerAvailable } from "../probe/scanner";
 import { type AddByName, QuickAdd } from "../quickadd/QuickAdd";
+import type { Repo } from "../repo/api";
 import type { Printings } from "../scryfall";
 import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
 import { BranchIcon, HistoryIcon, ScanIcon } from "../ui/icons";
@@ -56,8 +57,11 @@ export interface DeckEditorProps {
   /** The file as loaded from GitHub, and its blob sha. */
   text: string;
   sha: string;
-  repo: RepoRef;
-  api: GitHubApi;
+  repo: Repo;
+  /** Who the user is, to a friend: as the session says. */
+  me: string;
+  /** Friends' public repos, which Sourcing reads. */
+  others: PublicRepos;
   printings: Printings;
   /** The deck now or another version of it, the drawer, and the view, as the URL says. */
   page: DeckPage;
@@ -79,7 +83,8 @@ export function DeckEditor({
   text: loaded,
   sha,
   repo,
-  api,
+  me,
+  others,
   printings: loadedPrintings,
   page,
   onNavigate,
@@ -108,7 +113,6 @@ export function DeckEditor({
 
   const [store] = useState(() =>
     createSaveStore({
-      api,
       repo,
       path,
       text: loaded,
@@ -124,12 +128,12 @@ export function DeckEditor({
   useUndoKeys(undo, redo);
 
   const navigate = useNavigate();
-  const other = useOther(api, repo, path, viewing);
+  const other = useOther(repo, path, viewing);
   // The collection and friends, read once a view asks what the deck is made of.
   const supply = useSupply({
     active: viewing.kind === "now" && (view === "sourcing" || view === "build"),
-    api,
     repo,
+    others,
     path,
     text: history.present,
     printings: cards.printings,
@@ -178,10 +182,10 @@ export function DeckEditor({
     if (at === null) {
       if (!(await store.settle()))
         return "Your latest edits are not saved, so there is no version of them to snapshot yet.";
-      at = (await head(api, repo, path))?.commit ?? null;
+      at = (await head(repo, path))?.commit ?? null;
     }
     if (at === null) return "The deck has no save to snapshot yet.";
-    const taken = await takeSnapshot(api, repo, path, label, at);
+    const taken = await takeSnapshot(repo, path, label, at);
     if (taken.kind === "refused") return taken.message;
     setSnapshots((n) => n + 1);
     setNotice(`Snapshot “${taken.snapshot.label}” taken.`);
@@ -190,7 +194,6 @@ export function DeckEditor({
 
   const variant = async (text: string, name: string) => {
     const made = await createDeck(
-      api,
       repo,
       name,
       { kind: "variant", text, of: path },
@@ -218,7 +221,6 @@ export function DeckEditor({
   );
   const drawerView = drawer && (
     <HistoryDrawer
-      api={api}
       repo={repo}
       path={path}
       stem={parsed.kind === "deck" ? (parsed.name ?? stem) : stem}
@@ -447,7 +449,6 @@ export function DeckEditor({
               onRefusal={setRefusal}
             />
             <PrintProxies
-              api={api}
               repo={repo}
               path={path}
               name={stem}
@@ -585,7 +586,7 @@ export function DeckEditor({
               state={supply.state}
               cards={parsed.cards}
               deckName={parsed.name ?? stem}
-              me={repo.owner}
+              me={me}
               onUse={reprint}
             />
           ) : (

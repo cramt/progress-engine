@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "../card/preference";
 import { declarePlace, parseCollection } from "../collection";
 import type { CardRef } from "../deck";
-import type { GitHubApi, RepoRef } from "../github/api";
+import type { PublicRepos } from "../github/api";
 import { COLLECTION_PATH, loadCollection } from "../github/collection";
 import { commitEdit } from "../github/repoFile";
 import { loadTheirCollection, parseLogin } from "../github/trade";
+import type { Repo } from "../repo/api";
 import { fetchPrintings, type Printings, printingKey } from "../scryfall";
 import { readSettings } from "../settings/rules";
 import {
@@ -61,14 +62,14 @@ export interface Supply {
 /** Their collections, read once a session: GitHub limits unsigned reads. */
 const theirs = new Map<string, Promise<FriendFile | FriendMissing>>();
 
-function readFriend(api: GitHubApi, who: string) {
+function readFriend(others: PublicRepos, who: string) {
   const key = who.toLowerCase();
   let read = theirs.get(key);
   if (!read) {
     const login = parseLogin(who);
     read = !login
       ? Promise.resolve({ who, why: "not-a-login" as const })
-      : loadTheirCollection(api, login).then(
+      : loadTheirCollection(others, login).then(
           (f) =>
             f.kind === "file" ? { who, text: f.text } : { who, why: f.kind },
           () => ({ who, why: "failed" as const }),
@@ -87,15 +88,15 @@ function readFriend(api: GitHubApi, who: string) {
  */
 export function useSupply({
   active,
-  api,
   repo,
+  others,
   path,
   text,
   printings,
 }: {
   active: boolean;
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
+  others: PublicRepos;
   path: string;
   text: string;
   printings: Printings;
@@ -119,28 +120,28 @@ export function useSupply({
   useEffect(() => {
     if (!active || collection !== null) return;
     let live = true;
-    loadCollection(api, repo).then(
+    loadCollection(repo).then(
       (c) => live && setCollection(c.text),
       (e) => live && setFailed(messageOf(e)),
     );
     return () => {
       live = false;
     };
-  }, [active, collection, api, repo]);
+  }, [active, collection, repo]);
 
   useEffect(() => {
     if (!active) return;
     let live = true;
     for (const who of friends) {
       if (found.has(who)) continue;
-      void readFriend(api, who).then(
+      void readFriend(others, who).then(
         (f) => live && setFound((m) => new Map(m).set(who, f)),
       );
     }
     return () => {
       live = false;
     };
-  }, [active, friends, found, api]);
+  }, [active, friends, found, others]);
 
   // The names of printings no file comments, and pictures for the copies.
   const files = useMemo(() => {
@@ -193,7 +194,7 @@ export function useSupply({
   const commit = (from: string, to: string, undone?: string) => {
     setSaving(true);
     setCollection(to);
-    commitEdit(api, repo, COLLECTION_PATH, (now) =>
+    commitEdit(repo, COLLECTION_PATH, (now) =>
       (now ?? "") === from ? to : null,
     )
       .then((made) => {

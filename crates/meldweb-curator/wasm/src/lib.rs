@@ -24,6 +24,7 @@ use std::collections::HashMap;
 pub mod copy;
 mod preference;
 pub mod proxies;
+pub mod repo;
 
 use chip_decklist::collection::{self, Collection};
 use chip_decklist::collection_import;
@@ -2102,6 +2103,15 @@ mod tests {
         g.add_type::<copy::StoreStep>();
         g.add_type::<proxies::SheetLayout>();
         g.add_type::<proxies::ToPrint>();
+        g.add_type::<repo::Journal>();
+        g.add_type::<repo::Who>();
+        g.add_type::<repo::FileRead>();
+        g.add_type::<repo::Listing>();
+        g.add_type::<repo::Revisions>();
+        g.add_type::<repo::RevisionRead>();
+        g.add_type::<repo::Snapshots>();
+        g.add_type::<repo::Tagged>();
+        g.add_type::<repo::Wrote>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",

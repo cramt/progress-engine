@@ -1,8 +1,9 @@
 /**
- * Finding the user's Magic repo and opening it at a repo version Curator
- * knows (ADR-0021).
+ * Opening the Magic repo at a repo version Curator knows (ADR-0021), and,
+ * for the dev mock's GitHub, finding it among the app's installations.
  */
-import { ConflictError, type GitHubApi, type RepoRef } from "./api";
+import { ConflictError, type Repo } from "../repo/api";
+import type { GitHubApi, RepoRef } from "./api";
 
 /** The Magic repo's fixed name. */
 export const MAGIC_REPO = "mtg";
@@ -45,7 +46,7 @@ export const VERSION_PATH = "VERSION";
  */
 export interface Migration {
   from: number;
-  migrate(api: GitHubApi, repo: RepoRef): Promise<void>;
+  migrate(repo: Repo): Promise<void>;
 }
 
 export const MIGRATIONS: readonly Migration[] = [];
@@ -69,17 +70,16 @@ function parseVersion(text: string): number | null {
  * runs the migrations in order before anything is edited.
  */
 export async function openMagicRepo(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   options: OpenOptions = {},
 ): Promise<OpenedRepo> {
   const known = options.known ?? KNOWN_VERSION;
   const migrations = options.migrations ?? MIGRATIONS;
 
-  let file = await api.getFile(repo, VERSION_PATH);
+  let file = await repo.getFile(VERSION_PATH);
   if (!file) {
     try {
-      await api.putFile(repo, VERSION_PATH, {
+      await repo.putFile(VERSION_PATH, {
         text: "1\n",
         message: "curator: this repo is at version 1",
         sha: null,
@@ -88,7 +88,7 @@ export async function openMagicRepo(
       // Another tab wrote it first; read what it wrote.
       if (!(e instanceof ConflictError)) throw e;
     }
-    file = await api.getFile(repo, VERSION_PATH);
+    file = await repo.getFile(VERSION_PATH);
     if (!file)
       return { kind: "refused", message: "VERSION could not be written" };
   }
@@ -114,8 +114,8 @@ export async function openMagicRepo(
         message: `This repo is at version ${version}, and Progress Engine has no way from it to version ${known}.`,
       };
     }
-    await step.migrate(api, repo);
-    const after = await api.getFile(repo, VERSION_PATH);
+    await step.migrate(repo);
+    const after = await repo.getFile(VERSION_PATH);
     const next = after && parseVersion(after.text);
     if (next !== version + 1) {
       return {

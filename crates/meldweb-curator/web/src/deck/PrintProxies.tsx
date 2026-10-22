@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { Card } from "../deck";
-import type { GitHubApi, RepoRef } from "../github/api";
 import { loadCollection } from "../github/collection";
 import {
   DEFAULT_LAYOUT,
@@ -11,6 +10,7 @@ import {
   type Sides,
   toPrint,
 } from "../proxies";
+import type { Repo } from "../repo/api";
 import type { Printings } from "../scryfall";
 import { downloadPdf } from "../ui/download";
 import { PrintIcon } from "../ui/icons";
@@ -24,8 +24,7 @@ import { printingNames } from "./archidektNames";
  * what the collection lacks as the Sourcing view counts it.
  */
 export function PrintProxies(props: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   path: string;
   name: string;
   text: string;
@@ -54,7 +53,6 @@ type Progress =
   | { kind: "done"; summary: string };
 
 function ProxyDialog({
-  api,
   repo,
   path,
   name,
@@ -63,8 +61,7 @@ function ProxyDialog({
   printings,
   onClose,
 }: {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   path: string;
   name: string;
   text: string;
@@ -91,9 +88,7 @@ function ProxyDialog({
     setRefusal(null);
     try {
       setProgress({ kind: "working", step: "Counting…" });
-      const collection = lacking
-        ? (await loadCollection(api, repo)).text
-        : null;
+      const collection = lacking ? (await loadCollection(repo)).text : null;
       const counted = toPrint(
         path,
         text,

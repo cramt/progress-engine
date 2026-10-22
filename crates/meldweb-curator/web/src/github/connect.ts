@@ -1,26 +1,47 @@
 /**
- * The one place the app chooses between real GitHub and the mock. Everything
- * after this takes the returned `auth`, `api` and `onboarding` and does not ask
- * which it got.
+ * The one place the app chooses where the Magic repo is. Everything after
+ * this takes the returned connection and does not ask which it got, except
+ * where only one kind can answer: onboarding is GitHub's, and export and
+ * import are the browser repo's.
  *
- * `VITE_MOCK_GITHUB=1 pnpm dev` fakes GitHub and the worker in the page, seeded
- * with Lantern (and six weeks of its history) and Loam, and `rival`'s public
- * repo to trade against; `no-repo` or `no-install` start at onboarding. The
- * fake lives in sessionStorage, so a reload keeps its commits, and it is on
- * `window.__mockGitHub` for simulating an edit on github.com from the console.
+ * Plain `pnpm dev` and every build keep the repo in this browser (ADR-0041),
+ * and need no login. `VITE_MOCK_GITHUB=1 pnpm dev` instead fakes GitHub and
+ * the worker in the page, seeded with Lantern (and six weeks of its history)
+ * and Loam, and `rival`'s public repo to trade against; `no-repo` or
+ * `no-install` start at onboarding. The fake lives in sessionStorage, so a
+ * reload keeps its commits, and it is on `window.__mockGitHub` for
+ * simulating an edit on github.com from the console.
+ *
+ * The real GitHub client stays (`createGitHubApi`), but nothing here builds
+ * it: GitHub comes back as a remote, which pushes and fetches over git.
  */
-import { createGitHubApi, type GitHubApi } from "./api";
+import type { LocalRepo } from "../repo/local";
+import {
+  createGitHubApi,
+  createPublicRepos,
+  type GitHubApi,
+  type PublicRepos,
+} from "./api";
 import { type Auth, createAuth } from "./auth";
 import type { MockGitHub } from "./mock";
-import { githubOnboarding, type Onboarding } from "./onboarding";
+import type { Onboarding } from "./onboarding";
 
-export interface Connection {
-  auth: Auth;
-  api: GitHubApi;
-  onboarding: Onboarding;
-  /** Only for dev tooling; app code must not branch on it. */
-  mock: MockGitHub | null;
-}
+export type Connection =
+  | {
+      kind: "local";
+      repo: LocalRepo;
+      /** Other players' public repos on GitHub, read without a login to trade. */
+      others: PublicRepos;
+    }
+  | {
+      kind: "github";
+      auth: Auth;
+      github: GitHubApi;
+      others: PublicRepos;
+      onboarding: Onboarding;
+      /** Only for dev tooling; app code must not branch on it. */
+      mock: MockGitHub;
+    };
 
 let connection: Promise<Connection> | null = null;
 
@@ -32,12 +53,11 @@ export function connect(): Promise<Connection> {
 async function choose(): Promise<Connection> {
   const mode = import.meta.env.VITE_MOCK_GITHUB;
   if (!mode) {
-    const auth = createAuth();
+    const { openLocalRepo } = await import("../repo/browser");
     return {
-      auth,
-      api: createGitHubApi({ auth }),
-      onboarding: githubOnboarding,
-      mock: null,
+      kind: "local",
+      repo: openLocalRepo(),
+      others: createPublicRepos(),
     };
   }
   const [{ createMockGitHub }, seed] = await Promise.all([
@@ -67,8 +87,10 @@ async function choose(): Promise<Connection> {
     },
   });
   return {
+    kind: "github",
     auth,
-    api: createGitHubApi({ auth, fetch: mock.fetch }),
+    github: createGitHubApi({ auth, fetch: mock.fetch }),
+    others: createPublicRepos({ fetch: mock.fetch }),
     onboarding: {
       newRepo: () => mock.createRepo(),
       install: async () => mock.installApp(),

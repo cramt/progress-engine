@@ -132,7 +132,7 @@ describe("a move saved to meldweb.toml", () => {
   };
 
   it("is made again on the order another device saved meanwhile, keeping it", async () => {
-    const { api, repo, mock } = mockConnection({
+    const { repo, mock } = mockConnection({
       files: { [SETTINGS_PATH]: settings("A", "B", "C", "D") },
     });
     const move = moveInSettings(decks, {
@@ -142,7 +142,7 @@ describe("a move saved to meldweb.toml", () => {
       side: "before",
     });
     let first = true;
-    await commitEdit(api, repo, SETTINGS_PATH, (t) => {
+    await commitEdit(repo, SETTINGS_PATH, (t) => {
       if (first) mock.editOnGitHub(SETTINGS_PATH, settings("C", "A", "B", "D"));
       first = false;
       return move(t);

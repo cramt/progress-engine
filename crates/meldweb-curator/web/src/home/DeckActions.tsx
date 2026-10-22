@@ -1,5 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
-import { type ReactNode, use, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import type { MenuEntry } from "../card/CardView";
 import {
   type Card,
@@ -10,10 +10,9 @@ import {
 } from "../deck";
 import { printingNames } from "../deck/archidektNames";
 import { EXPORT_TARGETS } from "../deck/exportTargets";
-import type { RepoRef } from "../github/api";
-import { connect } from "../github/connect";
 import { type DeckEntry, deleteDeck } from "../github/decks";
 import { commitEdit, openFile } from "../github/repoFile";
+import type { Repo } from "../repo/api";
 import {
   artCrop,
   fetchPrintings,
@@ -31,11 +30,10 @@ type Open =
  * What a deck tile's menu does without opening the deck: each action reads
  * the file as GitHub has it now and commits once, and the list reloads after.
  */
-export function useDeckActions(repo: RepoRef): {
+export function useDeckActions(repo: Repo): {
   menuFor: (deck: DeckEntry) => MenuEntry[];
   dialogs: ReactNode;
 } {
-  const { api } = use(connect());
   const router = useRouter();
   const [open, setOpen] = useState<Open | null>(null);
   const [notice, setNotice] = useState<
@@ -83,7 +81,7 @@ export function useDeckActions(repo: RepoRef): {
   };
 
   const readDeck = async (deck: DeckEntry) => {
-    const file = await openFile(api, repo, deck.path);
+    const file = await openFile(repo, deck.path);
     if (!file) throw new Error(`${deck.path} is no longer in the repo`);
     const parsed = parseDeck(file.text);
     if (parsed.kind === "refused") throw new Error(parsed.message);
@@ -91,7 +89,7 @@ export function useDeckActions(repo: RepoRef): {
   };
 
   const edit = async (deck: DeckEntry, change: (text: string) => string) => {
-    await commitEdit(api, repo, deck.path, (text) => {
+    await commitEdit(repo, deck.path, (text) => {
       if (text === null)
         throw new Error(`${deck.path} is no longer in the repo`);
       return change(text);
@@ -99,12 +97,18 @@ export function useDeckActions(repo: RepoRef): {
     reload();
   };
 
-  const github = (deck: DeckEntry) =>
-    window.open(
-      `https://github.com/${repo.owner}/${repo.name}/blob/HEAD/${deck.path}`,
-      "_blank",
-      "noopener",
-    );
+  const onHost = (path: string): MenuEntry[] => {
+    const page = repo.onHost?.(path);
+    return page
+      ? [
+          "separator",
+          {
+            label: `Open on ${page.host}`,
+            run: () => window.open(page.url, "_blank", "noopener"),
+          },
+        ]
+      : [];
+  };
 
   const menuFor = (deck: DeckEntry): MenuEntry[] => {
     // A file the format refuses can only be looked at or thrown away.
@@ -137,8 +141,7 @@ export function useDeckActions(repo: RepoRef): {
             },
           ]
         : []),
-      "separator",
-      { label: "Open on GitHub", run: () => github(deck) },
+      ...onHost(deck.path),
       "separator",
       { label: "Delete…", run: () => setOpen({ kind: "delete", deck }) },
     ];
@@ -166,7 +169,7 @@ export function useDeckActions(repo: RepoRef): {
           deck={open.deck}
           onClose={close}
           onDelete={async () => {
-            const r = await deleteDeck(api, repo, open.deck);
+            const r = await deleteDeck(repo, open.deck);
             if (r.kind === "refused") return r.message;
             reload();
             return null;

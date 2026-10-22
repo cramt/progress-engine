@@ -18,11 +18,12 @@ import { usePrintingOptions } from "../card/usePrintingOptions";
 import { CopySource } from "../copy/CopySource";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "../deck/Toolbar";
 import type { SettingsRules } from "../deck.gen";
-import type { GitHubApi, RepoRef } from "../github/api";
 import { createSaveStore } from "../github/save";
 import { SETTINGS_PATH } from "../github/settings";
 import { useSave } from "../github/useSave";
 import { useHistory, useUndoKeys } from "../history";
+import type { Repo } from "../repo/api";
+import type { LocalRepo } from "../repo/local";
 import { CloseIcon, PlusIcon } from "../ui/icons";
 import { Pinned } from "./Pinned";
 import { Preview, SAMPLES } from "./Preview";
@@ -43,6 +44,7 @@ import {
   TERMS,
   type Verb,
 } from "./rules";
+import { ThisBrowser } from "./ThisBrowser";
 import "../card/card.css";
 import "./settings.css";
 
@@ -56,13 +58,14 @@ export function SettingsEditor({
   text,
   sha,
   repo,
-  api,
+  local,
 }: {
+  /** The browser's repo, whose author and zip this page also keeps. */
+  local: LocalRepo | null;
   /** The repo's `meldweb.toml`, null when it has none. */
   text: string | null;
   sha: string | null;
-  repo: RepoRef;
-  api: GitHubApi;
+  repo: Repo;
 }) {
   const [read, setRead] = useState(() => readSettings(text));
   const defaults = read.defaults;
@@ -80,7 +83,6 @@ export function SettingsEditor({
 
   const [store] = useState(() =>
     createSaveStore({
-      api,
       repo,
       path: SETTINGS_PATH,
       text: text ?? "",
@@ -253,19 +255,14 @@ export function SettingsEditor({
                 <p className="settings-source">
                   {read.kind === "read" && read.declared ? (
                     <>
-                      Saved in <code>{SETTINGS_PATH}</code> at the root of{" "}
-                      <code>
-                        {repo.owner}/{repo.name}
-                      </code>
-                      , as a commit, like your decks.
+                      Saved in <code>{SETTINGS_PATH}</code> at the root of the
+                      repo in {repo.where}, as a commit, like your decks.
                     </>
                   ) : (
                     <>
-                      <code>
-                        {repo.owner}/{repo.name}
-                      </code>{" "}
-                      has no <code>{SETTINGS_PATH}</code> yet, so these are the
-                      default rules. Your first change commits the file.
+                      The repo in {repo.where} has no{" "}
+                      <code>{SETTINGS_PATH}</code> yet, so these are the default
+                      rules. Your first change commits the file.
                     </>
                   )}
                 </p>
@@ -334,6 +331,7 @@ export function SettingsEditor({
               </>
             )}
           </section>
+          {local && <ThisBrowser repo={local} />}
           <CopySource />
         </div>
         <PinsProvider pins={editable ? pinsHere : null}>

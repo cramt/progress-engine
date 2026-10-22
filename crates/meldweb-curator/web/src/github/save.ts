@@ -7,7 +7,7 @@
  * and committed; otherwise, or when both changed the same lines, saving stops
  * until the user reloads or overwrites.
  */
-import { ConflictError, type GitHubApi, type RepoRef } from "./api";
+import { ConflictError, type Repo } from "../repo/api";
 import { mergeLines } from "./merge";
 import { commitMessageFor, track } from "./repoFile";
 
@@ -57,8 +57,7 @@ export interface PageEvents {
 }
 
 export interface SaveOptions {
-  api: GitHubApi;
-  repo: RepoRef;
+  repo: Repo;
   path: string;
   /** The text as loaded from GitHub, and its blob sha. */
   text: string;
@@ -72,7 +71,7 @@ export interface SaveOptions {
 }
 
 export function createSaveStore(options: SaveOptions): SaveStore {
-  const { api, repo, path, onMerge } = options;
+  const { repo, path, onMerge } = options;
   const idleMs = options.idleMs ?? IDLE_MS;
 
   let base = options.text;
@@ -144,7 +143,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
   }
 
   async function commit(before: string, guard: string | null, text: string) {
-    const r = await api.putFile(repo, path, {
+    const r = await repo.putFile(path, {
       text,
       message: commitMessageFor(path, before, text),
       sha: guard,
@@ -161,7 +160,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
    */
   async function merge(onMerge: (text: string) => void, refused: Error) {
     for (let attempt = 1; ; attempt++) {
-      const file = await api.getFile(repo, path);
+      const file = await repo.getFile(path);
       if (!file) throw refused;
       // From the latest local text, not the one being committed: nothing
       // awaits between reading it and handing the merge back.
@@ -182,7 +181,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
         return;
       }
       try {
-        const r = await api.putFile(repo, path, {
+        const r = await repo.putFile(path, {
           text: merged,
           message,
           sha: file.sha,
@@ -245,7 +244,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
     },
     async reload() {
       await idle();
-      const file = await api.getFile(repo, path);
+      const file = await repo.getFile(path);
       if (!file) throw new Error(`${path} is no longer on GitHub`);
       base = current = file.text;
       sha = file.sha;
@@ -259,7 +258,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       if (inflight) await idle();
       // Diffed against, and guarded by, what is on GitHub now.
       await run(async () => {
-        const file = await api.getFile(repo, path);
+        const file = await repo.getFile(path);
         return { before: file?.text ?? base, sha: file?.sha ?? null };
       });
     },

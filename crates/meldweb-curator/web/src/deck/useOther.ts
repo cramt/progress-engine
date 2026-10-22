@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { type Parsed, parseDeck } from "../deck";
-import type { GitHubApi, RepoRef } from "../github/api";
 import { deckStem } from "../github/decks";
 import { fileAt, type Revision } from "../github/history";
+import type { Repo } from "../repo/api";
 import { fetchPrintings, type Printings } from "../scryfall";
 import type { Viewing } from "./versions";
 
@@ -24,18 +24,17 @@ export type Other =
     };
 
 async function load(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   path: string,
   viewing: Exclude<Viewing, { kind: "now" }>,
 ): Promise<Other> {
   const [file, revision] =
     viewing.kind === "revision"
       ? await Promise.all([
-          fileAt(api, repo, path, viewing.commit),
-          api.revision(repo, viewing.commit),
+          fileAt(repo, path, viewing.commit),
+          repo.revision(viewing.commit),
         ])
-      : [await api.getFile(repo, viewing.path), null];
+      : [await repo.getFile(viewing.path), null];
   if (!file) {
     return {
       kind: "missing",
@@ -66,8 +65,7 @@ async function load(
 
 /** The deck at `path` as `viewing` names it, or `null` while it is the deck now. */
 export function useOther(
-  api: GitHubApi,
-  repo: RepoRef,
+  repo: Repo,
   path: string,
   viewing: Viewing,
 ): Other | null {
@@ -85,7 +83,7 @@ export function useOther(
     if (viewing.kind === "now" || key === null) return;
     let live = true;
     setOther({ key, other: { kind: "loading" } });
-    load(api, repo, path, viewing).then(
+    load(repo, path, viewing).then(
       (o) => live && setOther({ key, other: o }),
       (e) =>
         live &&
@@ -100,7 +98,7 @@ export function useOther(
     return () => {
       live = false;
     };
-  }, [api, repo, path, key]);
+  }, [repo, path, key]);
   if (key === null) return null;
   return other?.key === key ? other.other : { kind: "loading" };
 }
