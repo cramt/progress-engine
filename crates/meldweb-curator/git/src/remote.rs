@@ -31,7 +31,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 
 use gix_hash::ObjectId;
 use gix_object::bstr::ByteSlice;
-use gix_object::{Kind, TagRef};
+use gix_object::{CommitRef, Kind, TagRef, TreeRef};
 
 use crate::merge::{MergeFile, Side, TreeMerge};
 use crate::names::{BranchName, CommitId, Signature, TreeId};
@@ -254,6 +254,79 @@ pub struct RemoteStatus {
     pub tags: usize,
 }
 
+/// What an object names: a commit its tree and parents, a tree its entries
+/// but submodules, a tag its target. Each with whether it may name more in
+/// turn, which a tree's blobs never do.
+fn named_by(kind: Kind, data: &[u8]) -> Result<Vec<(ObjectId, bool)>> {
+    Ok(match kind {
+        Kind::Blob => Vec::new(),
+        Kind::Commit => {
+            let commit = CommitRef::from_bytes(data, SHA1).map_err(remote_err)?;
+            std::iter::once(commit.tree())
+                .chain(commit.parents())
+                .map(|id| (id, true))
+                .collect()
+        }
+        Kind::Tree => TreeRef::from_bytes(data, SHA1)
+            .map_err(remote_err)?
+            .entries
+            .into_iter()
+            .filter(|e| !e.mode.is_commit())
+            .map(|e| (e.oid.to_owned(), e.mode.is_tree()))
+            .collect(),
+        Kind::Tag => vec![(
+            TagRef::from_bytes(data, SHA1).map_err(remote_err)?.target(),
+            true,
+        )],
+    })
+}
+
+/// `objects` with each after every one of them it names. The browser's
+/// storage keeps a prefix of a fetch's writes when its tab closes mid-way,
+/// and this way that prefix never holds a commit without its history and
+/// files, which having it promises (the haves, [`Repo::is_whole`]).
+fn names_first(objects: Vec<(ObjectId, Kind, Vec<u8>)>) -> Result<Vec<(ObjectId, Kind, Vec<u8>)>> {
+    let at: std::collections::HashMap<ObjectId, usize> = objects
+        .iter()
+        .enumerate()
+        .map(|(i, (id, ..))| (*id, i))
+        .collect();
+    let mut named = Vec::with_capacity(objects.len());
+    for (_, kind, data) in &objects {
+        named.push(named_by(*kind, data)?);
+    }
+    let mut placed = vec![false; objects.len()];
+    let mut order = Vec::with_capacity(objects.len());
+    // Depth first and by hand: a history thousands of commits long would
+    // overflow the wasm's stack recursing.
+    for root in 0..objects.len() {
+        let mut stack = vec![(root, false)];
+        while let Some((i, expanded)) = stack.pop() {
+            if placed[i] {
+                continue;
+            }
+            if expanded {
+                placed[i] = true;
+                order.push(i);
+                continue;
+            }
+            stack.push((i, true));
+            stack.extend(
+                named[i]
+                    .iter()
+                    .filter_map(|(id, _)| at.get(id))
+                    .filter(|&&j| !placed[j])
+                    .map(|&j| (j, false)),
+            );
+        }
+    }
+    let mut objects: Vec<Option<_>> = objects.into_iter().map(Some).collect();
+    Ok(order
+        .into_iter()
+        .map(|i| objects[i].take().expect("each placed once"))
+        .collect())
+}
+
 fn main_branch() -> BranchName {
     BranchName::new("main").expect("main is a branch name")
 }
@@ -390,6 +463,35 @@ impl<S: Store> Repo<S> {
         }
     }
 
+    /// Whether `id` is here with everything it names, down through every
+    /// commit's tree and parents: what a have promises the remote. Holding
+    /// a commit is not enough; storage that kept only part of an earlier
+    /// fetch can hold one without its history. `whole` holds what earlier
+    /// walks found whole, and gains what this one does.
+    fn is_whole(&self, id: &ObjectId, whole: &mut HashSet<ObjectId>) -> Result<bool> {
+        let mut seen = HashSet::new();
+        let mut stack = vec![(*id, true)];
+        while let Some((at, names)) = stack.pop() {
+            if whole.contains(&at) || !seen.insert(at) {
+                continue;
+            }
+            // A blob is only looked for: inflating every file to learn it
+            // names nothing would make this most of a sync's time.
+            if !names {
+                if !self.has_object(&at)? {
+                    return Ok(false);
+                }
+                continue;
+            }
+            let Some((kind, data)) = self.read_any(&at)? else {
+                return Ok(false);
+            };
+            stack.extend(named_by(kind, &data)?);
+        }
+        whole.extend(seen);
+        Ok(true)
+    }
+
     /// The first `limit` commits reachable from `tips`, breadth first, so
     /// each tip's own commits come before anything far behind it.
     fn recent_commits(&self, tips: &[CommitId], limit: usize) -> Result<Vec<CommitId>> {
@@ -493,12 +595,14 @@ impl<S: Store> Repo<S> {
     // Fetching.
 
     /// The body of `POST git-upload-pack` for the remote's `info/refs`
-    /// answer, asking for every branch and tag tip this repo lacks.
+    /// answer, asking for every branch and tag tip this repo lacks, or holds
+    /// without all of its history.
     pub fn fetch_request(&self, advertised: &[u8]) -> Result<FetchRequest> {
         let ad = parse_advertisement(advertised, "git-upload-pack")?;
+        let mut whole = HashSet::new();
         let mut wants = BTreeSet::new();
         for (_, id) in ad.tracked() {
-            if !self.has_object(id)? {
+            if !self.is_whole(id, &mut whole)? {
                 wants.insert(*id);
             }
         }
@@ -536,11 +640,14 @@ impl<S: Store> Repo<S> {
         }
         pktline::flush(&mut body);
         let mut tips: Vec<CommitId> = Vec::new();
-        for (_, id) in self.refs_under(TRACKING)? {
-            tips.extend(self.commit_of(&id)?);
-        }
-        for (_, id) in self.refs_under("refs/heads")? {
-            tips.push(CommitId(id));
+        for (_, id) in self
+            .refs_under(TRACKING)?
+            .into_iter()
+            .chain(self.refs_under("refs/heads")?)
+        {
+            if self.is_whole(&id, &mut whole)? {
+                tips.extend(self.commit_of(&id)?);
+            }
         }
         for c in self.recent_commits(&tips, HAVES)? {
             pktline::text(&mut body, &format!("have {c}\n"));
@@ -556,18 +663,19 @@ impl<S: Store> Repo<S> {
         let ad = parse_advertisement(advertised, "git-upload-pack")?;
         if let Some(response) = response {
             let pack = unwrap_upload_response(response)?;
-            let objects = pack::read(&pack, |id| self.read_any(id))?;
+            let objects = names_first(pack::read(&pack, |id| self.read_any(id))?)?;
             for (id, kind, data) in objects {
                 let wrote = self.write_object(kind, &data)?;
                 debug_assert_eq!(wrote, id);
             }
         }
+        let mut whole = HashSet::new();
         let mut want: BTreeMap<String, ObjectId> = BTreeMap::new();
         for (remote_ref, id) in ad.tracked() {
             if let Some(local) = tracking_for(remote_ref) {
-                if !self.has_object(id)? {
+                if !self.is_whole(id, &mut whole)? {
                     return Err(remote_err(format!(
-                        "the remote sent no {id}, which its {remote_ref} names"
+                        "the remote did not send all of {id}, which its {remote_ref} names"
                     )));
                 }
                 want.insert(local, *id);
@@ -857,16 +965,27 @@ impl<S: Store> Repo<S> {
             .into_iter()
             .filter(|(n, _)| !n.starts_with("tags/"))
             .collect();
-        let tips = |m: &BTreeMap<String, ObjectId>| -> Result<Vec<CommitId>> {
-            let mut out = Vec::new();
+        let mut cache = Default::default();
+        // A tip storage lost history under counts as nothing until the next
+        // fetch makes it whole (see `is_whole`). Only its commits are walked
+        // here, so only a missing commit stops the walk: this runs on every
+        // save, and reading every tree too would cost a tenth of a second.
+        let mut history = |m: &BTreeMap<String, ObjectId>| -> Result<HashSet<CommitId>> {
+            let mut out = HashSet::new();
             for id in m.values() {
-                out.extend(self.commit_of(id)?);
+                let Some(tip) = self.commit_of(id)? else {
+                    continue;
+                };
+                match self.ancestors(&[tip], &mut cache) {
+                    Ok(walked) => out.extend(walked),
+                    Err(Error::MissingObject(_)) => {}
+                    Err(e) => return Err(e),
+                }
             }
             Ok(out)
         };
-        let mut cache = Default::default();
-        let mine = self.ancestors(&tips(&local)?, &mut cache)?;
-        let theirs = self.ancestors(&tips(&tracked)?, &mut cache)?;
+        let mine = history(&local)?;
+        let theirs = history(&tracked)?;
         let differing = |a: &BTreeMap<String, ObjectId>, b: &BTreeMap<String, ObjectId>| {
             a.iter().filter(|(n, id)| b.get(*n) != Some(id)).count()
                 + b.keys().filter(|n| !a.contains_key(*n)).count()

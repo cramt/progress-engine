@@ -883,3 +883,122 @@ fn friend_commits_on(work: &Path, branch: &str, files: &[(&str, &str)], message:
     git(work, &["commit", "-q", "-m", message]);
     git(work, &["push", "-q", "origin", branch]);
 }
+
+/// A store that takes only `left` more object writes and then fails, as
+/// the browser's storage keeps only the first of a fetch's writes when its
+/// tab closes mid-flush.
+struct CutShort {
+    inner: FsStore,
+    left: usize,
+}
+
+impl meldweb_git::Store for CutShort {
+    type Error = std::io::Error;
+
+    fn read(&self, path: &str) -> std::io::Result<Option<Vec<u8>>> {
+        self.inner.read(path)
+    }
+
+    fn write(&mut self, path: &str, bytes: &[u8]) -> std::io::Result<()> {
+        if path.starts_with("objects/") {
+            if self.left == 0 {
+                return Err(std::io::Error::other("the tab closed"));
+            }
+            self.left -= 1;
+        }
+        self.inner.write(path, bytes)
+    }
+
+    fn remove(&mut self, path: &str) -> std::io::Result<bool> {
+        self.inner.remove(path)
+    }
+
+    fn list(&self, dir: &str) -> std::io::Result<Vec<String>> {
+        self.inner.list(dir)
+    }
+
+    fn create_dir(&mut self, dir: &str) -> std::io::Result<()> {
+        self.inner.create_dir(dir)
+    }
+}
+
+/// The friend's history the next two tests fetch: six commits of a deck,
+/// deltified as a host packs it.
+fn six_versions() -> (tempfile::TempDir, Server) {
+    let (dir, server, work) = setup();
+    for v in 0..6 {
+        friend_commits(
+            &work,
+            &[
+                ("VERSION", "1\n"),
+                ("decks/lantern.deck.toml", &big_deck(v)),
+            ],
+            &format!("lantern: v{v}"),
+        );
+    }
+    git(&server.0, &["gc", "-q", "--aggressive"]);
+    (dir, server)
+}
+
+/// The fetch after one cut short wants the remote's history again and
+/// ends in it whole, however many of the first fetch's objects were kept.
+fn refetch_is_whole(repo: &mut Repo<FsStore>, gitdir: &Path, server: &Server) {
+    repo.remote_status().unwrap();
+    assert!(
+        fetch(repo, server).is_some(),
+        "a tip without its history is not had"
+    );
+    repo.remote_status().unwrap();
+    assert!(matches!(
+        integrate(repo, None, 9),
+        Integrated::Adopted { .. }
+    ));
+    assert_eq!(
+        repo.branch_tip(&main_branch()).unwrap().unwrap().to_hex(),
+        server.rev("main")
+    );
+    fsck(gitdir);
+}
+
+#[test]
+fn a_fetch_cut_short_never_keeps_a_commit_without_its_history() {
+    if !have_git() {
+        return;
+    }
+    let (dir, server) = six_versions();
+    let ad = server.advertise("upload-pack");
+    for kept in 0.. {
+        let name = format!("cut-{kept}.git");
+        let (_, gitdir) = browser(dir.path(), &name);
+        let mut cut = Repo::open(CutShort {
+            inner: FsStore::new(&gitdir),
+            left: kept,
+        })
+        .unwrap();
+        let FetchRequest::Want(body) = cut.fetch_request(&ad).unwrap() else {
+            panic!("a fresh repo wants everything");
+        };
+        let response = server.post("upload-pack", &body);
+        if cut.fetch_finish(&ad, Some(&response)).is_ok() {
+            eprintln!("every fetch cut short after 0..{kept} objects synced whole");
+            break;
+        }
+        let mut repo = Repo::open(FsStore::new(&gitdir)).unwrap();
+        refetch_is_whole(&mut repo, &gitdir, &server);
+    }
+}
+
+/// A browser whose storage already lost a commit under the tracked tip, as
+/// one did before fetches wrote history parents first, syncs whole again.
+#[test]
+fn a_tracked_tip_missing_history_is_fetched_again() {
+    if !have_git() {
+        return;
+    }
+    let (dir, server) = six_versions();
+    let (mut repo, gitdir) = browser(dir.path(), "browser.git");
+    fetch(&mut repo, &server).unwrap();
+    let lost = server.rev("main~2");
+    std::fs::remove_file(gitdir.join("objects").join(&lost[..2]).join(&lost[2..])).unwrap();
+    refetch_is_whole(&mut repo, &gitdir, &server);
+}
