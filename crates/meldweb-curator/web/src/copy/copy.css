@@ -36,4 +36,6 @@
 .copy-status > span:first-child {
   display: flex;
   align-items: center;
+  color: var(--fg);
+  font-weight: 600;
 }
