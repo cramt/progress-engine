@@ -5,7 +5,8 @@
 //! `VERSION`, `collection.toml`, `wanted.toml`, `meldweb.toml` and `cards/`.
 //! Each deck is a line of its own, the branch `decks/<stem>/main`, whose tree
 //! holds `<stem>.deck.toml` and, when it has any, its Gauntlet criteria
-//! `<stem>.criteria.toml`. A snapshot is still the annotated tag
+//! `<stem>.criteria.toml` and its named criteria sets
+//! `<stem>.<name>.criteria.toml`. A snapshot is still the annotated tag
 //! `decks/<stem>/<slug>`, now on a commit of the deck's line.
 //!
 //! A fork's line starts on the commit of the deck it was forked from: its
@@ -201,10 +202,25 @@ impl Rewritten {
 }
 
 /// The files of one deck at one commit of version 1's `main`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct DeckFiles {
     deck: Option<BlobId>,
     criteria: Option<BlobId>,
+    /// Its named criteria sets, `<stem>.<name>.criteria.toml`, by name.
+    named: BTreeMap<String, BlobId>,
+}
+
+/// Whose criteria `base`, a file's name less `.criteria.toml`, are: the deck
+/// of that stem, or else the longest deck stem it starts with and a dot, as
+/// that deck's set named the rest. `None` when no deck is either.
+fn criteria_owner(base: &str, is_deck: impl Fn(&str) -> bool) -> Option<(&str, Option<&str>)> {
+    if is_deck(base) {
+        return Some((base, None));
+    }
+    base.rmatch_indices('.')
+        .map(|(i, _)| (&base[..i], &base[i + 1..]))
+        .find(|(stem, name)| !name.is_empty() && is_deck(stem))
+        .map(|(stem, name)| (stem, Some(name)))
 }
 
 /// `decks/`'s deck and criteria files at `at`, by stem. Names that are
@@ -216,15 +232,32 @@ fn deck_files_at<S: Store>(repo: &Repo<S>, at: &CommitId) -> Out<BTreeMap<String
         Ok(None) | Err(Error::NotADirectory(_)) => return Ok(out),
         Err(e) => return Err(said(e)),
     };
-    for e in entries {
-        let blob = match e.kind {
-            EntryKind::File(b) | EntryKind::Executable(b) => b,
-            _ => continue,
+    let files: Vec<(String, BlobId)> = entries
+        .into_iter()
+        .filter_map(|e| match e.kind {
+            EntryKind::File(b) | EntryKind::Executable(b) => Some((e.name, b)),
+            _ => None,
+        })
+        .collect();
+    for (name, blob) in &files {
+        if let Some(stem) = name.strip_suffix(DECK_SUFFIX) {
+            out.entry(stem.to_owned()).or_default().deck = Some(*blob);
+        }
+    }
+    let decks: BTreeSet<String> = out.keys().cloned().collect();
+    for (name, blob) in &files {
+        let Some(base) = name.strip_suffix(CRITERIA_SUFFIX) else {
+            continue;
         };
-        if let Some(stem) = e.name.strip_suffix(DECK_SUFFIX) {
-            out.entry(stem.to_owned()).or_default().deck = Some(blob);
-        } else if let Some(stem) = e.name.strip_suffix(CRITERIA_SUFFIX) {
-            out.entry(stem.to_owned()).or_default().criteria = Some(blob);
+        // Criteria of no deck here go under their own name, deckless, and
+        // are never replayed.
+        let (stem, set) = criteria_owner(base, |s| decks.contains(s)).unwrap_or((base, None));
+        let files = out.entry(stem.to_owned()).or_default();
+        match set {
+            None => files.criteria = Some(*blob),
+            Some(set) => {
+                files.named.insert(set.to_owned(), *blob);
+            }
         }
     }
     Ok(out)
@@ -245,29 +278,27 @@ fn check_tip<S: Store>(repo: &Repo<S>, tip: &CommitId) -> Out<BTreeSet<DeckStem>
         let refuse = |why: &str| {
             Err(format!(
                 "decks/{} {why}, and repo version 2 keeps only each deck's .deck.toml and \
-                 .criteria.toml, on the deck's own line. Move it out of decks/ first.",
+                 its criteria, on the deck's own line. Move it out of decks/ first.",
                 e.name
             ))
         };
         if !matches!(e.kind, EntryKind::File(_) | EntryKind::Executable(_)) {
             return refuse("is not a file");
         }
-        let (stem, is_deck) = match (
-            e.name.strip_suffix(DECK_SUFFIX),
-            e.name.strip_suffix(CRITERIA_SUFFIX),
-        ) {
-            (Some(s), _) => (s, true),
-            (None, Some(s)) => (s, false),
-            _ => return refuse("is neither a deck nor its criteria"),
-        };
-        let stem = DeckStem::new(stem).map_err(|e| format!("decks/{stem}{DECK_SUFFIX}: {e}"))?;
-        if is_deck {
-            decks.insert(stem);
+        if let Some(stem) = e.name.strip_suffix(DECK_SUFFIX) {
+            decks.insert(
+                DeckStem::new(stem).map_err(|e| format!("decks/{stem}{DECK_SUFFIX}: {e}"))?,
+            );
+        } else if let Some(base) = e.name.strip_suffix(CRITERIA_SUFFIX) {
+            criteria.push(base.to_owned());
         } else {
-            criteria.push(stem);
+            return refuse("is neither a deck nor its criteria");
         }
     }
-    if let Some(lone) = criteria.iter().find(|s| !decks.contains(*s)) {
+    if let Some(lone) = criteria
+        .iter()
+        .find(|base| criteria_owner(base, |s| decks.iter().any(|d| d.as_str() == s)).is_none())
+    {
         return Err(format!(
             "decks/{lone}{CRITERIA_SUFFIX} has no deck beside it, and criteria live on their \
              deck's line in repo version 2. Remove it or add its deck first."
@@ -379,8 +410,8 @@ pub fn rewrite_v1<S: Store>(repo: &mut Repo<S>, from: &CommitId) -> Out<Rewritte
         let now = deck_files_at(repo, commit)?;
         let info = repo.read_commit(commit).map_err(said)?;
         for stem in &order {
-            let files = now.get(stem.as_str()).copied().unwrap_or_default();
-            if before.get(stem.as_str()).copied().unwrap_or_default() == files {
+            let files = now.get(stem.as_str()).cloned().unwrap_or_default();
+            if before.get(stem.as_str()).cloned().unwrap_or_default() == files {
                 continue;
             }
             let Some(deck) = files.deck else {
@@ -392,6 +423,9 @@ pub fn rewrite_v1<S: Store>(repo: &mut Repo<S>, from: &CommitId) -> Out<Rewritte
             let mut tree_files = vec![(path(&stem.deck_file()), deck_text_v2(repo, deck)?)];
             if let Some(c) = files.criteria {
                 tree_files.push((path(&stem.criteria_file()), c));
+            }
+            for (name, c) in &files.named {
+                tree_files.push((path(&format!("{stem}.{name}{CRITERIA_SUFFIX}")), *c));
             }
             let tree = repo.write_files(&tree_files).map_err(said)?;
             let line = lines.entry((*stem).clone()).or_default();
@@ -433,6 +467,11 @@ pub fn rewrite_v1<S: Store>(repo: &mut Repo<S>, from: &CommitId) -> Out<Rewritte
             if f.criteria.is_some() {
                 out.push(Change::Delete {
                     path: path(&format!("{DECKS_DIR}/{stem}{CRITERIA_SUFFIX}")),
+                });
+            }
+            for name in f.named.keys() {
+                out.push(Change::Delete {
+                    path: path(&format!("{DECKS_DIR}/{stem}.{name}{CRITERIA_SUFFIX}")),
                 });
             }
             out

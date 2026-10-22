@@ -620,6 +620,111 @@ fn a_v1_repo_with_what_v2_has_no_place_for_is_refused_and_left_as_it_was() {
     assert!(repo.branch_tip(&branch("decks/a/main")).unwrap().is_none());
 }
 
+/// A deck's named criteria sets, `<stem>.<name>.criteria.toml`, as the
+/// cid-goldfish work wrote beside a deck, go onto its line with their
+/// history; a stem with a dot in it keeps its own criteria.
+#[test]
+fn a_v1_decks_named_criteria_sets_migrate_onto_its_line() {
+    if !have_git() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mut repo = Repo::init(FsStore::new(dir.path())).unwrap();
+    save(
+        &mut repo,
+        &[
+            ("VERSION", "1\n"),
+            ("decks/cids.deck.toml", &deck("Cids", &["Mill"])),
+            ("decks/cids.criteria.toml", "# main\n"),
+            ("decks/cids.v2.deck.toml", &deck("Cids 2", &["Mill"])),
+            ("decks/cids.v2.criteria.toml", "# v2's own\n"),
+        ],
+        &[],
+        "cids: made",
+        &sig("Alex", 1_700_000_000, 0),
+    );
+    save(
+        &mut repo,
+        &[("decks/cids.mill.criteria.toml", "# mill 1\n")],
+        &[],
+        "cids: mill",
+        &sig("Alex", 1_700_000_100, 0),
+    );
+    save(
+        &mut repo,
+        &[
+            ("decks/cids.mill.criteria.toml", "# mill 2\n"),
+            ("decks/cids.pips.criteria.toml", "# pips\n"),
+        ],
+        &[],
+        "cids: pips",
+        &sig("Alex", 1_700_000_200, 0),
+    );
+    layout::migrate(&mut repo).unwrap();
+
+    let line = repo
+        .branch_tip(&branch("decks/cids/main"))
+        .unwrap()
+        .unwrap();
+    let file = |repo: &Repo<FsStore>, at: &CommitId, path: &str| {
+        repo.read_file(at, &p(path))
+            .unwrap()
+            .map(|b| String::from_utf8(b).unwrap())
+    };
+    assert_eq!(
+        file(&repo, &line, "cids.criteria.toml").unwrap(),
+        "# main\n"
+    );
+    assert_eq!(
+        file(&repo, &line, "cids.mill.criteria.toml").unwrap(),
+        "# mill 2\n"
+    );
+    assert_eq!(
+        file(&repo, &line, "cids.pips.criteria.toml").unwrap(),
+        "# pips\n"
+    );
+    assert_eq!(
+        messages(dir.path(), "decks/cids/main", "cids.mill.criteria.toml"),
+        ["cids: pips", "cids: mill"]
+    );
+    let v2 = repo
+        .branch_tip(&branch("decks/cids.v2/main"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        file(&repo, &v2, "cids.v2.criteria.toml").unwrap(),
+        "# v2's own\n"
+    );
+    assert_eq!(
+        repo.list_dir(&v2, None).unwrap().unwrap().len(),
+        2,
+        "only the deck and its own criteria"
+    );
+    let main = repo.branch_tip(&main_branch()).unwrap().unwrap();
+    assert!(repo.list_dir(&main, Some(&p("decks"))).unwrap().is_none());
+    fsck(dir.path());
+}
+
+/// Criteria naming no deck, even as a named set, are still refused.
+#[test]
+fn a_named_criteria_set_without_its_deck_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut repo = Repo::init(FsStore::new(dir.path())).unwrap();
+    save(
+        &mut repo,
+        &[
+            ("VERSION", "1\n"),
+            ("decks/a.deck.toml", "name = \"A\"\n"),
+            ("decks/b.mill.criteria.toml", "# lone\n"),
+        ],
+        &[],
+        "x",
+        &sig("Alex", 1_700_000_000, 0),
+    );
+    let err = layout::migrate(&mut repo).unwrap_err();
+    assert!(err.contains("decks/b.mill.criteria.toml"), "{err}");
+}
+
 // Syncing across versions.
 
 fn by_lines(_: &str, base: &[u8], ours: &[u8], theirs: &[u8]) -> Option<Vec<u8>> {
