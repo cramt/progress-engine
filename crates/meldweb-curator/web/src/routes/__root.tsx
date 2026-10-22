@@ -2,6 +2,7 @@ import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { startCopy } from "../copy";
 import { CopyStatus } from "../copy/CopyStatus";
 import { loadDeck } from "../deck";
+import { SyncStatus } from "../remote/SyncStatus";
 import { persistScryfallCache } from "../scryfallCache";
 
 let booted: Promise<void> | null = null;
@@ -34,6 +35,7 @@ export const Route = createRootRoute({
     <>
       <Outlet />
       <CopyStatus />
+      <SyncStatus />
     </>
   ),
 });

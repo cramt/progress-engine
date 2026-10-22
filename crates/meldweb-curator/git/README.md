@@ -22,6 +22,29 @@ It can:
   commit marked as added, modified or deleted.
 - give `merge_base` over all parents, as `git merge-base --all` does: none for
   unrelated histories, two after a criss-cross merge.
+- merge two texts three-way by lines (`merge_lines`, Curator's one line
+  merge), and two commits' trees path by path from a merge base, a file both
+  sides changed going to a caller's merge.
+- keep one remote, `origin`, in `config` as `git remote add` would, and speak
+  git's smart HTTP protocol v0 to it as pure functions over bytes
+  (`src/remote.rs`): the caller does the HTTP. A fetch turns the
+  `info/refs` answer into an upload-pack request, writes the pack it gets
+  back as loose objects (ofs-deltas and ref-deltas resolved), and tracks the
+  remote's branches under `refs/remotes/origin/` and its tags under
+  `refs/remotes/origin/tags/`. `integrate` brings the remote's `main` into
+  `main`: a fast-forward, the remote's history over a repo that is only its
+  first `VERSION` commit, or a merge commit with two parents; it refuses
+  unrelated histories and stops at a conflicting file. A push sends `main`
+  and every tag the remote lacks with an undeltified pack, naming the
+  advertised old id so that receive-pack refuses it if the remote moved.
+
+Protocol v0, not v2: receive-pack has no v2, so its advertisement parser is
+needed anyway, and v2's ref-prefix filter gains nothing on a repo of a few
+dozen refs. The pack reader is here rather than gix-pack's: gix-pack 0.76
+builds for wasm32 with default features off, but its delta application is
+crate-private and its only public way to resolve deltas writes a pack and an
+index to a directory. pkt-line framing is forty lines here rather than
+gix-packetline's IO-feature-gated encoder.
 
 The core never reads a clock: the caller passes every author, committer and
 tagger time. Ids are branded by kind (`CommitId`, `TreeId`, `BlobId`, `TagId`),
@@ -31,13 +54,15 @@ Linux. Every read checks the object's hash.
 
 ## What it refuses
 
-- **Packfiles.** If a missing object might be in `objects/pack/`, the read
+- **Packfiles on disk.** A fetched pack is unpacked into loose objects. If a
+  missing object might be in `objects/pack/`, the read
   fails with `Unsupported::Packfile`, not `MissingObject`. A repo that `git gc`
   or `git clone` made needs `git unpack-objects` before this crate can read it.
 - **Packed refs.** If `packed-refs` exists, every ref operation fails with
   `Unsupported::PackedRefs`.
 - **Symbolic branch or tag refs, and tags of non-commits.**
-- **The index, a working tree, network transport, and 3-way content merge.**
+- **The index, a working tree, and HTTP itself.** Deleting a tag is not
+  pushed, and the remote's `main` is the only branch integrated.
 
 There is one writer at a time. A ref update checks the expected value and then
 writes, and those are two store calls, so two tabs need a lock above the
@@ -63,9 +88,26 @@ nix develop --command cargo build -p meldweb-git --target wasm32-unknown-unknown
   files, history, merge base, branches and tags. It then commits on top, and
   `git fsck --strict` passes again.
 
+`tests/remote.rs` makes a bare repo on disk the server, answering through
+`git upload-pack --stateless-rpc` and `git receive-pack --stateless-rpc`
+as `git http-backend` does: a clone of a repo `git gc --aggressive`
+deltified (delta chains up to 5), an incremental fetch (a pack of exactly
+the 4 new objects), ref-deltas from `pack-objects` without side-band, a
+fast-forward push with a tag, a push refused by the compare-and-swap and
+then merged and pushed, a conflict settled by choosing a side, an empty
+remote, and unrelated history. `git fsck --strict` passes on both sides.
+
 If `git` is not on PATH, those tests print `SKIPPED` and pass.
 
-Measured on 2026-10-21: 14 tests pass. A throwaway cdylib built for wasm32 at
+`examples/remote_e2e.rs` runs the same steps against a real host:
+`cargo run -p meldweb-git --example remote_e2e -- https://github.com/<o>/<r>.git "$(gh auth token)" <empty dir> [<clone>]`.
+On 2026-10-22 against a private github.com repo with a `gho_` token it
+adopted the remote, pushed a commit and a tag, had a raced push refused
+(`cannot lock ref 'refs/heads/main': is at … but expected …`), merged and
+pushed again, and a fresh `git clone` showed the merge and the tag.
+
+On 2026-10-22, 28 tests pass: 9 unit, 11 in `memory.rs`, 3 in
+`git_cli.rs` and 5 in `remote.rs`. Measured on 2026-10-21: a throwaway cdylib built for wasm32 at
 opt-level `z` with LTO calls init, commit, tag, history, merge_base and
 read_file. It is 325 KB, or 124 KB gzipped. `gix-date` pulls in `jiff` and
 `jiff-tzdb`, and `gix-utils` pulls in `prodash`. LTO drops the time zone

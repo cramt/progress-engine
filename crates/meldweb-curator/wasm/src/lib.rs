@@ -602,6 +602,30 @@ fn new_card(json: &str) -> Result<(deck::CardRef, Option<String>), JsError> {
     })
 }
 
+/// `ours` and `theirs`, both made from `base`, merged by lines; `None` when
+/// they changed the same lines differently. A refused save and a sync merge
+/// alike through this (ADR-0021, ADR-0041).
+#[wasm_bindgen]
+pub fn merge_lines(base: &str, ours: &str, theirs: &str) -> Option<String> {
+    meldweb_git::merge_lines(base, ours, theirs)
+}
+
+/// Whether a line merge that turned `theirs` into `merged` at `path` still
+/// leaves a file Progress Engine reads: what `commitMessageFor` in
+/// `web/src/github/repoFile.ts` asks of a merged save. A path no editor
+/// writes is only text.
+pub(crate) fn still_reads(path: &str, theirs: &str, merged: &str) -> bool {
+    let deck = path.starts_with("decks/")
+        && path.ends_with(".deck.toml")
+        && !path["decks/".len()..].contains('/');
+    match path {
+        "collection.toml" => collection::commit_message_for_text(theirs, merged, path).is_ok(),
+        "wanted.toml" => wanted::commit_message_for_text(theirs, merged, path).is_ok(),
+        _ if deck => changelog::commit_message_for_text(theirs, merged, path).is_ok(),
+        _ => true,
+    }
+}
+
 /// The commit message that saves `before` as `after` at `path`, per
 /// `chip_decklist::changelog`. An empty `before` is a deck's first save.
 #[wasm_bindgen]
@@ -2112,6 +2136,9 @@ mod tests {
         g.add_type::<repo::Snapshots>();
         g.add_type::<repo::Tagged>();
         g.add_type::<repo::Wrote>();
+        g.add_type::<repo::RemoteFacts>();
+        g.add_type::<repo::Synced>();
+        g.add_type::<repo::PushOutcome>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",

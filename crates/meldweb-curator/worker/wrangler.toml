@@ -1,6 +1,7 @@
 # Meldweb Curator's one Cloudflare Worker: the built site as static assets,
-# plus the four GitHub login routes under /api/auth/ and the card scanner's
-# engine files under /gitaxian-probe/. See README.md.
+# plus the four GitHub login routes under /api/auth/, the git relay under
+# /api/git/, and the card scanner's engine files under /gitaxian-probe/. See
+# README.md.
 #
 # CI deploys it on every push to main with `nix run .#deploy-curator`, which
 # ships just the worker and site. `nix run .#infra -- apply` from the repo root

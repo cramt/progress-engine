@@ -3,12 +3,22 @@
 //! OPFS and travels as a zip of the bare dir. Every object is a real git
 //! object, so `git` reads an exported repo and ids match across repos.
 //!
-//! It refuses packfiles, packed refs, the index, a working tree and network
-//! transport, and does no content merge.
+//! It refuses packfiles and packed refs on disk, the index and a working
+//! tree. It has one remote, `origin`, spoken to over git's smart HTTP
+//! protocol as pure functions over bytes ([`remote`]'s docs), and merges
+//! three-way by lines.
 
+mod merge;
 mod names;
+mod pack;
+mod pktline;
+mod remote;
 mod repo;
 mod store;
+
+pub use merge::{merge_lines, MergeFile, Side, TreeMerge};
+pub use pktline::PktError;
+pub use remote::{FetchRequest, Integrated, PushRequest, Pushed, RemoteStatus, RemoteUrl, ORIGIN};
 
 pub use names::{
     BlobId, BranchName, CommitId, Identity, Invalid, RepoPath, Signature, TagId, TagName,

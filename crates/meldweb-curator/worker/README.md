@@ -3,8 +3,9 @@
 Meldweb Curator's one Cloudflare Worker ([#123], designed in
 [github-login-static-site.md](../../../docs/research/github-login-static-site.md)).
 It serves the built site as static assets, trades a GitHub App login for
-tokens, and pipes the card scanner's engine files from ghcr.io (*The scanner's
-engine*). It stores nothing: the refresh token lives in a cookie, the access
+tokens, relays git's smart HTTP protocol between the browser's repo and its
+remote (*The git relay*), and pipes the card scanner's engine files from
+ghcr.io (*The scanner's engine*). It stores nothing: the refresh token lives in a cookie, the access
 token in the page's memory. It never proxies `api.github.com`; the page calls
 GitHub itself, which allows any origin.
 
@@ -138,9 +139,30 @@ and `wrangler dev --config crates/meldweb-curator/worker/wrangler.toml`. The
 GitHub App needs `http://localhost:8787/api/auth/callback` among its callback
 URLs for that.
 
+## The git relay
+
+The browser's repo pushes and fetches over git (ADR-0041), and no git host
+answers a browser's CORS preflight, so `src/git.ts` relays exactly git's
+three smart HTTP requests and nothing else:
+
+| Request | Goes to |
+|---|---|
+| `GET /api/git/<host>/<repo path>/info/refs?service=git-upload-pack` or `=git-receive-pack` | `https://<host>/<repo path>/info/refs?service=…` |
+| `POST /api/git/<host>/<repo path>/git-upload-pack` or `/git-receive-pack`, with git's request content type | `https://<host>/<repo path>/git-…` |
+
+The host must be on `GIT_HOSTS` (github.com, gitlab.com, codeberg.org; its
+comment says how to add one), the repo path two or more plain segments, and
+the method the request's own. Anything else is `404`, `405` or `415` without
+reaching a host. Only `Authorization`, `Git-Protocol`, `Content-Type`,
+`Accept` and `Content-Encoding` go up, bodies stream both ways, a redirect is
+`502` rather than followed, and a host's `401` challenge comes back as
+`X-Git-Authenticate` so the browser shows no login prompt of its own.
+`pnpm dev` mounts the same handler (`devGitRelay` in `web/scripts/dev-auth.ts`).
+
 ## Testing
 
-`pnpm test` (vitest) runs the four routes end to end against a mocked GitHub
+`pnpm test` (vitest) runs the relay against a stubbed host, and the four
+login routes end to end against a mocked GitHub
 token endpoint that enforces single-use codes, S256 PKCE and single-use
 refresh tokens, and fails any call to another GitHub URL. `pnpm check` is
 biome and tsc. Both run from the repo root for every workspace package, and in

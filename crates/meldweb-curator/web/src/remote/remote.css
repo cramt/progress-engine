@@ -1,0 +1,22 @@
+/* Bottom left, so it never covers the copy's status in the other corner. */
+.sync-status {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: grid;
+  gap: 6px;
+  max-width: 360px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-remote-steps {
+  margin: 0;
+  padding-left: 1.2em;
+}

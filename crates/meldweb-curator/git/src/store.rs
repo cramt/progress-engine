@@ -161,7 +161,11 @@ mod fs {
         fn read(&self, path: &str) -> io::Result<Option<Vec<u8>>> {
             match std::fs::read(self.at(path)) {
                 Ok(bytes) => Ok(Some(bytes)),
-                Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
+                // `refs/heads/a` is a directory once `a/b` exists, and a
+                // directory holds no file of that name.
+                Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::IsADirectory) => {
+                    Ok(None)
+                }
                 Err(e) => Err(e),
             }
         }

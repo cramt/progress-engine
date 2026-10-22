@@ -2,6 +2,56 @@
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
 /**
+ * What a push came to, ref by ref.
+ */
+export interface PushOutcome {
+  updated: string[];
+  rejected: Refused[];
+}
+
+export interface Refused {
+  ref: string;
+  reason: string;
+}
+
+/**
+ * What bringing the remote's `main` into this one came to; see
+ * `meldweb_git::Integrated`.
+ */
+export type Synced =
+  | { kind: "remoteEmpty" }
+  | { kind: "upToDate" }
+  | { kind: "ahead" }
+  | { kind: "fastForwarded"; to: string }
+  | { kind: "adopted"; to: string }
+  | { kind: "merged"; commit: string; taken: string[] }
+  | { kind: "conflict"; paths: string[] }
+  | { kind: "unrelated" };
+
+/**
+ * The remote, and what is waiting to go to it or come from it, as the
+ * settings page shows them.
+ */
+export interface RemoteFacts {
+  /**
+   * `origin`'s URL; absent when the repo has no remote.
+   */
+  url?: string;
+  /**
+   * Commits on `main` the remote's `main` lacks, as last fetched.
+   */
+  ahead: number;
+  /**
+   * Commits on the remote's `main`, as last fetched, that `main` lacks.
+   */
+  behind: number;
+  /**
+   * Snapshots here the remote lacks.
+   */
+  tags: number;
+}
+
+/**
  * What a write to the default branch came to.
  */
 export type Wrote =

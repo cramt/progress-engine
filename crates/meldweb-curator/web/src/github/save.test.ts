@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { settled } from "./repoFile";
 import {
   createSaveStore,
@@ -7,7 +15,10 @@ import {
   type PageEvents,
   type SaveStore,
 } from "./save";
-import { mockConnection } from "./testkit";
+import { loadWasm, mockConnection } from "./testkit";
+
+// The line merge is the wasm's.
+beforeAll(loadWasm);
 
 // `commitMessage` is the edits agent's wasm (#124); the save only needs the
 // name, so it is stubbed through the same module the app imports.

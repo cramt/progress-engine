@@ -1,9 +1,11 @@
 // Meldweb Curator's one worker: the built site as static assets, the four
-// GitHub login routes, and the card scanner's engine files, piped from the
-// archive on ghcr.io. It stores nothing and never proxies api.github.com;
-// the page calls GitHub itself with the access token these routes hand it.
+// GitHub login routes, a relay for git's smart HTTP protocol to the browser
+// repo's remote, and the card scanner's engine files, piped from the archive
+// on ghcr.io. It stores nothing and never proxies api.github.com; the page
+// calls GitHub's API itself with the access token these routes hand it.
 
 import { type AuthEnv, handleAuth } from "./auth";
+import { GIT_PREFIX, handleGit } from "./git";
 import { handleProbe, PREFIX } from "./probe";
 
 export interface Env extends AuthEnv {
@@ -18,6 +20,7 @@ export default {
     ctx: { waitUntil(promise: Promise<unknown>): void },
   ): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname.startsWith(GIT_PREFIX)) return handleGit(request);
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
       return handleAuth(request, env);
     }

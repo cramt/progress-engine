@@ -2354,6 +2354,7 @@ dependencies = [
  "gix-validate",
  "tempfile",
  "thiserror",
+ "ureq",
 ]
 
 [[package]]

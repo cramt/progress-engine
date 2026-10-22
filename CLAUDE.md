@@ -39,18 +39,24 @@ made empty on the first visit with no login: `meldweb-git`
 `meldweb-wasm`'s `GitRepo` runs it in a worker (`web/src/repo/`), every page
 going through one `Repo` interface (`web/src/repo/api.ts`). Settings sets the
 commits' author for this browser and exports or imports the repo as a zip
-that `git clone` reads once unzipped. It is four
+that `git clone` reads once unzipped. The repo may have one remote, `origin`
+in its `config`: settings adds it on GitHub (the App's login and the `mtg`
+onboarding moved there), and `web/src/remote/` syncs with it on open, on
+focus and after saves, over git's smart HTTP protocol, which `meldweb-git`
+speaks as pure functions over bytes and the worker's `/api/git/` relays to
+an allowlist of hosts, never through a host's REST API. It is four
 parts: `meldweb-wasm`, which is `chip-decklist` and the repo compiled for the browser;
 `meldweb-git`; `web/`, a
 Vite + React + TanStack Router app in the root pnpm workspace; and `worker/`, the
 one Cloudflare Worker that serves the site and trades a GitHub login for tokens
 without storing anything (CI deploys its code on every push to `main`; the domain and secret are `nix run .#infra -- apply`, an OpenTofu stack in `crates/meldweb-curator/infra/`).
 Plain `pnpm dev` and every build keep the repo in the browser; nothing on the
-default path reaches GitHub but a trade's or a friend's public collection.
+default path reaches GitHub but a trade's or a friend's public collection,
+and the remote once one is added (`pnpm dev` serves the relay too).
 `VITE_MOCK_GITHUB=1 pnpm dev` runs the app against an in-page fake GitHub
 instead (`=no-repo` or `=no-install` start at onboarding), so no worker or app is
-needed. The real GitHub client and the worker's login stay for GitHub as a
-remote: `MELDWEB_DEV_AUTH=1 pnpm dev` runs the worker's auth routes inside Vite
+needed. The GitHub REST client only finds the `mtg` repo, and the worker's login
+is the remote's: `MELDWEB_DEV_AUTH=1 pnpm dev` runs the worker's auth routes inside Vite
 on localhost:5173 with the client secret from 1Password
 (`web/scripts/dev-auth.ts`). Card facts come
 from the browser's own copy of Scryfall's bulk data, built and searched by

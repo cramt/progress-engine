@@ -64,6 +64,9 @@ pub enum Error {
     DeleteMissing(RepoPath),
     #[error("{0} is changed twice in one commit")]
     DuplicatePath(RepoPath),
+    /// The remote, or what it answered, is not what git's protocol allows.
+    #[error("{0}")]
+    Remote(String),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -204,12 +207,12 @@ pub struct TagInfo {
 }
 
 /// A tree being edited: untouched subtrees stay ids and are never read.
-enum Dir {
+pub(crate) enum Dir {
     Unchanged(TreeId),
     Edited(BTreeMap<BString, Node>),
 }
 
-enum Node {
+pub(crate) enum Node {
     Leaf { mode: EntryMode, id: ObjectId },
     Dir(Dir),
 }
@@ -275,14 +278,23 @@ impl<S: Store> Repo<S> {
         BranchName::new(name).map_err(|e| corrupt("HEAD", e))
     }
 
+    /// A file of the git dir itself, such as `config`.
+    pub(crate) fn read_file_in_git_dir(&self, path: &str) -> Result<Option<Vec<u8>>> {
+        st(self.store.read(path))
+    }
+
+    pub(crate) fn write_file_in_git_dir(&mut self, path: &str, bytes: &[u8]) -> Result<()> {
+        st(self.store.write(path, bytes))
+    }
+
     // Objects.
 
-    fn object_path(id: &ObjectId) -> String {
+    pub(crate) fn object_path(id: &ObjectId) -> String {
         let hex = id.to_string();
         format!("objects/{}/{}", &hex[..2], &hex[2..])
     }
 
-    fn write_object(&mut self, kind: Kind, data: &[u8]) -> Result<ObjectId> {
+    pub(crate) fn write_object(&mut self, kind: Kind, data: &[u8]) -> Result<ObjectId> {
         let id = gix_object::compute_hash(SHA1, kind, data).map_err(|e| corrupt("an object", e))?;
         let path = Self::object_path(&id);
         if st(self.store.read(&path))?.is_some() {
@@ -305,7 +317,8 @@ impl<S: Store> Repo<S> {
         self.write_object(object.kind(), &data)
     }
 
-    fn read_object(&self, id: &ObjectId, expected: Kind) -> Result<Vec<u8>> {
+    /// The object's kind and data, its hash checked.
+    fn read_raw(&self, id: &ObjectId) -> Result<(Kind, Vec<u8>)> {
         let Some(compressed) = st(self.store.read(&Self::object_path(id)))? else {
             if !st(self.store.list("objects/pack"))?.is_empty() {
                 return Err(Error::Unsupported(Unsupported::Packfile));
@@ -329,6 +342,11 @@ impl<S: Store> Repo<S> {
         if actual != *id {
             return Err(corrupt(id, format!("its content hashes to {actual}")));
         }
+        Ok((kind, data))
+    }
+
+    pub(crate) fn read_object(&self, id: &ObjectId, expected: Kind) -> Result<Vec<u8>> {
+        let (kind, data) = self.read_raw(id)?;
         if kind != expected {
             return Err(Error::WrongKind {
                 id: *id,
@@ -337,6 +355,18 @@ impl<S: Store> Repo<S> {
             });
         }
         Ok(data)
+    }
+
+    /// The object's kind and data, or `None` when the repo lacks it.
+    pub(crate) fn read_any(&self, id: &ObjectId) -> Result<Option<(Kind, Vec<u8>)>> {
+        if !self.has_object(id)? {
+            return Ok(None);
+        }
+        self.read_raw(id).map(Some)
+    }
+
+    pub(crate) fn has_object(&self, id: &ObjectId) -> Result<bool> {
+        Ok(st(self.store.read(&Self::object_path(id)))?.is_some())
     }
 
     pub fn read_blob(&self, id: &BlobId) -> Result<Vec<u8>> {
@@ -364,19 +394,19 @@ impl<S: Store> Repo<S> {
         })
     }
 
-    fn parents(&self, id: &CommitId) -> Result<Vec<CommitId>> {
+    pub(crate) fn parents(&self, id: &CommitId) -> Result<Vec<CommitId>> {
         let data = self.read_object(&id.0, Kind::Commit)?;
         let commit = CommitRef::from_bytes(&data, SHA1).map_err(|e| corrupt(id, e))?;
         Ok(commit.parents().map(CommitId).collect())
     }
 
-    fn tree_of(&self, id: &CommitId) -> Result<TreeId> {
+    pub(crate) fn tree_of(&self, id: &CommitId) -> Result<TreeId> {
         let data = self.read_object(&id.0, Kind::Commit)?;
         let commit = CommitRef::from_bytes(&data, SHA1).map_err(|e| corrupt(id, e))?;
         Ok(TreeId(commit.tree()))
     }
 
-    fn tree_entries(&self, id: &TreeId) -> Result<Vec<(BString, EntryMode, ObjectId)>> {
+    pub(crate) fn tree_entries(&self, id: &TreeId) -> Result<Vec<(BString, EntryMode, ObjectId)>> {
         let data = self.read_object(&id.0, Kind::Tree)?;
         let tree = TreeRef::from_bytes(&data, SHA1).map_err(|e| corrupt(id, e))?;
         Ok(tree
@@ -513,7 +543,7 @@ impl<S: Store> Repo<S> {
         Ok(())
     }
 
-    fn write_dir(&mut self, dir: Dir) -> Result<TreeId> {
+    pub(crate) fn write_dir(&mut self, dir: Dir) -> Result<TreeId> {
         let entries = match dir {
             Dir::Unchanged(id) => return Ok(id),
             Dir::Edited(entries) => entries,
@@ -607,7 +637,7 @@ impl<S: Store> Repo<S> {
         Ok(())
     }
 
-    fn read_ref(&self, path: &str) -> Result<Option<ObjectId>> {
+    pub(crate) fn read_ref(&self, path: &str) -> Result<Option<ObjectId>> {
         self.packed_refs_refused()?;
         let Some(bytes) = st(self.store.read(path))? else {
             return Ok(None);
@@ -621,7 +651,7 @@ impl<S: Store> Repo<S> {
             .map_err(|e| corrupt(path, e))
     }
 
-    fn check_ref(&self, path: &str, expected: Option<ObjectId>) -> Result<()> {
+    pub(crate) fn check_ref(&self, path: &str, expected: Option<ObjectId>) -> Result<()> {
         let found = self.read_ref(path)?;
         if found != expected {
             return Err(Error::Conflict {
@@ -634,7 +664,7 @@ impl<S: Store> Repo<S> {
     }
 
     /// Point `path` at `new` (or remove it) if it is at `expected` now.
-    fn swap_ref(
+    pub(crate) fn swap_ref(
         &mut self,
         path: &str,
         expected: Option<ObjectId>,
@@ -670,7 +700,7 @@ impl<S: Store> Repo<S> {
         Ok(())
     }
 
-    fn refs_under(&self, dir: &str) -> Result<Vec<(String, ObjectId)>> {
+    pub(crate) fn refs_under(&self, dir: &str) -> Result<Vec<(String, ObjectId)>> {
         self.packed_refs_refused()?;
         let prefix = format!("{dir}/");
         st(self.store.list(dir))?
@@ -844,7 +874,7 @@ impl<S: Store> Repo<S> {
         Ok(out)
     }
 
-    fn ancestors(
+    pub(crate) fn ancestors(
         &self,
         from: &[CommitId],
         cache: &mut HashMap<CommitId, Vec<CommitId>>,

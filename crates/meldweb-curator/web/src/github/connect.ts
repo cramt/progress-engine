@@ -12,9 +12,12 @@
  * reload keeps its commits, and it is on `window.__mockGitHub` for
  * simulating an edit on github.com from the console.
  *
- * The real GitHub client stays (`createGitHubApi`), but nothing here builds
- * it: GitHub comes back as a remote, which pushes and fetches over git.
+ * The browser's repo may have a remote, which pushes and fetches over git
+ * (`src/remote/`); GitHub is its first host, whose login and onboarding
+ * live in settings. The REST client (`createGitHubApi`) only finds the
+ * `mtg` repo there.
  */
+import type { Remote } from "../remote";
 import type { LocalRepo } from "../repo/local";
 import {
   createGitHubApi,
@@ -30,6 +33,8 @@ export type Connection =
   | {
       kind: "local";
       repo: LocalRepo;
+      /** Its remote, and keeping the two in step. */
+      remote: Remote;
       /** Other players' public repos on GitHub, read without a login to trade. */
       others: PublicRepos;
     }
@@ -53,10 +58,15 @@ export function connect(): Promise<Connection> {
 async function choose(): Promise<Connection> {
   const mode = import.meta.env.VITE_MOCK_GITHUB;
   if (!mode) {
-    const { openLocalRepo } = await import("../repo/browser");
+    const [{ openLocalRepo }, { createRemote }] = await Promise.all([
+      import("../repo/browser"),
+      import("../remote"),
+    ]);
+    const repo = openLocalRepo();
     return {
       kind: "local",
-      repo: openLocalRepo(),
+      repo,
+      remote: createRemote(repo),
       others: createPublicRepos(),
     };
   }

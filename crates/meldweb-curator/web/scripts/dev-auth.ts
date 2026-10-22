@@ -12,6 +12,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 import { type AuthEnv, handleAuth } from "../../worker/src/auth.ts";
+import { GIT_PREFIX, handleGit } from "../../worker/src/git.ts";
 
 export const DEV_PORT = 5173;
 export const DEV_ORIGIN = `http://localhost:${DEV_PORT}`;
@@ -124,6 +125,31 @@ export function devAuth(): Plugin {
         if (!req.url?.startsWith("/api/")) return next();
         toRequest(req)
           .then((request) => handleAuth(request, env))
+          .then((response) => send(res, response))
+          .catch(next);
+      });
+    },
+  };
+}
+
+/**
+ * The worker's git relay inside `pnpm dev`, so the browser's repo can sync
+ * with a remote from the dev server as it does from the site. It is the
+ * worker's own `handleGit`, which needs no secret.
+ */
+export function devGitRelay(): Plugin {
+  let enabled = false;
+  return {
+    name: "meldweb-dev-git-relay",
+    config(_, { command, mode }) {
+      enabled = command === "serve" && mode !== "test";
+    },
+    configureServer(server) {
+      if (!enabled) return;
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith(GIT_PREFIX)) return next();
+        toRequest(req)
+          .then((request) => handleGit(request))
           .then((response) => send(res, response))
           .catch(next);
       });

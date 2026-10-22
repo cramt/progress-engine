@@ -34,6 +34,10 @@ async function resolve(): Promise<Session> {
   if (connection.kind === "local") {
     const opened = await openMagicRepo(connection.repo);
     if (opened.kind === "refused") return opened;
+    // After VERSION is written, so a fresh repo's one commit is there to
+    // be replaced by a remote's history.
+    const { startSync } = await import("../remote");
+    startSync(connection.remote.sync);
     return {
       kind: "open",
       repo: connection.repo,

@@ -20,6 +20,7 @@ export const Route = createFileRoute("/settings")({
       file,
       repo: session.repo,
       local: connection.kind === "local" ? connection.repo : null,
+      remote: connection.kind === "local" ? connection.remote : null,
     };
   },
   // Never reopen from a cached read: its sha would be stale.
@@ -38,6 +39,7 @@ function SettingsPage() {
       sha={data.file?.sha ?? null}
       repo={data.repo}
       local={data.local}
+      remote={data.remote}
     />
   );
 }

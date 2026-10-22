@@ -19,8 +19,9 @@ use std::io::{Cursor, Read, Write};
 
 use facet::Facet;
 use meldweb_git::{
-    BlobId, BranchName, Change, CommitId, EntryKind, Error, Identity, MemStore, Repo, RepoPath,
-    Signature, Store, TagKind, TagName, Timestamp, Tip, Unsupported, WriteCommit,
+    BlobId, BranchName, Change, CommitId, EntryKind, Error, FetchRequest, Identity, Integrated,
+    MemStore, PushRequest, RemoteUrl, Repo, RepoPath, Side, Signature, Store, TagKind, TagName,
+    Timestamp, Tip, Unsupported, WriteCommit,
 };
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
 
@@ -209,6 +210,63 @@ pub enum Tagged {
     Conflict {
         message: String,
     },
+}
+
+/// The remote, and what is waiting to go to it or come from it, as the
+/// settings page shows them.
+#[derive(Debug, Facet)]
+#[facet(rename_all = "camelCase")]
+pub struct RemoteFacts {
+    /// `origin`'s URL; absent when the repo has no remote.
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub url: Option<String>,
+    /// Commits on `main` the remote's `main` lacks, as last fetched.
+    pub ahead: u32,
+    /// Commits on the remote's `main`, as last fetched, that `main` lacks.
+    pub behind: u32,
+    /// Snapshots here the remote lacks.
+    pub tags: u32,
+}
+
+/// What bringing the remote's `main` into this one came to; see
+/// `meldweb_git::Integrated`.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum Synced {
+    RemoteEmpty,
+    UpToDate,
+    Ahead,
+    FastForwarded {
+        to: String,
+    },
+    Adopted {
+        to: String,
+    },
+    Merged {
+        commit: String,
+        taken: Vec<String>,
+    },
+    /// Nothing moved; each path changed here and on the remote in the same
+    /// lines, or into something that is no longer a file of its kind.
+    Conflict {
+        paths: Vec<String>,
+    },
+    Unrelated,
+}
+
+#[derive(Debug, Facet)]
+pub struct Refused {
+    #[facet(rename = "ref")]
+    pub reference: String,
+    pub reason: String,
+}
+
+/// What a push came to, ref by ref.
+#[derive(Debug, Facet)]
+pub struct PushOutcome {
+    pub updated: Vec<String>,
+    pub rejected: Vec<Refused>,
 }
 
 type Out<T> = Result<T, String>;
@@ -677,6 +735,101 @@ impl Local {
         })
     }
 
+    pub fn remote(&self) -> Out<RemoteFacts> {
+        let repo = self.repo()?;
+        let url = repo.remote().map_err(said)?;
+        let status = match url {
+            Some(_) => repo.remote_status().map_err(said)?,
+            None => Default::default(),
+        };
+        let n = |x: usize| u32::try_from(x).unwrap_or(u32::MAX);
+        Ok(RemoteFacts {
+            url: url.map(|u| u.as_str().to_owned()),
+            ahead: n(status.ahead),
+            behind: n(status.behind),
+            tags: n(status.tags),
+        })
+    }
+
+    pub fn set_remote(&mut self, url: &str) -> Out<()> {
+        let url = RemoteUrl::new(url).map_err(said)?;
+        self.repo_mut()?.set_remote(&url).map_err(said)
+    }
+
+    pub fn remove_remote(&mut self) -> Out<()> {
+        self.repo_mut()?.remove_remote().map_err(said)
+    }
+
+    /// The body of `POST git-upload-pack`, or `None` when this repo holds
+    /// everything the advertisement names.
+    pub fn fetch_request(&self, advertised: &[u8]) -> Out<Option<Vec<u8>>> {
+        match self.repo()?.fetch_request(advertised).map_err(said)? {
+            FetchRequest::HaveAll => Ok(None),
+            FetchRequest::Want(body) => Ok(Some(body)),
+        }
+    }
+
+    pub fn fetch_finish(&mut self, advertised: &[u8], response: Option<&[u8]>) -> Out<()> {
+        self.repo_mut()?
+            .fetch_finish(advertised, response)
+            .map_err(said)
+    }
+
+    /// Brings the fetched `main` in. A path both sides changed merges by
+    /// lines, and only when what that makes is still a file Progress Engine
+    /// reads, as a refused save merges (ADR-0021).
+    pub fn integrate(&mut self, who: &Who, prefer: Option<Side>) -> Out<Synced> {
+        let signed = signature(who)?;
+        let mut merge_file = |path: &str, base: &[u8], ours: &[u8], theirs: &[u8]| {
+            fn text(b: &[u8]) -> Option<&str> {
+                std::str::from_utf8(b).ok()
+            }
+            let merged = meldweb_git::merge_lines(text(base)?, text(ours)?, text(theirs)?)?;
+            crate::still_reads(path, text(theirs)?, &merged).then(|| merged.into_bytes())
+        };
+        let outcome = self
+            .repo_mut()?
+            .integrate(&signed, prefer, &mut merge_file)
+            .map_err(said)?;
+        Ok(match outcome {
+            Integrated::RemoteEmpty => Synced::RemoteEmpty,
+            Integrated::UpToDate => Synced::UpToDate,
+            Integrated::Ahead => Synced::Ahead,
+            Integrated::FastForwarded { to } => Synced::FastForwarded { to: to.to_hex() },
+            Integrated::Adopted { to } => Synced::Adopted { to: to.to_hex() },
+            Integrated::Merged { commit, taken } => Synced::Merged {
+                commit: commit.to_hex(),
+                taken,
+            },
+            Integrated::Conflict { paths } => Synced::Conflict { paths },
+            Integrated::Unrelated => Synced::Unrelated,
+        })
+    }
+
+    pub fn adopt_remote(&mut self) -> Out<()> {
+        self.repo_mut()?.adopt_remote().map_err(said)
+    }
+
+    pub fn push_request(&self, advertised: &[u8]) -> Out<Outgoing> {
+        Ok(match self.repo()?.push_request(advertised).map_err(said)? {
+            PushRequest::Nothing => Outgoing::new("nothing", vec![]),
+            PushRequest::Behind => Outgoing::new("behind", vec![]),
+            PushRequest::Send(body) => Outgoing::new("send", body),
+        })
+    }
+
+    pub fn push_finish(&mut self, sent: &[u8], response: &[u8]) -> Out<PushOutcome> {
+        let pushed = self.repo_mut()?.push_finish(sent, response).map_err(said)?;
+        Ok(PushOutcome {
+            updated: pushed.updated,
+            rejected: pushed
+                .rejected
+                .into_iter()
+                .map(|(reference, reason)| Refused { reference, reason })
+                .collect(),
+        })
+    }
+
     /// The bare repo as a zip that `unzip` and then `git` read: every file,
     /// and the directories git needs even when they are empty.
     pub fn export_zip(&self) -> Out<Vec<u8>> {
@@ -989,6 +1142,91 @@ impl GitRepo {
 
     pub fn export_zip(&self) -> Result<Vec<u8>, JsError> {
         js(self.0.export_zip())
+    }
+
+    /// [`RemoteFacts`].
+    pub fn remote(&self) -> Result<String, JsError> {
+        js(self.0.remote()).map(|r| json(&r))
+    }
+
+    pub fn set_remote(&mut self, url: &str) -> Result<(), JsError> {
+        js(self.0.set_remote(url))
+    }
+
+    pub fn remove_remote(&mut self) -> Result<(), JsError> {
+        js(self.0.remove_remote())
+    }
+
+    /// The body to POST to `git-upload-pack`, or nothing when no POST is
+    /// needed; either way [`GitRepo::fetch_finish`] follows.
+    pub fn fetch_request(&self, advertised: &[u8]) -> Result<Option<Vec<u8>>, JsError> {
+        js(self.0.fetch_request(advertised))
+    }
+
+    pub fn fetch_finish(
+        &mut self,
+        advertised: &[u8],
+        response: Option<Vec<u8>>,
+    ) -> Result<(), JsError> {
+        js(self.0.fetch_finish(advertised, response.as_deref()))
+    }
+
+    /// [`Synced`]; `who` is a [`Who`], `prefer` `"ours"` or `"theirs"` for a
+    /// conflict the user settled.
+    pub fn integrate(&mut self, who: &str, prefer: Option<String>) -> Result<String, JsError> {
+        let who = who_of(who)?;
+        let prefer = match prefer.as_deref() {
+            None => None,
+            Some("ours") => Some(Side::Ours),
+            Some("theirs") => Some(Side::Theirs),
+            Some(other) => return Err(JsError::new(&format!("{other} is not a side"))),
+        };
+        js(self.0.integrate(&who, prefer)).map(|r| json(&r))
+    }
+
+    pub fn adopt_remote(&mut self) -> Result<(), JsError> {
+        js(self.0.adopt_remote())
+    }
+
+    pub fn push_request(&self, advertised: &[u8]) -> Result<Outgoing, JsError> {
+        js(self.0.push_request(advertised))
+    }
+
+    /// [`PushOutcome`].
+    pub fn push_finish(&mut self, sent: &[u8], response: &[u8]) -> Result<String, JsError> {
+        js(self.0.push_finish(sent, response)).map(|r| json(&r))
+    }
+}
+
+/// What a push's ref advertisement came to: `kind` is `"nothing"`,
+/// `"behind"` (fetch and integrate first) or `"send"`, with `body` the
+/// request to POST to `git-receive-pack`.
+#[wasm_bindgen]
+#[derive(Debug)]
+pub struct Outgoing {
+    kind: String,
+    body: Vec<u8>,
+}
+
+impl Outgoing {
+    fn new(kind: &str, body: Vec<u8>) -> Self {
+        Self {
+            kind: kind.to_owned(),
+            body,
+        }
+    }
+}
+
+#[wasm_bindgen]
+impl Outgoing {
+    #[wasm_bindgen(getter)]
+    pub fn kind(&self) -> String {
+        self.kind.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn body(&self) -> Vec<u8> {
+        self.body.clone()
     }
 }
 
@@ -1461,6 +1699,19 @@ mod tests {
             std::fs::read_to_string(dir.path().join("c/VERSION")).unwrap(),
             "2\n"
         );
+    }
+
+    #[test]
+    fn a_line_merge_that_is_no_longer_a_deck_does_not_count() {
+        let deck = "name = \"Lantern\"\ncards = []\n";
+        assert!(crate::still_reads("decks/lantern.deck.toml", deck, deck));
+        assert!(!crate::still_reads(
+            "decks/lantern.deck.toml",
+            deck,
+            "name = \"Lantern\"\ncards = [\n"
+        ));
+        // A file no editor writes is only text.
+        assert!(crate::still_reads("notes.txt", "a", "cards = ["));
     }
 
     #[test]

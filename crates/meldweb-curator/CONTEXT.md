@@ -88,7 +88,15 @@ The commit that carries a deck's (or the collection's) pending edits to the Magi
 _Avoid_: sync, push
 
 **Conflict**:
-A save refused because the deck changed in the Magic repo since Curator loaded it: another tab or device saved it first. Saving stops until the user chooses to reload or overwrite; nothing is merged or lost silently.
+A save refused because the deck changed in the Magic repo since Curator loaded it: another tab or device saved it first. Saving stops until the user chooses to reload or overwrite; nothing is merged or lost silently. A sync has the same: a file changed here and on the remote in the same lines stops syncing until the user reloads it from the remote or overwrites the remote's.
+
+**Remote**:
+The one git repository on a host that the Magic repo syncs with, `origin` in its config, added in the settings ([ADR-0041](../../docs/adr/0041-a-deck-is-a-line-of-history-and-the-repo-lives-in-the-browser.md)). Optional: a repo with none is only in the browser and its zips. GitHub is the only host Curator logs in to so far; its remote is the user's `mtg` repo.
+_Avoid_: backend, server, cloud
+
+**Sync**:
+Bringing the remote's commits into the Magic repo and pushing the Magic repo's to it, over git's own protocol. It runs on opening a page, on coming back to one, and a few seconds after a save. Only the remote moved: a fast-forward; both moved: a merge commit, merging each file by lines from the merge base.
+_Avoid_: save (a save is a local commit), backup
 
 **Import** / **Copy for**:
 Archidekt text into a deck, and a deck out as the text one tool imports: Archidekt, Cockatrice, Cardmarket or Tabletop Simulator, an entry each however alike their formats are. The Archidekt text is read and written the way Archidekt itself reads it ([archidekt-import-shapes.md](../../docs/research/archidekt-import-shapes.md)). Cockatrice gets each printing it can read back and the commander, companion and sideboard as `SB:` lines, having no commander zone; Cardmarket, for a wants list, one line a card by name with the copies summed; Tabletop Simulator's importer, every printing under `Commander`, `Deck` and `Sideboard` headings, the companion in the sideboard. The maybeboard and cards set aside go to none of them.

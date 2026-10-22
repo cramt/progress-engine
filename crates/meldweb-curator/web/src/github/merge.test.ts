@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { mergeLines } from "./merge";
+import { loadWasm } from "./testkit";
+
+// The line merge is the wasm's.
+beforeAll(loadWasm);
 
 const lines = (...l: string[]) => `${l.join("\n")}\n`;
 const BASE = lines("cards = [", "  a,", "  b,", "  c,", "  d,", "]");

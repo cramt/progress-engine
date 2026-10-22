@@ -22,6 +22,8 @@ import { createSaveStore } from "../github/save";
 import { SETTINGS_PATH } from "../github/settings";
 import { useSave } from "../github/useSave";
 import { useHistory, useUndoKeys } from "../history";
+import type { Remote } from "../remote";
+import { RemoteSettings } from "../remote/RemoteSettings";
 import type { Repo } from "../repo/api";
 import type { LocalRepo } from "../repo/local";
 import { CloseIcon, PlusIcon } from "../ui/icons";
@@ -59,9 +61,12 @@ export function SettingsEditor({
   sha,
   repo,
   local,
+  remote,
 }: {
   /** The browser's repo, whose author and zip this page also keeps. */
   local: LocalRepo | null;
+  /** That repo's remote, which this page adds, shows and removes. */
+  remote: Remote | null;
   /** The repo's `meldweb.toml`, null when it has none. */
   text: string | null;
   sha: string | null;
@@ -332,6 +337,7 @@ export function SettingsEditor({
             )}
           </section>
           {local && <ThisBrowser repo={local} />}
+          {remote && <RemoteSettings remote={remote} />}
           <CopySource />
         </div>
         <PinsProvider pins={editable ? pinsHere : null}>

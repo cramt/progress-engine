@@ -25,9 +25,12 @@ import type {
   FileRead,
   Journal,
   Listing,
+  PushOutcome,
+  RemoteFacts,
   RevisionRead,
   Revisions,
   Snapshots,
+  Synced,
   TagFacts,
   Tagged,
   Who,
@@ -83,7 +86,30 @@ export type Request =
       who: Who;
     }
   | { kind: "exportZip" }
-  | { kind: "importZip"; bytes: Uint8Array };
+  | { kind: "importZip"; bytes: Uint8Array }
+  | { kind: "remote" }
+  | { kind: "setRemote"; url: string }
+  | { kind: "removeRemote" }
+  | { kind: "fetchRequest"; advertised: Uint8Array }
+  | {
+      kind: "fetchFinish";
+      advertised: Uint8Array;
+      response: Uint8Array | null;
+    }
+  | { kind: "integrate"; who: Who; prefer?: Side }
+  | { kind: "adoptRemote" }
+  | { kind: "pushRequest"; advertised: Uint8Array }
+  | { kind: "pushFinish"; sent: Uint8Array; response: Uint8Array };
+
+/** Which side a path both sides changed takes, once the user has chosen. */
+export type Side = "ours" | "theirs";
+
+/** What a push's ref advertisement came to; see `GitRepo.push_request`. */
+export type PushPlan =
+  | { kind: "nothing" }
+  /** The remote's main has commits this repo has not merged. */
+  | { kind: "behind" }
+  | { kind: "send"; body: Uint8Array };
 
 export interface Results {
   getFile: FileAt | null;
@@ -98,6 +124,15 @@ export interface Results {
   deleteFile: null;
   exportZip: Uint8Array;
   importZip: null;
+  remote: RemoteFacts;
+  setRemote: null;
+  removeRemote: null;
+  fetchRequest: Uint8Array | null;
+  fetchFinish: null;
+  integrate: Synced;
+  adoptRemote: null;
+  pushRequest: PushPlan;
+  pushFinish: PushOutcome;
 }
 
 export type Kind = Request["kind"];
@@ -352,6 +387,50 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
         });
       case "exportZip":
         return reading((g) => done(g.export_zip()));
+      case "remote":
+        return reading((g) => done(JSON.parse(g.remote()) as RemoteFacts));
+      case "setRemote":
+        return writing((g) => {
+          g.set_remote(r.url);
+          return done(null);
+        });
+      case "removeRemote":
+        return writing((g) => {
+          g.remove_remote();
+          return done(null);
+        });
+      case "fetchRequest":
+        return reading((g) => done(g.fetch_request(r.advertised) ?? null));
+      case "fetchFinish":
+        return writing((g) => {
+          g.fetch_finish(r.advertised, r.response ?? undefined);
+          return done(null);
+        });
+      case "integrate":
+        return writing((g) =>
+          done(
+            JSON.parse(g.integrate(JSON.stringify(r.who), r.prefer)) as Synced,
+          ),
+        );
+      case "adoptRemote":
+        return writing((g) => {
+          g.adopt_remote();
+          return done(null);
+        });
+      case "pushRequest":
+        return reading((g) => {
+          const plan = g.push_request(r.advertised);
+          const kind = plan.kind;
+          const body = plan.body;
+          plan.free();
+          if (kind === "send") return done({ kind, body });
+          if (kind === "behind" || kind === "nothing") return done({ kind });
+          throw new Error(`a push plan of kind ${kind}`);
+        });
+      case "pushFinish":
+        return writing((g) =>
+          done(JSON.parse(g.push_finish(r.sent, r.response)) as PushOutcome),
+        );
       case "importZip":
         return lock("exclusive", async () => {
           // Refused before storage is touched: a zip that is no repo, or one
@@ -397,12 +476,40 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
   };
 }
 
+/**
+ * The steps of talking to the repo's one remote, `origin`, each atomic in the
+ * repo's worker: the bytes are git's smart HTTP protocol, which the caller
+ * carries to the host and back (`src/remote/`). Rust decides everything in
+ * between; see `meldweb-git`'s `remote` module.
+ */
+export interface RemoteSteps {
+  /** The remote's URL, and what waits to go to it or come from it. */
+  facts(): Promise<RemoteFacts>;
+  setRemote(url: string): Promise<void>;
+  /** Forgets the remote and what was tracked of it; the repo stays. */
+  removeRemote(): Promise<void>;
+  /** The body to POST to git-upload-pack, or null when nothing is wanted. */
+  fetchRequest(advertised: Uint8Array): Promise<Uint8Array | null>;
+  /** Writes what the remote sent, and tracks its refs. */
+  fetchFinish(
+    advertised: Uint8Array,
+    response: Uint8Array | null,
+  ): Promise<void>;
+  /** Brings the fetched main into main: fast-forward, adopt or merge. */
+  integrate(prefer?: Side): Promise<Synced>;
+  /** Replaces this repo's branches and tags with the remote's. */
+  adoptRemote(): Promise<void>;
+  pushRequest(advertised: Uint8Array): Promise<PushPlan>;
+  pushFinish(sent: Uint8Array, response: Uint8Array): Promise<PushOutcome>;
+}
+
 /** The browser's repo as a page holds it, with what only it can do. */
 export interface LocalRepo extends Repo {
   /** The bare repo, zipped, as `git clone` reads it once unzipped. */
   exportZip(): Promise<Uint8Array>;
   /** Replaces the repo with the bare repo zipped in `bytes`; throws when it is refused. */
   importZip(bytes: Uint8Array): Promise<void>;
+  readonly remote: RemoteSteps;
 }
 
 /** Carries one request to the core and its reply back. */
@@ -468,6 +575,31 @@ export function createLocalRepo(call: Call, author: () => Author): LocalRepo {
     exportZip: () => ask({ kind: "exportZip" }),
     async importZip(bytes) {
       await ask({ kind: "importZip", bytes });
+    },
+    remote: {
+      facts: () => ask({ kind: "remote" }),
+      async setRemote(url) {
+        await ask({ kind: "setRemote", url });
+      },
+      async removeRemote() {
+        await ask({ kind: "removeRemote" });
+      },
+      fetchRequest: (advertised) => ask({ kind: "fetchRequest", advertised }),
+      async fetchFinish(advertised, response) {
+        await ask({ kind: "fetchFinish", advertised, response });
+      },
+      integrate: (prefer) =>
+        ask({
+          kind: "integrate",
+          who: who(),
+          ...(prefer === undefined ? {} : { prefer }),
+        }),
+      async adoptRemote() {
+        await ask({ kind: "adoptRemote" });
+      },
+      pushRequest: (advertised) => ask({ kind: "pushRequest", advertised }),
+      pushFinish: (sent, response) =>
+        ask({ kind: "pushFinish", sent, response }),
     },
   };
 }
