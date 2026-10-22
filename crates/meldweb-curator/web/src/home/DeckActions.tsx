@@ -20,6 +20,7 @@ import {
   printingKey,
 } from "../scryfall";
 import { messageOf, Sheet, useBusy } from "../ui/Sheet";
+import { Spinner } from "../ui/Spinner";
 
 type Open =
   | { kind: "rename"; deck: DeckEntry }
@@ -314,7 +315,12 @@ function CoverDialog({
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
-        {choices === null && !refusal && <p className="hint">Loading art…</p>}
+        {choices === null && !refusal && (
+          <p className="hint">
+            <Spinner />
+            Loading art…
+          </p>
+        )}
         <ul className="cover-grid">
           {shown.map((c) => (
             <li key={c.key}>

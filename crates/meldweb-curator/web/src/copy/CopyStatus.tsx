@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { type CopyState, useCopyState } from "./index";
 import "./copy.css";
+import { Spinner } from "../ui/Spinner";
 
 const MB = 1_000_000;
 
@@ -10,19 +11,23 @@ function megabytes(received: number, total: number): string {
 }
 
 /** What the corner says about the copy, or `null` while there is nothing to say. */
-function line(state: CopyState): { text: string; progress?: number } | null {
+function line(
+  state: CopyState,
+): { text: string; progress?: number; busy?: true } | null {
   switch (state.kind) {
     case "downloading":
       return {
         text: `Copying Scryfall's cards, ${megabytes(state.received, state.total)}. Until then, cards come from Scryfall's API.`,
+        busy: true,
         ...(state.total > 0 ? { progress: state.received / state.total } : {}),
       };
     case "saving":
-      return { text: "Saving the copy of Scryfall's cards" };
+      return { text: "Saving the copy of Scryfall's cards", busy: true };
     case "ready":
       return state.refresh
         ? {
             text: `Updating the copy of Scryfall's cards, ${megabytes(state.refresh.received, state.refresh.total)}`,
+            busy: true,
             ...(state.refresh.total > 0
               ? { progress: state.refresh.received / state.refresh.total }
               : {}),
@@ -51,7 +56,10 @@ export function CopyStatus() {
   if (!shown || dismissed === state.kind) return null;
   return (
     <div className="copy-status" role="status">
-      <span>{shown.text}</span>
+      <span>
+        {shown.busy && <Spinner />}
+        {shown.text}
+      </span>
       {shown.progress !== undefined && (
         <progress value={shown.progress} max={1} />
       )}

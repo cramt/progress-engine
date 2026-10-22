@@ -6,6 +6,7 @@ import { githubUrl } from "./github";
 import { hostName, type Remote, useSyncState } from "./index";
 import type { SyncState } from "./sync";
 import "./remote.css";
+import { Spinner } from "../ui/Spinner";
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -270,9 +271,14 @@ function Syncing({
         seconds after a save.
       </p>
       <p className="settings-source" role="status">
-        {phase.kind === "syncing"
-          ? `Syncing with ${host}…`
-          : since(state.lastSynced)}{" "}
+        {phase.kind === "syncing" ? (
+          <>
+            <Spinner />
+            {`Syncing with ${host}…`}
+          </>
+        ) : (
+          since(state.lastSynced)
+        )}{" "}
         {waiting(state.facts, host)}
       </p>
       {phase.kind === "logged-out" && (

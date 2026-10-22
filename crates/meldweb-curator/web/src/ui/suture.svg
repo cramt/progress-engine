@@ -46,5 +46,5 @@
   <use href="#pe-needle"><animateMotion dur="3.6s" repeatCount="indefinite" rotate="auto" keyPoints="0;1;1" keyTimes="0;.45;1" calcMode="linear"><mpath href="#pe-s1"/></animateMotion></use>
   <use href="#pe-needle"><animateMotion dur="3.6s" begin=".3s" repeatCount="indefinite" rotate="auto" keyPoints="0;1;1" keyTimes="0;.45;1" calcMode="linear"><mpath href="#pe-s2"/></animateMotion></use>
   <use href="#pe-needle"><animateMotion dur="3.6s" begin=".6s" repeatCount="indefinite" rotate="auto" keyPoints="0;1;1" keyTimes="0;.45;1" calcMode="linear"><mpath href="#pe-s3"/></animateMotion></use>
-  <path class="suture-core" d="M34 30 L38 34 L34 38 L30 34 Z"/>
+  <path class="suture-core" stroke="url(#pe-blade)" d="M34 30 L38 34 L34 38 L30 34 Z"/>
 </svg>

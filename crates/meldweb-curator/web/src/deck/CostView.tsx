@@ -20,6 +20,7 @@ import {
 } from "../scryfall";
 import { atCheapest, breakdown, type Cheapest, cheapest } from "./cost";
 import "./cost.css";
+import { Spinner } from "../ui/Spinner";
 
 /** Puts a line on another printing, in the finish given. */
 export type OnUsePrinting = (card: Card, use: Cheapest) => void;
@@ -92,7 +93,10 @@ export function CostView({
       <section className="cost-summary" aria-label="What the deck costs">
         <div className="cost-headline">
           {looking ? (
-            <span className="muted">Looking up prices…</span>
+            <span className="muted">
+              <Spinner />
+              Looking up prices…
+            </span>
           ) : (
             <>
               <span>
@@ -103,7 +107,10 @@ export function CostView({
                 title="Every card on its cheapest paper printing, in any finish"
               >
                 {pending > 0 ? (
-                  `finding cheapest printings… ${uris.length - pending} of ${uris.length}`
+                  <>
+                    <Spinner />
+                    {`finding cheapest printings… ${uris.length - pending} of ${uris.length}`}
+                  </>
                 ) : (
                   <>
                     <strong>{formatPrice(floor, currency)}</strong> at the

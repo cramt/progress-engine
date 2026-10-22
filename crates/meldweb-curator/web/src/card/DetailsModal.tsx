@@ -22,6 +22,7 @@ import {
   printingKey,
 } from "../scryfall";
 import { ChevronLeft, ChevronRight, CloseIcon, FlipIcon } from "../ui/icons";
+import { Spinner } from "../ui/Spinner";
 import { ManaText } from "./ManaText";
 import { neighbours } from "./order";
 import { PrintingsGrid } from "./PrintingsGrid";
@@ -434,7 +435,12 @@ function OptionsStatus({
     case "none":
       return <p className="details-note">Scryfall does not know this card.</p>;
     case "loading":
-      return <p className="details-note">Asking Scryfall for printings…</p>;
+      return (
+        <p className="details-note">
+          <Spinner />
+          Asking Scryfall for printings…
+        </p>
+      );
     case "error":
       return <p className="details-note">{options.message}</p>;
     case "done":

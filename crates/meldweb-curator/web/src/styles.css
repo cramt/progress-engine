@@ -477,6 +477,24 @@ label {
   font-weight: 400;
 }
 
+/* The splash's .suture styles live in index.html; this only sizes it to text. */
+.spinner {
+  display: inline-block;
+  margin-inline-end: 0.35em;
+  font-size: 1.5em;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.spinner .suture {
+  width: 1em;
+  height: 1em;
+}
+
+.boot .spinner {
+  margin: 0;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

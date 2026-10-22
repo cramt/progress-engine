@@ -7,6 +7,7 @@ import { downloadPdf } from "../ui/download";
 import { PrintIcon } from "../ui/icons";
 import { messageOf, Sheet } from "../ui/Sheet";
 import { SheetLayoutFields } from "../ui/SheetLayoutFields";
+import { Spinner } from "../ui/Spinner";
 import { artFor } from "./useCardChecks";
 
 /**
@@ -148,7 +149,14 @@ function PrintDialog({
             Close
           </button>
           <button type="submit" className="primary" disabled={step !== null}>
-            {step ?? "Make PDF"}
+            {step === null ? (
+              "Make PDF"
+            ) : (
+              <>
+                <Spinner />
+                {step}
+              </>
+            )}
           </button>
         </div>
       </form>

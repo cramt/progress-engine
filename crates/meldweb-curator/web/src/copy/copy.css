@@ -32,3 +32,8 @@
   background: none;
   color: var(--faint);
 }
+
+.copy-status > span:first-child {
+  display: flex;
+  align-items: center;
+}

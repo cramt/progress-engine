@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Card } from "../deck";
+import { Spinner } from "../ui/Spinner";
 import { CardCell, SupplySection } from "./SupplyParts";
 import {
   type Pile,
@@ -60,7 +61,12 @@ export function BuildView({
   const { state } = supply;
 
   if (state.kind === "loading")
-    return <p className="muted supply-status">Reading your collection…</p>;
+    return (
+      <p className="muted supply-status">
+        <Spinner />
+        Reading your collection…
+      </p>
+    );
   if (state.kind === "failed")
     return (
       <p className="refusal" role="alert">

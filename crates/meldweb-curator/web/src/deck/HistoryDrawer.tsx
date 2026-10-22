@@ -12,6 +12,7 @@ import {
 import type { SaveStatus } from "../github/save";
 import type { Repo } from "../repo/api";
 import { BranchIcon, CloseIcon, TagIcon } from "../ui/icons";
+import { Spinner } from "../ui/Spinner";
 import { when } from "./VersionView";
 import { body, byDay, JUMPS, subject, type Viewing } from "./versions";
 
@@ -372,7 +373,12 @@ function Timeline({
         </li>
       </ul>
       {log.kind === "failed" && <p className="hint">{log.message}</p>}
-      {log.kind === "loading" && <p className="hint">Reading the log…</p>}
+      {log.kind === "loading" && (
+        <p className="hint">
+          <Spinner />
+          Reading the log…
+        </p>
+      )}
       {log.kind === "ready" &&
         byDay(log.value.revisions, new Date()).map(({ day, revisions: rs }) => (
           <div key={day} className="history-day">
