@@ -9,7 +9,7 @@
  */
 import { ConflictError, type Repo } from "../repo/api";
 import { mergeLines } from "./merge";
-import { commitMessageFor, track } from "./repoFile";
+import { commitMessageFor, spotKey, track } from "./repoFile";
 
 /** How many times a merge is committed before a conflict is given up on. */
 const MERGES = 3;
@@ -24,8 +24,8 @@ export type SaveState =
 export type SaveStatus = SaveState["status"];
 
 export interface SaveStore {
-  /** The deck file this store saves. */
-  readonly path: string;
+  /** The file this store saves, as `spotKey` names it. */
+  readonly key: string;
   getState(): SaveState;
   subscribe(listener: () => void): () => void;
   /** The deck's text after an edit (or an undo). Starts the idle clock. */
@@ -59,6 +59,8 @@ export interface PageEvents {
 export interface SaveOptions {
   repo: Repo;
   path: string;
+  /** The branch the file is on: a deck's line. `main` when absent. */
+  branch?: string;
   /** The text as loaded from GitHub, and its blob sha. */
   text: string;
   sha: string | null;
@@ -71,7 +73,9 @@ export interface SaveOptions {
 }
 
 export function createSaveStore(options: SaveOptions): SaveStore {
-  const { repo, path, onMerge } = options;
+  const { repo, path, branch, onMerge } = options;
+  const key = spotKey(path, branch);
+  const on = branch === undefined ? {} : { branch };
   const idleMs = options.idleMs ?? IDLE_MS;
 
   let base = options.text;
@@ -138,7 +142,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       }
     });
     inflight = committing;
-    void track(path, committing);
+    void track(key, committing);
     return committing;
   }
 
@@ -148,6 +152,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       message: commitMessageFor(path, before, text),
       sha: guard,
       keepalive: true,
+      ...on,
     });
     base = text;
     sha = r.sha;
@@ -160,7 +165,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
    */
   async function merge(onMerge: (text: string) => void, refused: Error) {
     for (let attempt = 1; ; attempt++) {
-      const file = await repo.getFile(path);
+      const file = await repo.getFile(path, branch);
       if (!file) throw refused;
       // From the latest local text, not the one being committed: nothing
       // awaits between reading it and handing the merge back.
@@ -186,6 +191,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
           message,
           sha: file.sha,
           keepalive: true,
+          ...on,
         });
         base = merged;
         sha = r.sha;
@@ -217,7 +223,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
   }
 
   const store: SaveStore = {
-    path,
+    key,
     getState: () => state,
     subscribe(listener) {
       listeners.add(listener);
@@ -244,8 +250,8 @@ export function createSaveStore(options: SaveOptions): SaveStore {
     },
     async reload() {
       await idle();
-      const file = await repo.getFile(path);
-      if (!file) throw new Error(`${path} is no longer on GitHub`);
+      const file = await repo.getFile(path, branch);
+      if (!file) throw new Error(`${path} is no longer in the repo`);
       base = current = file.text;
       sha = file.sha;
       set({ status: "saved" });
@@ -258,7 +264,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       if (inflight) await idle();
       // Diffed against, and guarded by, what is on GitHub now.
       await run(async () => {
-        const file = await repo.getFile(path);
+        const file = await repo.getFile(path, branch);
         return { before: file?.text ?? base, sha: file?.sha ?? null };
       });
     },
@@ -300,5 +306,5 @@ export function createSaveStore(options: SaveOptions): SaveStore {
  * reads it only after they have landed and so starts from the new sha.
  */
 export function leave(store: SaveStore): Promise<boolean> {
-  return track(store.path, store.settle());
+  return track(store.key, store.settle());
 }

@@ -7,8 +7,8 @@ use chip_decklist::collection::Collection;
 use chip_decklist::deck::{CardRef, Deck, Finish, Printing};
 use chip_decklist::identity::Names;
 use chip_decklist::wanted::{
-    self, commit_message_for_text, missing, owned, set_deck_copies, set_qty, DeckCopies, Missing,
-    Wanted, WantedError,
+    self, commit_message_for_text, missing, owned, set_deck_copies, set_qty, DeckCopies, Listed,
+    Missing, Wanted, WantedError,
 };
 
 fn n(qty: u32) -> NonZeroU32 {
@@ -110,21 +110,23 @@ const COLLECTION: &str = r#"cards = [
 ]
 
 [places]
-Lantern = { deck = "decks/lantern.deck.toml" }
+Lantern = { deck = "lantern" }
 "#;
 
-fn deck(path: &str, text: &str) -> (String, Deck, String) {
-    (
-        path.to_string(),
-        Deck::parse(text).unwrap(),
-        text.to_string(),
-    )
+fn deck(stem: &str, parent: Option<&str>, text: &str) -> Listed {
+    Listed {
+        id: stem.to_string(),
+        parent: parent.map(str::to_string),
+        deck: Deck::parse(text).unwrap(),
+        text: text.to_string(),
+    }
 }
 
-fn decks() -> Vec<(String, Deck, String)> {
+fn decks() -> Vec<Listed> {
     vec![
         deck(
-            "decks/lantern.deck.toml",
+            "lantern",
+            None,
             r#"cards = [
   { name = "Sol Ring" },
   { name = "Mana Crypt" },
@@ -139,7 +141,8 @@ Maybe = { type = "maybeboard" }
 "#,
         ),
         deck(
-            "decks/loam.deck.toml",
+            "loam",
+            None,
             r#"cards = [
   { printing = "c21/263" },  # Sol Ring
   { name = "Rhystic Study", in = ["Side"] },
@@ -150,9 +153,9 @@ Side = { type = "sideboard" }
 "#,
         ),
         deck(
-            "decks/loam-budget.deck.toml",
-            r#"variant_of = "decks/loam.deck.toml"
-cards = [
+            "loam-budget",
+            Some("loam"),
+            r#"cards = [
   { name = "Sol Ring" },
   { name = "Rhystic Study", qty = 2 },
 ]
@@ -167,7 +170,7 @@ fn report(copies: DeckCopies) -> Vec<Missing> {
 }
 
 #[test]
-fn each_build_needs_its_own_copies_and_a_variant_is_its_parents_build() {
+fn each_build_needs_its_own_copies_and_a_fork_is_its_parents_build() {
     // Sol Ring: Lantern 1 + Loam's build 1 (Loam and its budget variant one
     // build), owned 1. Rhystic Study: Lantern 1 + the Loam build's most, 2.
     assert_eq!(
@@ -178,9 +181,9 @@ fn each_build_needs_its_own_copies_and_a_variant_is_its_parents_build() {
                 missing: 3,
                 owned: 0,
                 decks: vec![
-                    ("decks/lantern.deck.toml".into(), 1),
-                    ("decks/loam.deck.toml".into(), 1),
-                    ("decks/loam-budget.deck.toml".into(), 2),
+                    ("lantern".into(), 1),
+                    ("loam".into(), 1),
+                    ("loam-budget".into(), 2),
                 ],
             },
             Missing {
@@ -188,9 +191,9 @@ fn each_build_needs_its_own_copies_and_a_variant_is_its_parents_build() {
                 missing: 1,
                 owned: 1,
                 decks: vec![
-                    ("decks/lantern.deck.toml".into(), 1),
-                    ("decks/loam.deck.toml".into(), 1),
-                    ("decks/loam-budget.deck.toml".into(), 1),
+                    ("lantern".into(), 1),
+                    ("loam".into(), 1),
+                    ("loam-budget".into(), 1),
                 ],
             },
         ]

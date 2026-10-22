@@ -226,7 +226,7 @@ export function CollectionEditor({
     if (!folded.delete(place)) folded.add(place);
     changeView({ ...view, folded });
   };
-  const deckNames = new Map(decks.map((d) => [d.path, d.name]));
+  const deckNames = new Map(decks.map((d) => [d.stem, d.name]));
   const reprinted =
     reprinting === null
       ? undefined
@@ -927,7 +927,7 @@ function NewPlace({
   const [name, setName] = useState("");
   const [deck, setDeck] = useState("");
   const placed = new Set(places.flatMap((p) => (p.deck ? [p.deck] : [])));
-  const free = decks.filter((d) => !d.refused && !placed.has(d.path));
+  const free = decks.filter((d) => !d.refused && !placed.has(d.stem));
   const close = () => {
     setName("");
     setDeck("");
@@ -965,13 +965,13 @@ function NewPlace({
               onChange={(e) => {
                 const path = e.target.value;
                 setDeck(path);
-                const picked = decks.find((d) => d.path === path);
+                const picked = decks.find((d) => d.stem === path);
                 if (picked && !name.trim()) setName(picked.name);
               }}
             >
               <option value="">No, somewhere cards are kept</option>
               {free.map((d) => (
-                <option key={d.path} value={d.path}>
+                <option key={d.stem} value={d.stem}>
                   {d.name}
                 </option>
               ))}

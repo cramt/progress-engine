@@ -315,17 +315,28 @@ pub(crate) fn needs_copy(place: CategoryType) -> bool {
     !matches!(place, CategoryType::Maybeboard | CategoryType::NotInDeck)
 }
 
-/// The deck a variant is built from, following `variant_of` up through the
-/// decks given, so a deck and its variants are one family. A parent that is
-/// not among them, or a loop, ends the walk where it stands.
-fn family<'a>(decks: &'a [(String, Deck, String)], path: &'a str) -> &'a str {
-    let mut at = path;
-    let mut seen = vec![path];
+/// One deck as the counts over every deck read it: what names it (its stem),
+/// the deck it was forked from, the deck and its text. Curator reads the
+/// parent from the deck's history (ADR-0041), so it is given, not read here.
+#[derive(Debug, Clone)]
+pub struct Listed {
+    pub id: String,
+    pub parent: Option<String>,
+    pub deck: Deck,
+    pub text: String,
+}
+
+/// The deck a fork is built from, following `parent` up through the decks
+/// given, so a deck and its forks are one family. A parent that is not among
+/// them, or a loop, ends the walk where it stands.
+fn family<'a>(decks: &'a [Listed], id: &'a str) -> &'a str {
+    let mut at = id;
+    let mut seen = vec![id];
     while let Some(parent) = decks
         .iter()
-        .find(|(p, _, _)| p == at)
-        .and_then(|(_, d, _)| d.variant_of.as_deref())
-        .filter(|parent| decks.iter().any(|(p, _, _)| p == parent))
+        .find(|d| d.id == at)
+        .and_then(|d| d.parent.as_deref())
+        .filter(|parent| decks.iter().any(|d| d.id == *parent))
     {
         if seen.contains(&parent) {
             break;
@@ -336,15 +347,15 @@ fn family<'a>(decks: &'a [(String, Deck, String)], path: &'a str) -> &'a str {
     at
 }
 
-/// Every card `decks` (each its path, the deck and its text) hold more copies of than `collection` does,
+/// Every card `decks` hold more copies of than `collection` does,
 /// by name: an owned copy of any printing or finish, anywhere, counts. A deck
-/// and its variants are one build and need as many as the one wanting most;
+/// and its forks are one build and need as many as the one wanting most;
 /// between builds, `copies` says whether each needs its own. Basic lands are
 /// left out. `names` names printings neither file comments.
 pub fn missing(
     collection: &Collection,
     collection_text: &str,
-    decks: &[(String, Deck, String)],
+    decks: &[Listed],
     names: &Names,
     copies: DeckCopies,
 ) -> Vec<Missing> {
@@ -358,7 +369,7 @@ pub fn missing(
 pub(crate) fn missing_by_key(
     collection: &Collection,
     collection_text: &str,
-    decks: &[(String, Deck, String)],
+    decks: &[Listed],
     names: &Names,
     copies: DeckCopies,
 ) -> Vec<(String, Missing)> {
@@ -367,8 +378,8 @@ pub(crate) fn missing_by_key(
         collection.cards.iter().map(|o| &o.card),
         names,
     );
-    for (_, deck, text) in decks {
-        all = edit::names_with_comments(text, deck.cards.iter().map(|c| &c.card), &all);
+    for d in decks {
+        all = edit::names_with_comments(&d.text, d.deck.cards.iter().map(|c| &c.card), &all);
     }
     struct Need {
         name: String,
@@ -376,7 +387,7 @@ pub(crate) fn missing_by_key(
         decks: Vec<(String, u32)>,
     }
     let mut needs: Vec<(String, Need)> = Vec::new();
-    for (path, deck, _) in decks {
+    for Listed { id: path, deck, .. } in decks {
         for card in deck.cards.iter().filter(|c| needs_copy(c.place)) {
             let (key, name) = key_of(&card.card, &all);
             if is_basic(&key) {

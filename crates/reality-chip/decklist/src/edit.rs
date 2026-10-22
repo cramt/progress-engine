@@ -466,7 +466,7 @@ pub(crate) fn push_card(
 
 /// The deck's own keys, in the order [`Deck::to_toml`] writes them above its
 /// cards.
-const META: [&str; 5] = ["name", "format", "variant_of", "cover", "description"];
+const META: [&str; 4] = ["name", "format", "cover", "description"];
 
 fn meta_rank(key: &Key) -> usize {
     META.iter()
@@ -495,12 +495,20 @@ pub(crate) fn set_meta(doc: &mut DocumentMut, key: &str, value: Option<Value>) {
     }
 }
 
-/// Says the deck is a variant of the deck at `parent`, or, with `None`, that
-/// it stands on its own.
-pub fn set_variant_of(text: &str, parent: Option<&str>) -> Result<String, EditError> {
-    let mut doc = document(text)?;
-    set_meta(&mut doc, "variant_of", parent.map(Value::from));
-    finish(doc)
+/// The parent path a repo-version-1 variant names with `variant_of`, read
+/// from the text as TOML alone, so a deck the format refuses still says it.
+pub fn v1_variant_of(text: &str) -> Option<String> {
+    let doc = text.parse::<DocumentMut>().ok()?;
+    doc.get("variant_of")?.as_str().map(str::to_string)
+}
+
+/// `text` without its repo-version-1 `variant_of` key and every other byte
+/// as it was, or `None` when it has none to take out (or is not TOML). The
+/// v1 → v2 migration takes it out of every revision it replays (ADR-0041).
+pub fn without_variant_of(text: &str) -> Option<String> {
+    let mut doc = text.parse::<DocumentMut>().ok()?;
+    doc.remove("variant_of")?;
+    Some(doc.to_string())
 }
 
 /// Makes card `index` a commander: it joins the deck's commander-typed
@@ -1002,7 +1010,6 @@ pub fn new_deck(name: &str, format: &str) -> Result<String, EditError> {
     let deck = Deck {
         name: Some(name.to_string()),
         format: (!format.trim().is_empty()).then(|| format.trim().to_string()),
-        variant_of: None,
         cover: None,
         description: None,
         categories: Vec::new(),

@@ -4,9 +4,10 @@
 use chip_decklist::collection::{move_some, Collection};
 use chip_decklist::deck::{CardRef, Deck, Finish, Printing};
 use chip_decklist::identity::Names;
+use chip_decklist::stem::DeckStem;
 use chip_decklist::supply::{supply, Supply, Whereabouts};
 
-const PATH: &str = "decks/lantern.deck.toml";
+const STEM: &str = "lantern";
 
 fn run(deck: &str, mine: &str, friends: &[(&str, &str)]) -> Supply {
     let d = Deck::parse(deck).unwrap();
@@ -21,7 +22,13 @@ fn run(deck: &str, mine: &str, friends: &[(&str, &str)]) -> Supply {
             )
         })
         .collect();
-    supply(PATH, (&d, deck), (&m, mine), &friends, &Names::new())
+    supply(
+        Some(&DeckStem::new(STEM).unwrap()),
+        (&d, deck),
+        (&m, mine),
+        &friends,
+        &Names::new(),
+    )
 }
 
 fn printing(set: &str, num: &str) -> CardRef {
@@ -50,8 +57,8 @@ const MINE: &str = r#"cards = [
 
 [places]
 Bulk = {}
-Lantern = { deck = "decks/lantern.deck.toml" }
-Loam = { deck = "decks/loam.deck.toml" }
+Lantern = { deck = "lantern" }
+Loam = { deck = "loam" }
 "#;
 
 #[test]

@@ -22,6 +22,7 @@
 use std::collections::HashMap;
 
 pub mod copy;
+pub mod layout;
 mod preference;
 pub mod proxies;
 pub mod repo;
@@ -30,6 +31,7 @@ use chip_decklist::collection::{self, Collection};
 use chip_decklist::collection_import;
 use chip_decklist::deck::{self, CategoryType, Deck};
 use chip_decklist::diff::{self, Change, Diff};
+use chip_decklist::stem::DeckStem;
 use chip_decklist::{changelog, edit, export, supply, trade, wanted};
 use chip_scryfall::bulk::BulkCard;
 use facet::Facet;
@@ -139,9 +141,6 @@ pub enum Parsed {
         name: Option<String>,
         #[facet(skip_serializing_if = Option::is_none)]
         format: Option<String>,
-        /// The path of the deck this one is a variant of.
-        #[facet(rename = "variantOf", skip_serializing_if = Option::is_none)]
-        variant_of: Option<String>,
         /// The printing whose art stands for the deck in the deck list.
         #[facet(skip_serializing_if = Option::is_none)]
         cover: Option<Printing>,
@@ -191,7 +190,6 @@ fn wire(d: Deck) -> Parsed {
     Parsed::Deck {
         name: d.name,
         format: d.format,
-        variant_of: d.variant_of,
         cover: d.cover.map(|p| Printing {
             set: p.set,
             num: p.num,
@@ -615,9 +613,9 @@ pub fn merge_lines(base: &str, ours: &str, theirs: &str) -> Option<String> {
 /// `web/src/github/repoFile.ts` asks of a merged save. A path no editor
 /// writes is only text.
 pub(crate) fn still_reads(path: &str, theirs: &str, merged: &str) -> bool {
-    let deck = path.starts_with("decks/")
-        && path.ends_with(".deck.toml")
-        && !path["decks/".len()..].contains('/');
+    // A deck's file is `<stem>.deck.toml` at the root of its own line
+    // (ADR-0041).
+    let deck = path.ends_with(".deck.toml") && !path.contains('/');
     match path {
         "collection.toml" => collection::commit_message_for_text(theirs, merged, path).is_ok(),
         "wanted.toml" => wanted::commit_message_for_text(theirs, merged, path).is_ok(),
@@ -685,9 +683,6 @@ pub enum DeckChange {
         text: String,
     },
     Format {
-        text: String,
-    },
-    VariantOf {
         text: String,
     },
     Cover {
@@ -759,7 +754,6 @@ pub fn compare_texts(before: &str, after: &str) -> Compared {
             Change::Retype(category) => DeckChange::Retype { category, text },
             Change::Rename => DeckChange::Rename { text },
             Change::Format => DeckChange::Format { text },
-            Change::VariantOf => DeckChange::VariantOf { text },
             Change::Cover => DeckChange::Cover { text },
             Change::Description => DeckChange::Description { text },
         })
@@ -779,14 +773,6 @@ pub fn compare_decks(before: &str, after: &str) -> String {
 pub fn apply_changes(before: &str, after: &str, take: &[u32]) -> Result<String, JsError> {
     let take: Vec<usize> = take.iter().map(|&i| i as usize).collect();
     diff::apply(before, after, &take).map_err(refused)
-}
-
-/// `text` as a variant of the deck at `parent`, or standing alone when
-/// `parent` is absent or empty.
-#[wasm_bindgen]
-pub fn set_variant_of(text: &str, parent: Option<String>) -> Result<String, JsError> {
-    let parent = parent.filter(|p| !p.is_empty());
-    edit::set_variant_of(text, parent.as_deref()).map_err(refused)
 }
 
 /// `text` with the deck's `name` set, and its `format` unless `format` is
@@ -833,7 +819,7 @@ pub struct OwnedCard {
 #[derive(Debug, Facet)]
 pub struct Place {
     pub name: String,
-    /// The path of the deck this place is, when it is one.
+    /// The stem of the deck this place is, when it is one.
     #[facet(skip_serializing_if = Option::is_none)]
     pub deck: Option<String>,
 }
@@ -879,7 +865,7 @@ pub fn parse_collection_text(text: &str) -> ParsedCollection {
                 .into_iter()
                 .map(|p| Place {
                     name: p.name,
-                    deck: p.deck,
+                    deck: p.deck.map(|d| d.to_string()),
                 })
                 .collect(),
             cards: c
@@ -1034,11 +1020,15 @@ pub fn collection_set_qty(text: &str, index: usize, qty: u32) -> Result<String, 
     collection::set_qty(text, index, qty).map_err(refused)
 }
 
-/// `text` with the place `name` declared, standing for the deck at `deck`
-/// unless it is empty.
+/// `text` with the place `name` declared, standing for the deck whose stem
+/// is `deck` unless it is empty.
 #[wasm_bindgen]
 pub fn declare_place(text: &str, name: &str, deck: &str) -> Result<String, JsError> {
-    collection::declare_place(text, name, place_arg(deck)).map_err(refused)
+    let deck = place_arg(deck)
+        .map(DeckStem::new)
+        .transpose()
+        .map_err(refused)?;
+    collection::declare_place(text, name, deck.as_ref()).map_err(refused)
 }
 
 /// `text` without the place `name`, which must hold nothing.
@@ -1148,7 +1138,7 @@ pub enum SettingsRules {
         pins: Vec<Pin>,
         /// Every other rule, in order.
         rules: Vec<RuleText>,
-        /// The deck list's order, by path; a deck not in it goes after, by name.
+        /// The deck list's order, by stem; a deck not in it goes after, by name.
         decks: Vec<String>,
         /// GitHub logins whose public collections a deck's sourcing reads.
         friends: Vec<String>,
@@ -1519,8 +1509,8 @@ pub struct WantedCard {
 /// A deck holding a card the collection is short of.
 #[derive(Debug, Facet)]
 pub struct DeckNeed {
-    pub path: String,
-    /// The deck's `name`, or its file's stem when it has none.
+    pub stem: String,
+    /// The deck's `name`, or its stem when it has none.
     pub name: String,
     pub qty: u32,
 }
@@ -1537,7 +1527,7 @@ pub struct MissingCard {
 /// A deck file the derived list could not read, and why.
 #[derive(Debug, Facet)]
 pub struct Unread {
-    pub path: String,
+    pub stem: String,
     pub message: String,
 }
 
@@ -1562,11 +1552,39 @@ pub enum ParsedWanted {
     },
 }
 
-/// A deck file as the page loaded it.
-#[derive(Debug, Facet)]
+/// A deck as the page loaded it: its stem, the text on its `main`, and the
+/// deck it was forked from, which the deck list read from its history.
+#[derive(Debug, Clone, Facet)]
 pub struct DeckFile {
-    pub path: String,
+    pub stem: String,
     pub text: String,
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub parent: Option<String>,
+}
+
+/// Each deck that reads, as the counts over every deck take it, and each
+/// that does not, with why.
+fn listed(decks: &[DeckFile]) -> (Vec<wanted::Listed>, Vec<Unread>) {
+    let mut unread = Vec::new();
+    let read = decks
+        .iter()
+        .filter_map(|d| match Deck::parse(&d.text) {
+            Ok(deck) => Some(wanted::Listed {
+                id: d.stem.clone(),
+                parent: d.parent.clone(),
+                deck,
+                text: d.text.clone(),
+            }),
+            Err(e) => {
+                unread.push(Unread {
+                    stem: d.stem.clone(),
+                    message: e.to_string(),
+                });
+                None
+            }
+        })
+        .collect();
+    (read, unread)
 }
 
 pub fn read_wanted_text(
@@ -1587,33 +1605,17 @@ pub fn read_wanted_text(
         wanted::DeckCopies::Each => DeckCopies::Each,
         wanted::DeckCopies::Shared => DeckCopies::Shared,
     };
-    let mut unread = Vec::new();
-    let read: Vec<(String, Deck, String)> = decks
-        .iter()
-        .filter_map(|d| match Deck::parse(&d.text) {
-            Ok(deck) => Some((d.path.clone(), deck, d.text.clone())),
-            Err(e) => {
-                unread.push(Unread {
-                    path: d.path.clone(),
-                    message: e.to_string(),
-                });
-                None
-            }
-        })
-        .collect();
+    let (read, unread) = listed(decks);
     let (collection, refusal) = match Collection::parse(collection_text) {
         Ok(c) => (c, None),
         Err(e) => (Collection::default(), Some(e.to_string())),
     };
-    let deck_name = |path: &str| {
+    let deck_name = |stem: &str| {
         read.iter()
-            .find(|(p, _, _)| p == path)
-            .and_then(|(_, d, _)| d.name.clone())
-            .unwrap_or_else(|| {
-                // As the deck list names it: the file's stem.
-                let file = path.rsplit('/').next().unwrap_or(path);
-                file.strip_suffix(".deck.toml").unwrap_or(file).to_string()
-            })
+            .find(|d| d.id == stem)
+            .and_then(|d| d.deck.name.clone())
+            // As the deck list names it: its stem.
+            .unwrap_or_else(|| stem.to_string())
     };
     let missing = if refusal.is_some() {
         Vec::new()
@@ -1627,9 +1629,9 @@ pub fn read_wanted_text(
                 decks: m
                     .decks
                     .into_iter()
-                    .map(|(path, qty)| DeckNeed {
-                        name: deck_name(&path),
-                        path,
+                    .map(|(stem, qty)| DeckNeed {
+                        name: deck_name(&stem),
+                        stem,
                         qty,
                     })
                     .collect(),
@@ -1779,12 +1781,12 @@ pub fn read_trade_text(
     // not built yet is the deck it would be.
     let (wanted_text, decks) = match deck {
         None => (wanted_text, decks),
-        Some(path) => match decks.iter().find(|d| d.path == path) {
+        Some(stem) => match decks.iter().find(|d| d.stem == stem) {
             Some(d) => match Deck::parse(&d.text) {
                 Ok(_) => ("", std::slice::from_ref(d)),
-                Err(e) => return refuse(path, &e),
+                Err(e) => return refuse(stem, &e),
             },
-            None => return refuse(path, &"there is no such deck"),
+            None => return refuse(stem, &"there is no such deck"),
         },
     };
     let w = match wanted::Wanted::parse(wanted_text) {
@@ -1799,20 +1801,7 @@ pub fn read_trade_text(
         Ok(c) => c,
         Err(e) => return refuse("their collection", &e),
     };
-    let mut unread = Vec::new();
-    let read: Vec<(String, Deck, String)> = decks
-        .iter()
-        .filter_map(|d| match Deck::parse(&d.text) {
-            Ok(deck) => Some((d.path.clone(), deck, d.text.clone())),
-            Err(e) => {
-                unread.push(Unread {
-                    path: d.path.clone(),
-                    message: e.to_string(),
-                });
-                None
-            }
-        })
-        .collect();
+    let (read, unread) = listed(decks);
     let offers = trade::offers(
         (&w, wanted_text),
         (&mine, collection),
@@ -1969,7 +1958,7 @@ pub struct FriendFile {
 }
 
 pub fn read_supply_text(
-    path: &str,
+    stem: &str,
     deck_text: &str,
     collection_text: &str,
     friends: &[FriendFile],
@@ -2006,7 +1995,7 @@ pub fn read_supply_text(
         })
         .collect();
     let s = supply::supply(
-        path,
+        DeckStem::new(stem).ok().as_ref(),
         (&deck, deck_text),
         (&mine, collection_text),
         &theirs,
@@ -2075,12 +2064,12 @@ pub fn read_supply_text(
     }
 }
 
-/// JSON of [`ParsedSupply`]: the deck at `path`, its `text`, made of the
+/// JSON of [`ParsedSupply`]: the deck `stem`, its `text`, made of the
 /// copies `collection` holds, and what each friend (JSON of `FriendFile[]`)
 /// holds of what is short, `names` naming printings as for an add.
 #[wasm_bindgen]
 pub fn read_supply(
-    path: &str,
+    stem: &str,
     text: &str,
     collection: &str,
     friends: &str,
@@ -2088,7 +2077,7 @@ pub fn read_supply(
 ) -> Result<String, JsError> {
     let friends: Vec<FriendFile> = facet_json::from_str(friends)
         .map_err(|e| refused(format!("friends are not FriendFile[]: {e}")))?;
-    let parsed = read_supply_text(path, text, collection, &friends, &read_names(names)?);
+    let parsed = read_supply_text(stem, text, collection, &friends, &read_names(names)?);
     Ok(facet_json::to_string(&parsed).expect("ParsedSupply serialises"))
 }
 
@@ -2139,6 +2128,9 @@ mod tests {
         g.add_type::<repo::RemoteFacts>();
         g.add_type::<repo::Synced>();
         g.add_type::<repo::PushOutcome>();
+        g.add_type::<repo::DeckLineList>();
+        g.add_type::<repo::DeckDeleted>();
+        g.add_type::<repo::MigratedFacts>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",
@@ -2163,12 +2155,14 @@ mod tests {
     fn a_trade_for_one_deck_wants_only_what_that_deck_lacks() {
         let decks = [
             DeckFile {
-                path: "decks/a.deck.toml".into(),
+                stem: "a".into(),
                 text: "cards = [{ name = \"Sol Ring\" }, { name = \"Mind Stone\" }]\n".into(),
+                parent: None,
             },
             DeckFile {
-                path: "decks/b.deck.toml".into(),
+                stem: "b".into(),
                 text: "cards = [{ name = \"Arcane Signet\" }]\n".into(),
+                parent: None,
             },
         ];
         let wanted = "cards = [{ name = \"The One Ring\" }]\n";
@@ -2183,11 +2177,8 @@ mod tests {
                 ParsedTrade::Refused { message } => vec![message],
             };
         assert_eq!(names(None), ["Arcane Signet", "Sol Ring", "The One Ring"]);
-        assert_eq!(names(Some("decks/a.deck.toml")), ["Sol Ring"]);
-        assert_eq!(
-            names(Some("decks/c.deck.toml")),
-            ["decks/c.deck.toml: there is no such deck"]
-        );
+        assert_eq!(names(Some("a")), ["Sol Ring"]);
+        assert_eq!(names(Some("c")), ["c: there is no such deck"]);
     }
 
     #[test]

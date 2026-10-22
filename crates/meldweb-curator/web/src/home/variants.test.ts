@@ -2,22 +2,24 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { DeckEntry } from "../github/decks";
 import { commitEdit } from "../github/repoFile";
 import { SETTINGS_PATH } from "../github/settings";
-import { loadWasm, mockConnection } from "../github/testkit";
+import { fakeRepo, loadWasm } from "../github/testkit";
 import { readSettings } from "../settings/rules";
 import { order_decks } from "../wasm/pkg/meldweb_wasm.js";
 import { familyOrder, moveDeck, moveInSettings, nudgeDeck } from "./variants";
 
-const deck = (name: string, variantOf?: string): DeckEntry => ({
-  path: `decks/${name.toLowerCase()}.deck.toml`,
+const deck = (name: string, parent?: string): DeckEntry => ({
+  stem: name.toLowerCase(),
+  commit: "",
   sha: "",
+  text: "",
   name,
-  ...(variantOf ? { variantOf: `decks/${variantOf}.deck.toml` } : {}),
+  ...(parent ? { parent } : {}),
 });
 
 const names = (decks: DeckEntry[]) => familyOrder(decks).map((d) => d.name);
 
 describe("the deck list", () => {
-  it("puts each variant straight after its parent", () => {
+  it("puts each fork straight after its parent", () => {
     expect(
       names([
         deck("Loam"),
@@ -29,7 +31,7 @@ describe("the deck list", () => {
     ).toEqual(["Atraxa", "Lantern", "Lantern cEDH", "Zur budget", "Loam"]);
   });
 
-  it("nests a variant of a variant, and lists an orphan by its name", () => {
+  it("nests a fork of a fork, and lists an orphan by its name", () => {
     expect(
       names([
         deck("Lantern"),
@@ -53,9 +55,8 @@ describe("ordering the deck list", () => {
     deck("Lantern budget", "lantern"),
     deck("Loam"),
   ];
-  const p = (name: string) => `decks/${name.toLowerCase()}.deck.toml`;
-  const stems = (paths: string[] | null) =>
-    paths?.map((x) => x.slice("decks/".length, -".deck.toml".length));
+  const p = (name: string) => name.toLowerCase();
+  const stems = (order: string[] | null) => order;
 
   it("puts the declared decks first, in order, and the rest by name", () => {
     expect(
@@ -65,7 +66,7 @@ describe("ordering the deck list", () => {
     ).toEqual(["Loam", "Lantern", "Lantern budget", "Lantern cEDH", "Atraxa"]);
   });
 
-  it("moves a deck with its variants, and past a family whole", () => {
+  it("moves a deck with its forks, and past a family whole", () => {
     const shown = familyOrder(decks);
     expect(stems(moveDeck(shown, p("Lantern"), p("Atraxa"), "before"))).toEqual(
       ["lantern", "lantern budget", "lantern cedh", "atraxa", "loam"],
@@ -79,14 +80,14 @@ describe("ordering the deck list", () => {
     ]);
   });
 
-  it("keeps a variant among its siblings, and a deck out of another family", () => {
+  it("keeps a fork among its siblings, and a deck out of another family", () => {
     const shown = familyOrder(decks);
     expect(
       stems(moveDeck(shown, p("Lantern cEDH"), p("Lantern budget"), "before")),
     ).toEqual(["atraxa", "lantern", "lantern cedh", "lantern budget", "loam"]);
-    // A variant dropped outside its family has nowhere to go.
+    // A fork dropped outside its family has nowhere to go.
     expect(moveDeck(shown, p("Lantern cEDH"), p("Loam"), "before")).toBeNull();
-    // A deck dropped on another's variant goes beside that family.
+    // A deck dropped on another's fork goes beside that family.
     expect(
       stems(moveDeck(shown, p("Loam"), p("Lantern budget"), "before")),
     ).toEqual(["atraxa", "loam", "lantern", "lantern budget", "lantern cedh"]);
@@ -105,9 +106,9 @@ describe("nudging a deck", () => {
     deck("Lantern budget", "lantern"),
     deck("Loam"),
   ];
-  const p = (name: string) => `decks/${name.toLowerCase()}.deck.toml`;
+  const p = (name: string) => name.toLowerCase();
 
-  it("steps over a whole family, and a variant only among its siblings", () => {
+  it("steps over a whole family, and a fork only among its siblings", () => {
     const shown = familyOrder(decks);
     expect(nudgeDeck(shown, p("Loam"), -1)).toEqual(
       ["Atraxa", "Loam", "Lantern", "Lantern budget", "Lantern cEDH"].map(p),
@@ -123,7 +124,7 @@ describe("nudging a deck", () => {
 describe("a move saved to meldweb.toml", () => {
   beforeAll(loadWasm);
   const decks = ["A", "B", "C", "D"].map((n) => deck(n));
-  const p = (name: string) => `decks/${name.toLowerCase()}.deck.toml`;
+  const p = (name: string) => name.toLowerCase();
   const settings = (...names: string[]) =>
     order_decks(undefined, JSON.stringify(names.map(p)));
   const orderOf = (text: string | undefined) => {
@@ -132,9 +133,8 @@ describe("a move saved to meldweb.toml", () => {
   };
 
   it("is made again on the order another device saved meanwhile, keeping it", async () => {
-    const { repo, mock } = mockConnection({
-      files: { [SETTINGS_PATH]: settings("A", "B", "C", "D") },
-    });
+    const mock = fakeRepo({ [SETTINGS_PATH]: settings("A", "B", "C", "D") });
+    const { repo } = mock;
     const move = moveInSettings(decks, {
       kind: "drop",
       from: p("D"),
@@ -143,7 +143,8 @@ describe("a move saved to meldweb.toml", () => {
     });
     let first = true;
     await commitEdit(repo, SETTINGS_PATH, (t) => {
-      if (first) mock.editOnGitHub(SETTINGS_PATH, settings("C", "A", "B", "D"));
+      if (first)
+        mock.editElsewhere(SETTINGS_PATH, settings("C", "A", "B", "D"));
       first = false;
       return move(t);
     });
@@ -155,7 +156,7 @@ describe("a move saved to meldweb.toml", () => {
   it("writes nothing for a move that moves nothing on the order there, and refuses a file it cannot read", () => {
     const nudge = moveInSettings(decks, {
       kind: "nudge",
-      path: p("A"),
+      stem: p("A"),
       by: -1,
     });
     expect(nudge(settings("A", "B", "C", "D"))).toBeNull();

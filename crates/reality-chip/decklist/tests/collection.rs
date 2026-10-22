@@ -10,6 +10,7 @@ use chip_decklist::collection::{
 use chip_decklist::deck::{CardRef, DeckError, Finish, Printing};
 use chip_decklist::edit::EditError;
 use chip_decklist::identity::Names;
+use chip_decklist::stem::DeckStem;
 
 fn n(qty: u32) -> NonZeroU32 {
     NonZeroU32::new(qty).unwrap()
@@ -37,7 +38,7 @@ cards = [
 [places]
 Bulk = {}
 "Trade binder" = {}
-Lantern = { deck = "decks/lantern.deck.toml" }
+Lantern = { deck = "lantern" }
 "#;
 
 fn name(n: &str) -> CardRef {
@@ -69,10 +70,29 @@ fn a_card_is_in_one_place_or_unsorted() {
     assert_eq!(c.qty_at(Some("Bulk")), 3);
     assert_eq!(c.qty_at(None), 40);
     assert_eq!(
-        c.place("Lantern").unwrap().deck.as_deref(),
-        Some("decks/lantern.deck.toml")
+        c.place("Lantern")
+            .unwrap()
+            .deck
+            .as_ref()
+            .map(DeckStem::as_str),
+        Some("lantern")
     );
     assert_eq!(c.place("Bulk").unwrap().deck, None);
+    // Repo version 1 named the deck's path, which reads as its stem.
+    let v1 =
+        Collection::parse("[places]\nLantern = { deck = \"decks/lantern.deck.toml\" }\n").unwrap();
+    assert_eq!(
+        v1.places,
+        c.places
+            .iter()
+            .filter(|p| p.name == "Lantern")
+            .cloned()
+            .collect::<Vec<_>>()
+    );
+    assert!(matches!(
+        Collection::parse("[places]\nx = { deck = \"a/b\" }\n").unwrap_err(),
+        CollectionError::BadDeck { .. }
+    ));
 }
 
 #[test]
@@ -99,10 +119,9 @@ fn a_place_must_be_declared_and_a_card_line_is_a_decks() {
 fn a_card_has_no_categories_and_a_deck_is_one_place() {
     let err = Collection::parse(r#"cards = [{ name = "Sol Ring", in = ["ramp"] }]"#).unwrap_err();
     assert!(matches!(err, CollectionError::Toml(_)), "{err}");
-    let err = Collection::parse(
-        "[places]\na = { deck = \"decks/x.deck.toml\" }\nb = { deck = \"decks/x.deck.toml\" }\n",
-    )
-    .unwrap_err();
+    let err =
+        Collection::parse("[places]\na = { deck = \"decks/x.deck.toml\" }\nb = { deck = \"x\" }\n")
+            .unwrap_err();
     assert!(matches!(err, CollectionError::SameDeck { .. }), "{err}");
 }
 
@@ -256,13 +275,10 @@ fn the_first_card_makes_the_file() {
 
 #[test]
 fn places_are_declared_once_and_dropped_only_when_empty() {
-    let text = declare_place(COLLECTION, "Loam", Some("decks/loam.deck.toml")).unwrap();
-    assert!(
-        text.ends_with("Loam = { deck = \"decks/loam.deck.toml\" }\n"),
-        "{text}"
-    );
+    let text = declare_place(COLLECTION, "Loam", Some(&stem("loam"))).unwrap();
+    assert!(text.ends_with("Loam = { deck = \"loam\" }\n"), "{text}");
     assert_eq!(
-        declare_place(&text, "Loam", Some("decks/loam.deck.toml")).unwrap(),
+        declare_place(&text, "Loam", Some(&stem("loam"))).unwrap(),
         text
     );
     assert!(matches!(
@@ -270,7 +286,7 @@ fn places_are_declared_once_and_dropped_only_when_empty() {
         EditError::Collection(CollectionError::DeclaredDifferently { .. })
     ));
     assert!(matches!(
-        declare_place(&text, "Other", Some("decks/loam.deck.toml")).unwrap_err(),
+        declare_place(&text, "Other", Some(&stem("loam"))).unwrap_err(),
         EditError::Collection(CollectionError::SameDeck { .. })
     ));
     assert_eq!(undeclare_place(&text, "Loam").unwrap(), COLLECTION);
@@ -299,8 +315,12 @@ fn a_renamed_place_keeps_its_spot_its_deck_and_its_cards() {
     let text = rename_place(COLLECTION, "Lantern", "Lantern, sleeved").unwrap();
     let c = Collection::parse(&text).unwrap();
     assert_eq!(
-        c.place("Lantern, sleeved").unwrap().deck.as_deref(),
-        Some("decks/lantern.deck.toml")
+        c.place("Lantern, sleeved")
+            .unwrap()
+            .deck
+            .as_ref()
+            .map(DeckStem::as_str),
+        Some("lantern")
     );
     assert_eq!(c.qty_at(Some("Lantern, sleeved")), 1);
     assert_eq!(
@@ -378,8 +398,8 @@ fn the_changelog_is_about_copies_moving_not_lines() {
         "collection: 3 Sol Ring: any printing → c21/263"
     );
     assert_eq!(
-        msg(&declare_place(COLLECTION, "Loam", Some("decks/loam.deck.toml")).unwrap()),
-        "collection: +place loam (decks/loam.deck.toml)"
+        msg(&declare_place(COLLECTION, "Loam", Some(&stem("loam"))).unwrap()),
+        "collection: +place loam (loam)"
     );
     assert_eq!(
         msg(&rename_place(COLLECTION, "Bulk", "Shoebox").unwrap()),
@@ -393,8 +413,12 @@ fn the_changelog_is_about_copies_moving_not_lines() {
         commit_message_for_text("", COLLECTION, "collection.toml").unwrap(),
         "collection: +40 Island, +1 Rashmi and Ragavan to lantern, +3 Sol Ring to bulk, and 3 more\n\n\
          +40 Island\n+1 Rashmi and Ragavan to lantern\n+3 Sol Ring to bulk\n\
-         +place bulk\n+place lantern (decks/lantern.deck.toml)\n+place trade binder\n"
+         +place bulk\n+place lantern (lantern)\n+place trade binder\n"
     );
+}
+
+fn stem(s: &str) -> DeckStem {
+    DeckStem::new(s).unwrap()
 }
 
 fn printing(set: &str, num: &str) -> Printing {
@@ -540,5 +564,18 @@ fn the_changelog_says_which_copies_were_reprinted_or_moved_together() {
     assert_eq!(
         msg(&move_lines(COLLECTION, &[1, 2], Some("Trade binder")).unwrap()),
         "collection: 40 Island: unsorted → trade binder, 3 Sol Ring: bulk → trade binder"
+    );
+}
+
+#[test]
+fn the_migration_names_each_deck_place_by_its_stem_and_touches_nothing_else() {
+    let v1 = "cards = [\n  { name = \"Sol Ring\", at = \"Lantern\" },\n]\n\n[places]\nBulk = {}\nLantern = { deck = \"decks/lantern.deck.toml\" }  # sleeved\n\"Loam box\" = { deck = \"decks/loam.deck.toml\" }\n";
+    assert_eq!(
+        chip_decklist::collection::v1_places_to_stems(v1).unwrap(),
+        "cards = [\n  { name = \"Sol Ring\", at = \"Lantern\" },\n]\n\n[places]\nBulk = {}\nLantern = { deck = \"lantern\" }  # sleeved\n\"Loam box\" = { deck = \"loam\" }\n"
+    );
+    assert_eq!(
+        chip_decklist::collection::v1_places_to_stems(COLLECTION),
+        None
     );
 }

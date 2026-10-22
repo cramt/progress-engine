@@ -9,12 +9,19 @@ The one git repository per user that Curator reads and writes: a bare repo kept 
 _Avoid_: deck repo, decklists repo, storage
 
 **Repo version**:
-The integer in the Magic repo's root `VERSION` file, naming the layout and schema the repo follows. Curator refuses a repo newer than it knows and migrates an older one before editing.
+The integer in the Magic repo's root `VERSION` file, naming the layout and schema the repo follows: 2, a line per deck, since ADR-0041. Curator refuses a repo newer than it knows and migrates an older one before editing, all or nothing.
 _Avoid_: schema version, format version
 
 **Deck**:
-One `decks/*.deck.toml` file in the Magic repo. Its path is its identity; the `name` inside it is what the user sees and may change without the path following.
+A line of history of its own in the Magic repo ([ADR-0041](../../docs/adr/0041-a-deck-is-a-line-of-history-and-the-repo-lives-in-the-browser.md)): the branch `decks/<stem>/main` and any other branches `decks/<stem>/<branch>`, each tree holding `<stem>.deck.toml` and its Gauntlet criteria `<stem>.criteria.toml`. Only its `main` is the built deck that the collection, Build, Sourcing and the wanted list read.
 _Avoid_: list, decklist (for the file)
+
+**Stem**:
+A deck's identity, slugged from its name when it is made and never following a rename: `lantern` names the deck `decks/lantern/main`, its file `lantern.deck.toml`, its snapshots `decks/lantern/*` and its deck place. The `name` inside the file is what the user sees.
+_Avoid_: path, slug (for the identity)
+
+**Branch**:
+One of a deck's lines, `decks/<stem>/<branch>`: the same physical deck with a different list. Every deck has `main`. (The picker for others is to come.)
 
 **Collection**:
 The Magic repo's `collection.toml`: every card the user owns, and the place each copy is in ([ADR-0023](../../docs/adr/0023-the-collection-is-one-file-and-a-copy-is-in-one-place.md)). A repo without the file owns nothing yet.
@@ -25,13 +32,13 @@ Where owned copies physically are, declared in the collection: a trade binder, a
 _Avoid_: category, location, bin
 
 **Deck place**:
-A place that names a deck's path, so the copies in it are the ones in that deck.
+A place that names a deck by its stem, `deck = "lantern"`, so the copies in it are the ones in that deck. A repo-version-1 file named the deck's path, which reads as the same stem.
 
 **Unsorted**:
 Owned copies in no place yet.
 
 **Wanted list**:
-The Magic repo's `wanted.toml` and the page `/wanted` ([ADR-0034](../../docs/adr/0034-the-wanted-list-is-wanted-toml-and-what-the-decks-lack-is-derived.md)). It has two halves. The file holds cards wanted *by hand*, written like collection lines with no place. *Missing from decks* is worked out, never saved: what the decks hold more copies of than the collection, counted by name, with basics, maybeboard and set-aside cards left out. A deck and its variants count as one build. `deck_copies` in the file says whether each deck needs its own copies or one set moves between them.
+The Magic repo's `wanted.toml` and the page `/wanted` ([ADR-0034](../../docs/adr/0034-the-wanted-list-is-wanted-toml-and-what-the-decks-lack-is-derived.md)). It has two halves. The file holds cards wanted *by hand*, written like collection lines with no place. *Missing from decks* is worked out, never saved: what the decks hold more copies of than the collection, counted by name, with basics, maybeboard and set-aside cards left out. A deck and its forks count as one build. `deck_copies` in the file says whether each deck needs its own copies or one set moves between them.
 _Avoid_: wishlist, shopping list, buy list
 
 **Trade**:
@@ -59,7 +66,7 @@ The Magic repo's `meldweb.toml`: Curator's own choices, which are the printing p
 _Avoid_: config, preferences file
 
 **Deck order**:
-The order of the deck list, a list of deck paths in the settings, set by dragging a tile ([ADR-0028](../../docs/adr/0028-the-deck-lists-order-is-meldweb-toml-and-a-deck-moves-with-its-variants.md)). A deck not in it goes after those that are, by name; a deck moves with its variants, and a variant only among its siblings.
+The order of the deck list, a list of deck stems in the settings, set by dragging a tile ([ADR-0028](../../docs/adr/0028-the-deck-lists-order-is-meldweb-toml-and-a-deck-moves-with-its-variants.md)). A deck not in it goes after those that are, by name; a deck moves with its forks, and a fork only among its siblings.
 _Avoid_: sort order, pinned decks
 
 **Copy of Scryfall**:
@@ -95,7 +102,7 @@ The one git repository on a host that the Magic repo syncs with, `origin` in its
 _Avoid_: backend, server, cloud
 
 **Sync**:
-Bringing the remote's commits into the Magic repo and pushing the Magic repo's to it, over git's own protocol. It runs on opening a page, on coming back to one, and a few seconds after a save. Only the remote moved: a fast-forward; both moved: a merge commit, merging each file by lines from the merge base.
+Bringing the remote's commits into the Magic repo and pushing the Magic repo's to it, over git's own protocol, every branch and snapshot. It runs on opening a page, on coming back to one, and a few seconds after a save. Each branch on its own: only the remote moved, a fast-forward; both moved, a merge commit, merging each file by lines from the merge base; made or deleted on one side, made or deleted on the other. A remote still at repo version 1 is migrated in the browser, to the same commits a migration where it lives would make, and pushed there.
 _Avoid_: save (a save is a local commit), backup
 
 **Import** / **Copy for**:
@@ -108,7 +115,7 @@ The deck as it stands in the editor, saved or not, opened in Archidekt's playtes
 ## A deck's past
 
 **Revision**:
-A deck as one of the commits that touched its path left it ([ADR-0024](../../docs/adr/0024-a-decks-past-is-gits-and-a-variant-is-a-deck.md)). Every save makes one, and its commit message says what changed. `?at=<commit>` shows it in place of the deck.
+A deck as one of the commits on its line that touched its file left it ([ADR-0024](../../docs/adr/0024-a-decks-past-is-gits-and-a-variant-is-a-deck.md), [ADR-0041](../../docs/adr/0041-a-deck-is-a-line-of-history-and-the-repo-lives-in-the-browser.md)). Every save makes one, and its commit message says what changed. `?at=<commit>` shows it in place of the deck.
 _Avoid_: version (unqualified), checkpoint
 
 **Take**:
@@ -116,9 +123,9 @@ To apply some of the changes between the deck and another revision or deck to th
 _Avoid_: merge, revert, cherry-pick
 
 **Snapshot**:
-A revision kept under a name the user chose, such as the list taken to an event. It is an annotated git tag under the deck's path, `decks/<stem>/<slug>`.
+A revision kept under a name the user chose, such as the list taken to an event. It is an annotated git tag under the deck's stem, `decks/<stem>/<slug>`, on a commit of the deck's line.
 _Avoid_: tag (for what the user sees), save point
 
-**Variant**:
-A deck that names another as its parent with `variant_of`, such as a budget build. It is a deck file of its own, not a branch. Either can take the other's changes, except the variant's name and parent.
-_Avoid_: branch, fork, copy
+**Fork**:
+A deck of its own whose line starts on a commit of another deck, such as a budget build: its history is that deck's up to the fork, as real ancestors, so which deck it came from is read from the history and written nowhere ([ADR-0041](../../docs/adr/0041-a-deck-is-a-line-of-history-and-the-repo-lives-in-the-browser.md)). Either can take the other's changes, except the fork's name. Repo version 1 called it a variant and named the parent with `variant_of`, which the migration takes out.
+_Avoid_: variant (since repo version 2), copy, branch (that is the same deck)

@@ -53,7 +53,6 @@ pub enum Change {
     Retype(String),
     Rename,
     Format,
-    VariantOf,
     Cover,
     Description,
 }
@@ -73,7 +72,6 @@ impl Change {
             Change::Retype(_) => 8,
             Change::Rename => 9,
             Change::Format => 10,
-            Change::VariantOf => 11,
             Change::Cover => 12,
             Change::Description => 13,
         }
@@ -106,12 +104,6 @@ fn kind_name(k: Option<CategoryType>) -> &'static str {
 fn quoted(s: &Option<String>) -> String {
     s.as_ref()
         .map_or_else(|| "none".to_string(), |s| format!("{s:?}"))
-}
-
-/// `decks/lantern.deck.toml` → `lantern`, for a variant's parent.
-fn deck_stem(path: &str) -> &str {
-    let file = path.rsplit('/').next().unwrap_or(path);
-    file.strip_suffix(".deck.toml").unwrap_or(file)
 }
 
 /// Pairs each card in `after` with the card it was in `before`, most alike
@@ -274,18 +266,6 @@ impl<'a> Diff<'a> {
                 Change::Format,
                 "",
                 format!("format: {} → {}", f(&before.format), f(&after.format)),
-            );
-        }
-        if before.variant_of != after.variant_of {
-            let v = |s: &Option<String>| s.as_deref().map_or("none", deck_stem).to_string();
-            push(
-                Change::VariantOf,
-                "",
-                format!(
-                    "variant of: {} → {}",
-                    v(&before.variant_of),
-                    v(&after.variant_of)
-                ),
             );
         }
         if before.cover != after.cover {
@@ -452,7 +432,6 @@ pub fn apply(before_text: &str, after_text: &str, take: &[usize]) -> Result<Stri
         match change {
             Change::Rename => edit::set_meta(&mut doc, "name", string(&after.name)),
             Change::Format => edit::set_meta(&mut doc, "format", string(&after.format)),
-            Change::VariantOf => edit::set_meta(&mut doc, "variant_of", string(&after.variant_of)),
             Change::Cover => edit::set_meta(
                 &mut doc,
                 "cover",

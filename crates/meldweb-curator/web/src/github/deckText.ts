@@ -12,7 +12,6 @@ import {
   setCardCategories,
   setCardPrinting,
   setDeckMeta,
-  setVariantOf,
 } from "../deck";
 
 export type { Imported };
@@ -23,8 +22,6 @@ export interface DeckText {
   newDeck(name: string, format: string): string;
   /** The text with `name` set, and `format` when given. */
   setDeckMeta(text: string, name: string, format?: string): string;
-  /** The text as a variant of the deck at `parent`, or alone for `null`. */
-  setVariantOf(text: string, parent: string | null): string;
   importArchidekt(text: string): Imported;
   /** The text with card `index` named by the printing `set/num`. */
   setCardPrinting(
@@ -47,7 +44,6 @@ export const deckText: DeckText = {
   parseDeck,
   newDeck,
   setDeckMeta,
-  setVariantOf,
   importArchidekt,
   setCardPrinting,
   declareCategory,

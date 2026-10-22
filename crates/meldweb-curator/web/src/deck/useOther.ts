@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { type Parsed, parseDeck } from "../deck";
-import { deckStem } from "../github/decks";
+import { deckFile } from "../github/decks";
 import { fileAt, type Revision } from "../github/history";
 import type { Repo } from "../repo/api";
 import { fetchPrintings, type Printings } from "../scryfall";
@@ -25,23 +25,24 @@ export type Other =
 
 async function load(
   repo: Repo,
-  path: string,
+  stem: string,
   viewing: Exclude<Viewing, { kind: "now" }>,
 ): Promise<Other> {
+  const other = viewing.kind === "deck" ? deckFile(viewing.stem) : null;
   const [file, revision] =
     viewing.kind === "revision"
       ? await Promise.all([
-          fileAt(repo, path, viewing.commit),
+          fileAt(repo, stem, viewing.commit),
           repo.revision(viewing.commit),
         ])
-      : [await repo.getFile(viewing.path), null];
+      : [other ? await repo.getFile(other.path, other.branch) : null, null];
   if (!file) {
     return {
       kind: "missing",
       message:
         viewing.kind === "revision"
           ? "The deck was not in the repo at that commit."
-          : `There is no ${viewing.path} in the Magic repo.`,
+          : `There is no deck ${viewing.stem} in the Magic repo.`,
     };
   }
   const parsed = parseDeck(file.text);
@@ -57,16 +58,15 @@ async function load(
     deck: parsed,
     // A Scryfall outage costs the pictures, as it does for the deck itself.
     printings: await fetchPrintings(parsed.cards).catch(() => new Map()),
-    name:
-      parsed.name ?? deckStem(viewing.kind === "deck" ? viewing.path : path),
+    name: parsed.name ?? (viewing.kind === "deck" ? viewing.stem : stem),
     revision,
   };
 }
 
-/** The deck at `path` as `viewing` names it, or `null` while it is the deck now. */
+/** The deck `stem` as `viewing` names it, or `null` while it is the deck now. */
 export function useOther(
   repo: Repo,
-  path: string,
+  stem: string,
   viewing: Viewing,
 ): Other | null {
   const key =
@@ -74,7 +74,7 @@ export function useOther(
       ? null
       : viewing.kind === "revision"
         ? `at:${viewing.commit}`
-        : `vs:${viewing.path}`;
+        : `vs:${viewing.stem}`;
   const [other, setOther] = useState<{ key: string; other: Other } | null>(
     null,
   );
@@ -83,7 +83,7 @@ export function useOther(
     if (viewing.kind === "now" || key === null) return;
     let live = true;
     setOther({ key, other: { kind: "loading" } });
-    load(repo, path, viewing).then(
+    load(repo, stem, viewing).then(
       (o) => live && setOther({ key, other: o }),
       (e) =>
         live &&
@@ -98,7 +98,7 @@ export function useOther(
     return () => {
       live = false;
     };
-  }, [repo, path, key]);
+  }, [repo, stem, key]);
   if (key === null) return null;
   return other?.key === key ? other.other : { kind: "loading" };
 }

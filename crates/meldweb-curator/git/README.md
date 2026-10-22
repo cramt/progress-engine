@@ -31,12 +31,25 @@ It can:
   `info/refs` answer into an upload-pack request, writes the pack it gets
   back as loose objects (ofs-deltas and ref-deltas resolved), and tracks the
   remote's branches under `refs/remotes/origin/` and its tags under
-  `refs/remotes/origin/tags/`. `integrate` brings the remote's `main` into
-  `main`: a fast-forward, the remote's history over a repo that is only its
-  first `VERSION` commit, or a merge commit with two parents; it refuses
-  unrelated histories and stops at a conflicting file. A push sends `main`
-  and every tag the remote lacks with an undeltified pack, naming the
+  `refs/remotes/origin/tags/`. Every branch and tag syncs (a deck is a
+  branch, a snapshot a tag, ADR-0041), each settled three ways against what
+  was tracked before the fetch: the side that made, moved or deleted a ref
+  wins, so the fetch itself takes a branch or tag only the remote changed,
+  and a ref deleted here and untouched there stays deleted for the push.
+  `integrate` then brings each tracked branch into the branch of its name (or
+  `integrate_onto` brings a map the caller made, as Curator does for a
+  remote still at repo version 1): a fast-forward, the remote's history over
+  a `main` that is only its first `VERSION` commit, a branch only the remote
+  has, or a merge commit with two parents; it refuses unrelated histories and
+  stops at a conflicting file. A push sends every branch the remote's is
+  behind, every tag it lacks or has elsewhere, and the deletion of each ref
+  deleted here since the last sync, with an undeltified pack, naming the
   advertised old id so that receive-pack refuses it if the remote moved.
+  Setting a new URL forgets what was tracked of the old one.
+- write a blob, a tree of given files, and a commit of a given tree with
+  given parents and signatures (`write_commit_of`), and retarget an
+  annotated tag keeping its tagger and label, so history can be replayed
+  into another line with the same ids anywhere.
 
 Protocol v0, not v2: receive-pack has no v2, so its advertisement parser is
 needed anyway, and v2's ref-prefix filter gains nothing on a repo of a few
@@ -61,8 +74,7 @@ Linux. Every read checks the object's hash.
 - **Packed refs.** If `packed-refs` exists, every ref operation fails with
   `Unsupported::PackedRefs`.
 - **Symbolic branch or tag refs, and tags of non-commits.**
-- **The index, a working tree, and HTTP itself.** Deleting a tag is not
-  pushed, and the remote's `main` is the only branch integrated.
+- **The index, a working tree, and HTTP itself.**
 
 There is one writer at a time. A ref update checks the expected value and then
 writes, and those are two store calls, so two tabs need a lock above the
@@ -95,7 +107,12 @@ deltified (delta chains up to 5), an incremental fetch (a pack of exactly
 the 4 new objects), ref-deltas from `pack-objects` without side-band, a
 fast-forward push with a tag, a push refused by the compare-and-swap and
 then merged and pushed, a conflict settled by choosing a side, an empty
-remote, and unrelated history. `git fsck --strict` passes on both sides.
+remote, and unrelated history; and every branch and tag syncing both ways:
+decks made here pushed, a deck the remote moved fast-forwarded on fetch, one
+it made taken, one both moved merged (`sync: merge origin/decks/a/main`), a
+branch and a snapshot deleted or retargeted here pushed as deletions and
+updates, one deleted there deleted here. `git fsck --strict` passes on both
+sides.
 
 If `git` is not on PATH, those tests print `SKIPPED` and pass.
 
@@ -106,8 +123,10 @@ adopted the remote, pushed a commit and a tag, had a raced push refused
 (`cannot lock ref 'refs/heads/main': is at … but expected …`), merged and
 pushed again, and a fresh `git clone` showed the merge and the tag.
 
-On 2026-10-22, 28 tests pass: 9 unit, 11 in `memory.rs`, 3 in
-`git_cli.rs` and 5 in `remote.rs`. Measured on 2026-10-21: a throwaway cdylib built for wasm32 at
+On 2026-10-22, 29 tests pass: 9 unit, 11 in `memory.rs`, 3 in
+`git_cli.rs` and 6 in `remote.rs`. Repo version 2's migration and the
+mixed-version syncs are `meldweb-wasm`'s (`tests/layout.rs`,
+`examples/migrate_e2e.rs`), since what a deck is is not this crate's. Measured on 2026-10-21: a throwaway cdylib built for wasm32 at
 opt-level `z` with LTO calls init, commit, tag, history, merge_base and
 read_file. It is 325 KB, or 124 KB gzipped. `gix-date` pulls in `jiff` and
 `jiff-tzdb`, and `gix-utils` pulls in `prodash`. LTO drops the time zone

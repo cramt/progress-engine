@@ -46,12 +46,11 @@ async function resolve(): Promise<Session> {
       others: connection.others,
     };
   }
-  const { auth, github } = connection;
+  const { auth, github, repo } = connection;
   if (!(await auth.token())) return { kind: "logged-out" };
   try {
     const found = await findMagicRepo(github);
     if (found.kind === "onboarding") return found;
-    const repo = github.repo(found.repo);
     const opened = await openMagicRepo(repo);
     if (opened.kind === "refused") return opened;
     return {

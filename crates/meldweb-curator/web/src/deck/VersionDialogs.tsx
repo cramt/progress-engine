@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { deckPath } from "../github/decks";
+import { deckBranchFor } from "../github/decks";
 import { Sheet, useBusy } from "../ui/Sheet";
 
 /** Names a version of the deck, kept as a git tag (ADR-0024). */
@@ -62,8 +62,11 @@ export function SnapshotDialog({
   );
 }
 
-/** A new deck that starts as a version of this one and names it as its parent. */
-export function VariantDialog({
+/**
+ * Forks the deck (ADR-0041): a new deck whose line starts on a commit of
+ * this one, so its history is this deck's up to the fork.
+ */
+export function ForkDialog({
   parent,
   of,
   onClose,
@@ -80,17 +83,17 @@ export function VariantDialog({
   const [name, setName] = useState(`${parent} (budget)`);
   const { busy, refusal, run } = useBusy();
   return (
-    <Sheet label="New variant" onClose={onClose}>
+    <Sheet label="Fork deck" onClose={onClose}>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
           if (await run(() => onCreate(name.trim()))) onClose();
         }}
       >
-        <h2>New variant of {parent}</h2>
+        <h2>Fork {parent}</h2>
         <p className="hint">
-          A deck of its own that starts as {of}. It remembers {parent} as its
-          parent, so either can compare with the other and take its changes.
+          A deck of its own that starts as {of}. Its history is {parent}'s up to
+          here, so either can compare with the other and take its changes.
         </p>
         <label className="field">
           Name
@@ -104,7 +107,7 @@ export function VariantDialog({
         </label>
         {name.trim() && (
           <p className="hint field-hint">
-            The file will be <code>{deckPath(name.trim())}</code>.
+            The deck will be <code>{deckBranchFor(name.trim())}</code>.
           </p>
         )}
         {refusal && (
@@ -121,7 +124,7 @@ export function VariantDialog({
             className="primary"
             disabled={busy || name.trim() === ""}
           >
-            {busy ? "Making…" : "Make variant"}
+            {busy ? "Forking…" : "Fork"}
           </button>
         </div>
       </form>

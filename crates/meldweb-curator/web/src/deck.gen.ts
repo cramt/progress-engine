@@ -2,6 +2,44 @@
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
 /**
+ * What migrating the repo to the next version came to.
+ */
+export interface MigratedFacts {
+  version: number;
+  decks: number;
+  snapshots: number;
+}
+
+export type DeckDeleted =
+  | { kind: "deleted" }
+  | { kind: "conflict"; message: string };
+
+export interface DeckLineList {
+  decks: DeckLine[];
+}
+
+/**
+ * One deck as the deck list reads it: its stem, the text on its `main`,
+ * and the deck it was forked from, read from its history (ADR-0041).
+ */
+export interface DeckLine {
+  stem: string;
+  /**
+   * The tip of `decks/<stem>/main`.
+   */
+  commit: string;
+  /**
+   * `<stem>.deck.toml` there; absent when the line holds none.
+   */
+  text?: string;
+  /**
+   * Its blob id, which a later write sends back as its guard.
+   */
+  sha?: string;
+  parent?: string;
+}
+
+/**
  * What a push came to, ref by ref.
  */
 export interface PushOutcome {
@@ -15,8 +53,10 @@ export interface Refused {
 }
 
 /**
- * What bringing the remote's `main` into this one came to; see
- * `meldweb_git::Integrated`.
+ * What bringing the remote's branches into these came to, all of them
+ * together; see `meldweb_git::Integrated`. A path is named as it is on its
+ * branch, and a deck's with its branch before it:
+ * `decks/lantern/main: lantern.deck.toml`.
  */
 export type Synced =
   | { kind: "remoteEmpty" }
@@ -38,15 +78,19 @@ export interface RemoteFacts {
    */
   url?: string;
   /**
-   * Commits on `main` the remote's `main` lacks, as last fetched.
+   * Commits on the branches here that the remote's lack, as last fetched.
    */
   ahead: number;
   /**
-   * Commits on the remote's `main`, as last fetched, that `main` lacks.
+   * Commits on the remote's branches, as last fetched, that none here holds.
    */
   behind: number;
   /**
-   * Snapshots here the remote lacks.
+   * Branches (decks, mostly) to make, move or delete on the remote.
+   */
+  branches: number;
+  /**
+   * Snapshots to make, move or delete on the remote.
    */
   tags: number;
 }
@@ -440,7 +484,6 @@ export type DeckChange =
   | { kind: "retype"; category: string; text: string }
   | { kind: "rename"; text: string }
   | { kind: "format"; text: string }
-  | { kind: "variantOf"; text: string }
   | { kind: "cover"; text: string }
   | { kind: "description"; text: string };
 
@@ -575,7 +618,7 @@ export type ParsedTrade =
  * A deck file the derived list could not read, and why.
  */
 export interface Unread {
-  path: string;
+  stem: string;
   message: string;
 }
 
@@ -592,11 +635,13 @@ export interface TradeOffer {
 }
 
 /**
- * A deck file as the page loaded it.
+ * A deck as the page loaded it: its stem, the text on its `main`, and the
+ * deck it was forked from, which the deck list read from its history.
  */
 export interface DeckFile {
-  path: string;
+  stem: string;
   text: string;
+  parent?: string;
 }
 
 export type ParsedWanted =
@@ -617,9 +662,9 @@ export interface MissingCard {
  * A deck holding a card the collection is short of.
  */
 export interface DeckNeed {
-  path: string;
+  stem: string;
   /**
-   * The deck's `name`, or its file's stem when it has none.
+   * The deck's `name`, or its stem when it has none.
    */
   name: string;
   qty: number;
@@ -742,7 +787,7 @@ export interface OwnedCard {
 export interface Place {
   name: string;
   /**
-   * The path of the deck this place is, when it is one.
+   * The stem of the deck this place is, when it is one.
    */
   deck?: string;
 }
@@ -839,7 +884,7 @@ export type NewCard =
   | { kind: "name"; name: string };
 
 export type Parsed =
-  | { kind: "deck"; name?: string; format?: string; variantOf?: string; cover?: Printing; description?: string; categories: Category[]; cards: Card[]; total: number }
+  | { kind: "deck"; name?: string; format?: string; cover?: Printing; description?: string; categories: Category[]; cards: Card[]; total: number }
   | { kind: "refused"; message: string };
 
 export interface Card {

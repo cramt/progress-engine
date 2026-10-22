@@ -19,7 +19,7 @@
 //! [places]
 //! Bulk = {}
 //! "Trade binder" = {}
-//! Lantern = { deck = "decks/lantern.deck.toml" }
+//! Lantern = { deck = "lantern" }
 //! ```
 //!
 //! A card with no `at` is unsorted: owned, and not put anywhere yet.
@@ -35,13 +35,15 @@ use crate::changelog::{finish_name, message, reference};
 use crate::deck::{line, CardRef, DeckError, Finish, Printing};
 use crate::edit::{self, card_comments, card_mut, document, finish_with, put, Added, EditError};
 use crate::identity::{holds, name_key, name_of, Names};
+use crate::stem::{BadStem, DeckStem};
 
-/// Where cards can be. `deck` is the path in the Magic repo of the deck the
-/// place is, for the cards sleeved in it.
+/// Where cards can be. `deck` is the stem of the deck the place is, for the
+/// cards sleeved in it (ADR-0041). A file from repo version 1 named the
+/// deck's path, `decks/<stem>.deck.toml`, and reads as the same stem.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Place {
     pub name: String,
-    pub deck: Option<String>,
+    pub deck: Option<DeckStem>,
 }
 
 /// One line of the collection: copies of a card, alike in finish and place.
@@ -75,14 +77,18 @@ pub enum CollectionError {
         card: CardRef,
         place: String,
     },
-    #[error("place {place:?}: deck must be the deck's path, like \"decks/lantern.deck.toml\"")]
-    EmptyDeck { place: String },
+    #[error("place {place:?}: deck: {stem}")]
+    BadDeck { place: String, stem: BadStem },
     #[error("places {a:?} and {b:?} are both the deck {deck}; a deck is one place")]
-    SameDeck { deck: String, a: String, b: String },
+    SameDeck {
+        deck: DeckStem,
+        a: String,
+        b: String,
+    },
     #[error("place {name:?} is already declared{}", existing.as_ref().map_or_else(|| " with no deck".to_string(), |d| format!(" as the deck {d}")))]
     DeclaredDifferently {
         name: String,
-        existing: Option<String>,
+        existing: Option<DeckStem>,
     },
     #[error("place {name:?} still holds {qty} cards; move them out first")]
     NotEmpty { name: String, qty: u32 },
@@ -135,11 +141,17 @@ impl Collection {
             .places
             .into_iter()
             .map(|(name, p)| match p.deck {
-                Some(d) if d.trim().is_empty() => Err(CollectionError::EmptyDeck { place: name }),
-                deck => Ok(Place { name, deck }),
+                None => Ok(Place { name, deck: None }),
+                Some(d) => match DeckStem::read(&d) {
+                    Ok(stem) => Ok(Place {
+                        name,
+                        deck: Some(stem),
+                    }),
+                    Err(stem) => Err(CollectionError::BadDeck { place: name, stem }),
+                },
             })
             .collect::<Result<_, _>>()?;
-        let mut decks: HashMap<&str, &str> = HashMap::new();
+        let mut decks: HashMap<&DeckStem, &str> = HashMap::new();
         for p in &places {
             if let Some(deck) = &p.deck {
                 if let Some(other) = decks.insert(deck, &p.name) {
@@ -672,12 +684,38 @@ fn set_qty_in(card: &mut InlineTable, qty: u32) {
     }
 }
 
+/// `text` with every deck place that names a repo-version-1 path,
+/// `decks/<stem>.deck.toml`, naming the stem instead, and every other byte as
+/// it was; `None` when no place needs it (or the text is not TOML). The
+/// v1 → v2 migration writes it (ADR-0041).
+pub fn v1_places_to_stems(text: &str) -> Option<String> {
+    let mut doc = text.parse::<toml_edit::DocumentMut>().ok()?;
+    let places = doc.get_mut("places")?.as_table_like_mut()?;
+    let mut changed = false;
+    for (_, place) in places.iter_mut() {
+        let Some(place) = place.as_table_like_mut() else {
+            continue;
+        };
+        let Some(deck) = place.get_mut("deck").and_then(Item::as_value_mut) else {
+            continue;
+        };
+        let Some(stem) = deck.as_str().and_then(DeckStem::from_v1_path) else {
+            continue;
+        };
+        let decor = deck.decor().clone();
+        *deck = Value::from(stem.as_str());
+        *deck.decor_mut() = decor;
+        changed = true;
+    }
+    changed.then(|| doc.to_string())
+}
+
 /// Declares the place `name` under `[places]`, standing for the deck at
 /// `deck` when one is given. Declaring it again the same way changes nothing.
-pub fn declare_place(text: &str, name: &str, deck: Option<&str>) -> Result<String, EditError> {
+pub fn declare_place(text: &str, name: &str, deck: Option<&DeckStem>) -> Result<String, EditError> {
     let c = parse(text)?;
     if let Some(existing) = c.place(name) {
-        if existing.deck.as_deref() == deck {
+        if existing.deck.as_ref() == deck {
             return Ok(text.to_string());
         }
         return Err(CollectionError::DeclaredDifferently {
@@ -695,7 +733,7 @@ pub fn declare_place(text: &str, name: &str, deck: Option<&str>) -> Result<Strin
         .ok_or_else(|| EditError::Toml("places is not a table".into()))?;
     let mut value = InlineTable::new();
     if let Some(deck) = deck {
-        value.insert("deck", deck.into());
+        value.insert("deck", deck.as_str().into());
         value.fmt();
     }
     table.insert(name, Item::Value(Value::InlineTable(value)));
@@ -979,7 +1017,8 @@ pub fn commit_message(
                 },
             )),
             Some(old) if old.deck != p.deck => {
-                let d = |d: &Option<String>| d.clone().unwrap_or_else(|| "no deck".into());
+                let d =
+                    |d: &Option<DeckStem>| d.as_ref().map_or("no deck".into(), |d| d.to_string());
                 changes.push((
                     Kind::Redeck,
                     name.clone(),

@@ -14,7 +14,9 @@ import {
 beforeAll(loadWasm);
 
 const ALEX: Author = { name: "Alex", email: "alex@example.com" };
-const PATH = "decks/lantern.deck.toml";
+const PATH = "lantern.deck.toml";
+/** Lantern's own line (ADR-0041). */
+const BRANCH = "decks/lantern/main";
 const deck = (...cards: string[]) =>
   `name = "Lantern"\ncards = [\n${cards.map((c) => `  { name = "${c}" },\n`).join("")}]\n`;
 
@@ -51,12 +53,12 @@ function browser() {
 }
 
 describe("the browser's repo", () => {
-  it("is made on the first visit, empty, and opens at version 1", async () => {
+  it("is made on the first visit, empty, and opens at version 2", async () => {
     const { disk, tab } = browser();
     const repo = tab();
-    expect(await repo.listDir("decks")).toEqual([]);
-    expect(await openMagicRepo(repo)).toEqual({ kind: "open", version: 1 });
-    expect((await repo.getFile("VERSION"))?.text).toBe("1\n");
+    expect(await repo.decks()).toEqual([]);
+    expect(await openMagicRepo(repo)).toEqual({ kind: "open", version: 2 });
+    expect((await repo.getFile("VERSION"))?.text).toBe("2\n");
     // A bare git dir, in the slot `current` names.
     expect(new TextDecoder().decode(disk.files.get("current"))).toBe("r1\n");
     expect(new TextDecoder().decode(disk.files.get("r1/HEAD"))).toBe(
@@ -65,7 +67,7 @@ describe("the browser's repo", () => {
     expect(disk.files.has("r1/refs/heads/main")).toBe(true);
     const [made] = await repo.history("VERSION");
     expect(made).toMatchObject({
-      message: "curator: this repo is at version 1",
+      message: "curator: this repo is at version 2",
       author: "Alex",
     });
   });
@@ -161,7 +163,7 @@ describe("the browser's repo", () => {
     expect((await two.getFile(PATH))?.text).toBe(deck("B"));
   });
 
-  it("merges two tabs' saves of one deck by lines, as it does GitHub's", async () => {
+  it("merges two tabs' saves of one deck by lines, on the deck's own line", async () => {
     const { tab } = browser();
     const one = tab();
     const two = tab();
@@ -170,12 +172,14 @@ describe("the browser's repo", () => {
       text: base,
       message: "made",
       sha: null,
+      branch: BRANCH,
     });
     const merged: string[] = [];
     const stores = [one, two].map((repo, i) =>
       createSaveStore({
         repo,
         path: PATH,
+        branch: BRANCH,
         text: base,
         sha,
         idleMs: 60_000,
@@ -190,7 +194,10 @@ describe("the browser's repo", () => {
     await second.flush();
     expect(second.getState().status).toBe("saved");
     expect(merged).toEqual([deck("A", "b", "c", "D")]);
-    expect((await one.getFile(PATH))?.text).toBe(deck("A", "b", "c", "D"));
+    expect((await one.getFile(PATH, BRANCH))?.text).toBe(
+      deck("A", "b", "c", "D"),
+    );
+    expect((await one.getFile(PATH))?.text).toBeUndefined();
     for (const s of stores) s.dispose();
   });
 

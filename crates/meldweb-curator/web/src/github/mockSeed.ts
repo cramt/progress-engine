@@ -22,6 +22,7 @@ import {
   removeCard,
   setCardCategories,
 } from "../deck";
+import type { Repo } from "../repo/api";
 import type { SeedCommit } from "./mock";
 
 const LANTERN = "decks/lantern.deck.toml";
@@ -135,4 +136,61 @@ export function history(now: number): SeedCommit[] {
     message: commitMessage(versions[i - 1]?.text ?? "", v.text, LANTERN),
     date: new Date(now - v.daysAgo * day + i * 37 * 60 * 1000).toISOString(),
   }));
+}
+
+/**
+ * Writes the seed into an empty repo as a repo-version-1 Curator left it:
+ * Lantern's six weeks, a budget variant of it made from one of those, a
+ * snapshot, and the rest of the files a minute ago. Opening it migrates it
+ * to version 2 (ADR-0041), which is how the dev mock shows a migration.
+ * `at` sets the clock the repo commits by, `null` giving it back.
+ */
+export async function seedRepo(
+  repo: Repo,
+  at: (ms: number | null) => void,
+  now: number,
+): Promise<void> {
+  const day = 24 * 60 * 60 * 1000;
+  try {
+    at(now - 41 * day);
+    await repo.putFile("VERSION", {
+      text: "1\n",
+      message: "curator: this repo is at version 1",
+      sha: null,
+    });
+    let sha: string | null = null;
+    const commits: string[] = [];
+    for (const c of history(now)) {
+      at(Date.parse(c.date));
+      const put: { sha: string; commit: string } = await repo.putFile(c.path, {
+        text: c.text,
+        message: c.message,
+        sha,
+      });
+      sha = put.sha;
+      commits.push(put.commit);
+    }
+    at(now - 3 * day);
+    const budget = `name = "Lantern (budget)"\nvariant_of = "${LANTERN}"\n\n${history(now)[2]?.text ?? lantern}`;
+    await repo.putFile("decks/lantern-budget.deck.toml", {
+      text: budget,
+      message: "lantern-budget: variant of lantern",
+      sha: null,
+    });
+    const fnm = commits[2];
+    if (fnm) {
+      await repo.takeSnapshot({
+        tag: "decks/lantern/fnm-14-sep",
+        label: "FNM 14 Sep",
+        commit: fnm,
+      });
+    }
+    at(now - 60_000);
+    for (const [path, text] of Object.entries(files)) {
+      if (path === "VERSION") continue;
+      await repo.putFile(path, { text, message: `add ${path}`, sha: null });
+    }
+  } finally {
+    at(null);
+  }
 }

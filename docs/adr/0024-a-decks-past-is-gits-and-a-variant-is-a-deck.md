@@ -1,3 +1,7 @@
+---
+status: "accepted; variants, and every deck sharing one main, superseded by ADR-0041: a variant is a fork, and a deck is its own line, decks/<stem>/main"
+---
+
 # A deck's past is git's, a snapshot is a tag, and a variant is another deck
 
 Every save is already a commit, and its message is the deck's changelog ([ADR-0021](0021-curator-owns-one-fixed-name-repo-and-saves-by-itself.md)). So Meldweb Curator keeps no history of its own. It reads git's, and it adds to it only through the saves it already makes.

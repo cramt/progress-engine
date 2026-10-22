@@ -34,7 +34,10 @@ metamorph deck decks/insider-trading.deck.toml --no-basics --minus collection.to
 `--minus` leaves out what the collection owns. The count comes from
 `chip-decklist`'s `supply`, the same call as Curator's Sourcing view
 (ADR-0036), so a copy in another printing or finish counts as owned, and so
-does a copy sleeved in another deck. A run prints what it left out, and
+does a copy sleeved in another deck. The deck's own place in the collection
+is the one naming the deck file's stem (`deck = "insider-trading"` for
+`insider-trading.deck.toml`, as Curator's repo version 2 writes it; a
+version-1 `decks/insider-trading.deck.toml` reads the same). A run prints what it left out, and
 stdout lists what went on the sheet, one line per card.
 
 ## In Curator

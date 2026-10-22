@@ -80,7 +80,7 @@ function readFriend(others: PublicRepos, who: string) {
 }
 
 /**
- * The deck at `path` against the collection and the friends in the
+ * The deck at `stem` against the collection and the friends in the
  * settings, read once the deck page shows a view that needs them. A move is
  * committed to `collection.toml` at once, made only on the collection as it
  * was read; when it moved on GitHub since, the page takes what is there and
@@ -90,14 +90,14 @@ export function useSupply({
   active,
   repo,
   others,
-  path,
+  stem,
   text,
   printings,
 }: {
   active: boolean;
   repo: Repo;
   others: PublicRepos;
-  path: string;
+  stem: string;
   text: string;
   printings: Printings;
 }): Supply {
@@ -182,13 +182,13 @@ export function useSupply({
   const supply = useMemo(() => {
     if (collection === null) return null;
     return readSupply(
-      path,
+      stem,
       text,
       collection,
       files,
       printingNames(printed, all),
     );
-  }, [path, text, collection, files, printed, all]);
+  }, [stem, text, collection, files, printed, all]);
 
   // `undone` is the move to take back again if this one fails.
   const commit = (from: string, to: string, undone?: string) => {
@@ -255,7 +255,7 @@ export function useSupply({
   return {
     state,
     move: (moves, to) => change((t) => moveSome(t, moves, to)),
-    makePlace: (name) => change((t) => declarePlace(t, name, path)),
+    makePlace: (name) => change((t) => declarePlace(t, name, stem)),
     undo: () => {
       const back = past.current.at(-1);
       if (collection === null || back === undefined || saving) return;

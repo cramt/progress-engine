@@ -472,7 +472,7 @@ function FromDecks({
   deckCopies: DeckCopies;
   /** Why the collection could not be read, when it could not. */
   collection: string | undefined;
-  unread: readonly { path: string; message: string }[];
+  unread: readonly { stem: string; message: string }[];
   printings: Printings;
   prices: PriceBook;
   currency: Currency;
@@ -506,8 +506,8 @@ function FromDecks({
         </p>
       )}
       {unread.map((u) => (
-        <p key={u.path} className="refusal-inline wanted-note">
-          {u.path} is left out: {u.message}
+        <p key={u.stem} className="refusal-inline wanted-note">
+          {u.stem} is left out: {u.message}
         </p>
       ))}
       {missing.length === 0 ? (
@@ -548,9 +548,9 @@ function FromDecks({
                   <td className="wanted-decks">
                     {m.decks.map((d) => (
                       <Link
-                        key={d.path}
+                        key={d.stem}
                         to="/deck/$"
-                        params={{ _splat: d.path }}
+                        params={{ _splat: d.stem }}
                         className="wanted-deck"
                       >
                         {d.name}

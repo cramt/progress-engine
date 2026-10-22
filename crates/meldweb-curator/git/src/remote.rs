@@ -19,6 +19,13 @@
 //! The remote's branches are tracked under `refs/remotes/origin/`, as
 //! `git fetch` keeps them, and its tags under `refs/remotes/origin/tags/`,
 //! so the repo knows what the remote holds without asking it.
+//!
+//! Every branch and tag syncs, not only `main` (ADR-0041: each deck is a
+//! branch, each snapshot a tag). What was tracked before a fetch is what
+//! both sides last agreed on, so each ref is settled three ways, as git
+//! settles a file: the side that moved from it wins, which is how a branch
+//! made, moved or deleted on one side reaches the other. A branch both sides
+//! moved merges; a tag both moved takes the remote's.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 
@@ -206,10 +213,10 @@ pub struct Pushed {
     pub rejected: Vec<(String, String)>,
 }
 
-/// What bringing the remote's `main` into this repo's came to.
+/// What bringing one of the remote's branches into this repo's came to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Integrated {
-    /// The remote has no `main` yet: a push makes it.
+    /// The remote has no such branch yet: a push makes it.
     RemoteEmpty,
     UpToDate,
     /// This repo has commits the remote lacks, and none the other way.
@@ -218,7 +225,7 @@ pub enum Integrated {
         to: CommitId,
     },
     /// This repo held only its first `VERSION` commit, so it took the
-    /// remote's history, as a clone would.
+    /// remote's history, as a clone would; or a branch only the remote had.
     Adopted {
         to: CommitId,
     },
@@ -237,11 +244,13 @@ pub enum Integrated {
 /// What is waiting to go to the remote.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RemoteStatus {
-    /// Commits on `main` that the remote's tracked `main` lacks.
+    /// Commits on the branches here that no tracked branch holds.
     pub ahead: usize,
-    /// Commits on the tracked `main` that `main` lacks.
+    /// Commits on the tracked branches that no branch here holds.
     pub behind: usize,
-    /// Tags here that the remote does not have.
+    /// Branches to make, move or delete on the remote.
+    pub branches: usize,
+    /// Tags to make, move or delete on the remote.
     pub tags: usize,
 }
 
@@ -317,7 +326,17 @@ impl<S: Store> Repo<S> {
 
     /// Makes `url` the repo's `origin`, replacing any other. A `git` that
     /// reads the exported repo fetches it with `git fetch`.
+    ///
+    /// A new URL forgets what was tracked of the old one, as
+    /// [`Repo::remove_remote`] does: the next fetch settles every ref
+    /// against a remote that has agreed on nothing yet, so a branch or tag
+    /// only the old remote had is not taken for one deleted here.
     pub fn set_remote(&mut self, url: &RemoteUrl) -> Result<()> {
+        if self.remote()?.as_ref() != Some(url) {
+            for (name, id) in self.refs_under(TRACKING)? {
+                self.swap_ref(&format!("{TRACKING}/{name}"), Some(id), None)?;
+            }
+        }
         let mut config = without_origin(&self.config_text()?);
         config.push_str(&format!(
             "[remote \"{ORIGIN}\"]\n\turl = {}\n\tfetch = +refs/heads/*:{TRACKING}/*\n\tfetch = +refs/tags/*:{TRACKED_TAGS}/*\n[branch \"main\"]\n\tremote = {ORIGIN}\n\tmerge = refs/heads/main\n",
@@ -337,8 +356,12 @@ impl<S: Store> Repo<S> {
         Ok(())
     }
 
-    fn tracked_main(&self) -> Result<Option<CommitId>> {
-        Ok(self.read_ref(&format!("{TRACKING}/main"))?.map(CommitId))
+    /// The remote's `branch` as last fetched or pushed.
+    pub fn tracked_tip(&self, branch: &BranchName) -> Result<Option<CommitId>> {
+        match self.read_ref(&format!("{TRACKING}/{branch}"))? {
+            Some(id) => self.commit_of(&id),
+            None => Ok(None),
+        }
     }
 
     fn tracked_tags(&self) -> Result<BTreeMap<String, ObjectId>> {
@@ -555,6 +578,7 @@ impl<S: Store> Repo<S> {
             .into_iter()
             .map(|(name, id)| (format!("{TRACKING}/{name}"), id))
             .collect();
+        self.settle_refs(&held, &want)?;
         // Pruned first, so a tracked branch `a` can follow a gone `a/b`.
         for (path, id) in &held {
             if !want.contains_key(path) {
@@ -565,6 +589,60 @@ impl<S: Store> Repo<S> {
             let now = held.get(path).copied();
             if now != Some(*id) {
                 self.swap_ref(path, now, Some(*id))?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Brings in what the remote made, moved or deleted since the last
+    /// fetch (`held`, what was tracked then) and this repo did not: each
+    /// branch but `main`, and each tag. A branch both sides moved is left
+    /// for [`Repo::integrate`] to merge; one this repo deleted and the
+    /// remote did not touch stays deleted, for the push to delete there.
+    fn settle_refs(
+        &mut self,
+        held: &BTreeMap<String, ObjectId>,
+        want: &BTreeMap<String, ObjectId>,
+    ) -> Result<()> {
+        let names: BTreeSet<&String> = held.keys().chain(want.keys()).collect();
+        for tracked in names {
+            let base = held.get(tracked).copied();
+            let remote = want.get(tracked).copied();
+            if remote == base {
+                continue;
+            }
+            let rest = &tracked[TRACKING.len() + 1..];
+            let (local_path, is_tag) = match rest.strip_prefix("tags/") {
+                Some(tag) => (format!("refs/tags/{tag}"), true),
+                None if rest == "main" => continue,
+                None => (format!("refs/heads/{rest}"), false),
+            };
+            let local = self.read_ref(&local_path)?;
+            let take = if local == base {
+                true
+            } else if remote.is_none() {
+                // Moved here, deleted there: keep it, and the push makes it again.
+                false
+            } else if is_tag {
+                // A snapshot both sides moved: the remote's is what others see.
+                true
+            } else {
+                // Deleted here, moved there, it comes back; moved both ways, it merges.
+                local.is_none()
+            };
+            if !take || local == remote {
+                continue;
+            }
+            if let Some(id) = remote {
+                // A snapshot is a tag of a commit; anything else is not taken.
+                if is_tag && self.commit_of(&id)?.is_none() {
+                    continue;
+                }
+            }
+            match self.swap_ref(&local_path, local, remote) {
+                // A local ref `a` where the remote made `a/b`: keep the local one.
+                Err(Error::RefClash { .. }) => {}
+                other => other?,
             }
         }
         Ok(())
@@ -603,32 +681,92 @@ impl<S: Store> Repo<S> {
         Ok(())
     }
 
-    /// Brings the tracked `main` into `main`: fast-forwards when it can,
-    /// takes the remote's history over a fresh repo's, and otherwise merges
-    /// three-way from the merge base with `merge_file` (see
-    /// [`Repo::merge_trees`]), committing the merge with two parents.
-    /// `prefer` settles conflicting paths when the user has chosen a side.
+    /// Brings each tracked branch into the branch here of the same name:
+    /// [`Repo::integrate_onto`] with [`Repo::integration_targets`].
     pub fn integrate(
         &mut self,
         who: &Signature,
         prefer: Option<Side>,
         merge_file: &mut MergeFile<'_>,
-    ) -> Result<Integrated> {
+    ) -> Result<Vec<(BranchName, Integrated)>> {
+        let theirs = self.integration_targets()?;
+        self.integrate_onto(&theirs, who, prefer, merge_file)
+    }
+
+    /// The tracked branches, each as the commit to bring into the branch
+    /// here of its name. A branch tracked but deleted here (other than
+    /// `main`) was deleted since the last sync, since the fetch would have
+    /// made it again otherwise, and stays deleted.
+    pub fn integration_targets(&self) -> Result<BTreeMap<BranchName, CommitId>> {
+        let mut theirs = BTreeMap::new();
+        for (name, id) in self.refs_under(TRACKING)? {
+            if name.starts_with("tags/") {
+                continue;
+            }
+            let Ok(branch) = BranchName::new(name) else {
+                continue;
+            };
+            if branch != main_branch() && self.branch_tip(&branch)?.is_none() {
+                continue;
+            }
+            if let Some(c) = self.commit_of(&id)? {
+                theirs.insert(branch, c);
+            }
+        }
+        Ok(theirs)
+    }
+
+    /// Brings `theirs`, the remote's branches as this repo should take them,
+    /// into the branches here, one by one: a fast-forward when it can, the
+    /// remote's history over a `main` that is only its first `VERSION`
+    /// commit, a branch only the remote has made here, and otherwise a merge
+    /// three-way from the merge base with `merge_file` (see
+    /// [`Repo::merge_trees`]), committed with two parents. `prefer` settles
+    /// conflicting paths when the user has chosen a side. `main` always has
+    /// an outcome, [`Integrated::RemoteEmpty`] when `theirs` lacks it.
+    pub fn integrate_onto(
+        &mut self,
+        theirs: &BTreeMap<BranchName, CommitId>,
+        who: &Signature,
+        prefer: Option<Side>,
+        merge_file: &mut MergeFile<'_>,
+    ) -> Result<Vec<(BranchName, Integrated)>> {
         let main = main_branch();
-        let Some(remote) = self.tracked_main()? else {
-            return Ok(Integrated::RemoteEmpty);
-        };
-        let local = self.branch_tip(&main)?;
-        let outcome = match local {
+        let mut out = Vec::new();
+        if !theirs.contains_key(&main) {
+            out.push((main.clone(), Integrated::RemoteEmpty));
+        }
+        for (branch, remote) in theirs {
+            let outcome = self.integrate_branch(branch, *remote, who, prefer, merge_file)?;
+            out.push((branch.clone(), outcome));
+        }
+        Ok(out)
+    }
+
+    fn integrate_branch(
+        &mut self,
+        branch: &BranchName,
+        remote: CommitId,
+        who: &Signature,
+        prefer: Option<Side>,
+        merge_file: &mut MergeFile<'_>,
+    ) -> Result<Integrated> {
+        let is_main = *branch == main_branch();
+        let local = self.branch_tip(branch)?;
+        Ok(match local {
             Some(l) if l == remote => Integrated::UpToDate,
             Some(l) if self.is_ancestor(&remote, &l)? => Integrated::Ahead,
             Some(l) if self.is_ancestor(&l, &remote)? => {
-                self.update_branch(&main, crate::Tip::At(l), &remote)?;
+                self.update_branch(branch, crate::Tip::At(l), &remote)?;
                 Integrated::FastForwarded { to: remote }
             }
-            _ if self.is_fresh()? => {
+            None if !is_main => {
+                self.update_branch(branch, crate::Tip::Unborn, &remote)?;
+                Integrated::Adopted { to: remote }
+            }
+            _ if is_main && self.is_fresh()? => {
                 let tip = local.map_or(crate::Tip::Unborn, crate::Tip::At);
-                self.update_branch(&main, tip, &remote)?;
+                self.update_branch(branch, tip, &remote)?;
                 Integrated::Adopted { to: remote }
             }
             None => unreachable!("an unborn main is fresh"),
@@ -640,26 +778,25 @@ impl<S: Store> Repo<S> {
                 match self.merge_trees(Some(base), &l, &remote, prefer, merge_file)? {
                     TreeMerge::Conflicts(paths) => Integrated::Conflict { paths },
                     TreeMerge::Clean { tree, taken } => {
-                        let commit = self.write_merge(&l, &remote, tree, &taken, who)?;
-                        self.update_branch(&main, crate::Tip::At(l), &commit)?;
+                        let commit = self.write_merge(branch, &l, &remote, tree, &taken, who)?;
+                        self.update_branch(branch, crate::Tip::At(l), &commit)?;
                         Integrated::Merged { commit, taken }
                     }
                 }
             }
-        };
-        self.adopt_tags()?;
-        Ok(outcome)
+        })
     }
 
     fn write_merge(
         &mut self,
+        branch: &BranchName,
         ours: &CommitId,
         theirs: &CommitId,
         tree: TreeId,
         taken: &[String],
         who: &Signature,
     ) -> Result<CommitId> {
-        let mut message = format!("sync: merge {ORIGIN}/main\n");
+        let mut message = format!("sync: merge {ORIGIN}/{branch}\n");
         if !taken.is_empty() {
             message.push('\n');
             for path in taken {
@@ -710,58 +847,104 @@ impl<S: Store> Repo<S> {
         self.adopt_tags()
     }
 
-    /// What `main` and the tags hold that the tracked remote does not, and
-    /// the other way.
+    /// What the branches and tags here hold that the tracked remote does
+    /// not, and the other way.
     pub fn remote_status(&self) -> Result<RemoteStatus> {
-        let local = self.branch_tip(&main_branch())?;
-        let remote = self.tracked_main()?;
+        let local: BTreeMap<String, ObjectId> =
+            self.refs_under("refs/heads")?.into_iter().collect();
+        let tracked: BTreeMap<String, ObjectId> = self
+            .refs_under(TRACKING)?
+            .into_iter()
+            .filter(|(n, _)| !n.starts_with("tags/"))
+            .collect();
+        let tips = |m: &BTreeMap<String, ObjectId>| -> Result<Vec<CommitId>> {
+            let mut out = Vec::new();
+            for id in m.values() {
+                out.extend(self.commit_of(id)?);
+            }
+            Ok(out)
+        };
         let mut cache = Default::default();
-        let mine = self.ancestors(&local.into_iter().collect::<Vec<_>>(), &mut cache)?;
-        let theirs = self.ancestors(&remote.into_iter().collect::<Vec<_>>(), &mut cache)?;
-        let tracked = self.tracked_tags()?;
-        let tags = self
-            .local_tags()?
-            .keys()
-            .filter(|name| !tracked.contains_key(*name))
-            .count();
+        let mine = self.ancestors(&tips(&local)?, &mut cache)?;
+        let theirs = self.ancestors(&tips(&tracked)?, &mut cache)?;
+        let differing = |a: &BTreeMap<String, ObjectId>, b: &BTreeMap<String, ObjectId>| {
+            a.iter().filter(|(n, id)| b.get(*n) != Some(id)).count()
+                + b.keys().filter(|n| !a.contains_key(*n)).count()
+        };
+        let tracked_tags = self.tracked_tags()?;
         Ok(RemoteStatus {
             ahead: mine.difference(&theirs).count(),
             behind: theirs.difference(&mine).count(),
-            tags,
+            branches: differing(&local, &tracked),
+            tags: differing(&self.local_tags()?, &tracked_tags),
         })
     }
 
     // Pushing.
 
     /// The body of `POST git-receive-pack` for the remote's `info/refs`
-    /// answer: `main` when the remote's is behind it, and every tag the
-    /// remote lacks, with a pack of what the remote does not have. Each
-    /// update names the remote ref's advertised id as its old one, which is
-    /// receive-pack's compare-and-swap: a ref that moved since is refused.
+    /// answer: every branch here the remote's is behind, and every tag here
+    /// it lacks or has elsewhere, with a pack of what the remote does not
+    /// have; and the deletion of each branch and tag deleted here since the
+    /// last sync. Each update names the remote ref's advertised id as its
+    /// old one, which is receive-pack's compare-and-swap: a ref that moved
+    /// since is refused. A remote branch this repo has not merged, or a ref
+    /// the remote moved since the last fetch, is [`PushRequest::Behind`].
     pub fn push_request(&self, advertised: &[u8]) -> Result<PushRequest> {
         let ad = parse_advertisement(advertised, "git-receive-pack")?;
         if !ad.has_cap("report-status") {
             return Err(remote_err("the remote does not report a push's outcome"));
         }
         let zero = ObjectId::null(SHA1);
+        let tracked: BTreeMap<String, ObjectId> = self.refs_under(TRACKING)?.into_iter().collect();
         let mut commands: Vec<(ObjectId, ObjectId, String)> = Vec::new();
-        if let Some(local) = self.branch_tip(&main_branch())? {
-            match ad.refs.get("refs/heads/main") {
-                Some(r) if *r == local.0 => {}
-                None => commands.push((zero, local.0, "refs/heads/main".to_owned())),
-                Some(r) => {
-                    let ahead = self.has_object(r)? && self.is_ancestor(&CommitId(*r), &local)?;
-                    if !ahead {
-                        return Ok(PushRequest::Behind);
-                    }
-                    commands.push((*r, local.0, "refs/heads/main".to_owned()));
-                }
-            }
+        let mut local_refs: Vec<(String, ObjectId)> = Vec::new();
+        for (name, id) in self.refs_under("refs/heads")? {
+            local_refs.push((format!("refs/heads/{name}"), id));
         }
         for (name, id) in self.local_tags()? {
-            let path = format!("refs/tags/{name}");
-            if !ad.refs.contains_key(&path) {
-                commands.push((zero, id, path));
+            local_refs.push((format!("refs/tags/{name}"), id));
+        }
+        for (path, local) in &local_refs {
+            let remote = ad.refs.get(path).copied();
+            if remote == Some(*local) {
+                continue;
+            }
+            let base =
+                tracking_for(path).and_then(|t| tracked.get(&t[TRACKING.len() + 1..]).copied());
+            if path.starts_with("refs/tags/") {
+                // The remote moved the tag since the fetch: take that in first.
+                if remote != base {
+                    return Ok(PushRequest::Behind);
+                }
+            } else if let Some(r) = remote {
+                let ahead =
+                    self.has_object(&r)? && self.is_ancestor(&CommitId(r), &CommitId(*local))?;
+                if !ahead {
+                    return Ok(PushRequest::Behind);
+                }
+            }
+            commands.push((remote.unwrap_or(zero), *local, path.clone()));
+        }
+        // Tracked refs gone here, deleted since the last sync.
+        for (name, base) in &tracked {
+            let path = match name.strip_prefix("tags/") {
+                Some(tag) => format!("refs/tags/{tag}"),
+                None if name == "main" => continue,
+                None => format!("refs/heads/{name}"),
+            };
+            if local_refs.iter().any(|(p, _)| *p == path) {
+                continue;
+            }
+            match ad.refs.get(&path) {
+                None => {}
+                Some(r) if r == base => {
+                    if !ad.has_cap("delete-refs") {
+                        return Err(remote_err("the remote does not let a push delete a ref"));
+                    }
+                    commands.push((*r, zero, path));
+                }
+                Some(_) => return Ok(PushRequest::Behind),
             }
         }
         if commands.is_empty() {
@@ -773,7 +956,11 @@ impl<S: Store> Repo<S> {
             .copied()
             .filter(|id| self.has_object(id).unwrap_or(false))
             .collect();
-        let tips: Vec<ObjectId> = commands.iter().map(|(_, new, _)| *new).collect();
+        let tips: Vec<ObjectId> = commands
+            .iter()
+            .map(|(_, new, _)| *new)
+            .filter(|new| !new.is_null())
+            .collect();
         let objects = self
             .objects_between(&tips, &known)?
             .into_iter()
@@ -784,6 +971,10 @@ impl<S: Store> Repo<S> {
             if i == 0 {
                 let caps = [
                     Some("report-status"),
+                    commands
+                        .iter()
+                        .any(|(_, n, _)| n.is_null())
+                        .then_some("delete-refs"),
                     ad.caps
                         .iter()
                         .any(|c| c.starts_with("agent="))
@@ -803,7 +994,10 @@ impl<S: Store> Repo<S> {
             }
         }
         pktline::flush(&mut body);
-        body.extend(pack::write(&objects));
+        // A push of deletions alone sends no pack (gitprotocol-pack(5)).
+        if !tips.is_empty() {
+            body.extend(pack::write(&objects));
+        }
         Ok(PushRequest::Send(body))
     }
 
@@ -855,9 +1049,10 @@ impl<S: Store> Repo<S> {
             let (Some(new), Some(local)) = (commands.get(name), tracking_for(name)) else {
                 continue;
             };
+            let new = (!new.is_null()).then_some(*new);
             let now = self.read_ref(&local)?;
-            if now != Some(*new) {
-                self.swap_ref(&local, now, Some(*new))?;
+            if now != new {
+                self.swap_ref(&local, now, new)?;
             }
         }
         Ok(out)

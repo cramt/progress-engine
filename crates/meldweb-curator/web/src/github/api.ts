@@ -4,14 +4,7 @@
  * "CORS"). Every call carries the user's token and retries once through a
  * refresh on a 401.
  */
-import {
-  ConflictError,
-  type DirEntry,
-  type FileAt,
-  type Repo,
-  type Revision,
-  type Snapshot,
-} from "../repo/api";
+import type { FileAt } from "../repo/api";
 import type { Auth } from "./auth";
 
 export const GITHUB_API = "https://api.github.com";
@@ -38,8 +31,9 @@ export type PublicFile =
 
 /**
  * The user's account on GitHub: who they are and which repos the app
- * reaches. Only the dev mock's onboarding asks these; a repo is local
- * (ADR-0041), and GitHub as a remote is to come.
+ * reaches. Only the dev mock's onboarding asks these. The Magic repo is the
+ * browser's (ADR-0041), and GitHub holds it only as a remote, over git's own
+ * protocol (`src/remote/`), never this REST API.
  */
 export interface GitHubApi {
   user(): Promise<GitHubUser>;
@@ -49,8 +43,6 @@ export interface GitHubApi {
   installationRepos(installation: number): Promise<RepoRef[]>;
   /** Whether the repo answers at all; a private repo without the app reads as absent. */
   repoExists(repo: RepoRef): Promise<boolean>;
-  /** The repo on GitHub, read and written through the Contents API. */
-  repo(repo: RepoRef): Repo;
 }
 
 /** Someone else's repo, read without a login, so only a public one answers. */
@@ -69,21 +61,6 @@ export class GitHubError extends Error {
   }
 }
 
-// GitHub's docs list both 409 and 422 for the Contents `PUT` without saying
-// which a stale sha gets. A 409 is a `ConflictError`, and so is a 422 whose
-// message is a sha refusal (`isShaRefusal`); any other 422 is a malformed
-// request, which reloading or overwriting would not fix. NEEDS CONFIRMING
-// against real GitHub once the app exists (#125): pin the status and message
-// it sends and narrow this.
-export { ConflictError };
-
-/**
- * A 422 that is about the sha: GitHub's `"sha" wasn't supplied` for a create
- * over an existing file, or a `does not match` for a stale one.
- */
-const isShaRefusal = (message: string) =>
-  /"sha" wasn't supplied|does not match/.test(message);
-
 /** No token: the refresh cookie is gone or was never set. Log in again. */
 export class LoggedOutError extends Error {
   override name = "LoggedOutError";
@@ -94,9 +71,6 @@ export class LoggedOutError extends Error {
  * `content: ""` with `encoding: "none"`.
  */
 export const CONTENTS_LIMIT = 1024 * 1024;
-
-/** Browsers refuse a keepalive request whose body passes 64 KiB. */
-const KEEPALIVE_LIMIT = 60_000;
 
 export function encodeBase64(text: string): string {
   const bytes = new TextEncoder().encode(text);
@@ -142,15 +116,6 @@ async function fail(r: Response, said?: string): Promise<never> {
   );
 }
 
-type RepoCall = Exclude<keyof Repo, "where" | "onHost">;
-/** A `Repo`'s calls, each told which repo on GitHub it is for. */
-type OnGitHub = {
-  [K in RepoCall]: (
-    repo: RepoRef,
-    ...args: Parameters<Repo[K]>
-  ) => ReturnType<Repo[K]>;
-};
-
 export interface GitHubApiOptions {
   auth: Auth;
   fetch?: typeof fetch;
@@ -162,13 +127,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
   const base = options.base ?? GITHUB_API;
 
-  const send = (
-    token: string,
-    method: string,
-    path: string,
-    body: string | undefined,
-    keepalive: boolean,
-  ) =>
+  const send = (token: string, method: string, path: string) =>
     fetchImpl(`${base}${path}`, {
       method,
       // GitHub answers GETs with `private, max-age=60`; a cached read after a
@@ -178,27 +137,17 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
         Accept: "application/vnd.github+json",
         Authorization: `Bearer ${token}`,
         "X-GitHub-Api-Version": "2022-11-28",
-        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       },
-      ...(body === undefined ? {} : { body }),
-      ...(keepalive ? { keepalive: true } : {}),
     });
 
-  async function request(
-    method: string,
-    path: string,
-    body?: unknown,
-    keepalive = false,
-  ): Promise<Response> {
+  async function request(method: string, path: string): Promise<Response> {
     const token = await auth.token();
     if (!token) throw new LoggedOutError("not logged in to GitHub");
-    const json = body === undefined ? undefined : JSON.stringify(body);
-    const ka = keepalive && json !== undefined && json.length < KEEPALIVE_LIMIT;
-    const r = await send(token, method, path, json, ka);
+    const r = await send(token, method, path);
     if (r.status !== 401) return r;
     const again = await auth.refreshed(token);
     if (!again) throw new LoggedOutError("GitHub no longer accepts the login");
-    return send(again, method, path, json, ka);
+    return send(again, method, path);
   }
 
   async function json<T>(method: string, path: string): Promise<T> {
@@ -225,43 +174,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     }
   }
 
-  async function sendJson<T>(method: string, path: string, body: unknown) {
-    const r = await request(method, path, body);
-    if (!r.ok) return fail(r);
-    return (await r.json()) as T;
-  }
-
-  interface CommitJson {
-    sha: string;
-    commit: { message: string; committer: { date: string } | null };
-    author: { login: string } | null;
-  }
-  const revisionOf = (c: CommitJson): Revision => ({
-    commit: c.sha,
-    message: c.commit.message,
-    date: c.commit.committer?.date ?? "",
-    author: c.author?.login ?? null,
-  });
-
-  interface TagObject {
-    sha: string;
-    tag: string;
-    message: string;
-    object: { sha: string; type: string };
-    tagger?: { date?: string };
-  }
-  const snapshotOf = (t: TagObject): Snapshot => ({
-    tag: t.tag,
-    // Git ends a tag message with a newline whether or not it was sent one.
-    label: t.message.replace(/\n+$/, ""),
-    commit: t.object.sha,
-    date: t.tagger?.date ?? "",
-  });
-
-  // GitHub says concurrent Contents writes conflict, so they go one at a time.
-  let writes: Promise<unknown> = Promise.resolve();
-
-  const account: Omit<GitHubApi, "repo"> = {
+  const account: GitHubApi = {
     async user() {
       const u = await json<{ login: string; id: number }>("GET", "/user");
       return { login: u.login, id: u.id };
@@ -294,189 +207,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     },
   };
 
-  const files: OnGitHub = {
-    async getFile(repo, path, ref) {
-      const at = ref === undefined ? "" : `?ref=${encodeURIComponent(ref)}`;
-      const r = await request("GET", `${contents(repo, path)}${at}`);
-      if (r.status === 404) return null;
-      if (!r.ok) return fail(r);
-      return fileOf(r, path);
-    },
-
-    async getBytes(repo, path) {
-      const r = await request("GET", contents(repo, path));
-      if (r.status === 404) return null;
-      if (!r.ok) return fail(r);
-      const body = (await r.json()) as { encoding?: string; content?: string };
-      if (body.encoding !== "base64" || typeof body.content !== "string") {
-        throw new GitHubError(
-          413,
-          `${path} is over 1 MB, which GitHub will not hand to Progress Engine`,
-        );
-      }
-      return base64Bytes(body.content);
-    },
-
-    async history(repo, path, page = {}) {
-      const query = new URLSearchParams({
-        path,
-        per_page: String(Math.min(page.perPage ?? 100, 100)),
-        page: String(page.page ?? 1),
-        ...(page.until ? { until: page.until } : {}),
-      });
-      const commits = await json<CommitJson[]>(
-        "GET",
-        `${repoPath(repo)}/commits?${query}`,
-      );
-      return commits.map(revisionOf);
-    },
-
-    async revision(repo, commit) {
-      const r = await request(
-        "GET",
-        `${repoPath(repo)}/commits/${encodeURIComponent(commit)}`,
-      );
-      // GitHub answers a sha it has never seen with 422 as often as 404.
-      if (r.status === 404 || r.status === 422) return null;
-      if (!r.ok) return fail(r);
-      return revisionOf((await r.json()) as CommitJson);
-    },
-
-    async snapshots(repo, prefix) {
-      const refs = await json<
-        { ref: string; object: { sha: string; type: string } }[]
-      >(
-        "GET",
-        `${repoPath(repo)}/git/matching-refs/tags/${encodePath(prefix)}`,
-      );
-      // A lightweight tag has no label or date to show, so it is not one of
-      // Curator's snapshots.
-      const annotated = refs.filter((r) => r.object.type === "tag");
-      const tags = await Promise.all(
-        annotated.map((r) =>
-          json<TagObject>("GET", `${repoPath(repo)}/git/tags/${r.object.sha}`),
-        ),
-      );
-      return tags.map(snapshotOf);
-    },
-
-    async takeSnapshot(repo, { tag, label, commit }) {
-      const object = await sendJson<TagObject>(
-        "POST",
-        `${repoPath(repo)}/git/tags`,
-        { tag, message: label, object: commit, type: "commit" },
-      );
-      const r = await request("POST", `${repoPath(repo)}/git/refs`, {
-        ref: `refs/tags/${tag}`,
-        sha: object.sha,
-      });
-      if (r.status === 422) {
-        const message = await messageOf(r);
-        if (/already exists/i.test(message)) {
-          throw new ConflictError(`there is already a snapshot ${tag}`);
-        }
-        return fail(r, message);
-      }
-      if (!r.ok) return fail(r);
-      return snapshotOf(object);
-    },
-
-    async dropSnapshot(repo, tag) {
-      const r = await request(
-        "DELETE",
-        `${repoPath(repo)}/git/refs/tags/${encodePath(tag)}`,
-      );
-      // GitHub answers a tag that is already gone with 422 or 404; either way
-      // it is gone, which is what was asked.
-      if (!r.ok && r.status !== 404 && r.status !== 422) return fail(r);
-    },
-
-    putFile(repo, path, put) {
-      const run = writes.then(async () => {
-        const r = await request(
-          "PUT",
-          contents(repo, path),
-          {
-            message: put.message,
-            content: encodeBase64(put.text),
-            ...(put.sha === null ? {} : { sha: put.sha }),
-          },
-          put.keepalive ?? false,
-        );
-        if (r.status === 409) {
-          throw new ConflictError(`${path} changed on GitHub (409)`);
-        }
-        if (r.status === 422) {
-          const message = await messageOf(r);
-          if (isShaRefusal(message)) {
-            throw new ConflictError(`${path} changed on GitHub (422)`);
-          }
-          return fail(r, message);
-        }
-        if (!r.ok) return fail(r);
-        const body = (await r.json()) as { content: { sha: string } };
-        return { sha: body.content.sha };
-      });
-      writes = run.catch(() => undefined);
-      return run;
-    },
-
-    deleteFile(repo, path, del) {
-      const run = writes.then(async () => {
-        const r = await request("DELETE", contents(repo, path), del);
-        // A missing file is a 404 here, which for a deck means someone
-        // else got there first: the same as a stale sha.
-        if (r.status === 409 || r.status === 404) {
-          throw new ConflictError(`${path} changed on GitHub (${r.status})`);
-        }
-        if (r.status === 422) {
-          const message = await messageOf(r);
-          if (isShaRefusal(message)) {
-            throw new ConflictError(`${path} changed on GitHub (422)`);
-          }
-          return fail(r, message);
-        }
-        if (!r.ok) return fail(r);
-      });
-      writes = run.catch(() => undefined);
-      return run;
-    },
-
-    async listDir(repo, path) {
-      const r = await request("GET", contents(repo, path));
-      if (r.status === 404) return [];
-      if (!r.ok) return fail(r);
-      const body: unknown = await r.json();
-      if (!Array.isArray(body)) return [];
-      return (body as DirEntry[]).map(({ name, path, sha, type }) => ({
-        name,
-        path,
-        sha,
-        type,
-      }));
-    },
-  };
-
-  return {
-    ...account,
-    repo: (ref) => ({
-      where: `${ref.owner}/${ref.name}`,
-      onHost: (path) => ({
-        host: "GitHub",
-        url: `https://github.com/${ref.owner}/${ref.name}/blob/HEAD/${path}`,
-      }),
-      getFile: (path, at) => files.getFile(ref, path, at),
-      getBytes: (path) => files.getBytes(ref, path),
-      history: (path, page) => files.history(ref, path, page),
-      revision: (commit) => files.revision(ref, commit),
-      snapshots: (prefix) => files.snapshots(ref, prefix),
-      takeSnapshot: (snapshot) => files.takeSnapshot(ref, snapshot),
-      dropSnapshot: (tag) => files.dropSnapshot(ref, tag),
-      putFile: (path, put) => files.putFile(ref, path, put),
-      deleteFile: (path, del) => files.deleteFile(ref, path, del),
-      listDir: (path) => files.listDir(ref, path),
-    }),
-  };
+  return account;
 }
 
 /** Anyone's public repo on GitHub, read as anyone may read it. */

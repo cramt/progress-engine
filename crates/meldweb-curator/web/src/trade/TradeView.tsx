@@ -12,13 +12,13 @@ export interface TradeData {
   me: string;
   /** Every deck, to trade for one of them alone. */
   decks: readonly DeckChoice[];
-  /** The deck traded for, by path; absent for the whole wanted list. */
+  /** The deck traded for, by stem; absent for the whole wanted list. */
   deck: string | undefined;
   result: TradeResult;
 }
 
 export interface DeckChoice {
-  path: string;
+  stem: string;
   name: string;
 }
 
@@ -111,7 +111,7 @@ export function TradeView({ data }: { data: TradeData }) {
     result.kind === "trade" && result.trade.kind === "trade"
       ? result.trade.offers
       : [];
-  const deckName = data.decks.find((d) => d.path === data.deck)?.name;
+  const deckName = data.decks.find((d) => d.stem === data.deck)?.name;
   const go = (deck: string | undefined) => {
     const who = login.trim();
     if (who) localStorage.setItem(LAST_WITH, who);
@@ -162,7 +162,7 @@ export function TradeView({ data }: { data: TradeData }) {
           >
             <option value="">The whole wanted list</option>
             {data.decks.map((d) => (
-              <option key={d.path} value={d.path}>
+              <option key={d.stem} value={d.stem}>
                 {d.name}
               </option>
             ))}
@@ -229,8 +229,8 @@ function Result({
   return (
     <>
       {data.trade.unread.map((u) => (
-        <p key={u.path} className="refusal-inline trade-note">
-          {u.path} is left out of what your decks lack: {u.message}
+        <p key={u.stem} className="refusal-inline trade-note">
+          {u.stem} is left out of what your decks lack: {u.message}
         </p>
       ))}
       {offers.length === 0 ? (

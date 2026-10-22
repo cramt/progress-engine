@@ -17,6 +17,7 @@ use crate::collection::{Collection, Owned};
 use crate::deck::{CardRef, Deck, Finish, Printing};
 use crate::edit::names_with_comments;
 use crate::identity::Names;
+use crate::stem::DeckStem;
 use crate::trade::{offers_by_key, Pull};
 use crate::wanted::{is_basic, key_of, needs_copy, Wanted};
 
@@ -159,7 +160,8 @@ fn exact(card: &CardRef, finish: Finish, owned: &Owned) -> bool {
         }
 }
 
-/// The deck at `path`, with its `text`, made of `mine`'s copies, and what
+/// The deck `stem` names (none for a deck file outside a Magic repo), with
+/// its `text`, made of `mine`'s copies, and what
 /// each of `friends` (their login, collection and its text) holds of what is
 /// still short. `names` names printings no file comments.
 ///
@@ -167,7 +169,7 @@ fn exact(card: &CardRef, finish: Finish, owned: &Owned) -> bool {
 /// printing or finish, and within each, the copies already in the deck
 /// before loose ones, and those before copies sleeved in another deck.
 pub fn supply(
-    path: &str,
+    stem: Option<&DeckStem>,
     deck: (&Deck, &str),
     mine: (&Collection, &str),
     friends: &[(String, Collection, String)],
@@ -181,10 +183,10 @@ pub fn supply(
     let place = mine
         .places
         .iter()
-        .find(|p| p.deck.as_deref() == Some(path))
+        .find(|p| stem.is_some() && p.deck.as_ref() == stem)
         .map(|p| p.name.clone());
     let whereabouts = |o: &Owned| match o.at.as_deref().and_then(|at| mine.place(at)) {
-        Some(p) if p.deck.as_deref() == Some(path) => Whereabouts::ThisDeck,
+        Some(p) if stem.is_some() && p.deck.as_ref() == stem => Whereabouts::ThisDeck,
         Some(p) if p.deck.is_some() => Whereabouts::OtherDeck,
         _ => Whereabouts::Loose,
     };
@@ -267,7 +269,12 @@ pub fn supply(
 
     // A friend is asked what the deck alone lacks, as a trade for one deck
     // asks, which leaves the basics out.
-    let alone = [(path.to_string(), deck.clone(), deck_text.to_string())];
+    let alone = [crate::wanted::Listed {
+        id: stem.map_or_else(String::new, |s| s.to_string()),
+        parent: None,
+        deck: deck.clone(),
+        text: deck_text.to_string(),
+    }];
     for (who, theirs, theirs_text) in friends {
         for (key, offer) in offers_by_key(
             (&Wanted::default(), ""),

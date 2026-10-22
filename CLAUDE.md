@@ -20,7 +20,12 @@ criteria and the two engines do not apply to it.
 **Meldweb Curator** (`crates/meldweb-curator/`) is the deck editor. What the
 site serves calls itself Progress Engine, in surgical metal over flesh, and the
 repo keeps the card names (ADR-0042). In it, a
-`.deck.toml` in a git repo is the deck, and saving is a commit. The same repo's
+`.deck.toml` in a git repo is the deck, and saving is a commit. Each deck is
+its own line of history, the branch `decks/<stem>/main` holding
+`<stem>.deck.toml` and its criteria, while `main` holds the rest; a fork's
+line starts on a commit of its parent, which is how the parent is known
+(repo version 2, ADR-0041, migrated from version 1 in Rust by
+`meldweb-wasm`'s `layout`, the same commits in every browser). The same repo's
 `collection.toml` is what the user owns, each copy in one place (a binder, a
 box, a deck), edited at `/collection` and saved the same way (ADR-0023); `/wanted` is
 `wanted.toml`, the cards wanted by hand, above what the decks hold that the
@@ -55,7 +60,8 @@ default path reaches GitHub but a trade's or a friend's public collection,
 and the remote once one is added (`pnpm dev` serves the relay too).
 `VITE_MOCK_GITHUB=1 pnpm dev` runs the app against an in-page fake GitHub
 instead (`=no-repo` or `=no-install` start at onboarding), so no worker or app is
-needed. The GitHub REST client only finds the `mtg` repo, and the worker's login
+needed; its repo is held in memory, seeded as a version-1 repo that migrates
+as it opens. The GitHub REST client only finds the `mtg` repo, and the worker's login
 is the remote's: `MELDWEB_DEV_AUTH=1 pnpm dev` runs the worker's auth routes inside Vite
 on localhost:5173 with the client secret from 1Password
 (`web/scripts/dev-auth.ts`). Card facts come

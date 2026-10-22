@@ -20,7 +20,7 @@ beforeAll(() => {
   );
 });
 
-const PATH = "decks/lantern.deck.toml";
+const PATH = "lantern";
 
 const DECK = `cards = [
   { printing = "sld/2417" },  # Sol Ring
@@ -41,8 +41,8 @@ const MINE = `cards = [
 
 [places]
 Bulk = {}
-Lantern = { deck = "decks/lantern.deck.toml" }
-Loam = { deck = "decks/loam.deck.toml" }
+Lantern = { deck = "lantern" }
+Loam = { deck = "loam" }
 `;
 
 const ALICE = `cards = [

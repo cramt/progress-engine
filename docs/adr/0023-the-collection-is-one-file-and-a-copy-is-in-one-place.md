@@ -1,3 +1,7 @@
+---
+status: "accepted; since ADR-0041 (repo version 2) a deck place names the deck by its stem, deck = \"lantern\""
+---
+
 # The collection is one `collection.toml`, and each copy is in one place
 
 Meldweb Curator keeps the cards a user owns in the Magic repo beside their decks ([ADR-0021](0021-curator-owns-one-fixed-name-repo-and-saves-by-itself.md)), as one file at its root, `collection.toml`. It is parsed and edited by `chip-decklist`'s `collection` module, as a deck is, so the browser never decides what a collection is.

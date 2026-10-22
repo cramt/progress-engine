@@ -174,8 +174,56 @@ fn fetch(repo: &mut Repo<FsStore>, server: &Server) -> Option<Vec<u8>> {
     }
 }
 
+/// Integrates every branch, and gives `main`'s outcome; each other
+/// branch's is in [`integrate_all`].
 fn integrate(repo: &mut Repo<FsStore>, prefer: Option<Side>, at: i64) -> Integrated {
+    integrate_all(repo, prefer, at)
+        .into_iter()
+        .find(|(b, _)| *b == main_branch())
+        .expect("main always has an outcome")
+        .1
+}
+
+fn integrate_all(
+    repo: &mut Repo<FsStore>,
+    prefer: Option<Side>,
+    at: i64,
+) -> Vec<(BranchName, Integrated)> {
     repo.integrate(&sig(at), prefer, &mut by_lines).unwrap()
+}
+
+fn branch(name: &str) -> BranchName {
+    BranchName::new(name).unwrap()
+}
+
+/// One commit on `name`, a branch of its own.
+fn commit_on(
+    repo: &mut Repo<FsStore>,
+    name: &str,
+    files: &[(&str, &str)],
+    message: &str,
+    at: i64,
+) -> String {
+    let b = branch(name);
+    let tip = repo.branch_tip(&b).unwrap();
+    repo.commit(
+        &b,
+        tip.map_or(Tip::Unborn, Tip::At),
+        &WriteCommit {
+            changes: files
+                .iter()
+                .map(|(p, t)| Change::Put {
+                    path: path(p),
+                    bytes: t.as_bytes().to_vec(),
+                })
+                .collect(),
+            message: format!("{message}\n"),
+            author: sig(at),
+            committer: sig(at),
+        },
+    )
+    .unwrap()
+    .to_hex()
 }
 
 /// Pushes; the outcome's rejected refs, or `None` when there was nothing
@@ -430,6 +478,7 @@ fn a_push_fast_forwards_and_a_moved_remote_refuses_it_until_merged() {
     .unwrap();
     assert_eq!(repo.remote_status().unwrap().ahead, 1);
     assert_eq!(repo.remote_status().unwrap().tags, 1);
+    assert_eq!(repo.remote_status().unwrap().branches, 1);
     assert_eq!(push(&mut repo, &server), Ok(vec![]));
     assert_eq!(server.rev("main"), mine);
     assert_eq!(server.rev("decks/lantern/fnm^{commit}"), mine);
@@ -659,4 +708,178 @@ fn ref_deltas_resolve_and_a_pack_without_side_band_reads() {
         big_deck(3).into_bytes()
     );
     fsck(&gitdir);
+}
+
+/// Every branch and tag syncs (ADR-0041: a deck is a branch, a snapshot a
+/// tag): each side's made, moved and deleted refs reach the other, a branch
+/// both moved merges, and receive-pack's compare-and-swap guards each one.
+#[test]
+fn every_branch_and_tag_syncs_both_ways() {
+    if !have_git() {
+        return;
+    }
+    let (dir, server, work) = setup();
+    friend_commits(&work, &[("VERSION", "2\n")], "start");
+    let (mut repo, gitdir) = browser(dir.path(), "browser.git");
+    fetch(&mut repo, &server);
+    integrate(&mut repo, None, 10);
+
+    // Two decks and a snapshot, made here, go out as new refs.
+    let a1 = commit_on(
+        &mut repo,
+        "decks/a/main",
+        &[("a.deck.toml", "1\n2\n3\n")],
+        "a: made",
+        20,
+    );
+    let b1 = commit_on(
+        &mut repo,
+        "decks/b/main",
+        &[("b.deck.toml", "b\n")],
+        "b: made",
+        21,
+    );
+    let a1_id = repo.branch_tip(&branch("decks/a/main")).unwrap().unwrap();
+    repo.create_tag(
+        &TagName::new("decks/a/fnm").unwrap(),
+        &a1_id,
+        &sig(22),
+        "FNM\n",
+    )
+    .unwrap();
+    let status = repo.remote_status().unwrap();
+    assert_eq!((status.ahead, status.branches, status.tags), (2, 2, 1));
+    assert_eq!(push(&mut repo, &server), Ok(vec![]));
+    assert_eq!(server.rev("decks/a/main"), a1);
+    assert_eq!(server.rev("decks/b/main"), b1);
+    assert_eq!(server.rev("decks/a/fnm^{commit}"), a1);
+    let status = repo.remote_status().unwrap();
+    assert_eq!((status.ahead, status.branches, status.tags), (0, 0, 0));
+    server.fsck();
+
+    // A friend moves a, makes c and a snapshot of c; this repo takes all
+    // three on fetch, before integrating anything.
+    git(&work, &["fetch", "-q", "origin"]);
+    git(
+        &work,
+        &[
+            "checkout",
+            "-q",
+            "-b",
+            "decks/a/main",
+            "origin/decks/a/main",
+        ],
+    );
+    friend_commits_on(
+        &work,
+        "decks/a/main",
+        &[("a.deck.toml", "1\n2\n3\n4\n")],
+        "a: +4",
+    );
+    git(&work, &["checkout", "-q", "--orphan", "decks/c/main"]);
+    git(&work, &["rm", "-rfq", "."]);
+    friend_commits_on(&work, "decks/c/main", &[("c.deck.toml", "c\n")], "c: made");
+    git(&work, &["tag", "-a", "decks/c/gp", "-m", "GP"]);
+    git(&work, &["push", "-q", "origin", "decks/c/gp"]);
+    fetch(&mut repo, &server);
+    assert_eq!(
+        repo.branch_tip(&branch("decks/a/main"))
+            .unwrap()
+            .unwrap()
+            .to_hex(),
+        server.rev("decks/a/main"),
+        "moved only there: a fast-forward"
+    );
+    assert_eq!(
+        repo.branch_tip(&branch("decks/c/main"))
+            .unwrap()
+            .unwrap()
+            .to_hex(),
+        server.rev("decks/c/main"),
+        "made only there: made here"
+    );
+    assert_eq!(repo.tags("decks/c/").unwrap().len(), 1);
+    let outcomes = integrate_all(&mut repo, None, 30);
+    assert!(
+        outcomes.iter().all(|(_, o)| *o == Integrated::UpToDate),
+        "{outcomes:?}"
+    );
+
+    // Both move a, on different lines: a merge commit on a, and only a.
+    commit_on(
+        &mut repo,
+        "decks/a/main",
+        &[("a.deck.toml", "ONE\n2\n3\n4\n")],
+        "a: ONE",
+        40,
+    );
+    friend_commits_on(
+        &work,
+        "decks/a/main",
+        &[("a.deck.toml", "1\n2\n3\n4\nFIVE\n")],
+        "a: +FIVE",
+    );
+    assert_eq!(push(&mut repo, &server), Err(PushRequest::Behind));
+    fetch(&mut repo, &server);
+    let outcomes = integrate_all(&mut repo, None, 41);
+    eprintln!("both moved a: {outcomes:?}");
+    let a_merged = outcomes
+        .iter()
+        .find(|(b, _)| b.as_str() == "decks/a/main")
+        .unwrap();
+    let Integrated::Merged { commit, taken } = &a_merged.1 else {
+        panic!("a merges: {outcomes:?}");
+    };
+    assert_eq!(taken, &["a.deck.toml".to_owned()]);
+    assert_eq!(
+        repo.read_commit(commit).unwrap().message,
+        "sync: merge origin/decks/a/main\n\na.deck.toml\n"
+    );
+    assert_eq!(
+        repo.read_file(commit, &path("a.deck.toml"))
+            .unwrap()
+            .unwrap(),
+        b"ONE\n2\n3\n4\nFIVE\n"
+    );
+
+    // This repo deletes b and moves a's snapshot; the friend deletes c.
+    let b = repo.branch_tip(&branch("decks/b/main")).unwrap().unwrap();
+    repo.delete_branch(&branch("decks/b/main"), &b).unwrap();
+    repo.retarget_tag(&TagName::new("decks/a/fnm").unwrap(), commit)
+        .unwrap();
+    assert_eq!(push(&mut repo, &server), Ok(vec![]));
+    assert!(git(&server.0, &["branch", "--list", "decks/b/main"]).is_empty());
+    assert_eq!(server.rev("decks/a/fnm^{commit}"), commit.to_hex());
+    assert_eq!(server.rev("decks/a/main"), commit.to_hex());
+    git(&work, &["push", "-q", "origin", "--delete", "decks/c/main"]);
+    fetch(&mut repo, &server);
+    assert_eq!(
+        repo.branch_tip(&branch("decks/c/main")).unwrap(),
+        None,
+        "deleted there and untouched here: deleted here"
+    );
+    assert!(repo.branch_tip(&branch("decks/b/main")).unwrap().is_none());
+    assert_eq!(push(&mut repo, &server), Err(PushRequest::Nothing));
+    eprintln!(
+        "server refs:\n{}\nlog:\n{}",
+        git(&server.0, &["for-each-ref"]),
+        git(
+            &server.0,
+            &["log", "--all", "--graph", "--oneline", "--decorate"]
+        )
+    );
+    server.fsck();
+    fsck(&gitdir);
+}
+
+fn friend_commits_on(work: &Path, branch: &str, files: &[(&str, &str)], message: &str) {
+    if git(work, &["branch", "--show-current"]) != branch {
+        git(work, &["checkout", "-q", branch]);
+    }
+    for (p, t) in files {
+        std::fs::write(work.join(p), t).unwrap();
+        git(work, &["add", p]);
+    }
+    git(work, &["commit", "-q", "-m", message]);
+    git(work, &["push", "-q", "origin", branch]);
 }

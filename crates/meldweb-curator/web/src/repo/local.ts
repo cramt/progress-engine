@@ -22,6 +22,8 @@
 
 import type {
   CommitFacts,
+  DeckDeleted,
+  DeckLineList,
   FileRead,
   Journal,
   Listing,
@@ -39,6 +41,7 @@ import type {
 import { GitRepo } from "../wasm/pkg/meldweb_wasm.js";
 import {
   ConflictError,
+  type DeckLine,
   type DirEntry,
   type FileAt,
   type Repo,
@@ -55,6 +58,7 @@ export type Request =
   | {
       kind: "history";
       path: string;
+      branch?: string;
       /** Seconds since the Unix epoch. */
       until?: number;
       page: number;
@@ -77,7 +81,12 @@ export type Request =
       sha: string | null;
       message: string;
       who: Who;
+      branch?: string;
+      from?: string;
     }
+  | { kind: "decks" }
+  | { kind: "deleteDeck"; stem: string; commit: string }
+  | { kind: "migrate"; from: number }
   | {
       kind: "deleteFile";
       path: string;
@@ -120,8 +129,11 @@ export interface Results {
   snapshots: Snapshot[];
   takeSnapshot: Snapshot;
   dropSnapshot: null;
-  putFile: { sha: string };
+  putFile: { sha: string; commit: string };
   deleteFile: null;
+  decks: DeckLine[];
+  deleteDeck: null;
+  migrate: null;
   exportZip: Uint8Array;
   importZip: null;
   remote: RemoteFacts;
@@ -331,7 +343,7 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
       case "history":
         return reading((g) => {
           const page = JSON.parse(
-            g.history(r.path, r.until, r.page, r.perPage),
+            g.history(r.path, r.branch, r.until, r.page, r.perPage),
           ) as Revisions;
           return done(page.revisions.map(revisionOf));
         });
@@ -370,12 +382,43 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
               r.sha ?? undefined,
               r.message,
               JSON.stringify(r.who),
+              r.branch,
+              r.from,
             ),
           ) as Wrote;
           if (wrote.kind === "conflict") throw new Conflict(wrote.message);
           if (wrote.sha === undefined)
             throw new Error(`${r.path} was not written`);
-          return done({ sha: wrote.sha });
+          return done({ sha: wrote.sha, commit: wrote.commit });
+        });
+      case "decks":
+        return reading((g) =>
+          done(
+            (JSON.parse(g.decks()) as DeckLineList).decks.map(
+              (d): DeckLine => ({
+                stem: d.stem,
+                commit: d.commit,
+                file:
+                  d.text === undefined || d.sha === undefined
+                    ? null
+                    : { text: d.text, sha: d.sha },
+                ...(d.parent === undefined ? {} : { parent: d.parent }),
+              }),
+            ),
+          ),
+        );
+      case "deleteDeck":
+        return writing((g) => {
+          const deleted = JSON.parse(
+            g.delete_deck(r.stem, r.commit),
+          ) as DeckDeleted;
+          if (deleted.kind === "conflict") throw new Conflict(deleted.message);
+          return done(null);
+        });
+      case "migrate":
+        return writing((g) => {
+          g.migrate(r.from);
+          return done(null);
         });
       case "deleteFile":
         return writing((g) => {
@@ -495,7 +538,7 @@ export interface RemoteSteps {
     advertised: Uint8Array,
     response: Uint8Array | null,
   ): Promise<void>;
-  /** Brings the fetched main into main: fast-forward, adopt or merge. */
+  /** Brings each fetched branch into its own here: fast-forward, adopt or merge. */
   integrate(prefer?: Side): Promise<Synced>;
   /** Replaces this repo's branches and tags with the remote's. */
   adoptRemote(): Promise<void>;
@@ -517,7 +560,15 @@ export type Call = <K extends Kind>(
   request: Extract<Request, { kind: K }>,
 ) => Promise<Reply<K>>;
 
-export function createLocalRepo(call: Call, author: () => Author): LocalRepo {
+/**
+ * `clock` is the time commits are made at, in milliseconds: the browser's
+ * own, or a seed's for a past it writes.
+ */
+export function createLocalRepo(
+  call: Call,
+  author: () => Author,
+  clock: () => number = Date.now,
+): LocalRepo {
   async function ask<K extends Kind>(
     request: Extract<Request, { kind: K }>,
   ): Promise<Results[K]> {
@@ -531,13 +582,12 @@ export function createLocalRepo(call: Call, author: () => Author): LocalRepo {
     return {
       name,
       email,
-      seconds: Math.floor(Date.now() / 1000),
-      offsetMinutes: -new Date().getTimezoneOffset(),
+      seconds: Math.floor(clock() / 1000),
+      offsetMinutes: -new Date(clock()).getTimezoneOffset(),
     };
   };
   return {
     where: "this browser",
-    onHost: null,
     getFile: (path, ref) =>
       ask({ kind: "getFile", path, ...(ref === undefined ? {} : { at: ref }) }),
     getBytes: (path) => ask({ kind: "getBytes", path }),
@@ -546,6 +596,7 @@ export function createLocalRepo(call: Call, author: () => Author): LocalRepo {
       ask({
         kind: "history",
         path,
+        ...(page.branch === undefined ? {} : { branch: page.branch }),
         page: page.page ?? 1,
         perPage: Math.min(page.perPage ?? 100, 100),
         ...(page.until
@@ -567,7 +618,16 @@ export function createLocalRepo(call: Call, author: () => Author): LocalRepo {
         sha: put.sha,
         message: put.message,
         who: who(),
+        ...(put.branch === undefined ? {} : { branch: put.branch }),
+        ...(put.from === undefined ? {} : { from: put.from }),
       });
+    },
+    decks: () => ask({ kind: "decks" }),
+    async deleteDeck(stem, commit) {
+      await ask({ kind: "deleteDeck", stem, commit });
+    },
+    async migrate(from) {
+      await ask({ kind: "migrate", from });
     },
     async deleteFile(path, del) {
       await ask({ kind: "deleteFile", path, ...del, who: who() });

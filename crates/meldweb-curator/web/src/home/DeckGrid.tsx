@@ -9,7 +9,7 @@ type Drop = { path: string; side: "before" | "after" };
 
 /**
  * The decks as tiles in `order`, each dragged onto another to move it there,
- * or moved with Alt+arrows or its menu. A deck carries its variants along.
+ * or moved with Alt+arrows or its menu. A deck carries its forks along.
  */
 export function DeckGrid({
   decks,
@@ -19,7 +19,7 @@ export function DeckGrid({
   onMove,
 }: {
   decks: readonly DeckEntry[];
-  /** `meldweb.toml`'s deck order, by path. */
+  /** `meldweb.toml`'s deck order, by stem. */
   order: readonly string[];
   printings: Printings;
   menuFor: (deck: DeckEntry) => MenuEntry[];
@@ -43,7 +43,7 @@ export function DeckGrid({
 
   const nudge = (path: string, by: -1 | 1) => {
     if (!nudgeDeck(shown, path, by)) return;
-    onMove({ kind: "nudge", path, by });
+    onMove({ kind: "nudge", stem: path, by });
     setRefocus(path);
   };
   const sideOf = (e: DragEvent<HTMLElement>): Drop["side"] => {
@@ -63,22 +63,22 @@ export function DeckGrid({
     <ul className="deck-grid" ref={grid}>
       {shown.map((d) => {
         const target =
-          drop?.path === d.path && dragging !== null
-            ? moveDeck(shown, dragging, d.path, drop.side)
+          drop?.path === d.stem && dragging !== null
+            ? moveDeck(shown, dragging, d.stem, drop.side)
             : null;
         const menu = menuFor(d);
         return (
           <li
-            key={d.path}
-            data-deck={d.path}
+            key={d.stem}
+            data-deck={d.stem}
             className={[
-              dragging === d.path ? "dragging" : "",
+              dragging === d.stem ? "dragging" : "",
               target ? `drop-${drop?.side}` : "",
             ].join(" ")}
             draggable
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = "move";
-              setDragging(d.path);
+              setDragging(d.stem);
             }}
             onDragEnd={end}
             onDragOver={(e) => {
@@ -86,15 +86,15 @@ export function DeckGrid({
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
               const side = sideOf(e);
-              if (drop?.path !== d.path || drop.side !== side)
-                setDrop({ path: d.path, side });
+              if (drop?.path !== d.stem || drop.side !== side)
+                setDrop({ path: d.stem, side });
             }}
             onDrop={(e) => {
               e.preventDefault();
               if (dragging !== null) {
                 const side = sideOf(e);
-                if (moveDeck(shown, dragging, d.path, side))
-                  onMove({ kind: "drop", from: dragging, to: d.path, side });
+                if (moveDeck(shown, dragging, d.stem, side))
+                  onMove({ kind: "drop", from: dragging, to: d.stem, side });
               }
               end();
             }}
@@ -108,7 +108,7 @@ export function DeckGrid({
                     : 0;
               if (by === 0) return;
               e.preventDefault();
-              nudge(d.path, by);
+              nudge(d.stem, by);
             }}
           >
             <DeckTile
@@ -120,17 +120,17 @@ export function DeckGrid({
                 {
                   label: "Move earlier",
                   hotkey: "Alt+←",
-                  disabled: nudgeDeck(shown, d.path, -1) === null,
-                  run: () => nudge(d.path, -1),
+                  disabled: nudgeDeck(shown, d.stem, -1) === null,
+                  run: () => nudge(d.stem, -1),
                 },
                 {
                   label: "Move later",
                   hotkey: "Alt+→",
-                  disabled: nudgeDeck(shown, d.path, 1) === null,
-                  run: () => nudge(d.path, 1),
+                  disabled: nudgeDeck(shown, d.stem, 1) === null,
+                  run: () => nudge(d.stem, 1),
                 },
               ]}
-              parent={decks.find((p) => p.path === d.variantOf)?.name}
+              parent={decks.find((p) => p.stem === d.parent)?.name}
             />
           </li>
         );

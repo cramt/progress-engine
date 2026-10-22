@@ -10,7 +10,7 @@ import {
 } from "../deck";
 import { printingNames } from "../deck/archidektNames";
 import { EXPORT_TARGETS } from "../deck/exportTargets";
-import { type DeckEntry, deleteDeck } from "../github/decks";
+import { type DeckEntry, deckFile, deleteDeck } from "../github/decks";
 import { commitEdit, openFile } from "../github/repoFile";
 import type { Repo } from "../repo/api";
 import {
@@ -81,33 +81,27 @@ export function useDeckActions(repo: Repo): {
   };
 
   const readDeck = async (deck: DeckEntry) => {
-    const file = await openFile(repo, deck.path);
-    if (!file) throw new Error(`${deck.path} is no longer in the repo`);
+    const { path, branch } = deckFile(deck.stem);
+    const file = await openFile(repo, path, branch);
+    if (!file) throw new Error(`${deck.stem} is no longer in the repo`);
     const parsed = parseDeck(file.text);
     if (parsed.kind === "refused") throw new Error(parsed.message);
     return { text: file.text, cards: parsed.cards };
   };
 
   const edit = async (deck: DeckEntry, change: (text: string) => string) => {
-    await commitEdit(repo, deck.path, (text) => {
-      if (text === null)
-        throw new Error(`${deck.path} is no longer in the repo`);
-      return change(text);
-    });
+    const { path, branch } = deckFile(deck.stem);
+    await commitEdit(
+      repo,
+      path,
+      (text) => {
+        if (text === null)
+          throw new Error(`${deck.stem} is no longer in the repo`);
+        return change(text);
+      },
+      branch,
+    );
     reload();
-  };
-
-  const onHost = (path: string): MenuEntry[] => {
-    const page = repo.onHost?.(path);
-    return page
-      ? [
-          "separator",
-          {
-            label: `Open on ${page.host}`,
-            run: () => window.open(page.url, "_blank", "noopener"),
-          },
-        ]
-      : [];
   };
 
   const menuFor = (deck: DeckEntry): MenuEntry[] => {
@@ -141,7 +135,6 @@ export function useDeckActions(repo: Repo): {
             },
           ]
         : []),
-      ...onHost(deck.path),
       "separator",
       { label: "Delete…", run: () => setOpen({ kind: "delete", deck }) },
     ];
@@ -232,8 +225,8 @@ function RenameDialog({
           />
         </label>
         <p className="hint field-hint">
-          The file stays <code>{deck.path}</code>: a deck's path never follows
-          its name.
+          The deck stays <code>decks/{deck.stem}/main</code>: its name in the
+          repo never follows its name.
         </p>
         {refusal && (
           <p className="refusal" role="alert">
@@ -382,8 +375,8 @@ function DeleteDialog({
       <div>
         <h2>Delete {deck.name}?</h2>
         <p>
-          <code>{deck.path}</code> is removed in a commit of its own. Its
-          history stays in the repo, so it can be brought back from there.
+          <code>decks/{deck.stem}/</code> is removed with its branches and
+          snapshots. A fork of it keeps the history it shares with it.
         </p>
         {refusal && (
           <p className="refusal" role="alert">

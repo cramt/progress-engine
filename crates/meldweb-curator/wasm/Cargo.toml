@@ -15,6 +15,8 @@ chip-scryfall.workspace = true
 facet.workspace = true
 facet-json.workspace = true
 facet-toml.workspace = true
+# The v1 → v2 migration edits meldweb.toml's deck order in place.
+toml_edit.workspace = true
 metamorph-sheet.workspace = true
 meldweb-git = { path = "../git" }
 # The repo's zip export and import (ADR-0041). Deflate only, through the
@@ -28,4 +30,6 @@ wasm-bindgen = "=0.2.126"
 
 [dev-dependencies]
 tempfile = "3"
+# examples/migrate_e2e.rs talks to a real host natively.
+ureq.workspace = true
 facet-typescript = "0.46"

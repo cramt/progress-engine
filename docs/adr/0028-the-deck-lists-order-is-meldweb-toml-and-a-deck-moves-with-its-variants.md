@@ -1,3 +1,7 @@
+---
+status: "accepted; since ADR-0041 the order names decks by stem, and a variant is a fork, grouped with its parent as its history says"
+---
+
 # The deck list's order is `meldweb.toml`'s, and a deck moves with its variants
 
 The deck list was in name order, variants after their parent, and the user wants the decks they play first, in the order they choose, by dragging them.

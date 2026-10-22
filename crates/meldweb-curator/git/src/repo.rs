@@ -24,6 +24,8 @@ pub enum Unsupported {
     SymbolicRef,
     /// An annotated tag of something other than a commit.
     TagOfNonCommit,
+    /// Retargeting a lightweight tag, which has no tagger or label to keep.
+    LightweightTag,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -595,6 +597,53 @@ impl<S: Store> Repo<S> {
         self.write_gix(&object).map(CommitId)
     }
 
+    /// Writes `bytes` as a blob, which nothing names until a tree does.
+    pub fn write_blob(&mut self, bytes: &[u8]) -> Result<BlobId> {
+        self.write_object(Kind::Blob, bytes).map(BlobId)
+    }
+
+    /// A tree of exactly these regular files, by path, with no ref or
+    /// commit naming it.
+    pub fn write_files(&mut self, files: &[(RepoPath, BlobId)]) -> Result<TreeId> {
+        let mut flat = BTreeMap::new();
+        for (path, blob) in files {
+            if flat
+                .insert(
+                    path.as_str().to_owned(),
+                    (EntryMode::from(tree::EntryKind::Blob), blob.0),
+                )
+                .is_some()
+            {
+                return Err(Error::DuplicatePath(path.clone()));
+            }
+        }
+        self.write_flat(&flat)
+    }
+
+    /// A commit of `tree` with exactly these parents, signatures and
+    /// message, and no ref pointing at it: what replaying history into
+    /// another line needs, where the tree is not the first parent's edited.
+    pub fn write_commit_of(
+        &mut self,
+        tree: TreeId,
+        parents: &[CommitId],
+        author: &Signature,
+        committer: &Signature,
+        message: &str,
+    ) -> Result<CommitId> {
+        self.read_object(&tree.0, Kind::Tree)?;
+        let object = gix_object::Commit {
+            tree: tree.0,
+            parents: parents.iter().map(|p| p.0).collect::<Vec<_>>().into(),
+            author: author.to_gix(),
+            committer: committer.to_gix(),
+            encoding: None,
+            message: message.into(),
+            extra_headers: Vec::new(),
+        };
+        self.write_gix(&object).map(CommitId)
+    }
+
     /// Commit onto `branch`, whose tip must be `tip`; the tip is the new
     /// commit's only parent, and `Tip::Unborn` makes a root commit.
     pub fn commit(
@@ -831,6 +880,37 @@ impl<S: Store> Repo<S> {
             .collect::<Result<Vec<_>>>()?;
         out.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(out)
+    }
+
+    /// Points the annotated tag `name` at `target` with a new tag object
+    /// that keeps its tagger and message, so the same retargeting gives the
+    /// same id wherever it is made. The ref moves only from the object it
+    /// was read at.
+    pub fn retarget_tag(&mut self, name: &TagName, target: &CommitId) -> Result<TagId> {
+        let Some(old) = self.read_ref(&name.ref_path())? else {
+            return Err(Error::NoSuchTag(name.clone()));
+        };
+        let info = self.tag_info(name.clone(), old)?;
+        let TagKind::Annotated {
+            tagger, message, ..
+        } = info.kind
+        else {
+            return Err(Error::Unsupported(Unsupported::LightweightTag));
+        };
+        self.read_object(&target.0, Kind::Commit)?;
+        let tag = gix_object::Tag {
+            target: target.0,
+            target_kind: Kind::Commit,
+            name: name.as_str().into(),
+            tagger: tagger.map(|t| t.to_gix()),
+            message: message.as_str().into(),
+            signature: None,
+        };
+        let id = self.write_gix(&tag)?;
+        if id != old {
+            self.swap_ref(&name.ref_path(), Some(old), Some(id))?;
+        }
+        Ok(TagId(id))
     }
 
     /// Remove the tag's ref. Its object stays, unreachable, as with `git tag -d`.

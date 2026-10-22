@@ -25,6 +25,7 @@ function fakeRepo(script: {
   let facts: Omit<RemoteFacts, "url"> = {
     ahead: 0,
     behind: 0,
+    branches: 0,
     tags: 0,
     ...script.facts,
   };

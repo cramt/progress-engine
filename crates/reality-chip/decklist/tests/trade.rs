@@ -4,15 +4,20 @@ use chip_decklist::collection::Collection;
 use chip_decklist::deck::{CardRef, Deck, Finish, Printing};
 use chip_decklist::identity::Names;
 use chip_decklist::trade::{offers, Offer, Pull};
-use chip_decklist::wanted::Wanted;
+use chip_decklist::wanted::{Listed, Wanted};
 
 fn trade(wanted: &str, mine: &str, decks: &[(&str, &str)], theirs: &str) -> Vec<Offer> {
     let w = Wanted::parse(wanted).unwrap();
     let m = Collection::parse(mine).unwrap();
     let t = Collection::parse(theirs).unwrap();
-    let decks: Vec<(String, Deck, String)> = decks
+    let decks: Vec<Listed> = decks
         .iter()
-        .map(|(p, text)| (p.to_string(), Deck::parse(text).unwrap(), text.to_string()))
+        .map(|(p, text)| Listed {
+            id: p.to_string(),
+            parent: None,
+            deck: Deck::parse(text).unwrap(),
+            text: text.to_string(),
+        })
         .collect();
     offers(
         (&w, wanted),

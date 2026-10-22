@@ -1,12 +1,12 @@
 //! A diff between two decks, and taking any of its changes from one into the
 //! other: what Curator's history, comparison and variants all stand on.
 
-use chip_decklist::deck::{CardRef, CategoryType, Deck, Finish};
+use chip_decklist::deck::{CardRef, CategoryType, Deck, DeckError, Finish};
 use chip_decklist::diff::{apply, parse_pair, Diff};
 use chip_decklist::edit::{
     declare_category, remove_card, set_card_finish, set_card_printing, set_card_qty,
-    set_categories, set_deck_cover, set_deck_description, set_deck_meta, set_variant_of, AddTo,
-    EditError,
+    set_categories, set_deck_cover, set_deck_description, set_deck_meta, v1_variant_of,
+    without_variant_of, AddTo, EditError,
 };
 use chip_decklist::identity::Names;
 
@@ -82,14 +82,13 @@ fn everything_changed() -> String {
     let t = add_card(&t, &name("Arcane Signet"), &["Sideboard".into()], None).unwrap();
     let t = set_deck_meta(&t, "Lantern Control", "brawl").unwrap();
     let t = set_deck_cover(&t, Some("moc/94")).unwrap();
-    let t = set_deck_description(&t, Some("Mill them out.")).unwrap();
-    set_variant_of(&t, Some("decks/lantern.deck.toml")).unwrap()
+    set_deck_description(&t, Some("Mill them out.")).unwrap()
 }
 
 #[test]
 fn taking_every_change_leaves_nothing_to_take() {
     let after = everything_changed();
-    assert_eq!(lines(DECK, &after).len(), 13, "{:#?}", lines(DECK, &after));
+    assert_eq!(lines(DECK, &after).len(), 12, "{:#?}", lines(DECK, &after));
     let taken = take_all(DECK, &after);
     assert_eq!(lines(&taken, &after), Vec::<String>::new(), "{taken}");
     // And back the other way: restoring the old version.
@@ -180,18 +179,18 @@ fn a_printing_given_up_for_any_printing_says_the_name() {
 }
 
 #[test]
-fn a_variant_names_its_parent_and_can_stand_alone() {
-    let variant = set_variant_of(DECK, Some("decks/lantern.deck.toml")).unwrap();
-    assert!(
-        variant.starts_with(
-            "name = \"Lantern\"\nformat = \"commander\"\nvariant_of = \"decks/lantern.deck.toml\"\n"
-        ),
-        "{variant}"
+fn a_v1_variant_of_is_refused_and_the_migration_takes_it_out() {
+    let v1 = DECK.replacen(
+        "format = \"commander\"\n",
+        "format = \"commander\"\nvariant_of = \"decks/lantern.deck.toml\"\n",
+        1,
     );
+    assert_eq!(Deck::parse(&v1).unwrap_err(), DeckError::VariantOf);
     assert_eq!(
-        Deck::parse(&variant).unwrap().variant_of.as_deref(),
+        v1_variant_of(&v1).as_deref(),
         Some("decks/lantern.deck.toml")
     );
-    assert_eq!(lines(DECK, &variant), vec!["variant of: none → lantern"]);
-    assert_eq!(set_variant_of(&variant, None).unwrap(), DECK);
+    assert_eq!(without_variant_of(&v1).as_deref(), Some(DECK));
+    assert_eq!(without_variant_of(DECK), None);
+    assert_eq!(v1_variant_of(DECK), None);
 }

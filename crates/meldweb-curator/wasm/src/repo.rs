@@ -18,11 +18,15 @@ use std::convert::Infallible;
 use std::io::{Cursor, Read, Write};
 
 use facet::Facet;
+
+use chip_decklist::stem::DeckStem;
 use meldweb_git::{
     BlobId, BranchName, Change, CommitId, EntryKind, Error, FetchRequest, Identity, Integrated,
     MemStore, PushRequest, RemoteUrl, Repo, RepoPath, Side, Signature, Store, TagKind, TagName,
     Timestamp, Tip, Unsupported, WriteCommit,
 };
+
+use crate::layout::{self, DeckLines};
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
 
 /// One thing an operation did to the git dir, for the worker to repeat.
@@ -220,16 +224,20 @@ pub struct RemoteFacts {
     /// `origin`'s URL; absent when the repo has no remote.
     #[facet(default, skip_serializing_if = Option::is_none)]
     pub url: Option<String>,
-    /// Commits on `main` the remote's `main` lacks, as last fetched.
+    /// Commits on the branches here that the remote's lack, as last fetched.
     pub ahead: u32,
-    /// Commits on the remote's `main`, as last fetched, that `main` lacks.
+    /// Commits on the remote's branches, as last fetched, that none here holds.
     pub behind: u32,
-    /// Snapshots here the remote lacks.
+    /// Branches (decks, mostly) to make, move or delete on the remote.
+    pub branches: u32,
+    /// Snapshots to make, move or delete on the remote.
     pub tags: u32,
 }
 
-/// What bringing the remote's `main` into this one came to; see
-/// `meldweb_git::Integrated`.
+/// What bringing the remote's branches into these came to, all of them
+/// together; see `meldweb_git::Integrated`. A path is named as it is on its
+/// branch, and a deck's with its branch before it:
+/// `decks/lantern/main: lantern.deck.toml`.
 #[derive(Debug, Facet)]
 #[repr(u8)]
 #[facet(tag = "kind", rename_all = "camelCase")]
@@ -269,6 +277,49 @@ pub struct PushOutcome {
     pub rejected: Vec<Refused>,
 }
 
+/// One deck as the deck list reads it: its stem, the text on its `main`,
+/// and the deck it was forked from, read from its history (ADR-0041).
+#[derive(Debug, Facet)]
+#[facet(rename_all = "camelCase")]
+pub struct DeckLine {
+    pub stem: String,
+    /// The tip of `decks/<stem>/main`.
+    pub commit: String,
+    /// `<stem>.deck.toml` there; absent when the line holds none.
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub text: Option<String>,
+    /// Its blob id, which a later write sends back as its guard.
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub sha: Option<String>,
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub parent: Option<String>,
+}
+
+#[derive(Debug, Facet)]
+pub struct DeckLineList {
+    pub decks: Vec<DeckLine>,
+}
+
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum DeckDeleted {
+    Deleted,
+    /// The deck's line moved since it was read, or is gone. Nothing changed.
+    Conflict {
+        message: String,
+    },
+}
+
+/// What migrating the repo to the next version came to.
+#[derive(Debug, Facet)]
+#[facet(rename_all = "camelCase")]
+pub struct MigratedFacts {
+    pub version: u32,
+    pub decks: u32,
+    pub snapshots: u32,
+}
+
 type Out<T> = Result<T, String>;
 
 /// `meldweb-git`'s refusals, in the words the page shows.
@@ -306,6 +357,74 @@ fn signature(who: &Who) -> Out<Signature> {
 
 fn repo_path(path: &str) -> Out<RepoPath> {
     RepoPath::new(path).map_err(|e| e.to_string())
+}
+
+/// Every branch's outcome as one: what stops the sync first, then what moved.
+fn synced(outcomes: Vec<(BranchName, Integrated)>) -> Synced {
+    let named = |branch: &BranchName, path: String| {
+        if branch.as_str() == "main" {
+            path
+        } else {
+            format!("{branch}: {path}")
+        }
+    };
+    let mut conflicts = Vec::new();
+    let mut unrelated = false;
+    let mut merged: Option<(String, Vec<String>)> = None;
+    let mut adopted = None;
+    let mut forwarded = None;
+    let mut ahead = false;
+    let mut empty = false;
+    for (branch, outcome) in outcomes {
+        match outcome {
+            Integrated::Conflict { paths } => {
+                conflicts.extend(paths.into_iter().map(|p| named(&branch, p)));
+            }
+            Integrated::Unrelated => unrelated = true,
+            Integrated::Merged { commit, taken } => {
+                let taken: Vec<String> = taken.into_iter().map(|p| named(&branch, p)).collect();
+                match &mut merged {
+                    Some((_, all)) => all.extend(taken),
+                    None => merged = Some((commit.to_hex(), taken)),
+                }
+            }
+            Integrated::Adopted { to } => {
+                if branch.as_str() == "main" || adopted.is_none() {
+                    adopted = Some(to.to_hex());
+                }
+            }
+            Integrated::FastForwarded { to } => {
+                if branch.as_str() == "main" || forwarded.is_none() {
+                    forwarded = Some(to.to_hex());
+                }
+            }
+            Integrated::Ahead => ahead = true,
+            Integrated::UpToDate => {}
+            Integrated::RemoteEmpty => empty = branch.as_str() == "main",
+        }
+    }
+    if !conflicts.is_empty() {
+        return Synced::Conflict { paths: conflicts };
+    }
+    if unrelated {
+        return Synced::Unrelated;
+    }
+    if let Some((commit, taken)) = merged {
+        return Synced::Merged { commit, taken };
+    }
+    if let Some(to) = adopted {
+        return Synced::Adopted { to };
+    }
+    if let Some(to) = forwarded {
+        return Synced::FastForwarded { to };
+    }
+    if empty {
+        return Synced::RemoteEmpty;
+    }
+    if ahead {
+        return Synced::Ahead;
+    }
+    Synced::UpToDate
 }
 
 /// The files a bare repo is, and nothing a working tree or a hook adds.
@@ -454,14 +573,30 @@ impl Local {
         Ok((branch, tip))
     }
 
-    /// The commit `at` names, or the default branch's tip; `None` when the
-    /// branch is unborn or `at` is no commit here.
+    /// The tip of `branch`, or the default branch's when it is `None`.
+    fn tip(&self, branch: Option<&str>) -> Out<(BranchName, Option<CommitId>)> {
+        match branch {
+            None => self.head(),
+            Some(name) => {
+                let branch = BranchName::new(name).map_err(|e| e.to_string())?;
+                let tip = self.repo()?.branch_tip(&branch).map_err(said)?;
+                Ok((branch, tip))
+            }
+        }
+    }
+
+    /// The commit `at` names, a commit's id or a branch's name, or the
+    /// default branch's tip; `None` when the branch is unborn or `at` is no
+    /// commit here.
     fn commit_at(&self, at: Option<&str>) -> Out<Option<CommitId>> {
         match at {
             None => Ok(self.head()?.1),
             Some(hex) => {
                 let Ok(id) = CommitId::from_hex(hex) else {
-                    return Ok(None);
+                    return match BranchName::new(hex) {
+                        Ok(_) => Ok(self.tip(Some(hex))?.1),
+                        Err(_) => Ok(None),
+                    };
                 };
                 match self.repo()?.read_commit(&id) {
                     Ok(_) => Ok(Some(id)),
@@ -555,18 +690,21 @@ impl Local {
         })
     }
 
-    /// The commits on the default branch's first-parent line that changed
-    /// `path`, newest first: page `page` (from 1) of `per_page`, none
-    /// committed after `until`.
+    /// The commits on `branch`'s (default: the default branch's)
+    /// first-parent line that changed `path`, newest first: page `page`
+    /// (from 1) of `per_page`, none committed after `until`. A fork's line
+    /// goes on into the deck it was forked from, where its file is absent,
+    /// so its history ends at the commit that made it.
     pub fn history(
         &self,
         path: &str,
+        branch: Option<&str>,
         until: Option<i64>,
         page: u32,
         per_page: u32,
     ) -> Out<Revisions> {
         let path = repo_path(path)?;
-        let (branch, _) = self.head()?;
+        let (branch, _) = self.tip(branch)?;
         let mut revisions = Vec::new();
         let skip = (page.max(1) as usize - 1) * per_page as usize;
         let mut matched = 0;
@@ -659,6 +797,12 @@ impl Local {
     /// GitHub's Contents API guards a `PUT`: `sha` must be the file's blob id
     /// at the tip, and `None` means the file must not exist. The tip may have
     /// moved for other files; it is the file that must not have.
+    ///
+    /// On `branch` when given, the default branch otherwise. A branch that
+    /// does not exist yet is made by a write that creates its file: a root
+    /// commit, or with `from`, a commit whose one parent is `from` and whose
+    /// tree is the file alone, which is how a deck is forked (ADR-0041).
+    #[allow(clippy::too_many_arguments)]
     pub fn put_file(
         &mut self,
         path: &str,
@@ -666,20 +810,51 @@ impl Local {
         sha: Option<&str>,
         message: &str,
         who: &Who,
+        branch: Option<&str>,
+        from: Option<&str>,
     ) -> Out<Wrote> {
         let path = repo_path(path)?;
+        let (branch_name, tip) = self.tip(branch)?;
+        if let (None, Some(from)) = (tip, from) {
+            if sha.is_some() {
+                return Ok(Wrote::Conflict {
+                    message: format!("{branch_name} does not exist"),
+                });
+            }
+            let from = match self.commit_at(Some(from))? {
+                Some(c) if CommitId::from_hex(from).is_ok() => c,
+                _ => return Err(format!("{from} is no commit here")),
+            };
+            let signed = signature(who)?;
+            let repo = self.repo_mut()?;
+            let blob = repo.write_blob(text.as_bytes()).map_err(said)?;
+            let tree = repo.write_files(&[(path.clone(), blob)]).map_err(said)?;
+            let id = repo
+                .write_commit_of(tree, &[from], &signed, &signed, &git_message(message))
+                .map_err(said)?;
+            return match repo.update_branch(&branch_name, Tip::Unborn, &id) {
+                Ok(()) => Ok(Wrote::Committed {
+                    sha: Some(blob.to_hex()),
+                    commit: id.to_hex(),
+                }),
+                Err(Error::Conflict { .. } | Error::RefClash { .. }) => Ok(Wrote::Conflict {
+                    message: format!("{branch_name} was made meanwhile"),
+                }),
+                Err(e) => Err(said(e)),
+            };
+        }
         let change = Change::Put {
             path: path.clone(),
             bytes: text.as_bytes().to_vec(),
         };
-        self.guarded(&path, sha, change, message, who)
+        self.guarded(&path, sha, change, message, who, branch)
     }
 
     /// One commit removing `path`, whose blob id must be `sha`.
     pub fn delete_file(&mut self, path: &str, sha: &str, message: &str, who: &Who) -> Out<Wrote> {
         let path = repo_path(path)?;
         let change = Change::Delete { path: path.clone() };
-        self.guarded(&path, Some(sha), change, message, who)
+        self.guarded(&path, Some(sha), change, message, who, None)
     }
 
     fn guarded(
@@ -689,8 +864,9 @@ impl Local {
         change: Change,
         message: &str,
         who: &Who,
+        branch: Option<&str>,
     ) -> Out<Wrote> {
-        let (branch, tip) = self.head()?;
+        let (branch, tip) = self.tip(branch)?;
         let now = match &tip {
             Some(t) => self.blob_at(t, path)?,
             None => None,
@@ -717,7 +893,7 @@ impl Local {
         let at = tip.map_or(Tip::Unborn, Tip::At);
         let id = match self.repo_mut()?.commit(&branch, at, &commit) {
             Ok(id) => id,
-            Err(Error::Conflict { .. }) => {
+            Err(Error::Conflict { .. } | Error::RefClash { .. }) => {
                 return Ok(Wrote::Conflict {
                     message: format!("{branch} moved while {path} was being committed"),
                 })
@@ -735,6 +911,76 @@ impl Local {
         })
     }
 
+    /// Every deck, `decks/*/main`, by stem: its text and the deck it was
+    /// forked from.
+    pub fn decks(&self) -> Out<DeckLineList> {
+        let repo = self.repo()?;
+        let lines = DeckLines::read(repo)?;
+        let parents = lines.parents(repo)?;
+        let mut decks = Vec::new();
+        for (stem, tip) in &lines.tips {
+            let file = repo_path(&stem.deck_file())?;
+            let (text, sha) = match self.blob_at(tip, &file)? {
+                Some(blob) => {
+                    let bytes = repo.read_blob(&blob).map_err(said)?;
+                    (
+                        Some(String::from_utf8_lossy(&bytes).into_owned()),
+                        Some(blob.to_hex()),
+                    )
+                }
+                None => (None, None),
+            };
+            decks.push(DeckLine {
+                stem: stem.to_string(),
+                commit: tip.to_hex(),
+                text,
+                sha,
+                parent: parents.get(stem).map(|p| p.to_string()),
+            });
+        }
+        Ok(DeckLineList { decks })
+    }
+
+    /// Deletes the deck `stem`: every branch of it, and its snapshots, as
+    /// long as its `main` is still at `commit`. Its commits stay, as git
+    /// keeps what nothing names, and a remote loses them at the next sync.
+    pub fn delete_deck(&mut self, stem: &str, commit: &str) -> Out<DeckDeleted> {
+        let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
+        let main = layout::main_line(&stem);
+        let expected = CommitId::from_hex(commit).map_err(|e| e.to_string())?;
+        let repo = self.repo_mut()?;
+        if repo.branch_tip(&main).map_err(said)? != Some(expected) {
+            return Ok(DeckDeleted::Conflict {
+                message: format!("{stem} changed since it was read"),
+            });
+        }
+        let prefix = format!("decks/{stem}/");
+        for (branch, tip) in repo.branches().map_err(said)? {
+            if branch.as_str().starts_with(&prefix) {
+                repo.delete_branch(&branch, &tip).map_err(said)?;
+            }
+        }
+        for tag in repo.tags(&prefix).map_err(said)? {
+            repo.delete_tag(&tag.name).map_err(said)?;
+        }
+        Ok(DeckDeleted::Deleted)
+    }
+
+    /// Migrates the repo from version `from` to the next, in one operation
+    /// that leaves it at `from` if it fails; see [`layout::migrate`].
+    pub fn migrate(&mut self, from: u32) -> Out<MigratedFacts> {
+        if from != 1 {
+            return Err(format!("there is no migration from version {from}"));
+        }
+        let done = layout::migrate(self.repo_mut()?)?;
+        let n = |x: usize| u32::try_from(x).unwrap_or(u32::MAX);
+        Ok(MigratedFacts {
+            version: layout::VERSION,
+            decks: n(done.decks),
+            snapshots: n(done.snapshots),
+        })
+    }
+
     pub fn remote(&self) -> Out<RemoteFacts> {
         let repo = self.repo()?;
         let url = repo.remote().map_err(said)?;
@@ -747,6 +993,7 @@ impl Local {
             url: url.map(|u| u.as_str().to_owned()),
             ahead: n(status.ahead),
             behind: n(status.behind),
+            branches: n(status.branches),
             tags: n(status.tags),
         })
     }
@@ -775,9 +1022,10 @@ impl Local {
             .map_err(said)
     }
 
-    /// Brings the fetched `main` in. A path both sides changed merges by
-    /// lines, and only when what that makes is still a file Progress Engine
-    /// reads, as a refused save merges (ADR-0021).
+    /// Brings the fetched branches in, a remote still at repo version 1
+    /// migrated first ([`layout::integrate`]). A path both sides changed
+    /// merges by lines, and only when what that makes is still a file
+    /// Progress Engine reads, as a refused save merges (ADR-0021).
     pub fn integrate(&mut self, who: &Who, prefer: Option<Side>) -> Out<Synced> {
         let signed = signature(who)?;
         let mut merge_file = |path: &str, base: &[u8], ours: &[u8], theirs: &[u8]| {
@@ -787,23 +1035,8 @@ impl Local {
             let merged = meldweb_git::merge_lines(text(base)?, text(ours)?, text(theirs)?)?;
             crate::still_reads(path, text(theirs)?, &merged).then(|| merged.into_bytes())
         };
-        let outcome = self
-            .repo_mut()?
-            .integrate(&signed, prefer, &mut merge_file)
-            .map_err(said)?;
-        Ok(match outcome {
-            Integrated::RemoteEmpty => Synced::RemoteEmpty,
-            Integrated::UpToDate => Synced::UpToDate,
-            Integrated::Ahead => Synced::Ahead,
-            Integrated::FastForwarded { to } => Synced::FastForwarded { to: to.to_hex() },
-            Integrated::Adopted { to } => Synced::Adopted { to: to.to_hex() },
-            Integrated::Merged { commit, taken } => Synced::Merged {
-                commit: commit.to_hex(),
-                taken,
-            },
-            Integrated::Conflict { paths } => Synced::Conflict { paths },
-            Integrated::Unrelated => Synced::Unrelated,
-        })
+        let outcomes = layout::integrate(self.repo_mut()?, &signed, prefer, &mut merge_file)?;
+        Ok(synced(outcomes))
     }
 
     pub fn adopt_remote(&mut self) -> Out<()> {
@@ -1075,17 +1308,23 @@ impl GitRepo {
         js(self.0.list_dir(path)).map(|r| json(&r))
     }
 
-    /// [`Revisions`]. `until` is seconds since the Unix epoch.
+    /// [`Revisions`] on `branch` (default: `main`). `until` is seconds
+    /// since the Unix epoch.
     pub fn history(
         &self,
         path: &str,
+        branch: Option<String>,
         until: Option<f64>,
         page: u32,
         per_page: u32,
     ) -> Result<String, JsError> {
-        js(self
-            .0
-            .history(path, until.map(|u| u as i64), page, per_page))
+        js(self.0.history(
+            path,
+            branch.as_deref(),
+            until.map(|u| u as i64),
+            page,
+            per_page,
+        ))
         .map(|r| json(&r))
     }
 
@@ -1115,7 +1354,9 @@ impl GitRepo {
         js(self.0.drop_snapshot(tag))
     }
 
-    /// [`Wrote`]; `who` is a [`Who`].
+    /// [`Wrote`]; `who` is a [`Who`]. On `branch` (default: `main`); a
+    /// branch made by this write starts from the commit `from` when given.
+    #[allow(clippy::too_many_arguments)]
     pub fn put_file(
         &mut self,
         path: &str,
@@ -1123,9 +1364,35 @@ impl GitRepo {
         sha: Option<String>,
         message: &str,
         who: &str,
+        branch: Option<String>,
+        from: Option<String>,
     ) -> Result<String, JsError> {
         let who = who_of(who)?;
-        js(self.0.put_file(path, text, sha.as_deref(), message, &who)).map(|r| json(&r))
+        js(self.0.put_file(
+            path,
+            text,
+            sha.as_deref(),
+            message,
+            &who,
+            branch.as_deref(),
+            from.as_deref(),
+        ))
+        .map(|r| json(&r))
+    }
+
+    /// [`DeckLineList`].
+    pub fn decks(&self) -> Result<String, JsError> {
+        js(self.0.decks()).map(|r| json(&r))
+    }
+
+    /// [`DeckDeleted`].
+    pub fn delete_deck(&mut self, stem: &str, commit: &str) -> Result<String, JsError> {
+        js(self.0.delete_deck(stem, commit)).map(|r| json(&r))
+    }
+
+    /// [`MigratedFacts`].
+    pub fn migrate(&mut self, from: u32) -> Result<String, JsError> {
+        js(self.0.migrate(from)).map(|r| json(&r))
     }
 
     /// [`Wrote`]; `who` is a [`Who`].
@@ -1293,7 +1560,7 @@ mod tests {
         assert_eq!(file(&local, "VERSION"), None);
         let (sha, _) = committed(
             local
-                .put_file("VERSION", "1\n", None, "v1", &who(1))
+                .put_file("VERSION", "1\n", None, "v1", &who(1), None, None)
                 .unwrap(),
         );
         // `printf '1\n' | git hash-object --stdin`
@@ -1303,7 +1570,7 @@ mod tests {
         );
         assert!(matches!(
             local
-                .put_file("VERSION", "1\n", None, "again", &who(2))
+                .put_file("VERSION", "1\n", None, "again", &who(2), None, None)
                 .unwrap(),
             Wrote::Conflict { .. }
         ));
@@ -1316,13 +1583,23 @@ mod tests {
                     None,
                     "a: made",
                     &who(3),
+                    None,
+                    None,
                 )
                 .unwrap(),
         );
         // The tip moved for another file; VERSION's blob still guards it.
         committed(
             local
-                .put_file("VERSION", "1\n", sha.as_deref(), "same", &who(4))
+                .put_file(
+                    "VERSION",
+                    "1\n",
+                    sha.as_deref(),
+                    "same",
+                    &who(4),
+                    None,
+                    None,
+                )
                 .unwrap(),
         );
         let (deck2, _) = committed(
@@ -1333,6 +1610,8 @@ mod tests {
                     deck.as_deref(),
                     "a: B",
                     &who(5),
+                    None,
+                    None,
                 )
                 .unwrap(),
         );
@@ -1340,7 +1619,15 @@ mod tests {
         let before = local.head().unwrap().1;
         assert!(matches!(
             local
-                .put_file("decks/a.deck.toml", "x", deck.as_deref(), "stale", &who(6))
+                .put_file(
+                    "decks/a.deck.toml",
+                    "x",
+                    deck.as_deref(),
+                    "stale",
+                    &who(6),
+                    None,
+                    None
+                )
                 .unwrap(),
             Wrote::Conflict { .. }
         ));
@@ -1395,29 +1682,42 @@ mod tests {
                         sha.as_deref(),
                         &format!("edit {i}"),
                         &who(i * 100),
+                        None,
+                        None,
                     )
                     .unwrap(),
             );
             sha = s;
             local
-                .put_file(&format!("other{i}"), "x", None, "other", &who(i * 100 + 1))
+                .put_file(
+                    &format!("other{i}"),
+                    "x",
+                    None,
+                    "other",
+                    &who(i * 100 + 1),
+                    None,
+                    None,
+                )
                 .unwrap();
         }
         let all = local
-            .history("d.deck.toml", None, 1, 100)
+            .history("d.deck.toml", None, None, 1, 100)
             .unwrap()
             .revisions;
         let messages: Vec<_> = all.iter().map(|r| r.message.as_str()).collect();
         assert_eq!(messages, ["edit 5", "edit 4", "edit 3", "edit 2", "edit 1"]);
         assert_eq!(all[0].author, "Alex");
         assert_eq!(all[0].committed_at, 500);
-        let page2 = local.history("d.deck.toml", None, 2, 2).unwrap().revisions;
+        let page2 = local
+            .history("d.deck.toml", None, None, 2, 2)
+            .unwrap()
+            .revisions;
         assert_eq!(
             page2.iter().map(|r| r.message.as_str()).collect::<Vec<_>>(),
             ["edit 3", "edit 2"]
         );
         let until = local
-            .history("d.deck.toml", Some(350), 1, 1)
+            .history("d.deck.toml", None, Some(350), 1, 1)
             .unwrap()
             .revisions;
         assert_eq!(until[0].message, "edit 3");
@@ -1447,7 +1747,11 @@ mod tests {
     #[test]
     fn a_snapshot_is_an_annotated_tag_and_a_taken_name_conflicts() {
         let mut local = fresh();
-        let (_, commit) = committed(local.put_file("d", "1", None, "one", &who(10)).unwrap());
+        let (_, commit) = committed(
+            local
+                .put_file("d", "1", None, "one", &who(10), None, None)
+                .unwrap(),
+        );
         let Tagged::Tagged { snapshot } = local
             .take_snapshot("decks/d/fnm", "FNM 14 Sep", &commit, &who(20))
             .unwrap()
@@ -1477,10 +1781,10 @@ mod tests {
         let mut local = fresh();
         assert!(local.list_dir("decks").unwrap().entries.is_empty());
         local
-            .put_file("decks/a.deck.toml", "a", None, "a", &who(1))
+            .put_file("decks/a.deck.toml", "a", None, "a", &who(1), None, None)
             .unwrap();
         local
-            .put_file("decks/sub/b", "b", None, "b", &who(2))
+            .put_file("decks/sub/b", "b", None, "b", &who(2), None, None)
             .unwrap();
         let entries = local.list_dir("decks").unwrap().entries;
         let seen: Vec<_> = entries.iter().map(|e| (e.path.as_str(), e.kind)).collect();
@@ -1504,7 +1808,10 @@ mod tests {
     fn a_tab_that_takes_the_other_tabs_refs_sees_its_commit_and_conflicts_on_its_file() {
         let mut storage = Vec::new();
         let mut a = fresh();
-        let (sha, _) = committed(a.put_file("d", "1\n", None, "one", &who(1)).unwrap());
+        let (sha, _) = committed(
+            a.put_file("d", "1\n", None, "one", &who(1), None, None)
+                .unwrap(),
+        );
         write_through(&mut a, &mut storage);
 
         let mut b = Local::default();
@@ -1515,7 +1822,7 @@ mod tests {
         assert_eq!(file(&b, "d").unwrap().1, sha.clone().unwrap());
 
         committed(
-            a.put_file("d", "2\n", sha.as_deref(), "two", &who(2))
+            a.put_file("d", "2\n", sha.as_deref(), "two", &who(2), None, None)
                 .unwrap(),
         );
         write_through(&mut a, &mut storage);
@@ -1536,7 +1843,7 @@ mod tests {
         }
         assert!(b.take_journal().steps.is_empty(), "loading is not writing");
         assert!(matches!(
-            b.put_file("d", "3\n", sha.as_deref(), "three", &who(3))
+            b.put_file("d", "3\n", sha.as_deref(), "three", &who(3), None, None)
                 .unwrap(),
             Wrote::Conflict { .. }
         ));
@@ -1547,7 +1854,9 @@ mod tests {
     fn the_journal_writes_objects_before_the_ref_that_names_them() {
         let mut local = fresh();
         local.take_journal();
-        local.put_file("d", "1", None, "one", &who(1)).unwrap();
+        local
+            .put_file("d", "1", None, "one", &who(1), None, None)
+            .unwrap();
         let steps = local.take_journal().steps;
         let last = steps.last().unwrap();
         assert_eq!(
@@ -1566,7 +1875,7 @@ mod tests {
         let mut local = fresh();
         let (_, commit) = committed(
             local
-                .put_file("VERSION", "1\n", None, "v1", &who(1))
+                .put_file("VERSION", "1\n", None, "v1", &who(1), None, None)
                 .unwrap(),
         );
         local
@@ -1600,7 +1909,7 @@ mod tests {
     fn an_import_finds_the_repo_in_one_directory_and_refuses_packs() {
         let mut local = fresh();
         local
-            .put_file("VERSION", "1\n", None, "v1", &who(1))
+            .put_file("VERSION", "1\n", None, "v1", &who(1), None, None)
             .unwrap();
         let mut files: Vec<(String, Vec<u8>)> = local
             .mirror()
@@ -1663,11 +1972,11 @@ mod tests {
         let mut local = fresh();
         let (sha, commit) = committed(
             local
-                .put_file("VERSION", "1\n", None, "v1", &who(1))
+                .put_file("VERSION", "1\n", None, "v1", &who(1), None, None)
                 .unwrap(),
         );
         local
-            .put_file("VERSION", "2\n", sha.as_deref(), "v2", &who(2))
+            .put_file("VERSION", "2\n", sha.as_deref(), "v2", &who(2), None, None)
             .unwrap();
         local
             .take_snapshot("decks/d/x", "X", &commit, &who(3))
@@ -1704,14 +2013,163 @@ mod tests {
     #[test]
     fn a_line_merge_that_is_no_longer_a_deck_does_not_count() {
         let deck = "name = \"Lantern\"\ncards = []\n";
-        assert!(crate::still_reads("decks/lantern.deck.toml", deck, deck));
+        assert!(crate::still_reads("lantern.deck.toml", deck, deck));
         assert!(!crate::still_reads(
-            "decks/lantern.deck.toml",
+            "lantern.deck.toml",
             deck,
             "name = \"Lantern\"\ncards = [\n"
         ));
         // A file no editor writes is only text.
         assert!(crate::still_reads("notes.txt", "a", "cards = ["));
+    }
+
+    /// Version 2's deck lines through the page's calls (ADR-0041): a deck is
+    /// made on its own branch, forked from another's commit, saved, read at
+    /// its branch or a commit, listed with its parent, and deleted whole.
+    #[test]
+    fn a_deck_is_a_line_its_fork_starts_on_its_commit_and_both_list_by_stem() {
+        let mut local = fresh();
+        committed(
+            local
+                .put_file("VERSION", "2\n", None, "v2", &who(1), None, None)
+                .unwrap(),
+        );
+        let lantern = Some("decks/lantern/main");
+        let (sha, made) = committed(
+            local
+                .put_file(
+                    "lantern.deck.toml",
+                    "name = \"Lantern\"\n",
+                    None,
+                    "lantern: made",
+                    &who(2),
+                    lantern,
+                    None,
+                )
+                .unwrap(),
+        );
+        committed(
+            local
+                .put_file(
+                    "lantern.deck.toml",
+                    "name = \"Lantern\"\ncards = []\n",
+                    sha.as_deref(),
+                    "lantern: cards",
+                    &who(3),
+                    lantern,
+                    None,
+                )
+                .unwrap(),
+        );
+        // A stale guard on a deck's line conflicts, as on main.
+        assert!(matches!(
+            local
+                .put_file(
+                    "lantern.deck.toml",
+                    "x",
+                    None,
+                    "again",
+                    &who(4),
+                    lantern,
+                    None
+                )
+                .unwrap(),
+            Wrote::Conflict { .. }
+        ));
+        // Criteria live beside the deck, on its line.
+        committed(
+            local
+                .put_file(
+                    "lantern.criteria.toml",
+                    "[[question]]\n",
+                    None,
+                    "lantern: criteria",
+                    &who(5),
+                    lantern,
+                    None,
+                )
+                .unwrap(),
+        );
+        let budget = Some("decks/budget/main");
+        let (_, forked) = committed(
+            local
+                .put_file(
+                    "budget.deck.toml",
+                    "name = \"Budget\"\n",
+                    None,
+                    "budget: forked from lantern",
+                    &who(6),
+                    budget,
+                    Some(&made),
+                )
+                .unwrap(),
+        );
+        let decks = local.decks().unwrap().decks;
+        let seen: Vec<_> = decks
+            .iter()
+            .map(|d| (d.stem.as_str(), d.parent.as_deref(), d.text.as_deref()))
+            .collect();
+        assert_eq!(
+            seen,
+            [
+                ("budget", Some("lantern"), Some("name = \"Budget\"\n")),
+                ("lantern", None, Some("name = \"Lantern\"\ncards = []\n")),
+            ]
+        );
+        let FileRead::File { text, .. } = local.get_file("lantern.deck.toml", Some(&made)).unwrap()
+        else {
+            panic!("there then")
+        };
+        assert_eq!(text, "name = \"Lantern\"\n");
+        let FileRead::File { text, .. } = local.get_file("lantern.criteria.toml", lantern).unwrap()
+        else {
+            panic!("criteria on the deck's line")
+        };
+        assert_eq!(text, "[[question]]\n");
+        assert!(matches!(
+            local.get_file("lantern.deck.toml", None).unwrap(),
+            FileRead::NoFile
+        ));
+        let history = local
+            .history("budget.deck.toml", budget, None, 1, 100)
+            .unwrap()
+            .revisions;
+        assert_eq!(
+            history
+                .iter()
+                .map(|r| r.message.as_str())
+                .collect::<Vec<_>>(),
+            ["budget: forked from lantern"]
+        );
+        let RevisionRead::Found { revision } = local.revision(&forked).unwrap() else {
+            panic!("a commit")
+        };
+        assert_eq!(revision.message, "budget: forked from lantern");
+
+        let lantern_tip = decks[1].commit.clone();
+        local
+            .take_snapshot("decks/lantern/fnm", "FNM", &lantern_tip, &who(7))
+            .unwrap();
+        assert!(matches!(
+            local.delete_deck("lantern", &made).unwrap(),
+            DeckDeleted::Conflict { .. }
+        ));
+        assert!(matches!(
+            local.delete_deck("lantern", &lantern_tip).unwrap(),
+            DeckDeleted::Deleted
+        ));
+        assert!(local
+            .snapshots("decks/lantern/")
+            .unwrap()
+            .snapshots
+            .is_empty());
+        // The fork outlives its parent, and stands alone.
+        let decks = local.decks().unwrap().decks;
+        assert_eq!(decks.len(), 1);
+        assert_eq!(
+            (decks[0].stem.as_str(), decks[0].parent.as_deref()),
+            ("budget", None)
+        );
     }
 
     #[test]

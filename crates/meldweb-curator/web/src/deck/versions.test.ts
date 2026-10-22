@@ -22,9 +22,11 @@ describe("the deck page's URL", () => {
       kind: "revision",
       commit: SHA,
     });
+    expect(viewingOf({ vs: "loam" })).toEqual({ kind: "deck", stem: "loam" });
+    // A link from repo version 1 named the deck's path.
     expect(viewingOf({ vs: "decks/loam.deck.toml" })).toEqual({
       kind: "deck",
-      path: "decks/loam.deck.toml",
+      stem: "loam",
     });
     expect(viewingOf({})).toEqual({ kind: "now" });
   });
@@ -50,7 +52,7 @@ describe("the deck page's URL", () => {
     for (const viewing of [
       { kind: "now" as const },
       { kind: "revision" as const, commit: SHA },
-      { kind: "deck" as const, path: "decks/loam.deck.toml" },
+      { kind: "deck" as const, stem: "loam" },
     ]) {
       for (const drawer of [true, false]) {
         for (const view of DECK_VIEWS) {
@@ -130,21 +132,18 @@ describe("the compare panel", () => {
 });
 
 describe("taking from another deck", () => {
-  it("never takes its name or whose variant it is", () => {
+  it("never takes its name", () => {
     const changes = [
       { kind: "remove" as const, before: 0, text: "-1 Volcanic Island" },
       { kind: "rename" as const, text: 'name: none → "Lantern Budget"' },
-      { kind: "variantOf" as const, text: "variant of: none → lantern" },
       { kind: "description" as const, text: "description: added" },
     ];
     expect(
-      takeable(changes, { kind: "deck", path: "decks/b.deck.toml" }).map(
-        (c) => c.at,
-      ),
-    ).toEqual([0, 3]);
+      takeable(changes, { kind: "deck", stem: "b" }).map((c) => c.at),
+    ).toEqual([0, 2]);
     // From its own past, a rename is part of what it was.
     expect(
       takeable(changes, { kind: "revision", commit: SHA }).map((c) => c.at),
-    ).toEqual([0, 1, 2, 3]);
+    ).toEqual([0, 1, 2]);
   });
 });

@@ -14,7 +14,18 @@ import { COLLECTION_PATH } from "./collection";
 import { SETTINGS_PATH } from "./settings";
 import { WANTED_PATH } from "./wanted";
 
-const DECK = /^decks\/[^/]+\.deck\.toml$/;
+/** A deck's file, at the root of its own line (ADR-0041). */
+const DECK = /^[^/]+\.deck\.toml$/;
+/** Its Gauntlet criteria, beside it. */
+const CRITERIA = /^([^/]+)\.criteria\.toml$/;
+
+/**
+ * What names a file across writes: its path on `main`, or its branch and
+ * path on a deck's line, `decks/lantern/main:lantern.deck.toml`.
+ */
+export function spotKey(path: string, branch?: string): string {
+  return branch === undefined ? path : `${branch}:${path}`;
+}
 
 /**
  * The changelog subject and body for one write of `path`, from Rust's diff of
@@ -30,6 +41,10 @@ export function commitMessageFor(
   if (path === SETTINGS_PATH) return settingsCommitMessage(before, after);
   if (path === WANTED_PATH) return wantedCommitMessage(before, after, path);
   if (DECK.test(path)) return commitMessage(before, after, path);
+  // Criteria are written by hand or by Gauntlet, with no diff Rust tells yet.
+  const criteria = CRITERIA.exec(path);
+  if (criteria)
+    return `${criteria[1]}: criteria ${before === "" ? "made" : "edited"}`;
   // A card is one short file, written by hand, so there is no diff to tell.
   if (isCardPath(path))
     return `${cardStem(path)}: custom card ${before === "" ? "made" : "edited"}`;
@@ -66,9 +81,10 @@ export function settled(path: string): Promise<void> {
 export async function openFile(
   repo: Repo,
   path: string,
+  branch?: string,
 ): Promise<FileAt | null> {
-  await settled(path);
-  return repo.getFile(path);
+  await settled(spotKey(path, branch));
+  return repo.getFile(path, branch);
 }
 
 export type Committed =
@@ -92,12 +108,14 @@ export function commitEdit(
   repo: Repo,
   path: string,
   edit: (text: string | null) => string | null,
+  branch?: string,
 ): Promise<Committed> {
-  const earlier = settled(path);
+  const key = spotKey(path, branch);
+  const earlier = settled(key);
   const work = (async (): Promise<Committed> => {
     await earlier;
     for (let attempt = 1; ; attempt++) {
-      const file = await repo.getFile(path);
+      const file = await repo.getFile(path, branch);
       const was = file?.text ?? null;
       const text = edit(was);
       if (text === null || text === was) {
@@ -108,6 +126,7 @@ export function commitEdit(
           text,
           message: commitMessageFor(path, was ?? "", text),
           sha: file?.sha ?? null,
+          ...(branch === undefined ? {} : { branch }),
         });
         return { kind: "committed", text, sha };
       } catch (e) {
@@ -115,5 +134,5 @@ export function commitEdit(
       }
     }
   })();
-  return track(path, work);
+  return track(key, work);
 }

@@ -33,7 +33,6 @@ import init, {
   set_deck_cover,
   set_deck_description,
   set_deck_meta,
-  set_variant_of,
 } from "./wasm/pkg/meldweb_wasm.js";
 
 export type {
@@ -286,11 +285,6 @@ export function applyChanges(
   take: readonly number[],
 ): string {
   return apply_changes(before, after, Uint32Array.from(take));
-}
-
-/** The deck text as a variant of the deck at `parent`, or alone for `null`. */
-export function setVariantOf(text: string, parent: string | null): string {
-  return set_variant_of(text, parent ?? undefined);
 }
 
 /**

@@ -23,12 +23,12 @@ export type {
 } from "./deck.gen";
 
 /**
- * The deck at `path`, its `text`, made of `collection`'s copies, and what
+ * The deck `stem`, its `text`, made of `collection`'s copies, and what
  * each of `friends` holds of what is still short. `names` names the
  * printings the files hold, as for an add.
  */
 export function readSupply(
-  path: string,
+  stem: string,
   text: string,
   collection: string,
   friends: readonly FriendFile[],
@@ -36,7 +36,7 @@ export function readSupply(
 ): ParsedSupply {
   return JSON.parse(
     read_supply(
-      path,
+      stem,
       text,
       collection,
       JSON.stringify(friends),

@@ -12,11 +12,11 @@ import {
 import type { Supply } from "./useSupply";
 
 /** The lines ticked off while going through the physical deck, per deck. */
-const ticksKey = (path: string) => `meldweb-build-ticks:${path}`;
+const ticksKey = (stem: string) => `meldweb-build-ticks:${stem}`;
 
-function loadTicks(path: string): ReadonlySet<string> {
+function loadTicks(stem: string): ReadonlySet<string> {
   try {
-    const raw = JSON.parse(localStorage.getItem(ticksKey(path)) ?? "[]");
+    const raw = JSON.parse(localStorage.getItem(ticksKey(stem)) ?? "[]");
     return new Set(Array.isArray(raw) ? raw.map(String) : []);
   } catch {
     return new Set();
@@ -43,20 +43,20 @@ function freeName(name: string, places: readonly string[]): string {
 export function BuildView({
   supply,
   cards,
-  path,
+  stem,
   deckName,
   onSourcing,
 }: {
   supply: Supply;
   cards: readonly Card[];
-  path: string;
+  stem: string;
   deckName: string;
   onSourcing: () => void;
 }) {
-  const [ticks, setTicks] = useState(() => loadTicks(path));
+  const [ticks, setTicks] = useState(() => loadTicks(stem));
   useEffect(() => {
-    localStorage.setItem(ticksKey(path), JSON.stringify([...ticks]));
-  }, [path, ticks]);
+    localStorage.setItem(ticksKey(stem), JSON.stringify([...ticks]));
+  }, [stem, ticks]);
   const { state } = supply;
 
   if (state.kind === "loading")

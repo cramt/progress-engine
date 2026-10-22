@@ -181,10 +181,6 @@ pub struct Deck {
     pub name: Option<String>,
     /// Metadata. Nothing in the family reads it to decide what is legal (ADR-0005).
     pub format: Option<String>,
-    /// The path of the deck this one is a variant of, such as a budget build
-    /// of it. Only Curator reads it, to show the two together and compare
-    /// them; the parent need not exist.
-    pub variant_of: Option<String>,
     /// The printing whose art stands for the deck in Curator's deck list. It
     /// need not be in the deck, and nothing in the family reads it otherwise.
     pub cover: Option<Printing>,
@@ -242,6 +238,11 @@ pub enum DeckError {
         b: String,
         b_type: CategoryType,
     },
+    /// Repo version 1's way of saying a deck came from another. Since version
+    /// 2 a variant is a fork, whose parent is in its history (ADR-0041), and
+    /// the migration takes the key out of every deck.
+    #[error("variant_of is from repo version 1: a variant is a fork of its parent now, and its history says which (ADR-0041); remove the key")]
+    VariantOf,
 }
 
 fn type_names() -> String {
@@ -253,6 +254,7 @@ fn type_names() -> String {
 struct RawDeck {
     name: Option<String>,
     format: Option<String>,
+    /// Read only to be refused with a reason, rather than as an unknown key.
     variant_of: Option<String>,
     cover: Option<String>,
     description: Option<String>,
@@ -284,6 +286,9 @@ impl Deck {
     pub fn parse(text: &str) -> Result<Deck, DeckError> {
         let raw: RawDeck =
             facet_toml::from_str(text).map_err(|e| DeckError::Toml(e.to_string()))?;
+        if raw.variant_of.is_some() {
+            return Err(DeckError::VariantOf);
+        }
 
         let categories =
             raw.categories
@@ -317,7 +322,6 @@ impl Deck {
         Ok(Deck {
             name: raw.name,
             format: raw.format,
-            variant_of: raw.variant_of,
             cover,
             description: raw.description,
             categories,
@@ -442,9 +446,6 @@ impl Deck {
         }
         if let Some(format) = &self.format {
             out += &format!("format = {}\n", quote(format));
-        }
-        if let Some(parent) = &self.variant_of {
-            out += &format!("variant_of = {}\n", quote(parent));
         }
         if let Some(cover) = &self.cover {
             out += &format!("cover = {}\n", quote(&cover.to_string()));

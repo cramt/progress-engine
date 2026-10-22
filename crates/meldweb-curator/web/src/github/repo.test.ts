@@ -1,8 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { decodeBase64, encodeBase64, LoggedOutError } from "./api";
+import { deckFile } from "./decks";
 import { installUrl, newRepoUrl, resolveInstallUrl } from "./onboarding";
 import { findMagicRepo, type Migration, openMagicRepo } from "./repo";
-import { mockConnection } from "./testkit";
+import {
+  fileOf,
+  loadWasm,
+  messages,
+  mockConnection,
+  seedDecks,
+} from "./testkit";
+
+beforeAll(loadWasm);
 
 describe("finding the Magic repo", () => {
   it("finds octocat/mtg through the app's installation", async () => {
@@ -78,29 +87,28 @@ describe("onboarding URLs", () => {
 });
 
 describe("the repo version", () => {
-  it("writes VERSION 1 into an empty repo", async () => {
-    const { mock, repo } = mockConnection({ start: "no-install" });
-    mock.installApp();
+  it("writes the version it knows into an empty repo", async () => {
+    const { repo } = mockConnection();
     expect(await openMagicRepo(repo)).toEqual({
       kind: "open",
-      version: 1,
+      version: 2,
     });
-    expect(mock.file("VERSION")?.text).toBe("1\n");
-    expect(mock.commits().map((c) => c.message)).toEqual([
-      "curator: this repo is at version 1",
+    expect(await fileOf(repo, "VERSION")).toBe("2\n");
+    expect(await messages(repo, "VERSION")).toEqual([
+      "curator: this repo is at version 2",
     ]);
     // Opening again writes nothing.
     await openMagicRepo(repo);
-    expect(mock.commits()).toHaveLength(1);
+    expect(await messages(repo, "VERSION")).toHaveLength(1);
   });
 
   it("refuses a repo newer than Progress Engine knows, and changes nothing", async () => {
-    const { mock, repo } = mockConnection({ files: { VERSION: "2\n" } });
+    const { repo } = mockConnection({ files: { VERSION: "3\n" } });
     const opened = await openMagicRepo(repo);
     expect(opened.kind).toBe("refused");
     if (opened.kind === "refused")
-      expect(opened.message).toMatch(/version 2.*up to version 1/);
-    expect(mock.commits()).toHaveLength(0);
+      expect(opened.message).toMatch(/version 3.*up to version 2/);
+    expect(await messages(repo, "VERSION")).toEqual(["add VERSION"]);
   });
 
   it("refuses a VERSION that is not a number", async () => {
@@ -108,27 +116,59 @@ describe("the repo version", () => {
     expect((await openMagicRepo(repo)).kind).toBe("refused");
   });
 
-  it("runs the migrations from an older version, one commit each", async () => {
-    const { mock, repo } = mockConnection({ files: { VERSION: "1\n" } });
-    const to2: Migration = {
-      from: 1,
+  it("runs the migrations from an older version, each in turn", async () => {
+    const { repo } = mockConnection({ files: { VERSION: "2\n" } });
+    const to3: Migration = {
+      from: 2,
       async migrate(repo) {
         const v = await repo.getFile("VERSION");
         await repo.putFile("VERSION", {
-          text: "2\n",
-          message: "curator: repo version 2",
+          text: "3\n",
+          message: "curator: repo version 3",
           sha: v?.sha ?? null,
         });
       },
     };
-    expect(await openMagicRepo(repo, { known: 2, migrations: [to2] })).toEqual({
+    expect(await openMagicRepo(repo, { known: 3, migrations: [to3] })).toEqual({
       kind: "open",
-      version: 2,
+      version: 3,
     });
-    expect(mock.file("VERSION")?.text).toBe("2\n");
+    expect(await fileOf(repo, "VERSION")).toBe("3\n");
     expect(
-      (await openMagicRepo(repo, { known: 3, migrations: [to2] })).kind,
+      (await openMagicRepo(repo, { known: 4, migrations: [to3] })).kind,
     ).toBe("refused");
+  });
+
+  it("migrates a version-1 repo to a line per deck as it opens (ADR-0041)", async () => {
+    const lantern = seedDecks()["decks/lantern.deck.toml"] ?? "";
+    const { repo } = mockConnection({
+      version: 1,
+      files: {
+        VERSION: "1\n",
+        "decks/lantern.deck.toml": lantern,
+        "decks/lantern-budget.deck.toml": `name = "Budget"\nvariant_of = "decks/lantern.deck.toml"\n${lantern}`,
+        "collection.toml":
+          'cards = []\n\n[places]\nLantern = { deck = "decks/lantern.deck.toml" }\n',
+      },
+    });
+    expect(await openMagicRepo(repo)).toEqual({ kind: "open", version: 2 });
+    expect(await fileOf(repo, "VERSION")).toBe("2\n");
+    expect(await repo.listDir("decks")).toEqual([]);
+    expect(await fileOf(repo, "collection.toml")).toContain(
+      'Lantern = { deck = "lantern" }',
+    );
+    const decks = await repo.decks();
+    expect(decks.map((d) => [d.stem, d.parent])).toEqual([
+      ["lantern", undefined],
+      ["lantern-budget", "lantern"],
+    ]);
+    const budget = deckFile("lantern-budget");
+    expect(await fileOf(repo, budget.path, budget.branch)).not.toContain(
+      "variant_of",
+    );
+    expect(await messages(repo, budget.path, budget.branch)).toEqual([
+      "add decks/lantern-budget.deck.toml",
+    ]);
   });
 });
 

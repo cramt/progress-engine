@@ -1,7 +1,13 @@
 /**
- * The Magic repo as every page reads and writes it, whichever backend holds
- * it: the bare git repo in this browser (ADR-0041), or GitHub through the dev
- * mock. A page holds a `Repo` and never asks which it is.
+ * The Magic repo as every page reads and writes it: the bare git repo in this
+ * browser (ADR-0041), in the worker that holds it, or in memory in tests and
+ * the dev mock. A page holds a `Repo` and never asks which it is.
+ *
+ * Repo version 2 has a line of history per deck. `main` holds `VERSION`,
+ * `collection.toml`, `wanted.toml`, `meldweb.toml` and `cards/`; each deck is
+ * the branch `decks/<stem>/<branch>`, every deck has `main`, and its tree
+ * holds `<stem>.deck.toml` and `<stem>.criteria.toml`. A file call names the
+ * branch it is on, `main` when it names none.
  */
 
 export interface FileAt {
@@ -24,6 +30,24 @@ export interface PutFile {
   sha: string | null;
   /** Lets the request outlive the page (`pagehide`), when the body is small enough. */
   keepalive?: boolean;
+  /** The branch to commit on, `main` when absent: `decks/lantern/main`. */
+  branch?: string;
+  /**
+   * For a branch this write makes: the commit it starts from, so the new
+   * branch's history is that commit's, which is how a deck is forked.
+   */
+  from?: string;
+}
+
+/** A deck, as its `main` branch has it. */
+export interface DeckLine {
+  stem: string;
+  /** The tip of `decks/<stem>/main`. */
+  commit: string;
+  /** `<stem>.deck.toml` there, and its blob sha; absent when it holds none. */
+  file: FileAt | null;
+  /** The deck it was forked from, as its history says. */
+  parent?: string;
 }
 
 /** One commit that touched a file, as its history lists it. */
@@ -52,22 +76,21 @@ export interface Snapshot {
 export interface Repo {
   /** Where the repo is, as the deck list names it: `octocat/mtg`, or this browser. */
   readonly where: string;
-  /** The file's page on the host's website; null for a repo no host has. */
-  readonly onHost: ((path: string) => { host: string; url: string }) | null;
   /**
-   * The file on the default branch, or at commit `ref` when given; `null`
-   * when there is none there (or the repo is empty).
+   * The file on `main`, or at `ref` when given, a commit's sha or a branch's
+   * name; `null` when there is none there (or the repo is empty).
    */
   getFile(path: string, ref?: string): Promise<FileAt | null>;
   /** A file's bytes, such as a custom card's art; null when there is none. */
   getBytes(path: string): Promise<Uint8Array | null>;
   /**
-   * The commits on the default branch that touched `path`, newest first, a
-   * page of up to `perPage` (100 at most) at a time, none after `until`.
+   * The commits on `branch` (default `main`) that touched `path`, newest
+   * first, a page of up to `perPage` (100 at most) at a time, none after
+   * `until`.
    */
   history(
     path: string,
-    page?: { until?: string; page?: number; perPage?: number },
+    page?: { until?: string; page?: number; perPage?: number; branch?: string },
   ): Promise<Revision[]>;
   /** One commit, or `null` when the repo has none by that sha. */
   revision(commit: string): Promise<Revision | null>;
@@ -80,15 +103,27 @@ export interface Repo {
     commit: string;
   }): Promise<Snapshot>;
   dropSnapshot(tag: string): Promise<void>;
-  /** One commit on the default branch. Throws `ConflictError` on a stale or missing sha. */
-  putFile(path: string, put: PutFile): Promise<{ sha: string }>;
+  /**
+   * One commit on `put.branch` (default `main`), and its new tip. Throws
+   * `ConflictError` on a stale or missing sha.
+   */
+  putFile(path: string, put: PutFile): Promise<{ sha: string; commit: string }>;
   /** One commit removing the file. Throws `ConflictError` on a stale or missing sha. */
   deleteFile(
     path: string,
     del: { message: string; sha: string },
   ): Promise<void>;
-  /** A directory's entries, empty when it does not exist. */
+  /** A directory's entries on `main`, empty when it does not exist. */
   listDir(path: string): Promise<DirEntry[]>;
+  /** Every deck, `decks/<stem>/main`, by stem. */
+  decks(): Promise<DeckLine[]>;
+  /**
+   * Deletes the deck, every branch and snapshot of it, while its `main` is
+   * still at `commit`; throws `ConflictError` otherwise.
+   */
+  deleteDeck(stem: string, commit: string): Promise<void>;
+  /** Takes the repo from version `from` to the next, all or nothing. */
+  migrate(from: number): Promise<void>;
 }
 
 /**

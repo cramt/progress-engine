@@ -16,7 +16,7 @@ import {
   setDeckDescription,
 } from "../deck";
 import type { PublicRepos } from "../github/api";
-import { createDeck, deckStem } from "../github/decks";
+import { createDeck, deckFile } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { head, takeSnapshot } from "../github/history";
 import { createSaveStore } from "../github/save";
@@ -46,14 +46,16 @@ import { type OnDrop, StacksView } from "./StacksView";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "./Toolbar";
 import { useOther } from "./useOther";
 import { useSupply } from "./useSupply";
-import { SnapshotDialog, VariantDialog } from "./VersionDialogs";
+import { ForkDialog, SnapshotDialog } from "./VersionDialogs";
 import { VersionView, when } from "./VersionView";
 import { ViewTabs } from "./ViewTabs";
 import type { DeckPage, Viewing } from "./versions";
 
 export interface DeckEditorProps {
-  /** The deck's path in the Magic repo, e.g. `decks/lantern.deck.toml`. */
-  path: string;
+  /** The deck's stem: it is `decks/<stem>/main`, its file `<stem>.deck.toml`. */
+  stem: string;
+  /** The deck it was forked from, as its history says (ADR-0041). */
+  parent?: string;
   /** The file as loaded from GitHub, and its blob sha. */
   text: string;
   sha: string;
@@ -72,14 +74,25 @@ export interface DeckEditorProps {
 type Dialog =
   /** `commit: null` is the deck as it is now, once saved. */
   | { kind: "snapshot"; commit: string | null; of: string }
-  | { kind: "variant"; text: string; of: string };
+  /**
+   * A fork of `from`'s deck at `commit` (`null`: its tip, once saved), whose
+   * text is `text`; `of` says which version, for the reader.
+   */
+  | {
+      kind: "fork";
+      text: string;
+      of: string;
+      from: string;
+      commit: string | null;
+    };
 
 /**
  * One open deck: the stacks, the toolbar, undo, and saving by itself. Mount it
- * with `key={path}`; it reads its props once and then owns the text.
+ * with `key={stem}`; it reads its props once and then owns the text.
  */
 export function DeckEditor({
-  path,
+  stem,
+  parent,
   text: loaded,
   sha,
   repo,
@@ -114,7 +127,7 @@ export function DeckEditor({
   const [store] = useState(() =>
     createSaveStore({
       repo,
-      path,
+      ...deckFile(stem),
       text: loaded,
       sha,
       // Another tab's or device's edits, merged in, undo as one step.
@@ -128,13 +141,13 @@ export function DeckEditor({
   useUndoKeys(undo, redo);
 
   const navigate = useNavigate();
-  const other = useOther(repo, path, viewing);
+  const other = useOther(repo, stem, viewing);
   // The collection and friends, read once a view asks what the deck is made of.
   const supply = useSupply({
     active: viewing.kind === "now" && (view === "sourcing" || view === "build"),
     repo,
     others,
-    path,
+    stem,
     text: history.present,
     printings: cards.printings,
   });
@@ -169,7 +182,6 @@ export function DeckEditor({
     };
   }, []);
   const go = (v: Viewing) => onNavigate({ viewing: v });
-  const stem = deckStem(path);
   const otherOf =
     other?.kind === "loaded" && other.revision
       ? `the deck as it was on ${when(other.revision.date)}`
@@ -182,28 +194,43 @@ export function DeckEditor({
     if (at === null) {
       if (!(await store.settle()))
         return "Your latest edits are not saved, so there is no version of them to snapshot yet.";
-      at = (await head(repo, path))?.commit ?? null;
+      at = (await head(repo, stem))?.commit ?? null;
     }
     if (at === null) return "The deck has no save to snapshot yet.";
-    const taken = await takeSnapshot(repo, path, label, at);
+    const taken = await takeSnapshot(repo, stem, label, at);
     if (taken.kind === "refused") return taken.message;
     setSnapshots((n) => n + 1);
     setNotice(`Snapshot “${taken.snapshot.label}” taken.`);
     return null;
   };
 
-  const variant = async (text: string, name: string) => {
+  /** Forks `from` (this deck, or the one compared with) at `commit`. */
+  const fork = async (
+    text: string,
+    from: string,
+    commit: string | null,
+    name: string,
+  ) => {
+    let at = commit;
+    if (at === null && from === stem) {
+      if (!(await store.settle()))
+        return "Your latest edits are not saved, so there is no version of them to fork yet.";
+      at = (await head(repo, stem))?.commit ?? null;
+    } else if (at === null) {
+      at = (await repo.decks()).find((d) => d.stem === from)?.commit ?? null;
+    }
+    if (at === null) return "The deck has no save to fork from yet.";
     const made = await createDeck(
       repo,
       name,
-      { kind: "variant", text, of: path },
+      { kind: "fork", text, of: from, at },
       deckText,
     );
     if (made.kind === "refused") return made.message;
     void navigate({
       to: "/deck/$",
-      params: { _splat: made.path },
-      search: { history: true, vs: path },
+      params: { _splat: made.stem },
+      search: { history: true, vs: from },
     });
     return null;
   };
@@ -213,7 +240,7 @@ export function DeckEditor({
       type="button"
       aria-pressed={drawer}
       onClick={() => onNavigate({ drawer: !drawer })}
-      title="Every save of this deck, its snapshots and its variants"
+      title="Every save of this deck, its snapshots and its forks"
     >
       <HistoryIcon />
       History
@@ -222,9 +249,9 @@ export function DeckEditor({
   const drawerView = drawer && (
     <HistoryDrawer
       repo={repo}
-      path={path}
-      stem={parsed.kind === "deck" ? (parsed.name ?? stem) : stem}
-      variantOf={parsed.kind === "deck" ? parsed.variantOf : undefined}
+      stem={stem}
+      name={parsed.kind === "deck" ? (parsed.name ?? stem) : stem}
+      parent={parent}
       viewing={viewing}
       saveStatus={save.status}
       refresh={snapshots}
@@ -240,11 +267,13 @@ export function DeckEditor({
               : "that version of the deck",
         })
       }
-      onVariant={() =>
+      onFork={() =>
         setDialog({
-          kind: "variant",
+          kind: "fork",
           text: history.present,
           of: "the deck as it is now",
+          from: stem,
+          commit: null,
         })
       }
     />
@@ -256,22 +285,29 @@ export function DeckEditor({
         onClose={() => setDialog(null)}
         onTake={(label) => snapshot(dialog.commit, label)}
       />
-    ) : dialog?.kind === "variant" ? (
-      <VariantDialog
-        parent={parsed.kind === "deck" ? (parsed.name ?? stem) : stem}
+    ) : dialog?.kind === "fork" ? (
+      <ForkDialog
+        parent={
+          dialog.from !== stem
+            ? dialog.from
+            : parsed.kind === "deck"
+              ? (parsed.name ?? stem)
+              : stem
+        }
         of={dialog.of}
         onClose={() => setDialog(null)}
-        onCreate={(name) => variant(dialog.text, name)}
+        onCreate={(name) => fork(dialog.text, dialog.from, dialog.commit, name)}
       />
     ) : null;
 
   if (parsed.kind === "refused") {
     return (
       <main>
-        <Toolbar name={deckStem(path)} actions={historyButton} />
+        <Toolbar name={stem} actions={historyButton} />
         <div className="banners">
           <p className="refusal" role="alert">
-            {path} is not a deck Progress Engine can read: {parsed.message}
+            {deckFile(stem).path} is not a deck Progress Engine can read:{" "}
+            {parsed.message}
           </p>
         </div>
         <details className="source" open>
@@ -400,19 +436,17 @@ export function DeckEditor({
         name={
           <>
             {parsed.name ?? stem}
-            {parsed.variantOf && (
+            {parent && (
               <button
                 type="button"
                 className="variant-chip"
                 onClick={() =>
-                  onNavigate({
-                    viewing: { kind: "deck", path: parsed.variantOf ?? "" },
-                  })
+                  onNavigate({ viewing: { kind: "deck", stem: parent } })
                 }
-                title="Compare with the deck this is a variant of"
+                title="Compare with the deck this was forked from"
               >
                 <BranchIcon />
-                variant of {deckStem(parsed.variantOf)}
+                fork of {parent}
               </button>
             )}
           </>
@@ -450,7 +484,7 @@ export function DeckEditor({
             />
             <PrintProxies
               repo={repo}
-              path={path}
+              stem={stem}
               name={stem}
               text={history.present}
               cards={parsed.cards}
@@ -458,14 +492,14 @@ export function DeckEditor({
             />
             <Link
               to="/trade"
-              search={{ deck: path }}
+              search={{ deck: stem }}
               className="button"
               title="What another player's collection holds of what this deck lacks"
             >
               Trade for…
             </Link>
             <ReplaceArchidekt
-              name={parsed.name ?? deckStem(path)}
+              name={parsed.name ?? stem}
               format={parsed.format}
               onReplace={(text) => {
                 // Archidekt has no description to replace it with.
@@ -477,7 +511,7 @@ export function DeckEditor({
             />
           </>
         }
-        status={<SaveStatus save={save} path={path} />}
+        status={<SaveStatus save={save} path={deckFile(stem).path} />}
         history={
           <UndoRedo
             onUndo={undo}
@@ -506,8 +540,14 @@ export function DeckEditor({
           onSnapshot={(commit) =>
             setDialog({ kind: "snapshot", commit, of: otherOf })
           }
-          onVariant={(text) =>
-            setDialog({ kind: "variant", text, of: otherOf })
+          onFork={(text) =>
+            setDialog({
+              kind: "fork",
+              text,
+              of: otherOf,
+              from: viewing.kind === "deck" ? viewing.stem : stem,
+              commit: viewing.kind === "revision" ? viewing.commit : null,
+            })
           }
         />
       )}
@@ -593,7 +633,7 @@ export function DeckEditor({
             <BuildView
               supply={supply}
               cards={parsed.cards}
-              path={path}
+              stem={stem}
               deckName={parsed.name ?? stem}
               onSourcing={() => onNavigate({ view: "sourcing" })}
             />

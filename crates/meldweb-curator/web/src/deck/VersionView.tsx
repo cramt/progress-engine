@@ -47,18 +47,18 @@ export function VersionView({
   onTake,
   onBack,
   onSnapshot,
-  onVariant,
+  onFork,
 }: {
   viewing: Exclude<Viewing, { kind: "now" }>;
   other: Other;
   present: Present;
-  /** The deck's file stem, which every commit message starts with. */
+  /** The deck's stem, which every commit message on its line starts with. */
   stem: string;
   /** `all` is restoring the version whole, which leaves it for now. */
   onTake: (take: readonly number[], text: string, all: boolean) => void;
   onBack: () => void;
   onSnapshot: (commit: string) => void;
-  onVariant: (text: string) => void;
+  onFork: (text: string) => void;
 }) {
   if (other.kind === "loading") {
     return (
@@ -118,16 +118,16 @@ export function VersionView({
           )}
           <button
             type="button"
-            onClick={() => onVariant(other.text)}
+            onClick={() => onFork(other.text)}
             title="A new deck that starts as this version and remembers this deck as its parent"
           >
             <BranchIcon />
-            Variant from this…
+            Fork from this…
           </button>
           {viewing.kind === "deck" && (
             <Link
               to="/deck/$"
-              params={{ _splat: viewing.path }}
+              params={{ _splat: viewing.stem }}
               className="button"
             >
               Open {other.name}

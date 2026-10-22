@@ -5,12 +5,13 @@
  * import are the browser repo's.
  *
  * Plain `pnpm dev` and every build keep the repo in this browser (ADR-0041),
- * and need no login. `VITE_MOCK_GITHUB=1 pnpm dev` instead fakes GitHub and
- * the worker in the page, seeded with Lantern (and six weeks of its history)
- * and Loam, and `rival`'s public repo to trade against; `no-repo` or
- * `no-install` start at onboarding. The fake lives in sessionStorage, so a
- * reload keeps its commits, and it is on `window.__mockGitHub` for
- * simulating an edit on github.com from the console.
+ * and need no login. `VITE_MOCK_GITHUB=1 pnpm dev` instead fakes GitHub's
+ * login, onboarding and the worker in the page, with `rival`'s public repo to
+ * trade against; `no-repo` or `no-install` start at onboarding. Its Magic
+ * repo is held in memory, seeded as a version-1 repo (Lantern with six weeks
+ * of history, a budget variant of it, a snapshot, and Loam) that migrates to
+ * version 2 as it opens, and is seeded again on reload. The fake is on
+ * `window.__mockGitHub`.
  *
  * The browser's repo may have a remote, which pushes and fetches over git
  * (`src/remote/`); GitHub is its first host, whose login and onboarding
@@ -42,6 +43,8 @@ export type Connection =
       kind: "github";
       auth: Auth;
       github: GitHubApi;
+      /** The Magic repo, once the login and onboarding let it open. */
+      repo: LocalRepo;
       others: PublicRepos;
       onboarding: Onboarding;
       /** Only for dev tooling; app code must not branch on it. */
@@ -70,20 +73,28 @@ async function choose(): Promise<Connection> {
       others: createPublicRepos(),
     };
   }
-  const [{ createMockGitHub }, seed] = await Promise.all([
-    import("./mock"),
-    import("./mockSeed"),
-  ]);
+  const [{ createMockGitHub }, seed, { memoryRepo }, { author }, { loadDeck }] =
+    await Promise.all([
+      import("./mock"),
+      import("./mockSeed"),
+      import("../repo/memory"),
+      import("../repo/author"),
+      import("../deck"),
+    ]);
+  // The repo runs in this page rather than a worker, so the wasm it runs on
+  // has to be here first.
+  await loadDeck();
   const mock = createMockGitHub({
     start: mode === "no-repo" || mode === "no-install" ? mode : "ready",
-    files: mode === "no-repo" || mode === "no-install" ? {} : seed.files,
-    history:
-      mode === "no-repo" || mode === "no-install"
-        ? []
-        : seed.history(Date.now()),
     others: seed.others,
     storage: sessionStorage,
   });
+  let clock: number | null = null;
+  const repo = memoryRepo(
+    () => author(),
+    () => clock ?? Date.now(),
+  );
+  await seed.seedRepo(repo, (ms) => (clock = ms), Date.now());
   (window as unknown as { __mockGitHub: MockGitHub }).__mockGitHub = mock;
   const auth = createAuth({
     fetch: mock.fetch,
@@ -100,6 +111,7 @@ async function choose(): Promise<Connection> {
     kind: "github",
     auth,
     github: createGitHubApi({ auth, fetch: mock.fetch }),
+    repo,
     others: createPublicRepos({ fetch: mock.fetch }),
     onboarding: {
       newRepo: () => mock.createRepo(),

@@ -1,60 +1,67 @@
 /**
  * A deck's past, as git already keeps it (ADR-0024). Every save is a commit
- * whose message is the deck's changelog (ADR-0021), so a deck's history is
- * the commits that touched its path, and a version of it is the file at one
- * of them. A snapshot is an annotated tag on such a commit, named under the
- * deck's path so each deck lists only its own.
+ * whose message is the deck's changelog (ADR-0021), and each deck is a line of
+ * history of its own (ADR-0041), so a deck's history is the commits on its
+ * `main` that touched its file, and a version of it is the file at one of
+ * them. A snapshot is an annotated tag on such a commit, named under the
+ * deck's stem so each deck lists only its own.
  */
 import type { FileAt, Repo, Revision, Snapshot } from "../repo/api";
-import { DECK_SUFFIX, slugify } from "./decks";
-import { settled } from "./repoFile";
+import { deckFile, slugify, snapshotPrefix } from "./decks";
+import { settled, spotKey } from "./repoFile";
 
 export type { Revision, Snapshot };
+export { snapshotPrefix };
 
 /** Revisions a page of the timeline asks for. */
 export const PAGE = 30;
 
-/** The commits that touched `path`, newest first, `PAGE` at a time. */
+/** The commits on the deck's line that touched its file, newest first, `PAGE` at a time. */
 export function revisions(
   repo: Repo,
-  path: string,
+  stem: string,
   page = 1,
 ): Promise<Revision[]> {
-  return repo.history(path, { page, perPage: PAGE });
+  const { path, branch } = deckFile(stem);
+  return repo.history(path, { page, perPage: PAGE, branch });
 }
 
-/** The newest commit to `path` made no later than `when`: the deck as it was then. */
+/** The newest commit to the deck made no later than `when`: the deck as it was then. */
 export async function revisionAt(
   repo: Repo,
-  path: string,
+  stem: string,
   when: Date,
 ): Promise<Revision | null> {
+  const { path, branch } = deckFile(stem);
   const [hit] = await repo.history(path, {
     until: when.toISOString(),
     perPage: 1,
+    branch,
   });
   return hit ?? null;
 }
 
 /**
- * The last commit to `path` once every pending save has landed: what "now"
- * is on GitHub, to snapshot or branch from.
+ * The last commit to the deck once every pending save has landed: what "now"
+ * is in the repo, to snapshot or fork from.
  */
-export async function head(repo: Repo, path: string): Promise<Revision | null> {
-  await settled(path);
-  const [last] = await repo.history(path, { perPage: 1 });
+export async function head(repo: Repo, stem: string): Promise<Revision | null> {
+  const { path, branch } = deckFile(stem);
+  await settled(spotKey(path, branch));
+  const [last] = await repo.history(path, { perPage: 1, branch });
   return last ?? null;
 }
 
 // A commit never changes, so the file at one is read once per page load.
 const versions = new WeakMap<Repo, Map<string, Promise<FileAt | null>>>();
 
-/** The file at `path` as commit `commit` left it, or `null` if it was not there. */
+/** The deck as commit `commit` left it, or `null` if it was not there. */
 export function fileAt(
   repo: Repo,
-  path: string,
+  stem: string,
   commit: string,
 ): Promise<FileAt | null> {
+  const { path } = deckFile(stem);
   const key = `${commit}:${path}`;
   let known = versions.get(repo);
   if (!known) {
@@ -72,30 +79,22 @@ export function fileAt(
   return file;
 }
 
-/** `decks/lantern.deck.toml` → `decks/lantern/`, the tag prefix of its snapshots. */
-export function snapshotPrefix(path: string): string {
-  const stem = path.endsWith(DECK_SUFFIX)
-    ? path.slice(0, -DECK_SUFFIX.length)
-    : path;
-  return `${stem}/`;
-}
-
 /**
  * The tag a snapshot called `label` gets: the deck's prefix and the label
  * slugged, which git accepts as a ref name. A label with nothing to slug is
  * named for the day.
  */
-export function snapshotTag(path: string, label: string, now: Date): string {
+export function snapshotTag(stem: string, label: string, now: Date): string {
   const slug = slugify(label) || now.toISOString().slice(0, 10);
-  return `${snapshotPrefix(path)}${slug}`;
+  return `${snapshotPrefix(stem)}${slug}`;
 }
 
 /** The deck's snapshots, newest first. */
 export async function deckSnapshots(
   repo: Repo,
-  path: string,
+  stem: string,
 ): Promise<Snapshot[]> {
-  const all = await repo.snapshots(snapshotPrefix(path));
+  const all = await repo.snapshots(snapshotPrefix(stem));
   return all.sort((a, b) => b.date.localeCompare(a.date));
 }
 
@@ -103,17 +102,17 @@ export type TakenSnapshot =
   | { kind: "taken"; snapshot: Snapshot }
   | { kind: "refused"; message: string };
 
-/** Tags `commit` as the snapshot `label` of the deck at `path`. */
+/** Tags `commit`, on the deck's line, as the snapshot `label` of the deck. */
 export async function takeSnapshot(
   repo: Repo,
-  path: string,
+  stem: string,
   label: string,
   commit: string,
   now = new Date(),
 ): Promise<TakenSnapshot> {
   const trimmed = label.trim();
   if (!trimmed) return { kind: "refused", message: "A snapshot needs a name." };
-  const tag = snapshotTag(path, trimmed, now);
+  const tag = snapshotTag(stem, trimmed, now);
   try {
     return {
       kind: "taken",
@@ -123,7 +122,7 @@ export async function takeSnapshot(
     if (e instanceof Error && e.name === "ConflictError") {
       return {
         kind: "refused",
-        message: `This deck already has a snapshot named ${tag.slice(snapshotPrefix(path).length)}.`,
+        message: `This deck already has a snapshot named ${tag.slice(snapshotPrefix(stem).length)}.`,
       };
     }
     throw e;

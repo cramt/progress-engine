@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use chip_decklist::collection::Collection;
 use chip_decklist::deck::Deck;
+use chip_decklist::stem::DeckStem;
 use chip_decklist::supply::supply;
 use facet::Facet;
 use metamorph_sheet::{Jpeg, Layout, Paper as SheetPaper};
@@ -78,7 +79,7 @@ pub enum ToPrint {
 }
 
 pub fn to_print_text(
-    path: &str,
+    stem: &str,
     deck_text: &str,
     collection_text: &str,
     names: &HashMap<String, String>,
@@ -101,7 +102,7 @@ pub fn to_print_text(
         }
     };
     let p = supply(
-        path,
+        DeckStem::new(stem).ok().as_ref(),
         (&deck, deck_text),
         (&mine, collection_text),
         &[],
@@ -119,19 +120,19 @@ pub fn to_print_text(
     }
 }
 
-/// JSON of [`ToPrint`]: the proxies the deck at `path` needs, less what
+/// JSON of [`ToPrint`]: the proxies the deck `stem` needs, less what
 /// `collection` owns (empty text for the whole deck), and with
 /// `leave_out_basics`, less the basic lands.
 #[wasm_bindgen]
 pub fn proxies_to_print(
-    path: &str,
+    stem: &str,
     text: &str,
     collection: &str,
     names: Option<String>,
     leave_out_basics: bool,
 ) -> Result<String, JsError> {
     let p = to_print_text(
-        path,
+        stem,
         text,
         collection,
         &read_names(names)?,
@@ -206,7 +207,7 @@ mod tests {
             ToPrint::Refused { message } => panic!("{message}"),
         };
         let none = HashMap::new();
-        let path = "decks/a.deck.toml";
+        let path = "a";
         assert_eq!(
             lines(to_print_text(path, deck, "", &none, false)),
             (vec![(0, 1), (1, 2)], 0, 0)

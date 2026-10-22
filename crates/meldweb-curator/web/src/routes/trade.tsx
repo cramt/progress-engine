@@ -10,41 +10,40 @@ import { loadDeckFiles, loadWanted } from "../github/wanted";
 import { SessionGate } from "../home/SessionGate";
 import { fetchPrintings } from "../scryfall";
 import { type TradeResult, TradeView } from "../trade/TradeView";
+import type { DeckFile } from "../wanted";
 import { readTrade, readWanted } from "../wanted";
 
 interface Search {
   /** Their GitHub login. */
   with?: string;
-  /** One deck to trade for, by path, in place of the whole wanted list. */
+  /** One deck to trade for, by stem, in place of the whole wanted list. */
   deck?: string;
 }
 
 const text = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
 
 // What another player's public collection holds of the wanted list, or of one
-// deck (ADR-0035): /trade?with=<their GitHub login>&deck=<path>.
+// deck (ADR-0035): /trade?with=<their GitHub login>&deck=<stem>.
 export const Route = createFileRoute("/trade")({
   validateSearch: (search: Record<string, unknown>): Search => {
     const who = text(search.with);
-    const deck = text(search.deck);
+    // A link from repo version 1 named the deck's path.
+    const deck = text(search.deck) && deckStem(text(search.deck) ?? "");
     return { ...(who ? { with: who } : {}), ...(deck ? { deck } : {}) };
   },
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
     const session = await openSession();
     if (session.kind !== "open") return { kind: "session" as const, session };
-    const page = (
-      decks: { path: string; text: string }[],
-      result: TradeResult,
-    ) => ({
+    const page = (decks: DeckFile[], result: TradeResult) => ({
       kind: "page" as const,
       data: {
         me: session.me,
         decks: decks.map((d) => {
           const deck = parseDeck(d.text);
           return {
-            path: d.path,
-            name: (deck.kind === "deck" && deck.name) || deckStem(d.path),
+            stem: d.stem,
+            name: (deck.kind === "deck" && deck.name) || d.stem,
           };
         }),
         deck: deps.deck,

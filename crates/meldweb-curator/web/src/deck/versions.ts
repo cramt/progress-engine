@@ -1,20 +1,21 @@
 /**
  * What the deck page shows beside the deck as it is now, and how the URL
  * says it, so a past version is a link: `?at=<commit>` is the deck as that
- * commit left it, `?vs=<path>` is another deck (a variant or its parent) to
+ * commit left it, `?vs=<stem>` is another deck (a fork or its parent) to
  * compare with, `?history` keeps the timeline open, and `?view=` lays the
  * deck out another way than as stacks: by what it costs (`cost`), by where
  * each card comes from (`sourcing`), or as the physical deck (`build`).
  */
 import type { DeckChange } from "../deck";
+import { deckStem } from "../github/decks";
 import type { Revision } from "../github/history";
 
 export type Viewing =
   | { kind: "now" }
   /** The deck as one of its commits left it. */
   | { kind: "revision"; commit: string }
-  /** Another deck in the repo, as it is now. */
-  | { kind: "deck"; path: string };
+  /** Another deck in the repo, by its stem, as its `main` has it now. */
+  | { kind: "deck"; stem: string };
 
 /** How the deck as it is now is laid out; the first is the default. */
 export const DECK_VIEWS = ["stacks", "cost", "sourcing", "build"] as const;
@@ -60,7 +61,8 @@ export function pageOf(search: DeckSearch): DeckPage {
     viewing: search.at
       ? { kind: "revision", commit: search.at }
       : search.vs
-        ? { kind: "deck", path: search.vs }
+        ? // A link from repo version 1 named the deck's path.
+          { kind: "deck", stem: deckStem(search.vs) }
         : { kind: "now" },
     drawer: search.history === true,
     view: search.view ?? "stacks",
@@ -71,7 +73,7 @@ export function searchFor({ viewing, drawer, view }: DeckPage): DeckSearch {
   return {
     ...(drawer ? { history: true as const } : {}),
     ...(viewing.kind === "revision" ? { at: viewing.commit } : {}),
-    ...(viewing.kind === "deck" ? { vs: viewing.path } : {}),
+    ...(viewing.kind === "deck" ? { vs: viewing.stem } : {}),
     ...(view !== "stacks" ? { view } : {}),
   };
 }
@@ -154,7 +156,6 @@ export function groupOf(change: DeckChange): ChangeGroup {
     case "retype":
     case "rename":
     case "format":
-    case "variantOf":
     case "cover":
     case "description":
       return "deck";
@@ -176,9 +177,8 @@ export interface Takeable {
 
 /**
  * The changes the deck could take from what it is shown beside. From its own
- * past, all of them. From another deck, all but what makes that deck another
- * deck, its name and whose variant it is: taking those would rename this
- * deck, or make it a variant of itself.
+ * past, all of them. From another deck, all but its name, which would rename
+ * this deck after it.
  */
 export function takeable(
   changes: readonly DeckChange[],
@@ -187,9 +187,7 @@ export function takeable(
   return changes
     .map((change, at) => ({ at, change }))
     .filter(
-      ({ change }) =>
-        viewing.kind === "revision" ||
-        (change.kind !== "rename" && change.kind !== "variantOf"),
+      ({ change }) => viewing.kind === "revision" || change.kind !== "rename",
     );
 }
 

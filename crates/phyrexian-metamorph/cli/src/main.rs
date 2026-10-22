@@ -12,6 +12,7 @@ use anyhow::{bail, Context, Result};
 use chip_decklist::collection::Collection;
 use chip_decklist::deck::{CardRef, Deck, Printing};
 use chip_decklist::identity::Names;
+use chip_decklist::stem::DeckStem;
 use chip_decklist::supply::supply;
 use facet::Facet;
 use figue::{self as args, DriverError, Shell};
@@ -196,8 +197,11 @@ fn run(cli: Cli) -> Result<()> {
                 })
                 .collect();
 
+            // A collection's deck place names the deck by its stem, which is
+            // the file's name in a checkout of the deck (ADR-0041).
+            let stem = DeckStem::of_file(&path);
             let supply = supply(
-                &path,
+                stem.as_ref(),
                 (&parsed, &text),
                 (&collection, &collection_text),
                 &[],

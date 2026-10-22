@@ -3,23 +3,17 @@
  * and for vitest. It is a `fetch`: the real auth and API clients run against
  * it unchanged, so the app chooses it once (`connect.ts`) and never asks
  * again. It answers exactly the calls those clients make, with GitHub's
- * shapes, and refuses a stale sha with 409.
+ * shapes: the login, the onboarding's installations, and other players'
+ * public repos. The Magic repo itself is the browser's (ADR-0041); in the
+ * mock it is one held in memory (`repo/memory.ts`), seeded by `mockSeed.ts`.
  *
  * Tokens rotate like the real ones: each refresh makes the previous access
  * token answer 401.
  */
 
-import { CONTENTS_LIMIT, decodeBase64, encodeBase64, GITHUB_API } from "./api";
+import { CONTENTS_LIMIT, encodeBase64, GITHUB_API } from "./api";
 import { AUTH_ENDPOINTS } from "./auth";
 import { MAGIC_REPO } from "./repo";
-
-export interface MockCommit {
-  path: string;
-  message: string;
-  sha: string;
-  /** Made by `editOnGitHub`, not through the API. */
-  outOfBand: boolean;
-}
 
 export interface MockRequest {
   method: string;
@@ -31,35 +25,10 @@ export interface MockRequest {
 interface State {
   login: string;
   loggedIn: boolean;
-  repo: {
-    installed: boolean;
-    files: Record<string, { text: string; sha: string }>;
-  } | null;
+  /** `mtg` on GitHub, which onboarding makes and installs the app on. */
+  repo: { installed: boolean } | null;
   seq: number;
   token: string | null;
-  commits: MockCommit[];
-  /** Every revision of every file, oldest first, seeds included. */
-  log: Revision[];
-  /** Annotated tag objects by sha, and `refs/tags/*` to the sha each names. */
-  tags: Record<string, TagObject>;
-  refs: Record<string, string>;
-}
-
-interface Revision {
-  commit: string;
-  path: string;
-  /** The file after the commit; `null` deleted it. */
-  file: { text: string; sha: string } | null;
-  message: string;
-  date: string;
-}
-
-interface TagObject {
-  sha: string;
-  tag: string;
-  message: string;
-  object: { sha: string; type: "commit" };
-  tagger: { name: string; date: string };
 }
 
 /** A commit made before the mock starts, so a fresh dev session has a past. */
@@ -75,10 +44,6 @@ export interface MockOptions {
   login?: string;
   /** `ready`: `mtg` exists with the app on it (default). The others start onboarding. */
   start?: "ready" | "no-repo" | "no-install";
-  /** Seed files by path, e.g. `decks/lantern.deck.toml`. */
-  files?: Record<string, string>;
-  /** Commits before `files`, oldest first; a file's last one is its text. */
-  history?: SeedCommit[];
   /** Other players' public `mtg` repos, by login: each its files by path. */
   others?: Record<string, Record<string, string>>;
   loggedIn?: boolean;
@@ -98,10 +63,6 @@ export interface MockGitHub {
   createRepo(): void;
   /** The user installed the app on `mtg`. */
   installApp(): void;
-  /** A commit made outside Curator, as if on github.com. */
-  editOnGitHub(path: string, text: string): void;
-  file(path: string): { text: string; sha: string } | undefined;
-  commits(): readonly MockCommit[];
   requests(): readonly MockRequest[];
   /** Refreshes the worker has answered. */
   refreshes(): number;
@@ -126,44 +87,13 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
 
   const fresh = (): State => {
     const start = options.start ?? "ready";
-    const st: State = {
+    return {
       login: options.login ?? "octocat",
       loggedIn: options.loggedIn ?? true,
-      repo: null,
+      repo: start === "no-repo" ? null : { installed: start === "ready" },
       seq: 0,
       token: null,
-      commits: [],
-      log: [],
-      tags: {},
-      refs: {},
     };
-    if (start !== "no-repo") {
-      st.repo = { installed: start === "ready", files: {} };
-      for (const c of options.history ?? []) {
-        const file = { text: c.text, sha: nextSha(st) };
-        st.repo.files[c.path] = file;
-        st.log.push({
-          commit: nextSha(st),
-          path: c.path,
-          file,
-          message: c.message,
-          date: c.date,
-        });
-      }
-      const seeded = new Date(now() - 60_000).toISOString();
-      for (const [path, text] of Object.entries(options.files ?? {})) {
-        const file = { text, sha: nextSha(st) };
-        st.repo.files[path] = file;
-        st.log.push({
-          commit: nextSha(st),
-          path,
-          file,
-          message: `add ${path}`,
-          date: seeded,
-        });
-      }
-    }
-    return st;
   };
 
   function nextSha(st: State): string {
@@ -172,51 +102,9 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
   }
 
   const stored = storage?.getItem(key);
-  const state: State = stored
-    ? // A mock stored before history kept no log, tags or refs.
-      ({
-        ...{ log: [], tags: {}, refs: {} },
-        ...(JSON.parse(stored) as Partial<State>),
-      } as State)
-    : fresh();
+  const state: State = stored ? (JSON.parse(stored) as State) : fresh();
   const persist = () => storage?.setItem(key, JSON.stringify(state));
   persist();
-
-  const reachable = (owner: string, name: string) =>
-    owner.toLowerCase() === state.login.toLowerCase() &&
-    name.toLowerCase() === MAGIC_REPO &&
-    state.repo?.installed === true;
-
-  /** A commit on the log, made now, and its sha. */
-  function record(
-    path: string,
-    file: { text: string; sha: string } | null,
-    message: string,
-  ): string {
-    const commit = nextSha(state);
-    state.log.push({
-      commit,
-      path,
-      file,
-      message,
-      date: new Date(now()).toISOString(),
-    });
-    return commit;
-  }
-
-  /** Every file as it was once `ref` was committed, or `null` for no such commit. */
-  function treeAt(
-    ref: string,
-  ): Record<string, { text: string; sha: string }> | null {
-    const at = state.log.findIndex((r) => r.commit === ref);
-    if (at < 0) return null;
-    const files: Record<string, { text: string; sha: string }> = {};
-    for (const r of state.log.slice(0, at + 1)) {
-      if (r.file) files[r.path] = r.file;
-      else delete files[r.path];
-    }
-    return files;
-  }
 
   function fileGet(path: string, file: { text: string; sha: string }) {
     const size = new TextEncoder().encode(file.text).length;
@@ -265,201 +153,7 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
       : fileGet(file, { text, sha: `${other.login}:${file}` });
   }
 
-  function contentsGet(path: string, ref: string | null): Response {
-    const tree = ref === null ? (state.repo?.files ?? {}) : treeAt(ref);
-    if (!tree) {
-      return json(404, { message: `No commit found for the ref ${ref}` });
-    }
-    const files = tree;
-    const file = files[path];
-    if (file) return fileGet(path, file);
-    const prefix = path === "" ? "" : `${path}/`;
-    const entries = Object.entries(files)
-      .filter(
-        ([p]) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/"),
-      )
-      .map(([p, f]) => ({
-        type: "file",
-        name: p.slice(prefix.length),
-        path: p,
-        sha: f.sha,
-      }));
-    if (entries.length === 0) {
-      return json(404, {
-        message:
-          Object.keys(files).length === 0
-            ? "This repository is empty."
-            : "Not Found",
-      });
-    }
-    return json(200, entries);
-  }
-
-  function contentsPut(path: string, body: string | null): Response {
-    const files = state.repo?.files;
-    if (!files) return notFound();
-    const put = JSON.parse(body ?? "{}") as {
-      message?: string;
-      content?: string;
-      sha?: string;
-    };
-    if (typeof put.message !== "string" || typeof put.content !== "string") {
-      return json(422, { message: "Invalid request." });
-    }
-    const existing = files[path];
-    if (existing && put.sha === undefined) {
-      return json(422, {
-        message: `Invalid request.\n\n"sha" wasn't supplied.`,
-      });
-    }
-    if (put.sha !== undefined && put.sha !== existing?.sha) {
-      return json(409, { message: `${path} does not match ${put.sha}` });
-    }
-    const sha = nextSha(state);
-    files[path] = { text: decodeBase64(put.content), sha };
-    state.commits.push({ path, message: put.message, sha, outOfBand: false });
-    const commit = record(path, files[path], put.message);
-    persist();
-    return json(existing ? 200 : 201, {
-      content: { path, sha },
-      commit: { sha: commit, message: put.message },
-    });
-  }
-
-  function contentsDelete(path: string, body: string | null): Response {
-    const files = state.repo?.files;
-    const existing = files?.[path];
-    if (!files || !existing) return notFound();
-    const del = JSON.parse(body ?? "{}") as { message?: string; sha?: string };
-    if (typeof del.message !== "string" || typeof del.sha !== "string") {
-      return json(422, { message: "Invalid request." });
-    }
-    if (del.sha !== existing.sha) {
-      return json(409, { message: `${path} does not match ${del.sha}` });
-    }
-    delete files[path];
-    const sha = nextSha(state);
-    state.commits.push({ path, message: del.message, sha, outOfBand: false });
-    const commit = record(path, null, del.message);
-    persist();
-    return json(200, {
-      content: null,
-      commit: { sha: commit, message: del.message },
-    });
-  }
-
-  /** `GET /commits`: the log filtered by `path` and `until`, newest first, paged. */
-  function commitsGet(url: URL): Response {
-    const q = url.searchParams;
-    const path = q.get("path");
-    const until = q.get("until");
-    const perPage = Number(q.get("per_page") ?? "30");
-    const page = Number(q.get("page") ?? "1");
-    const hits = state.log
-      .filter(
-        (r) =>
-          (path === null || r.path === path) &&
-          (!until || Date.parse(r.date) <= Date.parse(until)),
-      )
-      .reverse()
-      .slice((page - 1) * perPage, page * perPage);
-    return json(200, hits.map(commitJson));
-  }
-
-  function commitGet(sha: string): Response {
-    const r = state.log.find((r) => r.commit === sha);
-    return r
-      ? json(200, commitJson(r))
-      : json(422, { message: `No commit found for SHA: ${sha}` });
-  }
-
-  function commitJson(r: Revision) {
-    return {
-      sha: r.commit,
-      commit: {
-        message: r.message,
-        author: { name: state.login, date: r.date },
-        committer: { name: state.login, date: r.date },
-      },
-      author: { login: state.login },
-    };
-  }
-
-  /** The tags and refs of git's database that snapshots use. */
-  function gitDatabase(method: string, rest: string, body: string | null) {
-    const sent = JSON.parse(body ?? "{}") as Record<string, unknown>;
-    if (method === "POST" && rest === "/tags") {
-      const { tag, message, object } = sent;
-      if (
-        typeof tag !== "string" ||
-        typeof message !== "string" ||
-        typeof object !== "string" ||
-        !state.log.some((r) => r.commit === object)
-      ) {
-        return json(422, { message: "Invalid request." });
-      }
-      const t: TagObject = {
-        sha: nextSha(state),
-        tag,
-        // Git ends a tag message with a newline.
-        message: message.endsWith("\n") ? message : `${message}\n`,
-        object: { sha: object, type: "commit" },
-        tagger: { name: state.login, date: new Date(now()).toISOString() },
-      };
-      state.tags[t.sha] = t;
-      persist();
-      return json(201, t);
-    }
-    if (method === "POST" && rest === "/refs") {
-      const { ref, sha } = sent;
-      if (typeof ref !== "string" || typeof sha !== "string") {
-        return json(422, { message: "Invalid request." });
-      }
-      if (state.refs[ref]) {
-        return json(422, { message: "Reference already exists" });
-      }
-      state.refs[ref] = sha;
-      persist();
-      return json(201, { ref, object: { sha, type: "tag" } });
-    }
-    const tagGet = rest.match(/^\/tags\/([0-9a-f]+)$/);
-    if (method === "GET" && tagGet) {
-      const t = state.tags[tagGet[1] ?? ""];
-      return t ? json(200, t) : notFound();
-    }
-    const matching = rest.match(/^\/matching-refs\/(.*)$/);
-    if (method === "GET" && matching) {
-      const prefix = `refs/${(matching[1] ?? "").split("/").map(decodeURIComponent).join("/")}`;
-      return json(
-        200,
-        Object.entries(state.refs)
-          .filter(([ref]) => ref.startsWith(prefix))
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([ref, sha]) => ({
-            ref,
-            object: { sha, type: state.tags[sha] ? "tag" : "commit" },
-          })),
-      );
-    }
-    const refDelete = rest.match(/^\/refs\/(.*)$/);
-    if (method === "DELETE" && refDelete) {
-      const ref = `refs/${(refDelete[1] ?? "").split("/").map(decodeURIComponent).join("/")}`;
-      if (!state.refs[ref]) {
-        return json(422, { message: "Reference does not exist" });
-      }
-      delete state.refs[ref];
-      persist();
-      return new Response(null, { status: 204 });
-    }
-    return notFound();
-  }
-
-  function api(
-    method: string,
-    url: URL,
-    auth: string | null,
-    body: string | null,
-  ) {
+  function api(method: string, url: URL, auth: string | null) {
     const open = publicGet(method, url.pathname);
     if (open) return open;
     // Asked without a token, a repo that is missing or private is not found.
@@ -503,26 +197,6 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
         name.toLowerCase() === MAGIC_REPO
         ? json(200, { name: MAGIC_REPO, owner: { login: state.login } })
         : notFound();
-    }
-    const git = p.match(/^\/repos\/([^/]+)\/([^/]+)\/(commits|git)(\/.*)?$/);
-    if (git) {
-      const [, owner = "", name = "", kind = "", rest = ""] = git;
-      if (!reachable(owner, name)) return notFound();
-      if (kind === "commits" && method === "GET") {
-        return rest === "" ? commitsGet(url) : commitGet(rest.slice(1));
-      }
-      if (kind === "git") return gitDatabase(method, rest, body);
-    }
-    const contents = p.match(/^\/repos\/([^/]+)\/([^/]+)\/contents\/?(.*)$/);
-    if (contents) {
-      const [, owner = "", name = "", rest = ""] = contents;
-      if (!reachable(owner, name)) return notFound();
-      const path = rest.split("/").map(decodeURIComponent).join("/");
-      if (method === "GET") {
-        return contentsGet(path, url.searchParams.get("ref"));
-      }
-      if (method === "PUT") return contentsPut(path, body);
-      if (method === "DELETE") return contentsDelete(path, body);
     }
     return notFound();
   }
@@ -569,7 +243,6 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
     const url = new URL(href, "http://curator.invalid");
     const method = (init?.method ?? "GET").toUpperCase();
     const headers = new Headers(init?.headers);
-    const body = typeof init?.body === "string" ? init.body : null;
     const isApi = href.startsWith(GITHUB_API);
     const isWorker = !isApi && url.pathname.startsWith("/api/auth/");
     if (!isApi && !isWorker) {
@@ -584,7 +257,7 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
       cache: init?.cache,
     });
     return isApi
-      ? api(method, url, headers.get("Authorization"), body)
+      ? api(method, url, headers.get("Authorization"))
       : worker(method, url.pathname);
   };
 
@@ -595,29 +268,14 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
       persist();
     },
     createRepo() {
-      state.repo ??= { installed: false, files: {} };
+      state.repo ??= { installed: false };
       persist();
     },
     installApp() {
-      state.repo ??= { installed: false, files: {} };
+      state.repo ??= { installed: false };
       state.repo.installed = true;
       persist();
     },
-    editOnGitHub(path, text) {
-      state.repo ??= { installed: false, files: {} };
-      const sha = nextSha(state);
-      state.repo.files[path] = { text, sha };
-      state.commits.push({
-        path,
-        message: `edit ${path}`,
-        sha,
-        outOfBand: true,
-      });
-      record(path, state.repo.files[path], `edit ${path}`);
-      persist();
-    },
-    file: (path) => state.repo?.files[path],
-    commits: () => state.commits,
     requests: () => requests,
     refreshes: () => refreshes,
   };

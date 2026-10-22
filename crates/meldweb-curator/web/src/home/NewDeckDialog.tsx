@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import {
   type CreatedDeck,
   createDeck,
-  deckPath,
+  deckBranchFor,
   slugify,
 } from "../github/decks";
 import { deckText } from "../github/deckText";
@@ -26,7 +26,7 @@ type Unreadable = Extract<CreatedDeck, { kind: "created" }>["unreadable"];
 
 /**
  * New deck (#121): a name and a format, then empty or pasted from Archidekt.
- * The file is `decks/<slug>.deck.toml`, committed at once, and then opened.
+ * The deck is the branch `decks/<slug>/main`, made at once, and then opened.
  */
 export function NewDeckDialog({ repo }: { repo: Repo }) {
   const navigate = useNavigate();
@@ -38,12 +38,12 @@ export function NewDeckDialog({ repo }: { repo: Repo }) {
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [made, setMade] = useState<{
-    path: string;
+    stem: string;
     unreadable: Unreadable;
   } | null>(null);
 
-  const open = (path: string) =>
-    void navigate({ to: "/deck/$", params: { _splat: path } });
+  const open = (stem: string) =>
+    void navigate({ to: "/deck/$", params: { _splat: stem } });
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,8 +60,8 @@ export function NewDeckDialog({ repo }: { repo: Repo }) {
       );
       if (r.kind === "refused") setRefusal(r.message);
       else if (r.unreadable.length > 0)
-        setMade({ path: r.path, unreadable: r.unreadable });
-      else open(r.path);
+        setMade({ stem: r.stem, unreadable: r.unreadable });
+      else open(r.stem);
     } catch (err) {
       setRefusal(err instanceof Error ? err.message : String(err));
     } finally {
@@ -82,7 +82,7 @@ export function NewDeckDialog({ repo }: { repo: Repo }) {
       <dialog ref={dialog} className="sheet" aria-label="New deck">
         {made ? (
           <div>
-            <h2>Created {made.path}</h2>
+            <h2>Created {made.stem}</h2>
             <p>These lines could not be read and were left out:</p>
             <ul className="unreadable">
               {made.unreadable.map((u) => (
@@ -95,7 +95,7 @@ export function NewDeckDialog({ repo }: { repo: Repo }) {
             <button
               type="button"
               className="primary"
-              onClick={() => open(made.path)}
+              onClick={() => open(made.stem)}
             >
               Open deck
             </button>
@@ -115,9 +115,9 @@ export function NewDeckDialog({ repo }: { repo: Repo }) {
             </label>
             <p className="hint field-hint">
               {slugify(name) ? (
-                <code>{deckPath(name)}</code>
+                <code>{deckBranchFor(name)}</code>
               ) : (
-                "The file is named from this."
+                "Its name in the repo is made from this."
               )}
             </p>
             <label className="field">

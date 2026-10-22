@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 
 use crate::collection::Collection;
-use crate::deck::{CardRef, Deck, Finish};
+use crate::deck::{CardRef, Finish};
 use crate::edit::names_with_comments;
 use crate::identity::Names;
 use crate::wanted::{key_of, missing_by_key, owned, Wanted};
@@ -47,7 +47,7 @@ pub struct Offer {
 pub fn offers(
     wanted: (&Wanted, &str),
     mine: (&Collection, &str),
-    decks: &[(String, Deck, String)],
+    decks: &[crate::wanted::Listed],
     theirs: (&Collection, &str),
     names: &Names,
 ) -> Vec<Offer> {
@@ -61,7 +61,7 @@ pub fn offers(
 pub(crate) fn offers_by_key(
     wanted: (&Wanted, &str),
     mine: (&Collection, &str),
-    decks: &[(String, Deck, String)],
+    decks: &[crate::wanted::Listed],
     theirs: (&Collection, &str),
     names: &Names,
 ) -> Vec<(String, Offer)> {

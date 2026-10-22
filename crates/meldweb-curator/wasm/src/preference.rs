@@ -229,7 +229,7 @@ impl Pin {
 pub struct Settings {
     pub pins: Vec<Pin>,
     pub rules: Vec<RuleText>,
-    /// The deck list's order, by path: `[decks] order`. A deck not in it goes
+    /// The deck list's order, by stem (ADR-0041): `[decks] order`. A deck not in it goes
     /// after those that are, by name.
     pub decks: Vec<String>,
     /// The GitHub logins whose public collections a deck's sourcing asks:
@@ -333,7 +333,7 @@ pub fn write(settings: &Settings) -> Result<String, String> {
     if !settings.decks.is_empty() {
         out.push_str(
             "\n[decks]\n\
-             # The deck list's order, by file. A deck not here goes after these,\n\
+             # The deck list's order, by deck. A deck not here goes after these,\n\
              # by name.\n\
              order = [\n",
         );

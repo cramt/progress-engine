@@ -27,11 +27,11 @@ export const DEFAULT_LAYOUT: SheetLayout = {
 export type Sides = "both" | "front";
 
 /**
- * The proxies the deck at `path` needs: all of it with no `collection`, or
+ * The proxies the deck `stem` needs: all of it with no `collection`, or
  * less what that text owns, and with `noBasics`, less the basic lands.
  */
 export function toPrint(
-  path: string,
+  stem: string,
   text: string,
   collection: string | null,
   names: Readonly<Record<string, string>>,
@@ -39,7 +39,7 @@ export function toPrint(
 ): ToPrint {
   return JSON.parse(
     proxies_to_print(
-      path,
+      stem,
       text,
       collection ?? "",
       JSON.stringify(names),

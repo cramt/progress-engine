@@ -1,12 +1,17 @@
 /**
  * Keeping the browser's repo and its remote in step (ADR-0041). A sync is:
- * fetch, bring the remote's main into main, push what the remote lacks.
+ * fetch, bring each of the remote's branches into the branch of its name
+ * here (`main`, and each deck's `decks/<stem>/<branch>`), push what the
+ * remote lacks: branches and snapshot tags made, moved or deleted here.
  *
  * - It runs when the repo opens, when the page comes back into view, and a
  *   few seconds after the repo gains a commit or a snapshot to push.
- * - Bringing in is Rust's: a fast-forward when only the remote moved, the
- *   remote's history when this repo is fresh, otherwise a merge commit with
- *   two parents, merging each changed file by lines from the merge base.
+ * - Bringing in is Rust's, branch by branch: a fast-forward when only the
+ *   remote moved, the remote's history when this repo is fresh, a branch
+ *   only the remote has made here, otherwise a merge commit with two
+ *   parents, merging each changed file by lines from the merge base. A
+ *   remote still at repo version 1 is migrated here first, as it would be
+ *   where it lives, and pushed there migrated, `main` as a fast-forward.
  * - A push names the remote ref's id as last advertised, so the host refuses
  *   it if someone pushed meanwhile; then it fetches, merges and pushes again.
  * - A file both sides changed in the same lines, or remote history unrelated
@@ -35,7 +40,10 @@ export type Phase =
   | { kind: "syncing" }
   /** The host wants a login before it answers. */
   | { kind: "logged-out" }
-  /** These files changed here and on the remote in the same lines. */
+  /**
+   * These files changed here and on the remote in the same lines; a deck's
+   * named with its branch, `decks/lantern/main: lantern.deck.toml`.
+   */
   | { kind: "conflict"; paths: string[] }
   /** The remote's history shares nothing with this repo's. */
   | { kind: "unrelated" }
@@ -284,8 +292,9 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
         if (next.kind === "off" || running) return;
         if (state.kind === "on" && state.phase.kind === "syncing") return;
         set(next);
-        if (stopped() || (next.facts.ahead === 0 && next.facts.tags === 0))
-          return;
+        const waiting =
+          next.facts.ahead + next.facts.branches + next.facts.tags > 0;
+        if (stopped() || !waiting) return;
         clearTimeout(pushTimer);
         pushTimer = setTimeout(() => void run(), PUSH_IDLE_MS);
       })().catch(() => {});

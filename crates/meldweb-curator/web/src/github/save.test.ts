@@ -7,6 +7,7 @@ import {
   it,
   vi,
 } from "vitest";
+import type { Repo } from "../repo/api";
 import { settled } from "./repoFile";
 import {
   createSaveStore,
@@ -15,7 +16,7 @@ import {
   type PageEvents,
   type SaveStore,
 } from "./save";
-import { loadWasm, mockConnection } from "./testkit";
+import { fakeRepo, loadWasm } from "./testkit";
 
 // The line merge is the wasm's.
 beforeAll(loadWasm);
@@ -31,7 +32,7 @@ vi.mock("../deck", async (importOriginal) => ({
   },
 }));
 
-const PATH = "decks/lantern.deck.toml";
+const PATH = "lantern.deck.toml";
 const ORIGINAL = 'name = "Lantern"\ncards = []\n';
 const v = (n: number) => `name = "Lantern"\n# edit ${n}\ncards = []\n`;
 
@@ -57,12 +58,14 @@ function page() {
 }
 
 let store: SaveStore;
-let conn: ReturnType<typeof mockConnection>;
+let conn: { repo: Repo; mock: ReturnType<typeof fakeRepo> };
+const connect = (files: Record<string, string>) => {
+  const mock = fakeRepo(files);
+  return { repo: mock.repo, mock };
+};
 
 async function setup() {
-  conn = mockConnection({ files: { [PATH]: ORIGINAL } });
-  // The token is fetched before the clock is faked, as the page has one by the time it edits.
-  await conn.auth.token();
+  conn = connect({ [PATH]: ORIGINAL });
   const file = conn.mock.file(PATH);
   store = createSaveStore({
     repo: conn.repo,
@@ -73,7 +76,7 @@ async function setup() {
   vi.useFakeTimers();
 }
 
-const puts = () => conn.mock.requests().filter((r) => r.method === "PUT");
+const puts = () => conn.mock.calls().filter((r) => r.method === "PUT");
 
 beforeEach(setup);
 afterEach(() => {
@@ -212,7 +215,7 @@ describe("saving by itself", () => {
 
 describe("a conflict", () => {
   async function conflicted() {
-    conn.mock.editOnGitHub(PATH, "# edited on github.com\ncards = []\n");
+    conn.mock.editElsewhere(PATH, "# edited on github.com\ncards = []\n");
     store.edit(v(1));
     await vi.advanceTimersByTimeAsync(IDLE_MS);
     expect(store.getState().status).toBe("conflict");
@@ -277,7 +280,7 @@ describe("a conflict", () => {
   it("an overwrite asked for during a save runs after it", async () => {
     store.edit(v(1));
     const saving = store.flush();
-    conn.mock.editOnGitHub(PATH, "# edited on github.com\ncards = []\n");
+    conn.mock.editElsewhere(PATH, "# edited on github.com\ncards = []\n");
     const overwriting = store.overwrite();
     await Promise.all([saving, overwriting]);
     expect(store.getState().status).toBe("saved");
@@ -293,8 +296,7 @@ describe("a save another client got in ahead of", () => {
   beforeEach(async () => {
     vi.useRealTimers();
     store.dispose();
-    conn = mockConnection({ files: { [PATH]: deck("a", "b", "c", "d") } });
-    await conn.auth.token();
+    conn = connect({ [PATH]: deck("a", "b", "c", "d") });
     const file = conn.mock.file(PATH);
     merged = [];
     store = createSaveStore({
@@ -308,7 +310,7 @@ describe("a save another client got in ahead of", () => {
   });
 
   it("merges GitHub's edits with its own, commits them, and hands them back", async () => {
-    conn.mock.editOnGitHub(PATH, deck("a", "b", "c", "D"));
+    conn.mock.editElsewhere(PATH, deck("a", "b", "c", "D"));
     store.edit(deck("A", "b", "c", "d"));
     await vi.advanceTimersByTimeAsync(IDLE_MS);
     expect(store.getState().status).toBe("saved");
@@ -324,7 +326,7 @@ describe("a save another client got in ahead of", () => {
   });
 
   it("merges the edits made while the refused save was in flight too", async () => {
-    conn.mock.editOnGitHub(PATH, deck("a", "b", "c", "D"));
+    conn.mock.editElsewhere(PATH, deck("a", "b", "c", "D"));
     store.edit(deck("A", "b", "c", "d"));
     const saving = store.flush();
     store.edit(deck("A", "B", "c", "d"));
@@ -334,7 +336,7 @@ describe("a save another client got in ahead of", () => {
   });
 
   it("is a conflict when both changed the same line", async () => {
-    conn.mock.editOnGitHub(PATH, deck("a", "B2", "c", "d"));
+    conn.mock.editElsewhere(PATH, deck("a", "B2", "c", "d"));
     store.edit(deck("a", "B1", "c", "d"));
     await vi.advanceTimersByTimeAsync(IDLE_MS);
     expect(store.getState().status).toBe("conflict");
@@ -343,7 +345,7 @@ describe("a save another client got in ahead of", () => {
   });
 
   it("is a conflict when the merge is not a deck", async () => {
-    conn.mock.editOnGitHub(PATH, deck("a", "b", "c", "d", "not a deck"));
+    conn.mock.editElsewhere(PATH, deck("a", "b", "c", "d", "not a deck"));
     store.edit(deck("A", "b", "c", "d"));
     await vi.advanceTimersByTimeAsync(IDLE_MS);
     expect(store.getState().status).toBe("conflict");
@@ -368,7 +370,7 @@ describe("leaving the deck", () => {
   });
 
   it("does not settle in a conflict: the edits cannot be committed", async () => {
-    conn.mock.editOnGitHub(PATH, "# edited on github.com\ncards = []\n");
+    conn.mock.editElsewhere(PATH, "# edited on github.com\ncards = []\n");
     store.edit(v(1));
     expect(await store.settle()).toBe(false);
     expect(store.getState().status).toBe("conflict");
@@ -377,10 +379,9 @@ describe("leaving the deck", () => {
   it("does not settle when saving fails, and the page warns before unload", async () => {
     const p = page();
     store.attach(p.events);
-    await conn.auth.logout();
+    conn.mock.failWrites(true);
     store.edit(v(1));
     const settling = store.settle();
-    // A logged-out token check waits one task for other tabs' news.
     await vi.advanceTimersByTimeAsync(10);
     expect(await settling).toBe(false);
     expect(store.getState()).toMatchObject({ status: "error" });
@@ -390,12 +391,11 @@ describe("leaving the deck", () => {
 
 describe("a failed save", () => {
   it("shows the error and retries after the idle time", async () => {
-    await conn.auth.logout();
+    conn.mock.failWrites(true);
     store.edit(v(1));
-    // A logged-out token check waits one task for other tabs' news.
     await vi.advanceTimersByTimeAsync(IDLE_MS + 10);
     expect(store.getState()).toMatchObject({ status: "error" });
-    conn.mock.logIn();
+    conn.mock.failWrites(false);
     await vi.advanceTimersByTimeAsync(IDLE_MS + 10);
     expect(store.getState().status).toBe("saved");
     expect(conn.mock.file(PATH)?.text).toBe(v(1));

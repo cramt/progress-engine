@@ -21,7 +21,7 @@ export function DeckTile({
   deck: DeckEntry;
   printings: Printings;
   menu: MenuEntry[];
-  /** The name of the deck this one is a variant of, when it is one. */
+  /** The name of the deck this one was forked from, when it is a fork. */
   parent?: string | undefined;
 }) {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
@@ -38,7 +38,7 @@ export function DeckTile({
     <div className={menuAt ? "deck-tile-wrap menu-open" : "deck-tile-wrap"}>
       <Link
         to="/deck/$"
-        params={{ _splat: deck.path }}
+        params={{ _splat: deck.stem }}
         className={deck.refused ? "deck-tile refused" : "deck-tile"}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -66,10 +66,10 @@ export function DeckTile({
               {commanders.map((p) => p.name).join(" & ")}
             </p>
           )}
-          {deck.variantOf && (
+          {deck.parent && (
             <p className="deck-variant">
               <BranchIcon />
-              variant of {parent ?? deck.variantOf}
+              fork of {parent ?? deck.parent}
             </p>
           )}
           {deck.refused ? (
@@ -84,7 +84,7 @@ export function DeckTile({
               )}
             </p>
           )}
-          <code className="deck-path">{deck.path}</code>
+          <code className="deck-path">decks/{deck.stem}/main</code>
         </div>
       </Link>
       <button

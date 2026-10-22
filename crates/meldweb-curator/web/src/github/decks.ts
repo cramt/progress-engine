@@ -1,7 +1,9 @@
 /**
- * The decks in the Magic repo: `decks/*.deck.toml`, each identified by its
- * path, which is slugged from the name when the deck is made and never follows
- * a rename (ADR-0021).
+ * The decks in the Magic repo (ADR-0041): each a line of history of its own,
+ * the branch `decks/<stem>/main`, whose tree holds `<stem>.deck.toml`. The
+ * stem is the deck's identity, slugged from the name when the deck is made
+ * and never following a rename (ADR-0021). A fork's line starts on a commit of
+ * the deck it was forked from, so which deck that was is read from history.
  */
 import { parseCollection, undeclarePlace } from "../collection";
 import type { CardRef, SetOnly } from "../deck";
@@ -9,15 +11,39 @@ import { ConflictError, type Repo } from "../repo/api";
 import { fetchPrintings, fetchPrintingsInSets, printingKey } from "../scryfall";
 import { COLLECTION_PATH } from "./collection";
 import type { DeckText } from "./deckText";
-import { commitEdit, settled, track } from "./repoFile";
+import { commitEdit, settled, spotKey, track } from "./repoFile";
 
-export const DECKS_DIR = "decks";
 export const DECK_SUFFIX = ".deck.toml";
+export const CRITERIA_SUFFIX = ".criteria.toml";
+
+/** Where a deck's file is: its path at the root of its line, and the branch. */
+export interface DeckFile {
+  path: string;
+  branch: string;
+}
+
+/** `lantern` → `lantern.deck.toml` on `decks/lantern/main`. */
+export function deckFile(stem: string, branch = "main"): DeckFile {
+  return { path: `${stem}${DECK_SUFFIX}`, branch: `decks/${stem}/${branch}` };
+}
+
+/** `lantern` → `lantern.criteria.toml`, its Gauntlet criteria, on its line. */
+export function criteriaFile(stem: string, branch = "main"): DeckFile {
+  return {
+    path: `${stem}${CRITERIA_SUFFIX}`,
+    branch: `decks/${stem}/${branch}`,
+  };
+}
+
+/** The tag prefix of a deck's snapshots: `decks/lantern/`. */
+export const snapshotPrefix = (stem: string) => `decks/${stem}/`;
 
 export interface DeckEntry {
-  path: string;
+  stem: string;
+  /** The tip of its `main`, which deleting it is guarded by. */
+  commit: string;
   sha: string;
-  /** The deck's `name`, or the file stem when it declares none. */
+  /** The deck's `name`, or its stem when it declares none. */
   name: string;
   /** Set when the file is not a deck the format allows, with why. */
   refused?: string;
@@ -29,57 +55,58 @@ export interface DeckEntry {
   commanders?: CardRef[];
   /** The printing it chose to stand for it, ahead of its commanders. */
   cover?: { set: string; num: string };
-  /** The path of the deck it is a variant of. */
-  variantOf?: string;
+  /** The stem of the deck it was forked from, as its history says. */
+  parent?: string;
+  /** The deck's text on its `main`, which pages counting every deck read. */
+  text: string;
 }
 
-/** `decks/lantern.deck.toml` → `lantern`. */
-export function deckStem(path: string): string {
-  const file = path.slice(path.lastIndexOf("/") + 1);
+/**
+ * A deck's stem from what may name it: the stem itself, a repo-version-1
+ * path (`decks/lantern.deck.toml`), or its file (`lantern.deck.toml`), so an
+ * old link still opens the deck.
+ */
+export function deckStem(name: string): string {
+  const file = name.slice(name.lastIndexOf("/") + 1);
   return file.endsWith(DECK_SUFFIX) ? file.slice(0, -DECK_SUFFIX.length) : file;
 }
 
-/** Every `decks/*.deck.toml` with its name, sorted by name. */
+/** Every deck, `decks/<stem>/main`, with its name, sorted by name. */
 export async function listDecks(
   repo: Repo,
   deck: Pick<DeckText, "parseDeck">,
 ): Promise<DeckEntry[]> {
-  const files = (await repo.listDir(DECKS_DIR)).filter(
-    (e) => e.type === "file" && e.name.endsWith(DECK_SUFFIX),
-  );
-  const entries = await Promise.all(
-    files.map(async (f): Promise<DeckEntry> => {
-      const file = await repo.getFile(f.path);
-      if (!file)
-        return {
-          path: f.path,
-          sha: f.sha,
-          name: deckStem(f.path),
-          refused: "gone",
-        };
-      const parsed = deck.parseDeck(file.text);
-      if (parsed.kind === "deck") {
-        return {
-          path: f.path,
-          sha: file.sha,
-          name: parsed.name ?? deckStem(f.path),
-          ...(parsed.format ? { format: parsed.format } : {}),
-          ...(parsed.cover ? { cover: parsed.cover } : {}),
-          ...(parsed.variantOf ? { variantOf: parsed.variantOf } : {}),
-          total: parsed.total,
-          commanders: parsed.cards
-            .filter((c) => c.place === "commander")
-            .map((c) => c.card),
-        };
-      }
+  const lines = await repo.decks();
+  const entries = lines.map((line): DeckEntry => {
+    const base = {
+      stem: line.stem,
+      commit: line.commit,
+      sha: line.file?.sha ?? "",
+      text: line.file?.text ?? "",
+      ...(line.parent ? { parent: line.parent } : {}),
+    };
+    if (!line.file) {
       return {
-        path: f.path,
-        sha: file.sha,
-        name: deckStem(f.path),
-        refused: parsed.message,
+        ...base,
+        name: line.stem,
+        refused: `${line.stem}${DECK_SUFFIX} is not on its line`,
       };
-    }),
-  );
+    }
+    const parsed = deck.parseDeck(line.file.text);
+    if (parsed.kind === "deck") {
+      return {
+        ...base,
+        name: parsed.name ?? line.stem,
+        ...(parsed.format ? { format: parsed.format } : {}),
+        ...(parsed.cover ? { cover: parsed.cover } : {}),
+        total: parsed.total,
+        commanders: parsed.cards
+          .filter((c) => c.place === "commander")
+          .map((c) => c.card),
+      };
+    }
+    return { ...base, name: line.stem, refused: parsed.message };
+  });
   return entries.sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -96,20 +123,24 @@ export function slugify(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export function deckPath(name: string): string {
-  return `${DECKS_DIR}/${slugify(name)}${DECK_SUFFIX}`;
+/** The branch a deck named `name` would be made as: `decks/<slug>/main`. */
+export function deckBranchFor(name: string): string {
+  return deckFile(slugify(name)).branch;
 }
 
 export type NewDeckSource =
   | { kind: "empty"; format: string }
   | { kind: "archidekt"; text: string; format?: string }
-  /** A copy of `text`, a version of the deck at `of`, as a variant of it. */
-  | { kind: "variant"; text: string; of: string };
+  /**
+   * A fork: `text`, the deck `of` as its commit `at` left it, as a deck of
+   * its own whose line starts on that commit (ADR-0041).
+   */
+  | { kind: "fork"; text: string; of: string; at: string };
 
 export type CreatedDeck =
   | {
       kind: "created";
-      path: string;
+      stem: string;
       sha: string;
       text: string;
       /** Archidekt lines the import could not read, with why; empty otherwise. */
@@ -118,36 +149,38 @@ export type CreatedDeck =
   | { kind: "refused"; message: string };
 
 /**
- * Writes `decks/<slug>.deck.toml` as its first commit, and refuses a slug
- * that is already taken.
+ * Makes the deck's line, `decks/<slug>/main`, with its file as the first
+ * commit (or, for a fork, the first commit after the deck it came from), and
+ * refuses a slug that is already taken.
  */
 export async function createDeck(
   repo: Repo,
   name: string,
   source: NewDeckSource,
-  deck: ImportText & Pick<DeckText, "newDeck" | "setVariantOf">,
+  deck: ImportText & Pick<DeckText, "newDeck">,
   lookups: Lookups = scryfallLookups,
 ): Promise<CreatedDeck> {
-  const slug = slugify(name);
-  if (!slug) {
+  const stem = slugify(name);
+  if (!stem) {
     return {
       kind: "refused",
-      message: "A deck name needs a letter or a digit to make a filename from.",
+      message:
+        "A deck name needs a letter or a digit to make its name in the repo from.",
     };
   }
-  const path = deckPath(name);
+  const file = deckFile(stem);
   const taken = () => ({
     kind: "refused" as const,
-    message: `${path} already exists. A deck's file never moves, so pick another name.`,
+    message: `There is a deck ${stem} already (${file.branch}). A deck's name in the repo never moves, so pick another name.`,
   });
-  if (await repo.getFile(path)) return taken();
+  if ((await repo.decks()).some((d) => d.stem === stem)) return taken();
 
   let text: string;
   let unreadable: { line: number; text: string; reason: string }[] = [];
   if (source.kind === "empty") {
     text = deck.newDeck(name, source.format);
-  } else if (source.kind === "variant") {
-    text = deck.setVariantOf(deck.setDeckMeta(source.text, name), source.of);
+  } else if (source.kind === "fork") {
+    text = deck.setDeckMeta(source.text, name);
   } else {
     const made = await deckFromArchidekt(
       source.text,
@@ -160,10 +193,33 @@ export async function createDeck(
     ({ text, unreadable } = made);
   }
 
-  // A deck made at the same path meanwhile is left as it is.
-  const made = await commitEdit(repo, path, (t) => (t === null ? text : null));
+  if (source.kind === "fork") {
+    try {
+      const { sha } = await track(
+        spotKey(file.path, file.branch),
+        repo.putFile(file.path, {
+          text,
+          message: `${stem}: forked from ${source.of}`,
+          sha: null,
+          branch: file.branch,
+          from: source.at,
+        }),
+      );
+      return { kind: "created", stem, sha, text, unreadable };
+    } catch (e) {
+      if (e instanceof ConflictError) return taken();
+      throw e;
+    }
+  }
+  // A deck made with the same stem meanwhile is left as it is.
+  const made = await commitEdit(
+    repo,
+    file.path,
+    (t) => (t === null ? text : null),
+    file.branch,
+  );
   if (made.kind === "unchanged") return taken();
-  return { kind: "created", path, sha: made.sha, text, unreadable };
+  return { kind: "created", stem, sha: made.sha, text, unreadable };
 }
 
 type ImportText = Pick<
@@ -328,7 +384,7 @@ class Kept extends Error {}
  */
 export async function deleteDeck(
   repo: Repo,
-  deck: Pick<DeckEntry, "path" | "sha">,
+  deck: Pick<DeckEntry, "stem" | "commit">,
 ): Promise<DeletedDeck> {
   try {
     await commitEdit(repo, COLLECTION_PATH, (text) => {
@@ -339,7 +395,7 @@ export async function deleteDeck(
           `collection.toml must be read to see whether copies are in this deck, and it is refused: ${parsed.message}`,
         );
       }
-      const place = parsed.places.find((p) => p.deck === deck.path);
+      const place = parsed.places.find((p) => p.deck === deck.stem);
       if (!place) return null;
       const copies = parsed.cards
         .filter((c) => c.at === place.name)
@@ -355,20 +411,16 @@ export async function deleteDeck(
     if (e instanceof Kept) return { kind: "refused", message: e.message };
     throw e;
   }
-  await settled(deck.path);
+  const file = deckFile(deck.stem);
+  const key = spotKey(file.path, file.branch);
+  await settled(key);
   try {
-    await track(
-      deck.path,
-      repo.deleteFile(deck.path, {
-        message: `${deckStem(deck.path)}: delete`,
-        sha: deck.sha,
-      }),
-    );
+    await track(key, repo.deleteDeck(deck.stem, deck.commit));
   } catch (e) {
     if (e instanceof ConflictError) {
       return {
         kind: "refused",
-        message: `${deck.path} changed on GitHub since the list was read. Reload and look before deleting it.`,
+        message: `${deck.stem} changed since the list was read. Reload and look before deleting it.`,
       };
     }
     throw e;

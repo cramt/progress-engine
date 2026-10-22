@@ -25,7 +25,7 @@ import { printingNames } from "./archidektNames";
  */
 export function PrintProxies(props: {
   repo: Repo;
-  path: string;
+  stem: string;
   name: string;
   text: string;
   cards: readonly Card[];
@@ -54,7 +54,7 @@ type Progress =
 
 function ProxyDialog({
   repo,
-  path,
+  stem,
   name,
   text,
   cards,
@@ -62,7 +62,7 @@ function ProxyDialog({
   onClose,
 }: {
   repo: Repo;
-  path: string;
+  stem: string;
   name: string;
   text: string;
   cards: readonly Card[];
@@ -90,7 +90,7 @@ function ProxyDialog({
       setProgress({ kind: "working", step: "Counting…" });
       const collection = lacking ? (await loadCollection(repo)).text : null;
       const counted = toPrint(
-        path,
+        stem,
         text,
         collection,
         printingNames(cards, printings),

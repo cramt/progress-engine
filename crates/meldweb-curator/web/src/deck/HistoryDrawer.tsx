@@ -43,27 +43,30 @@ function useLoaded<T>(load: () => Promise<T>): Loaded<T> {
 
 /**
  * The deck's past down the right of the page: how it looked on a day, its
- * snapshots, its variants, and every save, newest first and grouped by day.
+ * snapshots, its forks, and every save, newest first and grouped by day.
  * Choosing any of them shows it in place of the deck (`VersionView`); the
  * deck as it is stays in the editor underneath, saving as it does.
  */
 export function HistoryDrawer({
   repo,
-  path,
   stem,
-  variantOf,
+  name,
+  parent,
   viewing,
   saveStatus,
   refresh,
   onView,
   onClose,
   onSnapshot,
-  onVariant,
+  onFork,
 }: {
   repo: Repo;
-  path: string;
+  /** The deck's stem, which every commit message on its line starts with. */
   stem: string;
-  variantOf: string | undefined;
+  /** What the deck is called. */
+  name: string;
+  /** The deck it was forked from, as its history says. */
+  parent: string | undefined;
   viewing: Viewing;
   saveStatus: SaveStatus;
   /** Bumped when a snapshot is taken or dropped, to read them again. */
@@ -72,11 +75,11 @@ export function HistoryDrawer({
   onClose: () => void;
   /** `null` is the deck as it is now, once it is saved. */
   onSnapshot: (commit: string | null) => void;
-  onVariant: () => void;
+  onFork: () => void;
 }) {
   const snaps = useLoaded(
     // biome-ignore lint/correctness/useExhaustiveDependencies: `refresh` reads them again
-    useCallback(() => deckSnapshots(repo, path), [repo, path, refresh]),
+    useCallback(() => deckSnapshots(repo, stem), [repo, stem, refresh]),
   );
   return (
     <aside className="history-drawer" aria-label="History">
@@ -91,14 +94,15 @@ export function HistoryDrawer({
           <CloseIcon />
         </button>
       </header>
-      <JumpBack repo={repo} path={path} onView={onView} />
-      <Variants
+      <JumpBack repo={repo} stem={stem} onView={onView} />
+      <Forks
         repo={repo}
-        path={path}
-        variantOf={variantOf}
+        stem={stem}
+        name={name}
+        parent={parent}
         viewing={viewing}
         onView={onView}
-        onVariant={onVariant}
+        onFork={onFork}
       />
       <Snapshots
         snaps={snaps}
@@ -108,7 +112,6 @@ export function HistoryDrawer({
       />
       <Timeline
         repo={repo}
-        path={path}
         stem={stem}
         viewing={viewing}
         saveStatus={saveStatus}
@@ -121,11 +124,11 @@ export function HistoryDrawer({
 
 function JumpBack({
   repo,
-  path,
+  stem,
   onView,
 }: {
   repo: Repo;
-  path: string;
+  stem: string;
   onView: (viewing: Viewing) => void;
 }) {
   const [notice, setNotice] = useState<string | null>(null);
@@ -134,7 +137,7 @@ function JumpBack({
     setBusy(true);
     setNotice(null);
     try {
-      const at = await revisionAt(repo, path, to);
+      const at = await revisionAt(repo, stem, to);
       if (at) onView({ kind: "revision", commit: at.commit });
       else
         setNotice(
@@ -186,35 +189,41 @@ function JumpBack({
   );
 }
 
-function Variants({
+/**
+ * The deck this one was forked from and the decks forked from it, each
+ * read from history (ADR-0041): a fork's line starts on its parent's commit.
+ */
+function Forks({
   repo,
-  path,
-  variantOf,
+  stem,
+  name,
+  parent,
   viewing,
   onView,
-  onVariant,
+  onFork,
 }: {
   repo: Repo;
-  path: string;
-  variantOf: string | undefined;
+  stem: string;
+  name: string;
+  parent: string | undefined;
   viewing: Viewing;
   onView: (viewing: Viewing) => void;
-  onVariant: () => void;
+  onFork: () => void;
 }) {
   const decks = useLoaded(useCallback(() => listDecks(repo, deckText), [repo]));
   const all = decks.kind === "ready" ? decks.value : [];
-  const parent = variantOf && all.find((d) => d.path === variantOf);
-  const children = all.filter((d) => d.variantOf === path);
+  const from = parent && all.find((d) => d.stem === parent);
+  const children = all.filter((d) => d.parent === stem);
   const row = (d: DeckEntry, label: string) => (
-    <li key={d.path}>
+    <li key={d.stem}>
       <button
         type="button"
         className={
-          viewing.kind === "deck" && viewing.path === d.path
+          viewing.kind === "deck" && viewing.stem === d.stem
             ? "history-row selected"
             : "history-row"
         }
-        onClick={() => onView({ kind: "deck", path: d.path })}
+        onClick={() => onView({ kind: "deck", stem: d.stem })}
         title={`Compare with ${d.name}`}
       >
         <BranchIcon />
@@ -228,25 +237,21 @@ function Variants({
   return (
     <section className="history-section">
       <h3>
-        Variants
-        <button type="button" className="small ghost" onClick={onVariant}>
-          + New variant…
+        Forks
+        <button type="button" className="small ghost" onClick={onFork}>
+          + Fork {name}…
         </button>
       </h3>
       {decks.kind === "failed" && <p className="hint">{decks.message}</p>}
-      {variantOf && !parent && decks.kind === "ready" && (
-        <p className="hint">
-          A variant of <code>{variantOf}</code>, which is gone.
-        </p>
-      )}
       <ul className="history-list">
-        {parent && row(parent, "The deck this is a variant of")}
-        {children.map((d) => row(d, "A variant of this deck"))}
+        {from && row(from, "The deck this was forked from")}
+        {children.map((d) => row(d, "A fork of this deck"))}
       </ul>
-      {decks.kind === "ready" && !parent && children.length === 0 && (
+      {decks.kind === "ready" && !from && children.length === 0 && (
         <p className="hint">
-          A variant is a copy that remembers this deck: a budget build, a
-          version for another pod. Either can take the other's changes.
+          A fork is a deck of its own whose history starts as this deck's: a
+          budget build, a version for another pod. Either can take the other's
+          changes.
         </p>
       )}
     </section>
@@ -312,7 +317,6 @@ function Snapshots({
 
 function Timeline({
   repo,
-  path,
   stem,
   viewing,
   saveStatus,
@@ -320,7 +324,6 @@ function Timeline({
   onView,
 }: {
   repo: Repo;
-  path: string;
   stem: string;
   viewing: Viewing;
   saveStatus: SaveStatus;
@@ -334,10 +337,10 @@ function Timeline({
     // biome-ignore lint/correctness/useExhaustiveDependencies: a save reads the log again
     useCallback(async () => {
       const read = await Promise.all(
-        Array.from({ length: pages }, (_, i) => revisions(repo, path, i + 1)),
+        Array.from({ length: pages }, (_, i) => revisions(repo, stem, i + 1)),
       );
       return { revisions: read.flat(), more: read.at(-1)?.length === PAGE };
-    }, [repo, path, pages, saved]),
+    }, [repo, stem, pages, saved]),
   );
   const tagsOf = (r: Revision): Snapshot[] =>
     snaps.kind === "ready"

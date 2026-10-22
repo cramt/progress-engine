@@ -35,21 +35,29 @@ export async function findMagicRepo(api: GitHubApi): Promise<FoundRepo> {
   return { kind: "onboarding", login, repoExists };
 }
 
-/** The repo version this Curator reads and writes. */
-export const KNOWN_VERSION = 1;
+/**
+ * The repo version this Curator reads and writes: 2, a line of history per
+ * deck (ADR-0041).
+ */
+export const KNOWN_VERSION = 2;
 
 export const VERSION_PATH = "VERSION";
 
 /**
- * Takes a repo from `from` to `from + 1`, in one commit that also rewrites
- * `VERSION`. None exist yet: version 1 is the first.
+ * Takes a repo from `from` to `from + 1`, all or nothing, rewriting
+ * `VERSION` with it.
  */
 export interface Migration {
   from: number;
   migrate(repo: Repo): Promise<void>;
 }
 
-export const MIGRATIONS: readonly Migration[] = [];
+export const MIGRATIONS: readonly Migration[] = [
+  // Each deck's commits replayed onto a line of its own, a variant's as a
+  // fork, snapshots moved onto those lines; one commit on main takes decks/
+  // away. Rust's, in one operation: `meldweb-wasm`'s `layout` module.
+  { from: 1, migrate: (repo) => repo.migrate(1) },
+];
 
 export type OpenedRepo =
   | { kind: "open"; version: number }
@@ -66,8 +74,8 @@ function parseVersion(text: string): number | null {
 }
 
 /**
- * Reads `VERSION`: missing writes `1`, newer than Curator knows refuses, older
- * runs the migrations in order before anything is edited.
+ * Reads `VERSION`: missing writes the version Curator knows, newer than that
+ * refuses, older runs the migrations in order before anything is edited.
  */
 export async function openMagicRepo(
   repo: Repo,
@@ -80,8 +88,8 @@ export async function openMagicRepo(
   if (!file) {
     try {
       await repo.putFile(VERSION_PATH, {
-        text: "1\n",
-        message: "curator: this repo is at version 1",
+        text: `${known}\n`,
+        message: `curator: this repo is at version ${known}`,
         sha: null,
       });
     } catch (e) {

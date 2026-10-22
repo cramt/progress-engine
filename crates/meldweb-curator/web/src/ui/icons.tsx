@@ -144,7 +144,7 @@ export const HistoryIcon = () => (
   </Icon>
 );
 
-/** A fork in a line: a variant of the deck. */
+/** A fork in a line: a deck forked from another. */
 export const BranchIcon = () => (
   <Icon>
     <circle cx="6" cy="5" r="2" />
