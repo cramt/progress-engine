@@ -20,7 +20,7 @@ import {
   printingKey,
 } from "../scryfall";
 import { messageOf, Sheet, useBusy } from "../ui/Sheet";
-import { Spinner } from "../ui/Spinner";
+import { Waiting } from "../ui/Spinner";
 
 type Open =
   | { kind: "rename"; deck: DeckEntry }
@@ -243,7 +243,7 @@ function RenameDialog({
             className="primary"
             disabled={busy || name.trim() === "" || name.trim() === deck.name}
           >
-            {busy ? "Renaming…" : "Rename"}
+            {busy ? <Waiting>Renaming…</Waiting> : "Rename"}
           </button>
         </div>
       </form>
@@ -317,8 +317,7 @@ function CoverDialog({
         />
         {choices === null && !refusal && (
           <p className="hint">
-            <Spinner />
-            Loading art…
+            <Waiting>Loading art…</Waiting>
           </p>
         )}
         <ul className="cover-grid">
@@ -401,7 +400,7 @@ function DeleteDialog({
               if (await run(onDelete)) onClose();
             }}
           >
-            {busy ? "Deleting…" : "Delete"}
+            {busy ? <Waiting>Deleting…</Waiting> : "Delete"}
           </button>
         </div>
       </div>

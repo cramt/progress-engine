@@ -1177,3 +1177,15 @@ dialog.sheet::backdrop {
   color: var(--fg);
   font-size: 17px;
 }
+
+.waiting {
+  display: inline-flex;
+  align-items: center;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* A busy button keeps its own colour; only the words go bold. */
+button .waiting {
+  color: inherit;
+}

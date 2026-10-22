@@ -62,6 +62,7 @@ import {
   ScanIcon,
   SearchIcon,
 } from "../ui/icons";
+import { Waiting } from "../ui/Spinner";
 
 export interface CollectionEditorProps {
   /** `collection.toml` in the Magic repo. */
@@ -439,7 +440,10 @@ function CollectionWorth({
       <span>
         Worth <strong>{formatPrice(total, currency)}</strong>
         {prices.size === 0 ? (
-          <span className="muted"> · looking up prices…</span>
+          <span className="muted">
+            {" · "}
+            <Waiting>looking up prices…</Waiting>
+          </span>
         ) : (
           unpriced > 0 && (
             <span className="muted">

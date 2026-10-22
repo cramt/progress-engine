@@ -16,7 +16,7 @@ import { downloadPdf } from "../ui/download";
 import { PrintIcon } from "../ui/icons";
 import { messageOf, Sheet } from "../ui/Sheet";
 import { SheetLayoutFields } from "../ui/SheetLayoutFields";
-import { Spinner } from "../ui/Spinner";
+import { Waiting } from "../ui/Spinner";
 import { printingNames } from "./archidektNames";
 
 /**
@@ -197,14 +197,7 @@ function ProxyDialog({
             className="primary"
             disabled={working || typeof fits !== "number"}
           >
-            {working ? (
-              <>
-                <Spinner />
-                {progress.step}
-              </>
-            ) : (
-              "Make PDF"
-            )}
+            {working ? <Waiting>{progress.step}</Waiting> : "Make PDF"}
           </button>
         </div>
       </form>

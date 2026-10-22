@@ -7,7 +7,7 @@ import { downloadPdf } from "../ui/download";
 import { PrintIcon } from "../ui/icons";
 import { messageOf, Sheet } from "../ui/Sheet";
 import { SheetLayoutFields } from "../ui/SheetLayoutFields";
-import { Spinner } from "../ui/Spinner";
+import { Waiting } from "../ui/Spinner";
 import { artFor } from "./useCardChecks";
 
 /**
@@ -149,14 +149,7 @@ function PrintDialog({
             Close
           </button>
           <button type="submit" className="primary" disabled={step !== null}>
-            {step === null ? (
-              "Make PDF"
-            ) : (
-              <>
-                <Spinner />
-                {step}
-              </>
-            )}
+            {step === null ? "Make PDF" : <Waiting>{step}</Waiting>}
           </button>
         </div>
       </form>

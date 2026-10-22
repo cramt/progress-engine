@@ -6,6 +6,7 @@ import type { OwnedCard } from "../collection";
 import type { Finish } from "../deck";
 import { type Printing, printingId } from "../scryfall";
 import { CloseIcon } from "../ui/icons";
+import { Waiting } from "../ui/Spinner";
 
 /**
  * Which printing and finish some of a line's copies are, picked from every
@@ -144,11 +145,13 @@ export function ReprintDialog({
             />
           ) : (
             <p className="details-note">
-              {options.status === "error"
-                ? options.message
-                : options.status === "none"
-                  ? "Scryfall does not know this card."
-                  : "Asking Scryfall for printings…"}
+              {options.status === "error" ? (
+                options.message
+              ) : options.status === "none" ? (
+                "Scryfall does not know this card."
+              ) : (
+                <Waiting>Asking Scryfall for printings…</Waiting>
+              )}
             </p>
           )}
         </div>

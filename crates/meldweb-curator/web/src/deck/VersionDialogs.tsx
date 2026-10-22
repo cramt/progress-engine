@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { deckBranchFor } from "../github/decks";
 import { Sheet, useBusy } from "../ui/Sheet";
+import { Waiting } from "../ui/Spinner";
 
 /** Names a version of the deck, kept as a git tag (ADR-0024). */
 export function SnapshotDialog({
@@ -54,7 +55,7 @@ export function SnapshotDialog({
             className="primary"
             disabled={busy || label.trim() === ""}
           >
-            {busy ? "Taking…" : "Take snapshot"}
+            {busy ? <Waiting>Taking…</Waiting> : "Take snapshot"}
           </button>
         </div>
       </form>

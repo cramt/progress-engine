@@ -27,6 +27,7 @@ import { CardForm } from "./CardForm";
 import { PrintCards } from "./PrintCards";
 import { useCardChecks } from "./useCardChecks";
 import "./cards.css";
+import { Waiting } from "../ui/Spinner";
 
 /**
  * Custom cards: each `cards/*.card.toml` in the repo, edited as a form or
@@ -549,7 +550,7 @@ function NewCardDialog({
             className="primary"
             disabled={busy || name.trim() === ""}
           >
-            {busy ? "Making…" : "Make card"}
+            {busy ? <Waiting>Making…</Waiting> : "Make card"}
           </button>
         </div>
       </form>

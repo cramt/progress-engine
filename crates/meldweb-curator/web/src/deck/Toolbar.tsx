@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { SaveState } from "../github/save";
 import { BrandMark, CloseIcon, RedoIcon, UndoIcon } from "../ui/icons";
-import { Spinner } from "../ui/Spinner";
+import { Waiting } from "../ui/Spinner";
 
 /**
  * The bar along the top of every page, sticky on scroll: Archidekt's toolbar,
@@ -128,8 +128,11 @@ export function SaveStatus({ save, path }: { save: SaveState; path: string }) {
       className={`save-status save-${save.status}`}
       title={save.status === "error" ? save.message : path}
     >
-      {save.status === "saving" && <Spinner />}
-      {statusText[save.status]}
+      {save.status === "saving" ? (
+        <Waiting>{statusText.saving}</Waiting>
+      ) : (
+        statusText[save.status]
+      )}
     </span>
   );
 }

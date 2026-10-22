@@ -4,7 +4,7 @@ import type { CardViewProps } from "../card/CardView";
 import { type Card, compareDecks, type DeckChange } from "../deck";
 import { artCrop, cardName, type Printings, printingKey } from "../scryfall";
 import { BranchIcon, HistoryIcon, TagIcon } from "../ui/icons";
-import { Spinner } from "../ui/Spinner";
+import { Waiting } from "../ui/Spinner";
 import { StacksView } from "./StacksView";
 import type { Other, ParsedDeck } from "./useOther";
 import {
@@ -64,8 +64,9 @@ export function VersionView({
   if (other.kind === "loading") {
     return (
       <section className="version-banner" aria-busy="true">
-        <Spinner />
-        <p className="version-title">Reading that version…</p>
+        <p className="version-title">
+          <Waiting>Reading that version…</Waiting>
+        </p>
       </section>
     );
   }

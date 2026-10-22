@@ -3,6 +3,7 @@ import { ModelPicker, useModel } from "./ModelPicker";
 import { printingsById, type ScannedPrinting } from "./printings";
 import { type Found, frameOf, scan, useScanner } from "./scanner";
 import "./probe.css";
+import { Waiting } from "../ui/Spinner";
 
 /** One card found, with Scryfall's printing for each of its candidates. */
 interface Result {
@@ -165,15 +166,18 @@ export function ScanDialog({
               <ModelPicker model={model} onChange={setModel} disabled={busy} />
             </div>
             <p className="scan-status" role="status">
-              {boot.phase === "booting" &&
-                `Starting the scanner: ${boot.stage} ${boot.percent}%`}
+              {boot.phase === "booting" && (
+                <Waiting>{`Starting the scanner: ${boot.stage} ${boot.percent}%`}</Waiting>
+              )}
               {boot.phase === "failed" && `The scanner failed: ${boot.message}`}
               {boot.phase === "ready" &&
-                (busy
-                  ? "Scanning…"
-                  : took === null
-                    ? "Whole card in frame, on a plain background."
-                    : `Scanned in ${Math.round(took)} ms.`)}
+                (busy ? (
+                  <Waiting>Scanning…</Waiting>
+                ) : took === null ? (
+                  "Whole card in frame, on a plain background."
+                ) : (
+                  `Scanned in ${Math.round(took)} ms.`
+                ))}
             </p>
             {refusal && (
               <p className="refusal" role="alert">

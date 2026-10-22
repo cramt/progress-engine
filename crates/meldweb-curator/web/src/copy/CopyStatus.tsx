@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { type CopyState, useCopyState } from "./index";
 import "./copy.css";
-import { Spinner } from "../ui/Spinner";
+import { Waiting } from "../ui/Spinner";
 
 const MB = 1_000_000;
 
@@ -56,10 +56,7 @@ export function CopyStatus() {
   if (!shown || dismissed === state.kind) return null;
   return (
     <div className="copy-status" role="status">
-      <span>
-        {shown.busy && <Spinner />}
-        {shown.text}
-      </span>
+      <span>{shown.busy ? <Waiting>{shown.text}</Waiting> : shown.text}</span>
       {shown.progress !== undefined && (
         <progress value={shown.progress} max={1} />
       )}

@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { type ReactNode, useId } from "react";
 import suture from "./suture.svg?raw";
 
 /**
@@ -18,5 +18,15 @@ export function Spinner({ size }: { size?: string }) {
         __html: suture.replaceAll("pe-", `${prefix}-`),
       }}
     />
+  );
+}
+
+/** Words about something under way, said in bold beside the suture. */
+export function Waiting({ children }: { children: ReactNode }) {
+  return (
+    <span className="waiting">
+      <Spinner />
+      {children}
+    </span>
   );
 }

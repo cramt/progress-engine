@@ -7,6 +7,7 @@ import {
   scryfallAutocomplete,
 } from "../quickadd/autocomplete";
 import { printingId } from "../scryfall";
+import { Waiting } from "../ui/Spinner";
 import type { RuleText } from "./rules";
 
 /** Cards whose printings pull the rules in different directions. */
@@ -72,7 +73,9 @@ export function Preview({
         ))}
       </div>
       {options.status === "loading" && (
-        <p className="preview-note">Asking Scryfall for every {card}…</p>
+        <p className="preview-note">
+          <Waiting>Asking Scryfall for every {card}…</Waiting>
+        </p>
       )}
       {options.status === "error" && (
         <p className="refusal" role="alert">

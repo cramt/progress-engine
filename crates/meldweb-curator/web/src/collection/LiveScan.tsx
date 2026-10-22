@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { isTyping } from "../card/hotkeys";
 import type { Place } from "../collection";
 import type { Finish, NewCard } from "../deck";
@@ -24,6 +24,7 @@ import {
 import { UNSORTED } from "./sections";
 import "../card/card.css";
 import "../probe/probe.css";
+import { Waiting } from "../ui/Spinner";
 
 /**
  * The least pause between one frame's scan ending and the next frame's being
@@ -523,9 +524,11 @@ function ScanStatus({
   running: boolean;
   inView: InView | null;
 }) {
-  let text: string;
+  let text: ReactNode;
   if (boot.phase === "booting")
-    text = `Starting the scanner: ${boot.stage} ${boot.percent}%`;
+    text = (
+      <Waiting>{`Starting the scanner: ${boot.stage} ${boot.percent}%`}</Waiting>
+    );
   else if (boot.phase === "failed")
     text = `The scanner failed: ${boot.message}`;
   else if (!running) text = "Paused.";
@@ -567,15 +570,16 @@ function LogRow({
 }) {
   const live = entry.copy !== null && !entry.refused && !entry.takenBack;
   const { copy } = entry;
-  let detail = "Naming the printing…";
+  let detail: ReactNode = <Waiting>Naming the printing…</Waiting>;
   if (copy) {
     const printing =
       copy.card.kind === "printing"
         ? `${copy.card.set.toUpperCase()} #${copy.card.num}`
         : "any printing";
     const finish = copy.finish === "nonfoil" ? "" : `, ${copy.finish}`;
-    detail = `${printing}${finish}`;
-    if (!live) detail += ` → ${copy.at ?? UNSORTED}`;
+    detail = live
+      ? `${printing}${finish}`
+      : `${printing}${finish} → ${copy.at ?? UNSORTED}`;
   }
   return (
     <li

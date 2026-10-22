@@ -19,6 +19,7 @@ import { type RenderResult, renderMinimalResult } from "./ResultCard";
 import { startResultDrag, useResultDrops } from "./resultDrag";
 import "./search.css";
 import { CloseIcon, LockIcon, PlusIcon, SearchIcon } from "../ui/icons";
+import { Waiting } from "../ui/Spinner";
 
 /** The toolbar's button that opens the overlay. */
 export function SearchButton({ onClick }: { onClick: () => void }) {
@@ -415,7 +416,11 @@ export function SearchOverlay({
             </p>
           </div>
         )}
-        {tab.loading && <p className="search-loading">Searching…</p>}
+        {tab.loading && (
+          <p className="search-loading">
+            <Waiting>Searching…</Waiting>
+          </p>
+        )}
         {!tab.loading && tab.more && (
           <button
             type="button"

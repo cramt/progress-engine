@@ -9,6 +9,7 @@ import {
 import { deckText } from "../github/deckText";
 import type { Repo } from "../repo/api";
 import { PlusIcon } from "../ui/icons";
+import { Waiting } from "../ui/Spinner";
 
 const FORMATS = [
   "commander",
@@ -176,7 +177,7 @@ export function NewDeckDialog({ repo }: { repo: Repo }) {
                 Cancel
               </button>
               <button type="submit" className="primary" disabled={busy}>
-                {busy ? "Creating…" : "Create"}
+                {busy ? <Waiting>Creating…</Waiting> : "Create"}
               </button>
             </div>
           </form>

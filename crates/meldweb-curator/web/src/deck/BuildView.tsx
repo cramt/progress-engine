@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Card } from "../deck";
-import { Spinner } from "../ui/Spinner";
+import { Waiting } from "../ui/Spinner";
 import { CardCell, SupplySection } from "./SupplyParts";
 import {
   type Pile,
@@ -63,8 +63,7 @@ export function BuildView({
   if (state.kind === "loading")
     return (
       <p className="muted supply-status">
-        <Spinner />
-        Reading your collection…
+        <Waiting>Reading your collection…</Waiting>
       </p>
     );
   if (state.kind === "failed")
@@ -85,7 +84,7 @@ export function BuildView({
 
   const toolbar = (state.refusal || state.canUndo || saving) && (
     <div className="supply-moves">
-      {saving && <span className="muted">Saving your collection…</span>}
+      {saving && <Waiting>Saving your collection…</Waiting>}
       {state.canUndo && !saving && (
         <button type="button" className="small" onClick={supply.undo}>
           Undo the last move

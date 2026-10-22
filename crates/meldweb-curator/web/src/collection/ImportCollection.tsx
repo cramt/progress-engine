@@ -7,6 +7,7 @@ import {
   readCollectionExport,
 } from "../collection";
 import { fetchAsked } from "../scryfall";
+import { Waiting } from "../ui/Spinner";
 
 type Read = Extract<CollectionExport, { kind: "export" }>;
 
@@ -206,11 +207,13 @@ export function ImportCollection({
                   !read || busy || (into === NEW_PLACE && !newPlace.trim())
                 }
               >
-                {busy
-                  ? "Asking Scryfall…"
-                  : read
-                    ? `Import ${plural(read.copies, "card")}`
-                    : "Import"}
+                {busy ? (
+                  <Waiting>Asking Scryfall…</Waiting>
+                ) : read ? (
+                  `Import ${plural(read.copies, "card")}`
+                ) : (
+                  "Import"
+                )}
               </button>
             </div>
           </form>

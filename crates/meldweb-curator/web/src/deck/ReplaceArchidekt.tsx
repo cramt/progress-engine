@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { deckFromArchidekt, type FromArchidekt } from "../github/decks";
 import { deckText } from "../github/deckText";
+import { Waiting } from "../ui/Spinner";
 
 type Unreadable = Extract<FromArchidekt, { kind: "deck" }>["unreadable"];
 
@@ -113,7 +114,7 @@ export function ReplaceArchidekt({
                 Cancel
               </button>
               <button type="submit" className="primary" disabled={busy}>
-                {busy ? "Replacing…" : "Replace"}
+                {busy ? <Waiting>Replacing…</Waiting> : "Replace"}
               </button>
             </div>
           </form>

@@ -15,6 +15,7 @@ import type { SupplyShort } from "../supply";
 import { setFriends } from "../supply";
 import { tradeText } from "../trade/TradeView";
 import { messageOf } from "../ui/Sheet";
+import { Spinner, Waiting } from "../ui/Spinner";
 import { CardCell, CopyText, SupplySection } from "./SupplyParts";
 import {
   offersOf,
@@ -63,7 +64,11 @@ export function SourcingView({
   const prices = usePrices(priced);
 
   if (state.kind === "loading")
-    return <p className="muted supply-status">Reading your collection…</p>;
+    return (
+      <p className="muted supply-status">
+        <Waiting>Reading your collection…</Waiting>
+      </p>
+    );
   if (state.kind === "failed")
     return (
       <p className="refusal" role="alert">
@@ -447,7 +452,7 @@ function Friends({
             title={gone ? `${f} ${WHY[gone.why]}` : undefined}
           >
             {f}
-            {reading.includes(f) && "…"}
+            {reading.includes(f) && <Spinner />}
             {gone && " ⚠"}
             <button
               type="button"

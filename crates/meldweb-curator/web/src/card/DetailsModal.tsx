@@ -22,7 +22,7 @@ import {
   printingKey,
 } from "../scryfall";
 import { ChevronLeft, ChevronRight, CloseIcon, FlipIcon } from "../ui/icons";
-import { Spinner } from "../ui/Spinner";
+import { Waiting } from "../ui/Spinner";
 import { ManaText } from "./ManaText";
 import { neighbours } from "./order";
 import { PrintingsGrid } from "./PrintingsGrid";
@@ -437,8 +437,7 @@ function OptionsStatus({
     case "loading":
       return (
         <p className="details-note">
-          <Spinner />
-          Asking Scryfall for printings…
+          <Waiting>Asking Scryfall for printings…</Waiting>
         </p>
       );
     case "error":
