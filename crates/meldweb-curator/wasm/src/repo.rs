@@ -29,6 +29,7 @@ use meldweb_git::{
 use crate::blame::{self, DeckBlame};
 use crate::branches::{self, BranchDeleted, BranchMade, DeckBranches, MergeDone, MergePlan};
 use crate::layout::{self, DeckLines};
+use crate::merging::{self, FileMerge, MergeClash, Settle};
 use crate::preference::Upstream;
 use crate::upstream::{self, Fetched, Following, Forked};
 use crate::UpstreamFacts;
@@ -264,6 +265,8 @@ pub enum Synced {
     /// lines, or into something that is no longer a file of its kind.
     Conflict {
         paths: Vec<String>,
+        /// What in each deck both changed differently, card by card.
+        clashes: Vec<MergeClash>,
     },
     Unrelated,
 }
@@ -384,7 +387,7 @@ fn repo_path(path: &str) -> Out<RepoPath> {
 }
 
 /// Every branch's outcome as one: what stops the sync first, then what moved.
-fn synced(outcomes: Vec<(BranchName, Integrated)>) -> Synced {
+fn synced(outcomes: Vec<(BranchName, Integrated)>, clashes: Vec<MergeClash>) -> Synced {
     let named = |branch: &BranchName, path: String| {
         if branch.as_str() == "main" {
             path
@@ -428,7 +431,10 @@ fn synced(outcomes: Vec<(BranchName, Integrated)>) -> Synced {
         }
     }
     if !conflicts.is_empty() {
-        return Synced::Conflict { paths: conflicts };
+        return Synced::Conflict {
+            paths: conflicts,
+            clashes,
+        };
     }
     if unrelated {
         return Synced::Unrelated;
@@ -1037,9 +1043,9 @@ impl Local {
         stem: &str,
         from: &str,
         into: &str,
-        prefer: Option<Side>,
+        settle: Settle,
     ) -> Out<MergePlan> {
-        branches::plan(self.repo_mut()?, stem, from, into, prefer)
+        branches::plan(self.repo_mut()?, stem, from, into, settle)
     }
 
     /// [`branches::merge`].
@@ -1051,7 +1057,7 @@ impl Local {
         into: &str,
         into_tip: &str,
         from_tip: &str,
-        prefer: Option<Side>,
+        settle: Settle,
         who: &Who,
     ) -> Out<MergeDone> {
         let signed = signature(who)?;
@@ -1062,7 +1068,7 @@ impl Local {
             into,
             into_tip,
             from_tip,
-            prefer,
+            settle,
             &signed,
         )
     }
@@ -1125,9 +1131,9 @@ impl Local {
     }
 
     /// [`upstream::plan`].
-    pub fn plan_take(&mut self, stem: &str, prefer: Option<Side>) -> Out<MergePlan> {
+    pub fn plan_take(&mut self, stem: &str, settle: Settle) -> Out<MergePlan> {
         let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
-        upstream::plan(self.repo_mut()?, &stem, prefer)
+        upstream::plan(self.repo_mut()?, &stem, settle)
     }
 
     /// [`upstream::take`].
@@ -1136,12 +1142,12 @@ impl Local {
         stem: &str,
         into_tip: &str,
         from_tip: &str,
-        prefer: Option<Side>,
+        settle: Settle,
         who: &Who,
     ) -> Out<MergeDone> {
         let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
         let signed = signature(who)?;
-        upstream::take(self.repo_mut()?, &stem, into_tip, from_tip, prefer, &signed)
+        upstream::take(self.repo_mut()?, &stem, into_tip, from_tip, settle, &signed)
     }
 
     /// Migrates the repo from version `from` to the next, in one operation
@@ -1202,19 +1208,22 @@ impl Local {
 
     /// Brings the fetched branches in, a remote still at repo version 1
     /// migrated first ([`layout::integrate`]). A path both sides changed
-    /// merges by lines, and only when what that makes is still a file
-    /// Progress Engine reads, as a refused save merges (ADR-0021).
+    /// merges as its kind merges ([`merging::merge_file`]): a deck by card,
+    /// anything else by lines, and only into what is still a file Progress
+    /// Engine reads, as a refused save merges (ADR-0021).
     pub fn integrate(&mut self, who: &Who, prefer: Option<Side>) -> Out<Synced> {
         let signed = signature(who)?;
+        let settle = Settle::from(prefer);
+        let mut clashes = Vec::new();
         let mut merge_file = |path: &str, base: &[u8], ours: &[u8], theirs: &[u8]| {
-            fn text(b: &[u8]) -> Option<&str> {
-                std::str::from_utf8(b).ok()
-            }
-            let merged = meldweb_git::merge_lines(text(base)?, text(ours)?, text(theirs)?)?;
-            crate::still_reads(path, text(theirs)?, &merged).then(|| merged.into_bytes())
+            merging::merge_bytes(path, base, ours, theirs, &settle, &mut |stopped| {
+                if let FileMerge::Clashed(c) = stopped {
+                    clashes.extend(c);
+                }
+            })
         };
         let outcomes = layout::integrate(self.repo_mut()?, &signed, prefer, &mut merge_file)?;
-        Ok(synced(outcomes))
+        Ok(synced(outcomes, clashes))
     }
 
     pub fn adopt_remote(&mut self) -> Out<()> {
@@ -1421,6 +1430,17 @@ fn side_of(side: Option<String>) -> Result<Option<Side>, JsError> {
     }
 }
 
+/// `prefer` and each clash's pick, as the page sends them.
+fn settle_of(prefer: Option<String>, picks: Vec<String>) -> Result<Settle, JsError> {
+    Ok(Settle {
+        prefer: side_of(prefer)?,
+        picks: picks
+            .into_iter()
+            .map(|p| side_of(Some(p)).map(|s| s.expect("a side was given")))
+            .collect::<Result<_, _>>()?,
+    })
+}
+
 fn js<T>(r: Out<T>) -> Result<T, JsError> {
     r.map_err(|e| JsError::new(&e))
 }
@@ -1603,16 +1623,18 @@ impl GitRepo {
     }
 
     /// [`MergePlan`]; `prefer` is `"ours"` (the branch merged into) or
-    /// `"theirs"` for the stretches both changed, once the user picked.
+    /// `"theirs"` for what both changed, once the user picked, and
+    /// `picks[i]` the side for the deck's clash `i`.
     pub fn plan_merge(
         &mut self,
         stem: &str,
         from: &str,
         into: &str,
         prefer: Option<String>,
+        picks: Vec<String>,
     ) -> Result<String, JsError> {
-        let prefer = side_of(prefer)?;
-        js(self.0.plan_merge(stem, from, into, prefer)).map(|r| json(&r))
+        let settle = settle_of(prefer, picks)?;
+        js(self.0.plan_merge(stem, from, into, settle)).map(|r| json(&r))
     }
 
     /// [`MergeDone`]; `who` is a [`Who`].
@@ -1625,13 +1647,14 @@ impl GitRepo {
         into_tip: &str,
         from_tip: &str,
         prefer: Option<String>,
+        picks: Vec<String>,
         who: &str,
     ) -> Result<String, JsError> {
-        let prefer = side_of(prefer)?;
+        let settle = settle_of(prefer, picks)?;
         let who = who_of(who)?;
         js(self
             .0
-            .merge_branch(stem, from, into, into_tip, from_tip, prefer, &who))
+            .merge_branch(stem, from, into, into_tip, from_tip, settle, &who))
         .map(|r| json(&r))
     }
 
@@ -1684,9 +1707,14 @@ impl GitRepo {
     }
 
     /// [`MergePlan`] of taking the followed deck's changes.
-    pub fn plan_take(&mut self, stem: &str, prefer: Option<String>) -> Result<String, JsError> {
-        let prefer = side_of(prefer)?;
-        js(self.0.plan_take(stem, prefer)).map(|r| json(&r))
+    pub fn plan_take(
+        &mut self,
+        stem: &str,
+        prefer: Option<String>,
+        picks: Vec<String>,
+    ) -> Result<String, JsError> {
+        let settle = settle_of(prefer, picks)?;
+        js(self.0.plan_take(stem, settle)).map(|r| json(&r))
     }
 
     /// [`MergeDone`]; `who` is a [`Who`].
@@ -1696,11 +1724,12 @@ impl GitRepo {
         into_tip: &str,
         from_tip: &str,
         prefer: Option<String>,
+        picks: Vec<String>,
         who: &str,
     ) -> Result<String, JsError> {
-        let prefer = side_of(prefer)?;
+        let settle = settle_of(prefer, picks)?;
         let who = who_of(who)?;
-        js(self.0.take_upstream(stem, into_tip, from_tip, prefer, &who)).map(|r| json(&r))
+        js(self.0.take_upstream(stem, into_tip, from_tip, settle, &who)).map(|r| json(&r))
     }
 
     /// [`MigratedFacts`].
@@ -2327,14 +2356,13 @@ mod tests {
     #[test]
     fn a_line_merge_that_is_no_longer_a_deck_does_not_count() {
         let deck = "name = \"Lantern\"\ncards = []\n";
-        assert!(crate::still_reads("lantern.deck.toml", deck, deck));
-        assert!(!crate::still_reads(
-            "lantern.deck.toml",
-            deck,
-            "name = \"Lantern\"\ncards = [\n"
-        ));
+        assert_eq!(crate::unreadable("lantern.deck.toml", deck, deck), None);
+        assert!(
+            crate::unreadable("lantern.deck.toml", deck, "name = \"Lantern\"\ncards = [\n")
+                .is_some()
+        );
         // A file no editor writes is only text.
-        assert!(crate::still_reads("notes.txt", "a", "cards = ["));
+        assert_eq!(crate::unreadable("notes.txt", "a", "cards = ["), None);
     }
 
     /// Version 2's deck lines through the page's calls (ADR-0041): a deck is

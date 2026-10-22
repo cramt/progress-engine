@@ -290,7 +290,7 @@ describe("a conflict", () => {
 
 describe("a save another client got in ahead of", () => {
   const deck = (...cards: string[]) =>
-    `name = "Lantern"\ncards = [\n${cards.map((c) => `  "${c}",\n`).join("")}]\n`;
+    `name = "Lantern"\ncards = [\n${cards.map((c) => `  { name = "${c}" },\n`).join("")}]\n`;
   let merged: string[];
 
   beforeEach(async () => {
@@ -335,13 +335,27 @@ describe("a save another client got in ahead of", () => {
     expect(store.getState().status).toBe("saved");
   });
 
-  it("is a conflict when both changed the same line", async () => {
-    conn.mock.editElsewhere(PATH, deck("a", "B2", "c", "d"));
-    store.edit(deck("a", "B1", "c", "d"));
+  it("is a conflict naming the card when both changed it differently", async () => {
+    const two = (n: number) =>
+      deck("a", "b", "c", "d").replace('"b" }', `"b", qty = ${n} }`);
+    conn.mock.editElsewhere(PATH, two(3));
+    store.edit(two(2));
     await vi.advanceTimersByTimeAsync(IDLE_MS);
-    expect(store.getState().status).toBe("conflict");
+    expect(store.getState()).toEqual({
+      status: "conflict",
+      clashes: [
+        {
+          path: PATH,
+          index: 0,
+          subject: "b",
+          attribute: "quantity",
+          ours: "2",
+          theirs: "3",
+        },
+      ],
+    });
     expect(merged).toEqual([]);
-    expect(conn.mock.file(PATH)?.text).toBe(deck("a", "B2", "c", "d"));
+    expect(conn.mock.file(PATH)?.text).toBe(two(3));
   });
 
   it("is a conflict when the merge is not a deck", async () => {

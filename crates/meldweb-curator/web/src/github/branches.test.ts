@@ -115,20 +115,44 @@ describe("a deck's branches", () => {
     expect(await text("budget-test")).toBe(deck(both));
   });
 
-  it("stop at a clash, show both sides' lines, and merge once a side is picked", async () => {
+  it("take both sides' swaps for one card, as a merge by card does", async () => {
     const { repo, save, text, first } = await lantern();
-    await makeBranch(repo, STEM, "clash", first);
-    await save("clash", swap(CARDS, "Ponder", "Preordain"));
+    await makeBranch(repo, STEM, "swap", first);
+    await save("swap", swap(CARDS, "Ponder", "Preordain"));
     await save(MAIN, swap(CARDS, "Ponder", "Serum Visions"));
+    const ask = { from: "swap", into: MAIN };
+    const plan = await repo.planMerge(STEM, ask);
+    expect(plan.kind).toBe("merge");
+    await mergeAsPlanned(repo, STEM, ask, plan);
+    const both = swap(CARDS, "Ponder", "Preordain");
+    both.splice(6, 0, "Serum Visions");
+    expect(await text(MAIN)).toBe(deck(both));
+  });
+
+  it("stop at a clash, say the card and both sides, and merge once each is picked", async () => {
+    const { repo, text, first } = await lantern();
+    await makeBranch(repo, STEM, "clash", first);
+    const ponders = (n: number) =>
+      deck(CARDS).replace('"Ponder" }', `"Ponder", qty = ${n} }`);
+    const saveText = (on: string, body: string) => {
+      const file = deckFile(STEM, on);
+      return commitEdit(repo, file.path, () => body, file.branch);
+    };
+    await saveText("clash", ponders(3));
+    await saveText(MAIN, ponders(2));
     const ask = { from: "clash", into: MAIN };
     const plan = await repo.planMerge(STEM, ask);
     expect(plan).toMatchObject({
       kind: "conflict",
-      hunks: [
+      hunks: [],
+      clashes: [
         {
           path: "lantern.deck.toml",
-          ours: ['  { name = "Serum Visions" },'],
-          theirs: ['  { name = "Preordain" },'],
+          index: 0,
+          subject: "Ponder",
+          attribute: "quantity",
+          ours: "2",
+          theirs: "3",
         },
       ],
     });
@@ -136,11 +160,11 @@ describe("a deck's branches", () => {
     expect(await mergeAsPlanned(repo, STEM, ask, plan)).toMatchObject({
       kind: "stopped",
     });
-    const theirs = { ...ask, prefer: "theirs" as const };
-    const picked = await repo.planMerge(STEM, theirs);
-    expect(picked.kind).toBe("merge");
-    await mergeAsPlanned(repo, STEM, theirs, picked);
-    expect(await text(MAIN)).toBe(deck(swap(CARDS, "Ponder", "Preordain")));
+    const picked = { ...ask, picks: ["theirs" as const] };
+    const settled = await repo.planMerge(STEM, picked);
+    expect(settled.kind).toBe("merge");
+    await mergeAsPlanned(repo, STEM, picked, settled);
+    expect(await text(MAIN)).toBe(ponders(3));
   });
 
   it("start from a snapshot, refuse a taken name, and delete only at their tip", async () => {

@@ -1,15 +1,27 @@
 /**
  * Saving (ADR-0021, #120): edits collect in the page and are committed by
  * themselves once the deck has been idle ten seconds, or at once when the page
- * is hidden or closing. A save is one Contents `PUT` guarded by the blob sha
- * from the last load or save. When GitHub refuses it because the file moved,
- * an editor that takes merges has GitHub's file and its own merged by lines
- * and committed; otherwise, or when both changed the same lines, saving stops
- * until the user reloads or overwrites.
+ * is hidden or closing. A save is one write guarded by the blob sha from
+ * the last load or save. When it is refused because the file moved, an
+ * editor that takes merges has the repo's file and its own merged (a deck
+ * card by card, anything else by lines) and committed; otherwise, or when
+ * both changed the same thing differently, saving stops until the user
+ * reloads or overwrites, and a deck's clashes say which cards.
  */
+import type { MergeClash } from "../deck.gen";
 import { ConflictError, type Repo } from "../repo/api";
-import { mergeLines } from "./merge";
+import { mergeFile } from "./merge";
 import { commitMessageFor, spotKey, track } from "./repoFile";
+
+/** A refused save whose merge clashed, and on what. */
+class Clashed extends ConflictError {
+  constructor(
+    message: string,
+    readonly clashes: readonly MergeClash[],
+  ) {
+    super(message);
+  }
+}
 
 /** How many times a merge is committed before a conflict is given up on. */
 const MERGES = 3;
@@ -17,7 +29,9 @@ const MERGES = 3;
 export const IDLE_MS = 10_000;
 
 export type SaveState =
-  | { status: "unsaved" | "saving" | "saved" | "conflict" }
+  | { status: "unsaved" | "saving" | "saved" }
+  /** `clashes` are what in a deck both changed differently, when that is why. */
+  | { status: "conflict"; clashes: readonly MergeClash[] }
   /** `message` is why the last save failed. */
   | { status: "error"; message: string };
 
@@ -125,7 +139,11 @@ export function createSaveStore(options: SaveOptions): SaveStore {
         }
         set({ status: pending() ? "unsaved" : "saved" });
       } catch (e) {
-        if (e instanceof ConflictError) set({ status: "conflict" });
+        if (e instanceof ConflictError)
+          set({
+            status: "conflict",
+            clashes: e instanceof Clashed ? e.clashes : [],
+          });
         else
           set({ status: "error", message: String((e as Error).message ?? e) });
       }
@@ -169,8 +187,11 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       if (!file) throw refused;
       // From the latest local text, not the one being committed: nothing
       // awaits between reading it and handing the merge back.
-      const merged = mergeLines(base, current, file.text);
-      if (merged === null) throw refused;
+      const merging = mergeFile(path, base, current, file.text);
+      if (merging.kind === "clashed")
+        throw new Clashed(refused.message, merging.clashes);
+      if (merging.kind !== "merged") throw refused;
+      const merged = merging.text;
       // Rust refuses to diff a text that is not a file of its kind.
       let message: string;
       try {

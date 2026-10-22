@@ -689,3 +689,54 @@ main.with-drawer {
 .upstream-bar > span:first-child {
   margin-right: auto;
 }
+
+/* A deck's clashes, one card (or field) a row, each with its two sides. */
+.merge-card-clashes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.merge-card-clash {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.merge-card-clash-sides {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.merge-card-clash-sides label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.merge-card-clash-sides label.picked {
+  border-color: var(--cold);
+}
+
+.merge-side-name {
+  color: var(--muted);
+}
+
+/* Three choices under the clashes, which wrap rather than run off the sheet. */
+.merge-pick {
+  flex-wrap: wrap;
+}

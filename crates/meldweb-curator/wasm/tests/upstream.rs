@@ -19,6 +19,7 @@ use meldweb_git::{
 use meldweb_wasm::blame::{self, Blame, DeckBlame};
 use meldweb_wasm::branches::{MergeDone, MergePlan};
 use meldweb_wasm::layout;
+use meldweb_wasm::merging::Settle;
 use meldweb_wasm::preference::{self, Upstream};
 use meldweb_wasm::upstream::{self, Forked};
 
@@ -375,38 +376,54 @@ fn a_fork_of_alices_deck_keeps_her_commits_and_takes_her_changes() {
     println!("{graph}");
     assert!(graph.starts_with("*   lantern: merge alice's lantern: +1 Arcane Signet (Me)"));
 
-    // We both change the same line: a clash, until a side is picked.
-    let mut clash_mine = my_cards.clone();
-    clash_mine.push("Arcane Signet");
-    *clash_mine.last_mut().unwrap() = "Talisman of Dominance";
+    // We both change the same card's quantity: a clash on that card alone,
+    // until a side is picked for it.
+    let signets = |cards: &[&str], n: u32| {
+        deck("Lantern", cards).replace(
+            "{ name = \"Arcane Signet\" }",
+            &format!("{{ name = \"Arcane Signet\", qty = {n} }}"),
+        )
+    };
+    let mut both_mine = my_cards.clone();
+    both_mine.push("Arcane Signet");
     commit(
         &mut me,
         "decks/lantern/main",
-        &[("lantern.deck.toml", &deck("Lantern", &clash_mine))],
-        "lantern: Arcane Signet → Talisman of Dominance",
+        &[("lantern.deck.toml", &signets(&both_mine, 2))],
+        "lantern: Arcane Signet: 1 → 2",
         &me_at(6),
     );
+    let hers = [&BASE[..], &["Sol Ring", "Arcane Signet"]].concat();
     commit(
         &mut alice,
         "decks/lantern/main",
-        &[(
-            "lantern.deck.toml",
-            &deck(
-                "Lantern",
-                &[&BASE[..], &["Sol Ring", "Fellwar Stone"]].concat(),
-            ),
-        )],
-        "lantern: Arcane Signet → Fellwar Stone",
+        &[("lantern.deck.toml", &signets(&hers, 3))],
+        "lantern: Arcane Signet: 1 → 3",
         &a(60),
     );
     fetch(&mut me, &host, &up);
     let plan = upstream::plan(&mut me, &stem("lantern"), None).unwrap();
-    let MergePlan::Conflict { hunks, .. } = &plan else {
+    let MergePlan::Conflict { clashes, hunks, .. } = &plan else {
         panic!("{plan:?}")
     };
-    assert_eq!(hunks.len(), 1, "{hunks:?}");
-    assert!(hunks[0].ours[0].contains("Talisman") && hunks[0].theirs[0].contains("Fellwar"));
-    let plan = upstream::plan(&mut me, &stem("lantern"), Some(Side::Theirs)).unwrap();
+    println!("{clashes:#?}");
+    assert!(hunks.is_empty(), "{hunks:?}");
+    assert_eq!(clashes.len(), 1, "{clashes:?}");
+    let c = &clashes[0];
+    assert_eq!(
+        (
+            c.subject.as_str(),
+            c.attribute.as_str(),
+            c.ours.as_str(),
+            c.theirs.as_str()
+        ),
+        ("Arcane Signet", "quantity", "2", "3")
+    );
+    let pick_theirs = Settle {
+        prefer: None,
+        picks: vec![Side::Theirs],
+    };
+    let plan = upstream::plan(&mut me, &stem("lantern"), pick_theirs.clone()).unwrap();
     let MergePlan::Merge {
         into, from, after, ..
     } = &plan
@@ -415,14 +432,14 @@ fn a_fork_of_alices_deck_keeps_her_commits_and_takes_her_changes() {
     };
     let after = after.clone().unwrap();
     assert!(
-        after.contains("Fellwar") && !after.contains("Talisman") && after.contains("Mind Stone")
+        after.contains("{ name = \"Arcane Signet\", qty = 3 }") && after.contains("Mind Stone")
     );
     let done = upstream::take(
         &mut me,
         &stem("lantern"),
         into,
         from,
-        Some(Side::Theirs),
+        pick_theirs,
         &me_at(7),
     )
     .unwrap();
@@ -460,9 +477,9 @@ fn a_fork_of_alices_deck_keeps_her_commits_and_takes_her_changes() {
         "decks/lantern/main",
         &[(
             "lantern.deck.toml",
-            &deck(
-                "Lantern",
-                &[&BASE[..], &["Sol Ring", "Fellwar Stone", "Mox Opal"]].concat(),
+            &signets(
+                &[&BASE[..], &["Sol Ring", "Arcane Signet", "Mox Opal"]].concat(),
+                3,
             ),
         )],
         "lantern: +1 Mox Opal",
@@ -558,6 +575,125 @@ fn a_fork_of_alices_deck_keeps_her_commits_and_takes_her_changes() {
     fsck(&alice_dir);
     fsck(&me_dir);
     fsck(&origin_dir);
+}
+
+/// The fork's own editor pinned a printing on every card named by name
+/// when it opened the deck (ADR-0027), so the fork differs from hers on
+/// every card line. Her next change to a card still merges into it: a line
+/// merge clashed on it, a merge by card does not.
+#[test]
+fn her_change_merges_into_a_fork_whose_editor_pinned_every_printing() {
+    if !have_git() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = |t: i64| sig("Alice", 1_760_000_000 + t);
+    let me_at = |t: i64| sig("Me", 1_760_100_000 + t);
+    let alice_dir = dir.path().join("alice.git");
+    let mut alice = v2_repo(&alice_dir, &a(0));
+    let hers = deck("Lantern", &BASE);
+    commit(
+        &mut alice,
+        "decks/lantern/main",
+        &[("lantern.deck.toml", &hers)],
+        "lantern: new deck",
+        &a(10),
+    );
+    let host = Host(alice_dir.clone());
+    let me_dir = dir.path().join("me.git");
+    let mut me = v2_repo(&me_dir, &me_at(0));
+    let up = alice_up();
+    fetch(&mut me, &host, &up);
+    upstream::fork(&mut me, &up, &stem("lantern"), &me_at(1)).unwrap();
+
+    // Opening it pins each card, as the editor does: every line changes.
+    let printings = [
+        ("Lantern of Insight", "5dn/135"),
+        ("Codex Shredder", "rav/254"),
+        ("Ensnaring Bridge", "sth/129"),
+        ("Island", "unf/236"),
+    ];
+    let mut pinned = hers.clone();
+    for (name, printing) in printings {
+        pinned = pinned.replace(
+            &format!("{{ name = \"{name}\" }},"),
+            &format!("{{ printing = \"{printing}\" }},  # {name}"),
+        );
+    }
+    let pin = commit(
+        &mut me,
+        "decks/lantern/main",
+        &[("lantern.deck.toml", &pinned)],
+        "lantern: Lantern of Insight: any printing → 5dn/135, and 3 more",
+        &me_at(2),
+    );
+    // She runs a second Codex Shredder and adds Mox Opal.
+    let changed = hers
+        .replace(
+            "{ name = \"Codex Shredder\" }",
+            "{ name = \"Codex Shredder\", qty = 2 }",
+        )
+        .replace("]\n", "  { name = \"Mox Opal\" },\n]\n");
+    let her_change = commit(
+        &mut alice,
+        "decks/lantern/main",
+        &[("lantern.deck.toml", &changed)],
+        "lantern: +1 Mox Opal, Codex Shredder: 1 → 2",
+        &a(20),
+    );
+    fetch(&mut me, &host, &up);
+
+    // Before: the line merge every deck merge used clashed on it.
+    let by_lines = meldweb_git::merge_lines_with(&hers, &pinned, &changed, None);
+    println!("by lines: {by_lines:#?}");
+    assert!(by_lines.is_err());
+
+    let plan = upstream::plan(&mut me, &stem("lantern"), None).unwrap();
+    let MergePlan::Merge {
+        into,
+        from,
+        after,
+        message,
+        ..
+    } = &plan
+    else {
+        panic!("{plan:?}")
+    };
+    let after = after.clone().unwrap();
+    println!("{message}\n{after}");
+    assert_eq!(
+        message,
+        "lantern: merge alice's lantern: +1 Mox Opal, Codex Shredder: 1 → 2"
+    );
+    assert!(after.contains("{ printing = \"rav/254\", qty = 2 },  # Codex Shredder"));
+    assert!(after.contains("{ printing = \"5dn/135\" },  # Lantern of Insight"));
+    assert!(after.contains("{ name = \"Mox Opal\" }"));
+    let done = upstream::take(&mut me, &stem("lantern"), into, from, None, &me_at(3)).unwrap();
+    let MergeDone::Merged { commit: merged, .. } = done else {
+        panic!("{done:?}")
+    };
+    let merged = CommitId::from_hex(&merged).unwrap();
+    assert_eq!(me.read_commit(&merged).unwrap().parents, [pin, her_change]);
+
+    // Blame: Mox Opal is hers, an untouched pin is mine, and the card both
+    // changed, each its own way, was last changed where the two met.
+    let mut memo = blame::Memo::default();
+    let DeckBlame::Blamed { cards, .. } =
+        blame::blame(&me, &mut memo, &stem("lantern"), merged, None).unwrap()
+    else {
+        panic!("no blame")
+    };
+    let last = |i: usize| match &cards[i].blame {
+        Blame::Changed { changed, .. } => changed.commit.clone(),
+        Blame::Added { added } => added.commit.clone(),
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(last(0), pin.to_hex(), "Lantern of Insight");
+    assert_eq!(last(1), merged.to_hex(), "Codex Shredder");
+    assert_eq!(last(4), her_change.to_hex(), "Mox Opal");
+
+    fsck(&alice_dir);
+    fsck(&me_dir);
 }
 
 /// One commit on a version-1 `main`.

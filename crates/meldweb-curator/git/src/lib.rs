@@ -6,7 +6,7 @@
 //! It refuses packfiles and packed refs on disk, the index and a working
 //! tree. It has one remote, `origin`, spoken to over git's smart HTTP
 //! protocol as pure functions over bytes ([`remote`]'s docs), and merges
-//! three-way by lines.
+//! three-way by lines, or by whatever merge the caller hands it per file.
 
 mod merge;
 mod names;

@@ -303,9 +303,19 @@ function Syncing({
         <div className="refusal" role="alert">
           <p>
             {phase.paths.join(", ")} {phase.paths.length === 1 ? "was" : "were"}{" "}
-            changed here and on {host} in the same lines, so syncing stopped.
+            changed here and on {host} in ways that clash, so syncing stopped.
             Both versions are in the repo's history whichever you keep.
           </p>
+          {phase.clashes.length > 0 && (
+            <ul className="sync-clashes">
+              {phase.clashes.map((c) => (
+                <li key={`${c.path} ${c.index}`}>
+                  {c.path}: <strong>{c.subject}</strong> — {c.attribute}: here{" "}
+                  {c.ours}, on {host} {c.theirs}
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="rule-actions">
             <button
               type="button"

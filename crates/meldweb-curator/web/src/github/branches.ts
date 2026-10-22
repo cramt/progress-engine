@@ -70,7 +70,7 @@ export function planSummary(plan: MergePlan, ask: MergeAsk): string {
     case "merge":
       return `Both have saves the other lacks, so this is a merge commit with both as parents.`;
     case "conflict":
-      return `${ask.into} and ${ask.from} changed the same lines, so pick whose lines to keep where they clash. Everything else from both is kept.`;
+      return `${ask.into} and ${ask.from} changed the same things differently, so pick whose to keep where they clash. Everything else from both is kept.`;
     case "unrelated":
       return `${ask.into} and ${ask.from} share no history, so they do not merge.`;
   }

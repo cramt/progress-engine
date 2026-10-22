@@ -2,9 +2,9 @@
 //! by path from their merge base, as a sync merges what this browser and
 //! the remote each committed (ADR-0041).
 //!
-//! The line merge is the one Curator settled a refused save with
-//! (ADR-0021). It began as `web/src/github/merge.ts`; the page now calls
-//! this one through the wasm, so a save and a sync merge alike.
+//! The line merge is Curator's for every file but a deck, which
+//! `meldweb-wasm` merges card by card through the per-file hook
+//! [`MergeFile`] (ADR-0041); this crate knows nothing of decks.
 
 use std::collections::BTreeMap;
 

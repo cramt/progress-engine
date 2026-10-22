@@ -59,6 +59,7 @@ import {
   type Following,
   type Repo,
   type Revision,
+  type Settle,
   type Snapshot,
   type TheirDeck,
 } from "./api";
@@ -111,6 +112,7 @@ export type Request =
       from: string;
       into: string;
       prefer?: Side;
+      picks?: readonly Side[];
     }
   | {
       kind: "merge";
@@ -120,6 +122,7 @@ export type Request =
       intoTip: string;
       fromTip: string;
       prefer?: Side;
+      picks?: readonly Side[];
       who: Who;
     }
   | {
@@ -152,13 +155,19 @@ export type Request =
   | { kind: "fork"; theirs: TheirDeck; stem: string; who: Who }
   | { kind: "following"; stem: string }
   | { kind: "unfollow"; stem: string; who: Who }
-  | { kind: "planTake"; stem: string; prefer?: Side }
+  | {
+      kind: "planTake";
+      stem: string;
+      prefer?: Side;
+      picks?: readonly Side[];
+    }
   | {
       kind: "takeUpstream";
       stem: string;
       intoTip: string;
       fromTip: string;
       prefer?: Side;
+      picks?: readonly Side[];
       who: Who;
     }
   | { kind: "pushRequest"; advertised: Uint8Array }
@@ -537,7 +546,9 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
         return writing((g) =>
           done(
             JSON.parse(
-              g.plan_merge(r.stem, r.from, r.into, r.prefer),
+              g.plan_merge(r.stem, r.from, r.into, r.prefer, [
+                ...(r.picks ?? []),
+              ]),
             ) as MergePlan,
           ),
         );
@@ -552,6 +563,7 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
                 r.intoTip,
                 r.fromTip,
                 r.prefer,
+                [...(r.picks ?? [])],
                 JSON.stringify(r.who),
               ),
             ) as MergeDone,
@@ -663,7 +675,11 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
       // A plan writes the merged objects, which no ref names until a merge.
       case "planTake":
         return writing((g) =>
-          done(JSON.parse(g.plan_take(r.stem, r.prefer)) as MergePlan),
+          done(
+            JSON.parse(
+              g.plan_take(r.stem, r.prefer, [...(r.picks ?? [])]),
+            ) as MergePlan,
+          ),
         );
       case "takeUpstream":
         return writing((g) =>
@@ -674,6 +690,7 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
                 r.intoTip,
                 r.fromTip,
                 r.prefer,
+                [...(r.picks ?? [])],
                 JSON.stringify(r.who),
               ),
             ) as MergeDone,
@@ -758,6 +775,17 @@ export interface LocalRepo extends Repo {
   /** Replaces the repo with the bare repo zipped in `bytes`; throws when it is refused. */
   importZip(bytes: Uint8Array): Promise<void>;
   readonly remote: RemoteSteps;
+}
+
+/** A settle as a request carries it: only what was given. */
+function settled({ prefer, picks }: Settle): {
+  prefer?: Side;
+  picks?: readonly Side[];
+} {
+  return {
+    ...(prefer === undefined ? {} : { prefer }),
+    ...(picks === undefined || picks.length === 0 ? {} : { picks }),
+  };
 }
 
 /** Carries one request to the core and its reply back. */
@@ -847,15 +875,9 @@ export function createLocalRepo(
     async deleteBranch(stem, name, commit) {
       await ask({ kind: "deleteBranch", stem, name, commit });
     },
-    planMerge: (stem, { from, into, prefer }) =>
-      ask({
-        kind: "planMerge",
-        stem,
-        from,
-        into,
-        ...(prefer === undefined ? {} : { prefer }),
-      }),
-    merge: (stem, { from, into, intoTip, fromTip, prefer }) =>
+    planMerge: (stem, { from, into, ...settle }) =>
+      ask({ kind: "planMerge", stem, from, into, ...settled(settle) }),
+    merge: (stem, { from, into, intoTip, fromTip, ...settle }) =>
       ask({
         kind: "merge",
         stem,
@@ -863,7 +885,7 @@ export function createLocalRepo(
         into,
         intoTip,
         fromTip,
-        ...(prefer === undefined ? {} : { prefer }),
+        ...settled(settle),
         who: who(),
       }),
     async deleteFile(path, del) {
@@ -878,19 +900,15 @@ export function createLocalRepo(
     async unfollow(stem) {
       await ask({ kind: "unfollow", stem, who: who() });
     },
-    planTake: (stem, prefer) =>
-      ask({
-        kind: "planTake",
-        stem,
-        ...(prefer === undefined ? {} : { prefer }),
-      }),
-    takeUpstream: (stem, { intoTip, fromTip, prefer }) =>
+    planTake: (stem, settle) =>
+      ask({ kind: "planTake", stem, ...settled(settle ?? {}) }),
+    takeUpstream: (stem, { intoTip, fromTip, ...settle }) =>
       ask({
         kind: "takeUpstream",
         stem,
         intoTip,
         fromTip,
-        ...(prefer === undefined ? {} : { prefer }),
+        ...settled(settle),
         who: who(),
       }),
     exportZip: () => ask({ kind: "exportZip" }),

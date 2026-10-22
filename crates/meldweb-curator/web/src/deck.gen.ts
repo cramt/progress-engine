@@ -1,6 +1,34 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+/**
+ * What merging a refused save came to, on the wire.
+ */
+export type TextMerge =
+  | { kind: "merged"; text: string }
+  | { kind: "clashed"; clashes: MergeClash[] }
+  | { kind: "unreadable"; reason: string };
+
+/**
+ * One thing in a deck both sides changed differently, in words: `Sol Ring`,
+ * `quantity`, `2`, `3`. A merge's `picks` settle it by its `index`.
+ */
+export interface MergeClash {
+  path: string;
+  index: number;
+  /**
+   * The card, `the deck`, or `category ramp`.
+   */
+  subject: string;
+  /**
+   * `quantity`, `categories`, `printing`, `finish`, `in the deck` (one
+   * side removed it), or one of the deck's own fields.
+   */
+  attribute: string;
+  ours: string;
+  theirs: string;
+}
+
 export type DeckBlame =
   | { kind: "blamed"; at: string; cards: CardBlame[] }
   | { kind: "noDeck" };
@@ -176,11 +204,11 @@ export type MergePlan =
   | { kind: "upToDate" }
   | { kind: "fastForward"; into: string; from: string; before?: string; after?: string }
   | { kind: "merge"; into: string; from: string; before?: string; after?: string; message: string }
-  | { kind: "conflict"; into: string; from: string; hunks: ConflictHunk[]; unreadable: MergeRefusal[] }
+  | { kind: "conflict"; into: string; from: string; clashes: MergeClash[]; hunks: ConflictHunk[]; unreadable: MergeRefusal[] }
   | { kind: "unrelated" };
 
 /**
- * A file whose lines merged into something Progress Engine does not read.
+ * A file whose merge makes something Progress Engine does not read.
  */
 export interface MergeRefusal {
   path: string;
@@ -321,7 +349,7 @@ export type Synced =
   | { kind: "fastForwarded"; to: string }
   | { kind: "adopted"; to: string }
   | { kind: "merged"; commit: string; taken: string[] }
-  | { kind: "conflict"; paths: string[] }
+  | { kind: "conflict"; paths: string[]; clashes: MergeClash[] }
   | { kind: "unrelated" };
 
 /**

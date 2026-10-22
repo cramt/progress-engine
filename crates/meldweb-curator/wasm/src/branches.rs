@@ -4,22 +4,22 @@
 //! which there are and how far each is from `main`, making one at a commit
 //! of the deck's line, deleting one, and merging one into another.
 //!
-//! A merge is three-way from the merge base with [`meldweb_git::merge_lines`],
-//! the line merge a refused save and a sync settle with. It is a
+//! A merge is three-way from the merge base, each file both changed merged
+//! as [`crate::merging`] merges its kind, the deck's by card, as a refused
+//! save and a sync merge it. It is a
 //! fast-forward when the branch merged into has not moved since the other
 //! left it, and otherwise a merge commit with two parents whose message is
 //! the semantic diff of the deck, as every save's is (ADR-0021):
 //! `lantern: merge budget: +1 Sol Ring, -1 Mind Stone`. What does not merge,
 //! or merges into something that is not a deck, stops and says where, until
-//! the user picks a side for the stretches both changed.
+//! the user picks a side for each card both changed.
 
 use chip_decklist::changelog;
 use chip_decklist::stem::DeckStem;
 use facet::Facet;
-use meldweb_git::{
-    merge_lines_with, BranchName, CommitId, Error, Planned, Repo, RepoPath, Side, Signature, Store,
-    Tip,
-};
+use meldweb_git::{BranchName, CommitId, Error, Planned, Repo, RepoPath, Signature, Store, Tip};
+
+use crate::merging::{self, FileMerge, MergeClash, Settle};
 
 type Out<T> = Result<T, String>;
 
@@ -85,7 +85,7 @@ pub struct ConflictHunk {
     pub theirs: Vec<String>,
 }
 
-/// A file whose lines merged into something Progress Engine does not read.
+/// A file whose merge makes something Progress Engine does not read.
 #[derive(Debug, Facet)]
 pub struct MergeRefusal {
     pub path: String,
@@ -122,11 +122,13 @@ pub enum MergePlan {
         after: Option<String>,
         message: String,
     },
-    /// Both changed the same lines, or the lines merged into a file that
-    /// does not read. Merging with a side settles it.
+    /// Both changed the same attribute of a card or of the deck, or the
+    /// same lines of another file, or the merge makes a file that does not
+    /// read. A side picked for each clash settles it.
     Conflict {
         into: String,
         from: String,
+        clashes: Vec<MergeClash>,
         hunks: Vec<ConflictHunk>,
         unreadable: Vec<MergeRefusal>,
     },
@@ -284,6 +286,7 @@ pub(crate) struct Worked {
     pub(crate) into: CommitId,
     pub(crate) from: CommitId,
     pub(crate) planned: Planned,
+    pub(crate) clashes: Vec<MergeClash>,
     pub(crate) hunks: Vec<ConflictHunk>,
     pub(crate) unreadable: Vec<MergeRefusal>,
 }
@@ -293,60 +296,60 @@ fn work<S: Store>(
     stem: &DeckStem,
     from: &str,
     into: &str,
-    prefer: Option<Side>,
+    settle: &Settle,
 ) -> Out<Worked> {
     if from == into {
         return Err(format!("{from} cannot be merged into itself"));
     }
     let into_tip = tip_of(repo, &branch_of(stem, into)?)?;
     let from_tip = tip_of(repo, &branch_of(stem, from)?)?;
-    work_tips(repo, into_tip, from_tip, prefer, |repo, merge_file| {
-        repo.plan_merge(&into_tip, &from_tip, prefer, merge_file)
+    work_tips(repo, into_tip, from_tip, settle, |repo, merge_file| {
+        repo.plan_merge(&into_tip, &from_tip, settle.prefer, merge_file)
     })
 }
 
-/// The deck merge's line merge, kept to what still reads as a deck, around
-/// `planning`, which plans the merge of `from` into `into` with it.
+/// The deck's merge, each file both changed merged as its kind merges
+/// ([`merging::merge_file`]), around `planning`, which plans the merge of
+/// `from` into `into` with it.
 pub(crate) fn work_tips<S: Store>(
     repo: &mut Repo<S>,
     into: CommitId,
     from: CommitId,
-    prefer: Option<Side>,
+    settle: &Settle,
     planning: impl FnOnce(&mut Repo<S>, &mut meldweb_git::MergeFile<'_>) -> meldweb_git::Result<Planned>,
 ) -> Out<Worked> {
+    let mut clashes = Vec::new();
     let mut hunks = Vec::new();
     let mut unreadable = Vec::new();
     let mut merge_file = |path: &str, base: &[u8], ours: &[u8], theirs: &[u8]| {
-        let utf8 = |b: &[u8]| std::str::from_utf8(b).ok().map(str::to_owned);
-        let (base, ours, theirs) = (utf8(base)?, utf8(ours)?, utf8(theirs)?);
-        let merged = match merge_lines_with(&base, &ours, &theirs, prefer) {
-            Ok(m) => m,
-            Err(clashes) => {
-                hunks.extend(clashes.into_iter().map(|h| ConflictHunk {
+        merging::merge_bytes(
+            path,
+            base,
+            ours,
+            theirs,
+            settle,
+            &mut |stopped| match stopped {
+                FileMerge::Clashed(c) => clashes.extend(c),
+                FileMerge::Hunks(h) => hunks.extend(h.into_iter().map(|h| ConflictHunk {
                     path: path.to_owned(),
                     base: h.base,
                     ours: h.ours,
                     theirs: h.theirs,
-                }));
-                return None;
-            }
-        };
-        match crate::unreadable(path, &theirs, &merged) {
-            None => Some(merged.into_bytes()),
-            Some(reason) => {
-                unreadable.push(MergeRefusal {
+                })),
+                FileMerge::Unreadable(reason) => unreadable.push(MergeRefusal {
                     path: path.to_owned(),
                     reason,
-                });
-                None
-            }
-        }
+                }),
+                FileMerge::Merged(_) => {}
+            },
+        )
     };
     let planned = planning(repo, &mut merge_file).map_err(said)?;
     Ok(Worked {
         into,
         from,
         planned,
+        clashes,
         hunks,
         unreadable,
     })
@@ -379,17 +382,17 @@ pub(crate) fn message(
 }
 
 /// What merging the deck's branch `from` into its branch `into` would do,
-/// with `prefer` settling each stretch both changed when the user has
-/// picked a side. It writes the merged objects and moves no ref.
+/// with `settle` settling what both changed once the user has picked a
+/// side for it. It writes the merged objects and moves no ref.
 pub fn plan<S: Store>(
     repo: &mut Repo<S>,
     stem: &str,
     from: &str,
     into: &str,
-    prefer: Option<Side>,
+    settle: impl Into<Settle>,
 ) -> Out<MergePlan> {
     let stem = stem_of(stem)?;
-    let w = work(repo, &stem, from, into, prefer)?;
+    let w = work(repo, &stem, from, into, &settle.into())?;
     let deck = deck_path(&stem);
     let before = text(repo.read_file(&w.into, &deck).map_err(said)?);
     let (into_hex, from_hex) = (w.into.to_hex(), w.from.to_hex());
@@ -415,6 +418,7 @@ pub fn plan<S: Store>(
         Planned::Conflicts(_) => MergePlan::Conflict {
             into: into_hex,
             from: from_hex,
+            clashes: w.clashes,
             hunks: w.hunks,
             unreadable: w.unreadable,
         },
@@ -432,11 +436,11 @@ pub fn merge<S: Store>(
     into: &str,
     into_tip: &str,
     from_tip: &str,
-    prefer: Option<Side>,
+    settle: impl Into<Settle>,
     who: &Signature,
 ) -> Out<MergeDone> {
     let stem = stem_of(stem)?;
-    let w = work(repo, &stem, from, into, prefer)?;
+    let w = work(repo, &stem, from, into, &settle.into())?;
     if w.into.to_hex() != into_tip || w.from.to_hex() != from_tip {
         return Ok(MergeDone::Stopped {
             message: format!(

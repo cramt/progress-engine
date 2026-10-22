@@ -430,13 +430,9 @@ pub(crate) fn set_name(
     finish_with(doc, check)
 }
 
-/// Appends `card` as a new line, every field as the format writes it and
-/// `comment` beside it, unchecked: its categories may not be declared yet.
-pub(crate) fn push_card(
-    text: &str,
-    card: &crate::deck::Card,
-    comment: Option<&str>,
-) -> Result<String, EditError> {
+/// `card` as the inline table of its line, every field as the format
+/// writes it.
+fn card_table(card: &crate::deck::Card) -> InlineTable {
     let mut line = InlineTable::new();
     match &card.card {
         CardRef::Name(name) => line.insert("name", name.as_str().into()),
@@ -459,8 +455,58 @@ pub(crate) fn push_card(
         line.insert("in", Value::Array(list));
     }
     line.fmt();
+    line
+}
+
+/// Appends `card` as a new line, every field as the format writes it and
+/// `comment` beside it, unchecked: its categories may not be declared yet.
+pub(crate) fn push_card(
+    text: &str,
+    card: &crate::deck::Card,
+    comment: Option<&str>,
+) -> Result<String, EditError> {
     let mut doc = document(text)?;
-    push_line(&mut doc, line, comment)?;
+    push_line(&mut doc, card_table(card), comment)?;
+    Ok(doc.to_string())
+}
+
+/// Puts `card` in as the line at index `at`, the lines from `at` on moving
+/// down one, with `comment` beside it, unchecked as [`push_card`] is. Below
+/// a card it joins that card's group, above any blank line or comment that
+/// opens the next; as the first card it goes below the list's own opening
+/// comments. At or past the end, or in a list not laid out a card a line,
+/// it is appended.
+pub(crate) fn insert_card(
+    text: &str,
+    at: usize,
+    card: &crate::deck::Card,
+    comment: Option<&str>,
+) -> Result<String, EditError> {
+    let mut doc = document(text)?;
+    let Some(cards) = doc.get_mut("cards").and_then(Item::as_array_mut) else {
+        return push_card(text, card, comment);
+    };
+    let Some(next) = cards.get(at) else {
+        return push_card(text, card, comment);
+    };
+    let prefix = raw(next.decor().prefix());
+    let Some((above, rest)) = prefix.split_once('\n') else {
+        return push_card(text, card, comment);
+    };
+    let indent = rest.rsplit('\n').next().unwrap_or(rest);
+    let own = comment.map(|c| format!("  # {c}")).unwrap_or_default();
+    let (mine, theirs) = if at == 0 {
+        (prefix.clone(), format!("{own}\n{indent}"))
+    } else {
+        (format!("{above}\n{indent}"), format!("{own}\n{rest}"))
+    };
+    let mut line = Value::InlineTable(card_table(card));
+    line.decor_mut().set_prefix(mine);
+    line.decor_mut().set_suffix("");
+    cards.insert_formatted(at, line);
+    if let Some(next) = cards.get_mut(at + 1) {
+        next.decor_mut().set_prefix(theirs);
+    }
     Ok(doc.to_string())
 }
 
@@ -479,7 +525,31 @@ fn meta_rank(key: &Key) -> usize {
 pub(crate) fn set_meta(doc: &mut DocumentMut, key: &str, value: Option<Value>) {
     match value {
         None => {
+            // A comment above the key is about the file as often as the key,
+            // so it stays, on whatever key follows.
+            let comment = doc
+                .key(key)
+                .and_then(|k| k.leaf_decor().prefix())
+                .and_then(|p| p.as_str())
+                .filter(|p| p.contains('#'))
+                .map(str::to_owned);
+            let next = doc
+                .iter()
+                .map(|(k, _)| k.to_owned())
+                .skip_while(|k| k != key)
+                .nth(1);
             doc.remove(key);
+            if let (Some(comment), Some(next)) = (comment, next) {
+                if let Some(mut k) = doc.key_mut(&next) {
+                    let own = k
+                        .leaf_decor()
+                        .prefix()
+                        .and_then(|p| p.as_str())
+                        .unwrap_or("")
+                        .to_owned();
+                    k.leaf_decor_mut().set_prefix(format!("{comment}{own}"));
+                }
+            }
         }
         Some(value) => match doc.get_mut(key).and_then(Item::as_value_mut) {
             Some(existing) => {

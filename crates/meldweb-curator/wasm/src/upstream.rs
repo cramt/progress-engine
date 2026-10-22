@@ -28,11 +28,12 @@ use chip_decklist::stem::DeckStem;
 use facet::Facet;
 use meldweb_git::{
     advertised_branches, BranchName, CommitId, EntryKind, Error, FetchRequest, Other, Planned,
-    Repo, RepoPath, Side, Signature, Store, Tip, TreeMerge, WriteCommit,
+    Repo, RepoPath, Signature, Store, Tip, TreeMerge, WriteCommit,
 };
 
 use crate::branches::{self, deck_path, said, text, MergeDone, MergePlan};
 use crate::layout::{self, version_at};
+use crate::merging::Settle;
 use crate::preference::{self, Upstream};
 
 type Out<T> = Result<T, String>;
@@ -479,12 +480,12 @@ fn work<S: Store>(
     repo: &mut Repo<S>,
     stem: &DeckStem,
     up: &Upstream,
-    prefer: Option<Side>,
+    settle: &Settle,
 ) -> Out<branches::Worked> {
     let into = mine(repo, stem)?;
     let from = their_tip(repo, up)?;
     let same = *stem == up.deck;
-    branches::work_tips(repo, into, from, prefer, |repo, merge_file| {
+    branches::work_tips(repo, into, from, settle, |repo, merge_file| {
         if repo.is_ancestor(&from, &into)? {
             return Ok(Planned::UpToDate);
         }
@@ -503,7 +504,7 @@ fn work<S: Store>(
             (renamed(repo, base)?, renamed(repo, from)?)
         };
         Ok(
-            match repo.merge_trees(Some(&base), &into, &theirs, prefer, merge_file)? {
+            match repo.merge_trees(Some(&base), &into, &theirs, settle.prefer, merge_file)? {
                 TreeMerge::Conflicts(paths) => Planned::Conflicts(paths),
                 TreeMerge::Clean { tree, taken } => Planned::Merge { tree, taken },
             },
@@ -522,9 +523,13 @@ fn label(up: &Upstream) -> String {
 }
 
 /// What taking their changes into `stem`'s `main` would do; nothing moves.
-pub fn plan<S: Store>(repo: &mut Repo<S>, stem: &DeckStem, prefer: Option<Side>) -> Out<MergePlan> {
+pub fn plan<S: Store>(
+    repo: &mut Repo<S>,
+    stem: &DeckStem,
+    settle: impl Into<Settle>,
+) -> Out<MergePlan> {
     let up = followed(repo, stem)?;
-    let w = work(repo, stem, &up, prefer)?;
+    let w = work(repo, stem, &up, &settle.into())?;
     let deck = deck_path(stem);
     let before = text(repo.read_file(&w.into, &deck).map_err(said)?);
     let (into, from) = (w.into.to_hex(), w.from.to_hex());
@@ -550,6 +555,7 @@ pub fn plan<S: Store>(repo: &mut Repo<S>, stem: &DeckStem, prefer: Option<Side>)
         Planned::Conflicts(_) => MergePlan::Conflict {
             into,
             from,
+            clashes: w.clashes,
             hunks: w.hunks,
             unreadable: w.unreadable,
         },
@@ -563,11 +569,11 @@ pub fn take<S: Store>(
     stem: &DeckStem,
     into_tip: &str,
     from_tip: &str,
-    prefer: Option<Side>,
+    settle: impl Into<Settle>,
     who: &Signature,
 ) -> Out<MergeDone> {
     let up = followed(repo, stem)?;
-    let w = work(repo, stem, &up, prefer)?;
+    let w = work(repo, stem, &up, &settle.into())?;
     if w.into.to_hex() != into_tip || w.from.to_hex() != from_tip {
         return Ok(MergeDone::Stopped {
             message: format!(

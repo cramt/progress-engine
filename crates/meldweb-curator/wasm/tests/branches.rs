@@ -16,6 +16,7 @@ use meldweb_git::{
     Timestamp, Tip, WriteCommit,
 };
 use meldweb_wasm::branches::{self, BranchDeleted, BranchMade, MergeDone, MergePlan};
+use meldweb_wasm::merging::Settle;
 
 fn have_git() -> bool {
     let found = Command::new("git")
@@ -126,12 +127,13 @@ fn merge(
     repo: &mut Repo<FsStore>,
     from: &str,
     into: &str,
-    prefer: Option<Side>,
+    settle: impl Into<Settle>,
     at: i64,
 ) -> MergeDone {
-    let plan = branches::plan(repo, "lantern", from, into, prefer).unwrap();
+    let settle = settle.into();
+    let plan = branches::plan(repo, "lantern", from, into, settle.clone()).unwrap();
     let (i, f) = tips(&plan);
-    branches::merge(repo, "lantern", from, into, &i, &f, prefer, &sig(at)).unwrap()
+    branches::merge(repo, "lantern", from, into, &i, &f, settle, &sig(at)).unwrap()
 }
 
 fn facts(repo: &Repo<FsStore>) -> Vec<(String, u32, u32)> {
@@ -319,38 +321,92 @@ fn a_branch_merges_into_main_and_git_reads_the_two_parent_merge() {
 }
 
 #[test]
-fn a_clash_stops_the_merge_until_a_side_is_picked_for_the_stretch() {
+fn cards_each_side_swapped_in_for_one_card_both_come_in() {
     let dir = tempfile::tempdir().unwrap();
     let mut repo = Repo::init(FsStore::new(dir.path())).unwrap();
     let t0 = 1_760_000_000;
     let first = save(&mut repo, "main", &deck(&CARDS), "lantern: made", t0);
-    branches::create(&mut repo, "lantern", "clash", &first.to_hex()).unwrap();
-
-    // Both change Ponder; each changes one more card of its own.
+    branches::create(&mut repo, "lantern", "swap", &first.to_hex()).unwrap();
+    // Each swaps Ponder for a card of its own: a line merge stopped on the
+    // one line both changed; by card, both cut Ponder and each added one.
     let mut theirs = CARDS.to_vec();
     theirs[5] = "Preordain";
-    theirs[0] = "Mana Crypt";
     save(
         &mut repo,
-        "clash",
+        "swap",
         &deck(&theirs),
         "lantern: preordain",
         t0 + 10,
     );
     let mut ours = CARDS.to_vec();
     ours[5] = "Serum Visions";
-    ours[7] = "Snow-Covered Island";
     save(&mut repo, "main", &deck(&ours), "lantern: visions", t0 + 20);
+    let plan = branches::plan(&mut repo, "lantern", "swap", "main", None).unwrap();
+    let mut both = ours.clone();
+    both.insert(5, "Preordain");
+    assert!(
+        matches!(&plan, MergePlan::Merge { after, message, .. } if after.as_deref() == Some(deck(&both).as_str()) && message == "lantern: merge swap: +1 Preordain"),
+        "{plan:?}"
+    );
+}
+
+#[test]
+fn a_clash_stops_the_merge_until_a_side_is_picked_for_the_card() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut repo = Repo::init(FsStore::new(dir.path())).unwrap();
+    let t0 = 1_760_000_000;
+    let first = save(&mut repo, "main", &deck(&CARDS), "lantern: made", t0);
+    branches::create(&mut repo, "lantern", "clash", &first.to_hex()).unwrap();
+    let ponders = |cards: &[&str], n: u32| {
+        deck(cards).replace(
+            "{ name = \"Ponder\" }",
+            &format!("{{ name = \"Ponder\", qty = {n} }}"),
+        )
+    };
+
+    // Both change how many Ponder; each changes one more card of its own.
+    let mut theirs = CARDS.to_vec();
+    theirs[0] = "Mana Crypt";
+    save(
+        &mut repo,
+        "clash",
+        &ponders(&theirs, 3),
+        "lantern: crypt",
+        t0 + 10,
+    );
+    let mut ours = CARDS.to_vec();
+    ours[7] = "Snow-Covered Island";
+    save(
+        &mut repo,
+        "main",
+        &ponders(&ours, 2),
+        "lantern: snow",
+        t0 + 20,
+    );
 
     let plan = branches::plan(&mut repo, "lantern", "clash", "main", None).unwrap();
-    let MergePlan::Conflict { ref hunks, .. } = plan else {
+    let MergePlan::Conflict {
+        ref clashes,
+        ref hunks,
+        ..
+    } = plan
+    else {
         panic!("{plan:?}")
     };
-    assert_eq!(hunks.len(), 1);
-    assert_eq!(hunks[0].path, FILE);
-    assert_eq!(hunks[0].base, vec!["  { name = \"Ponder\" },"]);
-    assert_eq!(hunks[0].ours, vec!["  { name = \"Serum Visions\" },"]);
-    assert_eq!(hunks[0].theirs, vec!["  { name = \"Preordain\" },"]);
+    println!("{clashes:#?}");
+    assert!(hunks.is_empty());
+    assert_eq!(clashes.len(), 1);
+    let c = &clashes[0];
+    assert_eq!(c.path, FILE);
+    assert_eq!(
+        (
+            c.subject.as_str(),
+            c.attribute.as_str(),
+            c.ours.as_str(),
+            c.theirs.as_str()
+        ),
+        ("Ponder", "quantity", "2", "3")
+    );
     let main_before = repo.branch_tip(&line("main")).unwrap();
     assert!(matches!(
         merge(&mut repo, "clash", "main", None, t0 + 30),
@@ -358,24 +414,29 @@ fn a_clash_stops_the_merge_until_a_side_is_picked_for_the_stretch() {
     ));
     assert_eq!(repo.branch_tip(&line("main")).unwrap(), main_before);
 
-    // Taking the branch's side settles only the clash: main keeps its snow.
-    let plan = branches::plan(&mut repo, "lantern", "clash", "main", Some(Side::Theirs)).unwrap();
+    // Picking the branch's side for the card settles only it: main keeps
+    // its snow, and the branch's Mana Crypt comes in where it had it.
+    let pick = Settle {
+        prefer: None,
+        picks: vec![Side::Theirs],
+    };
+    let plan = branches::plan(&mut repo, "lantern", "clash", "main", pick.clone()).unwrap();
     let mut settled = CARDS.to_vec();
     settled[0] = "Mana Crypt";
-    settled[5] = "Preordain";
     settled[7] = "Snow-Covered Island";
+    let settled = ponders(&settled, 3);
     assert!(
-        matches!(plan, MergePlan::Merge { ref after, .. } if after.as_deref() == Some(deck(&settled).as_str())),
+        matches!(plan, MergePlan::Merge { ref after, .. } if after.as_deref() == Some(settled.as_str())),
         "{plan:?}"
     );
     assert!(matches!(
-        merge(&mut repo, "clash", "main", Some(Side::Theirs), t0 + 30),
+        merge(&mut repo, "clash", "main", pick, t0 + 30),
         MergeDone::Merged {
             message: Some(_),
             ..
         }
     ));
-    assert_eq!(text_on(&repo, "main"), deck(&settled));
+    assert_eq!(text_on(&repo, "main"), settled);
     if have_git() {
         let out = git(dir.path(), &["fsck", "--strict", "--full", "--no-dangling"]);
         assert!(out.is_empty(), "fsck: {out}");
@@ -383,7 +444,7 @@ fn a_clash_stops_the_merge_until_a_side_is_picked_for_the_stretch() {
 }
 
 #[test]
-fn lines_that_merge_into_no_deck_stop_with_why() {
+fn a_merge_that_makes_no_deck_stops_with_why() {
     let dir = tempfile::tempdir().unwrap();
     let mut repo = Repo::init(FsStore::new(dir.path())).unwrap();
     let t0 = 1_760_000_000;
@@ -393,30 +454,29 @@ fn lines_that_merge_into_no_deck_stop_with_why() {
     ) + "\n[categories]\nRamp = {}\n";
     let first = save(&mut repo, "main", &base, "lantern: made", t0);
     branches::create(&mut repo, "lantern", "notes", &first.to_hex()).unwrap();
-    // Main drops the Ramp category; the branch files a new card under it.
-    // Each is a deck; both together name a category nothing declares.
-    let ours = base
+    // Main makes Ramp the maybeboard; the branch makes Sol Ring its
+    // commander too. Each is a deck; both together put Sol Ring in two
+    // places at once.
+    let ours = base.replace("Ramp = {}", "Ramp = { type = \"maybeboard\" }");
+    let theirs = base
+        .replace("in = [\"Ramp\"]", "in = [\"Ramp\", \"Cmd\"]")
         .replace(
-            "  { name = \"Sol Ring\", in = [\"Ramp\"] },",
-            "  { name = \"Sol Ring\" },",
-        )
-        .replace("Ramp = {}\n", "");
-    let theirs = base.replace(
-        "  { name = \"Counterspell\" },",
-        "  { name = \"Counterspell\" },\n  { name = \"Mind Stone\", in = [\"Ramp\"] },",
-    );
+            "[categories]\n",
+            "[categories]\nCmd = { type = \"commander\" }\n",
+        );
     save(&mut repo, "notes", &theirs, "lantern: b", t0 + 10);
     save(&mut repo, "main", &ours, "lantern: a", t0 + 20);
     let plan = branches::plan(&mut repo, "lantern", "notes", "main", None).unwrap();
     let MergePlan::Conflict {
         ref hunks,
+        ref clashes,
         ref unreadable,
         ..
     } = plan
     else {
         panic!("{plan:?}")
     };
-    assert!(hunks.is_empty());
+    assert!(hunks.is_empty() && clashes.is_empty());
     assert_eq!(unreadable.len(), 1);
     println!("unreadable: {}", unreadable[0].reason);
     // A side picked still merges into no deck, so the whole file takes it.

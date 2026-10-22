@@ -13,3 +13,6 @@ csv.workspace = true
 thiserror.workspace = true
 facet-toml.workspace = true
 toml_edit.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

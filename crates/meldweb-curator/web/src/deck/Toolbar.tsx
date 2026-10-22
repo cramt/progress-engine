@@ -161,7 +161,14 @@ export function Banners({
     <div className="banners">
       {save.status === "conflict" && (
         <p className="conflict" role="alert">
-          Changed on GitHub since this page loaded.
+          {save.clashes.length > 0
+            ? `Changed elsewhere since this page loaded, and both changed ${save.clashes
+                .map(
+                  (c) =>
+                    `${c.subject}'s ${c.attribute} (here ${c.ours}, there ${c.theirs})`,
+                )
+                .join("; ")}.`
+            : "Changed elsewhere since this page loaded, in a way that does not merge."}
           <button type="button" className="small" onClick={onReload}>
             Reload (discard my edits)
           </button>

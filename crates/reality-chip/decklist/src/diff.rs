@@ -86,7 +86,7 @@ pub struct Diff<'a> {
     pub changes: Vec<(Change, String)>,
 }
 
-fn categories(list: &[String]) -> String {
+pub(crate) fn categories(list: &[String]) -> String {
     if list.is_empty() {
         "uncategorized".to_string()
     } else {
@@ -111,7 +111,7 @@ fn quoted(s: &Option<String>) -> String {
 /// same card name under another printing. What stays unpaired was added or
 /// removed. A card's label is asked for only once the first four passes
 /// leave it unpaired.
-fn pair<'c>(
+pub(crate) fn pair<'c>(
     before: &[&'c Card],
     after: &[&'c Card],
     label: impl Fn(&Card) -> String,
@@ -167,7 +167,7 @@ fn pair<'c>(
 }
 
 /// The name a commit message gives a card: its own, or its printing's.
-fn label_of(c: &Card, name_of: &impl Fn(&Printing) -> Option<String>) -> String {
+pub(crate) fn label_of(c: &Card, name_of: &impl Fn(&Printing) -> Option<String>) -> String {
     match &c.card {
         CardRef::Name(n) => n.clone(),
         CardRef::Printing(p) => name_of(p).unwrap_or_else(|| p.to_string()),

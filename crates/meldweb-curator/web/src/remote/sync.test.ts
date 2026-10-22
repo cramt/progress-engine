@@ -196,7 +196,7 @@ describe("a sync", () => {
   it("stops at a conflict, pushes nothing, and goes on once a side is chosen", async () => {
     const repo = fakeRepo({
       integrate: [
-        { kind: "conflict", paths: ["decks/lantern.deck.toml"] },
+        { kind: "conflict", paths: ["decks/lantern.deck.toml"], clashes: [] },
         { kind: "merged", commit: "m", taken: ["decks/lantern.deck.toml"] },
       ],
       push: ["send"],
@@ -208,6 +208,7 @@ describe("a sync", () => {
     expect(state.kind === "on" && state.phase).toEqual({
       kind: "conflict",
       paths: ["decks/lantern.deck.toml"],
+      clashes: [],
     });
     expect(repo.log.some((l) => l.startsWith("pushRequest"))).toBe(false);
 

@@ -15,6 +15,7 @@ pub mod diff;
 pub mod edit;
 pub mod export;
 pub mod identity;
+pub mod merge;
 pub mod stem;
 pub mod supply;
 pub mod trade;

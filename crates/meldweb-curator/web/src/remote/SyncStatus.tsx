@@ -16,7 +16,7 @@ export function syncLine(state: SyncState): string | null {
   const host = hostName(state.url);
   switch (state.phase.kind) {
     case "conflict":
-      return `Syncing with ${host} stopped: ${state.phase.paths.join(", ")} changed here and on ${host} in the same lines.`;
+      return `Syncing with ${host} stopped: ${state.phase.paths.join(", ")} changed here and on ${host} in ways that clash.`;
     case "unrelated":
       return `Syncing with ${host} stopped: its repo has a different history from this browser's.`;
     case "logged-out":

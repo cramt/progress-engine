@@ -21,7 +21,7 @@
  * Tabs sync one at a time under a Web Lock; each step is atomic in the
  * repo's worker, so a save landing between steps is merged or pushed next.
  */
-import type { RemoteFacts, Synced } from "../deck.gen";
+import type { MergeClash, RemoteFacts, Synced } from "../deck.gen";
 import type { RemoteSteps, Side } from "../repo/local";
 import { type GitTransport, NeedsLogin } from "./transport";
 
@@ -41,10 +41,11 @@ export type Phase =
   /** The host wants a login before it answers. */
   | { kind: "logged-out" }
   /**
-   * These files changed here and on the remote in the same lines; a deck's
-   * named with its branch, `decks/lantern/main: lantern.deck.toml`.
+   * These files changed here and on the remote in a way that does not
+   * merge; a deck's named with its branch, `decks/lantern/main:
+   * lantern.deck.toml`. `clashes` are a deck's, card by card.
    */
-  | { kind: "conflict"; paths: string[] }
+  | { kind: "conflict"; paths: string[]; clashes: MergeClash[] }
   /** The remote's history shares nothing with this repo's. */
   | { kind: "unrelated" }
   | { kind: "failed"; message: string };
@@ -163,7 +164,9 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
     state.kind === "on" &&
     (state.phase.kind === "conflict" || state.phase.kind === "unrelated");
 
-  type Stop = { kind: "conflict"; paths: string[] } | { kind: "unrelated" };
+  type Stop =
+    | { kind: "conflict"; paths: string[]; clashes: MergeClash[] }
+    | { kind: "unrelated" };
 
   /** Fetches and integrates; a stop when the user has to choose. */
   async function bringIn(
@@ -184,7 +187,11 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
       for (const l of moved) l();
     }
     if (synced.kind === "conflict")
-      return { kind: "conflict", paths: synced.paths };
+      return {
+        kind: "conflict",
+        paths: synced.paths,
+        clashes: synced.clashes,
+      };
     if (synced.kind === "unrelated") return { kind: "unrelated" };
     return null;
   }

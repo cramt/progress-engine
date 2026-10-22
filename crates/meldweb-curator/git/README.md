@@ -22,9 +22,10 @@ It can:
   commit marked as added, modified or deleted.
 - give `merge_base` over all parents, as `git merge-base --all` does: none for
   unrelated histories, two after a criss-cross merge.
-- merge two texts three-way by lines (`merge_lines`, Curator's one line
-  merge), and two commits' trees path by path from a merge base, a file both
-  sides changed going to a caller's merge. `merge_lines_with` also names
+- merge two texts three-way by lines (`merge_lines`, Curator's merge for
+  every file but a deck's), and two commits' trees path by path from a merge
+  base, a file both sides changed going to a caller's merge, as git hands a
+  file to a merge driver: `meldweb-wasm` merges a deck there card by card. `merge_lines_with` also names
   each stretch both sides changed differently, or settles every such stretch
   with one side and keeps the rest of both.
 - plan merging one commit into a branch with no ref moved (`plan_merge`):

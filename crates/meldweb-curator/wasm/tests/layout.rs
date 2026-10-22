@@ -15,10 +15,11 @@ use std::process::{Command, Stdio};
 
 use chip_decklist::stem::DeckStem;
 use meldweb_git::{
-    merge_lines, BranchName, Change, CommitId, FetchRequest, FsStore, Identity, Integrated,
-    PushRequest, RemoteUrl, Repo, RepoPath, Signature, TagName, Timestamp, Tip, WriteCommit,
+    BranchName, Change, CommitId, FetchRequest, FsStore, Identity, Integrated, PushRequest,
+    RemoteUrl, Repo, RepoPath, Signature, TagName, Timestamp, Tip, WriteCommit,
 };
 use meldweb_wasm::layout::{self, DeckLines};
+use meldweb_wasm::merging::{self, FileMerge, Settle};
 
 fn have_git() -> bool {
     let found = Command::new("git")
@@ -727,9 +728,10 @@ fn a_named_criteria_set_without_its_deck_is_refused() {
 
 // Syncing across versions.
 
-fn by_lines(_: &str, base: &[u8], ours: &[u8], theirs: &[u8]) -> Option<Vec<u8>> {
-    let s = |b: &[u8]| String::from_utf8(b.to_vec()).ok();
-    merge_lines(&s(base)?, &s(ours)?, &s(theirs)?).map(String::into_bytes)
+/// What the browser's sync merges a file both changed with: a deck by card,
+/// anything else by lines.
+fn as_curator_merges(path: &str, base: &[u8], ours: &[u8], theirs: &[u8]) -> Option<Vec<u8>> {
+    merging::merge_bytes(path, base, ours, theirs, &Settle::default(), &mut |_| {})
 }
 
 fn fetch(repo: &mut Repo<FsStore>, server: &Server) {
@@ -746,7 +748,7 @@ fn fetch(repo: &mut Repo<FsStore>, server: &Server) {
 /// What the browser's integrate does: a remote on version 1 is migrated
 /// here first.
 fn integrate(repo: &mut Repo<FsStore>, at: i64) -> Vec<(BranchName, Integrated)> {
-    layout::integrate(repo, &sig("Alex", at, 0), None, &mut by_lines).unwrap()
+    layout::integrate(repo, &sig("Alex", at, 0), None, &mut as_curator_merges).unwrap()
 }
 
 fn push(repo: &mut Repo<FsStore>, server: &Server) -> PushRequest {
@@ -957,6 +959,130 @@ fn a_v1_browser_with_unpushed_saves_migrates_and_merges_into_the_remotes_v2() {
     eprintln!(
         "{}",
         git(&server.0, &["log", "--all", "--graph", "--format=%h %d %s"])
+    );
+}
+
+/// One commit on `branch` putting `text` at `path`.
+fn put_on(repo: &mut Repo<FsStore>, on: &str, path: &str, text: &str, who: &Signature) {
+    let b = branch(on);
+    let tip = repo.branch_tip(&b).unwrap().unwrap();
+    repo.commit(
+        &b,
+        Tip::At(tip),
+        &WriteCommit {
+            changes: vec![Change::Put {
+                path: p(path),
+                bytes: text.as_bytes().to_vec(),
+            }],
+            message: "lantern: edit\n".into(),
+            author: who.clone(),
+            committer: who.clone(),
+        },
+    )
+    .unwrap();
+}
+
+#[test]
+fn a_sync_merges_a_deck_both_browsers_changed_by_card() {
+    if !have_git() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let (server, mut a, _) = v1_on_server(dir.path());
+    layout::migrate(&mut a).unwrap();
+    fetch(&mut a, &server);
+    integrate(&mut a, 1);
+    push(&mut a, &server);
+    let b_dir = dir.path().join("b.git");
+    let mut b = Repo::init(FsStore::new(&b_dir)).unwrap();
+    b.set_remote(&RemoteUrl::new("https://example.com/alex/mtg.git").unwrap())
+        .unwrap();
+    fetch(&mut b, &server);
+    integrate(&mut b, 2);
+
+    let line = "decks/lantern/main";
+    let lantern = |repo: &Repo<FsStore>| {
+        let tip = repo.branch_tip(&branch(line)).unwrap().unwrap();
+        String::from_utf8(
+            repo.read_file(&tip, &p("lantern.deck.toml"))
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap()
+    };
+    let was = lantern(&a);
+    println!("lantern on both:\n{was}");
+    // Neighbouring lines: A runs two Sol Rings, B three Mind Stones.
+    let mine = was.replace(
+        "{ name = \"Sol Ring\" }",
+        "{ name = \"Sol Ring\", qty = 2 }",
+    );
+    let theirs = was.replace(
+        "{ name = \"Mind Stone\" }",
+        "{ name = \"Mind Stone\", qty = 3 }",
+    );
+    assert!(
+        meldweb_git::merge_lines(&was, &mine, &theirs).is_none(),
+        "by lines these clash"
+    );
+    put_on(
+        &mut a,
+        line,
+        "lantern.deck.toml",
+        &mine,
+        &sig("Alex", 1_802_000_000, 0),
+    );
+    push(&mut a, &server);
+    put_on(
+        &mut b,
+        line,
+        "lantern.deck.toml",
+        &theirs,
+        &sig("Alex", 1_802_000_100, 0),
+    );
+    fetch(&mut b, &server);
+    let outcomes = integrate(&mut b, 1_802_000_200);
+    let lantern_outcome = &outcomes.iter().find(|(n, _)| n.as_str() == line).unwrap().1;
+    assert!(
+        matches!(lantern_outcome, Integrated::Merged { .. }),
+        "{outcomes:?}"
+    );
+    let merged = lantern(&b);
+    println!("merged by card:\n{merged}");
+    assert!(merged.contains("{ name = \"Sol Ring\", qty = 2 }"));
+    assert!(merged.contains("{ name = \"Mind Stone\", qty = 3 }"));
+    assert!(matches!(push(&mut b, &server), PushRequest::Send(_)));
+    fsck(&b_dir);
+    fsck(&server.0);
+
+    // Both change one card's quantity: the sync's merge stops, and says
+    // the card.
+    let base_text = lantern(&b);
+    let a_text = base_text.replace("qty = 3", "qty = 1");
+    let b_text = base_text.replace("qty = 3", "qty = 5");
+    let mut said = Vec::new();
+    let merged = merging::merge_bytes(
+        "lantern.deck.toml",
+        base_text.as_bytes(),
+        a_text.as_bytes(),
+        b_text.as_bytes(),
+        &Settle::default(),
+        &mut |stop| {
+            if let FileMerge::Clashed(c) = stop {
+                said.extend(c);
+            }
+        },
+    );
+    assert!(merged.is_none());
+    println!("{said:#?}");
+    assert_eq!(
+        (
+            said[0].subject.as_str(),
+            said[0].attribute.as_str(),
+            said[0].ours.as_str(),
+            said[0].theirs.as_str()
+        ),
+        ("Mind Stone", "quantity", "1", "5")
     );
 }
 

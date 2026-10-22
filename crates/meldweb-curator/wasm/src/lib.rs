@@ -25,6 +25,7 @@ pub mod blame;
 pub mod branches;
 pub mod copy;
 pub mod layout;
+pub mod merging;
 pub mod preference;
 pub mod proxies;
 pub mod repo;
@@ -603,28 +604,46 @@ fn new_card(json: &str) -> Result<(deck::CardRef, Option<String>), JsError> {
     })
 }
 
-/// `ours` and `theirs`, both made from `base`, merged by lines; `None` when
-/// they changed the same lines differently. A refused save and a sync merge
-/// alike through this (ADR-0021, ADR-0041).
+/// What merging a refused save came to, on the wire.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum TextMerge {
+    Merged {
+        text: String,
+    },
+    /// A deck's cards both changed differently, or stretches of another
+    /// file's lines; `clashes` lists a deck's, and is empty for lines.
+    Clashed {
+        clashes: Vec<merging::MergeClash>,
+    },
+    /// What the merge makes is not a file of its kind.
+    Unreadable {
+        reason: String,
+    },
+}
+
+/// `ours` and `theirs`, both made from `base`, merged as `path`'s kind of
+/// file merges ([`merging::merge_file`]): a deck by card, anything else by
+/// lines. A refused save merges through this, and a sync and every branch
+/// merge through the same dispatch (ADR-0021, ADR-0041).
 #[wasm_bindgen]
-pub fn merge_lines(base: &str, ours: &str, theirs: &str) -> Option<String> {
-    meldweb_git::merge_lines(base, ours, theirs)
+pub fn merge_file(path: &str, base: &str, ours: &str, theirs: &str) -> String {
+    let merged = match merging::merge_file(path, base, ours, theirs, &Default::default()) {
+        merging::FileMerge::Merged(text) => TextMerge::Merged { text },
+        merging::FileMerge::Clashed(clashes) => TextMerge::Clashed { clashes },
+        merging::FileMerge::Hunks(_) => TextMerge::Clashed { clashes: vec![] },
+        merging::FileMerge::Unreadable(reason) => TextMerge::Unreadable { reason },
+    };
+    facet_json::to_string(&merged).expect("TextMerge serialises")
 }
 
-/// Whether a line merge that turned `theirs` into `merged` at `path` still
-/// leaves a file Progress Engine reads: what `commitMessageFor` in
-/// `web/src/github/repoFile.ts` asks of a merged save. A path no editor
-/// writes is only text.
-pub(crate) fn still_reads(path: &str, theirs: &str, merged: &str) -> bool {
-    unreadable(path, theirs, merged).is_none()
-}
-
-/// Why `merged` at `path` is not a file Progress Engine reads, or `None`
-/// when it is; see [`still_reads`].
+/// Why a line merge that turned `theirs` into `merged` at `path` leaves a
+/// file Progress Engine does not read, or `None` when it reads: what
+/// `commitMessageFor` in `web/src/github/repoFile.ts` asks of a merged save.
+/// A path no editor writes is only text.
 pub(crate) fn unreadable(path: &str, theirs: &str, merged: &str) -> Option<String> {
-    // A deck's file is `<stem>.deck.toml` at the root of its own line
-    // (ADR-0041).
-    let deck = path.ends_with(".deck.toml") && !path.contains('/');
+    let deck = merging::is_deck(path);
     match path {
         "collection.toml" => collection::commit_message_for_text(theirs, merged, path)
             .err()
@@ -2202,6 +2221,7 @@ mod tests {
         g.add_type::<upstream::Forked>();
         g.add_type::<repo::FollowingRead>();
         g.add_type::<blame::DeckBlame>();
+        g.add_type::<TextMerge>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",

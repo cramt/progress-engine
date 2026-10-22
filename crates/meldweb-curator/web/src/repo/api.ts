@@ -108,12 +108,24 @@ export interface Branch {
   behind: number;
 }
 
-/** Merging one of a deck's branches into another: which, and the side picked for a clash. */
-export interface MergeAsk {
+/** A side of a merge: `ours` is the branch merged into, `theirs` the other. */
+export type MergeSide = "ours" | "theirs";
+
+/** How the user settled a merge's clashes. */
+export interface Settle {
+  /**
+   * For whatever is not picked one by one, and for every stretch of lines
+   * both changed in a file merged by lines (criteria, the collection).
+   */
+  prefer?: MergeSide;
+  /** The side for each of a deck's clashes, by its `index`. */
+  picks?: readonly MergeSide[];
+}
+
+/** Merging one of a deck's branches into another: which, and how its clashes are settled. */
+export interface MergeAsk extends Settle {
   from: string;
   into: string;
-  /** For the stretches both changed: `ours` keeps `into`'s, `theirs` takes `from`'s. */
-  prefer?: "ours" | "theirs";
 }
 
 export interface Repo {
@@ -213,11 +225,11 @@ export interface Repo {
   /** Stops the deck following anything; its history stays. */
   unfollow(stem: string): Promise<void>;
   /** What taking the followed deck's changes would do; nothing moves. */
-  planTake(stem: string, prefer?: "ours" | "theirs"): Promise<MergePlan>;
+  planTake(stem: string, settle?: Settle): Promise<MergePlan>;
   /** Takes them as `planTake` said, while both are still at its tips. */
   takeUpstream(
     stem: string,
-    ask: { intoTip: string; fromTip: string; prefer?: "ours" | "theirs" },
+    ask: Settle & { intoTip: string; fromTip: string },
   ): Promise<MergeDone>;
 }
 
