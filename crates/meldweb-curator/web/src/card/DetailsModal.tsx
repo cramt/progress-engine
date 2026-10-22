@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   type Card,
   type CardRef,
@@ -65,6 +65,8 @@ export interface DetailsModalProps {
   onEdit: (edit: (text: string) => string) => boolean;
   /** A picked printing's picture, so the deck shows it without asking again. */
   onRemember: (key: string, printing: Printing) => void;
+  /** What the deck's history says of the card: its blame, under its categories. */
+  history?: ReactNode;
 }
 
 /**
@@ -264,6 +266,7 @@ export function DetailsModal(props: DetailsModalProps) {
                   declared={props.categories}
                   onEdit={onEdit}
                 />
+                {props.history}
               </div>
             </>
           )}

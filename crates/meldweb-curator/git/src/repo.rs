@@ -463,6 +463,14 @@ impl<S: Store> Repo<S> {
             .map(|(mode, id)| EntryKind::of(mode, id)))
     }
 
+    /// What is at `path` in `tree`, as [`Repo::entry`] says it at a commit,
+    /// for a caller that has read the commit already.
+    pub fn entry_in(&self, tree: TreeId, path: &RepoPath) -> Result<Option<EntryKind>> {
+        Ok(self
+            .entry_at(tree, path)?
+            .map(|(mode, id)| EntryKind::of(mode, id)))
+    }
+
     /// The entries of the directory at `dir` (the root when `None`) at `at`,
     /// in git's tree order; `None` when there is no directory there.
     pub fn list_dir(&self, at: &CommitId, dir: Option<&RepoPath>) -> Result<Option<Vec<DirEntry>>> {

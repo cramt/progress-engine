@@ -5,7 +5,9 @@
  * commit left it, `?vs=<stem>` is another deck (a fork or its parent) to
  * compare with, `?history` keeps the timeline open, and `?view=` lays the
  * deck out another way than as stacks: by what it costs (`cost`), by where
- * each card comes from (`sourcing`), or as the physical deck (`build`).
+ * each card comes from (`sourcing`), as the physical deck (`build`), or by
+ * the commit that last changed each card (`blame`), which a past version
+ * (`?at=`) shows too.
  */
 import type { DeckChange } from "../deck";
 import { deckStem } from "../github/decks";
@@ -19,7 +21,13 @@ export type Viewing =
   | { kind: "deck"; stem: string };
 
 /** How the deck as it is now is laid out; the first is the default. */
-export const DECK_VIEWS = ["stacks", "cost", "sourcing", "build"] as const;
+export const DECK_VIEWS = [
+  "stacks",
+  "cost",
+  "sourcing",
+  "build",
+  "blame",
+] as const;
 export type DeckView = (typeof DECK_VIEWS)[number];
 
 /** Everything about the deck page the URL holds. */

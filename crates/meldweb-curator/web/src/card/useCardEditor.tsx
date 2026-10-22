@@ -108,12 +108,21 @@ export function useCardEditor({
   printings: initial,
   edit,
   refuse,
+  history,
 }: {
   text: string;
   deck: Parsed;
   printings: Printings;
   edit: (next: string) => void;
   refuse: (message: string | null) => void;
+  /**
+   * What the deck's history says of a card: the entries of its menu's Blame
+   * submenu, and what its details show of it.
+   */
+  history?: {
+    menu: (card: Card) => MenuEntry[];
+    details: (card: Card) => ReactNode;
+  };
 }): CardEditor {
   const cards = deck.kind === "deck" ? deck.cards : [];
   const categories = deck.kind === "deck" ? deck.categories : [];
@@ -232,6 +241,9 @@ export function useCardEditor({
         hotkey: "Click",
         run: () => openDetails(card.index, false),
       },
+      ...(history && !many
+        ? [{ label: "Blame", submenu: history.menu(card) }]
+        : []),
       "separator",
       {
         label: "Increase quantity",
@@ -373,6 +385,7 @@ export function useCardEditor({
           }}
           onEdit={tryEdit}
           onRemember={remember}
+          history={history?.details(shown)}
         />
       )}
       {naming && (

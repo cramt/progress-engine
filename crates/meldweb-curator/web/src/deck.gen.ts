@@ -1,6 +1,58 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+export type DeckBlame =
+  | { kind: "blamed"; at: string; cards: CardBlame[] }
+  | { kind: "noDeck" };
+
+/**
+ * One card line of the deck blamed.
+ */
+export interface CardBlame {
+  /**
+   * The line's index among the deck's cards.
+   */
+  index: number;
+  /**
+   * What its last change did to it, as that commit's message says it:
+   * `+1 Sol Ring`, `Sol Ring: 1 → 2`.
+   */
+  changes: string[];
+  blame: Blame;
+}
+
+/**
+ * When a card came into the deck and when it last changed.
+ */
+export type Blame =
+  | { kind: "addedUnsaved" }
+  | { kind: "changedUnsaved"; added: BlameCommit }
+  | { kind: "added"; added: BlameCommit }
+  | { kind: "changed"; added: BlameCommit; changed: BlameCommit };
+
+/**
+ * One commit, as a card's blame names it.
+ */
+export interface BlameCommit {
+  commit: string;
+  /**
+   * The stem of the deck the card was in at that commit: this deck's, or
+   * for a card unchanged since a fork, the deck it was forked from.
+   */
+  deck: string;
+  author: string;
+  email: string;
+  /**
+   * The author's time, in seconds since the Unix epoch, as `git blame`
+   * dates a line.
+   */
+  authoredAt: number;
+  /**
+   * Without the newline git ends a message with.
+   */
+  message: string;
+}
+
 export type MergeDone =
   | { kind: "merged"; commit: string; message?: string }
   | { kind: "upToDate" }

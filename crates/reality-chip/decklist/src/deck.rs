@@ -249,9 +249,9 @@ fn type_names() -> String {
     CategoryType::ALL.map(CategoryType::as_str).join(", ")
 }
 
-#[derive(Facet)]
+#[derive(Facet, Clone)]
 #[facet(deny_unknown_fields)]
-struct RawDeck {
+pub(crate) struct RawDeck {
     name: Option<String>,
     format: Option<String>,
     /// Read only to be refused with a reason, rather than as an unknown key.
@@ -259,12 +259,12 @@ struct RawDeck {
     cover: Option<String>,
     description: Option<String>,
     #[facet(default)]
-    cards: Vec<RawCard>,
+    pub(crate) cards: Vec<RawCard>,
     #[facet(default)]
     categories: BTreeMap<String, RawCategory>,
 }
 
-#[derive(Facet)]
+#[derive(Facet, Clone)]
 #[facet(deny_unknown_fields)]
 pub(crate) struct RawCard {
     pub(crate) name: Option<String>,
@@ -275,7 +275,7 @@ pub(crate) struct RawCard {
     pub(crate) categories: Vec<String>,
 }
 
-#[derive(Facet)]
+#[derive(Facet, Clone)]
 #[facet(deny_unknown_fields)]
 struct RawCategory {
     #[facet(rename = "type")]
@@ -284,8 +284,11 @@ struct RawCategory {
 
 impl Deck {
     pub fn parse(text: &str) -> Result<Deck, DeckError> {
-        let raw: RawDeck =
-            facet_toml::from_str(text).map_err(|e| DeckError::Toml(e.to_string()))?;
+        Self::from_raw(facet_toml::from_str(text).map_err(|e| DeckError::Toml(e.to_string()))?)
+    }
+
+    /// The deck a file's TOML is, checked: the one place a deck is made.
+    pub(crate) fn from_raw(raw: RawDeck) -> Result<Deck, DeckError> {
         if raw.variant_of.is_some() {
             return Err(DeckError::VariantOf);
         }

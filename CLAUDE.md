@@ -38,7 +38,10 @@ the deck's place against its list, with the collection moves to fix it
 (ADR-0036). A deck's picker beside its name lists its branches and
 snapshots; a branch (`?branch=`) saves by itself and merges into the deck's
 `main`, the only branch Build, Sourcing, proxies and the collection read,
-with every merge decision in Rust (`meldweb-wasm`'s `branches`, ADR-0041). A deck's Proxies… button is Phyrexian Metamorph's sheet, made
+with every merge decision in Rust (`meldweb-wasm`'s `branches`, ADR-0041); a
+card's blame (its menu, its details and the Blame view, `?view=blame`, at
+`?at=` too) is `meldweb-wasm`'s `blame`, following the card through merges
+and forks by `chip-decklist`'s diff pairing. A deck's Proxies… button is Phyrexian Metamorph's sheet, made
 in the browser, and `/cards` edits and prints Mirage Mockery's custom cards,
 `cards/*.card.toml` in the same repo, through its own wasm, `mockery-wasm`
 (ADR-0040). The repo is a bare git repo in the browser's OPFS (ADR-0041),

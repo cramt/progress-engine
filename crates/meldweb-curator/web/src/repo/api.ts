@@ -10,7 +10,7 @@
  * branch it is on, `main` when it names none.
  */
 
-import type { MergeDone, MergePlan } from "../deck.gen";
+import type { CardBlame, MergeDone, MergePlan } from "../deck.gen";
 
 export interface FileAt {
   text: string;
@@ -118,6 +118,14 @@ export interface Repo {
   ): Promise<Revision[]>;
   /** One commit, or `null` when the repo has none by that sha. */
   revision(commit: string): Promise<Revision | null>;
+  /**
+   * Every card of the deck `stem` at `at` (a commit, or a branch such as
+   * `decks/lantern/main`) with the commit that last changed it and the one
+   * it came in at, in the order of the deck's cards (ADR-0041). `unsaved` is
+   * the editor's text on top of `at`, whose cards follow it instead. `null`
+   * when there is no deck there.
+   */
+  blame(stem: string, at: string, unsaved?: string): Promise<BlameRead | null>;
   /** The annotated tags whose names start with `prefix`. */
   snapshots(prefix: string): Promise<Snapshot[]>;
   /** Tags `commit` as `tag`. Throws `ConflictError` when the name is taken. */
@@ -166,7 +174,14 @@ export interface Repo {
   migrate(from: number): Promise<void>;
 }
 
-export type { MergeDone, MergePlan };
+/** A deck's cards blamed at a commit. */
+export interface BlameRead {
+  /** The commit blamed. */
+  at: string;
+  cards: CardBlame[];
+}
+
+export type { CardBlame, MergeDone, MergePlan };
 
 /**
  * The file moved in the repo since its sha was read, or a create found it

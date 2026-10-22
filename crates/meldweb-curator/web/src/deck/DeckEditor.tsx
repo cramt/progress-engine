@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bestPrinting } from "../card/bestPrinting";
+import type { MenuEntry } from "../card/CardView";
 import { useSettings } from "../card/preference";
 import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
@@ -15,6 +16,7 @@ import {
   setCardPrinting,
   setDeckDescription,
 } from "../deck";
+import type { CardBlame } from "../deck.gen";
 import type { PublicRepos } from "../github/api";
 import { MAIN, makeBranch } from "../github/branches";
 import { createDeck, deckFile } from "../github/decks";
@@ -37,7 +39,16 @@ import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
 import { BranchIcon, HistoryIcon, ScanIcon } from "../ui/icons";
 import { messageOf } from "../ui/Sheet";
 import { printingNames } from "./archidektNames";
+import {
+  type BlameState,
+  BlameView,
+  blameByIndex,
+  CardBlamePanel,
+  type OpenCommit,
+  useBlame,
+} from "./BlameView";
 import { BuildView } from "./BuildView";
+import { addedTouch, lastTouch, shortDay, unchangedSinceAdded } from "./blame";
 import { CopyDeck } from "./CopyDeck";
 import { CostView } from "./CostView";
 import { Description } from "./Description";
@@ -155,6 +166,37 @@ export function DeckEditor({
   const [refusal, setRefusal] = useState<string | null>(null);
   const parsed = useMemo(() => parseDeck(history.present), [history.present]);
   const { undo, redo } = history;
+  // Each card's last change and add, of the deck as it is now: the branch's
+  // tip with the edits not saved yet on top (ADR-0041).
+  const blameNow = useBlame(
+    repo,
+    stem,
+    deckFile(stem, branch).branch,
+    history.present,
+    viewing.kind === "now",
+  );
+  const blamed = useMemo(() => blameByIndex(blameNow), [blameNow]);
+  // A past version's blame is at its commit, with nothing unsaved on top.
+  const blameThen = useBlame(
+    repo,
+    stem,
+    viewing.kind === "revision" ? viewing.commit : "",
+    undefined,
+    viewing.kind === "revision" && view === "blame",
+  );
+  const navigateTo = useNavigate();
+  // A commit of this deck opens as a revision; one from before a fork, as
+  // the deck it was forked from.
+  const openCommit: OpenCommit = (c) => {
+    if (c.deck === stem)
+      onNavigate({ viewing: { kind: "revision", commit: c.commit } });
+    else
+      void navigateTo({
+        to: "/deck/$",
+        params: { _splat: c.deck },
+        search: { at: c.commit },
+      });
+  };
   // Each card's menu, hotkeys and details modal, every change an edit here.
   const cards = useCardEditor({
     text: history.present,
@@ -162,6 +204,20 @@ export function DeckEditor({
     printings: loadedPrintings,
     edit: history.edit,
     refuse: setRefusal,
+    history: {
+      menu: (card) =>
+        blameMenu(blamed.get(card.index), blameNow, openCommit, () =>
+          onNavigate({ view: "blame" }),
+        ),
+      details: (card) => (
+        <CardBlamePanel
+          state={blameNow}
+          blame={blamed.get(card.index)}
+          stem={stem}
+          onOpen={openCommit}
+        />
+      ),
+    },
   });
   const [searching, setSearching] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -184,7 +240,7 @@ export function DeckEditor({
 
   useUndoKeys(undo, redo);
 
-  const navigate = useNavigate();
+  const navigate = navigateTo;
   const other = useOther(repo, stem, viewing);
   const onMain = branch === MAIN;
   // Main's list off main, read again after a merge into it.
@@ -805,6 +861,24 @@ export function DeckEditor({
               commit: viewing.kind === "revision" ? viewing.commit : null,
             })
           }
+          {...(version.viewing.kind === "revision"
+            ? {
+                blame: {
+                  shown:
+                    view === "blame" && version.other.kind === "loaded" ? (
+                      <BlameView
+                        state={blameThen}
+                        cards={version.other.deck.cards}
+                        printings={version.other.printings}
+                        stem={stem}
+                        onOpen={openCommit}
+                      />
+                    ) : null,
+                  onShow: (on: boolean) =>
+                    onNavigate({ view: on ? "blame" : "stacks" }),
+                },
+              }
+            : {})}
         />
       )}
       {!looking && (
@@ -869,6 +943,14 @@ export function DeckEditor({
               onDrop={onDrop}
               cardProps={cards.cardProps}
             />
+          ) : view === "blame" ? (
+            <BlameView
+              state={blameNow}
+              cards={parsed.cards}
+              printings={cards.printings}
+              stem={stem}
+              onOpen={openCommit}
+            />
           ) : view === "cost" ? (
             <CostView
               cards={parsed.cards}
@@ -928,4 +1010,56 @@ export function DeckEditor({
       {dialogView}
     </main>
   );
+}
+
+/**
+ * A card's Blame submenu: where it came in and where it last changed, each
+ * opening that revision, and the Blame view.
+ */
+function blameMenu(
+  blame: CardBlame | undefined,
+  state: BlameState,
+  open: OpenCommit,
+  onView: () => void,
+): MenuEntry[] {
+  const view: MenuEntry[] = ["separator", { label: "Blame view", run: onView }];
+  if (!blame) {
+    const label =
+      state.kind === "failed"
+        ? "The deck's history did not read"
+        : state.kind === "none"
+          ? "No history yet"
+          : "Reading the deck's history…";
+    return [{ label, disabled: true, run: () => undefined }, ...view];
+  }
+  const now = new Date();
+  const added = addedTouch(blame.blame);
+  const last = lastTouch(blame.blame);
+  const what = blame.changes.join(", ");
+  const entries: MenuEntry[] = [
+    added.kind === "unsaved"
+      ? {
+          label: `Added: ${what}, not saved yet`,
+          disabled: true,
+          run: () => undefined,
+        }
+      : {
+          label: `Added ${shortDay(added.commit.authoredAt, now)} by ${added.commit.author}`,
+          run: () => open(added.commit),
+        },
+  ];
+  if (!unchangedSinceAdded(blame.blame))
+    entries.push(
+      last.kind === "unsaved"
+        ? {
+            label: `Changed: ${what}, not saved yet`,
+            disabled: true,
+            run: () => undefined,
+          }
+        : {
+            label: `Changed ${shortDay(last.commit.authoredAt, now)} by ${last.commit.author}: ${what}`,
+            run: () => open(last.commit),
+          },
+    );
+  return [...entries, ...view];
 }

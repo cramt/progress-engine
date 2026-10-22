@@ -109,32 +109,88 @@ fn quoted(s: &Option<String>) -> String {
 /// Pairs each card in `after` with the card it was in `before`, most alike
 /// first: the same line, then the same card with one thing changed, then the
 /// same card name under another printing. What stays unpaired was added or
-/// removed.
-fn pair(before: &[(&Card, String)], after: &[(&Card, String)]) -> Vec<(usize, usize)> {
-    type Alike = fn(&(&Card, String), &(&Card, String)) -> bool;
-    let passes: [Alike; 5] = [
-        |a, b| a.0.card == b.0.card && a.0.categories == b.0.categories && a.0.finish == b.0.finish,
-        |a, b| a.0.card == b.0.card && a.0.categories == b.0.categories,
-        |a, b| a.0.card == b.0.card && a.0.finish == b.0.finish,
-        |a, b| a.0.card == b.0.card,
-        |a, b| a.1 == b.1,
+/// removed. A card's label is asked for only once the first four passes
+/// leave it unpaired.
+fn pair<'c>(
+    before: &[&'c Card],
+    after: &[&'c Card],
+    label: impl Fn(&Card) -> String,
+) -> Vec<(usize, usize)> {
+    type Alike = fn(&Card, &Card) -> bool;
+    let passes: [Alike; 4] = [
+        |a, b| a.card == b.card && a.categories == b.categories && a.finish == b.finish,
+        |a, b| a.card == b.card && a.categories == b.categories,
+        |a, b| a.card == b.card && a.finish == b.finish,
+        |a, b| a.card == b.card,
     ];
     let mut paired_before = vec![false; before.len()];
     let mut paired_after = vec![false; after.len()];
     let mut pairs = Vec::new();
-    for alike in passes {
-        for (i, a) in before.iter().enumerate() {
-            if paired_before[i] {
+    let pass = |alike: &dyn Fn(usize, usize) -> bool,
+                paired_before: &mut [bool],
+                paired_after: &mut [bool],
+                pairs: &mut Vec<(usize, usize)>| {
+        for (i, done) in paired_before.iter_mut().enumerate() {
+            if *done {
                 continue;
             }
-            if let Some(j) = (0..after.len()).find(|&j| !paired_after[j] && alike(a, &after[j])) {
-                paired_before[i] = true;
+            if let Some(j) = (0..after.len()).find(|&j| !paired_after[j] && alike(i, j)) {
+                *done = true;
                 paired_after[j] = true;
                 pairs.push((i, j));
             }
         }
+    };
+    for alike in passes {
+        pass(
+            &|i, j| alike(before[i], after[j]),
+            &mut paired_before,
+            &mut paired_after,
+            &mut pairs,
+        );
     }
+    let left = |cards: &[&Card], paired: &[bool]| -> Vec<Option<String>> {
+        cards
+            .iter()
+            .zip(paired)
+            .map(|(c, p)| (!p).then(|| label(c)))
+            .collect()
+    };
+    let (lb, la) = (left(before, &paired_before), left(after, &paired_after));
+    pass(
+        &|i, j| lb[i].is_some() && lb[i] == la[j],
+        &mut paired_before,
+        &mut paired_after,
+        &mut pairs,
+    );
     pairs
+}
+
+/// The name a commit message gives a card: its own, or its printing's.
+fn label_of(c: &Card, name_of: &impl Fn(&Printing) -> Option<String>) -> String {
+    match &c.card {
+        CardRef::Name(n) => n.clone(),
+        CardRef::Printing(p) => name_of(p).unwrap_or_else(|| p.to_string()),
+    }
+}
+
+fn cards_of(deck: &Deck) -> Vec<&Card> {
+    deck.cards.iter().collect()
+}
+
+/// Which card line of `after` each card line of `before` became, as
+/// `(before, after)` indices: the pairing every [`Diff`] is worked out from.
+/// A card is the same card across two versions when this pairs it, whatever
+/// else changed about its line; a line in neither pair was removed or added.
+/// Blame follows a card through history by these pairs.
+pub fn pair_lines(
+    before: &Deck,
+    after: &Deck,
+    name_of: impl Fn(&Printing) -> Option<String>,
+) -> Vec<(usize, usize)> {
+    pair(&cards_of(before), &cards_of(after), |c| {
+        label_of(c, &name_of)
+    })
 }
 
 impl<'a> Diff<'a> {
@@ -145,15 +201,13 @@ impl<'a> Diff<'a> {
         after: &'a Deck,
         name_of: impl Fn(&Printing) -> Option<String>,
     ) -> Self {
-        let label = |c: &Card| match &c.card {
-            CardRef::Name(n) => n.clone(),
-            CardRef::Printing(p) => name_of(p).unwrap_or_else(|| p.to_string()),
+        let labelled = |d: &'a Deck| -> Vec<(&'a Card, String)> {
+            d.cards.iter().map(|c| (c, label_of(c, &name_of))).collect()
         };
-        let side = |d: &'a Deck| -> Vec<(&'a Card, String)> {
-            d.cards.iter().map(|c| (c, label(c))).collect()
-        };
-        let (b, a) = (side(before), side(after));
-        let pairs = pair(&b, &a);
+        let (b, a) = (labelled(before), labelled(after));
+        let pairs = pair(&cards_of(before), &cards_of(after), |c| {
+            label_of(c, &name_of)
+        });
 
         // Each change with the card or category it is about, for ordering.
         let mut out: Vec<(Change, String, String)> = Vec::new();
@@ -306,8 +360,9 @@ impl<'a> Diff<'a> {
     }
 }
 
-/// Each printing's name from the comments beside it in `text`.
-pub(crate) fn printing_names(text: &str, deck: &Deck, names: &mut HashMap<Printing, String>) {
+/// Each printing's name from the comments beside it in `text`, which `deck`
+/// was parsed from.
+pub fn printing_names(text: &str, deck: &Deck, names: &mut HashMap<Printing, String>) {
     for (card, comment) in deck.cards.iter().zip(card_comments(text)) {
         if let (CardRef::Printing(p), Some(name)) = (&card.card, comment) {
             names.insert(p.clone(), name);

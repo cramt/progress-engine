@@ -236,6 +236,9 @@ export function fakeRepo(files: Record<string, string> = {}) {
     async branches() {
       return [];
     },
+    async blame() {
+      return null;
+    },
     async createBranch() {
       throw new Error("no branches in fakeRepo");
     },

@@ -243,4 +243,58 @@ describe("the browser's repo", () => {
     await repo.putFile("VERSION", { text: "1\n", message: "v", sha: null });
     expect((await repo.history("VERSION"))[0]?.author).toBe("Curator");
   });
+
+  it("blames each card on who last changed it, edits not saved on top", async () => {
+    const { tab } = browser();
+    const alex = tab();
+    const bo = tab({ name: "Bo", email: "bo@example.com" });
+    const made = await alex.putFile(PATH, {
+      text: deck("Sol Ring", "Mind Stone"),
+      message: "lantern: +1 Sol Ring, +1 Mind Stone",
+      sha: null,
+      branch: BRANCH,
+    });
+    const swapped = await bo.putFile(PATH, {
+      text: deck("Sol Ring", "Fellwar Stone"),
+      message: "lantern: +1 Fellwar Stone, -1 Mind Stone",
+      sha: made.sha,
+      branch: BRANCH,
+    });
+    const now = await alex.blame("lantern", BRANCH);
+    expect(now?.at).toBe(swapped.commit);
+    expect(
+      now?.cards.map((c) => [c.index, c.blame.kind, c.changes.join(", ")]),
+    ).toEqual([
+      [0, "added", "+1 Sol Ring"],
+      [1, "added", "+1 Fellwar Stone"],
+    ]);
+    const [sol, fellwar] = now?.cards ?? [];
+    expect(sol?.blame.kind === "added" && sol.blame.added.author).toBe("Alex");
+    expect(fellwar?.blame.kind === "added" && fellwar.blame.added.author).toBe(
+      "Bo",
+    );
+
+    // Unsaved: one more Sol Ring, and Opt.
+    const editing = await alex.blame(
+      "lantern",
+      BRANCH,
+      deck("Sol Ring", "Fellwar Stone", "Opt").replace(
+        '{ name = "Sol Ring" }',
+        '{ name = "Sol Ring", qty = 2 }',
+      ),
+    );
+    expect(editing?.cards.map((c) => [c.blame.kind, c.changes])).toEqual([
+      ["changedUnsaved", ["Sol Ring: 1 → 2"]],
+      ["added", ["+1 Fellwar Stone"]],
+      ["addedUnsaved", ["+1 Opt"]],
+    ]);
+
+    // At the first commit, Mind Stone was there.
+    const then = await alex.blame("lantern", made.commit);
+    expect(then?.cards.map((c) => c.changes)).toEqual([
+      ["+1 Sol Ring"],
+      ["+1 Mind Stone"],
+    ]);
+    expect(await alex.blame("loam", BRANCH)).toBeNull();
+  });
 });

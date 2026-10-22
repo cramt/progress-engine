@@ -1,0 +1,117 @@
+/* Blame per card (ADR-0041): the Blame view's table, and a card's blame line
+ * in its details. */
+
+.blame-view {
+  position: relative;
+  overflow-x: auto;
+  margin: 12px 0 24px;
+}
+
+.blame-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.blame-table th {
+  padding: 4px 10px;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.blame-table th:first-child {
+  width: 46px;
+}
+
+.blame-table td {
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.blame-table tbody tr:hover td {
+  background: var(--surface-2);
+}
+
+.blame-name {
+  font-weight: 600;
+}
+
+.blame-when {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.blame-by,
+.blame-subject {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.blame-what {
+  min-width: 220px;
+}
+
+.blame-subject {
+  display: block;
+  overflow: hidden;
+  max-width: 420px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A commit is a link in running text, not an engraved control. */
+button.blame-commit {
+  display: inline;
+  height: auto;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font-size: inherit;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+}
+
+button.blame-commit:hover:not(:disabled) {
+  background: none;
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
+.blame-line {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.blame-waiting {
+  margin: 16px 0;
+}
+
+.details-history {
+  margin-top: 14px;
+}
+
+.details-history h3 {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.version-modes {
+  margin: 8px 0 0;
+}

@@ -25,6 +25,7 @@ import type {
   BranchFacts,
   BranchMade,
   CommitFacts,
+  DeckBlame,
   DeckBranches,
   DeckDeleted,
   DeckLineList,
@@ -46,6 +47,7 @@ import type {
 } from "../deck.gen";
 import { GitRepo } from "../wasm/pkg/meldweb_wasm.js";
 import {
+  type BlameRead,
   type Branch,
   ConflictError,
   type DeckLine,
@@ -72,6 +74,7 @@ export type Request =
       perPage: number;
     }
   | { kind: "revision"; commit: string }
+  | { kind: "blame"; stem: string; at: string; unsaved?: string }
   | { kind: "snapshots"; prefix: string }
   | {
       kind: "takeSnapshot";
@@ -153,6 +156,7 @@ export interface Results {
   listDir: DirEntry[];
   history: Revision[];
   revision: Revision | null;
+  blame: BlameRead | null;
   snapshots: Snapshot[];
   takeSnapshot: Snapshot;
   dropSnapshot: null;
@@ -391,6 +395,15 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
         return reading((g) => {
           const read = JSON.parse(g.revision(r.commit)) as RevisionRead;
           return done(read.kind === "found" ? revisionOf(read.revision) : null);
+        });
+      case "blame":
+        return reading((g) => {
+          const read = JSON.parse(
+            g.blame(r.stem, r.at, r.unsaved),
+          ) as DeckBlame;
+          return done(
+            read.kind === "blamed" ? { at: read.at, cards: read.cards } : null,
+          );
         });
       case "snapshots":
         return reading((g) =>
@@ -693,6 +706,13 @@ export function createLocalRepo(
           : {}),
       }),
     revision: (commit) => ask({ kind: "revision", commit }),
+    blame: (stem, at, unsaved) =>
+      ask({
+        kind: "blame",
+        stem,
+        at,
+        ...(unsaved === undefined ? {} : { unsaved }),
+      }),
     snapshots: (prefix) => ask({ kind: "snapshots", prefix }),
     takeSnapshot: ({ tag, label, commit }) =>
       ask({ kind: "takeSnapshot", tag, label, commit, who: who() }),

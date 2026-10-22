@@ -21,6 +21,7 @@
 
 use std::collections::HashMap;
 
+pub mod blame;
 pub mod branches;
 pub mod copy;
 pub mod layout;
@@ -2149,6 +2150,7 @@ mod tests {
         g.add_type::<branches::BranchDeleted>();
         g.add_type::<branches::MergePlan>();
         g.add_type::<branches::MergeDone>();
+        g.add_type::<blame::DeckBlame>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",

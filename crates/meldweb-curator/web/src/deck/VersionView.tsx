@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import type { CardViewProps } from "../card/CardView";
 import { type Card, compareDecks, type DeckChange } from "../deck";
 import { artCrop, cardName, type Printings, printingKey } from "../scryfall";
@@ -50,6 +50,7 @@ export function VersionView({
   onBranch,
   onSnapshot,
   onFork,
+  blame,
 }: {
   viewing: Exclude<Viewing, { kind: "now" }>;
   other: Other;
@@ -63,6 +64,14 @@ export function VersionView({
   onBranch: (commit: string) => void;
   onSnapshot: (commit: string) => void;
   onFork: (text: string) => void;
+  /**
+   * For a past version, whether it shows what differs or its blame, the
+   * blame itself once shown, and the switch between them.
+   */
+  blame?: {
+    shown: ReactNode | null;
+    onShow: (blame: boolean) => void;
+  };
 }) {
   if (other.kind === "loading") {
     return (
@@ -109,6 +118,27 @@ export function VersionView({
           {revision && (
             <p className="version-subject">{subject(revision.message, stem)}</p>
           )}
+          {blame && (
+            <nav
+              className="segmented version-modes"
+              aria-label="What this version shows"
+            >
+              <button
+                type="button"
+                aria-pressed={blame.shown === null}
+                onClick={() => blame.onShow(false)}
+              >
+                Changes
+              </button>
+              <button
+                type="button"
+                aria-pressed={blame.shown !== null}
+                onClick={() => blame.onShow(true)}
+              >
+                Blame
+              </button>
+            </nav>
+          )}
         </div>
         <div className="version-actions">
           {viewing.kind === "revision" && (
@@ -153,20 +183,24 @@ export function VersionView({
           </button>
         </div>
       </section>
-      <Changes
-        // Positions shift with every take, so the ticks start again.
-        key={present.text}
-        present={present}
-        other={other}
-        viewing={viewing}
-        onTake={onTake}
-      />
-      <StacksView
-        categories={other.deck.categories}
-        cards={other.deck.cards}
-        printings={other.printings}
-        cardProps={markFor(present, other)}
-      />
+      {blame?.shown ?? (
+        <>
+          <Changes
+            // Positions shift with every take, so the ticks start again.
+            key={present.text}
+            present={present}
+            other={other}
+            viewing={viewing}
+            onTake={onTake}
+          />
+          <StacksView
+            categories={other.deck.categories}
+            cards={other.deck.cards}
+            printings={other.printings}
+            cardProps={markFor(present, other)}
+          />
+        </>
+      )}
     </>
   );
 }

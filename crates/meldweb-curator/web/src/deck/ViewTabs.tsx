@@ -5,6 +5,7 @@ const LABEL: Record<DeckView, string> = {
   cost: "Cost",
   sourcing: "Sourcing",
   build: "Build",
+  blame: "Blame",
 };
 
 /** Which layout of the deck the page shows; a new view is a new entry in `DECK_VIEWS`. */

@@ -10,7 +10,7 @@ It can:
 
 - init a bare repo (HEAD is the unborn `main`), and open one.
 - read a file, list a directory, or give the entry (and its blob id) at a
-  path, at a commit.
+  path, at a commit or in a tree.
 - commit puts and deletes to several paths at once, rebuilding the nested
   trees. It keeps an executable bit and drops directories that end up empty.
 - move a branch by compare-and-swap. `Tip::Unborn` means the branch must not

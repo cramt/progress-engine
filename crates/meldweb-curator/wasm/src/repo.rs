@@ -26,6 +26,7 @@ use meldweb_git::{
     Timestamp, Tip, Unsupported, WriteCommit,
 };
 
+use crate::blame::{self, DeckBlame};
 use crate::branches::{self, BranchDeleted, BranchMade, DeckBranches, MergeDone, MergePlan};
 use crate::layout::{self, DeckLines};
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
@@ -450,6 +451,8 @@ pub struct Local {
     repo: Option<Repo<Mirror>>,
     /// Files loaded before the repo opens, which `open` turns into one.
     loading: Mirror,
+    /// What blaming decks has settled so far, which never goes stale.
+    blames: std::cell::RefCell<blame::Memo>,
 }
 
 impl Local {
@@ -967,6 +970,22 @@ impl Local {
         Ok(DeckDeleted::Deleted)
     }
 
+    /// [`blame::blame`] of `stem`'s deck at `at`, a commit's id or a
+    /// branch's name, with `unsaved` the editor's text on top of it.
+    pub fn blame(&self, stem: &str, at: &str, unsaved: Option<&str>) -> Out<DeckBlame> {
+        let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
+        match self.commit_at(Some(at))? {
+            None => Ok(DeckBlame::NoDeck),
+            Some(id) => blame::blame(
+                self.repo()?,
+                &mut self.blames.borrow_mut(),
+                &stem,
+                id,
+                unsaved,
+            ),
+        }
+    }
+
     /// [`branches::branches`].
     pub fn deck_branches(&self, stem: &str) -> Out<DeckBranches> {
         branches::branches(self.repo()?, stem)
@@ -1250,7 +1269,7 @@ impl Local {
         }
         Ok(Local {
             repo: Some(repo),
-            loading: Mirror::default(),
+            ..Local::default()
         })
     }
 }
@@ -1392,6 +1411,11 @@ impl GitRepo {
     /// [`RevisionRead`].
     pub fn revision(&self, commit: &str) -> Result<String, JsError> {
         js(self.0.revision(commit)).map(|r| json(&r))
+    }
+
+    /// [`DeckBlame`].
+    pub fn blame(&self, stem: &str, at: &str, unsaved: Option<String>) -> Result<String, JsError> {
+        js(self.0.blame(stem, at, unsaved.as_deref())).map(|r| json(&r))
     }
 
     /// [`Snapshots`].

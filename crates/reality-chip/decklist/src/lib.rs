@@ -18,6 +18,7 @@ pub mod identity;
 pub mod stem;
 pub mod supply;
 pub mod trade;
+pub mod versions;
 pub mod wanted;
 
 use std::num::NonZeroU32;

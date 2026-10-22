@@ -127,6 +127,10 @@ _Avoid_: merge, revert, cherry-pick
 A revision kept under a name the user chose, such as the list taken to an event. It is an annotated git tag under the deck's stem, `decks/<stem>/<slug>`, on a commit of the deck's line.
 _Avoid_: tag (for what the user sees), save point
 
+**Blame**:
+For each card in a deck, the commit that last changed it and the one it came in at, with who made each and when ([ADR-0041](../../docs/adr/0041-a-deck-is-a-line-of-history-and-the-repo-lives-in-the-browser.md)). A card is followed by what it is, as the diff that writes commit messages pairs it, not by its text line. Its quantity, categories (a move to the sideboard or maybeboard included), printing and finish change it; the deck's name, description or categories declared do not. A card removed and added again came in at the second add. A change brought in by a merge is the commit on the side that made it, unless the merge settled a clash by dropping one side's change to the card, and a card unchanged since a fork is the deck it was forked from's. Edits not saved yet sit on top. A card's menu and details say it, `?view=blame` lists every card by its last change, newest first, and each commit opens that revision.
+_Avoid_: history (that is the timeline), annotate
+
 **Fork**:
 A deck of its own whose line starts on a commit of another deck, such as a budget build: its history is that deck's up to the fork, as real ancestors, so which deck it came from is read from the history and written nowhere ([ADR-0041](../../docs/adr/0041-a-deck-is-a-line-of-history-and-the-repo-lives-in-the-browser.md)). Either can take the other's changes, except the fork's name. Repo version 1 called it a variant and named the parent with `variant_of`, which the migration takes out.
 _Avoid_: variant (since repo version 2), copy, branch (that is the same deck)
