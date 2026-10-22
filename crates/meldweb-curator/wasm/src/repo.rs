@@ -26,6 +26,7 @@ use meldweb_git::{
     Timestamp, Tip, Unsupported, WriteCommit,
 };
 
+use crate::branches::{self, BranchDeleted, BranchMade, DeckBranches, MergeDone, MergePlan};
 use crate::layout::{self, DeckLines};
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
 
@@ -966,6 +967,57 @@ impl Local {
         Ok(DeckDeleted::Deleted)
     }
 
+    /// [`branches::branches`].
+    pub fn deck_branches(&self, stem: &str) -> Out<DeckBranches> {
+        branches::branches(self.repo()?, stem)
+    }
+
+    /// [`branches::create`].
+    pub fn create_branch(&mut self, stem: &str, name: &str, at: &str) -> Out<BranchMade> {
+        branches::create(self.repo_mut()?, stem, name, at)
+    }
+
+    /// [`branches::delete`].
+    pub fn delete_branch(&mut self, stem: &str, name: &str, commit: &str) -> Out<BranchDeleted> {
+        branches::delete(self.repo_mut()?, stem, name, commit)
+    }
+
+    /// [`branches::plan`].
+    pub fn plan_merge(
+        &mut self,
+        stem: &str,
+        from: &str,
+        into: &str,
+        prefer: Option<Side>,
+    ) -> Out<MergePlan> {
+        branches::plan(self.repo_mut()?, stem, from, into, prefer)
+    }
+
+    /// [`branches::merge`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn merge_branch(
+        &mut self,
+        stem: &str,
+        from: &str,
+        into: &str,
+        into_tip: &str,
+        from_tip: &str,
+        prefer: Option<Side>,
+        who: &Who,
+    ) -> Out<MergeDone> {
+        let signed = signature(who)?;
+        branches::merge(
+            self.repo_mut()?,
+            stem,
+            from,
+            into,
+            into_tip,
+            from_tip,
+            prefer,
+            &signed,
+        )
+    }
+
     /// Migrates the repo from version `from` to the next, in one operation
     /// that leaves it at `from` if it fails; see [`layout::migrate`].
     pub fn migrate(&mut self, from: u32) -> Out<MigratedFacts> {
@@ -1234,6 +1286,15 @@ fn who_of(who: &str) -> Result<Who, JsError> {
     facet_json::from_str(who).map_err(|e| JsError::new(&format!("who is not a Who: {e}")))
 }
 
+fn side_of(side: Option<String>) -> Result<Option<Side>, JsError> {
+    match side.as_deref() {
+        None => Ok(None),
+        Some("ours") => Ok(Some(Side::Ours)),
+        Some("theirs") => Ok(Some(Side::Theirs)),
+        Some(other) => Err(JsError::new(&format!("{other} is not a side"))),
+    }
+}
+
 fn js<T>(r: Out<T>) -> Result<T, JsError> {
     r.map_err(|e| JsError::new(&e))
 }
@@ -1390,6 +1451,59 @@ impl GitRepo {
         js(self.0.delete_deck(stem, commit)).map(|r| json(&r))
     }
 
+    /// [`DeckBranches`].
+    pub fn deck_branches(&self, stem: &str) -> Result<String, JsError> {
+        js(self.0.deck_branches(stem)).map(|r| json(&r))
+    }
+
+    /// [`BranchMade`].
+    pub fn create_branch(&mut self, stem: &str, name: &str, at: &str) -> Result<String, JsError> {
+        js(self.0.create_branch(stem, name, at)).map(|r| json(&r))
+    }
+
+    /// [`BranchDeleted`].
+    pub fn delete_branch(
+        &mut self,
+        stem: &str,
+        name: &str,
+        commit: &str,
+    ) -> Result<String, JsError> {
+        js(self.0.delete_branch(stem, name, commit)).map(|r| json(&r))
+    }
+
+    /// [`MergePlan`]; `prefer` is `"ours"` (the branch merged into) or
+    /// `"theirs"` for the stretches both changed, once the user picked.
+    pub fn plan_merge(
+        &mut self,
+        stem: &str,
+        from: &str,
+        into: &str,
+        prefer: Option<String>,
+    ) -> Result<String, JsError> {
+        let prefer = side_of(prefer)?;
+        js(self.0.plan_merge(stem, from, into, prefer)).map(|r| json(&r))
+    }
+
+    /// [`MergeDone`]; `who` is a [`Who`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn merge_branch(
+        &mut self,
+        stem: &str,
+        from: &str,
+        into: &str,
+        into_tip: &str,
+        from_tip: &str,
+        prefer: Option<String>,
+        who: &str,
+    ) -> Result<String, JsError> {
+        let prefer = side_of(prefer)?;
+        let who = who_of(who)?;
+        js(self
+            .0
+            .merge_branch(stem, from, into, into_tip, from_tip, prefer, &who))
+        .map(|r| json(&r))
+    }
+
     /// [`MigratedFacts`].
     pub fn migrate(&mut self, from: u32) -> Result<String, JsError> {
         js(self.0.migrate(from)).map(|r| json(&r))
@@ -1442,12 +1556,7 @@ impl GitRepo {
     /// conflict the user settled.
     pub fn integrate(&mut self, who: &str, prefer: Option<String>) -> Result<String, JsError> {
         let who = who_of(who)?;
-        let prefer = match prefer.as_deref() {
-            None => None,
-            Some("ours") => Some(Side::Ours),
-            Some("theirs") => Some(Side::Theirs),
-            Some(other) => return Err(JsError::new(&format!("{other} is not a side"))),
-        };
+        let prefer = side_of(prefer)?;
         js(self.0.integrate(&who, prefer)).map(|r| json(&r))
     }
 

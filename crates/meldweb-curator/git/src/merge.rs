@@ -23,11 +23,32 @@ use crate::store::Store;
 /// touch different lines; where both changed one stretch differently it
 /// gives up rather than guess.
 pub fn merge_lines(base: &str, ours: &str, theirs: &str) -> Option<String> {
+    merge_lines_with(base, ours, theirs, None).ok()
+}
+
+/// One stretch of lines both sides changed from `base`, differently.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Hunk {
+    pub base: Vec<String>,
+    pub ours: Vec<String>,
+    pub theirs: Vec<String>,
+}
+
+/// [`merge_lines`], with what stops it: every stretch both sides changed
+/// differently. With `prefer`, each such stretch takes that side's lines
+/// and the rest of both sides' changes are kept, so the merge always
+/// succeeds; whether what it makes still reads is the caller's to say.
+pub fn merge_lines_with(
+    base: &str,
+    ours: &str,
+    theirs: &str,
+    prefer: Option<Side>,
+) -> std::result::Result<String, Vec<Hunk>> {
     if ours == theirs || theirs == base {
-        return Some(ours.to_owned());
+        return Ok(ours.to_owned());
     }
     if ours == base {
-        return Some(theirs.to_owned());
+        return Ok(theirs.to_owned());
     }
     let b: Vec<&str> = base.split('\n').collect();
     let o: Vec<&str> = ours.split('\n').collect();
@@ -45,6 +66,7 @@ pub fn merge_lines(base: &str, ours: &str, theirs: &str) -> Option<String> {
     kept.push((b.len(), o.len(), t.len()));
 
     let mut out: Vec<&str> = Vec::new();
+    let mut hunks = Vec::new();
     let (mut i, mut j, mut k) = (0, 0, 0);
     for (bi, oi, ti) in kept {
         let was = &b[i..bi];
@@ -55,12 +77,27 @@ pub fn merge_lines(base: &str, ours: &str, theirs: &str) -> Option<String> {
         } else if yours == was || mine == yours {
             out.extend_from_slice(mine);
         } else {
-            return None;
+            match prefer {
+                Some(Side::Ours) => out.extend_from_slice(mine),
+                Some(Side::Theirs) => out.extend_from_slice(yours),
+                None => {
+                    let owned = |l: &[&str]| l.iter().map(|s| (*s).to_owned()).collect();
+                    hunks.push(Hunk {
+                        base: owned(was),
+                        ours: owned(mine),
+                        theirs: owned(yours),
+                    });
+                }
+            }
         }
         out.extend(b.get(bi).copied());
         (i, j, k) = (bi + 1, oi + 1, ti + 1);
     }
-    Some(out.join("\n"))
+    if hunks.is_empty() {
+        Ok(out.join("\n"))
+    } else {
+        Err(hunks)
+    }
 }
 
 /// For each line of `a`, the line of `b` a longest common subsequence pairs
@@ -126,6 +163,22 @@ pub enum TreeMerge {
     Clean { tree: TreeId, taken: Vec<String> },
     /// Paths both sides changed in a way that does not merge.
     Conflicts(Vec<String>),
+}
+
+/// What merging one commit into a branch would do; see [`Repo::plan_merge`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Planned {
+    /// The branch already holds every commit of the other.
+    UpToDate,
+    /// The branch can move to the other commit as it is.
+    FastForward,
+    /// A merge commit of this tree; `taken` are the paths that took the
+    /// other side's changes.
+    Merge { tree: TreeId, taken: Vec<String> },
+    /// Paths both sides changed in a way that does not merge.
+    Conflicts(Vec<String>),
+    /// No common ancestor.
+    Unrelated,
 }
 
 type Leaf = (EntryMode, ObjectId);
@@ -235,6 +288,52 @@ impl<S: Store> Repo<S> {
         Ok(TreeMerge::Clean { tree, taken })
     }
 
+    /// Whether `ancestor` is `of` or one of its ancestors, over all parents.
+    pub fn is_ancestor(&self, ancestor: &CommitId, of: &CommitId) -> Result<bool> {
+        let mut cache = Default::default();
+        Ok(self.ancestors(&[*of], &mut cache)?.contains(ancestor))
+    }
+
+    /// How many commits `a` has that `b` does not, over all parents, as
+    /// `git rev-list --count b..a` counts them.
+    pub fn count_only_in(&self, a: &CommitId, b: &CommitId) -> Result<usize> {
+        let mut cache = Default::default();
+        let of_a = self.ancestors(&[*a], &mut cache)?;
+        let of_b = self.ancestors(&[*b], &mut cache)?;
+        Ok(of_a.difference(&of_b).count())
+    }
+
+    /// What merging the commit `from` into a branch at `into` comes to, with
+    /// no ref moved: nothing when `into` already holds `from`, a
+    /// fast-forward when `into` is an ancestor of `from` (the branch merged
+    /// into has not moved since), and otherwise [`Repo::merge_trees`] from
+    /// the merge base, whose tree a merge commit with the parents `into`
+    /// then `from` would hold. Unrelated histories do not merge.
+    pub fn plan_merge(
+        &mut self,
+        into: &CommitId,
+        from: &CommitId,
+        prefer: Option<Side>,
+        merge_file: &mut MergeFile<'_>,
+    ) -> Result<Planned> {
+        if self.is_ancestor(from, into)? {
+            return Ok(Planned::UpToDate);
+        }
+        if self.is_ancestor(into, from)? {
+            return Ok(Planned::FastForward);
+        }
+        let bases = self.merge_base(into, from)?;
+        let Some(base) = bases.first() else {
+            return Ok(Planned::Unrelated);
+        };
+        Ok(
+            match self.merge_trees(Some(base), into, from, prefer, merge_file)? {
+                TreeMerge::Conflicts(paths) => Planned::Conflicts(paths),
+                TreeMerge::Clean { tree, taken } => Planned::Merge { tree, taken },
+            },
+        )
+    }
+
     /// A tree of exactly these files, by path.
     pub(crate) fn write_flat(&mut self, files: &BTreeMap<String, Leaf>) -> Result<TreeId> {
         let mut root: BTreeMap<BString, Node> = BTreeMap::new();
@@ -265,7 +364,7 @@ impl<S: Store> Repo<S> {
 
 #[cfg(test)]
 mod tests {
-    use super::merge_lines;
+    use super::{merge_lines, merge_lines_with, Hunk, Side};
 
     fn lines(l: &[&str]) -> String {
         format!("{}\n", l.join("\n"))
@@ -282,5 +381,29 @@ mod tests {
         );
         let clash = lines(&["cards = [", "  X,", "  b,", "  c,", "  d,", "]"]);
         assert_eq!(merge_lines(&base, &ours, &clash), None);
+    }
+
+    #[test]
+    fn a_clash_names_its_stretch_and_a_side_settles_only_that_stretch() {
+        let base = lines(&["a", "b", "c", "d", "e", "f"]);
+        let ours = lines(&["A", "b", "c", "d1", "e", "f"]);
+        let theirs = lines(&["a", "b", "c", "d2", "e", "F"]);
+        assert_eq!(
+            merge_lines_with(&base, &ours, &theirs, None),
+            Err(vec![Hunk {
+                base: vec!["d".into()],
+                ours: vec!["d1".into()],
+                theirs: vec!["d2".into()],
+            }])
+        );
+        // Both sides' other changes are kept; only the clash takes a side.
+        assert_eq!(
+            merge_lines_with(&base, &ours, &theirs, Some(Side::Ours)),
+            Ok(lines(&["A", "b", "c", "d1", "e", "F"]))
+        );
+        assert_eq!(
+            merge_lines_with(&base, &ours, &theirs, Some(Side::Theirs)),
+            Ok(lines(&["A", "b", "c", "d2", "e", "F"]))
+        );
     }
 }

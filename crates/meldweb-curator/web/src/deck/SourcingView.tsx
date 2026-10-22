@@ -49,7 +49,8 @@ export function SourcingView({
   cards: readonly Card[];
   deckName: string;
   me: string;
-  onUse: OnUseOwned;
+  /** Absent where the list shown is not the one being edited: main's, from a branch. */
+  onUse?: OnUseOwned;
 }) {
   const [currency, setCurrency] = useState(loadCurrency);
   // The deck's own printings, what buying a card means, and the friends'
@@ -207,7 +208,7 @@ export function SourcingView({
                     currency={currency}
                   />
                   <td>
-                    {usable && copies.card.kind === "printing" && (
+                    {onUse && usable && copies.card.kind === "printing" && (
                       <button
                         type="button"
                         className="small"

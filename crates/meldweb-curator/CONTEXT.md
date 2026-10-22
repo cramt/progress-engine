@@ -21,7 +21,8 @@ A deck's identity, slugged from its name when it is made and never following a r
 _Avoid_: path, slug (for the identity)
 
 **Branch**:
-One of a deck's lines, `decks/<stem>/<branch>`: the same physical deck with a different list. Every deck has `main`. (The picker for others is to come.)
+One of a deck's lines, `decks/<stem>/<branch>`: the same physical deck with a different list. Every deck has `main`, the built deck. Another branch starts at any commit of the deck's line (the branch open, a snapshot or a revision), opens at `?branch=<name>` from the picker beside the deck's name, and saves by itself like `main`; the collection, Build, Sourcing, proxies and the wanted list still read `main`. It **merges** into `main` (or `main` into it, to update it): a fast-forward when the branch merged into has no saves the other lacks, otherwise a merge commit with two parents whose message is the deck's changelog, `lantern: merge budget: +1 Sol Ring`. Where both changed the same lines the merge stops and shows them, until the user keeps one side's lines there; the rest of both is kept. Deleting a branch with saves `main` lacks asks first.
+_Avoid_: variant, fork (that is another deck)
 
 **Collection**:
 The Magic repo's `collection.toml`: every card the user owns, and the place each copy is in ([ADR-0023](../../docs/adr/0023-the-collection-is-one-file-and-a-copy-is-in-one-place.md)). A repo without the file owns nothing yet.

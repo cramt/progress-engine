@@ -438,3 +438,237 @@ main.with-drawer {
 .card-mark-changed {
   background: var(--accent-strong);
 }
+
+/*
+ * A deck's branches and snapshots (ADR-0041): one picker beside the deck's
+ * name, as GitHub has beside a repo's, the bar along the top of a branch
+ * that is not main, and the merge dialog.
+ */
+.ref-picker {
+  position: relative;
+  display: inline-flex;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+.ref-picker-button {
+  height: 24px;
+  padding: 0 8px;
+  gap: 6px;
+  border-color: var(--border-strong);
+  font-size: 12.5px;
+  letter-spacing: normal;
+  text-transform: none;
+  box-shadow: none;
+}
+
+.ref-picker-button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.ref-picker-name {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ref-picker-menu {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  max-height: 70vh;
+  padding: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font, inherit);
+  font-size: 13px;
+  font-variant: normal;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.ref-picker-menu header {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ref-picker-filter {
+  width: 100%;
+}
+
+.ref-picker-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ref-picker-menu .ref-picker-tabs button {
+  height: 28px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ref-picker-menu .ref-picker-tabs button[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--fg);
+}
+
+.ref-picker-list {
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.ref-row {
+  --line: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  height: auto;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: 13px;
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+}
+
+.ref-row:hover {
+  background: var(--surface-2);
+}
+
+.ref-row.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.ref-row > svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.ref-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ref-row-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.ref-row-sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ref-picker-action {
+  justify-content: flex-start;
+  gap: 8px;
+  height: auto;
+  padding: 7px 8px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+}
+
+.ref-picker-action svg {
+  width: 13px;
+  height: 13px;
+}
+
+.branch-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--cold);
+  background: var(--surface);
+}
+
+.branch-bar .hint {
+  margin: 0 auto 0 0;
+}
+
+.built-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-header h2 .badge svg {
+  width: 11px;
+  height: 11px;
+  margin-right: 3px;
+}
+
+.merge-dialog {
+  max-width: 760px;
+}
+
+.merge-message code {
+  white-space: pre-wrap;
+}
+
+.merge-clashes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.merge-clash-path {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.merge-clash-sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.merge-clash-sides h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
+.merge-clash-sides pre {
+  margin: 0;
+  padding: 8px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 12px;
+}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { branchName } from "../github/branches";
 import { deckBranchFor } from "../github/decks";
 import { Sheet, useBusy } from "../ui/Sheet";
 import { Waiting } from "../ui/Spinner";
@@ -126,6 +127,83 @@ export function ForkDialog({
             disabled={busy || name.trim() === ""}
           >
             {busy ? "Forking…" : "Fork"}
+          </button>
+        </div>
+      </form>
+    </Sheet>
+  );
+}
+
+/**
+ * Makes a branch of the deck (ADR-0041): the same deck with a list to try
+ * things on, saved by itself, which can be merged into main later.
+ */
+export function BranchDialog({
+  stem,
+  of,
+  initial,
+  onClose,
+  onCreate,
+}: {
+  stem: string;
+  /** Where it starts, for the reader: "main", "FNM 14 Sep", a date. */
+  of: string;
+  initial: string;
+  onClose: () => void;
+  /** Resolves to why it was refused, or `null` once made and opened. */
+  onCreate: (name: string) => Promise<string | null>;
+}) {
+  const [name, setName] = useState(initial);
+  const { busy, refusal, run } = useBusy();
+  const slug = branchName(name.trim());
+  return (
+    <Sheet label="New branch" onClose={onClose}>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (await run(() => onCreate(name.trim()))) onClose();
+        }}
+      >
+        <h2>New branch from {of}</h2>
+        <p className="hint">
+          The same deck with a list to try things on. It saves by itself, and
+          main stays the deck you build until you merge the branch into it.
+        </p>
+        <label className="field">
+          Name
+          <input
+            value={name}
+            required
+            placeholder="budget test"
+            // biome-ignore lint/a11y/noAutofocus: the dialog is for this one field
+            autoFocus
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        {slug && (
+          <p className="hint field-hint">
+            The branch will be{" "}
+            <code>
+              decks/{stem}/{slug}
+            </code>
+            .
+          </p>
+        )}
+        {refusal && (
+          <p className="refusal" role="alert">
+            {refusal}
+          </p>
+        )}
+        <div className="dialog-buttons">
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="primary"
+            disabled={busy || slug === ""}
+          >
+            {busy ? "Branching…" : "Create branch"}
           </button>
         </div>
       </form>

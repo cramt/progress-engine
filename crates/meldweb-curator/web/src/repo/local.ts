@@ -21,12 +21,18 @@
  */
 
 import type {
+  BranchDeleted,
+  BranchFacts,
+  BranchMade,
   CommitFacts,
+  DeckBranches,
   DeckDeleted,
   DeckLineList,
   FileRead,
   Journal,
   Listing,
+  MergeDone,
+  MergePlan,
   PushOutcome,
   RemoteFacts,
   RevisionRead,
@@ -40,6 +46,7 @@ import type {
 } from "../deck.gen";
 import { GitRepo } from "../wasm/pkg/meldweb_wasm.js";
 import {
+  type Branch,
   ConflictError,
   type DeckLine,
   type DirEntry,
@@ -87,6 +94,26 @@ export type Request =
   | { kind: "decks" }
   | { kind: "deleteDeck"; stem: string; commit: string }
   | { kind: "migrate"; from: number }
+  | { kind: "branches"; stem: string }
+  | { kind: "createBranch"; stem: string; name: string; at: string }
+  | { kind: "deleteBranch"; stem: string; name: string; commit: string }
+  | {
+      kind: "planMerge";
+      stem: string;
+      from: string;
+      into: string;
+      prefer?: Side;
+    }
+  | {
+      kind: "merge";
+      stem: string;
+      from: string;
+      into: string;
+      intoTip: string;
+      fromTip: string;
+      prefer?: Side;
+      who: Who;
+    }
   | {
       kind: "deleteFile";
       path: string;
@@ -134,6 +161,11 @@ export interface Results {
   decks: DeckLine[];
   deleteDeck: null;
   migrate: null;
+  branches: Branch[];
+  createBranch: Branch;
+  deleteBranch: null;
+  planMerge: MergePlan;
+  merge: MergeDone;
   exportZip: Uint8Array;
   importZip: null;
   remote: RemoteFacts;
@@ -189,6 +221,14 @@ const revisionOf = (c: CommitFacts): Revision => ({
   message: c.message,
   date: iso(c.committedAt),
   author: c.author,
+});
+
+const branchOf = (b: BranchFacts): Branch => ({
+  name: b.name,
+  commit: b.commit,
+  date: iso(b.committedAt),
+  unmerged: b.unmerged,
+  behind: b.behind,
 });
 
 const snapshotOf = (t: TagFacts): Snapshot => ({
@@ -420,6 +460,55 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
           g.migrate(r.from);
           return done(null);
         });
+      case "branches":
+        return reading((g) =>
+          done(
+            (JSON.parse(g.deck_branches(r.stem)) as DeckBranches).branches.map(
+              branchOf,
+            ),
+          ),
+        );
+      case "createBranch":
+        return writing((g) => {
+          const made = JSON.parse(
+            g.create_branch(r.stem, r.name, r.at),
+          ) as BranchMade;
+          if (made.kind === "conflict") throw new Conflict(made.message);
+          return done(branchOf(made.branch));
+        });
+      case "deleteBranch":
+        return writing((g) => {
+          const deleted = JSON.parse(
+            g.delete_branch(r.stem, r.name, r.commit),
+          ) as BranchDeleted;
+          if (deleted.kind === "conflict") throw new Conflict(deleted.message);
+          return done(null);
+        });
+      // A plan writes the merged objects, which no ref names until a merge.
+      case "planMerge":
+        return writing((g) =>
+          done(
+            JSON.parse(
+              g.plan_merge(r.stem, r.from, r.into, r.prefer),
+            ) as MergePlan,
+          ),
+        );
+      case "merge":
+        return writing((g) =>
+          done(
+            JSON.parse(
+              g.merge_branch(
+                r.stem,
+                r.from,
+                r.into,
+                r.intoTip,
+                r.fromTip,
+                r.prefer,
+                JSON.stringify(r.who),
+              ),
+            ) as MergeDone,
+          ),
+        );
       case "deleteFile":
         return writing((g) => {
           const wrote = JSON.parse(
@@ -629,6 +718,31 @@ export function createLocalRepo(
     async migrate(from) {
       await ask({ kind: "migrate", from });
     },
+    branches: (stem) => ask({ kind: "branches", stem }),
+    createBranch: (stem, name, at) =>
+      ask({ kind: "createBranch", stem, name, at }),
+    async deleteBranch(stem, name, commit) {
+      await ask({ kind: "deleteBranch", stem, name, commit });
+    },
+    planMerge: (stem, { from, into, prefer }) =>
+      ask({
+        kind: "planMerge",
+        stem,
+        from,
+        into,
+        ...(prefer === undefined ? {} : { prefer }),
+      }),
+    merge: (stem, { from, into, intoTip, fromTip, prefer }) =>
+      ask({
+        kind: "merge",
+        stem,
+        from,
+        into,
+        intoTip,
+        fromTip,
+        ...(prefer === undefined ? {} : { prefer }),
+        who: who(),
+      }),
     async deleteFile(path, del) {
       await ask({ kind: "deleteFile", path, ...del, who: who() });
     },

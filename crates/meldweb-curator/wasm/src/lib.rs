@@ -21,6 +21,7 @@
 
 use std::collections::HashMap;
 
+pub mod branches;
 pub mod copy;
 pub mod layout;
 mod preference;
@@ -613,14 +614,26 @@ pub fn merge_lines(base: &str, ours: &str, theirs: &str) -> Option<String> {
 /// `web/src/github/repoFile.ts` asks of a merged save. A path no editor
 /// writes is only text.
 pub(crate) fn still_reads(path: &str, theirs: &str, merged: &str) -> bool {
+    unreadable(path, theirs, merged).is_none()
+}
+
+/// Why `merged` at `path` is not a file Progress Engine reads, or `None`
+/// when it is; see [`still_reads`].
+pub(crate) fn unreadable(path: &str, theirs: &str, merged: &str) -> Option<String> {
     // A deck's file is `<stem>.deck.toml` at the root of its own line
     // (ADR-0041).
     let deck = path.ends_with(".deck.toml") && !path.contains('/');
     match path {
-        "collection.toml" => collection::commit_message_for_text(theirs, merged, path).is_ok(),
-        "wanted.toml" => wanted::commit_message_for_text(theirs, merged, path).is_ok(),
-        _ if deck => changelog::commit_message_for_text(theirs, merged, path).is_ok(),
-        _ => true,
+        "collection.toml" => collection::commit_message_for_text(theirs, merged, path)
+            .err()
+            .map(|e| e.to_string()),
+        "wanted.toml" => wanted::commit_message_for_text(theirs, merged, path)
+            .err()
+            .map(|e| e.to_string()),
+        _ if deck => changelog::commit_message_for_text(theirs, merged, path)
+            .err()
+            .map(|e| e.to_string()),
+        _ => None,
     }
 }
 
@@ -2131,6 +2144,11 @@ mod tests {
         g.add_type::<repo::DeckLineList>();
         g.add_type::<repo::DeckDeleted>();
         g.add_type::<repo::MigratedFacts>();
+        g.add_type::<branches::DeckBranches>();
+        g.add_type::<branches::BranchMade>();
+        g.add_type::<branches::BranchDeleted>();
+        g.add_type::<branches::MergePlan>();
+        g.add_type::<branches::MergeDone>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",

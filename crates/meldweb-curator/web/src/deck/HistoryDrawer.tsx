@@ -51,6 +51,7 @@ function useLoaded<T>(load: () => Promise<T>): Loaded<T> {
 export function HistoryDrawer({
   repo,
   stem,
+  branch,
   name,
   parent,
   viewing,
@@ -64,6 +65,8 @@ export function HistoryDrawer({
   repo: Repo;
   /** The deck's stem, which every commit message on its line starts with. */
   stem: string;
+  /** The branch open, whose line the timeline follows. */
+  branch: string;
   /** What the deck is called. */
   name: string;
   /** The deck it was forked from, as its history says. */
@@ -85,7 +88,15 @@ export function HistoryDrawer({
   return (
     <aside className="history-drawer" aria-label="History">
       <header className="history-header">
-        <h2>History</h2>
+        <h2>
+          History{" "}
+          {branch !== "main" && (
+            <span className="badge" title="The timeline follows this branch">
+              <BranchIcon />
+              {branch}
+            </span>
+          )}
+        </h2>
         <button
           type="button"
           className="icon ghost"
@@ -95,7 +106,7 @@ export function HistoryDrawer({
           <CloseIcon />
         </button>
       </header>
-      <JumpBack repo={repo} stem={stem} onView={onView} />
+      <JumpBack repo={repo} stem={stem} branch={branch} onView={onView} />
       <Forks
         repo={repo}
         stem={stem}
@@ -114,6 +125,7 @@ export function HistoryDrawer({
       <Timeline
         repo={repo}
         stem={stem}
+        branch={branch}
         viewing={viewing}
         saveStatus={saveStatus}
         snaps={snaps}
@@ -126,10 +138,12 @@ export function HistoryDrawer({
 function JumpBack({
   repo,
   stem,
+  branch,
   onView,
 }: {
   repo: Repo;
   stem: string;
+  branch: string;
   onView: (viewing: Viewing) => void;
 }) {
   const [notice, setNotice] = useState<string | null>(null);
@@ -138,7 +152,7 @@ function JumpBack({
     setBusy(true);
     setNotice(null);
     try {
-      const at = await revisionAt(repo, stem, to);
+      const at = await revisionAt(repo, stem, to, branch);
       if (at) onView({ kind: "revision", commit: at.commit });
       else
         setNotice(
@@ -319,6 +333,7 @@ function Snapshots({
 function Timeline({
   repo,
   stem,
+  branch,
   viewing,
   saveStatus,
   snaps,
@@ -326,6 +341,7 @@ function Timeline({
 }: {
   repo: Repo;
   stem: string;
+  branch: string;
   viewing: Viewing;
   saveStatus: SaveStatus;
   snaps: Loaded<Snapshot[]>;
@@ -338,10 +354,12 @@ function Timeline({
     // biome-ignore lint/correctness/useExhaustiveDependencies: a save reads the log again
     useCallback(async () => {
       const read = await Promise.all(
-        Array.from({ length: pages }, (_, i) => revisions(repo, stem, i + 1)),
+        Array.from({ length: pages }, (_, i) =>
+          revisions(repo, stem, i + 1, branch),
+        ),
       );
       return { revisions: read.flat(), more: read.at(-1)?.length === PAGE };
-    }, [repo, stem, pages, saved]),
+    }, [repo, stem, branch, pages, saved]),
   );
   const tagsOf = (r: Revision): Snapshot[] =>
     snaps.kind === "ready"

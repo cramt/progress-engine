@@ -439,7 +439,12 @@ impl<S: Store> Repo<S> {
 
     /// The file's bytes at `at`, or `None` when there is no file there.
     pub fn read_file(&self, at: &CommitId, path: &RepoPath) -> Result<Option<Vec<u8>>> {
-        match self.entry_at(self.tree_of(at)?, path)? {
+        self.read_file_in(self.tree_of(at)?, path)
+    }
+
+    /// The file's bytes in `tree`, such as a merge's before it is committed.
+    pub fn read_file_in(&self, tree: TreeId, path: &RepoPath) -> Result<Option<Vec<u8>>> {
+        match self.entry_at(tree, path)? {
             None => Ok(None),
             Some((mode, id)) => match EntryKind::of(mode, id) {
                 EntryKind::File(blob) | EntryKind::Executable(blob) => {

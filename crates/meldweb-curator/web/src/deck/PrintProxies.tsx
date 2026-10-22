@@ -31,6 +31,8 @@ export function PrintProxies(props: {
   text: string;
   cards: readonly Card[];
   printings: Printings;
+  /** The branch whose list these are, when it is not the one open: main's. */
+  of?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -38,7 +40,11 @@ export function PrintProxies(props: {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="A PDF of the deck's cards to print and cut out"
+        title={
+          props.of
+            ? `A PDF of ${props.of}'s cards, the deck you build, to print and cut out`
+            : "A PDF of the deck's cards to print and cut out"
+        }
       >
         <PrintIcon />
         Proxies…

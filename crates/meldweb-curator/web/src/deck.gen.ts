@@ -1,6 +1,93 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+export type MergeDone =
+  | { kind: "merged"; commit: string; message?: string }
+  | { kind: "upToDate" }
+  | { kind: "stopped"; message: string };
+
+/**
+ * What merging one of a deck's branches into another would do. `into` and
+ * `from` are the two tips it was worked out from, which the merge itself
+ * is guarded by; `before` and `after` are the deck's file on the branch
+ * merged into, now and once merged, absent where the branch holds none.
+ */
+export type MergePlan =
+  | { kind: "upToDate" }
+  | { kind: "fastForward"; into: string; from: string; before?: string; after?: string }
+  | { kind: "merge"; into: string; from: string; before?: string; after?: string; message: string }
+  | { kind: "conflict"; into: string; from: string; hunks: ConflictHunk[]; unreadable: MergeRefusal[] }
+  | { kind: "unrelated" };
+
+/**
+ * A file whose lines merged into something Progress Engine does not read.
+ */
+export interface MergeRefusal {
+  path: string;
+  reason: string;
+}
+
+/**
+ * One stretch of a file that both branches changed, differently.
+ */
+export interface ConflictHunk {
+  path: string;
+  /**
+   * The lines as the merge base had them.
+   */
+  base: string[];
+  /**
+   * As the branch merged into has them.
+   */
+  ours: string[];
+  /**
+   * As the branch merged from has them.
+   */
+  theirs: string[];
+}
+
+export type BranchDeleted =
+  | { kind: "deleted" }
+  | { kind: "conflict"; message: string };
+
+export type BranchMade =
+  | { kind: "made"; branch: BranchFacts }
+  | { kind: "conflict"; message: string };
+
+/**
+ * One of a deck's branches, as the picker lists it.
+ */
+export interface BranchFacts {
+  /**
+   * Its own name: `budget` for `decks/lantern/budget`.
+   */
+  name: string;
+  /**
+   * Its tip.
+   */
+  commit: string;
+  /**
+   * When its tip was committed, in seconds since the Unix epoch.
+   */
+  committedAt: number;
+  /**
+   * Commits on it that the deck's `main` lacks: what merging it brings.
+   * Deleting a branch with any loses them.
+   */
+  unmerged: number;
+  /**
+   * Commits on `main` that it lacks: what updating it from `main` brings.
+   */
+  behind: number;
+}
+
+/**
+ * A deck's branches, `main` first and then the newest first.
+ */
+export interface DeckBranches {
+  branches: BranchFacts[];
+}
+
 /**
  * What migrating the repo to the next version came to.
  */

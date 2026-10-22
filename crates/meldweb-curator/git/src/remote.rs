@@ -511,11 +511,6 @@ impl<S: Store> Repo<S> {
         Ok(out)
     }
 
-    fn is_ancestor(&self, ancestor: &CommitId, of: &CommitId) -> Result<bool> {
-        let mut cache = Default::default();
-        Ok(self.ancestors(&[*of], &mut cache)?.contains(ancestor))
-    }
-
     /// Every tree and blob under `tree`, skipping trees already in `seen`.
     fn tree_objects(
         &self,

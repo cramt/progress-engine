@@ -56,13 +56,29 @@ describe("the deck page's URL", () => {
     ]) {
       for (const drawer of [true, false]) {
         for (const view of DECK_VIEWS) {
-          const page = { viewing, drawer, view };
-          expect(
-            pageOf(parseSearch(searchFor(page) as Record<string, unknown>)),
-          ).toEqual(page);
+          for (const branch of ["main", "budget-test"]) {
+            const page = { branch, viewing, drawer, view };
+            expect(
+              pageOf(parseSearch(searchFor(page) as Record<string, unknown>)),
+            ).toEqual(page);
+          }
         }
       }
     }
+  });
+
+  it("opens a branch by its name, and main without one", () => {
+    expect(pageOf(parseSearch({})).branch).toBe("main");
+    expect(parseSearch({ branch: "main" })).toEqual({});
+    expect(parseSearch({ branch: "budget" })).toEqual({ branch: "budget" });
+    // A branch's name is one component: nothing outside the deck's own refs.
+    expect(parseSearch({ branch: "../loam/main" })).toEqual({});
+    expect(parseSearch({ branch: "a/b" })).toEqual({});
+    // A snapshot on a branch is the same view as a revision.
+    expect(parseSearch({ branch: "budget", at: SHA })).toEqual({
+      branch: "budget",
+      at: SHA,
+    });
   });
 });
 

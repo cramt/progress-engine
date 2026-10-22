@@ -1,6 +1,7 @@
 /**
  * What the deck page shows beside the deck as it is now, and how the URL
- * says it, so a past version is a link: `?at=<commit>` is the deck as that
+ * says it, so a past version is a link: `?branch=<name>` is the deck's branch
+ * open for editing (`main`, the built deck, when absent), `?at=<commit>` is the deck as that
  * commit left it, `?vs=<stem>` is another deck (a fork or its parent) to
  * compare with, `?history` keeps the timeline open, and `?view=` lays the
  * deck out another way than as stacks: by what it costs (`cost`), by where
@@ -23,6 +24,8 @@ export type DeckView = (typeof DECK_VIEWS)[number];
 
 /** Everything about the deck page the URL holds. */
 export interface DeckPage {
+  /** The branch open for editing: `main`, or another of the deck's (ADR-0041). */
+  branch: string;
   viewing: Viewing;
   /** Whether the history drawer is open. */
   drawer: boolean;
@@ -30,6 +33,8 @@ export interface DeckPage {
 }
 
 export interface DeckSearch {
+  /** Absent for `main`. */
+  branch?: string;
   history?: true;
   at?: string;
   vs?: string;
@@ -37,6 +42,8 @@ export interface DeckSearch {
 }
 
 const COMMIT = /^[0-9a-f]{7,40}$/;
+/** A branch's own name, as Rust takes one: one component, like a stem. */
+const BRANCH = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/;
 
 /** The search params a deck page understands; anything else is dropped. */
 export function parseSearch(raw: Record<string, unknown>): DeckSearch {
@@ -45,7 +52,14 @@ export function parseSearch(raw: Record<string, unknown>): DeckSearch {
   const view = DECK_VIEWS.find(
     (v): v is Exclude<DeckView, "stacks"> => v !== "stacks" && v === raw.view,
   );
+  const branch =
+    typeof raw.branch === "string" &&
+    raw.branch !== "main" &&
+    BRANCH.test(raw.branch)
+      ? raw.branch
+      : null;
   return {
+    ...(branch ? { branch } : {}),
     // The router reads `?history=1` as the number and `?history` as "".
     ...([true, 1, "", "1"].includes(raw.history as never)
       ? { history: true as const }
@@ -58,6 +72,7 @@ export function parseSearch(raw: Record<string, unknown>): DeckSearch {
 
 export function pageOf(search: DeckSearch): DeckPage {
   return {
+    branch: search.branch ?? "main",
     viewing: search.at
       ? { kind: "revision", commit: search.at }
       : search.vs
@@ -69,8 +84,14 @@ export function pageOf(search: DeckSearch): DeckPage {
   };
 }
 
-export function searchFor({ viewing, drawer, view }: DeckPage): DeckSearch {
+export function searchFor({
+  branch,
+  viewing,
+  drawer,
+  view,
+}: DeckPage): DeckSearch {
   return {
+    ...(branch !== "main" ? { branch } : {}),
     ...(drawer ? { history: true as const } : {}),
     ...(viewing.kind === "revision" ? { at: viewing.commit } : {}),
     ...(viewing.kind === "deck" ? { vs: viewing.stem } : {}),

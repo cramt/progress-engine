@@ -24,7 +24,14 @@ It can:
   unrelated histories, two after a criss-cross merge.
 - merge two texts three-way by lines (`merge_lines`, Curator's one line
   merge), and two commits' trees path by path from a merge base, a file both
-  sides changed going to a caller's merge.
+  sides changed going to a caller's merge. `merge_lines_with` also names
+  each stretch both sides changed differently, or settles every such stretch
+  with one side and keeps the rest of both.
+- plan merging one commit into a branch with no ref moved (`plan_merge`):
+  nothing when the branch already holds it, a fast-forward when the branch
+  is its ancestor, otherwise the merged tree; and count the commits one tip
+  has that another lacks (`count_only_in`, as `git rev-list --count b..a`).
+  Curator's deck branches (`meldweb-wasm`'s `branches`) are built on these.
 - keep one remote, `origin`, in `config` as `git remote add` would, and speak
   git's smart HTTP protocol v0 to it as pure functions over bytes
   (`src/remote.rs`): the caller does the HTTP. A fetch turns the
@@ -123,10 +130,12 @@ adopted the remote, pushed a commit and a tag, had a raced push refused
 (`cannot lock ref 'refs/heads/main': is at … but expected …`), merged and
 pushed again, and a fresh `git clone` showed the merge and the tag.
 
-On 2026-10-22, 29 tests pass: 9 unit, 11 in `memory.rs`, 3 in
+On 2026-10-22, 30 tests pass: 10 unit, 11 in `memory.rs`, 3 in
 `git_cli.rs` and 6 in `remote.rs`. Repo version 2's migration and the
 mixed-version syncs are `meldweb-wasm`'s (`tests/layout.rs`,
-`examples/migrate_e2e.rs`), since what a deck is is not this crate's. Measured on 2026-10-21: a throwaway cdylib built for wasm32 at
+`examples/migrate_e2e.rs`), since what a deck is is not this crate's, and so
+are a deck's branches merged against `git` (`tests/branches.rs`: `fsck
+--strict`, the two-parent merge in `log --graph`, `rev-list --count`). Measured on 2026-10-21: a throwaway cdylib built for wasm32 at
 opt-level `z` with LTO calls init, commit, tag, history, merge_base and
 read_file. It is 325 KB, or 124 KB gzipped. `gix-date` pulls in `jiff` and
 `jiff-tzdb`, and `gix-utils` pulls in `prodash`. LTO drops the time zone

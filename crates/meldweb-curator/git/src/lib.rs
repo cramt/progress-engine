@@ -16,7 +16,7 @@ mod remote;
 mod repo;
 mod store;
 
-pub use merge::{merge_lines, MergeFile, Side, TreeMerge};
+pub use merge::{merge_lines, merge_lines_with, Hunk, MergeFile, Planned, Side, TreeMerge};
 pub use pktline::PktError;
 pub use remote::{FetchRequest, Integrated, PushRequest, Pushed, RemoteStatus, RemoteUrl, ORIGIN};
 

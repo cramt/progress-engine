@@ -233,6 +233,19 @@ export function fakeRepo(files: Record<string, string> = {}) {
     },
     async deleteDeck() {},
     async migrate() {},
+    async branches() {
+      return [];
+    },
+    async createBranch() {
+      throw new Error("no branches in fakeRepo");
+    },
+    async deleteBranch() {},
+    async planMerge() {
+      return { kind: "upToDate" as const };
+    },
+    async merge() {
+      return { kind: "upToDate" as const };
+    },
   };
   return {
     repo,

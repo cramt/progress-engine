@@ -3,8 +3,9 @@
  * whose message is the deck's changelog (ADR-0021), and each deck is a line of
  * history of its own (ADR-0041), so a deck's history is the commits on its
  * `main` that touched its file, and a version of it is the file at one of
- * them. A snapshot is an annotated tag on such a commit, named under the
- * deck's stem so each deck lists only its own.
+ * them. Any other branch of the deck has its own line the same way. A
+ * snapshot is an annotated tag on such a commit, named under the deck's stem
+ * so each deck lists only its own.
  */
 import type { FileAt, Repo, Revision, Snapshot } from "../repo/api";
 import { deckFile, slugify, snapshotPrefix } from "./decks";
@@ -16,13 +17,17 @@ export { snapshotPrefix };
 /** Revisions a page of the timeline asks for. */
 export const PAGE = 30;
 
-/** The commits on the deck's line that touched its file, newest first, `PAGE` at a time. */
+/**
+ * The commits on the deck's branch (`main` by default) that touched its file,
+ * newest first, `PAGE` at a time.
+ */
 export function revisions(
   repo: Repo,
   stem: string,
   page = 1,
+  on = "main",
 ): Promise<Revision[]> {
-  const { path, branch } = deckFile(stem);
+  const { path, branch } = deckFile(stem, on);
   return repo.history(path, { page, perPage: PAGE, branch });
 }
 
@@ -31,8 +36,9 @@ export async function revisionAt(
   repo: Repo,
   stem: string,
   when: Date,
+  on = "main",
 ): Promise<Revision | null> {
-  const { path, branch } = deckFile(stem);
+  const { path, branch } = deckFile(stem, on);
   const [hit] = await repo.history(path, {
     until: when.toISOString(),
     perPage: 1,
@@ -42,11 +48,15 @@ export async function revisionAt(
 }
 
 /**
- * The last commit to the deck once every pending save has landed: what "now"
- * is in the repo, to snapshot or fork from.
+ * The last commit to the deck's branch once every pending save has landed:
+ * what "now" is in the repo, to snapshot, fork or branch from.
  */
-export async function head(repo: Repo, stem: string): Promise<Revision | null> {
-  const { path, branch } = deckFile(stem);
+export async function head(
+  repo: Repo,
+  stem: string,
+  on = "main",
+): Promise<Revision | null> {
+  const { path, branch } = deckFile(stem, on);
   await settled(spotKey(path, branch));
   const [last] = await repo.history(path, { perPage: 1, branch });
   return last ?? null;

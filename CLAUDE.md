@@ -35,7 +35,10 @@ another player's public `mtg` repo holds of that list or of one deck
 (ADR-0035). A deck's Sourcing view says where each card comes from (owned,
 another printing, a friend in `meldweb.toml`, to get) and its Build view is
 the deck's place against its list, with the collection moves to fix it
-(ADR-0036). A deck's Proxies… button is Phyrexian Metamorph's sheet, made
+(ADR-0036). A deck's picker beside its name lists its branches and
+snapshots; a branch (`?branch=`) saves by itself and merges into the deck's
+`main`, the only branch Build, Sourcing, proxies and the collection read,
+with every merge decision in Rust (`meldweb-wasm`'s `branches`, ADR-0041). A deck's Proxies… button is Phyrexian Metamorph's sheet, made
 in the browser, and `/cards` edits and prints Mirage Mockery's custom cards,
 `cards/*.card.toml` in the same repo, through its own wasm, `mockery-wasm`
 (ADR-0040). The repo is a bare git repo in the browser's OPFS (ADR-0041),

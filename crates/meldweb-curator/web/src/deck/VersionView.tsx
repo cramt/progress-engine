@@ -47,6 +47,7 @@ export function VersionView({
   stem,
   onTake,
   onBack,
+  onBranch,
   onSnapshot,
   onFork,
 }: {
@@ -58,6 +59,8 @@ export function VersionView({
   /** `all` is restoring the version whole, which leaves it for now. */
   onTake: (take: readonly number[], text: string, all: boolean) => void;
   onBack: () => void;
+  /** Makes a branch of this deck at the version shown. */
+  onBranch: (commit: string) => void;
   onSnapshot: (commit: string) => void;
   onFork: (text: string) => void;
 }) {
@@ -116,6 +119,16 @@ export function VersionView({
             >
               <TagIcon />
               Snapshot…
+            </button>
+          )}
+          {viewing.kind === "revision" && (
+            <button
+              type="button"
+              onClick={() => onBranch(viewing.commit)}
+              title="A branch of this deck that starts as this version, to edit and merge back into main"
+            >
+              <BranchIcon />
+              Branch from this…
             </button>
           )}
           <button

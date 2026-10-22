@@ -10,6 +10,8 @@
  * branch it is on, `main` when it names none.
  */
 
+import type { MergeDone, MergePlan } from "../deck.gen";
+
 export interface FileAt {
   text: string;
   /** The blob sha, which a later `putFile` sends back as its guard. */
@@ -73,6 +75,28 @@ export interface Snapshot {
   date: string;
 }
 
+/** One of a deck's branches, `decks/<stem>/<name>`, as the picker lists it. */
+export interface Branch {
+  /** Its own name: `budget` for `decks/lantern/budget`. `main` is the built deck. */
+  name: string;
+  /** Its tip. */
+  commit: string;
+  /** When its tip was committed, ISO 8601. */
+  date: string;
+  /** Commits on it that the deck's `main` lacks; deleting it loses them. */
+  unmerged: number;
+  /** Commits on `main` that it lacks. */
+  behind: number;
+}
+
+/** Merging one of a deck's branches into another: which, and the side picked for a clash. */
+export interface MergeAsk {
+  from: string;
+  into: string;
+  /** For the stretches both changed: `ours` keeps `into`'s, `theirs` takes `from`'s. */
+  prefer?: "ours" | "theirs";
+}
+
 export interface Repo {
   /** Where the repo is, as the deck list names it: `octocat/mtg`, or this browser. */
   readonly where: string;
@@ -122,9 +146,27 @@ export interface Repo {
    * still at `commit`; throws `ConflictError` otherwise.
    */
   deleteDeck(stem: string, commit: string): Promise<void>;
+  /** The deck's branches, `main` first and then the newest first. */
+  branches(stem: string): Promise<Branch[]>;
+  /**
+   * Makes the deck's branch `name` at `at`, a commit holding the deck's file.
+   * Throws `ConflictError` when the name is taken.
+   */
+  createBranch(stem: string, name: string, at: string): Promise<Branch>;
+  /** Deletes the branch while it is at `commit`; throws `ConflictError` otherwise. */
+  deleteBranch(stem: string, name: string, commit: string): Promise<void>;
+  /** What merging `ask.from` into `ask.into` would do; nothing moves. */
+  planMerge(stem: string, ask: MergeAsk): Promise<MergePlan>;
+  /** Merges as `planMerge` said, while the two are still at the plan's tips. */
+  merge(
+    stem: string,
+    ask: MergeAsk & { intoTip: string; fromTip: string },
+  ): Promise<MergeDone>;
   /** Takes the repo from version `from` to the next, all or nothing. */
   migrate(from: number): Promise<void>;
 }
+
+export type { MergeDone, MergePlan };
 
 /**
  * The file moved in the repo since its sha was read, or a create found it
