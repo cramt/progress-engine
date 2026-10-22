@@ -100,24 +100,17 @@ async fn run(base: String, tier: String, frames: JsValue) -> Result<String> {
         bail!("card_by_id({id}) is {}, not Black Lotus", card.name);
     }
 
+    let decoded = CASES
+        .iter()
+        .map(|(slug, name, edition)| Ok((*slug, *name, *edition, decode(&frames, slug)?)))
+        .collect::<Result<Vec<_>>>()?;
+
     let (mut names, mut printings) = (0, 0);
-    for (slug, want_name, want_edition) in CASES {
-        let frame = Reflect::get(&frames, &(*slug).into()).map_err(js)?;
-        if frame.is_undefined() {
-            bail!("no frame for {slug}");
-        }
-        let rgba = Uint8Array::new(&Reflect::get(&frame, &"rgba".into()).map_err(js)?).to_vec();
-        let dim = |k: &str| -> Result<u32> {
-            Reflect::get(&frame, &k.into())
-                .map_err(js)?
-                .as_f64()
-                .map(|v| v as u32)
-                .ok_or_else(|| anyhow!("{slug}: no {k}"))
-        };
+    for (slug, want_name, want_edition, (rgba, width, height)) in &decoded {
         let image = Image {
-            data: &rgba,
-            width: dim("width")?,
-            height: dim("height")?,
+            data: rgba,
+            width: *width,
+            height: *height,
         };
 
         if *slug == "lotus" {
@@ -151,6 +144,8 @@ async fn run(base: String, tier: String, frames: JsValue) -> Result<String> {
         )?;
     }
 
+    feed(&mut engine, &decoded, &mut report).await?;
+
     engine.close();
     if engine.query("SELECT 1").await.is_ok() {
         bail!("a closed engine still answered a query");
@@ -180,4 +175,81 @@ fn now() -> f64 {
 
 fn js(e: JsValue) -> anyhow::Error {
     anyhow!("{e:?}")
+}
+
+type Frame = (Vec<u8>, u32, u32);
+
+/// `frames[slug]` as RGBA and its size.
+fn decode(frames: &JsValue, slug: &str) -> Result<Frame> {
+    let frame = Reflect::get(frames, &slug.into()).map_err(js)?;
+    if frame.is_undefined() {
+        bail!("no frame for {slug}");
+    }
+    let rgba = Uint8Array::new(&Reflect::get(&frame, &"rgba".into()).map_err(js)?).to_vec();
+    let dim = |k: &str| -> Result<u32> {
+        Reflect::get(&frame, &k.into())
+            .map_err(js)?
+            .as_f64()
+            .map(|v| v as u32)
+            .ok_or_else(|| anyhow!("{slug}: no {k}"))
+    };
+    Ok((rgba, dim("width")?, dim("height")?))
+}
+
+/// The six cards as a live feed, an empty table between each, as Curator's
+/// collection scan pushes them: every card the engine says is in a frame
+/// (`keep_time` 0) has to be the card that is. The engine says a frame is done
+/// before it writes what it found, and reading that early used to answer a
+/// frame with the one before it (FINDINGS.md §12, *A frame at a time*).
+async fn feed(
+    engine: &mut Engine,
+    cases: &[(&str, &str, &str, Frame)],
+    report: &mut String,
+) -> Result<()> {
+    let (_, _, _, (lotus, width, height)) = &cases[0];
+    // The fixtures' own backdrop, #2b2b30.
+    let table: Vec<u8> = lotus
+        .chunks(4)
+        .flat_map(|_| [0x2b, 0x2b, 0x30, 0xff])
+        .collect();
+    let mut frames: Vec<(&str, &[u8])> = Vec::new();
+    for (_, name, _, (rgba, _, _)) in cases {
+        frames.push(("", &table));
+        frames.extend([(*name, rgba.as_slice()), (*name, rgba.as_slice())]);
+    }
+
+    let t = now();
+    let mut seen = Vec::new();
+    for (i, (want, rgba)) in frames.iter().enumerate() {
+        let image = Image {
+            data: rgba,
+            width: *width,
+            height: *height,
+        };
+        for card in engine.watch(&image, i == 0).await? {
+            if card.keep_time != 0 {
+                continue;
+            }
+            if card.name != *want {
+                bail!(
+                    "frame {i} of the feed shows {}, but the engine reported {} in it",
+                    if want.is_empty() { "nothing" } else { want },
+                    card.name
+                );
+            }
+            seen.push(card.name);
+        }
+    }
+    for (_, name, _, _) in cases {
+        if !seen.iter().any(|s| s == name) {
+            bail!("the feed never reported {name} in a frame it was in");
+        }
+    }
+    writeln!(
+        report,
+        "feed: {} frames, every card in view reported in its own frame ({:.0} ms a frame)",
+        frames.len(),
+        (now() - t) / frames.len() as f64
+    )?;
+    Ok(())
 }

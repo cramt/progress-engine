@@ -10,6 +10,7 @@ mod skip;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
 use gitaxian_probe_engine::{Bundle, Engine, EngineConfig, Image, Source, Tier, KNOWN_FINGERPRINT};
 
@@ -202,4 +203,65 @@ fn accuracy_matches_the_node_harness() {
         printings, 4,
         "printing accuracy moved - the port changed behaviour"
     );
+}
+
+/// Each answer is to the frame that was asked about, however slow the engine
+/// is. The engine says a frame is done before it has written what it found, and
+/// on a loaded machine a still's first frame outlasts the app's 4 s settle
+/// timeout (FINDINGS.md §12); the glue used to read too early, or push another
+/// frame over the slow one, and hand one card's result to the next call - the
+/// flaky 4/6 in CI. `pool_latency` holds every result back half a second after
+/// its status, and the old glue then answered every other card here with the
+/// card before it, as CI did.
+#[test]
+fn a_slow_engine_never_answers_with_the_previous_card() {
+    if !ready() {
+        return;
+    }
+    let cases = [
+        ("lotus", "Black Lotus"),
+        ("counterspell", "Counterspell"),
+        ("llanowar", "Llanowar Elves"),
+        ("shock", "Shock"),
+        ("swords", "Swords to Plowshares"),
+        ("thoughtseize", "Thoughtseize"),
+    ];
+    let fixtures: Vec<_> = cases
+        .iter()
+        .filter_map(|(slug, name)| {
+            to_rgba(&root().join(format!(".fixtures/{slug}-frame.jpg"))).map(|img| (*name, img))
+        })
+        .collect();
+    if fixtures.len() != cases.len() {
+        skip::skipped("not all frames decoded; run .fixtures/fetch-cards.sh inside `nix develop`");
+        return;
+    }
+
+    let mut engine = Engine::open(EngineConfig {
+        pool_latency: Duration::from_millis(500),
+        ..Default::default()
+    })
+    .expect("engine should boot");
+
+    let mut answers = Vec::new();
+    for (want, (data, width, height)) in &fixtures {
+        let found = engine
+            .recognize(&Image {
+                data,
+                width: *width,
+                height: *height,
+            })
+            .unwrap();
+        let got = found
+            .first()
+            .map_or("nothing", |c| c.name.as_str())
+            .to_owned();
+        println!("  {want:<22} -> {got}");
+        answers.push((*want, got));
+    }
+    engine.close();
+
+    for (want, got) in &answers {
+        assert_eq!(got, want, "answered {answers:?}");
+    }
 }

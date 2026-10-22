@@ -460,7 +460,9 @@ nothing; results land out of band:
 
 1. push a frame of RGBA
 2. poll `_rec_status()` — `-1` RUNNING, `0` FINISHED_NO_DETECTION, `1` FINISHED_WITH_DETECTIONS
-3. on `1`, read and unlink `recognition.json`
+3. on `1`, wait for `recognition.json` to be written, then read and unlink it
+
+and push the next frame only after that. *A frame at a time* below is why.
 
 `maskPtr` is a caller-owned 16384-byte buffer the detector fills with a
 segmentation mask each frame.
@@ -519,6 +521,38 @@ Every name was right on every path. The frame size moved the printing, as it doe
 elsewhere: no border at 1280 px gave 5/6 exact printings, at 960 px Black Lotus went to
 Beta (4/6), and at 640 px it flipped between two printings across frames, while
 640 px saved only 10-20% of a frame's time.
+
+### A frame at a time
+
+Nothing the detector reports names the frame it is about, so a result is a
+frame's only when that frame is the only one the engine has. Read off core.wasm
+1.90.beta (`_rec_det_rec` is export `Fb`, `_rec_status` is `Eb`, a load of one
+global) and then observed natively on a machine at load average 40:
+
+- `_rec_det_rec` converts the frame and puts it in a **one-slot queue** a single
+  pool thread drains. If the slot is still full the frame is dropped, silently,
+  and the status is left alone; otherwise the status goes to `-1`. A frame
+  pushed while another is being worked on is queued behind it.
+- The pool thread sets the status **before** it writes `recognition.json`, and
+  the write is carried out on the main thread, so it lands a turn or more later:
+  0-2 ms here with one frame in flight, 470 ms with three pushed back to back.
+- With one frame in flight, 48 frames over six cards, as stills and as a feed:
+  every status `1` was followed by exactly one file, every status `0` by none,
+  and every name was right.
+- The first frame after `_rec_clear_tracking` with `firstFrame` set took **7.7-12 s**
+  under that load, against 0.4-1.4 s for the frames after it.
+
+The app's own loop waits 4 s for a frame to settle and then pushes the next over
+it, and reads the file the moment the status flips. On a slow machine both hand
+one card's result to the next call: the first frame of a still outlasts the 4 s,
+the call returns with frames still queued, and the next call reads what they
+wrote - CI's intermittent 4/6, each miss the card before. So the glue never
+gives a frame up: `Detector` in `js/engine.js` and `js/web.js` pushes only when
+the last frame is finished, waits for the file after a `1`, and takes the
+detector to be stuck when one frame outlasts the host's timeout for a whole call. `pool_latency` in the native
+host's config holds the pool's messages back, which delays every result past its
+status; at 500 ms the old loop answered every other card with the one before it,
+three runs out of three (`a_slow_engine_never_answers_with_the_previous_card`).
 
 ### Measured accuracy
 

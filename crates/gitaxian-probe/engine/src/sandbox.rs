@@ -475,6 +475,7 @@ mod tests {
             epoch: Instant::now(),
             logs: Default::default(),
             failures: Default::default(),
+            pool_latency: std::time::Duration::ZERO,
         });
         let host = HostState {
             artifacts,

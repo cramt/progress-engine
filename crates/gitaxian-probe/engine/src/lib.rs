@@ -83,11 +83,9 @@ pub(crate) fn abi_json() -> String {
     )
 }
 
-/// How many frames `recognize` pushes before giving up, and how long it waits
-/// for the detector to settle on each. Both are the app's own values
+/// How many frames `recognize` pushes before giving up: the app's own number
 /// (FINDINGS.md §12).
 pub(crate) const MAX_FRAMES: f64 = 12.0;
-pub(crate) const SETTLE_TIMEOUT_MS: f64 = 4000.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Tier {

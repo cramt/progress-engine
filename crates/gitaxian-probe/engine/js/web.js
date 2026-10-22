@@ -281,6 +281,98 @@ async function boot(base, files, wasm, model, catalogue, tier, abi, decode, prog
   return probe.boot(tier, { db7z, md5, size, version, model }, report);
 }
 
+// The streaming detector, one frame at a time (FINDINGS.md S12). The same as
+// the native glue's, for the same reason: `_rec_det_rec` hands a frame to a
+// one-slot queue that one pool thread drains, and drops it if the slot is
+// taken; `_rec_status()` and recognition.json name no frame; and the status is
+// set before the file is written. So a result belongs to a frame only when that
+// frame is the only one the engine has: the next frame is pushed only once the
+// last is finished, and finished means its status has left RUNNING and, if it
+// found a card, its file has been read. A slow frame is waited for, never given
+// up on and pushed over; doing that is how a slow machine got one card's answer
+// for the next.
+class Detector {
+  #mod;
+  #abi;
+  #maskPtr;
+  #turn = Promise.resolve();
+  #stuck = null;
+
+  constructor(mod, abi, maskPtr) {
+    this.#mod = mod;
+    this.#abi = abi;
+    this.#maskPtr = maskPtr;
+  }
+
+  /**
+   * Run `fn` with the detector to itself; it is handed the only way to push a
+   * frame. A call whose caller stopped waiting keeps its turn until its frame
+   * is finished, so the call after it cannot read that frame's result.
+   */
+  exclusive(fn) {
+    const run = this.#turn.then(() => {
+      if (this.#stuck) fail(this.#stuck);
+      return fn({
+        forget: () => this.#mod._rec_clear_tracking(),
+        frame: (rgba, width, height, first, stuckMs) =>
+          this.#frame(rgba, width, height, first, stuckMs),
+      });
+    });
+    this.#turn = run.catch(() => {});
+    return run;
+  }
+
+  // Push one frame and return the cards the engine reports for it.
+  async #frame(rgba, width, height, first, stuckMs) {
+    const mod = this.#mod;
+    const ptr = mod._malloc(rgba.length);
+    if (!ptr) fail(`could not allocate ${rgba.length} bytes for the frame`);
+    try {
+      mod.HEAPU8.set(rgba, ptr);
+      mod._rec_det_rec(ptr, height, width, first ? 1 : 0, this.#maskPtr);
+    } finally {
+      mod._free(ptr);
+    }
+
+    // Past this the engine has a frame it may yet answer for, so nothing after
+    // it could be trusted: the detector is stuck for good.
+    const deadline = performance.now() + stuckMs;
+    const wait = async (what) => {
+      if (performance.now() > deadline) {
+        this.#stuck = `the detector ${what} within ${stuckMs} ms, so it is stuck`;
+        fail(this.#stuck);
+      }
+      await sleep(5);
+    };
+    let status;
+    while ((status = mod._rec_status()) === this.#abi.recRunning) {
+      await wait("did not finish a frame");
+    }
+    if (status !== this.#abi.recFinishedWithDetections) return [];
+    for (;;) {
+      const found = this.#take();
+      if (found) return found.cards ?? [];
+      await wait("did not write the card it reported");
+    }
+  }
+
+  // recognition.json, once it is all there. The pool thread's write lands as
+  // several calls carried out on this thread, so the file can exist before it
+  // is whole; a partial one is left to finish rather than consumed.
+  #take() {
+    const { FS } = this.#mod;
+    if (!FS.analyzePath("recognition.json").exists) return null;
+    let parsed;
+    try {
+      parsed = JSON.parse(text(FS.readFile("recognition.json")));
+    } catch {
+      return null;
+    }
+    FS.unlink("recognition.json");
+    return parsed;
+  }
+}
+
 class Probe {
   #mod;
   #jobs;
@@ -288,6 +380,7 @@ class Probe {
   #timeoutMs;
   #maskPtr = null;
   #dataPtr = null;
+  #detector = null;
   #closed = false;
   version = "unknown";
 
@@ -383,6 +476,7 @@ class Probe {
 
       this.#maskPtr = mod._malloc(this.#abi.maskBytes);
       mod.HEAPU8.fill(0, this.#maskPtr, this.#maskPtr + this.#abi.maskBytes);
+      this.#detector = new Detector(mod, this.#abi, this.#maskPtr);
       this.version = text(files.version).trim() || "unknown";
       report("ready", 100, "ready");
       return this;
@@ -448,35 +542,19 @@ class Probe {
    * camera feed, so this pushes the frame through the streaming detector until
    * it settles.
    */
-  recognize(rgba, width, height, maxFrames, settleTimeoutMs) {
+  recognize(rgba, width, height, maxFrames) {
     this.#alive();
-    const mod = this.#mod;
-    const abi = this.#abi;
-    const run = async () => {
-      mod._rec_clear_tracking();
+    // A frame that outlasts a whole call means the engine is stuck.
+    const stuckMs = this.#timeoutMs;
+    const run = this.#detector.exclusive(async (d) => {
+      d.forget();
       for (let frame = 0; frame < maxFrames; frame++) {
-        const ptr = this.#malloc(rgba, "the frame");
-        try {
-          mod._rec_det_rec(ptr, height, width, frame === 0 ? 1 : 0, this.#maskPtr);
-        } finally {
-          mod._free(ptr);
-        }
-
-        const deadline = performance.now() + settleTimeoutMs;
-        let status = abi.recRunning;
-        while (performance.now() < deadline) {
-          await sleep(20);
-          status = mod._rec_status();
-          if (status !== abi.recRunning) break;
-        }
-        if (status === abi.recFinishedWithDetections) {
-          const cards = this.#takeDetections()?.cards;
-          if (cards?.length) return JSON.stringify(cards);
-        }
+        const cards = await d.frame(rgba, width, height, frame === 0, stuckMs);
+        if (cards.length) return JSON.stringify(cards);
       }
       return JSON.stringify([]);
-    };
-    return this.#bounded(run(), "recognize");
+    });
+    return this.#bounded(run, "recognize");
   }
 
   /**
@@ -485,27 +563,13 @@ class Probe {
    * engine's own tracker sees successive camera frames rather than one still
    * over and over. `first` starts a new feed.
    */
-  watch(rgba, width, height, first, settleTimeoutMs) {
+  watch(rgba, width, height, first) {
     this.#alive();
+    const stuckMs = this.#timeoutMs;
     const mod = this.#mod;
-    const abi = this.#abi;
-    const run = async () => {
-      if (first) mod._rec_clear_tracking();
-      const ptr = this.#malloc(rgba, "the frame");
-      try {
-        mod._rec_det_rec(ptr, height, width, first ? 1 : 0, this.#maskPtr);
-      } finally {
-        mod._free(ptr);
-      }
-      const deadline = performance.now() + settleTimeoutMs;
-      let status = abi.recRunning;
-      while (performance.now() < deadline) {
-        await sleep(5);
-        status = mod._rec_status();
-        if (status !== abi.recRunning) break;
-      }
-      const cards =
-        status === abi.recFinishedWithDetections ? (this.#takeDetections()?.cards ?? []) : [];
+    const run = this.#detector.exclusive(async (d) => {
+      if (first) d.forget();
+      const cards = await d.frame(rgba, width, height, first, stuckMs);
       // A feed runs for as long as the user scans, and the engine writes a crop
       // of every card it saves into its in-memory FS (FINDINGS.md S12).
       for (const card of cards) {
@@ -514,19 +578,8 @@ class Probe {
         }
       }
       return JSON.stringify(cards);
-    };
-    return this.#bounded(run(), "watch");
-  }
-
-  #takeDetections() {
-    const mod = this.#mod;
-    try {
-      const raw = mod.FS.readFile("recognition.json");
-      mod.FS.unlink("recognition.json");
-      return JSON.parse(text(raw));
-    } catch {
-      return null;
-    }
+    });
+    return this.#bounded(run, "watch");
   }
 
   /**

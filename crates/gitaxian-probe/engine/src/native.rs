@@ -12,10 +12,7 @@ use crate::artifacts::{Bundle, Source};
 pub use crate::sandbox::ProgressFn;
 use crate::sandbox::{self, Artifacts, HostState, LogSink, RoleState, Stores};
 use crate::worker::{self, SpawnContext, WorkerRegistry};
-use crate::{
-    pump, BootInfo, Card, Detection, Image, Point, Tier, KNOWN_FINGERPRINT, MAX_FRAMES,
-    SETTLE_TIMEOUT_MS,
-};
+use crate::{pump, BootInfo, Card, Detection, Image, Point, Tier, KNOWN_FINGERPRINT, MAX_FRAMES};
 
 pub struct EngineConfig {
     /// Where the engine's files come from and where they are kept between
@@ -32,6 +29,12 @@ pub struct EngineConfig {
     pub on_progress: Option<ProgressFn>,
     /// How long any single engine call may take before the host gives up.
     pub timeout: Duration,
+    /// How late the main isolate hears from the pthread pool. Zero, except
+    /// under test: a pool thread's file writes are carried out by the main
+    /// isolate when it hears of them, so this is how a test makes the engine's
+    /// results land well after its status says they are ready, which a slow
+    /// machine does by accident (FINDINGS.md §12).
+    pub pool_latency: Duration,
 }
 
 impl Default for EngineConfig {
@@ -44,6 +47,7 @@ impl Default for EngineConfig {
             allow_unknown_build: false,
             on_progress: None,
             timeout: Duration::from_secs(120),
+            pool_latency: Duration::ZERO,
         }
     }
 }
@@ -103,6 +107,7 @@ impl Engine {
             epoch,
             logs: logs.clone(),
             failures: Default::default(),
+            pool_latency: config.pool_latency,
         });
         let failures = spawn.failures.clone();
 
@@ -231,7 +236,8 @@ impl Engine {
                 Arg::Num(image.width as f64),
                 Arg::Num(image.height as f64),
                 Arg::Num(MAX_FRAMES),
-                Arg::Num(SETTLE_TIMEOUT_MS),
+                // A frame that outlasts a whole call means the engine is stuck.
+                Arg::Num(self.timeout.as_millis() as f64),
             ],
         )
     }

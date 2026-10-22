@@ -95,6 +95,9 @@ pub struct SpawnContext {
     /// a 32-worker handshake that could never complete - reporting a timeout
     /// for what was actually a named failure. Boot reads this when it gives up.
     pub failures: Failures,
+    /// How long a message from the pool waits before the main isolate sees it:
+    /// [`crate::EngineConfig::pool_latency`].
+    pub pool_latency: Duration,
 }
 
 pub type Failures = Arc<Mutex<Vec<String>>>;
@@ -119,6 +122,9 @@ struct WorkerHandle {
     isolate: Arc<Mutex<Option<v8::IsolateHandle>>>,
     stop: Arc<AtomicBool>,
     join: Option<JoinHandle<()>>,
+    /// Messages already off `from_worker`, with when they were, still waiting
+    /// out `pool_latency`.
+    held: VecDeque<(Instant, Vec<u8>)>,
 }
 
 pub struct WorkerRegistry {
@@ -167,6 +173,7 @@ impl WorkerRegistry {
                 isolate,
                 stop,
                 join: Some(join),
+                held: VecDeque::new(),
             },
         );
         Ok(id)
@@ -179,7 +186,15 @@ impl WorkerRegistry {
     }
 
     pub fn recv(&mut self, id: u32) -> Option<Vec<u8>> {
-        self.workers.get(&id).and_then(|w| w.from_worker.pop())
+        let worker = self.workers.get_mut(&id)?;
+        while let Some(msg) = worker.from_worker.pop() {
+            worker.held.push_back((Instant::now(), msg));
+        }
+        let (seen, _) = worker.held.front()?;
+        if seen.elapsed() < self.ctx.pool_latency {
+            return None;
+        }
+        worker.held.pop_front().map(|(_, msg)| msg)
     }
 
     pub fn terminate(&mut self, id: u32) {

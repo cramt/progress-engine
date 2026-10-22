@@ -35,7 +35,6 @@ use wasm_bindgen_futures::JsFuture;
 
 use crate::{
     job, wasm, Card, Detection, Image, Point, Progress, Tier, KNOWN_FINGERPRINT, MAX_FRAMES,
-    SETTLE_TIMEOUT_MS,
 };
 
 /// Progress callbacks are `Rc`: the web host is one thread, and a callback is
@@ -86,7 +85,6 @@ extern "C" {
         width: u32,
         height: u32,
         max_frames: f64,
-        settle_timeout_ms: f64,
     ) -> Result<Promise, JsValue>;
 
     #[wasm_bindgen(method, catch)]
@@ -96,7 +94,6 @@ extern "C" {
         width: u32,
         height: u32,
         first: bool,
-        settle_timeout_ms: f64,
     ) -> Result<Promise, JsValue>;
 
     #[wasm_bindgen(method)]
@@ -318,7 +315,6 @@ impl Engine {
             image.width,
             image.height,
             MAX_FRAMES,
-            SETTLE_TIMEOUT_MS,
         );
         self.call_json("recognize", call).await
     }
@@ -336,7 +332,6 @@ impl Engine {
             image.width,
             image.height,
             first,
-            SETTLE_TIMEOUT_MS,
         );
         self.call_json("watch", call).await
     }

@@ -227,6 +227,12 @@ caller that wants the cards in *this* frame keeps those at 0. In headless Chromi
 frame costs 0.1-0.35 s against `recognize`'s 1.3-2 s with a card in it and 3 s without
 (FINDINGS §12, *A live feed*). Natively it is not carried.
 
+On either host a call's answer is about its own frame: the glue pushes a frame only
+once the engine has finished the one before and its result has been read, however long
+that takes, so a slow machine is slow rather than a card behind (FINDINGS §12, *A frame
+at a time*). Calls queue for the detector. A frame that outlasts the timeout for a whole
+call means the engine is stuck: that call fails, and so does every one after it.
+
 `open` works on the page or inside a dedicated worker, classic or module; in a worker
 there is no `window`, so the glue gives the hook the `global.fileEvents` it falls back
 to, exactly as the native sandbox does. The pool's workers cannot be stopped from

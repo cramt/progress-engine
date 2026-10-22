@@ -110,9 +110,102 @@
     }
   }
 
+  // The streaming detector, one frame at a time (FINDINGS.md S12).
+  //
+  // `_rec_det_rec` hands a frame to a one-slot queue that a single pool thread
+  // drains, and drops it if the slot is taken. What comes back is
+  // engine-global - `_rec_status()` and recognition.json - with nothing naming
+  // the frame it describes, and the status is set before the file is written.
+  // So a result belongs to a frame only when that frame is the only one the
+  // engine has: the next frame is pushed only once the last is finished, and
+  // finished means its status has left RUNNING and, if it found a card, its
+  // file has been read. A slow frame is waited for, never given up on and
+  // pushed over; doing that is how a slow machine got one card's answer for
+  // the next.
+  class Detector {
+    #mod;
+    #maskPtr;
+    #turn = Promise.resolve();
+    #stuck = null;
+
+    constructor(mod, maskPtr) {
+      this.#mod = mod;
+      this.#maskPtr = maskPtr;
+    }
+
+    /**
+     * Run `fn` with the detector to itself; it is handed the only way to push
+     * a frame. A call the host stopped waiting for keeps its turn until its
+     * frame is finished, so the call after it cannot read that frame's result.
+     */
+    exclusive(fn) {
+      const run = this.#turn.then(() => {
+        if (this.#stuck) fail(this.#stuck);
+        return fn({
+          forget: () => this.#mod._rec_clear_tracking(),
+          frame: (data, width, height, first, stuckMs) =>
+            this.#frame(data, width, height, first, stuckMs),
+        });
+      });
+      this.#turn = run.catch(() => {});
+      return run;
+    }
+
+    // Push one frame and return the cards the engine reports for it.
+    async #frame(data, width, height, first, stuckMs) {
+      const mod = this.#mod;
+      const ptr = mod._malloc(data.length);
+      if (!ptr) fail(`could not allocate ${data.length} bytes in the wasm heap`);
+      try {
+        mod.HEAPU8.set(data, ptr);
+        mod._rec_det_rec(ptr, height, width, first ? 1 : 0, this.#maskPtr);
+      } finally {
+        mod._free(ptr);
+      }
+
+      // Past this the engine has a frame it may yet answer for, so nothing
+      // after it could be trusted: the detector is stuck for good.
+      const deadline = ops.op_probe_now() + stuckMs;
+      const wait = async (what) => {
+        if (ops.op_probe_now() > deadline) {
+          this.#stuck = `the detector ${what} within ${stuckMs} ms, so it is stuck`;
+          fail(this.#stuck);
+        }
+        await sleep(5);
+      };
+      let status;
+      while ((status = mod._rec_status()) === ABI.recRunning) {
+        await wait("did not finish a frame");
+      }
+      if (status !== ABI.recFinishedWithDetections) return [];
+      for (;;) {
+        const found = this.#take();
+        if (found) return found.cards ?? [];
+        await wait("did not write the card it reported");
+      }
+    }
+
+    // recognition.json, once it is all there. The pool thread's write lands as
+    // several calls carried out on this thread, so the file can exist before
+    // it is whole; a partial one is left to finish rather than consumed.
+    #take() {
+      const { FS } = this.#mod;
+      if (!FS.analyzePath("recognition.json").exists) return null;
+      let parsed;
+      try {
+        parsed = JSON.parse(text(FS.readFile("recognition.json")));
+      } catch {
+        return null;
+      }
+      FS.unlink("recognition.json");
+      return parsed;
+    }
+  }
+
   let mod = null;
   let jobs = null;
   let maskPtr = null;
+  let detector = null;
   let dataPtr = null;
   let closed = false;
 
@@ -171,27 +264,6 @@
     const want = width * height * 4;
     if (data.length !== want) {
       fail(`expected ${want} bytes of RGBA for ${width}x${height}, got ${data.length}`);
-    }
-  };
-
-  const pushFrame = (data, width, height, firstFrame) => {
-    const ptr = mod._malloc(data.length);
-    if (!ptr) fail(`could not allocate ${data.length} bytes in the wasm heap`);
-    try {
-      mod.HEAPU8.set(data, ptr);
-      mod._rec_det_rec(ptr, height, width, firstFrame ? 1 : 0, maskPtr);
-    } finally {
-      mod._free(ptr);
-    }
-  };
-
-  const takeDetections = () => {
-    try {
-      const raw = mod.FS.readFile("recognition.json");
-      mod.FS.unlink("recognition.json");
-      return JSON.parse(text(raw));
-    } catch {
-      return null;
     }
   };
 
@@ -279,6 +351,7 @@
 
       maskPtr = mod._malloc(ABI.maskBytes);
       mod.HEAPU8.fill(0, maskPtr, maskPtr + ABI.maskBytes);
+      detector = new Detector(mod, maskPtr);
       progress("ready", 100, "ready");
 
       return JSON.stringify({
@@ -333,28 +406,19 @@
      * until it settles. It needs to see the whole card against a contrasting
      * background; a tight edge-to-edge crop gives it no boundary to find.
      */
-    async recognize(width, height, maxFrames, settleTimeoutMs) {
+    async recognize(width, height, maxFrames, stuckMs) {
       alive();
       const data = ops.op_probe_take_image();
       assertImage(width, height, data);
-      mod._rec_clear_tracking();
-
-      for (let frame = 0; frame < maxFrames; frame++) {
-        pushFrame(data, width, height, frame === 0);
-
-        const deadline = ops.op_probe_now() + settleTimeoutMs;
-        let status = ABI.recRunning;
-        while (ops.op_probe_now() < deadline) {
-          await sleep(20);
-          status = mod._rec_status();
-          if (status !== ABI.recRunning) break;
+      const cards = await detector.exclusive(async (d) => {
+        d.forget();
+        for (let frame = 0; frame < maxFrames; frame++) {
+          const cards = await d.frame(data, width, height, frame === 0, stuckMs);
+          if (cards.length) return cards;
         }
-        if (status === ABI.recFinishedWithDetections) {
-          const detections = takeDetections();
-          if (detections?.cards?.length) return JSON.stringify(detections.cards);
-        }
-      }
-      return JSON.stringify([]);
+        return [];
+      });
+      return JSON.stringify(cards);
     },
 
     close() {
