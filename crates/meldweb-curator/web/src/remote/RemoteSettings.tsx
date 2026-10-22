@@ -134,6 +134,18 @@ export function RemoteSettings({ remote }: { remote: Remote }) {
           onInstall={() => void act(() => github.onboarding.install())}
           onNewRepo={() => github.onboarding.newRepo()}
         />
+      ) : state.kind === "unreadable" ? (
+        <p className="refusal" role="alert">
+          This browser's repo could not be read to sync it: {state.message}{" "}
+          <button
+            type="button"
+            className="small"
+            disabled={busy}
+            onClick={() => void act(() => sync.sync())}
+          >
+            Try again
+          </button>
+        </p>
       ) : (
         <Syncing state={state} busy={busy} act={act} remote={remote} />
       )}

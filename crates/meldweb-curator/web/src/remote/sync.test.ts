@@ -247,6 +247,26 @@ describe("a sync", () => {
     expect(state.kind === "on" && state.phase).toEqual({ kind: "logged-out" });
   });
 
+  it("says the repo could not be read, and reads it again on the next sync", async () => {
+    const repo = fakeRepo({});
+    const facts = repo.steps.facts;
+    let broken = true;
+    repo.steps.facts = () =>
+      broken ? Promise.reject(new Error("object ffc45b1 is missing")) : facts();
+    const sync = engine(repo);
+    await sync.refresh();
+    await sync.sync();
+    expect(sync.getState()).toEqual({
+      kind: "unreadable",
+      message: "object ffc45b1 is missing",
+    });
+    expect(repo.log).toEqual([]);
+    broken = false;
+    await sync.sync();
+    const state = sync.getState();
+    expect(state.kind === "on" && state.phase).toEqual({ kind: "idle" });
+  });
+
   it("is off without a remote, and removing one turns it off", async () => {
     const repo = fakeRepo({});
     const sync = engine(repo);

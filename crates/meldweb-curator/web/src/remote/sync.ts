@@ -51,6 +51,11 @@ export type Phase =
 
 export type SyncState =
   | { kind: "off" }
+  /**
+   * The repo could not say what its remote is or where it stands; every
+   * sync asked for tries reading it again.
+   */
+  | { kind: "unreadable"; message: string }
   | {
       kind: "on";
       url: string;
@@ -136,7 +141,12 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
   }
 
   async function read(phase?: Phase): Promise<SyncState> {
-    const facts = await steps.facts();
+    let facts: RemoteFacts;
+    try {
+      facts = await steps.facts();
+    } catch (e) {
+      return { kind: "unreadable", message: messageOf(e) };
+    }
     if (!facts.url) return { kind: "off" };
     const was =
       state.kind === "on" && state.url === facts.url ? state.phase : null;
@@ -207,7 +217,7 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
     await lock(async () => {
       await before?.();
       const current = await read();
-      if (current.kind === "off") {
+      if (current.kind !== "on") {
         set(current);
         return;
       }
@@ -289,7 +299,10 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
     committed() {
       void (async () => {
         const next = await read();
-        if (next.kind === "off" || running) return;
+        if (next.kind !== "on" || running) {
+          if (!running) set(next);
+          return;
+        }
         if (state.kind === "on" && state.phase.kind === "syncing") return;
         set(next);
         const waiting =

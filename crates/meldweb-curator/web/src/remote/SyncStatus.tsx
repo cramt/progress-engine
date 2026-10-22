@@ -11,6 +11,8 @@ const remoteOf = (): Promise<Remote | null> =>
 /** What the corner says about syncing, or null while it goes by itself. */
 export function syncLine(state: SyncState): string | null {
   if (state.kind === "off") return null;
+  if (state.kind === "unreadable")
+    return `This browser's repo could not be read to sync it, and will be tried again: ${state.message}`;
   const host = hostName(state.url);
   switch (state.phase.kind) {
     case "conflict":
