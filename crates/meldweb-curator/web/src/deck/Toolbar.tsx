@@ -41,9 +41,9 @@ export function Toolbar({
   return (
     <div className="toolbar" role="toolbar" aria-label="Page">
       <div className="toolbar-deck">
-        <Link to="/" className="brand" title="Meldweb Curator: all decks">
+        <Link to="/" className="brand" title="Progress Engine: all decks">
           <BrandMark />
-          <span className="visually-hidden">Meldweb Curator</span>
+          <span className="wordmark brand-name">Progress Engine</span>
         </Link>
         <h1 className="crumbs">
           {up && (

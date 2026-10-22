@@ -17,7 +17,9 @@ prebuilt V8 its native host links fetched by hash. Its engine README
 and FINDINGS.md are the authority on it, and the notes below about decks,
 criteria and the two engines do not apply to it.
 
-**Meldweb Curator** (`crates/meldweb-curator/`) is the deck editor: a
+**Meldweb Curator** (`crates/meldweb-curator/`) is the deck editor. What the
+site serves calls itself Progress Engine, in surgical metal over flesh, and the
+repo keeps the card names (ADR-0042). In it, a
 `.deck.toml` in a git repo is the deck, and saving is a commit. The same repo's
 `collection.toml` is what the user owns, each copy in one place (a binder, a
 box, a deck), edited at `/collection` and saved the same way (ADR-0023); `/wanted` is

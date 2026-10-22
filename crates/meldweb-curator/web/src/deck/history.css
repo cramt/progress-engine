@@ -104,6 +104,10 @@ main.with-drawer {
 
 /* One save, snapshot or variant: the whole row is the button. */
 .history-row {
+  --line: none;
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: 13px;
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;

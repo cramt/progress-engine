@@ -12,7 +12,9 @@ live here:
 - **Meldweb Curator** (`crates/meldweb-curator/`, at
   [meldweb.cramt.dk](https://meldweb.cramt.dk)): a deck and collection editor
   in the browser where a `.deck.toml` in your own git repo is the deck and
-  saving is a commit.
+  saving is a commit. The site serves it, with the family's other browser
+  tools, under the name Progress Engine
+  ([ADR-0042](docs/adr/0042-the-site-is-progress-engine-in-surgical-metal.md)).
 - **Gitaxian Probe** (`crates/gitaxian-probe/`): card scanning, hosting
   [Delver X](https://mtg.delver.app)'s recognition engine natively and in the
   browser, where Curator's Scan button uses it. Its

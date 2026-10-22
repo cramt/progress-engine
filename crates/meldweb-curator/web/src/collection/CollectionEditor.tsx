@@ -160,7 +160,8 @@ export function CollectionEditor({
         <Toolbar name="Collection" />
         <div className="banners">
           <p className="refusal" role="alert">
-            {path} is not a collection this Curator can read: {parsed.message}
+            {path} is not a collection Progress Engine can read:{" "}
+            {parsed.message}
           </p>
         </div>
         <details className="source" open>

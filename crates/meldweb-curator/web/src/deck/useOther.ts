@@ -49,7 +49,7 @@ async function load(
   if (parsed.kind === "refused") {
     return {
       kind: "missing",
-      message: `That version is not a deck Curator can read: ${parsed.message}`,
+      message: `That version is not a deck Progress Engine can read: ${parsed.message}`,
     };
   }
   return {

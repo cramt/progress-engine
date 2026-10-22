@@ -477,7 +477,7 @@ function Friends({
       )}
       {friends.length === 0 && (
         <span className="muted">
-          Their Curator repo has to be public; what they hold of what this deck
+          Their mtg repo has to be public; what they hold of what this deck
           lacks shows below.
         </span>
       )}

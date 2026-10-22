@@ -16,7 +16,7 @@ export function newRepoUrl(): string {
   const q = new URLSearchParams({
     name: MAGIC_REPO,
     owner: "@me",
-    description: "My Magic decks, kept by Meldweb Curator",
+    description: "My Magic decks, kept by Progress Engine",
   });
   return `https://github.com/new?${q}`;
 }

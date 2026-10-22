@@ -158,6 +158,9 @@
 }
 
 button.link {
+  --line: none;
+  letter-spacing: normal;
+  text-transform: none;
   height: auto;
   padding: 0;
   border: none;

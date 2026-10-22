@@ -269,7 +269,7 @@ export function DeckEditor({
         <Toolbar name={deckStem(path)} actions={historyButton} />
         <div className="banners">
           <p className="refusal" role="alert">
-            {path} is not a deck Curator can read: {parsed.message}
+            {path} is not a deck Progress Engine can read: {parsed.message}
           </p>
         </div>
         <details className="source" open>

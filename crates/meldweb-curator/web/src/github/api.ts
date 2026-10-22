@@ -316,7 +316,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     if (body.encoding !== "base64" || typeof body.content !== "string") {
       throw new GitHubError(
         413,
-        `${path} is over 1 MB, which GitHub will not hand to Curator`,
+        `${path} is over 1 MB, which GitHub will not hand to Progress Engine`,
       );
     }
     return { text: decodeBase64(body.content), sha: body.sha };
@@ -406,7 +406,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       if (body.encoding !== "base64" || typeof body.content !== "string") {
         throw new GitHubError(
           413,
-          `${path} is over 1 MB, which GitHub will not hand to Curator`,
+          `${path} is over 1 MB, which GitHub will not hand to Progress Engine`,
         );
       }
       return base64Bytes(body.content);

@@ -13,7 +13,7 @@ function Gate({ children }: { children: React.ReactNode }) {
       <div className="gate-card">
         <span className="brand">
           <BrandMark />
-          Meldweb Curator
+          <span className="wordmark">Progress Engine</span>
         </span>
         {children}
       </div>
@@ -55,8 +55,8 @@ function Login({ returnPath }: { returnPath: string }) {
     <Gate>
       <h1>Your decks, in git</h1>
       <p>
-        Your decks live in a GitHub repository named mtg, and Curator commits
-        every change to it by itself.
+        Your decks live in a GitHub repository named mtg, and Progress Engine
+        commits every change to it by itself.
       </p>
       <button
         type="button"
@@ -100,8 +100,8 @@ function Onboarding({
     <Gate>
       <h1>Set up your Magic repo</h1>
       <p>
-        Curator keeps your decks in <code>{login}/mtg</code> on GitHub, and can
-        reach only that one repository.
+        Progress Engine keeps your decks in <code>{login}/mtg</code> on GitHub,
+        and can reach only that one repository.
       </p>
       <ol className="onboarding">
         <li className={repoExists ? "complete" : undefined}>
@@ -139,7 +139,7 @@ function Onboarding({
               }
             }}
           >
-            Install Curator on mtg
+            Install Progress Engine on mtg
           </button>
           <p className="hint">
             Choose <em>Only select repositories</em> and pick <code>mtg</code>.

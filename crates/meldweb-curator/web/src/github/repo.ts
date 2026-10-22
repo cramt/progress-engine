@@ -103,7 +103,7 @@ export async function openMagicRepo(
   if (version > known) {
     return {
       kind: "refused",
-      message: `This repo is at version ${version}, and this Curator only knows up to version ${known}. Reload to get a newer Curator; nothing was changed.`,
+      message: `This repo is at version ${version}, and this Progress Engine only knows up to version ${known}. Reload to get a newer one; nothing was changed.`,
     };
   }
   while (version < known) {
@@ -111,7 +111,7 @@ export async function openMagicRepo(
     if (!step) {
       return {
         kind: "refused",
-        message: `This repo is at version ${version}, and Curator has no way from it to version ${known}.`,
+        message: `This repo is at version ${version}, and Progress Engine has no way from it to version ${known}.`,
       };
     }
     await step.migrate(api, repo);

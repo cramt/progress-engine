@@ -3,72 +3,194 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Meldweb Curator</title>
+    <meta name="color-scheme" content="dark" />
+    <title>Progress Engine</title>
+    <link rel="preload" href="/fonts/EBGaramond.woff2" as="font" type="font/woff2" crossorigin />
     <!--
       The splash is plain HTML inside #root, so it paints before any
       JavaScript arrives and React replaces it on its first render; from then
       on src/ui/Loading.tsx draws the same thing. Its look lives here rather
       than in styles.css because it must apply before that sheet loads, so
-      each colour falls back to its token's value.
+      each colour falls back to its token's value. The spinner is
+      src/ui/suture.svg, which vite.config.ts inlines into #boot.
+
+      The brand's serif is declared here too, for the same reason: the
+      wordmark is set in it before styles.css arrives.
     -->
     <style>
+      @font-face {
+        font-family: "EB Garamond";
+        src: url("/fonts/EBGaramond.woff2") format("woff2");
+        font-weight: 400 800;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "EB Garamond";
+        src: url("/fonts/EBGaramond-Italic.woff2") format("woff2");
+        font-weight: 400 800;
+        font-style: italic;
+        font-display: swap;
+      }
       body {
         margin: 0;
+        background: var(--bg, #0a0b0f);
       }
       .boot {
+        box-sizing: border-box;
+        position: relative;
         min-height: 100vh;
         display: grid;
         place-content: center;
         justify-items: center;
-        gap: 12px;
-        padding: 16px;
+        gap: 14px;
+        padding: 24px;
+        overflow: hidden;
         text-align: center;
         font:
           14px/1.45 system-ui,
           sans-serif;
-        background: var(--bg, #f5f5f3);
-        color: var(--muted, #6b6a65);
+        color: var(--muted, #8e97aa);
+        background:
+          repeating-linear-gradient(
+            90deg,
+            rgb(255 255 255 / 0.025) 0 1px,
+            transparent 1px 5px
+          ),
+          radial-gradient(60% 55% at 50% 42%, rgb(8 9 13 / 0.7), rgb(8 9 13 / 0.96)),
+          linear-gradient(rgb(10 11 18 / 0.35), rgb(10 11 18 / 0.35)),
+          url("/splash/font-of-progress.jpg") center 30% / cover,
+          #08090d;
+      }
+      .boot > :not(.boot-credit) {
+        position: relative;
       }
       .boot h1 {
         margin: 0;
-        font-size: 18px;
-        color: var(--fg, #1c1c1a);
+        font:
+          400 26px/1.1 "EB Garamond",
+          Georgia,
+          serif;
+        font-variant: small-caps;
+        letter-spacing: 0.32em;
+        margin-right: -0.32em;
+        background: linear-gradient(
+          180deg,
+          #ffffff 0%,
+          #c3cad8 38%,
+          #5c6476 50%,
+          #aab3c5 64%,
+          #f2f4f8 100%
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      /* A scalpel's edge, stapled shut. */
+      .boot-seam {
+        position: relative;
+        width: 220px;
+        height: 9px;
+      }
+      .boot-seam::before,
+      .boot-seam::after {
+        content: "";
+        position: absolute;
+      }
+      .boot-seam::before {
+        left: 0;
+        right: 0;
+        top: 4px;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          #4a5163 12%,
+          #eef1f6 50%,
+          #4a5163 88%,
+          transparent
+        );
+      }
+      .boot-seam::after {
+        inset: 0 12%;
+        background: repeating-linear-gradient(
+          90deg,
+          transparent 0 17px,
+          #c9d0dc 17px 18px,
+          transparent 18px 26px
+        );
+        opacity: 0.75;
+      }
+      .boot p {
+        margin: 0;
+        font:
+          italic 15px "EB Garamond",
+          Georgia,
+          serif;
+        letter-spacing: 0.08em;
+        color: #9a8580;
+      }
+      .boot-credit {
+        position: absolute;
+        right: 16px;
+        bottom: 10px;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: #8a7f86;
       }
       .boot-spinner {
-        width: 24px;
-        height: 24px;
-        border: 3px solid var(--border, #e3e2de);
-        border-top-color: var(--accent, #f08a1c);
-        border-radius: 50%;
-        animation: boot-spin 0.8s linear infinite;
+        display: block;
+        line-height: 0;
       }
-      .boot[data-failed] .boot-spinner {
+      .suture {
+        width: 120px;
+        height: 120px;
+        overflow: visible;
+      }
+      .suture-etch > * {
+        fill: none;
+        stroke: rgb(142 151 170 / 0.28);
+        stroke-width: 0.5;
+      }
+      .suture-thread {
+        fill: none;
+        stroke: #b0837d;
+        stroke-width: 1;
+        stroke-linecap: round;
+      }
+      .suture-staples path {
+        stroke: #d9dde5;
+        stroke-width: 0.9;
+        opacity: 0;
+        animation: suture-staple 3.6s infinite;
+      }
+      .suture-core {
+        fill: none;
+        stroke: url(#pe-blade);
+        stroke-width: 0.8;
+      }
+      @keyframes suture-staple {
+        0%,
+        8% {
+          opacity: 0;
+        }
+        14%,
+        82% {
+          opacity: 0.95;
+        }
+        92%,
+        100% {
+          opacity: 0;
+        }
+      }
+      .boot[data-failed] .suture {
         display: none;
       }
       .boot[data-failed] p {
         max-width: 40em;
-        color: var(--danger, #c2352b);
-      }
-      @keyframes boot-spin {
-        to {
-          transform: rotate(1turn);
-        }
-      }
-      @media (prefers-color-scheme: dark) {
-        .boot {
-          background: var(--bg, #131416);
-          color: var(--muted, #9c9c97);
-        }
-        .boot h1 {
-          color: var(--fg, #ececea);
-        }
-        .boot-spinner {
-          border-color: var(--border, #2b2d31);
-          border-top-color: var(--accent, #f59a3a);
-        }
-        .boot[data-failed] p {
-          color: var(--danger, #ef6b61);
-        }
+        font: 14px/1.45 system-ui, sans-serif;
+        letter-spacing: 0;
+        color: var(--danger, #e5736a);
       }
     </style>
     <script>
@@ -95,9 +217,11 @@
   <body>
     <div id="root">
       <div id="boot" class="boot" role="status">
-        <h1>Meldweb Curator</h1>
-        <div class="boot-spinner"></div>
+        <!--suture-->
+        <h1>Progress Engine</h1>
+        <span class="boot-seam"></span>
         <p>Loading…</p>
+        <span class="boot-credit">Font of Progress · Aaron J. Riley</span>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

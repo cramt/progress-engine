@@ -38,7 +38,7 @@ export function commitMessageFor(
   // A card is one short file, written by hand, so there is no diff to tell.
   if (isCardPath(path))
     return `${cardStem(path)}: custom card ${before === "" ? "made" : "edited"}`;
-  throw new Error(`${path} is not a file Curator edits`);
+  throw new Error(`${path} is not a file Progress Engine edits`);
 }
 
 /** What is still being written to each path, as one promise per path. */
