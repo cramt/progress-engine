@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { compareDecks } from "../deck";
 import type { ConflictHunk } from "../deck.gen";
 import {
@@ -16,9 +16,16 @@ type Planning =
   | { kind: "failed"; message: string }
   | { kind: "ready"; plan: MergePlan };
 
+/** Where a merge comes from: planning it, and making it as planned. */
+export interface MergeSource {
+  plan(prefer?: MergeAsk["prefer"]): Promise<MergePlan>;
+  merge(plan: MergePlan, prefer?: MergeAsk["prefer"]): Promise<MergeDone>;
+}
+
 /**
  * Merges one of the deck's branches into another (ADR-0041): a branch into
- * main, or main into a branch to bring it up to date. It shows what the
+ * main, or main into a branch to bring it up to date; or, given `source`,
+ * another player's deck the fork follows into its main. It shows what the
  * merge will change before anything moves; where both changed the same
  * lines, it shows them and asks whose to keep.
  */
@@ -28,15 +35,22 @@ export function MergeDialog({
   from,
   into,
   prepare,
+  source,
+  children,
   onClose,
   onMerged,
 }: {
   repo: Repo;
   stem: string;
+  /** What is merged, as the dialog names it: a branch, or `alice's Lantern`. */
   from: string;
   into: string;
   /** Lands the open branch's pending saves; resolves to why it could not. */
   prepare: () => Promise<string | null>;
+  /** Defaults to the deck's branch `from` merged into its branch `into`. */
+  source?: MergeSource;
+  /** Shown above what the merge changes. */
+  children?: ReactNode;
   onClose: () => void;
   onMerged: (done: Extract<MergeDone, { kind: "merged" }>) => void;
 }) {
@@ -49,8 +63,19 @@ export function MergeDialog({
     into,
     ...(prefer === undefined ? {} : { prefer }),
   };
+  const merging: MergeSource = source ?? {
+    plan: (p) =>
+      repo.planMerge(stem, { from, into, ...(p ? { prefer: p } : {}) }),
+    merge: (plan, p) =>
+      mergeAsPlanned(
+        repo,
+        stem,
+        { from, into, ...(p ? { prefer: p } : {}) },
+        plan,
+      ),
+  };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `round` plans again after a refused merge
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `round` plans again after a refused merge, and `merging` is made anew each render from what is listed
   useEffect(() => {
     let live = true;
     setPlanning({ kind: "loading" });
@@ -58,14 +83,7 @@ export function MergeDialog({
       const unsaved = await prepare();
       if (unsaved !== null)
         return { kind: "failed" as const, message: unsaved };
-      return {
-        kind: "ready" as const,
-        plan: await repo.planMerge(stem, {
-          from,
-          into,
-          ...(prefer ? { prefer } : {}),
-        }),
-      };
+      return { kind: "ready" as const, plan: await merging.plan(prefer) };
     })().then(
       (p) => live && setPlanning(p),
       (e) => live && setPlanning({ kind: "failed", message: messageOf(e) }),
@@ -85,7 +103,7 @@ export function MergeDialog({
           e.preventDefault();
           if (!plan) return;
           const ok = await run(async () => {
-            const done = await mergeAsPlanned(repo, stem, ask, plan);
+            const done = await merging.merge(plan, prefer);
             if (done.kind === "merged") {
               onMerged(done);
               return null;
@@ -110,6 +128,7 @@ export function MergeDialog({
           </p>
         )}
         {plan && <p className="hint">{planSummary(plan, ask)}</p>}
+        {children}
         {prefer && (
           <p className="notice">
             Where they clash, {prefer === "ours" ? into : from}'s lines are
@@ -161,14 +180,17 @@ export function MergeDialog({
 }
 
 /** What the branch merged into will change, as the deck's own diff says it. */
-function WhatChanges({
+export function WhatChanges({
   into,
   before,
   after,
+  title,
 }: {
   into: string;
   before: string | undefined;
   after: string | undefined;
+  /** The heading, `What main will change` when absent. */
+  title?: string;
 }) {
   const compared = useMemo(
     () =>
@@ -189,14 +211,19 @@ function WhatChanges({
   if (changes.length === 0) {
     return (
       <p className="version-same">
-        {into}'s list stays the same, card for card.
+        {title
+          ? `${title}: nothing, card for card.`
+          : `${into}'s list stays the same, card for card.`}
       </p>
     );
   }
   return (
-    <section className="changes" aria-label={`What ${into} will change`}>
+    <section
+      className="changes"
+      aria-label={title ?? `What ${into} will change`}
+    >
       <h3>
-        What {into} will change: {changes.length} difference
+        {title ?? `What ${into} will change`}: {changes.length} difference
         {changes.length === 1 ? "" : "s"}
       </h3>
       <div className="changes-groups">

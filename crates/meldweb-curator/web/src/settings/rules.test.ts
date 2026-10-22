@@ -56,6 +56,7 @@ describe("the settings page's rules", () => {
       pins: [],
       decks: [],
       friends: [],
+      upstreams: [],
       rules: [{ verb: "avoid" as const, query: "is:ub" }],
     };
     expect(
@@ -78,6 +79,7 @@ describe("the settings page's rules", () => {
       rules: defaults(),
       decks: [],
       friends: [],
+      upstreams: [],
     };
     expect(
       fileFor({ pins: [], rules: [{ verb: "avoid", query: "lang:" }] }, loaded),
@@ -147,6 +149,7 @@ describe("the settings page's rules", () => {
       rules: read.rules,
       decks: read.decks,
       friends: read.friends,
+      upstreams: read.upstreams,
     };
     const edited = fileFor(
       { pins: [], rules: [{ verb: "avoid", query: "is:ub" }] },
@@ -156,5 +159,25 @@ describe("the settings page's rules", () => {
       decks: ["decks/loam.deck.toml"],
       rules: [{ verb: "avoid", query: "is:ub" }],
     });
+  });
+
+  it("keeps what a fork follows through a rule edited", () => {
+    const upstream = {
+      stem: "lantern",
+      url: "https://github.com/alice/mtg.git",
+      owner: "alice",
+      deck: "lantern",
+      branch: "main",
+    };
+    const text = writeSettings([], [], [], [], [upstream]);
+    expect(text).toContain("[upstream.lantern]");
+    const read = readSettings(text);
+    if (read.kind !== "read") throw new Error(read.message);
+    expect(read.upstreams).toEqual([upstream]);
+    const edited = fileFor(
+      { pins: [], rules: [{ verb: "avoid", query: "is:ub" }] },
+      { text, ...read },
+    );
+    expect(readSettings(edited)).toMatchObject({ upstreams: [upstream] });
   });
 });

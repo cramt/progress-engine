@@ -603,9 +603,10 @@ function loadedOf(text: string, read: SettingsRules): Loaded {
         rules: read.rules,
         decks: read.decks,
         friends: read.friends,
+        upstreams: read.upstreams,
       }
     : // Nothing matches a file that does not read, so any start replaces it.
-      { text, pins: [], rules: [], decks: [], friends: [] };
+      { text, pins: [], rules: [], decks: [], friends: [], upstreams: [] };
 }
 
 function samePin(a: Pin, b: Pick<Pin, "name" | "set" | "num">): boolean {

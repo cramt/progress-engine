@@ -57,6 +57,11 @@ export interface DeckEntry {
   cover?: { set: string; num: string };
   /** The stem of the deck it was forked from, as its history says. */
   parent?: string;
+  /**
+   * The deck in another player's repo it was forked from and follows, by
+   * who keeps it and that deck's name (its stem until fetched).
+   */
+  upstream?: { owner: string; name: string; url: string; deck: string };
   /** The deck's text on its `main`, which pages counting every deck read. */
   text: string;
 }
@@ -84,6 +89,16 @@ export async function listDecks(
       sha: line.file?.sha ?? "",
       text: line.file?.text ?? "",
       ...(line.parent ? { parent: line.parent } : {}),
+      ...(line.upstream
+        ? {
+            upstream: {
+              owner: line.upstream.owner,
+              name: line.upstreamName ?? line.upstream.deck,
+              url: line.upstream.url,
+              deck: line.upstream.deck,
+            },
+          }
+        : {}),
     };
     if (!line.file) {
       return {

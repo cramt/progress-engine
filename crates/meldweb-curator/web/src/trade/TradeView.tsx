@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Toolbar } from "../deck/Toolbar";
 import type { Login } from "../github/trade";
@@ -250,6 +250,12 @@ function Result({
           {offers.length === 1 ? "card" : "cards"} you want.
         </p>
       )}
+      <p className="trade-note">
+        <Link to="/" search={{ fork: data.who }}>
+          Fork one of {data.who}'s decks
+        </Link>
+        , keeping their history, to take what they change later.
+      </p>
       {piles(offers).map((p) => (
         <section key={p.at ?? ""} className="place" aria-label={pileName(p)}>
           <header className="place-header">

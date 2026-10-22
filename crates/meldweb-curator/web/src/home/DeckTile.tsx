@@ -66,11 +66,18 @@ export function DeckTile({
               {commanders.map((p) => p.name).join(" & ")}
             </p>
           )}
-          {deck.parent && (
-            <p className="deck-variant">
+          {deck.upstream ? (
+            <p className="deck-variant" title={deck.upstream.url}>
               <BranchIcon />
-              fork of {parent ?? deck.parent}
+              fork of {deck.upstream.owner}'s {deck.upstream.name}
             </p>
+          ) : (
+            deck.parent && (
+              <p className="deck-variant">
+                <BranchIcon />
+                fork of {parent ?? deck.parent}
+              </p>
+            )
           )}
           {deck.refused ? (
             <p className="refusal-inline deck-refused">{deck.refused}</p>

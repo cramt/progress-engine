@@ -249,6 +249,25 @@ export function fakeRepo(files: Record<string, string> = {}) {
     async merge() {
       return { kind: "upToDate" as const };
     },
+    async followRequest() {
+      throw new Error("no other players' repos in fakeRepo");
+    },
+    async followFinish() {
+      throw new Error("no other players' repos in fakeRepo");
+    },
+    async fork() {
+      throw new Error("no other players' repos in fakeRepo");
+    },
+    async following() {
+      return null;
+    },
+    async unfollow() {},
+    async planTake() {
+      return { kind: "upToDate" as const };
+    },
+    async takeUpstream() {
+      return { kind: "upToDate" as const };
+    },
   };
   return {
     repo,

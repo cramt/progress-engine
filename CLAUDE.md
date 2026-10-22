@@ -25,7 +25,11 @@ its own line of history, the branch `decks/<stem>/main` holding
 `<stem>.deck.toml` and its criteria, while `main` holds the rest; a fork's
 line starts on a commit of its parent, which is how the parent is known
 (repo version 2, ADR-0041, migrated from version 1 in Rust by
-`meldweb-wasm`'s `layout`, the same commits in every browser). The same repo's
+`meldweb-wasm`'s `layout`, the same commits in every browser). A deck forked
+from another player's public repo (Fork a deck from…, by login or git URL)
+fetches that deck's line alone, keeping their commits and authors, and
+follows it in `meldweb.toml`'s `[upstream.<stem>]` to take their later
+changes as a merge (`meldweb-wasm`'s `upstream`). The same repo's
 `collection.toml` is what the user owns, each copy in one place (a binder, a
 box, a deck), edited at `/collection` and saved the same way (ADR-0023); `/wanted` is
 `wanted.toml`, the cards wanted by hand, above what the decks hold that the

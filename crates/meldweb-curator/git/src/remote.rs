@@ -601,6 +601,20 @@ impl<S: Store> Repo<S> {
                 wants.insert(*id);
             }
         }
+        let mut tips = self.refs_under(TRACKING)?;
+        tips.extend(self.refs_under("refs/heads")?);
+        self.upload_request(&ad, &wants, &tips, &mut whole)
+    }
+
+    /// An upload-pack request for `wants`, naming as haves the newest
+    /// commits behind `tips` that this repo holds whole.
+    fn upload_request(
+        &self,
+        ad: &Advertised,
+        wants: &BTreeSet<ObjectId>,
+        tips: &[(String, ObjectId)],
+        whole: &mut HashSet<ObjectId>,
+    ) -> Result<FetchRequest> {
         if wants.is_empty() {
             return Ok(FetchRequest::HaveAll);
         }
@@ -634,21 +648,29 @@ impl<S: Store> Repo<S> {
             }
         }
         pktline::flush(&mut body);
-        let mut tips: Vec<CommitId> = Vec::new();
-        for (_, id) in self
-            .refs_under(TRACKING)?
-            .into_iter()
-            .chain(self.refs_under("refs/heads")?)
-        {
-            if self.is_whole(&id, &mut whole)? {
-                tips.extend(self.commit_of(&id)?);
+        let mut commits: Vec<CommitId> = Vec::new();
+        for (_, id) in tips {
+            if self.is_whole(id, whole)? {
+                commits.extend(self.commit_of(id)?);
             }
         }
-        for c in self.recent_commits(&tips, HAVES)? {
+        for c in self.recent_commits(&commits, HAVES)? {
             pktline::text(&mut body, &format!("have {c}\n"));
         }
         pktline::text(&mut body, "done\n");
         Ok(FetchRequest::Want(body))
+    }
+
+    /// Writes the objects of upload-pack's answer loose, each after what it
+    /// names.
+    fn take_pack(&mut self, response: &[u8]) -> Result<()> {
+        let pack = unwrap_upload_response(response)?;
+        let objects = names_first(pack::read(&pack, |id| self.read_any(id))?)?;
+        for (id, kind, data) in objects {
+            let wrote = self.write_object(kind, &data)?;
+            debug_assert_eq!(wrote, id);
+        }
+        Ok(())
     }
 
     /// Takes in what `POST git-upload-pack` answered (none when
@@ -657,12 +679,7 @@ impl<S: Store> Repo<S> {
     pub fn fetch_finish(&mut self, advertised: &[u8], response: Option<&[u8]>) -> Result<()> {
         let ad = parse_advertisement(advertised, "git-upload-pack")?;
         if let Some(response) = response {
-            let pack = unwrap_upload_response(response)?;
-            let objects = names_first(pack::read(&pack, |id| self.read_any(id))?)?;
-            for (id, kind, data) in objects {
-                let wrote = self.write_object(kind, &data)?;
-                debug_assert_eq!(wrote, id);
-            }
+            self.take_pack(response)?;
         }
         let mut whole = HashSet::new();
         let mut want: BTreeMap<String, ObjectId> = BTreeMap::new();
@@ -1171,6 +1188,140 @@ impl<S: Store> Repo<S> {
         }
         Ok(out)
     }
+}
+
+/// Another repo than `origin`, whose branches this one fetches one at a
+/// time: a deck forked from another player's (ADR-0041). Nothing of it is in
+/// the config. What was fetched is tracked under `refs/remotes/<name>/`,
+/// `<name>` its URL's host and path, so two players' repos never share a
+/// tracking ref, and a push, which sends only `refs/heads/` and
+/// `refs/tags/`, never sends them on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Other {
+    url: RemoteUrl,
+    name: String,
+}
+
+impl Other {
+    pub fn new(url: RemoteUrl) -> Result<Self> {
+        let rest = url.as_str().trim_start_matches("https://");
+        let rest = rest.strip_suffix(".git").unwrap_or(rest);
+        // A port's colon cannot be in a ref.
+        let name = rest.replace(':', "_");
+        let first = name.split('/').next().unwrap_or_default();
+        if first == ORIGIN {
+            return Err(remote_err(format!(
+                "{} cannot be tracked beside origin",
+                url.as_str()
+            )));
+        }
+        crate::names::refname("refs/remotes/", &name)
+            .map_err(|why| remote_err(format!("{} makes no tracking ref: {why}", url.as_str())))?;
+        Ok(Self { url, name })
+    }
+
+    pub fn url(&self) -> &RemoteUrl {
+        &self.url
+    }
+
+    fn tracking(&self, branch: &BranchName) -> String {
+        format!("refs/remotes/{}/{branch}", self.name)
+    }
+}
+
+/// The branches an `info/refs?service=git-upload-pack` answer names, by
+/// name, with the commit each is at.
+pub fn advertised_branches(advertised: &[u8]) -> Result<BTreeMap<BranchName, CommitId>> {
+    let ad = parse_advertisement(advertised, "git-upload-pack")?;
+    Ok(ad
+        .refs
+        .iter()
+        .filter_map(|(r, id)| {
+            let branch = BranchName::new(r.strip_prefix("refs/heads/")?).ok()?;
+            Some((branch, CommitId(*id)))
+        })
+        .collect())
+}
+
+impl<S: Store> Repo<S> {
+    /// The body of `POST git-upload-pack` asking `other` (whose `info/refs`
+    /// answer is `advertised`) for its `branch` alone: only that tip and
+    /// what it stands on come down, less what this repo holds already.
+    pub fn fetch_branch_request(
+        &self,
+        advertised: &[u8],
+        branch: &BranchName,
+    ) -> Result<FetchRequest> {
+        let ad = parse_advertisement(advertised, "git-upload-pack")?;
+        let tip = advertised_tip(&ad, branch)?;
+        let mut whole = HashSet::new();
+        let mut wants = BTreeSet::new();
+        if !self.is_whole(&tip, &mut whole)? {
+            wants.insert(tip);
+        }
+        let mut tips = self.refs_under("refs/heads")?;
+        tips.extend(self.refs_under("refs/remotes")?);
+        self.upload_request(&ad, &wants, &tips, &mut whole)
+    }
+
+    /// Takes in what `POST git-upload-pack` answered to
+    /// [`Repo::fetch_branch_request`], and tracks `other`'s `branch` at the
+    /// tip it advertised, which it returns.
+    pub fn fetch_branch_finish(
+        &mut self,
+        other: &Other,
+        advertised: &[u8],
+        branch: &BranchName,
+        response: Option<&[u8]>,
+    ) -> Result<CommitId> {
+        let ad = parse_advertisement(advertised, "git-upload-pack")?;
+        let tip = advertised_tip(&ad, branch)?;
+        if let Some(response) = response {
+            self.take_pack(response)?;
+        }
+        if !self.is_whole(&tip, &mut HashSet::new())? {
+            return Err(remote_err(format!(
+                "{} did not send all of {tip}, which its {branch} names",
+                other.url.as_str()
+            )));
+        }
+        let tip = self
+            .commit_of(&tip)?
+            .ok_or_else(|| remote_err(format!("{branch} is not a commit")))?;
+        self.track_other(other, branch, &tip)?;
+        Ok(tip)
+    }
+
+    /// Tracks `other`'s `branch` at `tip`, a commit here: what was fetched
+    /// of it, or what it will be once it migrates, which is the same.
+    pub fn track_other(
+        &mut self,
+        other: &Other,
+        branch: &BranchName,
+        tip: &CommitId,
+    ) -> Result<()> {
+        let path = other.tracking(branch);
+        let now = self.read_ref(&path)?;
+        if now != Some(tip.0) {
+            self.swap_ref(&path, now, Some(tip.0))?;
+        }
+        Ok(())
+    }
+
+    /// `other`'s `branch` as last fetched.
+    pub fn other_tip(&self, other: &Other, branch: &BranchName) -> Result<Option<CommitId>> {
+        match self.read_ref(&other.tracking(branch))? {
+            Some(id) => self.commit_of(&id),
+            None => Ok(None),
+        }
+    }
+}
+
+fn advertised_tip(ad: &Advertised, branch: &BranchName) -> Result<ObjectId> {
+    ad.refs
+        .get(&branch.ref_path())
+        .copied()
+        .ok_or_else(|| remote_err(format!("the remote has no branch {branch}")))
 }
 
 /// The pack inside upload-pack's answer: past its ACK and NAK lines, out

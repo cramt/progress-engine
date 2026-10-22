@@ -672,3 +672,20 @@ main.with-drawer {
   background: var(--surface-2);
   font-size: 12px;
 }
+
+/* A fork of another player's deck: what is new on theirs, and taking it. */
+.upstream-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--cold);
+  background: var(--surface);
+}
+
+.upstream-bar > span:first-child {
+  margin-right: auto;
+}

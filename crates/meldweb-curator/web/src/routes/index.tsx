@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useSettingsFile } from "../card/preference";
 import { Toolbar } from "../deck/Toolbar";
 import { type DeckEntry, listDecks } from "../github/decks";
@@ -7,6 +8,7 @@ import { openSession } from "../github/session";
 import { loadSettingsFile } from "../github/settings";
 import { useDeckActions } from "../home/DeckActions";
 import { DeckGrid } from "../home/DeckGrid";
+import { ForkTheirsDialog } from "../home/ForkTheirsDialog";
 import { NewDeckDialog } from "../home/NewDeckDialog";
 import { SessionGate } from "../home/SessionGate";
 import { moveInSettings } from "../home/variants";
@@ -16,6 +18,9 @@ import { readSettings } from "../settings/rules";
 
 // Login, onboarding, or the Magic repo's decks (#119).
 export const Route = createFileRoute("/")({
+  // `?fork=<login or git URL>` opens forking one of that player's decks.
+  validateSearch: (search: Record<string, unknown>): { fork?: string } =>
+    typeof search.fork === "string" ? { fork: search.fork } : {},
   loader: async () => {
     const session = await openSession();
     if (session.kind !== "open") return { kind: "gate" as const, session };
@@ -66,6 +71,9 @@ function Decks({
   settings: FileAt | null;
 }) {
   const { menuFor, dialogs } = useDeckActions(repo);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [forking, setForking] = useState(search.fork !== undefined);
   // The order is meldweb.toml's (ADR-0028), so it follows the repo to any device.
   const file = useSettingsFile(settings, repo);
   const read = readSettings(file.text);
@@ -107,6 +115,13 @@ function Decks({
             >
               Settings
             </Link>
+            <button
+              type="button"
+              onClick={() => setForking(true)}
+              title="Fork a deck from another player's public repo, keeping their history"
+            >
+              Fork a deck from…
+            </button>
             <NewDeckDialog repo={repo} />
           </>
         }
@@ -131,6 +146,17 @@ function Decks({
         )}
       </div>
       {dialogs}
+      {forking && (
+        <ForkTheirsDialog
+          repo={repo}
+          taken={new Set(decks.map((d) => d.stem))}
+          {...(search.fork ? { initial: search.fork } : {})}
+          onClose={() => {
+            setForking(false);
+            if (search.fork !== undefined) void navigate({ search: {} });
+          }}
+        />
+      )}
       {file.error && (
         <div className="home-notice refusal" role="alert">
           <span>The deck order was not saved: {file.error}</span>

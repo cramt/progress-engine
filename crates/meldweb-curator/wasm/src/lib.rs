@@ -25,9 +25,10 @@ pub mod blame;
 pub mod branches;
 pub mod copy;
 pub mod layout;
-mod preference;
+pub mod preference;
 pub mod proxies;
 pub mod repo;
+pub mod upstream;
 
 use chip_decklist::collection::{self, Collection};
 use chip_decklist::collection_import;
@@ -1156,6 +1157,8 @@ pub enum SettingsRules {
         decks: Vec<String>,
         /// GitHub logins whose public collections a deck's sourcing reads.
         friends: Vec<String>,
+        /// The decks forked from another player's repo, and whose deck each follows.
+        upstreams: Vec<UpstreamFacts>,
         /// Whether the rules came from the repo's `meldweb.toml`.
         declared: bool,
         defaults: Vec<RuleText>,
@@ -1167,6 +1170,34 @@ pub enum SettingsRules {
     },
 }
 
+/// A deck forked from another player's repo and the deck it follows there,
+/// as `[upstream.<stem>]` names it (ADR-0041).
+#[derive(Debug, Clone, Facet)]
+#[facet(rename_all = "camelCase")]
+pub struct UpstreamFacts {
+    /// The local deck.
+    pub stem: String,
+    /// Their Magic repo.
+    pub url: String,
+    /// Who keeps it, as the page names them: `alice`.
+    pub owner: String,
+    /// Their deck's stem.
+    pub deck: String,
+    pub branch: String,
+}
+
+impl UpstreamFacts {
+    pub fn of(stem: &chip_decklist::stem::DeckStem, up: &preference::Upstream) -> Self {
+        Self {
+            stem: stem.to_string(),
+            url: up.url.as_str().to_owned(),
+            owner: up.owner().to_owned(),
+            deck: up.deck.to_string(),
+            branch: up.branch.to_string(),
+        }
+    }
+}
+
 pub fn read_settings_text(text: Option<&str>) -> SettingsRules {
     let defaults = preference::read_rules(None).expect("the default rules read");
     match preference::read(text) {
@@ -1175,11 +1206,16 @@ pub fn read_settings_text(text: Option<&str>) -> SettingsRules {
             rules,
             decks,
             friends,
+            upstreams,
         }) => SettingsRules::Read {
             pins,
             rules,
             decks,
             friends,
+            upstreams: upstreams
+                .iter()
+                .map(|(stem, up)| UpstreamFacts::of(stem, up))
+                .collect(),
             declared: text.is_some(),
             defaults,
         },
@@ -1199,21 +1235,32 @@ pub fn check_rule(query: &str) -> Option<String> {
     preference::check(query)
 }
 
-/// `pins`, `rules`, `decks` and `friends`, JSON arrays of `Pin`, `RuleText`,
-/// paths and logins, as a `meldweb.toml`, the pins first; refused when a rule
-/// does not parse or a friend is not a login.
+/// `pins`, `rules`, `decks`, `friends` and `upstreams`, JSON arrays of
+/// `Pin`, `RuleText`, paths, logins and `UpstreamFacts`, as a `meldweb.toml`,
+/// the pins first; refused when a rule does not parse, a friend is not a
+/// login or an upstream is not one.
 #[wasm_bindgen]
 pub fn write_settings(
     pins: &str,
     rules: &str,
     decks: &str,
     friends: &str,
+    upstreams: &str,
 ) -> Result<String, JsError> {
+    let ups: Vec<UpstreamFacts> = facet_json::from_str(upstreams).map_err(refused)?;
+    let mut by_stem = std::collections::BTreeMap::new();
+    for up in ups {
+        let stem = chip_decklist::stem::DeckStem::new(up.stem.as_str()).map_err(refused)?;
+        let followed =
+            preference::Upstream::new(&up.url, &up.deck, Some(&up.branch)).map_err(refused)?;
+        by_stem.insert(stem, followed);
+    }
     let settings = preference::Settings {
         pins: facet_json::from_str(pins).map_err(refused)?,
         rules: facet_json::from_str(rules).map_err(refused)?,
         decks: facet_json::from_str(decks).map_err(refused)?,
         friends: facet_json::from_str(friends).map_err(refused)?,
+        upstreams: by_stem,
     };
     if let Some(bad) = settings.friends.iter().find(|f| !preference::is_login(f)) {
         return Err(refused(format!("{bad:?} is not a GitHub login")));
@@ -2150,6 +2197,10 @@ mod tests {
         g.add_type::<branches::BranchDeleted>();
         g.add_type::<branches::MergePlan>();
         g.add_type::<branches::MergeDone>();
+        g.add_type::<upstream::Fetched>();
+        g.add_type::<upstream::TheirDecks>();
+        g.add_type::<upstream::Forked>();
+        g.add_type::<repo::FollowingRead>();
         g.add_type::<blame::DeckBlame>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\

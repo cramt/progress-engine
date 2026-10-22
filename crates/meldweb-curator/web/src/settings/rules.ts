@@ -3,7 +3,13 @@
  * Reading, checking and writing the file are `meldweb-wasm`'s, so a rule is
  * judged by the same query reader that ranks with it; this keeps the draft.
  */
-import type { Pin, RuleText, SettingsRules, Verb } from "../deck.gen";
+import type {
+  Pin,
+  RuleText,
+  SettingsRules,
+  UpstreamFacts,
+  Verb,
+} from "../deck.gen";
 import {
   check_rule,
   read_settings,
@@ -39,19 +45,22 @@ export function problemOf(query: string): string | null {
 
 /**
  * The text of a `meldweb.toml` holding `pins`, then `rules`, the deck list
- * in `decks`' order and `friends`; throws when a rule does not parse.
+ * in `decks`' order, `friends` and the decks each fork of another player's
+ * follows; throws when a rule does not parse.
  */
 export function writeSettings(
   pins: readonly Pin[],
   rules: readonly RuleText[],
   decks: readonly string[] = [],
   friends: readonly string[] = [],
+  upstreams: readonly UpstreamFacts[] = [],
 ): string {
   return write_settings(
     JSON.stringify(pins.map(({ name, set, num }) => ({ name, set, num }))),
     JSON.stringify(rules.map(({ verb, query }) => ({ verb, query }))),
     JSON.stringify(decks),
     JSON.stringify(friends),
+    JSON.stringify(upstreams),
   );
 }
 
@@ -106,6 +115,8 @@ export interface Loaded extends Draft<RuleText> {
   decks: readonly string[];
   /** The friends a deck's sourcing asks, which the page leaves too. */
   friends: readonly string[];
+  /** What each fork of another player's deck follows, left as found. */
+  upstreams: readonly UpstreamFacts[];
 }
 
 /**
@@ -118,7 +129,13 @@ export function fileFor(draft: Draft<RuleText>, loaded: Loaded): string | null {
   if (samePins(draft.pins, loaded.pins) && sameRules(draft.rules, loaded.rules))
     return loaded.text;
   if (draft.rules.some((r) => problemOf(r.query) !== null)) return null;
-  return writeSettings(draft.pins, draft.rules, loaded.decks, loaded.friends);
+  return writeSettings(
+    draft.pins,
+    draft.rules,
+    loaded.decks,
+    loaded.friends,
+    loaded.upstreams,
+  );
 }
 
 /**

@@ -53,6 +53,114 @@ export interface BlameCommit {
   message: string;
 }
 
+/**
+ * A deck against the other player's deck it follows, or that it follows
+ * none.
+ */
+export type FollowingRead =
+  | { kind: "notFollowing" }
+  | { kind: "following"; following: Following };
+
+/**
+ * A forked deck against the deck it follows, as last fetched.
+ */
+export interface Following {
+  upstream: UpstreamFacts;
+  /**
+   * Their deck, once fetched.
+   */
+  theirs?: TheirSide;
+}
+
+export interface TheirSide {
+  commit: string;
+  name?: string;
+  /**
+   * Their deck's file at their tip.
+   */
+  text?: string;
+  /**
+   * Commits of theirs the deck's `main` lacks: what taking them brings.
+   */
+  new: number;
+  /**
+   * Commits on the deck's `main` that theirs lacks.
+   */
+  ahead: number;
+  /**
+   * The deck as the two last agreed, the merge base: what "since I
+   * forked" and "what they changed" are both measured from.
+   */
+  base?: string;
+  /**
+   * The deck's file at the merge base, under whichever stem it had there.
+   */
+  baseText?: string;
+  /**
+   * The deck's own file on its `main`.
+   */
+  mineText?: string;
+}
+
+/**
+ * A deck forked from another player's repo and the deck it follows there,
+ * as `[upstream.<stem>]` names it (ADR-0041).
+ */
+export interface UpstreamFacts {
+  /**
+   * The local deck.
+   */
+  stem: string;
+  /**
+   * Their Magic repo.
+   */
+  url: string;
+  /**
+   * Who keeps it, as the page names them: `alice`.
+   */
+  owner: string;
+  /**
+   * Their deck's stem.
+   */
+  deck: string;
+  branch: string;
+}
+
+/**
+ * What forking came to.
+ */
+export type Forked =
+  | { kind: "forked"; stem: string; commit: string }
+  | { kind: "taken"; message: string };
+
+/**
+ * The decks another player's repo offers to fork, as its `info/refs`
+ * answer names them.
+ */
+export type TheirDecks =
+  | { kind: "lines"; stems: string[] }
+  | { kind: "mainOnly" }
+  | { kind: "none" };
+
+/**
+ * What fetching their deck came to.
+ */
+export interface Fetched {
+  /**
+   * Their deck's tip, as tracked now.
+   */
+  commit: string;
+  /**
+   * Their deck's name there, when its file reads as a deck.
+   */
+  name?: string;
+  /**
+   * Whether their repo is still at version 1, so the line tracked is the
+   * one their migration will make.
+   */
+  migrated: boolean;
+}
+
 export type MergeDone =
   | { kind: "merged"; commit: string; message?: string }
   | { kind: "upToDate" }
@@ -176,6 +284,15 @@ export interface DeckLine {
    */
   sha?: string;
   parent?: string;
+  /**
+   * The deck in another player's repo it was forked from and follows,
+   * as `meldweb.toml` says (ADR-0041).
+   */
+  upstream?: UpstreamFacts;
+  /**
+   * That deck's name, as last fetched.
+   */
+  upstreamName?: string;
 }
 
 /**
@@ -564,7 +681,7 @@ export type Wanted =
  * so a bad one can be fixed in place, and the default rules beside them.
  */
 export type SettingsRules =
-  | { kind: "read"; pins: Pin[]; rules: RuleText[]; decks: string[]; friends: string[]; declared: boolean; defaults: RuleText[] }
+  | { kind: "read"; pins: Pin[]; rules: RuleText[]; decks: string[]; friends: string[]; upstreams: UpstreamFacts[]; declared: boolean; defaults: RuleText[] }
   | { kind: "refused"; message: string; defaults: RuleText[] };
 
 /**

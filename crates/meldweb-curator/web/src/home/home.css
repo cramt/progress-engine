@@ -399,3 +399,18 @@ dialog.cover-sheet {
     bottom: -11px;
   }
 }
+
+.fork-where {
+  display: flex;
+  gap: 8px;
+}
+
+.fork-where input {
+  flex: 1;
+}
+
+.fork-decks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}

@@ -18,14 +18,17 @@
 //! first, the closest wording to current oracle text.
 
 use std::cmp::Reverse;
+use std::collections::BTreeMap;
 
 use chip_decklist::identity::same_name;
+use chip_decklist::stem::DeckStem;
 use chip_scryfall::bulk::BulkCard;
 use chip_scryfall::copy::Ranking;
 use chip_scryfall::index::Card;
 use chip_scryfall::printing::Printing;
 use chip_scryfall::{CardView, Query};
 use facet::Facet;
+use meldweb_git::RemoteUrl;
 
 /// The rules a repo without `meldweb.toml` ranks by, and what one may copy.
 pub const DEFAULT: &str = r#"[printings]
@@ -76,6 +79,17 @@ struct RawFile {
     decks: Option<RawDecks>,
     #[facet(default)]
     friends: Option<RawFriends>,
+    #[facet(default)]
+    upstream: Option<BTreeMap<String, RawUpstream>>,
+}
+
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+struct RawUpstream {
+    url: String,
+    deck: String,
+    #[facet(default)]
+    branch: Option<String>,
 }
 
 #[derive(Facet)]
@@ -235,7 +249,46 @@ pub struct Settings {
     /// The GitHub logins whose public collections a deck's sourcing asks:
     /// `[friends] logins`.
     pub friends: Vec<String>,
+    /// The deck each local deck forked from another player's repo follows,
+    /// by the local deck's stem: `[upstream.<stem>]`.
+    pub upstreams: BTreeMap<DeckStem, Upstream>,
 }
+
+/// The deck in another player's repo that a fork of it follows (ADR-0041):
+/// its history is in the fork's ancestry, but not where it came from, since
+/// git keeps a remote in a config that a push does not carry. A fork of one's
+/// own deck has none, its parent being in the same repo.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Upstream {
+    /// Their Magic repo.
+    pub url: RemoteUrl,
+    /// Their deck's stem there.
+    pub deck: DeckStem,
+    /// Which of its branches, held to a stem's rules as a deck's branch
+    /// names are: `main` unless the file says otherwise.
+    pub branch: DeckStem,
+}
+
+impl Upstream {
+    pub fn new(url: &str, deck: &str, branch: Option<&str>) -> Result<Self, String> {
+        let url = RemoteUrl::new(url).map_err(|e| e.to_string())?;
+        meldweb_git::Other::new(url.clone()).map_err(|e| e.to_string())?;
+        Ok(Self {
+            url,
+            deck: DeckStem::new(deck).map_err(|e| e.to_string())?,
+            branch: DeckStem::new(branch.unwrap_or(MAIN_BRANCH)).map_err(|e| e.to_string())?,
+        })
+    }
+
+    /// Who keeps the repo, as the page names them: its path's first part,
+    /// `alice` for `https://github.com/alice/mtg.git`.
+    pub fn owner(&self) -> &str {
+        let rest = self.url.as_str().trim_start_matches("https://");
+        rest.split('/').nth(1).unwrap_or(rest)
+    }
+}
+
+const MAIN_BRANCH: &str = "main";
 
 /// `text` is a name GitHub would take for an account: letters, digits and
 /// single hyphens, 39 at most, with no hyphen at either end.
@@ -257,9 +310,17 @@ pub fn read(text: Option<&str>) -> Result<Settings, String> {
             "meldweb.toml: {bad:?} in [friends] logins is not a GitHub login"
         ));
     }
+    let mut upstreams = BTreeMap::new();
+    for (stem, up) in raw.upstream.unwrap_or_default() {
+        let at = |e: String| format!("meldweb.toml: [upstream.{stem}]: {e}");
+        let local = DeckStem::new(stem.as_str()).map_err(|e| at(e.to_string()))?;
+        let up = Upstream::new(&up.url, &up.deck, up.branch.as_deref()).map_err(at)?;
+        upstreams.insert(local, up);
+    }
     let mut settings = Settings {
         decks: raw.decks.map_or(Vec::new(), |d| d.order),
         friends,
+        upstreams,
         ..Settings::default()
     };
     for rule in read_rules(text)? {
@@ -353,7 +414,50 @@ pub fn write(settings: &Settings) -> Result<String, String> {
         out.push_str(&logins.join(", "));
         out.push_str("]\n");
     }
+    for (stem, up) in &settings.upstreams {
+        out.push_str(&format!(
+            "\n[upstream.{}]\n\
+             # {stem} is a fork of {}'s {}, and takes their changes from there.\n\
+             url = {}\n\
+             deck = {}\n",
+            toml_key(stem.as_str()),
+            up.owner(),
+            up.deck,
+            toml_string(up.url.as_str()),
+            toml_string(up.deck.as_str()),
+        ));
+        if up.branch.as_str() != MAIN_BRANCH {
+            out.push_str(&format!("branch = {}\n", toml_string(up.branch.as_str())));
+        }
+    }
     Ok(out)
+}
+
+/// A bare TOML key when a stem is one, which takes letters, digits, `_`
+/// and `-`; otherwise quoted, for a stem with a dot.
+fn toml_key(s: &str) -> String {
+    if s.chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-'))
+    {
+        s.to_owned()
+    } else {
+        toml_string(s)
+    }
+}
+
+/// `text` with `stem` following `upstream`, or following nothing when it is
+/// `None`: forking another player's deck, and unfollowing it.
+pub fn set_upstream(
+    text: Option<&str>,
+    stem: &DeckStem,
+    upstream: Option<Upstream>,
+) -> Result<String, String> {
+    let mut settings = read(text)?;
+    match upstream {
+        Some(up) => settings.upstreams.insert(stem.clone(), up),
+        None => settings.upstreams.remove(stem),
+    };
+    write(&settings)
 }
 
 fn write_printings(pins: &[Pin], rules: &[RuleText]) -> Result<String, String> {
@@ -446,6 +550,19 @@ pub fn commit_message(before: &str, after: &str) -> String {
         parts.push(format!("-friend {f}"));
         friends_moved = true;
     }
+    let mut upstreams_moved = false;
+    for (stem, up) in &new.upstreams {
+        if old.upstreams.get(stem) != Some(up) {
+            parts.push(format!("{stem} follows {}'s {}", up.owner(), up.deck));
+            upstreams_moved = true;
+        }
+    }
+    for (stem, up) in &old.upstreams {
+        if !new.upstreams.contains_key(stem) {
+            parts.push(format!("{stem} unfollows {}'s {}", up.owner(), up.deck));
+            upstreams_moved = true;
+        }
+    }
     let subject = if parts.is_empty() {
         "meldweb.toml: rewrite, same rules".to_string()
     } else {
@@ -454,7 +571,7 @@ pub fn commit_message(before: &str, after: &str) -> String {
     // The body is the whole of what moved: a deck dragged does not list the
     // printing rules it left alone.
     let mut body = Vec::new();
-    if printings_moved || !(decks_moved || friends_moved) {
+    if printings_moved || !(decks_moved || friends_moved || upstreams_moved) {
         body.push(printings_body(&new));
     }
     if decks_moved {
@@ -476,6 +593,21 @@ pub fn commit_message(before: &str, after: &str) -> String {
             "Friends: none.".to_string()
         } else {
             format!("Friends: {}.", new.friends.join(", "))
+        });
+    }
+    if upstreams_moved {
+        body.push(if new.upstreams.is_empty() {
+            "Upstreams: none.".to_string()
+        } else {
+            let lines = new
+                .upstreams
+                .iter()
+                .map(|(stem, up)| {
+                    format!("- {stem}: {} {} on {}", up.url.as_str(), up.deck, up.branch)
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!("Upstreams:\n{lines}")
         });
     }
     format!("{subject}\n\n{}\n", body.join("\n\n"))
@@ -1008,8 +1140,66 @@ rank = [{ avoid = "lang:jp" }]
                 rules: read_rules(None).unwrap(),
                 decks: vec![],
                 friends: vec![],
+                upstreams: BTreeMap::new(),
             }
         );
+    }
+
+    #[test]
+    fn an_upstream_round_trips_and_nothing_else_is_one() {
+        let lantern = DeckStem::new("lantern").unwrap();
+        let alice = Upstream::new("https://github.com/alice/mtg.git", "lantern", None).unwrap();
+        let text = set_upstream(None, &lantern, Some(alice.clone())).unwrap();
+        assert!(text.contains("[upstream.lantern]\n"), "{text}");
+        assert!(!text.contains("branch ="), "main is left unsaid: {text}");
+        let read_back = read(Some(&text)).unwrap();
+        assert_eq!(read_back.upstreams.get(&lantern), Some(&alice));
+        assert_eq!(alice.owner(), "alice");
+        assert_eq!(
+            commit_message(
+                &write(&Settings {
+                    upstreams: BTreeMap::new(),
+                    ..read_back.clone()
+                })
+                .unwrap(),
+                &text
+            )
+            .lines()
+            .next(),
+            Some("meldweb.toml: lantern follows alice's lantern")
+        );
+        // Another branch is written, and the friends and pins stay beside it.
+        let budget = Upstream::new("https://codeberg.org/bob/mtg", "loam", Some("budget")).unwrap();
+        let both = set_upstream(
+            Some(&text),
+            &DeckStem::new("my.loam").unwrap(),
+            Some(budget.clone()),
+        )
+        .unwrap();
+        let both = set_friends(Some(&both), vec!["alice".into()]).unwrap();
+        let read_both = read(Some(&both)).unwrap();
+        assert_eq!(read_both.upstreams.len(), 2, "{both}");
+        assert_eq!(
+            read_both.upstreams.get(&DeckStem::new("my.loam").unwrap()),
+            Some(&budget)
+        );
+        assert!(both.contains("branch = \"budget\""), "{both}");
+        // Unfollowing keeps the rest.
+        let dropped = set_upstream(Some(&both), &lantern, None).unwrap();
+        assert_eq!(read(Some(&dropped)).unwrap().upstreams.len(), 1);
+        assert!(commit_message(&both, &dropped)
+            .starts_with("meldweb.toml: lantern unfollows alice's lantern"));
+        // What cannot be an upstream does not read.
+        for bad in [
+            "[upstream.lantern]\nurl = \"http://github.com/a/mtg\"\ndeck = \"x\"\n",
+            "[upstream.lantern]\nurl = \"https://github.com/a/mtg\"\ndeck = \"../x\"\n",
+            "[upstream.lantern]\nurl = \"https://github.com/a/mtg\"\n",
+            "[upstream.lantern]\nurl = \"https://github.com/a/mtg\"\ndeck = \"x\"\nbranch = \"a/b\"\n",
+            "[upstream.\".bad\"]\nurl = \"https://github.com/a/mtg\"\ndeck = \"x\"\n",
+            "[upstream.lantern]\nurl = \"https://origin/a/mtg\"\ndeck = \"x\"\n",
+        ] {
+            assert!(read(Some(bad)).is_err(), "{bad}");
+        }
     }
 
     #[test]

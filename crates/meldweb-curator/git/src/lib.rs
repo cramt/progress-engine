@@ -18,7 +18,10 @@ mod store;
 
 pub use merge::{merge_lines, merge_lines_with, Hunk, MergeFile, Planned, Side, TreeMerge};
 pub use pktline::PktError;
-pub use remote::{FetchRequest, Integrated, PushRequest, Pushed, RemoteStatus, RemoteUrl, ORIGIN};
+pub use remote::{
+    advertised_branches, FetchRequest, Integrated, Other, PushRequest, Pushed, RemoteStatus,
+    RemoteUrl, ORIGIN,
+};
 
 pub use names::{
     BlobId, BranchName, CommitId, Identity, Invalid, RepoPath, Signature, TagId, TagName,

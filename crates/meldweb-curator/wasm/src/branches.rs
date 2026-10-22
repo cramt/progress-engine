@@ -153,7 +153,7 @@ pub enum MergeDone {
     },
 }
 
-fn said(e: Error) -> String {
+pub(crate) fn said(e: Error) -> String {
     e.to_string()
 }
 
@@ -178,11 +178,11 @@ fn tip_of<S: Store>(repo: &Repo<S>, branch: &BranchName) -> Out<CommitId> {
         .ok_or_else(|| format!("there is no branch {branch}"))
 }
 
-fn deck_path(stem: &DeckStem) -> RepoPath {
+pub(crate) fn deck_path(stem: &DeckStem) -> RepoPath {
     RepoPath::new(stem.deck_file()).expect("a stem makes a file name")
 }
 
-fn text(bytes: Option<Vec<u8>>) -> Option<String> {
+pub(crate) fn text(bytes: Option<Vec<u8>>) -> Option<String> {
     bytes.map(|b| String::from_utf8_lossy(&b).into_owned())
 }
 
@@ -280,12 +280,12 @@ pub fn delete<S: Store>(
 }
 
 /// The merge's tips, its plan, and what stopped it.
-struct Worked {
-    into: CommitId,
-    from: CommitId,
-    planned: Planned,
-    hunks: Vec<ConflictHunk>,
-    unreadable: Vec<MergeRefusal>,
+pub(crate) struct Worked {
+    pub(crate) into: CommitId,
+    pub(crate) from: CommitId,
+    pub(crate) planned: Planned,
+    pub(crate) hunks: Vec<ConflictHunk>,
+    pub(crate) unreadable: Vec<MergeRefusal>,
 }
 
 fn work<S: Store>(
@@ -300,6 +300,20 @@ fn work<S: Store>(
     }
     let into_tip = tip_of(repo, &branch_of(stem, into)?)?;
     let from_tip = tip_of(repo, &branch_of(stem, from)?)?;
+    work_tips(repo, into_tip, from_tip, prefer, |repo, merge_file| {
+        repo.plan_merge(&into_tip, &from_tip, prefer, merge_file)
+    })
+}
+
+/// The deck merge's line merge, kept to what still reads as a deck, around
+/// `planning`, which plans the merge of `from` into `into` with it.
+pub(crate) fn work_tips<S: Store>(
+    repo: &mut Repo<S>,
+    into: CommitId,
+    from: CommitId,
+    prefer: Option<Side>,
+    planning: impl FnOnce(&mut Repo<S>, &mut meldweb_git::MergeFile<'_>) -> meldweb_git::Result<Planned>,
+) -> Out<Worked> {
     let mut hunks = Vec::new();
     let mut unreadable = Vec::new();
     let mut merge_file = |path: &str, base: &[u8], ours: &[u8], theirs: &[u8]| {
@@ -328,12 +342,10 @@ fn work<S: Store>(
             }
         }
     };
-    let planned = repo
-        .plan_merge(&into_tip, &from_tip, prefer, &mut merge_file)
-        .map_err(said)?;
+    let planned = planning(repo, &mut merge_file).map_err(said)?;
     Ok(Worked {
-        into: into_tip,
-        from: from_tip,
+        into,
+        from,
         planned,
         hunks,
         unreadable,
@@ -342,7 +354,12 @@ fn work<S: Store>(
 
 /// The merge commit's message: the deck's changelog from `before` to
 /// `after`, with what was merged, `lantern: merge budget: +1 Sol Ring`.
-fn message(stem: &DeckStem, from: &str, before: Option<&str>, after: Option<&str>) -> String {
+pub(crate) fn message(
+    stem: &DeckStem,
+    from: &str,
+    before: Option<&str>,
+    after: Option<&str>,
+) -> String {
     let path = stem.deck_file();
     let head = format!("{}: merge {from}", stem.as_str().to_lowercase());
     let said = match (before, after) {

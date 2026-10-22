@@ -53,6 +53,12 @@ It can:
   deleted here since the last sync, with an undeltified pack, naming the
   advertised old id so that receive-pack refuses it if the remote moved.
   Setting a new URL forgets what was tracked of the old one.
+- fetch one branch of another repo than `origin` (`Other`, for a fork of
+  another player's deck): only its tip is wanted, the haves are every branch
+  and tracked ref here, and it is tracked under
+  `refs/remotes/<host>/<path>/<branch>`, which a push never sends, since a
+  push sends only `refs/heads/` and `refs/tags/`. `advertised_branches`
+  reads what an `info/refs` answer offers.
 - write a blob, a tree of given files, and a commit of a given tree with
   given parents and signatures (`write_commit_of`), and retarget an
   annotated tag keeping its tagger and label, so history can be replayed
@@ -135,7 +141,9 @@ On 2026-10-22, 30 tests pass: 10 unit, 11 in `memory.rs`, 3 in
 mixed-version syncs are `meldweb-wasm`'s (`tests/layout.rs`,
 `examples/migrate_e2e.rs`), since what a deck is is not this crate's, and so
 are a deck's branches merged against `git` (`tests/branches.rs`: `fsck
---strict`, the two-parent merge in `log --graph`, `rev-list --count`). Measured on 2026-10-21: a throwaway cdylib built for wasm32 at
+--strict`, the two-parent merge in `log --graph`, `rev-list --count`), and forking another player's deck and taking their
+changes (`tests/upstream.rs`; `examples/fork_e2e.rs` against a real public
+host, with no login). Measured on 2026-10-21: a throwaway cdylib built for wasm32 at
 opt-level `z` with LTO calls init, commit, tag, history, merge_base and
 read_file. It is 325 KB, or 124 KB gzipped. `gix-date` pulls in `jiff` and
 `jiff-tzdb`, and `gix-utils` pulls in `prodash`. LTO drops the time zone

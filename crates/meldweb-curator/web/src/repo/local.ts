@@ -29,7 +29,10 @@ import type {
   DeckBranches,
   DeckDeleted,
   DeckLineList,
+  Fetched,
   FileRead,
+  FollowingRead,
+  Forked,
   Journal,
   Listing,
   MergeDone,
@@ -53,9 +56,11 @@ import {
   type DeckLine,
   type DirEntry,
   type FileAt,
+  type Following,
   type Repo,
   type Revision,
   type Snapshot,
+  type TheirDeck,
 } from "./api";
 import type { Author } from "./author";
 import type { Disk } from "./disk";
@@ -137,6 +142,25 @@ export type Request =
     }
   | { kind: "integrate"; who: Who; prefer?: Side }
   | { kind: "adoptRemote" }
+  | { kind: "followRequest"; theirs: TheirDeck; advertised: Uint8Array }
+  | {
+      kind: "followFinish";
+      theirs: TheirDeck;
+      advertised: Uint8Array;
+      response: Uint8Array | null;
+    }
+  | { kind: "fork"; theirs: TheirDeck; stem: string; who: Who }
+  | { kind: "following"; stem: string }
+  | { kind: "unfollow"; stem: string; who: Who }
+  | { kind: "planTake"; stem: string; prefer?: Side }
+  | {
+      kind: "takeUpstream";
+      stem: string;
+      intoTip: string;
+      fromTip: string;
+      prefer?: Side;
+      who: Who;
+    }
   | { kind: "pushRequest"; advertised: Uint8Array }
   | { kind: "pushFinish"; sent: Uint8Array; response: Uint8Array };
 
@@ -181,6 +205,13 @@ export interface Results {
   adoptRemote: null;
   pushRequest: PushPlan;
   pushFinish: PushOutcome;
+  followRequest: Uint8Array | null;
+  followFinish: Fetched;
+  fork: Forked;
+  following: Following | null;
+  unfollow: null;
+  planTake: MergePlan;
+  takeUpstream: MergeDone;
 }
 
 export type Kind = Request["kind"];
@@ -456,6 +487,10 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
                     ? null
                     : { text: d.text, sha: d.sha },
                 ...(d.parent === undefined ? {} : { parent: d.parent }),
+                ...(d.upstream === undefined ? {} : { upstream: d.upstream }),
+                ...(d.upstreamName === undefined
+                  ? {}
+                  : { upstreamName: d.upstreamName }),
               }),
             ),
           ),
@@ -575,6 +610,74 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
       case "pushFinish":
         return writing((g) =>
           done(JSON.parse(g.push_finish(r.sent, r.response)) as PushOutcome),
+        );
+      case "followRequest":
+        return reading((g) =>
+          done(
+            g.follow_request(
+              r.theirs.url,
+              r.theirs.deck,
+              r.theirs.branch,
+              r.advertised,
+            ) ?? null,
+          ),
+        );
+      case "followFinish":
+        return writing((g) =>
+          done(
+            JSON.parse(
+              g.follow_finish(
+                r.theirs.url,
+                r.theirs.deck,
+                r.theirs.branch,
+                r.advertised,
+                r.response ?? undefined,
+              ),
+            ) as Fetched,
+          ),
+        );
+      case "fork":
+        return writing((g) =>
+          done(
+            JSON.parse(
+              g.fork_deck(
+                r.theirs.url,
+                r.theirs.deck,
+                r.theirs.branch,
+                r.stem,
+                JSON.stringify(r.who),
+              ),
+            ) as Forked,
+          ),
+        );
+      case "following":
+        return reading((g) => {
+          const read = JSON.parse(g.following(r.stem)) as FollowingRead;
+          return done(read.kind === "following" ? read.following : null);
+        });
+      case "unfollow":
+        return writing((g) => {
+          g.unfollow(r.stem, JSON.stringify(r.who));
+          return done(null);
+        });
+      // A plan writes the merged objects, which no ref names until a merge.
+      case "planTake":
+        return writing((g) =>
+          done(JSON.parse(g.plan_take(r.stem, r.prefer)) as MergePlan),
+        );
+      case "takeUpstream":
+        return writing((g) =>
+          done(
+            JSON.parse(
+              g.take_upstream(
+                r.stem,
+                r.intoTip,
+                r.fromTip,
+                r.prefer,
+                JSON.stringify(r.who),
+              ),
+            ) as MergeDone,
+          ),
         );
       case "importZip":
         return lock("exclusive", async () => {
@@ -766,6 +869,30 @@ export function createLocalRepo(
     async deleteFile(path, del) {
       await ask({ kind: "deleteFile", path, ...del, who: who() });
     },
+    followRequest: (theirs, advertised) =>
+      ask({ kind: "followRequest", theirs, advertised }),
+    followFinish: (theirs, advertised, response) =>
+      ask({ kind: "followFinish", theirs, advertised, response }),
+    fork: (theirs, stem) => ask({ kind: "fork", theirs, stem, who: who() }),
+    following: (stem) => ask({ kind: "following", stem }),
+    async unfollow(stem) {
+      await ask({ kind: "unfollow", stem, who: who() });
+    },
+    planTake: (stem, prefer) =>
+      ask({
+        kind: "planTake",
+        stem,
+        ...(prefer === undefined ? {} : { prefer }),
+      }),
+    takeUpstream: (stem, { intoTip, fromTip, prefer }) =>
+      ask({
+        kind: "takeUpstream",
+        stem,
+        intoTip,
+        fromTip,
+        ...(prefer === undefined ? {} : { prefer }),
+        who: who(),
+      }),
     exportZip: () => ask({ kind: "exportZip" }),
     async importZip(bytes) {
       await ask({ kind: "importZip", bytes });

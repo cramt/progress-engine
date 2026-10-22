@@ -54,6 +54,13 @@ import { CostView } from "./CostView";
 import { Description } from "./Description";
 import { HistoryDrawer } from "./HistoryDrawer";
 import { MergeDialog } from "./MergeDialog";
+import {
+  SinceForked,
+  TheirChanges,
+  theirLabel,
+  UpstreamBar,
+  useUpstream,
+} from "./Upstream";
 import "./history.css";
 import { PlaytestArchidekt } from "./PlaytestArchidekt";
 import { PrintProxies } from "./PrintProxies";
@@ -137,7 +144,11 @@ type Dialog =
     }
   /** A branch at `commit` (`null`: the open branch's tip, once saved). */
   | { kind: "branch"; commit: string | null; of: string; name: string }
-  | { kind: "merge"; from: string; into: string };
+  | { kind: "merge"; from: string; into: string }
+  /** Another player's deck this one follows, merged into main. */
+  | { kind: "take" }
+  /** What this deck changed since it last agreed with theirs. */
+  | { kind: "since" };
 
 /**
  * One open deck: the stacks, the toolbar, undo, and saving by itself. Mount it
@@ -266,6 +277,8 @@ export function DeckEditor({
   });
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const upstream = useUpstream(repo, stem);
+  const followed = upstream.state.kind === "following" ? upstream.state : null;
   // Bumped when a snapshot or branch is made, merged or deleted, so the
   // drawer and the picker read them again.
   const [snapshots, setSnapshots] = useState(0);
@@ -529,6 +542,40 @@ export function DeckEditor({
         initial={dialog.name}
         onClose={() => setDialog(null)}
         onCreate={(name) => branchFrom(dialog.commit, name)}
+      />
+    ) : dialog?.kind === "take" && followed ? (
+      <MergeDialog
+        repo={repo}
+        stem={stem}
+        from={theirLabel(followed.following)}
+        into={MAIN}
+        prepare={prepare}
+        source={upstream.source}
+        onClose={() => setDialog(null)}
+        onMerged={(done) => {
+          const from = theirLabel(followed.following);
+          setSnapshots((n) => n + 1);
+          if (onMain) {
+            void store
+              .reload()
+              .then(history.reset, (e) => setRefusal(messageOf(e)));
+          } else {
+            void readBuilt(repo, stem).then(setMainDeck);
+          }
+          void upstream.refresh();
+          setNotice(
+            done.message === undefined
+              ? `main fast-forwarded to ${from}.`
+              : `Merged ${from} into main: ${done.message.split("\n", 1)[0]}`,
+          );
+        }}
+      >
+        <TheirChanges following={followed.following} />
+      </MergeDialog>
+    ) : dialog?.kind === "since" && followed ? (
+      <SinceForked
+        following={followed.following}
+        onClose={() => setDialog(null)}
       />
     ) : dialog?.kind === "merge" ? (
       <MergeDialog
@@ -805,6 +852,30 @@ export function DeckEditor({
         onDismiss={() => setRefusal(null)}
         notice={notice}
       />
+      {followed && (
+        <UpstreamBar
+          state={followed}
+          onTake={() => setDialog({ kind: "take" })}
+          onSince={() => setDialog({ kind: "since" })}
+          onRefresh={() => void upstream.refresh(true)}
+          onUnfollow={() => {
+            const label = theirLabel(followed.following);
+            if (
+              !window.confirm(
+                `Stop following ${label}? The deck and its history stay; you just stop taking their changes.`,
+              )
+            )
+              return;
+            void repo.unfollow(stem).then(
+              () => {
+                setNotice(`No longer following ${label}.`);
+                return upstream.refresh();
+              },
+              (e) => setRefusal(messageOf(e)),
+            );
+          }}
+        />
+      )}
       {!onMain && (
         <div className="branch-bar">
           <span className="hint">

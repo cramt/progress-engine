@@ -10,7 +10,15 @@
  * branch it is on, `main` when it names none.
  */
 
-import type { CardBlame, MergeDone, MergePlan } from "../deck.gen";
+import type {
+  CardBlame,
+  Fetched,
+  Following,
+  Forked,
+  MergeDone,
+  MergePlan,
+  UpstreamFacts,
+} from "../deck.gen";
 
 export interface FileAt {
   text: string;
@@ -50,6 +58,17 @@ export interface DeckLine {
   file: FileAt | null;
   /** The deck it was forked from, as its history says. */
   parent?: string;
+  /** The deck in another player's repo it follows, as `meldweb.toml` says. */
+  upstream?: UpstreamFacts;
+  /** That deck's name, as last fetched. */
+  upstreamName?: string;
+}
+
+/** A deck in another player's repo: their repo's URL, its stem, its branch. */
+export interface TheirDeck {
+  url: string;
+  deck: string;
+  branch: string;
 }
 
 /** One commit that touched a file, as its history lists it. */
@@ -172,6 +191,34 @@ export interface Repo {
   ): Promise<MergeDone>;
   /** Takes the repo from version `from` to the next, all or nothing. */
   migrate(from: number): Promise<void>;
+  /**
+   * Fetching another player's deck over git (ADR-0041), whose bytes the
+   * caller carries (`src/remote/follow.ts`): the body to POST to their
+   * git-upload-pack for that deck's line alone, or null when it is all here.
+   */
+  followRequest(
+    theirs: TheirDeck,
+    advertised: Uint8Array,
+  ): Promise<Uint8Array | null>;
+  /** Takes in their answer and tracks their deck's line. */
+  followFinish(
+    theirs: TheirDeck,
+    advertised: Uint8Array,
+    response: Uint8Array | null,
+  ): Promise<Fetched>;
+  /** Makes `stem` a fork of their deck as fetched, following it. */
+  fork(theirs: TheirDeck, stem: string): Promise<Forked>;
+  /** The deck against the deck it follows; null when it follows none. */
+  following(stem: string): Promise<Following | null>;
+  /** Stops the deck following anything; its history stays. */
+  unfollow(stem: string): Promise<void>;
+  /** What taking the followed deck's changes would do; nothing moves. */
+  planTake(stem: string, prefer?: "ours" | "theirs"): Promise<MergePlan>;
+  /** Takes them as `planTake` said, while both are still at its tips. */
+  takeUpstream(
+    stem: string,
+    ask: { intoTip: string; fromTip: string; prefer?: "ours" | "theirs" },
+  ): Promise<MergeDone>;
 }
 
 /** A deck's cards blamed at a commit. */
@@ -181,7 +228,7 @@ export interface BlameRead {
   cards: CardBlame[];
 }
 
-export type { CardBlame, MergeDone, MergePlan };
+export type { CardBlame, Fetched, Following, Forked, MergeDone, MergePlan };
 
 /**
  * The file moved in the repo since its sha was read, or a create found it

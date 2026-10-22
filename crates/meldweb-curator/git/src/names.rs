@@ -75,7 +75,7 @@ object_id!(
     TagId
 );
 
-fn refname(prefix: &str, name: &str) -> Result<(), String> {
+pub(crate) fn refname(prefix: &str, name: &str) -> Result<(), String> {
     let full = format!("{prefix}{name}");
     let checked = if prefix == "refs/heads/" {
         gix_validate::reference::branch_name(full.as_bytes().as_bstr()).map(|_| ())

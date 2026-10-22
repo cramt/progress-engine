@@ -29,6 +29,9 @@ use meldweb_git::{
 use crate::blame::{self, DeckBlame};
 use crate::branches::{self, BranchDeleted, BranchMade, DeckBranches, MergeDone, MergePlan};
 use crate::layout::{self, DeckLines};
+use crate::preference::Upstream;
+use crate::upstream::{self, Fetched, Following, Forked};
+use crate::UpstreamFacts;
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
 
 /// One thing an operation did to the git dir, for the worker to repeat.
@@ -295,6 +298,25 @@ pub struct DeckLine {
     pub sha: Option<String>,
     #[facet(default, skip_serializing_if = Option::is_none)]
     pub parent: Option<String>,
+    /// The deck in another player's repo it was forked from and follows,
+    /// as `meldweb.toml` says (ADR-0041).
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub upstream: Option<UpstreamFacts>,
+    /// That deck's name, as last fetched.
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub upstream_name: Option<String>,
+}
+
+/// A deck against the other player's deck it follows, or that it follows
+/// none.
+// Made once per call and serialised at once, so its size never matters.
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum FollowingRead {
+    NotFollowing,
+    Following { following: Following },
 }
 
 #[derive(Debug, Facet)]
@@ -923,6 +945,9 @@ impl Local {
         let parents = lines.parents(repo)?;
         let mut decks = Vec::new();
         for (stem, tip) in &lines.tips {
+            // A settings file that does not read follows nothing here; the
+            // settings page says why.
+            let followed = upstream::following(repo, stem).ok().flatten();
             let file = repo_path(&stem.deck_file())?;
             let (text, sha) = match self.blob_at(tip, &file)? {
                 Some(blob) => {
@@ -940,6 +965,11 @@ impl Local {
                 text,
                 sha,
                 parent: parents.get(stem).map(|p| p.to_string()),
+                upstream_name: followed
+                    .as_ref()
+                    .and_then(|f| f.theirs.as_ref())
+                    .and_then(|t| t.name.clone()),
+                upstream: followed.map(|f| f.upstream),
             });
         }
         Ok(DeckLineList { decks })
@@ -1035,6 +1065,83 @@ impl Local {
             prefer,
             &signed,
         )
+    }
+
+    /// [`upstream::fetch_request`] for the deck `deck`'s branch `branch` in
+    /// the repo at `url`.
+    pub fn follow_request(
+        &self,
+        url: &str,
+        deck: &str,
+        branch: &str,
+        advertised: &[u8],
+    ) -> Out<Option<Vec<u8>>> {
+        let up = Upstream::new(url, deck, Some(branch))?;
+        upstream::fetch_request(self.repo()?, &up, advertised)
+    }
+
+    /// [`upstream::fetch_finish`].
+    pub fn follow_finish(
+        &mut self,
+        url: &str,
+        deck: &str,
+        branch: &str,
+        advertised: &[u8],
+        response: Option<&[u8]>,
+    ) -> Out<Fetched> {
+        let up = Upstream::new(url, deck, Some(branch))?;
+        upstream::fetch_finish(self.repo_mut()?, &up, advertised, response)
+    }
+
+    /// [`upstream::fork`]: the deck `stem` forked from their deck as fetched.
+    pub fn fork_deck(
+        &mut self,
+        url: &str,
+        deck: &str,
+        branch: &str,
+        stem: &str,
+        who: &Who,
+    ) -> Out<Forked> {
+        let up = Upstream::new(url, deck, Some(branch))?;
+        let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
+        let signed = signature(who)?;
+        upstream::fork(self.repo_mut()?, &up, &stem, &signed)
+    }
+
+    /// [`upstream::following`].
+    pub fn following(&self, stem: &str) -> Out<FollowingRead> {
+        let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
+        Ok(match upstream::following(self.repo()?, &stem)? {
+            None => FollowingRead::NotFollowing,
+            Some(following) => FollowingRead::Following { following },
+        })
+    }
+
+    /// [`upstream::unfollow`].
+    pub fn unfollow(&mut self, stem: &str, who: &Who) -> Out<()> {
+        let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
+        let signed = signature(who)?;
+        upstream::unfollow(self.repo_mut()?, &stem, &signed)
+    }
+
+    /// [`upstream::plan`].
+    pub fn plan_take(&mut self, stem: &str, prefer: Option<Side>) -> Out<MergePlan> {
+        let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
+        upstream::plan(self.repo_mut()?, &stem, prefer)
+    }
+
+    /// [`upstream::take`].
+    pub fn take_upstream(
+        &mut self,
+        stem: &str,
+        into_tip: &str,
+        from_tip: &str,
+        prefer: Option<Side>,
+        who: &Who,
+    ) -> Out<MergeDone> {
+        let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
+        let signed = signature(who)?;
+        upstream::take(self.repo_mut()?, &stem, into_tip, from_tip, prefer, &signed)
     }
 
     /// Migrates the repo from version `from` to the next, in one operation
@@ -1528,6 +1635,74 @@ impl GitRepo {
         .map(|r| json(&r))
     }
 
+    pub fn follow_request(
+        &self,
+        url: &str,
+        deck: &str,
+        branch: &str,
+        advertised: &[u8],
+    ) -> Result<Option<Vec<u8>>, JsError> {
+        js(self.0.follow_request(url, deck, branch, advertised))
+    }
+
+    /// [`Fetched`].
+    pub fn follow_finish(
+        &mut self,
+        url: &str,
+        deck: &str,
+        branch: &str,
+        advertised: &[u8],
+        response: Option<Vec<u8>>,
+    ) -> Result<String, JsError> {
+        js(self
+            .0
+            .follow_finish(url, deck, branch, advertised, response.as_deref()))
+        .map(|r| json(&r))
+    }
+
+    /// [`Forked`]; `who` is a [`Who`].
+    pub fn fork_deck(
+        &mut self,
+        url: &str,
+        deck: &str,
+        branch: &str,
+        stem: &str,
+        who: &str,
+    ) -> Result<String, JsError> {
+        let who = who_of(who)?;
+        js(self.0.fork_deck(url, deck, branch, stem, &who)).map(|r| json(&r))
+    }
+
+    /// [`FollowingRead`].
+    pub fn following(&self, stem: &str) -> Result<String, JsError> {
+        js(self.0.following(stem)).map(|r| json(&r))
+    }
+
+    pub fn unfollow(&mut self, stem: &str, who: &str) -> Result<(), JsError> {
+        let who = who_of(who)?;
+        js(self.0.unfollow(stem, &who))
+    }
+
+    /// [`MergePlan`] of taking the followed deck's changes.
+    pub fn plan_take(&mut self, stem: &str, prefer: Option<String>) -> Result<String, JsError> {
+        let prefer = side_of(prefer)?;
+        js(self.0.plan_take(stem, prefer)).map(|r| json(&r))
+    }
+
+    /// [`MergeDone`]; `who` is a [`Who`].
+    pub fn take_upstream(
+        &mut self,
+        stem: &str,
+        into_tip: &str,
+        from_tip: &str,
+        prefer: Option<String>,
+        who: &str,
+    ) -> Result<String, JsError> {
+        let prefer = side_of(prefer)?;
+        let who = who_of(who)?;
+        js(self.0.take_upstream(stem, into_tip, from_tip, prefer, &who)).map(|r| json(&r))
+    }
+
     /// [`MigratedFacts`].
     pub fn migrate(&mut self, from: u32) -> Result<String, JsError> {
         js(self.0.migrate(from)).map(|r| json(&r))
@@ -1628,6 +1803,12 @@ impl Outgoing {
     pub fn body(&self) -> Vec<u8> {
         self.body.clone()
     }
+}
+
+/// JSON of [`upstream::TheirDecks`] for another player's `info/refs` answer.
+#[wasm_bindgen]
+pub fn their_decks(advertised: &[u8]) -> Result<String, JsError> {
+    js(upstream::their_decks(advertised)).map(|r| json(&r))
 }
 
 /// Why git would not take `name` and `email` as a commit's author, or `None`
