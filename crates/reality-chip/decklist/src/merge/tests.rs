@@ -480,3 +480,20 @@ proptest! {
         }
     }
 }
+
+#[test]
+fn two_lines_of_one_card_that_swapped_places_merge_as_theirs() {
+    // Found by `with_ours_unchanged_the_result_is_theirs` in CI: the merge
+    // put theirs' two Sol Ring lines in the other order, and the diff paired
+    // them by position, reading the swap as two quantity changes.
+    let base = text_of(&Gen {
+        cards: vec![(0, 1, false, false, 0), (0, 1, true, false, 0)],
+        name: None,
+    });
+    let theirs = text_of(&Gen {
+        cards: vec![(0, 3, true, true, 0), (0, 1, true, true, 0)],
+        name: None,
+    });
+    let (text, _) = clean(merge(&base, &reworded(&base), &theirs, open));
+    assert_eq!(semantically(&theirs, &text), Vec::<String>::new());
+}

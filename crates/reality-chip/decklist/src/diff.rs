@@ -107,17 +107,25 @@ fn quoted(s: &Option<String>) -> String {
 }
 
 /// Pairs each card in `after` with the card it was in `before`, most alike
-/// first: the same line, then the same card with one thing changed, then the
-/// same card name under another printing. What stays unpaired was added or
-/// removed. A card's label is asked for only once the first four passes
-/// leave it unpaired.
+/// first: the same line, quantity included, so two lines of one card that
+/// only swapped places read as no change; then the same card with one thing
+/// changed, then the same card name under another printing. What stays
+/// unpaired was added or removed. A card's label is asked for only once the
+/// first five passes leave it unpaired.
 pub(crate) fn pair<'c>(
     before: &[&'c Card],
     after: &[&'c Card],
     label: impl Fn(&Card) -> String,
 ) -> Vec<(usize, usize)> {
     type Alike = fn(&Card, &Card) -> bool;
-    let passes: [Alike; 4] = [
+    let passes: [Alike; 5] = [
+        |a, b| {
+            a.card == b.card
+                && a.categories == b.categories
+                && a.finish == b.finish
+                && a.qty == b.qty
+                && a.place == b.place
+        },
         |a, b| a.card == b.card && a.categories == b.categories && a.finish == b.finish,
         |a, b| a.card == b.card && a.categories == b.categories,
         |a, b| a.card == b.card && a.finish == b.finish,
