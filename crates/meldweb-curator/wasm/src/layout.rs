@@ -30,8 +30,8 @@ use chip_decklist::collection;
 use chip_decklist::edit;
 use chip_decklist::stem::DeckStem;
 use meldweb_git::{
-    BlobId, BranchName, Change, CommitId, EntryKind, Error, Identity, Integrated, MergeFile, Repo,
-    RepoPath, Side, Signature, Store, TagKind, Timestamp, Tip, WriteCommit,
+    BlobId, BranchName, Change, CommitId, EntryKind, Error, Identity, Integrated, MergeBranchFile,
+    Repo, RepoPath, Side, Signature, Store, TagKind, Timestamp, Tip, WriteCommit,
 };
 
 /// The repo version this layout is.
@@ -625,7 +625,7 @@ pub fn integrate<S: Store>(
     repo: &mut Repo<S>,
     who: &Signature,
     prefer: Option<Side>,
-    merge_file: &mut MergeFile<'_>,
+    merge_file: &mut MergeBranchFile<'_>,
 ) -> Out<Vec<(BranchName, Integrated)>> {
     let mut theirs = repo.integration_targets().map_err(said)?;
     let main = branch_name("main");

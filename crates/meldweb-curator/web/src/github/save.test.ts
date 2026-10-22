@@ -358,6 +358,67 @@ describe("a save another client got in ahead of", () => {
     expect(conn.mock.file(PATH)?.text).toBe(two(3));
   });
 
+  it("settles each clash by the side picked, and commits the merge on the other save's sha", async () => {
+    const both = (b: number, d: number) =>
+      deck("a", "b", "c", "d")
+        .replace('"b" }', `"b", qty = ${b} }`)
+        .replace('"d" }', `"d", qty = ${d} }`);
+    // Elsewhere: b 3, d 5, and a new card; here: b 2, d 4.
+    const elsewhere = both(3, 5).replace(
+      '  { name = "d"',
+      '  { name = "e" },\n  { name = "d"',
+    );
+    conn.mock.editElsewhere(PATH, elsewhere);
+    store.edit(both(2, 4));
+    await vi.advanceTimersByTimeAsync(IDLE_MS);
+    const state = store.getState();
+    expect(state.status).toBe("conflict");
+    expect(
+      state.status === "conflict" &&
+        state.clashes.map((c) => [c.subject, c.ours, c.theirs]),
+    ).toEqual([
+      ["b", "2", "3"],
+      ["d", "4", "5"],
+    ]);
+    const before = conn.mock.commits().length;
+
+    // Keep b as here, take d from there.
+    await store.resolve(["ours", "theirs"]);
+    const want = both(2, 5).replace(
+      '  { name = "d"',
+      '  { name = "e" },\n  { name = "d"',
+    );
+    expect(merged).toEqual([want]);
+    expect(store.getState().status).toBe("saved");
+    expect(conn.mock.file(PATH)?.text).toBe(want);
+    // One commit, over the other save's (the fake refuses any other sha),
+    // saying what this page changed.
+    expect(conn.mock.commits()).toHaveLength(before + 1);
+    expect(conn.mock.commits().at(-1)?.outOfBand).toBe(false);
+  });
+
+  it("picks made before the file moved again settle nothing, and the clashes are shown anew", async () => {
+    const two = (n: number) =>
+      deck("a", "b", "c", "d").replace('"b" }', `"b", qty = ${n} }`);
+    conn.mock.editElsewhere(PATH, two(3));
+    store.edit(two(2));
+    await vi.advanceTimersByTimeAsync(IDLE_MS);
+    expect(store.getState().status).toBe("conflict");
+    conn.mock.editElsewhere(PATH, two(7));
+    await store.resolve(["theirs"]);
+    const state = store.getState();
+    expect(
+      state.status === "conflict" &&
+        state.clashes.map((c) => [c.subject, c.ours, c.theirs]),
+    ).toEqual([["b", "2", "7"]]);
+    expect(merged).toEqual([]);
+    expect(conn.mock.file(PATH)?.text).toBe(two(7));
+    // Picked against what is there now, they settle it.
+    await store.resolve(["theirs"]);
+    expect(store.getState().status).toBe("saved");
+    expect(merged).toEqual([two(7)]);
+  });
+
   it("is a conflict when the merge is not a deck", async () => {
     conn.mock.editElsewhere(PATH, deck("a", "b", "c", "d", "not a deck"));
     store.edit(deck("A", "b", "c", "d"));

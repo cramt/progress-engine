@@ -626,10 +626,30 @@ pub enum TextMerge {
 /// `ours` and `theirs`, both made from `base`, merged as `path`'s kind of
 /// file merges ([`merging::merge_file`]): a deck by card, anything else by
 /// lines. A refused save merges through this, and a sync and every branch
-/// merge through the same dispatch (ADR-0021, ADR-0041).
+/// merge through the same dispatch (ADR-0021, ADR-0041). `picks` is JSON of
+/// a [`merging::Pick`] for each of a deck's clashes, by its index, as the
+/// user settled a refused save; `[]` settles none.
 #[wasm_bindgen]
-pub fn merge_file(path: &str, base: &str, ours: &str, theirs: &str) -> String {
-    let merged = match merging::merge_file(path, base, ours, theirs, &Default::default()) {
+pub fn merge_file(
+    path: &str,
+    base: &str,
+    ours: &str,
+    theirs: &str,
+    picks: &str,
+) -> Result<String, JsError> {
+    let picks: Vec<merging::Pick> =
+        facet_json::from_str(picks).map_err(|e| refused(format!("picks are not Pick[]: {e}")))?;
+    let settle = merging::Settle {
+        prefer: None,
+        picks: picks.into_iter().map(Into::into).collect(),
+    };
+    Ok(text_merge(merging::merge_file(
+        path, base, ours, theirs, &settle,
+    )))
+}
+
+fn text_merge(merged: merging::FileMerge) -> String {
+    let merged = match merged {
         merging::FileMerge::Merged(text) => TextMerge::Merged { text },
         merging::FileMerge::Clashed(clashes) => TextMerge::Clashed { clashes },
         merging::FileMerge::Hunks(_) => TextMerge::Clashed { clashes: vec![] },
@@ -2207,6 +2227,7 @@ mod tests {
         g.add_type::<repo::Wrote>();
         g.add_type::<repo::RemoteFacts>();
         g.add_type::<repo::Synced>();
+        g.add_type::<merging::FileSettle>();
         g.add_type::<repo::PushOutcome>();
         g.add_type::<repo::DeckLineList>();
         g.add_type::<repo::DeckDeleted>();

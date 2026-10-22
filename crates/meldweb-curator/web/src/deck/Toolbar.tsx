@@ -1,8 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
+import type { MergeClash } from "../deck.gen";
 import type { SaveState } from "../github/save";
+import type { MergeSide } from "../repo/api";
 import { BrandMark, CloseIcon, RedoIcon, UndoIcon } from "../ui/icons";
 import { Waiting } from "../ui/Spinner";
+import { allPicked, ClashPicks, picked } from "./ClashPicks";
 
 /**
  * The bar along the top of every page, sticky on scroll: Archidekt's toolbar,
@@ -140,13 +143,16 @@ export function SaveStatus({ save, path }: { save: SaveState; path: string }) {
 /**
  * What stops a save or an edit, under the toolbar: a commit made elsewhere, a
  * failed save, and the last edit refused, each with its way out. A `notice`
- * says what an action just did, such as a snapshot taken.
+ * says what an action just did, such as a snapshot taken. A deck's save
+ * that clashed shows each clash with its two sides, and `onPicks` merges
+ * with the sides picked.
  */
 export function Banners({
   save,
   refusal,
   onReload,
   onOverwrite,
+  onPicks,
   onDismiss,
   notice,
 }: {
@@ -154,29 +160,40 @@ export function Banners({
   refusal: string | null;
   onReload: () => void;
   onOverwrite: () => void;
+  onPicks?: (picks: MergeSide[]) => void;
   onDismiss: () => void;
   notice?: string | null;
 }) {
   return (
     <div className="banners">
-      {save.status === "conflict" && (
-        <p className="conflict" role="alert">
-          {save.clashes.length > 0
-            ? `Changed elsewhere since this page loaded, and both changed ${save.clashes
-                .map(
-                  (c) =>
-                    `${c.subject}'s ${c.attribute} (here ${c.ours}, there ${c.theirs})`,
-                )
-                .join("; ")}.`
-            : "Changed elsewhere since this page loaded, in a way that does not merge."}
-          <button type="button" className="small" onClick={onReload}>
-            Reload (discard my edits)
-          </button>
-          <button type="button" className="small" onClick={onOverwrite}>
-            Overwrite
-          </button>
-        </p>
-      )}
+      {save.status === "conflict" &&
+        (save.clashes.length > 0 && onPicks ? (
+          <SaveClashes
+            // New clashes are new rows, picked afresh.
+            key={JSON.stringify(save.clashes)}
+            clashes={save.clashes}
+            onPicks={onPicks}
+            onReload={onReload}
+            onOverwrite={onOverwrite}
+          />
+        ) : (
+          <p className="conflict" role="alert">
+            {save.clashes.length > 0
+              ? `Changed elsewhere since this page loaded, and both changed ${save.clashes
+                  .map(
+                    (c) =>
+                      `${c.subject}'s ${c.attribute} (here ${c.ours}, there ${c.theirs})`,
+                  )
+                  .join("; ")}.`
+              : "Changed elsewhere since this page loaded, in a way that does not merge."}
+            <button type="button" className="small" onClick={onReload}>
+              Reload (discard my edits)
+            </button>
+            <button type="button" className="small" onClick={onOverwrite}>
+              Overwrite
+            </button>
+          </p>
+        ))}
       {save.status === "error" && (
         <p className="refusal" role="alert">
           Saving failed, and will be tried again: {save.message}
@@ -200,6 +217,60 @@ export function Banners({
           </button>
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * A refused save's clashes, a side to pick for each: what this page has
+ * against what was saved elsewhere. Merging with the picks becomes the
+ * editor's text as one undoable step and is saved over the other save.
+ */
+function SaveClashes({
+  clashes,
+  onPicks,
+  onReload,
+  onOverwrite,
+}: {
+  clashes: readonly MergeClash[];
+  onPicks: (picks: MergeSide[]) => void;
+  onReload: () => void;
+  onOverwrite: () => void;
+}) {
+  const [picks, setPicks] = useState<(MergeSide | undefined)[]>(() =>
+    clashes.map(() => undefined),
+  );
+  const all = allPicked(picks);
+  const n = clashes.length;
+  return (
+    <div className="conflict save-clashes" role="alert">
+      <span>
+        Changed elsewhere since this page loaded, and both changed{" "}
+        {n === 1 ? "the same thing" : `${n} things`} differently. Pick a side
+        for {n === 1 ? "it" : "each"}:
+      </span>
+      <ClashPicks
+        clashes={clashes}
+        picks={picks}
+        onPick={(i, side) => setPicks((was) => picked(was, i, side))}
+        ours="here"
+        theirs="there"
+        group="save-clash"
+      />
+      <button
+        type="button"
+        className="small primary"
+        disabled={!all}
+        onClick={() => all && onPicks(all)}
+      >
+        Merge with these picks
+      </button>
+      <button type="button" className="small" onClick={onReload}>
+        Reload (discard my edits)
+      </button>
+      <button type="button" className="small" onClick={onOverwrite}>
+        Overwrite
+      </button>
     </div>
   );
 }

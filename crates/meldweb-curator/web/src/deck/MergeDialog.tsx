@@ -9,6 +9,7 @@ import {
 } from "../github/branches";
 import type { MergeAsk, MergeSide, Repo, Settle } from "../repo/api";
 import { messageOf, Sheet, useBusy } from "../ui/Sheet";
+import { ClashPicks, Hunks, picked } from "./ClashPicks";
 import { GROUP_TITLES, grouped, takeable } from "./versions";
 
 type Planning =
@@ -282,60 +283,16 @@ function Clashes({
   return (
     <section className="merge-clashes" aria-label="Where they clash">
       {clashes.length > 0 && (
-        <ul className="merge-card-clashes">
-          {clashes.map((c, i) => (
-            <li key={c.index} className="merge-card-clash">
-              <span className="merge-card-clash-what">
-                <strong>{c.subject}</strong> — {c.attribute}
-              </span>
-              <fieldset className="merge-card-clash-sides">
-                <legend className="visually-hidden">
-                  {c.subject}, {c.attribute}
-                </legend>
-                {(["ours", "theirs"] as const).map((side) => (
-                  <label
-                    key={side}
-                    className={picks[i] === side ? "picked" : undefined}
-                  >
-                    <input
-                      type="radio"
-                      name={`clash-${c.index}`}
-                      checked={picks[i] === side}
-                      onChange={() =>
-                        setPicks((was) =>
-                          was.map((p, j) => (j === i ? side : p)),
-                        )
-                      }
-                    />
-                    <span className="merge-side-name">
-                      {side === "ours" ? into : from}
-                    </span>{" "}
-                    <span className="merge-side-value">
-                      {side === "ours" ? c.ours : c.theirs}
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
-            </li>
-          ))}
-        </ul>
+        <ClashPicks
+          clashes={clashes}
+          picks={picks}
+          onPick={(i, side) => setPicks((was) => picked(was, i, side))}
+          ours={into}
+          theirs={from}
+          group="clash"
+        />
       )}
-      {hunks.map((h, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: a hunk has no identity but its place
-        <div key={i} className="merge-clash">
-          <p className="merge-clash-path">{h.path}</p>
-          <div className="merge-clash-sides">
-            <div>
-              <h4>{into} has</h4>
-              <pre>{h.ours.join("\n") || "(nothing)"}</pre>
-            </div>
-            <div>
-              <h4>{from} has</h4>
-              <pre>{h.theirs.join("\n") || "(nothing)"}</pre>
-            </div>
-          </div>
-        </div>
-      ))}
+      <Hunks hunks={hunks} ours={into} theirs={from} />
       {hunks.length > 0 && clashes.length > 0 && (
         <fieldset className="merge-card-clash-sides">
           <legend>Those lines</legend>

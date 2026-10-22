@@ -14,15 +14,24 @@
  *   where it lives, and pushed there migrated, `main` as a fast-forward.
  * - A push names the remote ref's id as last advertised, so the host refuses
  *   it if someone pushed meanwhile; then it fetches, merges and pushes again.
- * - A file both sides changed in the same lines, or remote history unrelated
- *   to this repo's, stops syncing until the user chooses, as a refused save
- *   stops saving (ADR-0021).
+ * - A file both sides changed so that it does not merge (a deck's card both
+ *   changed differently, another file's same lines), or remote history
+ *   unrelated to this repo's, stops syncing until the user chooses, as a
+ *   refused save stops saving (ADR-0021). The user picks a side for each of
+ *   a deck's clashes, file by file and branch by branch, and the next sync
+ *   makes the merge commit with those picks; picks made against tips that
+ *   have moved since settle nothing, and the clashes are shown again.
  *
  * Tabs sync one at a time under a Web Lock; each step is atomic in the
  * repo's worker, so a save landing between steps is merged or pushed next.
  */
-import type { MergeClash, RemoteFacts, Synced } from "../deck.gen";
-import type { RemoteSteps, Side } from "../repo/local";
+import type {
+  FileSettle,
+  RemoteFacts,
+  SyncConflict,
+  Synced,
+} from "../deck.gen";
+import type { RemoteSteps, Side, SyncSettle } from "../repo/local";
 import { type GitTransport, NeedsLogin } from "./transport";
 
 /** How long after the last local commit a push waits, as saving waits. */
@@ -42,10 +51,10 @@ export type Phase =
   | { kind: "logged-out" }
   /**
    * These files changed here and on the remote in a way that does not
-   * merge; a deck's named with its branch, `decks/lantern/main:
-   * lantern.deck.toml`. `clashes` are a deck's, card by card.
+   * merge, each on its branch (`decks/lantern/main`, `lantern.deck.toml`),
+   * with a deck's clashes card by card.
    */
-  | { kind: "conflict"; paths: string[]; clashes: MergeClash[] }
+  | { kind: "conflict"; files: SyncConflict[] }
   /** The remote's history shares nothing with this repo's. */
   | { kind: "unrelated" }
   | { kind: "failed"; message: string };
@@ -83,8 +92,13 @@ export interface SyncEngine {
   refresh(): Promise<void>;
   /** Syncs now, even when it stopped for the user to choose: "try again". */
   sync(): Promise<void>;
-  /** After a conflict: takes `side` for the conflicting files, then syncs. */
+  /** After a conflict: takes `side` for everything that clashes, then syncs. */
   resolve(side: Side): Promise<void>;
+  /**
+   * After a conflict: settles each file by its own picks, keyed by branch
+   * and path as the conflict named them, then syncs.
+   */
+  settle(files: readonly FileSettle[]): Promise<void>;
   /** After unrelated history: this repo becomes the remote's, then syncs. */
   replaceWithRemote(): Promise<void>;
   /** Makes `url` the remote and syncs with it. */
@@ -165,20 +179,20 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
     (state.phase.kind === "conflict" || state.phase.kind === "unrelated");
 
   type Stop =
-    | { kind: "conflict"; paths: string[]; clashes: MergeClash[] }
+    | { kind: "conflict"; files: SyncConflict[] }
     | { kind: "unrelated" };
 
   /** Fetches and integrates; a stop when the user has to choose. */
   async function bringIn(
     url: string,
     git: GitTransport,
-    prefer?: Side,
+    settle?: SyncSettle,
   ): Promise<Stop | null> {
     const advertised = await git.advertise(url, "git-upload-pack");
     const want = await steps.fetchRequest(advertised);
     const response = want ? await git.post(url, "git-upload-pack", want) : null;
     await steps.fetchFinish(advertised, response);
-    const synced: Synced = await steps.integrate(prefer);
+    const synced: Synced = await steps.integrate(settle);
     if (
       synced.kind === "fastForwarded" ||
       synced.kind === "adopted" ||
@@ -187,11 +201,7 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
       for (const l of moved) l();
     }
     if (synced.kind === "conflict")
-      return {
-        kind: "conflict",
-        paths: synced.paths,
-        clashes: synced.clashes,
-      };
+      return { kind: "conflict", files: synced.files };
     if (synced.kind === "unrelated") return { kind: "unrelated" };
     return null;
   }
@@ -220,7 +230,7 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
     }
   }
 
-  async function once(prefer?: Side, before?: () => Promise<void>) {
+  async function once(settle?: SyncSettle, before?: () => Promise<void>) {
     await lock(async () => {
       await before?.();
       const current = await read();
@@ -234,7 +244,7 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
       try {
         const git = transport(url);
         const stop =
-          (await bringIn(url, git, prefer)) ?? (await pushOut(url, git));
+          (await bringIn(url, git, settle)) ?? (await pushOut(url, git));
         if (stop) phase = stop;
         else {
           storage?.setItem(LAST_SYNC, JSON.stringify({ url, at: now() }));
@@ -251,15 +261,18 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
   }
 
   /** One sync at a time; one asked for meanwhile runs after it. */
-  function run(prefer?: Side, before?: () => Promise<void>): Promise<void> {
+  function run(
+    settle?: SyncSettle,
+    before?: () => Promise<void>,
+  ): Promise<void> {
     if (running) {
-      if (prefer === undefined && before === undefined) {
+      if (settle === undefined && before === undefined) {
         again = true;
         return running;
       }
-      return running.then(() => run(prefer, before));
+      return running.then(() => run(settle, before));
     }
-    const go = once(prefer, before).finally(() => {
+    const go = once(settle, before).finally(() => {
       running = null;
       if (again) {
         again = false;
@@ -283,7 +296,10 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
       return run();
     },
     resolve(side) {
-      return run(side);
+      return run({ prefer: side });
+    },
+    settle(files) {
+      return run({ files });
     },
     replaceWithRemote() {
       return run(undefined, () => steps.adoptRemote());

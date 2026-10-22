@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PushOutcome, RemoteFacts, Synced } from "../deck.gen";
-import type { PushPlan, RemoteSteps, Side } from "../repo/local";
+import type {
+  PushOutcome,
+  RemoteFacts,
+  SyncConflict,
+  Synced,
+} from "../deck.gen";
+import type { PushPlan, RemoteSteps, SyncSettle } from "../repo/local";
 import { createSyncEngine, PUSH_IDLE_MS } from "./sync";
 import { type GitTransport, NeedsLogin } from "./transport";
 
@@ -19,6 +24,8 @@ function fakeRepo(script: {
   facts?: Partial<RemoteFacts>;
 }) {
   const log: string[] = [];
+  /** What each integrate was asked to settle. */
+  const settles: SyncSettle[] = [];
   let url: string | undefined = URL;
   const integrations = [...(script.integrate ?? [{ kind: "upToDate" }])];
   const pushes = [...(script.push ?? ["nothing"])];
@@ -49,8 +56,10 @@ function fakeRepo(script: {
     async fetchFinish(ad, response) {
       log.push(`fetchFinish ${text(ad)} ${text(response)}`);
     },
-    async integrate(prefer?: Side) {
+    async integrate(settle?: SyncSettle) {
       const next = integrations.shift() ?? { kind: "upToDate" };
+      settles.push(settle ?? {});
+      const prefer = settle?.prefer;
       log.push(`integrate${prefer ? ` ${prefer}` : ""} -> ${next.kind}`);
       return next;
     },
@@ -83,6 +92,7 @@ function fakeRepo(script: {
   return {
     steps,
     log,
+    settles,
     setFacts: (f: Partial<RemoteFacts>) => (facts = { ...facts, ...f }),
   };
 }
@@ -194,9 +204,19 @@ describe("a sync", () => {
   });
 
   it("stops at a conflict, pushes nothing, and goes on once a side is chosen", async () => {
+    const lines: SyncConflict = {
+      branch: "main",
+      path: "collection.toml",
+      ours: "a1",
+      theirs: "b1",
+      clashes: [],
+      hunks: [
+        { path: "collection.toml", base: ["x"], ours: ["y"], theirs: ["z"] },
+      ],
+    };
     const repo = fakeRepo({
       integrate: [
-        { kind: "conflict", paths: ["decks/lantern.deck.toml"], clashes: [] },
+        { kind: "conflict", files: [lines] },
         { kind: "merged", commit: "m", taken: ["decks/lantern.deck.toml"] },
       ],
       push: ["send"],
@@ -207,8 +227,7 @@ describe("a sync", () => {
     let state = sync.getState();
     expect(state.kind === "on" && state.phase).toEqual({
       kind: "conflict",
-      paths: ["decks/lantern.deck.toml"],
-      clashes: [],
+      files: [lines],
     });
     expect(repo.log.some((l) => l.startsWith("pushRequest"))).toBe(false);
 
@@ -219,6 +238,58 @@ describe("a sync", () => {
 
     await sync.resolve("theirs");
     expect(repo.log).toContain("integrate theirs -> merged");
+    expect(repo.log).toContain("pushFinish push answer:git-receive-pack");
+    state = sync.getState();
+    expect(state.kind === "on" && state.phase.kind).toBe("idle");
+  });
+
+  it("settles each branch's file by its own picks, keyed by branch and path", async () => {
+    const clash = (branch: string, ours: string, theirs: string) => ({
+      branch,
+      path: "lantern.deck.toml",
+      ours: `${branch}-here`,
+      theirs: `${branch}-there`,
+      clashes: [
+        {
+          path: "lantern.deck.toml",
+          index: 0,
+          subject: "Sol Ring",
+          attribute: "quantity",
+          ours,
+          theirs,
+        },
+      ],
+      hunks: [],
+    });
+    const files = [
+      clash("decks/lantern/budget", "5", "4"),
+      clash("decks/lantern/main", "3", "2"),
+    ];
+    const repo = fakeRepo({
+      integrate: [
+        { kind: "conflict", files },
+        { kind: "merged", commit: "m", taken: [] },
+      ],
+      push: ["send"],
+      facts: { ahead: 2 },
+    });
+    const sync = engine(repo);
+    await sync.sync();
+    let state = sync.getState();
+    expect(state.kind === "on" && state.phase).toEqual({
+      kind: "conflict",
+      files,
+    });
+    const sides = ["ours", "theirs"] as const;
+    const picks = files.map(({ branch, path, ours, theirs }, i) => ({
+      branch,
+      path,
+      ours,
+      theirs,
+      picks: [sides[i] ?? "ours"],
+    }));
+    await sync.settle(picks);
+    expect(repo.settles.at(-1)).toEqual({ files: picks });
     expect(repo.log).toContain("pushFinish push answer:git-receive-pack");
     state = sync.getState();
     expect(state.kind === "on" && state.phase.kind).toBe("idle");

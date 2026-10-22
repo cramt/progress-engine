@@ -19,8 +19,8 @@ mod store;
 pub use merge::{merge_lines, merge_lines_with, Hunk, MergeFile, Planned, Side, TreeMerge};
 pub use pktline::PktError;
 pub use remote::{
-    advertised_branches, FetchRequest, Integrated, Other, PushRequest, Pushed, RemoteStatus,
-    RemoteUrl, ORIGIN,
+    advertised_branches, BranchMerge, FetchRequest, Integrated, MergeBranchFile, Other,
+    PushRequest, Pushed, RemoteStatus, RemoteUrl, ORIGIN,
 };
 
 pub use names::{

@@ -189,7 +189,8 @@ fn integrate_all(
     prefer: Option<Side>,
     at: i64,
 ) -> Vec<(BranchName, Integrated)> {
-    repo.integrate(&sig(at), prefer, &mut by_lines).unwrap()
+    repo.integrate(&sig(at), prefer, &mut |_, p, b, o, t| by_lines(p, b, o, t))
+        .unwrap()
 }
 
 fn branch(name: &str) -> BranchName {
@@ -568,11 +569,20 @@ fn the_same_lines_conflict_until_a_side_is_chosen() {
     friend_commits(&work, &[("decks/a.deck.toml", "a\nTHEIRS\nc\n")], "theirs");
     fetch(&mut repo, &server);
     let before = repo.branch_tip(&main_branch()).unwrap();
+    let Integrated::Conflict {
+        paths,
+        ours,
+        theirs,
+    } = integrate(&mut repo, None, 3)
+    else {
+        panic!("the same lines conflict");
+    };
+    assert_eq!(paths, vec!["decks/a.deck.toml".to_owned()]);
+    assert_eq!(Some(ours), before, "ours is the branch's tip here");
     assert_eq!(
-        integrate(&mut repo, None, 3),
-        Integrated::Conflict {
-            paths: vec!["decks/a.deck.toml".to_owned()]
-        }
+        theirs.to_hex(),
+        git(&server.0, &["rev-parse", "main"]),
+        "theirs is the remote's"
     );
     assert_eq!(
         repo.branch_tip(&main_branch()).unwrap(),

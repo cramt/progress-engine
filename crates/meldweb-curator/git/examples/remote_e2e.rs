@@ -85,7 +85,7 @@ fn fetch(repo: &mut Repo<FsStore>, host: &Host) -> Result<(), Err> {
             repo.fetch_finish(&ad, Some(&response))?;
         }
     }
-    let outcome = repo.integrate(&sig(), None, &mut by_lines)?;
+    let outcome = repo.integrate(&sig(), None, &mut |_, p, b, o, t| by_lines(p, b, o, t))?;
     println!("integrate: {outcome:?}");
     Ok(())
 }

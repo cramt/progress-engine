@@ -33,7 +33,7 @@ use gix_hash::ObjectId;
 use gix_object::bstr::ByteSlice;
 use gix_object::{CommitRef, Kind, TagRef, TreeRef};
 
-use crate::merge::{MergeFile, Side, TreeMerge};
+use crate::merge::{Side, TreeMerge};
 use crate::names::{BranchName, CommitId, Signature, TreeId};
 use crate::pack;
 use crate::pktline::{self, chomp, Line, Reader};
@@ -233,13 +233,31 @@ pub enum Integrated {
         commit: CommitId,
         taken: Vec<String>,
     },
-    /// Paths both sides changed so that they do not merge. Nothing moved.
+    /// Paths both sides changed so that they do not merge, between the
+    /// branch's tip here (`ours`) and the remote's (`theirs`). Nothing moved.
     Conflict {
         paths: Vec<String>,
+        ours: CommitId,
+        theirs: CommitId,
     },
     /// Both sides have history and none of it is shared. Nothing moved.
     Unrelated,
 }
+
+/// Which branch's merge a file is merged for, and the two tips merged:
+/// what a choice the user made about one sync's clashes is keyed by, so it
+/// settles that merge and no later one with other clashes at the same path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BranchMerge<'a> {
+    pub branch: &'a BranchName,
+    pub ours: CommitId,
+    pub theirs: CommitId,
+}
+
+/// Merges one file both sides of a branch's sync changed: [`crate::MergeFile`]
+/// told which branch's merge it is part of.
+pub type MergeBranchFile<'a> =
+    dyn FnMut(&BranchMerge<'_>, &str, &[u8], &[u8], &[u8]) -> Option<Vec<u8>> + 'a;
 
 /// What is waiting to go to the remote.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -807,7 +825,7 @@ impl<S: Store> Repo<S> {
         &mut self,
         who: &Signature,
         prefer: Option<Side>,
-        merge_file: &mut MergeFile<'_>,
+        merge_file: &mut MergeBranchFile<'_>,
     ) -> Result<Vec<(BranchName, Integrated)>> {
         let theirs = self.integration_targets()?;
         self.integrate_onto(&theirs, who, prefer, merge_file)
@@ -840,8 +858,8 @@ impl<S: Store> Repo<S> {
     /// into the branches here, one by one: a fast-forward when it can, the
     /// remote's history over a `main` that is only its first `VERSION`
     /// commit, a branch only the remote has made here, and otherwise a merge
-    /// three-way from the merge base with `merge_file` (see
-    /// [`Repo::merge_trees`]), committed with two parents. `prefer` settles
+    /// three-way from the merge base with `merge_file`, told the branch and
+    /// the two tips (see [`Repo::merge_trees`]), committed with two parents. `prefer` settles
     /// conflicting paths when the user has chosen a side. `main` always has
     /// an outcome, [`Integrated::RemoteEmpty`] when `theirs` lacks it.
     pub fn integrate_onto(
@@ -849,7 +867,7 @@ impl<S: Store> Repo<S> {
         theirs: &BTreeMap<BranchName, CommitId>,
         who: &Signature,
         prefer: Option<Side>,
-        merge_file: &mut MergeFile<'_>,
+        merge_file: &mut MergeBranchFile<'_>,
     ) -> Result<Vec<(BranchName, Integrated)>> {
         let main = main_branch();
         let mut out = Vec::new();
@@ -869,7 +887,7 @@ impl<S: Store> Repo<S> {
         remote: CommitId,
         who: &Signature,
         prefer: Option<Side>,
-        merge_file: &mut MergeFile<'_>,
+        merge_file: &mut MergeBranchFile<'_>,
     ) -> Result<Integrated> {
         let is_main = *branch == main_branch();
         let local = self.branch_tip(branch)?;
@@ -895,8 +913,19 @@ impl<S: Store> Repo<S> {
                 let Some(base) = bases.first() else {
                     return Ok(Integrated::Unrelated);
                 };
-                match self.merge_trees(Some(base), &l, &remote, prefer, merge_file)? {
-                    TreeMerge::Conflicts(paths) => Integrated::Conflict { paths },
+                let at = BranchMerge {
+                    branch,
+                    ours: l,
+                    theirs: remote,
+                };
+                let mut file =
+                    |path: &str, b: &[u8], o: &[u8], t: &[u8]| merge_file(&at, path, b, o, t);
+                match self.merge_trees(Some(base), &l, &remote, prefer, &mut file)? {
+                    TreeMerge::Conflicts(paths) => Integrated::Conflict {
+                        paths,
+                        ours: l,
+                        theirs: remote,
+                    },
                     TreeMerge::Clean { tree, taken } => {
                         let commit = self.write_merge(branch, &l, &remote, tree, &taken, who)?;
                         self.update_branch(branch, crate::Tip::At(l), &commit)?;

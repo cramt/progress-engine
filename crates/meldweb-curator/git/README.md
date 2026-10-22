@@ -49,7 +49,10 @@ It can:
   remote still at repo version 1): a fast-forward, the remote's history over
   a `main` that is only its first `VERSION` commit, a branch only the remote
   has, or a merge commit with two parents; it refuses unrelated histories and
-  stops at a conflicting file. A push sends every branch the remote's is
+  stops at a conflicting file, naming the two tips it merged. Its per-file
+  merge hook (`MergeBranchFile`) is told the branch and both tips
+  (`BranchMerge`), so a caller can settle each branch's files by the user's
+  own picks and only for the merge they were made against. A push sends every branch the remote's is
   behind, every tag it lacks or has elsewhere, and the deletion of each ref
   deleted here since the last sync, with an undeltified pack, naming the
   advertised old id so that receive-pack refuses it if the remote moved.

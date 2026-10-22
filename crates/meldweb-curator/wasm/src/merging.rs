@@ -12,7 +12,7 @@
 
 use chip_decklist::merge::{self as by_card, Merged};
 use facet::Facet;
-use meldweb_git::{merge_lines_with, Hunk, Side};
+use meldweb_git::{merge_lines_with, BranchMerge, Hunk, Side};
 
 /// How the user settled a merge's clashes: `picks[i]` for a deck's clash
 /// `i`, and `prefer` for any clash not picked and for every stretch of
@@ -39,6 +39,100 @@ impl Settle {
             Side::Ours => by_card::Side::Ours,
             Side::Theirs => by_card::Side::Theirs,
         })
+    }
+}
+
+/// A side, as the page sends a pick: `ours` is the branch merged into.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Facet)]
+#[repr(u8)]
+#[facet(rename_all = "kebab-case")]
+pub enum Pick {
+    Ours,
+    Theirs,
+}
+
+impl From<Pick> for Side {
+    fn from(p: Pick) -> Side {
+        match p {
+            Pick::Ours => Side::Ours,
+            Pick::Theirs => Side::Theirs,
+        }
+    }
+}
+
+/// How the user settled one file of one branch's sync merge: its deck's
+/// clashes one by one, or the whole file one way. Keyed by the branch and
+/// the path, and guarded by the two tips the clashes were shown from, so a
+/// pick made against one merge never settles a later one whose clash `i`
+/// may be another card.
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
+pub struct FileSettle {
+    pub branch: String,
+    pub path: String,
+    /// The branch's tip here, as the clashes were shown from.
+    pub ours: String,
+    /// The remote's tip of the branch, as the clashes were shown from.
+    pub theirs: String,
+    #[facet(default)]
+    pub prefer: Option<Pick>,
+    #[facet(default)]
+    pub picks: Vec<Pick>,
+}
+
+/// How the user settled a sync's clashes: file by file, and `prefer` for
+/// every file not settled on its own.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SyncSettle {
+    pub prefer: Option<Side>,
+    pub files: Vec<FileSettle>,
+}
+
+impl SyncSettle {
+    /// What settles `path` in `at`'s merge: its own picks when they were
+    /// made against these two tips, otherwise `prefer`.
+    pub fn of(&self, at: &BranchMerge<'_>, path: &str) -> Settle {
+        let own = self.files.iter().find(|f| {
+            f.branch == at.branch.as_str()
+                && f.path == path
+                && f.ours == at.ours.to_hex()
+                && f.theirs == at.theirs.to_hex()
+        });
+        match own {
+            Some(f) => Settle {
+                prefer: f.prefer.map(Side::from),
+                picks: f.picks.iter().copied().map(Side::from).collect(),
+            },
+            None => Settle::from(self.prefer),
+        }
+    }
+}
+
+/// [`merge_bytes`] for one file of one branch's sync merge, settled by its
+/// own picks when it has them. A file the user settled one way whole takes
+/// that side's bytes even where merging it would not make a file Progress
+/// Engine reads, as `prefer` does for the whole sync.
+pub fn merge_sync_bytes(
+    at: &BranchMerge<'_>,
+    path: &str,
+    base: &[u8],
+    ours: &[u8],
+    theirs: &[u8],
+    settle: &SyncSettle,
+    stop: &mut impl FnMut(FileMerge),
+) -> Option<Vec<u8>> {
+    let own = settle.of(at, path);
+    let mut stopped = Vec::new();
+    let merged = merge_bytes(path, base, ours, theirs, &own, &mut |s| stopped.push(s));
+    if merged.is_some() {
+        return merged;
+    }
+    match own.prefer {
+        Some(Side::Ours) => Some(ours.to_vec()),
+        Some(Side::Theirs) => Some(theirs.to_vec()),
+        None => {
+            stopped.into_iter().for_each(stop);
+            None
+        }
     }
 }
 

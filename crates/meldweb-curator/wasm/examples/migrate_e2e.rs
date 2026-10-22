@@ -323,7 +323,7 @@ fn main() -> Result<(), Err> {
         &mut repo,
         &sig("Alex", 1_800_000_000, 0),
         None,
-        &mut by_lines,
+        &mut |_, p, b, o, t| by_lines(p, b, o, t),
     )?;
     println!("integrate: {outcomes:?}");
     println!("status before the push: {:?}", repo.remote_status()?);

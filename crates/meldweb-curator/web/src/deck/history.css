@@ -640,39 +640,6 @@ main.with-drawer {
   white-space: pre-wrap;
 }
 
-.merge-clashes {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.merge-clash-path {
-  margin: 0 0 4px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.merge-clash-sides {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px;
-}
-
-.merge-clash-sides h4 {
-  margin: 0 0 4px;
-  font-size: 12px;
-}
-
-.merge-clash-sides pre {
-  margin: 0;
-  padding: 8px;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  font-size: 12px;
-}
-
 /* A fork of another player's deck: what is new on theirs, and taking it. */
 .upstream-bar {
   display: flex;
@@ -688,55 +655,4 @@ main.with-drawer {
 
 .upstream-bar > span:first-child {
   margin-right: auto;
-}
-
-/* A deck's clashes, one card (or field) a row, each with its two sides. */
-.merge-card-clashes {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.merge-card-clash {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
-
-.merge-card-clash-sides {
-  display: flex;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.merge-card-clash-sides label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.merge-card-clash-sides label.picked {
-  border-color: var(--cold);
-}
-
-.merge-side-name {
-  color: var(--muted);
-}
-
-/* Three choices under the clashes, which wrap rather than run off the sheet. */
-.merge-pick {
-  flex-wrap: wrap;
 }

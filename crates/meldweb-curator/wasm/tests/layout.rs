@@ -19,7 +19,8 @@ use meldweb_git::{
     RemoteUrl, Repo, RepoPath, Signature, TagName, Timestamp, Tip, WriteCommit,
 };
 use meldweb_wasm::layout::{self, DeckLines};
-use meldweb_wasm::merging::{self, FileMerge, Settle};
+use meldweb_wasm::merging::{self, FileMerge, FileSettle, Pick, Settle, SyncSettle};
+use meldweb_wasm::repo::Synced;
 
 fn have_git() -> bool {
     let found = Command::new("git")
@@ -748,7 +749,10 @@ fn fetch(repo: &mut Repo<FsStore>, server: &Server) {
 /// What the browser's integrate does: a remote on version 1 is migrated
 /// here first.
 fn integrate(repo: &mut Repo<FsStore>, at: i64) -> Vec<(BranchName, Integrated)> {
-    layout::integrate(repo, &sig("Alex", at, 0), None, &mut as_curator_merges).unwrap()
+    layout::integrate(repo, &sig("Alex", at, 0), None, &mut |_, p, b, o, t| {
+        as_curator_merges(p, b, o, t)
+    })
+    .unwrap()
 }
 
 fn push(repo: &mut Repo<FsStore>, server: &Server) -> PushRequest {
@@ -1185,4 +1189,226 @@ fn a_v2_browser_meeting_a_remote_still_on_v1_migrates_it_here_and_pushes_it_ther
 
 fn a_dir_of(dir: &tempfile::TempDir) -> PathBuf {
     dir.path().join("a.git")
+}
+
+/// One browser's repo as the page holds it ([`Local`]), syncing with
+/// `server` the way `web/src/remote/sync.ts` drives it.
+mod browser {
+    use super::*;
+    use meldweb_wasm::repo::{FileRead, Local, Who, Wrote};
+
+    pub fn who(at: i64) -> Who {
+        Who {
+            name: "Alex".into(),
+            email: "alex@example.com".into(),
+            seconds: 1_802_000_000 + at,
+            offset_minutes: 0,
+        }
+    }
+
+    pub fn new(url: &str) -> Local {
+        let mut l = Local::default();
+        l.init().unwrap();
+        l.set_remote(url).unwrap();
+        l
+    }
+
+    pub fn read(l: &Local, branch: &str, path: &str) -> (String, String) {
+        match l.get_file(path, Some(branch)).unwrap() {
+            FileRead::File { text, sha } => (text, sha),
+            FileRead::NoFile => panic!("{branch} has no {path}"),
+        }
+    }
+
+    pub fn put(l: &mut Local, branch: &str, path: &str, text: &str, at: i64) -> String {
+        let sha = match l.get_file(path, Some(branch)).unwrap() {
+            FileRead::File { sha, .. } => Some(sha),
+            FileRead::NoFile => None,
+        };
+        let wrote = l
+            .put_file(
+                path,
+                text,
+                sha.as_deref(),
+                "lantern: edit",
+                &who(at),
+                Some(branch),
+                None,
+            )
+            .unwrap();
+        let Wrote::Committed { commit, .. } = wrote else {
+            panic!("{wrote:?}")
+        };
+        commit
+    }
+
+    pub fn fetch(l: &mut Local, server: &Server) {
+        let ad = server.advertise("upload-pack");
+        let want = l.fetch_request(&ad).unwrap();
+        let response = want.map(|body| server.post("upload-pack", &body));
+        l.fetch_finish(&ad, response.as_deref()).unwrap();
+    }
+
+    pub fn push(l: &mut Local, server: &Server) {
+        let ad = server.advertise("receive-pack");
+        let plan = l.push_request(&ad).unwrap();
+        assert_eq!(plan.kind(), "send");
+        let response = server.post("receive-pack", &plan.body());
+        let pushed = l.push_finish(&plan.body(), &response).unwrap();
+        assert!(pushed.rejected.is_empty(), "{:?}", pushed.rejected);
+    }
+
+    pub fn integrate(l: &mut Local, settle: &SyncSettle, at: i64) -> Synced {
+        l.integrate(&who(at), settle).unwrap()
+    }
+}
+
+#[test]
+fn a_syncs_clashes_on_two_branches_are_settled_each_by_its_own_picks() {
+    if !have_git() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let server = Server::new(dir.path());
+    let url = "https://example.com/alex/mtg.git";
+    let (main, budget, path) = (
+        "decks/lantern/main",
+        "decks/lantern/budget",
+        "lantern.deck.toml",
+    );
+
+    // A makes the deck and its budget branch, and pushes both.
+    let mut a = browser::new(url);
+    browser::put(&mut a, "main", "VERSION", "2\n", 0);
+    let was = deck("Lantern", &["Sol Ring", "Mind Stone", "Island"]);
+    let first = browser::put(&mut a, main, path, &was, 1);
+    a.create_branch("lantern", "budget", &first).unwrap();
+    browser::fetch(&mut a, &server);
+    browser::integrate(&mut a, &SyncSettle::default(), 2);
+    browser::push(&mut a, &server);
+
+    // B clones it.
+    let mut b = browser::new(url);
+    browser::fetch(&mut b, &server);
+    browser::integrate(&mut b, &SyncSettle::default(), 3);
+    assert_eq!(browser::read(&b, budget, path).0, was);
+
+    // Both change Sol Ring's quantity on both branches, each differently.
+    let qty = |n: u32| {
+        was.replace(
+            "{ name = \"Sol Ring\" }",
+            &format!("{{ name = \"Sol Ring\", qty = {n} }}"),
+        )
+    };
+    browser::put(&mut a, main, path, &qty(2), 4);
+    browser::put(&mut a, budget, path, &qty(4), 5);
+    browser::push(&mut a, &server);
+    browser::put(&mut b, main, path, &qty(3), 6);
+    browser::put(&mut b, budget, path, &qty(5), 7);
+    browser::fetch(&mut b, &server);
+
+    let Synced::Conflict { files } = browser::integrate(&mut b, &SyncSettle::default(), 8) else {
+        panic!("both branches clash");
+    };
+    println!("{files:#?}");
+    let keys: Vec<(&str, &str)> = files
+        .iter()
+        .map(|f| (f.branch.as_str(), f.path.as_str()))
+        .collect();
+    assert_eq!(keys, vec![(budget, path), (main, path)]);
+    for (f, (ours, theirs)) in files.iter().zip([("5", "4"), ("3", "2")]) {
+        assert_eq!(f.clashes.len(), 1);
+        let c = &f.clashes[0];
+        assert_eq!(
+            (
+                c.subject.as_str(),
+                c.attribute.as_str(),
+                c.ours.as_str(),
+                c.theirs.as_str()
+            ),
+            ("Sol Ring", "quantity", ours, theirs)
+        );
+    }
+    let settle_of = |branch: &str, pick: Pick| {
+        let f = files.iter().find(|f| f.branch == branch).unwrap();
+        FileSettle {
+            branch: f.branch.clone(),
+            path: f.path.clone(),
+            ours: f.ours.clone(),
+            theirs: f.theirs.clone(),
+            prefer: None,
+            picks: vec![pick],
+        }
+    };
+
+    // A pick made against other tips settles nothing: B saved again since.
+    let stale = settle_of(main, Pick::Theirs);
+    let b_tip = browser::put(&mut b, main, path, &qty(3).replace("Island", "Plains"), 9);
+    let Synced::Conflict { files: again } = browser::integrate(
+        &mut b,
+        &SyncSettle {
+            prefer: None,
+            files: vec![stale, settle_of(budget, Pick::Ours)],
+        },
+        10,
+    ) else {
+        panic!("main's pick was made against a tip B has moved from");
+    };
+    assert_eq!(again.len(), 1, "budget's pick settled budget: {again:#?}");
+    assert_eq!(
+        (again[0].branch.as_str(), again[0].ours.as_str()),
+        (main, b_tip.as_str())
+    );
+    let budget_merged = browser::read(&b, budget, path).0;
+    assert!(budget_merged.contains("qty = 5"), "{budget_merged}");
+
+    // Picked against the tips it has now, main takes A's quantity.
+    let fresh = FileSettle {
+        branch: again[0].branch.clone(),
+        path: again[0].path.clone(),
+        ours: again[0].ours.clone(),
+        theirs: again[0].theirs.clone(),
+        prefer: None,
+        picks: vec![Pick::Theirs],
+    };
+    let synced = browser::integrate(
+        &mut b,
+        &SyncSettle {
+            prefer: None,
+            files: vec![fresh],
+        },
+        11,
+    );
+    assert!(matches!(synced, Synced::Merged { .. }), "{synced:?}");
+    let main_merged = browser::read(&b, main, path).0;
+    println!("main merged:\n{main_merged}\nbudget merged:\n{budget_merged}");
+    assert!(main_merged.contains("{ name = \"Sol Ring\", qty = 2 }"));
+    assert!(main_merged.contains("Plains"), "B's other change stays");
+    assert!(budget_merged.contains("{ name = \"Sol Ring\", qty = 5 }"));
+    browser::push(&mut b, &server);
+
+    for branch in [main, budget] {
+        println!(
+            "{}",
+            git(
+                &server.0,
+                &["log", "--graph", "--format=%h %s (%an)", branch]
+            )
+        );
+        let parents = git(&server.0, &["rev-list", "--parents", "-n1", branch]);
+        assert_eq!(
+            parents.split(' ').count(),
+            3,
+            "{branch} ends in a merge: {parents}"
+        );
+    }
+    assert!(git(&server.0, &["show", &format!("{main}:{path}")]).contains("qty = 2"));
+    assert!(git(&server.0, &["show", &format!("{budget}:{path}")]).contains("qty = 5"));
+    fsck(&server.0);
+
+    // B's repo, as its zip unpacks, is as sound as the server's.
+    let b_dir = dir.path().join("b.git");
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(b.export_zip().unwrap())).unwrap();
+    zip.extract(&b_dir).unwrap();
+    fsck(&b_dir);
 }

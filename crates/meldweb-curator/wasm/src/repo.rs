@@ -13,7 +13,7 @@
 //! `web/src/deck.gen.ts` carries. An outcome the page acts on, such as a
 //! stale blob id, is a variant; a repo that cannot be read is an error.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::convert::Infallible;
 use std::io::{Cursor, Read, Write};
 
@@ -21,15 +21,16 @@ use facet::Facet;
 
 use chip_decklist::stem::DeckStem;
 use meldweb_git::{
-    BlobId, BranchName, Change, CommitId, EntryKind, Error, FetchRequest, Identity, Integrated,
-    MemStore, PushRequest, RemoteUrl, Repo, RepoPath, Side, Signature, Store, TagKind, TagName,
-    Timestamp, Tip, Unsupported, WriteCommit,
+    BlobId, BranchMerge, BranchName, Change, CommitId, EntryKind, Error, FetchRequest, Identity,
+    Integrated, MemStore, PushRequest, RemoteUrl, Repo, RepoPath, Side, Signature, Store, TagKind,
+    TagName, Timestamp, Tip, Unsupported, WriteCommit,
 };
 
 use crate::blame::{self, DeckBlame};
+use crate::branches::ConflictHunk;
 use crate::branches::{self, BranchDeleted, BranchMade, DeckBranches, MergeDone, MergePlan};
 use crate::layout::{self, DeckLines};
-use crate::merging::{self, FileMerge, MergeClash, Settle};
+use crate::merging::{self, FileMerge, FileSettle, MergeClash, Settle, SyncSettle};
 use crate::preference::Upstream;
 use crate::upstream::{self, Fetched, Following, Forked};
 use crate::UpstreamFacts;
@@ -241,9 +242,10 @@ pub struct RemoteFacts {
 }
 
 /// What bringing the remote's branches into these came to, all of them
-/// together; see `meldweb_git::Integrated`. A path is named as it is on its
-/// branch, and a deck's with its branch before it:
-/// `decks/lantern/main: lantern.deck.toml`.
+/// together; see `meldweb_git::Integrated`. A path `taken` is named as it is
+/// on its branch, and a deck's with its branch before it:
+/// `decks/lantern/main: lantern.deck.toml`; a conflict's files carry their
+/// branch beside them.
 #[derive(Debug, Facet)]
 #[repr(u8)]
 #[facet(tag = "kind", rename_all = "camelCase")]
@@ -261,14 +263,29 @@ pub enum Synced {
         commit: String,
         taken: Vec<String>,
     },
-    /// Nothing moved; each path changed here and on the remote in the same
-    /// lines, or into something that is no longer a file of its kind.
+    /// Nothing moved on the branches in `files`; each file changed here and
+    /// on the remote so that it does not merge. Other branches merged.
     Conflict {
-        paths: Vec<String>,
-        /// What in each deck both changed differently, card by card.
-        clashes: Vec<MergeClash>,
+        files: Vec<SyncConflict>,
     },
     Unrelated,
+}
+
+/// One file of one branch that a sync could not merge, and why: a deck's
+/// clashes card by card, another file's stretches of lines, or a merge that
+/// would not read. `ours` and `theirs` are the branch's tips here and on the
+/// remote, which a [`FileSettle`] names back to settle this merge and no
+/// later one.
+#[derive(Debug, Facet)]
+pub struct SyncConflict {
+    pub branch: String,
+    pub path: String,
+    pub ours: String,
+    pub theirs: String,
+    pub clashes: Vec<MergeClash>,
+    pub hunks: Vec<ConflictHunk>,
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub unreadable: Option<String>,
 }
 
 #[derive(Debug, Facet)]
@@ -386,8 +403,19 @@ fn repo_path(path: &str) -> Out<RepoPath> {
     RepoPath::new(path).map_err(|e| e.to_string())
 }
 
+/// Why one file of one branch did not merge in a sync.
+#[derive(Debug, Default)]
+struct Why {
+    clashes: Vec<MergeClash>,
+    hunks: Vec<ConflictHunk>,
+    unreadable: Option<String>,
+}
+
 /// Every branch's outcome as one: what stops the sync first, then what moved.
-fn synced(outcomes: Vec<(BranchName, Integrated)>, clashes: Vec<MergeClash>) -> Synced {
+fn synced(
+    outcomes: Vec<(BranchName, Integrated)>,
+    mut why: BTreeMap<(String, String), Why>,
+) -> Synced {
     let named = |branch: &BranchName, path: String| {
         if branch.as_str() == "main" {
             path
@@ -404,8 +432,25 @@ fn synced(outcomes: Vec<(BranchName, Integrated)>, clashes: Vec<MergeClash>) -> 
     let mut empty = false;
     for (branch, outcome) in outcomes {
         match outcome {
-            Integrated::Conflict { paths } => {
-                conflicts.extend(paths.into_iter().map(|p| named(&branch, p)));
+            Integrated::Conflict {
+                paths,
+                ours,
+                theirs,
+            } => {
+                for path in paths {
+                    let w = why
+                        .remove(&(branch.as_str().to_owned(), path.clone()))
+                        .unwrap_or_default();
+                    conflicts.push(SyncConflict {
+                        branch: branch.as_str().to_owned(),
+                        path,
+                        ours: ours.to_hex(),
+                        theirs: theirs.to_hex(),
+                        clashes: w.clashes,
+                        hunks: w.hunks,
+                        unreadable: w.unreadable,
+                    });
+                }
             }
             Integrated::Unrelated => unrelated = true,
             Integrated::Merged { commit, taken } => {
@@ -431,10 +476,7 @@ fn synced(outcomes: Vec<(BranchName, Integrated)>, clashes: Vec<MergeClash>) -> 
         }
     }
     if !conflicts.is_empty() {
-        return Synced::Conflict {
-            paths: conflicts,
-            clashes,
-        };
+        return Synced::Conflict { files: conflicts };
     }
     if unrelated {
         return Synced::Unrelated;
@@ -1211,19 +1253,37 @@ impl Local {
     /// merges as its kind merges ([`merging::merge_file`]): a deck by card,
     /// anything else by lines, and only into what is still a file Progress
     /// Engine reads, as a refused save merges (ADR-0021).
-    pub fn integrate(&mut self, who: &Who, prefer: Option<Side>) -> Out<Synced> {
+    ///
+    /// `settle` settles what the user chose: a file of a branch by its own
+    /// picks, when they were made against the tips the branch has now, and
+    /// everything else by `settle.prefer`.
+    pub fn integrate(&mut self, who: &Who, settle: &SyncSettle) -> Out<Synced> {
         let signed = signature(who)?;
-        let settle = Settle::from(prefer);
-        let mut clashes = Vec::new();
-        let mut merge_file = |path: &str, base: &[u8], ours: &[u8], theirs: &[u8]| {
-            merging::merge_bytes(path, base, ours, theirs, &settle, &mut |stopped| {
-                if let FileMerge::Clashed(c) = stopped {
-                    clashes.extend(c);
-                }
-            })
-        };
-        let outcomes = layout::integrate(self.repo_mut()?, &signed, prefer, &mut merge_file)?;
-        Ok(synced(outcomes, clashes))
+        let mut why: BTreeMap<(String, String), Why> = BTreeMap::new();
+        let mut merge_file =
+            |at: &BranchMerge<'_>, path: &str, base: &[u8], ours: &[u8], theirs: &[u8]| {
+                merging::merge_sync_bytes(at, path, base, ours, theirs, settle, &mut |stopped| {
+                    let w = why
+                        .entry((at.branch.as_str().to_owned(), path.to_owned()))
+                        .or_default();
+                    match stopped {
+                        FileMerge::Clashed(c) => w.clashes.extend(c),
+                        FileMerge::Hunks(h) => {
+                            w.hunks.extend(h.into_iter().map(|h| ConflictHunk {
+                                path: path.to_owned(),
+                                base: h.base,
+                                ours: h.ours,
+                                theirs: h.theirs,
+                            }))
+                        }
+                        FileMerge::Unreadable(reason) => w.unreadable = Some(reason),
+                        FileMerge::Merged(_) => {}
+                    }
+                })
+            };
+        let outcomes =
+            layout::integrate(self.repo_mut()?, &signed, settle.prefer, &mut merge_file)?;
+        Ok(synced(outcomes, why))
     }
 
     pub fn adopt_remote(&mut self) -> Out<()> {
@@ -1780,12 +1840,22 @@ impl GitRepo {
         js(self.0.fetch_finish(advertised, response.as_deref()))
     }
 
-    /// [`Synced`]; `who` is a [`Who`], `prefer` `"ours"` or `"theirs"` for a
-    /// conflict the user settled.
-    pub fn integrate(&mut self, who: &str, prefer: Option<String>) -> Result<String, JsError> {
+    /// [`Synced`]; `who` is a [`Who`], `prefer` `"ours"` or `"theirs"` for
+    /// every clash the user settled one way, and `files` JSON of the
+    /// [`FileSettle`]s they settled file by file.
+    pub fn integrate(
+        &mut self,
+        who: &str,
+        prefer: Option<String>,
+        files: &str,
+    ) -> Result<String, JsError> {
         let who = who_of(who)?;
-        let prefer = side_of(prefer)?;
-        js(self.0.integrate(&who, prefer)).map(|r| json(&r))
+        let settle = SyncSettle {
+            prefer: side_of(prefer)?,
+            files: facet_json::from_str::<Vec<FileSettle>>(files)
+                .map_err(|e| JsError::new(&format!("files are not FileSettle[]: {e}")))?,
+        };
+        js(self.0.integrate(&who, &settle)).map(|r| json(&r))
     }
 
     pub fn adopt_remote(&mut self) -> Result<(), JsError> {

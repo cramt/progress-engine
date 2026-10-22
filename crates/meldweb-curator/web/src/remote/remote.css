@@ -20,3 +20,14 @@
   margin: 0;
   padding-left: 1.2em;
 }
+
+.sync-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sync-conflicts .sync-conflict {
+  display: grid;
+  gap: 6px;
+}

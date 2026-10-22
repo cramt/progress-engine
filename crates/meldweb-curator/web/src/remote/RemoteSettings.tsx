@@ -4,6 +4,7 @@ import { newRepoUrl } from "../github/onboarding";
 import { MAGIC_REPO } from "../github/repo";
 import { githubUrl } from "./github";
 import { hostName, type Remote, useSyncState } from "./index";
+import { conflictName, SyncConflicts } from "./SyncConflicts";
 import type { SyncState } from "./sync";
 import "./remote.css";
 import { Waiting } from "../ui/Spinner";
@@ -302,39 +303,19 @@ function Syncing({
       {phase.kind === "conflict" && (
         <div className="refusal" role="alert">
           <p>
-            {phase.paths.join(", ")} {phase.paths.length === 1 ? "was" : "were"}{" "}
-            changed here and on {host} in ways that clash, so syncing stopped.
-            Both versions are in the repo's history whichever you keep.
+            {phase.files.map(conflictName).join(", ")}{" "}
+            {phase.files.length === 1 ? "was" : "were"} changed here and on{" "}
+            {host} in ways that clash, so syncing stopped. Pick a side for each
+            clash and the sync merges with your picks; both versions stay in the
+            repo's history whichever you keep.
           </p>
-          {phase.clashes.length > 0 && (
-            <ul className="sync-clashes">
-              {phase.clashes.map((c) => (
-                <li key={`${c.path} ${c.index}`}>
-                  {c.path}: <strong>{c.subject}</strong> — {c.attribute}: here{" "}
-                  {c.ours}, on {host} {c.theirs}
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="rule-actions">
-            <button
-              type="button"
-              className="small"
-              disabled={stuck}
-              onClick={() => void act(() => sync.resolve("theirs"))}
-            >
-              Reload from {host} (discard this browser's edits to{" "}
-              {phase.paths.length === 1 ? "it" : "them"})
-            </button>
-            <button
-              type="button"
-              className="small"
-              disabled={stuck}
-              onClick={() => void act(() => sync.resolve("ours"))}
-            >
-              Overwrite {host}'s
-            </button>
-          </div>
+          <SyncConflicts
+            files={phase.files}
+            host={host}
+            disabled={stuck}
+            onSettle={(files) => void act(() => sync.settle(files))}
+            onResolve={(side) => void act(() => sync.resolve(side))}
+          />
         </div>
       )}
       {phase.kind === "unrelated" && (

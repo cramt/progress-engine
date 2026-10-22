@@ -12,16 +12,24 @@
  * merge alike.
  */
 import type { TextMerge } from "../deck.gen";
+import type { MergeSide } from "../repo/api";
 import { merge_file } from "../wasm/pkg/meldweb_wasm.js";
 
 export type { TextMerge };
 
-/** `ours` and `theirs`, both made from `base`, merged as `path`'s kind of file merges. */
+/**
+ * `ours` and `theirs`, both made from `base`, merged as `path`'s kind of
+ * file merges, a deck's clashes settled by `picks` (a side for each, by
+ * its index) where the user picked them.
+ */
 export function mergeFile(
   path: string,
   base: string,
   ours: string,
   theirs: string,
+  picks: readonly MergeSide[] = [],
 ): TextMerge {
-  return JSON.parse(merge_file(path, base, ours, theirs)) as TextMerge;
+  return JSON.parse(
+    merge_file(path, base, ours, theirs, JSON.stringify(picks)),
+  ) as TextMerge;
 }

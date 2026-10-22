@@ -31,6 +31,7 @@ import type {
   DeckLineList,
   Fetched,
   FileRead,
+  FileSettle,
   FollowingRead,
   Forked,
   Journal,
@@ -143,7 +144,7 @@ export type Request =
       advertised: Uint8Array;
       response: Uint8Array | null;
     }
-  | { kind: "integrate"; who: Who; prefer?: Side }
+  | { kind: "integrate"; who: Who; settle: SyncSettle }
   | { kind: "adoptRemote" }
   | { kind: "followRequest"; theirs: TheirDeck; advertised: Uint8Array }
   | {
@@ -175,6 +176,16 @@ export type Request =
 
 /** Which side a path both sides changed takes, once the user has chosen. */
 export type Side = "ours" | "theirs";
+
+/**
+ * How the user settled a sync's clashes: each file of each branch by its
+ * own picks, keyed by branch and path and guarded by the tips they were
+ * made against, and `prefer` for everything else.
+ */
+export interface SyncSettle {
+  prefer?: Side;
+  files?: readonly FileSettle[];
+}
 
 /** What a push's ref advertisement came to; see `GitRepo.push_request`. */
 export type PushPlan =
@@ -601,7 +612,13 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
       case "integrate":
         return writing((g) =>
           done(
-            JSON.parse(g.integrate(JSON.stringify(r.who), r.prefer)) as Synced,
+            JSON.parse(
+              g.integrate(
+                JSON.stringify(r.who),
+                r.settle.prefer,
+                JSON.stringify(r.settle.files ?? []),
+              ),
+            ) as Synced,
           ),
         );
       case "adoptRemote":
@@ -760,8 +777,11 @@ export interface RemoteSteps {
     advertised: Uint8Array,
     response: Uint8Array | null,
   ): Promise<void>;
-  /** Brings each fetched branch into its own here: fast-forward, adopt or merge. */
-  integrate(prefer?: Side): Promise<Synced>;
+  /**
+   * Brings each fetched branch into its own here: fast-forward, adopt or
+   * merge, settling what the user chose (`{}` when nothing).
+   */
+  integrate(settle?: SyncSettle): Promise<Synced>;
   /** Replaces this repo's branches and tags with the remote's. */
   adoptRemote(): Promise<void>;
   pushRequest(advertised: Uint8Array): Promise<PushPlan>;
@@ -927,12 +947,8 @@ export function createLocalRepo(
       async fetchFinish(advertised, response) {
         await ask({ kind: "fetchFinish", advertised, response });
       },
-      integrate: (prefer) =>
-        ask({
-          kind: "integrate",
-          who: who(),
-          ...(prefer === undefined ? {} : { prefer }),
-        }),
+      integrate: (settle) =>
+        ask({ kind: "integrate", who: who(), settle: settle ?? {} }),
       async adoptRemote() {
         await ask({ kind: "adoptRemote" });
       },

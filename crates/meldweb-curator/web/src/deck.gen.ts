@@ -337,10 +337,38 @@ export interface Refused {
 }
 
 /**
+ * How the user settled one file of one branch's sync merge: its deck's
+ * clashes one by one, or the whole file one way. Keyed by the branch and
+ * the path, and guarded by the two tips the clashes were shown from, so a
+ * pick made against one merge never settles a later one whose clash `i`
+ * may be another card.
+ */
+export interface FileSettle {
+  branch: string;
+  path: string;
+  /**
+   * The branch's tip here, as the clashes were shown from.
+   */
+  ours: string;
+  /**
+   * The remote's tip of the branch, as the clashes were shown from.
+   */
+  theirs: string;
+  prefer?: Pick;
+  picks?: Pick[];
+}
+
+/**
+ * A side, as the page sends a pick: `ours` is the branch merged into.
+ */
+export type Pick = "ours" | "theirs";
+
+/**
  * What bringing the remote's branches into these came to, all of them
- * together; see `meldweb_git::Integrated`. A path is named as it is on its
- * branch, and a deck's with its branch before it:
- * `decks/lantern/main: lantern.deck.toml`.
+ * together; see `meldweb_git::Integrated`. A path `taken` is named as it is
+ * on its branch, and a deck's with its branch before it:
+ * `decks/lantern/main: lantern.deck.toml`; a conflict's files carry their
+ * branch beside them.
  */
 export type Synced =
   | { kind: "remoteEmpty" }
@@ -349,8 +377,25 @@ export type Synced =
   | { kind: "fastForwarded"; to: string }
   | { kind: "adopted"; to: string }
   | { kind: "merged"; commit: string; taken: string[] }
-  | { kind: "conflict"; paths: string[]; clashes: MergeClash[] }
+  | { kind: "conflict"; files: SyncConflict[] }
   | { kind: "unrelated" };
+
+/**
+ * One file of one branch that a sync could not merge, and why: a deck's
+ * clashes card by card, another file's stretches of lines, or a merge that
+ * would not read. `ours` and `theirs` are the branch's tips here and on the
+ * remote, which a [`FileSettle`] names back to settle this merge and no
+ * later one.
+ */
+export interface SyncConflict {
+  branch: string;
+  path: string;
+  ours: string;
+  theirs: string;
+  clashes: MergeClash[];
+  hunks: ConflictHunk[];
+  unreadable?: string;
+}
 
 /**
  * The remote, and what is waiting to go to it or come from it, as the

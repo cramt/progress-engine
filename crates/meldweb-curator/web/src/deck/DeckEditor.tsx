@@ -849,6 +849,8 @@ export function DeckEditor({
         refusal={refusal}
         onReload={() => void reload()}
         onOverwrite={() => void store.overwrite()}
+        // The merge is handed back through onMerge, so it undoes as one step.
+        onPicks={(picks) => void store.resolve(picks)}
         onDismiss={() => setRefusal(null)}
         notice={notice}
       />

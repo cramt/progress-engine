@@ -1,7 +1,9 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { connect } from "../github/connect";
+import { Sheet } from "../ui/Sheet";
 import { hostName, type Remote, useSyncState } from "./index";
+import { conflictName, SyncConflicts } from "./SyncConflicts";
 import type { SyncState } from "./sync";
 import "./remote.css";
 
@@ -16,7 +18,7 @@ export function syncLine(state: SyncState): string | null {
   const host = hostName(state.url);
   switch (state.phase.kind) {
     case "conflict":
-      return `Syncing with ${host} stopped: ${state.phase.paths.join(", ")} changed here and on ${host} in ways that clash.`;
+      return `Syncing with ${host} stopped: ${state.phase.files.map(conflictName).join(", ")} changed here and on ${host} in ways that clash.`;
     case "unrelated":
       return `Syncing with ${host} stopped: its repo has a different history from this browser's.`;
     case "logged-out":
@@ -46,14 +48,75 @@ export function SyncStatus() {
       stop();
     };
   }, [held, router]);
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
   const text = syncLine(state);
   if (!text) return null;
+  const conflict =
+    state.kind === "on" && state.phase.kind === "conflict" ? state : null;
+  const act = async (work: () => Promise<void>) => {
+    setBusy(true);
+    setRefusal(null);
+    try {
+      await work();
+      setPicking(false);
+    } catch (e) {
+      setRefusal(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div className="sync-status" role="alert">
       <span>{text}</span>
-      <Link to="/settings" hash="remote">
-        Settings
-      </Link>
+      <span className="sync-status-actions">
+        {conflict && held && (
+          <button
+            type="button"
+            className="small primary"
+            onClick={() => setPicking(true)}
+          >
+            Pick sides…
+          </button>
+        )}
+        <Link to="/settings" hash="remote">
+          Settings
+        </Link>
+      </span>
+      {picking && conflict?.phase.kind === "conflict" && held && (
+        <Sheet
+          label="Pick a side for each clash"
+          onClose={() => setPicking(false)}
+          wide
+        >
+          <div className="merge-dialog">
+            <h2>Syncing with {hostName(conflict.url)} stopped</h2>
+            <p className="hint">
+              These changed here and on {hostName(conflict.url)} in ways that
+              clash. Pick a side for each, and the sync makes a merge commit
+              with your picks.
+            </p>
+            <SyncConflicts
+              files={conflict.phase.files}
+              host={hostName(conflict.url)}
+              disabled={busy}
+              onSettle={(files) => void act(() => held.sync.settle(files))}
+              onResolve={(side) => void act(() => held.sync.resolve(side))}
+            />
+            {refusal && (
+              <p className="refusal" role="alert">
+                {refusal}
+              </p>
+            )}
+            <div className="dialog-buttons">
+              <button type="button" onClick={() => setPicking(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </Sheet>
+      )}
     </div>
   );
 }
