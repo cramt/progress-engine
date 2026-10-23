@@ -20,7 +20,7 @@ It is blue Phyrexia as a surgeon's tools, not as a screen. It was reached in rou
 
 So:
 
-- **Flat near-black ribbed like conduit, with steel only at edges and in sheen.** A dialog or the login card is cut at two corners, and its rim is one pixel of polished steel shading into flesh. A rule is a scalpel's edge, bright in the middle and gone at the ends, and staples cross it. The page shades from steel at the top left to flesh at the bottom right.
+- **Flat near-black ribbed like conduit, with steel only at edges and in sheen.** A dialog or the login card is cut at two corners, and its rim is one pixel of polished steel shading into flesh. A rule is a scalpel's edge, bright in the middle and gone at the ends, and staples cross it. The page shades from steel at the top left into void; a flesh corner read as red across the whole page, so flesh stays on the accent.
 - **The palette is measured, not guessed.** The blue cards in Scryfall's `arttag:progress-engine`, the tag this family is named from, merge to `#26242A`, `#283250`, `#556998`, `#6A92BB` and `#AEB6CA`, with a flesh `#937B78`. Their blue is slate and periwinkle, so there is no cyan anywhere.
 - **Flesh is the one accent.** It marks what is selected or pressed, and the primary action. Mana symbols and colour pips keep their own colours.
 - **A control is an engraved label on a steel line.** Uppercase, tracked, with no shape around it. The primary action's line runs from steel into flesh and is stapled.

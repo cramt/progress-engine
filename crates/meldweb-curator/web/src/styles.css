@@ -28,7 +28,6 @@
   --steel-hi: #eef1f6;
   --cold: #7f97c9;
   --flesh: #b0837d;
-  --flesh-deep: #1f1517;
   --accent: #c4958e;
   --accent-strong: #dfb2aa;
   --accent-fg: #140d0e;
@@ -117,14 +116,13 @@
   box-sizing: border-box;
 }
 
-/* Steel at the top left, giving way to flesh at the bottom right. */
+/* Steel at the top left, sinking into void; flesh stays on the accent. */
 body {
   margin: 0;
   min-height: 100vh;
   background:
     var(--ribs),
-    linear-gradient(150deg, #11131a 0%, var(--void) 55%, var(--flesh-deep) 100%)
-    fixed;
+    linear-gradient(150deg, #11131a 0%, var(--void) 55%) fixed;
 }
 
 h1,
@@ -874,13 +872,7 @@ dialog.sheet::backdrop {
 .sheet form,
 .sheet > div {
   background:
-    var(--ribs),
-    linear-gradient(
-      150deg,
-      var(--surface) 0%,
-      var(--void) 60%,
-      var(--flesh-deep) 100%
-    );
+    var(--ribs), linear-gradient(150deg, var(--surface) 0%, var(--void) 60%);
   clip-path: var(--cut-corners);
   display: flex;
   flex-direction: column;
