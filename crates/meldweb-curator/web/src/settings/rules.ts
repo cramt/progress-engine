@@ -13,7 +13,6 @@ import type {
 import {
   check_rule,
   read_settings,
-  settings_commit_message,
   write_settings,
 } from "../wasm/pkg/meldweb_wasm.js";
 
@@ -78,10 +77,6 @@ export function samePins(a: readonly Pin[], b: readonly Pin[]): boolean {
 export interface Draft<R extends RuleText = DraftRule> {
   pins: readonly Pin[];
   rules: readonly R[];
-}
-
-export function settingsCommitMessage(before: string, after: string): string {
-  return settings_commit_message(before, after);
 }
 
 export function sameRules(

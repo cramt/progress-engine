@@ -42,7 +42,7 @@ export {
   type OpenedRepo,
   openMagicRepo,
 } from "./repo";
-export { commitMessageFor, settled, track } from "./repoFile";
+export { settled, track } from "./repoFile";
 export {
   createSaveStore,
   IDLE_MS,

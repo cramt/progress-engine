@@ -16,7 +16,6 @@ import {
   read_trade,
   read_wanted,
   wanted_add,
-  wanted_commit_message,
   wanted_set_deck_copies,
   wanted_set_finish,
   wanted_set_qty,
@@ -104,13 +103,4 @@ export function setWantedFinish(
 /** Whether each deck needs its own copies or one set moves between them. */
 export function setDeckCopies(text: string, copies: DeckCopies): string {
   return wanted_set_deck_copies(text, copies);
-}
-
-/** A line of the wanted list's changelog; `before` is `""` for the first save. */
-export function wantedCommitMessage(
-  before: string,
-  after: string,
-  path: string,
-): string {
-  return wanted_commit_message(before, after, path);
 }

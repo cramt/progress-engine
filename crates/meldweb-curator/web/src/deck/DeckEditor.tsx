@@ -850,7 +850,7 @@ export function DeckEditor({
         onReload={() => void reload()}
         onOverwrite={() => void store.overwrite()}
         // The merge is handed back through onMerge, so it undoes as one step.
-        onPicks={(picks) => void store.resolve(picks)}
+        onPicks={(settle) => void store.resolve(settle)}
         onDismiss={() => setRefusal(null)}
         notice={notice}
       />

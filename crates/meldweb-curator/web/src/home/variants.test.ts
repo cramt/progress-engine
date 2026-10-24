@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { DeckEntry } from "../github/decks";
 import { commitEdit } from "../github/repoFile";
 import { SETTINGS_PATH } from "../github/settings";
-import { fakeRepo, loadWasm } from "../github/testkit";
+import { fileOf, loadWasm, watchedRepo } from "../github/testkit";
 import { readSettings } from "../settings/rules";
 import { order_decks } from "../wasm/pkg/meldweb_wasm.js";
 import { familyOrder, moveDeck, moveInSettings, nudgeDeck } from "./variants";
@@ -133,7 +133,7 @@ describe("a move saved to meldweb.toml", () => {
   };
 
   it("is made again on the order another device saved meanwhile, keeping it", async () => {
-    const mock = fakeRepo({ [SETTINGS_PATH]: settings("A", "B", "C", "D") });
+    const mock = watchedRepo({ [SETTINGS_PATH]: settings("A", "B", "C", "D") });
     const { repo } = mock;
     const move = moveInSettings(decks, {
       kind: "drop",
@@ -144,11 +144,11 @@ describe("a move saved to meldweb.toml", () => {
     let first = true;
     await commitEdit(repo, SETTINGS_PATH, (t) => {
       if (first)
-        mock.editElsewhere(SETTINGS_PATH, settings("C", "A", "B", "D"));
+        void mock.elsewhere(SETTINGS_PATH, settings("C", "A", "B", "D"));
       first = false;
       return move(t);
     });
-    expect(orderOf(mock.file(SETTINGS_PATH)?.text)).toEqual(
+    expect(orderOf(await fileOf(repo, SETTINGS_PATH))).toEqual(
       ["C", "D", "A", "B"].map(p),
     );
   });

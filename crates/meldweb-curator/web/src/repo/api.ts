@@ -17,6 +17,8 @@ import type {
   Forked,
   MergeDone,
   MergePlan,
+  SaveAsk,
+  Saved,
   Settle,
   Side,
   UpstreamFacts,
@@ -163,6 +165,15 @@ export interface Repo {
    * `ConflictError` on a stale or missing sha.
    */
   putFile(path: string, put: PutFile): Promise<{ sha: string; commit: string }>;
+  /**
+   * One save of an editor's text (ADR-0021), in one step under the repo's
+   * lock: committed when the file has not moved since the text it was made
+   * from, otherwise stopped or merged into the file as it is now (a deck by
+   * card, anything else by lines) and committed, with the message the file
+   * kind's diff says. Every outcome is a value: `moved`, `clashed` and
+   * `refused` commit nothing.
+   */
+  save(ask: SaveAsk): Promise<Saved>;
   /** One commit removing the file. Throws `ConflictError` on a stale or missing sha. */
   deleteFile(
     path: string,
@@ -239,14 +250,15 @@ export type {
   Forked,
   MergeDone,
   MergePlan,
+  SaveAsk,
+  Saved,
   Settle,
   Side,
 };
 
 /**
  * The file moved in the repo since its sha was read, or a create found it
- * already there: another tab, device or person saved first. Saving merges
- * or asks (ADR-0021).
+ * already there: another tab, device or person wrote first.
  */
 export class ConflictError extends Error {
   override name = "ConflictError";

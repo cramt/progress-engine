@@ -23,11 +23,12 @@ use chip_decklist::merge::{self as by_card, Merged};
 use chip_decklist::stem::DeckStem;
 use facet::Facet;
 use meldweb_git::{
-    merge_lines_with, sync_message, BranchMerge, BranchName, CommitId, MergeBranch, Repo, Store,
-    TreeId, ORIGIN,
+    merge_lines_with, sync_message, BlobId, BranchMerge, BranchName, CommitId, MergeBranch, Repo,
+    RepoPath, Store, TreeId, ORIGIN,
 };
 
 use crate::deck_merge;
+use crate::saving::{self, Unsaid};
 
 /// `side` as `meldweb-git` merges lines and trees.
 pub fn git_side(side: Side) -> meldweb_git::Side {
@@ -38,8 +39,7 @@ pub fn git_side(side: Side) -> meldweb_git::Side {
 }
 
 /// What a conflict was worked out from. Picks made against it settle only
-/// a merge worked out from the same; a refused save's would be the blob
-/// the save started from.
+/// a merge worked out from the same.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Guard {
     /// Merging `theirs` into `branch` while it is at `ours`.
@@ -47,6 +47,16 @@ pub enum Guard {
         branch: BranchName,
         ours: CommitId,
         theirs: CommitId,
+    },
+    /// Saving `ours`, made from `base` (`None`: no file), over `theirs`,
+    /// what `path` on `branch` is now: a save's merge, whose picks are for
+    /// these three texts and no others.
+    Blobs {
+        branch: BranchName,
+        path: RepoPath,
+        base: Option<BlobId>,
+        ours: BlobId,
+        theirs: BlobId,
     },
 }
 
@@ -67,6 +77,16 @@ impl Guard {
                 ours,
                 theirs,
             } => format!("tips {branch} {ours} {theirs}"),
+            Guard::Blobs {
+                branch,
+                path,
+                base,
+                ours,
+                theirs,
+            } => {
+                let base = base.map_or_else(|| "-".to_owned(), |b| b.to_hex());
+                format!("blobs {branch} {base} {ours} {theirs} {path}")
+            }
         }
     }
 }
@@ -382,9 +402,10 @@ pub fn merge_file(
                     .collect(),
             },
         }),
-        Ok(merged) => match crate::unreadable(path, theirs, &merged) {
-            None => Ok(merged),
-            Some(reason) => Err(unreadable(reason)),
+        // A path no editor writes is only text.
+        Ok(merged) => match saving::message_for(path, theirs, &merged) {
+            Err(Unsaid::Unreadable(reason)) => Err(unreadable(reason)),
+            Ok(_) | Err(Unsaid::NotEdited) => Ok(merged),
         },
     }
 }
@@ -394,7 +415,7 @@ pub fn merge_file(
 /// merge, with why in `stops`. A file settled one way whole takes that
 /// side's bytes even where merging it would not make a file Progress Engine
 /// reads, or it is not text. Every merge Curator makes goes through here: a
-/// branch merge, a take and a sync.
+/// branch merge, a take, a sync and a save.
 pub fn merge_bytes(
     path: &str,
     base: &[u8],
@@ -425,5 +446,108 @@ pub fn merge_bytes(
             }
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lines(l: &[&str]) -> String {
+        format!("{}\n", l.join("\n"))
+    }
+
+    fn deck(cards: &[&str]) -> String {
+        let mut l = vec!["name = \"Lantern\"".to_owned(), "cards = [".to_owned()];
+        l.extend(cards.iter().map(|c| format!("  {c},")));
+        l.push("]".to_owned());
+        lines(&l.iter().map(String::as_str).collect::<Vec<_>>())
+    }
+
+    const SOL: &str = "{ name = \"Sol Ring\" }";
+    const STONE: &str = "{ name = \"Mind Stone\" }";
+    const ISLAND: &str = "{ name = \"Island\", qty = 10 }";
+
+    fn merge(path: &str, base: &str, ours: &str, theirs: &str) -> Result<String, FileConflict> {
+        merge_file(path, base, ours, theirs, FileSettling::default())
+    }
+
+    #[test]
+    fn a_deck_keeps_both_sides_changes_to_neighbouring_cards() {
+        let base = deck(&[SOL, STONE, ISLAND]);
+        let ours = base.replace("\"Sol Ring\" }", "\"Sol Ring\", qty = 2 }");
+        let theirs = base.replace("\"Mind Stone\" }", "\"Mind Stone\", qty = 3 }");
+        assert_eq!(
+            merge("lantern.deck.toml", &base, &ours, &theirs).unwrap(),
+            deck(&[
+                "{ name = \"Sol Ring\", qty = 2 }",
+                "{ name = \"Mind Stone\", qty = 3 }",
+                ISLAND
+            ])
+        );
+    }
+
+    #[test]
+    fn a_deck_lands_their_quantity_on_our_pinned_printing() {
+        let base = deck(&[SOL, STONE, ISLAND]);
+        let ours = base.replace(
+            "{ name = \"Sol Ring\" },",
+            "{ printing = \"sld/2417\" },  # Sol Ring",
+        );
+        let theirs = base.replace("\"Sol Ring\" }", "\"Sol Ring\", qty = 2 }");
+        assert_eq!(
+            merge("lantern.deck.toml", &base, &ours, &theirs).unwrap(),
+            ours.replace("\"sld/2417\" }", "\"sld/2417\", qty = 2 }")
+        );
+    }
+
+    #[test]
+    fn a_deck_clash_names_the_card_and_what_both_changed() {
+        let base = deck(&[SOL, STONE, ISLAND]);
+        let ours = base.replace("qty = 10", "qty = 9");
+        let theirs = base.replace("qty = 10", "qty = 11");
+        assert_eq!(
+            merge("lantern.deck.toml", &base, &ours, &theirs),
+            Err(FileConflict::EachClash {
+                path: "lantern.deck.toml".into(),
+                clashes: vec![MergeClash {
+                    index: 0,
+                    subject: "Island".into(),
+                    attribute: "quantity".into(),
+                    ours: "9".into(),
+                    theirs: "11".into(),
+                }],
+            })
+        );
+    }
+
+    #[test]
+    fn any_other_file_merges_by_lines_and_says_which_lines_clash() {
+        let base = lines(&["cards = [", "  a,", "  b,", "  c,", "  d,", "]"]);
+        let ours = lines(&["cards = [", "  A,", "  b,", "  c,", "  d,", "]"]);
+        let theirs = lines(&["cards = [", "  a,", "  b,", "  c,", "  D,", "]"]);
+        assert_eq!(
+            merge("notes.txt", &base, &ours, &theirs).unwrap(),
+            lines(&["cards = [", "  A,", "  b,", "  c,", "  D,", "]"])
+        );
+        let changed = lines(&["cards = [", "  a,", "  B,", "  c,", "  d,", "]"]);
+        for (o, t) in [(&base, &changed), (&changed, &base), (&changed, &changed)] {
+            assert_eq!(merge("notes.txt", &base, o, t).unwrap(), changed);
+        }
+        let b1 = lines(&["cards = [", "  a,", "  B1,", "  c,", "  d,", "]"]);
+        let b2 = lines(&["cards = [", "  a,", "  B2,", "  c,", "  d,", "]"]);
+        assert_eq!(
+            merge("notes.txt", &base, &b1, &b2),
+            Err(FileConflict::WholeFile {
+                path: "notes.txt".into(),
+                why: WholeFile::Lines {
+                    hunks: vec![ConflictHunk {
+                        base: vec!["  b,".into()],
+                        ours: vec!["  B1,".into()],
+                        theirs: vec!["  B2,".into()],
+                    }],
+                },
+            })
+        );
     }
 }

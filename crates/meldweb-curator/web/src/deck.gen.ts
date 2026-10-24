@@ -2,11 +2,23 @@
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
 /**
- * What merging a refused save came to, on the wire.
+ * What a save came to.
  */
-export type TextMerge =
-  | { kind: "merged"; text: string }
-  | { kind: "stopped"; file: FileConflict };
+export type Saved =
+  | { kind: "committed"; sha: string; commit: string; merged?: string }
+  | { kind: "unchanged"; sha: string; merged?: string }
+  | { kind: "clashed"; conflict: Conflict }
+  | { kind: "moved"; message: string }
+  | { kind: "refused"; message: string };
+
+/**
+ * A merge that stopped: the files it stopped on, in git's order, and the
+ * guard of what it was worked out from, which a [`Settle`] hands back.
+ */
+export interface Conflict {
+  guard: string;
+  files: FileConflict[];
+}
 
 /**
  * One file a merge stopped on, by what settles it.
@@ -60,6 +72,54 @@ export interface MergeClash {
   ours: string;
   theirs: string;
 }
+
+/**
+ * One save: `text` at `path` on `branch` (the default branch when absent).
+ */
+export interface SaveAsk {
+  path: string;
+  branch?: string;
+  text: string;
+  made: Made;
+}
+
+/**
+ * What a save's text was made from.
+ */
+export type Made =
+  | { kind: "from"; base?: string; moved: Moved }
+  | { kind: "over" };
+
+/**
+ * What to do when the file moved since the save's text was made.
+ */
+export type Moved =
+  | { kind: "refuse" }
+  | { kind: "merge"; settle?: Settle };
+
+/**
+ * How the user settled a [`Conflict`]: file by file, and `prefer` for what
+ * is not, under the guard of the conflict the picks were made against.
+ */
+export interface Settle {
+  guard: string;
+  prefer?: Side;
+  files?: FileSettle[];
+}
+
+/**
+ * How the user settled one file of a conflict, as the conflict said it is
+ * settled.
+ */
+export type FileSettle =
+  | { needs: "eachClash"; path: string; picks: Side[] }
+  | { needs: "wholeFile"; path: string; side: Side };
+
+/**
+ * One side of a merge, and the side a user picks for a clash: `ours` is
+ * the version merged into.
+ */
+export type Side = "ours" | "theirs";
 
 export type DeckBlame =
   | { kind: "blamed"; at: string; cards: CardBlame[] }
@@ -240,15 +300,6 @@ export type MergePlan =
   | { kind: "unrelated" }
   | { kind: "stopped"; message: string };
 
-/**
- * A merge that stopped: the files it stopped on, in git's order, and the
- * guard of what it was worked out from, which a [`Settle`] hands back.
- */
-export interface Conflict {
-  guard: string;
-  files: FileConflict[];
-}
-
 export type BranchDeleted =
   | { kind: "deleted" }
   | { kind: "conflict"; message: string };
@@ -359,30 +410,6 @@ export interface SyncSettle {
   prefer?: Side;
   settles?: Settle[];
 }
-
-/**
- * How the user settled a [`Conflict`]: file by file, and `prefer` for what
- * is not, under the guard of the conflict the picks were made against.
- */
-export interface Settle {
-  guard: string;
-  prefer?: Side;
-  files?: FileSettle[];
-}
-
-/**
- * How the user settled one file of a conflict, as the conflict said it is
- * settled.
- */
-export type FileSettle =
-  | { needs: "eachClash"; path: string; picks: Side[] }
-  | { needs: "wholeFile"; path: string; side: Side };
-
-/**
- * One side of a merge, and the side a user picks for a clash: `ours` is
- * the version merged into.
- */
-export type Side = "ours" | "theirs";
 
 /**
  * What bringing the remote's branches into these came to, all of them

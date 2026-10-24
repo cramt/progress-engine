@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { besideCard, cardPath, cardStem, isCardPath } from "../github/cards";
-import { commitMessageFor } from "../github/repoFile";
 
 describe("a custom card's file", () => {
   it("is named from the card, in cards/", () => {
@@ -23,15 +22,6 @@ describe("a custom card's file", () => {
     );
     expect(besideCard("cards/a.card.toml", "../assets/a.jpg")).toBe(
       "assets/a.jpg",
-    );
-  });
-
-  it("is committed with a message naming it", () => {
-    expect(commitMessageFor("cards/a.card.toml", "", "name = 1")).toBe(
-      "a: custom card made",
-    );
-    expect(commitMessageFor("cards/a.card.toml", "x", "y")).toBe(
-      "a: custom card edited",
     );
   });
 });

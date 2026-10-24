@@ -30,6 +30,7 @@ pub mod merging;
 pub mod preference;
 pub mod proxies;
 pub mod repo;
+pub mod saving;
 pub mod upstream;
 
 use chip_decklist::collection::{self, Collection};
@@ -605,67 +606,6 @@ fn new_card(json: &str) -> Result<(deck::CardRef, Option<String>), JsError> {
     })
 }
 
-/// What merging a refused save came to, on the wire.
-#[derive(Debug, Facet)]
-#[repr(u8)]
-#[facet(tag = "kind", rename_all = "camelCase")]
-pub enum TextMerge {
-    Merged {
-        text: String,
-    },
-    /// Both changed the same things differently, and what settles it.
-    Stopped {
-        file: merging::FileConflict,
-    },
-}
-
-/// `ours` and `theirs`, both made from `base`, merged as `path`'s kind of
-/// file merges ([`merging::merge_file`]): a deck by card, anything else by
-/// lines. A refused save merges through this, and a sync and every branch
-/// merge through the same dispatch (ADR-0021, ADR-0041). `picks` is JSON of
-/// a [`merging::Side`] for each of a deck's clashes, by its index, as the
-/// user settled a refused save; `[]` settles none.
-#[wasm_bindgen]
-pub fn merge_file(
-    path: &str,
-    base: &str,
-    ours: &str,
-    theirs: &str,
-    picks: &str,
-) -> Result<String, JsError> {
-    let picks: Vec<merging::Side> =
-        facet_json::from_str(picks).map_err(|e| refused(format!("picks are not Side[]: {e}")))?;
-    let how = merging::FileSettling {
-        picks: &picks,
-        whole: None,
-    };
-    let merged = match merging::merge_file(path, base, ours, theirs, how) {
-        Ok(text) => TextMerge::Merged { text },
-        Err(file) => TextMerge::Stopped { file },
-    };
-    Ok(facet_json::to_string(&merged).expect("TextMerge serialises"))
-}
-
-/// Why a line merge that turned `theirs` into `merged` at `path` leaves a
-/// file Progress Engine does not read, or `None` when it reads: what
-/// `commitMessageFor` in `web/src/github/repoFile.ts` asks of a merged save.
-/// A path no editor writes is only text.
-pub(crate) fn unreadable(path: &str, theirs: &str, merged: &str) -> Option<String> {
-    let deck = merging::is_deck(path);
-    match path {
-        "collection.toml" => collection::commit_message_for_text(theirs, merged, path)
-            .err()
-            .map(|e| e.to_string()),
-        "wanted.toml" => wanted::commit_message_for_text(theirs, merged, path)
-            .err()
-            .map(|e| e.to_string()),
-        _ if deck => changelog::commit_message_for_text(theirs, merged, path)
-            .err()
-            .map(|e| e.to_string()),
-        _ => None,
-    }
-}
-
 /// The commit message that saves `before` as `after` at `path`, per
 /// `chip_decklist::changelog`. An empty `before` is a deck's first save.
 #[wasm_bindgen]
@@ -1085,13 +1025,6 @@ pub fn rename_place(text: &str, from: &str, to: &str) -> Result<String, JsError>
     collection::rename_place(text, from, to).map_err(refused)
 }
 
-/// The commit message that saves the collection `before` as `after` at
-/// `path`. An empty `before` is the file's first save.
-#[wasm_bindgen]
-pub fn collection_commit_message(before: &str, after: &str, path: &str) -> Result<String, JsError> {
-    collection::commit_message_for_text(before, after, path).map_err(refused)
-}
-
 /// One printing in [`Ranked`]'s order: its index in what was ranked, and
 /// which rules it matched.
 #[derive(Debug, Facet)]
@@ -1340,12 +1273,6 @@ pub fn pinned_printing(settings: Option<String>, name: &str) -> Option<String> {
 #[wasm_bindgen]
 pub fn unpin_printing(settings: Option<String>, name: &str) -> Result<String, JsError> {
     preference::unpin(settings.as_deref(), name).map_err(refused)
-}
-
-/// The commit for one save of `meldweb.toml`; `before` is `""` for the first.
-#[wasm_bindgen]
-pub fn settings_commit_message(before: &str, after: &str) -> String {
-    preference::commit_message(before, after)
 }
 
 /// What Scryfall is asked about an export's rows: a printing by its id, or
@@ -1809,13 +1736,6 @@ pub fn wanted_set_deck_copies(text: &str, copies: &str) -> Result<String, JsErro
     wanted::set_deck_copies(text, copies).map_err(refused)
 }
 
-/// The commit message that saves the wanted list `before` as `after` at
-/// `path`. An empty `before` is the file's first save.
-#[wasm_bindgen]
-pub fn wanted_commit_message(before: &str, after: &str, path: &str) -> Result<String, JsError> {
-    wanted::commit_message_for_text(before, after, path).map_err(refused)
-}
-
 /// Copies of one of their collection's lines to bring to a trade.
 #[derive(Debug, Facet)]
 pub struct TradePull {
@@ -2230,7 +2150,8 @@ mod tests {
         g.add_type::<upstream::Forked>();
         g.add_type::<repo::FollowingRead>();
         g.add_type::<blame::DeckBlame>();
-        g.add_type::<TextMerge>();
+        g.add_type::<saving::SaveAsk>();
+        g.add_type::<saving::Saved>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",
@@ -2435,7 +2356,7 @@ mod tests {
             r#"{"kind":"collection","places":[{"name":"Bulk"}],"cards":[{"index":0,"card":{"kind":"name","name":"Sol Ring"},"qty":2,"finish":"foil","at":"Bulk"},{"index":1,"card":{"kind":"printing","set":"moc","num":"94"},"qty":1,"finish":"nonfoil"}],"total":3}"#
         );
         assert_eq!(
-            collection_commit_message("", &text, "collection.toml").unwrap(),
+            saving::message_for("collection.toml", "", &text).unwrap(),
             "collection: +1 Rashmi and Ragavan, +2 Sol Ring to bulk, +place bulk"
         );
     }

@@ -3,7 +3,8 @@
 // holds it, in memory.
 import { readFileSync } from "node:fs";
 import { loadDeckSync } from "../deck";
-import { ConflictError, type Repo } from "../repo/api";
+import type { SaveAsk } from "../deck.gen";
+import type { Repo } from "../repo/api";
 import type { LocalRepo } from "../repo/local";
 import { memoryRepo } from "../repo/memory";
 import { createGitHubApi, createPublicRepos } from "./api";
@@ -110,184 +111,45 @@ export async function messages(
   return log.map((r) => r.message).reverse();
 }
 
-export interface FakeCommit {
-  path: string;
-  message: string;
-  sha: string;
-  /** Made by `editElsewhere`, not through the repo's calls. */
-  outOfBand: boolean;
-}
-
-export interface FakeCall {
-  method: "GET" | "PUT" | "DELETE";
-  path: string;
-  branch?: string;
-  keepalive: boolean;
-}
-
 /**
- * A `Repo` of plain files in memory that records every call, for tests of
- * how the page writes through one (saving, one-shot edits): what a write is
- * guarded by, what each commit says, and another writer landing between two
- * calls, synchronously. Anything else a `Repo` does is the real repo's, in
- * `seededRepo`.
+ * The repo in memory, as `seededRepo` has it, for tests of how the page
+ * writes through one (saving, one-shot edits): every save it asks for,
+ * another writer landing between two of its calls, and storage that fails.
  */
-export function fakeRepo(files: Record<string, string> = {}) {
-  let seq = 0;
-  const sha = () => (++seq).toString(16).padStart(40, "0");
-  const key = (path: string, branch?: string) =>
-    branch === undefined || branch === "main" ? path : `${branch}:${path}`;
-  const held = new Map<string, { text: string; sha: string }>();
-  const commits: FakeCommit[] = [];
-  const calls: FakeCall[] = [];
+export function watchedRepo(files: Record<string, string> = {}) {
+  const real = seededRepo(files);
+  const saves: SaveAsk[] = [];
   let failing = false;
-  for (const [path, text] of Object.entries(files)) {
-    held.set(path, { text, sha: sha() });
-  }
-  const refuse = (path: string) => {
-    throw new ConflictError(`${path} changed in the repo since it was read`);
-  };
-  const repo: Repo = {
-    where: "a test",
-    async getFile(path, ref) {
-      calls.push({
-        method: "GET",
-        path,
-        ...(ref ? { branch: ref } : {}),
-        keepalive: false,
-      });
-      const file = held.get(key(path, ref));
-      return file ? { ...file } : null;
+  const repo: Repo = new Proxy(real, {
+    get(target, key, receiver) {
+      if (key !== "save") return Reflect.get(target, key, receiver);
+      return async (ask: SaveAsk) => {
+        saves.push(ask);
+        if (failing) throw new Error("the repo's storage failed");
+        return target.save(ask);
+      };
     },
-    async getBytes() {
-      return null;
-    },
-    async history(path, page = {}) {
-      return commits
-        .filter((c) => c.path === key(path, page.branch))
-        .map((c) => ({
-          commit: c.sha,
-          message: c.message,
-          date: "",
-          author: null,
-        }))
-        .reverse();
-    },
-    async revision() {
-      return null;
-    },
-    async snapshots() {
-      return [];
-    },
-    async takeSnapshot() {
-      throw new Error("no snapshots in fakeRepo");
-    },
-    async dropSnapshot() {},
-    async putFile(path, put) {
-      calls.push({
-        method: "PUT",
-        path,
-        ...(put.branch ? { branch: put.branch } : {}),
-        keepalive: put.keepalive ?? false,
-      });
-      if (failing) throw new Error("the repo's storage failed");
-      const k = key(path, put.branch);
-      const now = held.get(k);
-      if ((put.sha ?? null) !== (now?.sha ?? null)) refuse(path);
-      const file = { text: put.text, sha: sha() };
-      held.set(k, file);
-      const commit = sha();
-      commits.push({
-        path: k,
-        message: put.message,
-        sha: commit,
-        outOfBand: false,
-      });
-      return { sha: file.sha, commit };
-    },
-    async deleteFile(path, del) {
-      calls.push({ method: "DELETE", path, keepalive: false });
-      if (held.get(path)?.sha !== del.sha) refuse(path);
-      held.delete(path);
-      commits.push({
-        path,
-        message: del.message,
-        sha: sha(),
-        outOfBand: false,
-      });
-    },
-    async listDir(dir) {
-      const prefix = dir === "" ? "" : `${dir}/`;
-      return [...held.entries()]
-        .filter(([p]) => !p.includes(":") && p.startsWith(prefix))
-        .filter(([p]) => !p.slice(prefix.length).includes("/"))
-        .map(([p, f]) => ({
-          name: p.slice(prefix.length),
-          path: p,
-          sha: f.sha,
-          type: "file" as const,
-        }));
-    },
-    async decks() {
-      return [];
-    },
-    async deleteDeck() {},
-    async migrate() {},
-    async branches() {
-      return [];
-    },
-    async blame() {
-      return null;
-    },
-    async createBranch() {
-      throw new Error("no branches in fakeRepo");
-    },
-    async deleteBranch() {},
-    async planMerge() {
-      return { kind: "upToDate" as const };
-    },
-    async merge() {
-      return { kind: "upToDate" as const };
-    },
-    async followRequest() {
-      throw new Error("no other players' repos in fakeRepo");
-    },
-    async followFinish() {
-      throw new Error("no other players' repos in fakeRepo");
-    },
-    async fork() {
-      throw new Error("no other players' repos in fakeRepo");
-    },
-    async following() {
-      return null;
-    },
-    async unfollow() {},
-    async planTake() {
-      return { kind: "upToDate" as const };
-    },
-    async takeUpstream() {
-      return { kind: "upToDate" as const };
-    },
-  };
+  });
   return {
     repo,
-    file: (path: string, branch?: string) => held.get(key(path, branch)),
-    commits: (): readonly FakeCommit[] => commits,
-    calls: (): readonly FakeCall[] => calls,
+    /** What the page asked to save, in order. */
+    saves: (): readonly SaveAsk[] => saves,
     /** Every write fails, as storage that has gone away does, until `false`. */
     failWrites(on: boolean) {
       failing = on;
     },
-    /** A commit by another tab, device or person, between two of the page's calls. */
-    editElsewhere(path: string, text: string, branch?: string) {
-      const k = key(path, branch);
-      held.set(k, { text, sha: sha() });
-      commits.push({
-        path: k,
-        message: `edit ${path}`,
-        sha: sha(),
-        outOfBand: true,
+    /**
+     * A save by another tab, device or person over whatever the file is.
+     * Asked for at once, so it lands before any call the page makes after.
+     */
+    async elsewhere(path: string, text: string, branch?: string) {
+      const saved = await real.save({
+        path,
+        ...(branch === undefined ? {} : { branch }),
+        text,
+        made: { kind: "over" },
       });
+      if (saved.kind !== "committed") throw new Error(JSON.stringify(saved));
     },
   };
 }

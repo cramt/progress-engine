@@ -13,6 +13,15 @@ use crate::store::Store;
 
 const SHA1: gix_hash::Kind = gix_hash::Kind::Sha1;
 
+impl BlobId {
+    /// The id `bytes` have as a blob, whether or not a repo holds them.
+    pub fn of(bytes: &[u8]) -> Result<BlobId> {
+        gix_object::compute_hash(SHA1, Kind::Blob, bytes)
+            .map(BlobId)
+            .map_err(|e| corrupt("a blob", e))
+    }
+}
+
 /// What a repo in some other git's layout holds that this crate does not read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Unsupported {

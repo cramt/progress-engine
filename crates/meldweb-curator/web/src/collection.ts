@@ -14,7 +14,6 @@ import type {
 } from "./deck.gen";
 import {
   collection_add,
-  collection_commit_message,
   collection_move,
   collection_move_lines,
   collection_reprint,
@@ -170,15 +169,6 @@ export function undeclarePlace(text: string, name: string): string {
 /** The place `from` called `to`, its cards with it. */
 export function renamePlace(text: string, from: string, to: string): string {
   return rename_place(text, from, to);
-}
-
-/** A line of the collection's changelog; `before` is `""` for the first save. */
-export function collectionCommitMessage(
-  before: string,
-  after: string,
-  path: string,
-): string {
-  return collection_commit_message(before, after, path);
 }
 
 /**

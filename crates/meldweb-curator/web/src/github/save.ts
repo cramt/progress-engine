@@ -1,40 +1,37 @@
 /**
  * Saving (ADR-0021, #120): edits collect in the page and are committed by
  * themselves once the deck has been idle ten seconds, or at once when the page
- * is hidden or closing. A save is one write guarded by the blob sha from
- * the last load or save. When it is refused because the file moved, an
- * editor that takes merges has the repo's file and its own merged (a deck
- * card by card, anything else by lines) and committed; otherwise, or when
- * both changed the same thing differently, saving stops until the user
- * reloads or overwrites, and a deck's clashes say which cards. For a deck
- * the user can instead pick a side for each clash: the merge with those
- * picks becomes the editor's text as one undoable step and is committed on
- * the repo's sha, as a merge that never clashed is.
+ * is hidden or closing. A save is one call to the repo (`Repo.save`), which
+ * commits the text when the file has not moved since the text it was made
+ * from. When it has, an editor that takes merges gets the repo's file and
+ * its own merged (a deck card by card, anything else by lines) and
+ * committed in that same call; otherwise, or when both changed the same
+ * thing differently, saving stops until the user reloads or overwrites,
+ * and a deck's clashes say which cards. For a deck the user can instead
+ * pick a side for each clash: the merge with those picks becomes the
+ * editor's text as one undoable step, committed as a merge that never
+ * clashed is.
  */
-import type { MergeClash } from "../deck.gen";
-import { ConflictError, type Repo, type Side } from "../repo/api";
-import { mergeFile } from "./merge";
-import { commitMessageFor, spotKey, track } from "./repoFile";
+import type { Conflict, Made, Settle } from "../deck.gen";
+import type { Repo } from "../repo/api";
+import { spotKey, track } from "./repoFile";
 
-/** A refused save whose merge clashed, and on what. */
-class Clashed extends ConflictError {
+/** A save that stopped: what its merge stopped on, when it merged. */
+class Stopped extends Error {
   constructor(
     message: string,
-    readonly clashes: readonly MergeClash[],
+    readonly conflict: Conflict | null,
   ) {
     super(message);
   }
 }
 
-/** How many times a merge is committed before a conflict is given up on. */
-const MERGES = 3;
-
 export const IDLE_MS = 10_000;
 
 export type SaveState =
   | { status: "unsaved" | "saving" | "saved" }
-  /** `clashes` are what in a deck both changed differently, when that is why. */
-  | { status: "conflict"; clashes: readonly MergeClash[] }
+  /** `conflict` is what the save's merge stopped on, when it merged. */
+  | { status: "conflict"; conflict: Conflict | null }
   /** `message` is why the last save failed. */
   | { status: "error"; message: string };
 
@@ -56,16 +53,16 @@ export interface SaveStore {
   settle(): Promise<boolean>;
   /** Conflict: drops local edits and takes GitHub's file. Returns its text. */
   reload(): Promise<string>;
-  /** Conflict: re-reads the sha and commits the local text over GitHub's. */
+  /** Conflict: commits the local text over the repo's, whatever it is now. */
   overwrite(): Promise<void>;
   /**
-   * Conflict: merges again with `picks`, a side for each of the conflict's
-   * clashes in order, hands the merge to the editor and commits it. When
-   * the file or the editor's text moved since the clashes were shown, the
-   * picks may mean other cards, so they settle nothing and the conflict
-   * names the clashes as they are now.
+   * Conflict: merges again settled by `settle`, picked against the
+   * conflict, hands the merge to the editor and commits it. When the file
+   * or the editor's text moved since the clashes were shown, the picks may
+   * mean other cards, so they settle nothing and the conflict names the
+   * clashes as they are now.
    */
-  resolve(picks: readonly Side[]): Promise<void>;
+  resolve(settle: Settle): Promise<void>;
   /** Listens for hide, close and unload on the page; returns the detach. */
   attach(target?: PageEvents): () => void;
   /** Stops the idle clock and detaches. Later edits start it again. */
@@ -86,7 +83,7 @@ export interface SaveOptions {
   path: string;
   /** The branch the file is on: a deck's line. `main` when absent. */
   branch?: string;
-  /** The text as loaded from GitHub, and its blob sha. */
+  /** The text as loaded, and its blob sha: null while there is no file. */
   text: string;
   sha: string | null;
   idleMs?: number;
@@ -103,15 +100,13 @@ export function createSaveStore(options: SaveOptions): SaveStore {
   const on = branch === undefined ? {} : { branch };
   const idleMs = options.idleMs ?? IDLE_MS;
 
-  let base = options.text;
-  let sha = options.sha;
+  /** The text the repo's file and the editor last agreed on; null: no file. */
+  let base: string | null = options.sha === null ? null : options.text;
   let current = options.text;
   let state: SaveState = { status: "saved" };
   let timer: ReturnType<typeof setTimeout> | undefined;
   let inflight: Promise<void> | null = null;
   let hideWhileSaving = false;
-  /** What the conflict's clashes were worked out from, which picks are for. */
-  let clashedAt: { sha: string; ours: string; base: string } | null = null;
   const listeners = new Set<() => void>();
   const detachers = new Set<() => void>();
 
@@ -119,7 +114,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
     state = next;
     for (const l of listeners) l();
   };
-  const pending = () => current !== base;
+  const pending = () => current !== (base ?? options.text);
   const stopped = () => state.status === "conflict";
 
   const clear = () => {
@@ -135,7 +130,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
 
   /**
    * The one commit in flight, which every later save, overwrite and reload
-   * waits behind: each needs the sha this one comes back with. `work` gets
+   * waits behind: each starts from the text this one leaves. `work` gets
    * the text as of now; later edits are the next save's.
    */
   function run(work: (after: string) => Promise<void>) {
@@ -146,11 +141,8 @@ export function createSaveStore(options: SaveOptions): SaveStore {
         await work(after);
         set({ status: pending() ? "unsaved" : "saved" });
       } catch (e) {
-        if (e instanceof ConflictError)
-          set({
-            status: "conflict",
-            clashes: e instanceof Clashed ? e.clashes : [],
-          });
+        if (e instanceof Stopped)
+          set({ status: "conflict", conflict: e.conflict });
         else
           set({ status: "error", message: String((e as Error).message ?? e) });
       }
@@ -171,104 +163,38 @@ export function createSaveStore(options: SaveOptions): SaveStore {
     return committing;
   }
 
-  /** Commits `after` over `before`, merging when the repo's file moved on. */
-  async function commitOrMerge(
-    before: string,
-    guard: string | null,
-    after: string,
-  ) {
-    try {
-      await commit(before, guard, after);
-    } catch (e) {
-      if (!(e instanceof ConflictError) || !onMerge) throw e;
-      await merge(onMerge, e);
-    }
-  }
+  /** Made from the text the repo and the editor last agreed on. */
+  const fromBase = (settle?: Settle): Made => ({
+    kind: "from",
+    ...(base === null ? {} : { base }),
+    moved: onMerge
+      ? { kind: "merge", ...(settle ? { settle } : {}) }
+      : { kind: "refuse" },
+  });
 
-  async function commit(before: string, guard: string | null, text: string) {
-    const r = await repo.putFile(path, {
-      text,
-      message: commitMessageFor(path, before, text),
-      sha: guard,
-      keepalive: true,
-      ...on,
-    });
-    base = text;
-    sha = r.sha;
-  }
-
-  /**
-   * Commits GitHub's file with the local edits merged in, on GitHub's sha,
-   * a deck's clashes settled by `picks` when they were picked against this
-   * file and this text. Throws `refused` when the two changed the same
-   * thing differently, the file is gone, or what the merge makes is not a
-   * file of its kind.
-   */
-  async function merge(
-    onMerge: (text: string) => void,
-    refused: Error,
-    picks?: readonly Side[],
-  ) {
-    for (let attempt = 1; ; attempt++) {
-      const file = await repo.getFile(path, branch);
-      if (!file) throw refused;
-      // From the latest local text, not the one being committed: nothing
-      // awaits between reading it and handing the merge back.
-      const fresh =
-        attempt === 1 &&
-        clashedAt?.sha === file.sha &&
-        clashedAt.ours === current &&
-        clashedAt.base === base;
-      const merging = mergeFile(
-        path,
-        base,
-        current,
-        file.text,
-        fresh ? picks : undefined,
-      );
-      const stopped = merging.kind === "stopped" ? merging.file : null;
-      // A deck's clashes are picked one by one; lines only reload or overwrite.
-      if (
-        stopped?.needs === "eachClash" ||
-        (stopped?.needs === "wholeFile" && stopped.why.kind === "lines")
-      ) {
-        clashedAt = { sha: file.sha, ours: current, base };
-        throw new Clashed(
-          refused.message,
-          stopped.needs === "eachClash" ? stopped.clashes : [],
-        );
-      }
-      clashedAt = null;
-      if (merging.kind !== "merged") throw refused;
-      const merged = merging.text;
-      // Rust refuses to diff a text that is not a file of its kind.
-      let message: string;
-      try {
-        message = commitMessageFor(path, file.text, merged);
-      } catch {
-        throw refused;
-      }
-      current = merged;
-      onMerge(merged);
-      if (merged === file.text) {
-        base = merged;
-        sha = file.sha;
+  /** Saves `after` as `made` says, and takes in what the repo made of it. */
+  async function commit(after: string, made: Made) {
+    const saved = await repo.save({ path, ...on, text: after, made });
+    switch (saved.kind) {
+      case "committed":
+      case "unchanged":
+        if (saved.merged === undefined) {
+          base = after;
+        } else if (current === after) {
+          base = current = saved.merged;
+          onMerge?.(saved.merged);
+        } else {
+          // Edits made while this merged were made from `after`, so the
+          // next save merges them into what the file is now.
+          base = after;
+        }
         return;
-      }
-      try {
-        const r = await repo.putFile(path, {
-          text: merged,
-          message,
-          sha: file.sha,
-          keepalive: true,
-          ...on,
-        });
-        base = merged;
-        sha = r.sha;
-        return;
-      } catch (e) {
-        if (!(e instanceof ConflictError) || attempt >= MERGES) throw e;
-      }
+      case "clashed":
+        throw new Stopped(`${path} clashed`, saved.conflict);
+      case "moved":
+        throw new Stopped(saved.message, null);
+      case "refused":
+        throw new Error(saved.message);
     }
   }
 
@@ -283,7 +209,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       if (state.status !== "saved") set({ status: "saved" });
       return Promise.resolve();
     }
-    return run((after) => commitOrMerge(base, sha, after));
+    return run((after) => commit(after, fromBase()));
   }
 
   /** Waits out every commit in flight, including one a finished one started. */
@@ -323,7 +249,6 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       const file = await repo.getFile(path, branch);
       if (!file) throw new Error(`${path} is no longer in the repo`);
       base = current = file.text;
-      sha = file.sha;
       set({ status: "saved" });
       return file.text;
     },
@@ -332,24 +257,14 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       // Claims `inflight` in this tick when it is free, so a save asked for
       // right after queues behind the overwrite rather than racing it.
       if (inflight) await idle();
-      // Diffed against, and guarded by, what is on GitHub now.
-      await run(async (after) => {
-        const file = await repo.getFile(path, branch);
-        await commitOrMerge(file?.text ?? base, file?.sha ?? null, after);
-      });
+      // Over whatever the file is now, and said against it.
+      await run((after) => commit(after, { kind: "over" }));
     },
-    async resolve(picks) {
+    async resolve(settle) {
       clear();
       if (inflight) await idle();
       if (state.status !== "conflict" || !onMerge) return;
-      const merging = onMerge;
-      await run(() =>
-        merge(
-          merging,
-          new ConflictError(`${path} changed elsewhere since it was read`),
-          picks,
-        ),
-      );
+      await run((after) => commit(after, fromBase(settle)));
     },
     attach(target) {
       const page: PageEvents = target ?? { window, document };
@@ -386,7 +301,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
 /**
  * Saves every edit `store` still holds as its editor goes away, those made
  * while a save was landing too, tracked so that opening the same file again
- * reads it only after they have landed and so starts from the new sha.
+ * reads it only after they have landed and so starts from what they left.
  */
 export function leave(store: SaveStore): Promise<boolean> {
   return track(store.key, store.settle());

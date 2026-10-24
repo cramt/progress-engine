@@ -163,7 +163,7 @@ describe("the browser's repo", () => {
     expect((await two.getFile(PATH))?.text).toBe(deck("B"));
   });
 
-  it("merges two tabs' saves of one deck by lines, on the deck's own line", async () => {
+  it("merges two tabs' saves of one deck by card, on the deck's own line", async () => {
     const { tab } = browser();
     const one = tab();
     const two = tab();

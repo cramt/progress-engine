@@ -1,11 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
-import type { MergeClash } from "../deck.gen";
+import type { Conflict, FileConflict, Settle, Side } from "../deck.gen";
 import type { SaveState } from "../github/save";
-import type { Side } from "../repo/api";
 import { BrandMark, CloseIcon, RedoIcon, UndoIcon } from "../ui/icons";
 import { Waiting } from "../ui/Spinner";
-import { allPicked, ClashPicks, picked } from "./ClashPicks";
+import { ClashPicks, picked, settleOf } from "./ClashPicks";
 
 /**
  * The bar along the top of every page, sticky on scroll: Archidekt's toolbar,
@@ -145,8 +144,15 @@ export function SaveStatus({ save, path }: { save: SaveState; path: string }) {
  * failed save, and the last edit refused, each with its way out. A `notice`
  * says what an action just did, such as a snapshot taken. A deck's save
  * that clashed shows each clash with its two sides, and `onPicks` merges
- * with the sides picked.
+ * settled by the sides picked.
  */
+/** A save's clashes, card by card, when its deck's merge stopped on some. */
+type DeckClashes = Extract<FileConflict, { needs: "eachClash" }>;
+
+const deckClashesOf = (conflict: Conflict | null): DeckClashes | null =>
+  conflict?.files.find((f): f is DeckClashes => f.needs === "eachClash") ??
+  null;
+
 export function Banners({
   save,
   refusal,
@@ -160,26 +166,29 @@ export function Banners({
   refusal: string | null;
   onReload: () => void;
   onOverwrite: () => void;
-  onPicks?: (picks: Side[]) => void;
+  onPicks?: (settle: Settle) => void;
   onDismiss: () => void;
   notice?: string | null;
 }) {
+  const clashed =
+    save.status === "conflict" ? deckClashesOf(save.conflict) : null;
   return (
     <div className="banners">
       {save.status === "conflict" &&
-        (save.clashes.length > 0 && onPicks ? (
+        (save.conflict && clashed && onPicks ? (
           <SaveClashes
-            // New clashes are new rows, picked afresh.
-            key={JSON.stringify(save.clashes)}
-            clashes={save.clashes}
+            // A new conflict is new rows, picked afresh.
+            key={save.conflict.guard}
+            conflict={save.conflict}
+            file={clashed}
             onPicks={onPicks}
             onReload={onReload}
             onOverwrite={onOverwrite}
           />
         ) : (
           <p className="conflict" role="alert">
-            {save.clashes.length > 0
-              ? `Changed elsewhere since this page loaded, and both changed ${save.clashes
+            {clashed
+              ? `Changed elsewhere since this page loaded, and both changed ${clashed.clashes
                   .map(
                     (c) =>
                       `${c.subject}'s ${c.attribute} (here ${c.ours}, there ${c.theirs})`,
@@ -227,20 +236,23 @@ export function Banners({
  * editor's text as one undoable step and is saved over the other save.
  */
 function SaveClashes({
-  clashes,
+  conflict,
+  file,
   onPicks,
   onReload,
   onOverwrite,
 }: {
-  clashes: readonly MergeClash[];
-  onPicks: (picks: Side[]) => void;
+  conflict: Conflict;
+  file: DeckClashes;
+  onPicks: (settle: Settle) => void;
   onReload: () => void;
   onOverwrite: () => void;
 }) {
+  const { clashes } = file;
   const [picks, setPicks] = useState<(Side | undefined)[]>(() =>
     clashes.map(() => undefined),
   );
-  const all = allPicked(picks);
+  const settle = settleOf(conflict, () => ({ picks }));
   const n = clashes.length;
   return (
     <div className="conflict save-clashes" role="alert">
@@ -260,8 +272,8 @@ function SaveClashes({
       <button
         type="button"
         className="small primary"
-        disabled={!all}
-        onClick={() => all && onPicks(all)}
+        disabled={!settle}
+        onClick={() => settle && onPicks(settle)}
       >
         Merge with these picks
       </button>

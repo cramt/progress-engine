@@ -41,6 +41,8 @@ import type {
   RemoteFacts,
   RevisionRead,
   Revisions,
+  SaveAsk,
+  Saved,
   Snapshots,
   Synced,
   SyncSettle,
@@ -101,6 +103,7 @@ export type Request =
       branch?: string;
       from?: string;
     }
+  | { kind: "save"; ask: SaveAsk; who: Who }
   | { kind: "decks" }
   | { kind: "deleteDeck"; stem: string; commit: string }
   | { kind: "migrate"; from: number }
@@ -188,6 +191,7 @@ export interface Results {
   takeSnapshot: Snapshot;
   dropSnapshot: null;
   putFile: { sha: string; commit: string };
+  save: Saved;
   deleteFile: null;
   decks: DeckLine[];
   deleteDeck: null;
@@ -478,6 +482,14 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
             throw new Error(`${r.path} was not written`);
           return done({ sha: wrote.sha, commit: wrote.commit });
         });
+      case "save":
+        return writing((g) =>
+          done(
+            JSON.parse(
+              g.save(JSON.stringify(r.ask), JSON.stringify(r.who)),
+            ) as Saved,
+          ),
+        );
       case "decks":
         return reading((g) =>
           done(
@@ -846,6 +858,7 @@ export function createLocalRepo(
         ...(put.from === undefined ? {} : { from: put.from }),
       });
     },
+    save: (save) => ask({ kind: "save", ask: save, who: who() }),
     decks: () => ask({ kind: "decks" }),
     async deleteDeck(stem, commit) {
       await ask({ kind: "deleteDeck", stem, commit });

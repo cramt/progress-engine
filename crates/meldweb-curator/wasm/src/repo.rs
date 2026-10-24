@@ -31,6 +31,7 @@ use crate::branches::{self, BranchDeleted, BranchMade, DeckBranches, MergeDone, 
 use crate::layout::{self, DeckLines};
 use crate::merging::{self, Conflict, Guard, Settle, Stops, SyncMerging, SyncSettle};
 use crate::preference::Upstream;
+use crate::saving::{self, SaveAsk, Saved};
 use crate::upstream::{self, Fetched, Following, Forked};
 use crate::UpstreamFacts;
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
@@ -897,6 +898,13 @@ impl Local {
         self.guarded(&path, sha, change, message, who, branch)
     }
 
+    /// One save of an editor's text, merged into the file when it moved
+    /// ([`saving::save`]).
+    pub fn save(&mut self, ask: &SaveAsk, who: &Who) -> Out<Saved> {
+        let signed = signature(who)?;
+        saving::save(self.repo_mut()?, ask, &signed)
+    }
+
     /// One commit removing `path`, whose blob id must be `sha`.
     pub fn delete_file(&mut self, path: &str, sha: &str, message: &str, who: &Who) -> Out<Wrote> {
         let path = repo_path(path)?;
@@ -1598,6 +1606,14 @@ impl GitRepo {
     }
 
     /// [`DeckLineList`].
+    /// [`Saved`]; `ask` a [`SaveAsk`], `who` a [`Who`].
+    pub fn save(&mut self, ask: &str, who: &str) -> Result<String, JsError> {
+        let ask: SaveAsk = facet_json::from_str(ask)
+            .map_err(|e| JsError::new(&format!("ask is not a SaveAsk: {e}")))?;
+        let who = who_of(who)?;
+        js(self.0.save(&ask, &who)).map(|r| json(&r))
+    }
+
     pub fn decks(&self) -> Result<String, JsError> {
         js(self.0.decks()).map(|r| json(&r))
     }
@@ -2353,18 +2369,6 @@ mod tests {
             std::fs::read_to_string(dir.path().join("c/VERSION")).unwrap(),
             "2\n"
         );
-    }
-
-    #[test]
-    fn a_line_merge_that_is_no_longer_a_deck_does_not_count() {
-        let deck = "name = \"Lantern\"\ncards = []\n";
-        assert_eq!(crate::unreadable("lantern.deck.toml", deck, deck), None);
-        assert!(
-            crate::unreadable("lantern.deck.toml", deck, "name = \"Lantern\"\ncards = [\n")
-                .is_some()
-        );
-        // A file no editor writes is only text.
-        assert_eq!(crate::unreadable("notes.txt", "a", "cards = ["), None);
     }
 
     /// Version 2's deck lines through the page's calls (ADR-0041): a deck is
