@@ -15,8 +15,8 @@ use std::process::{Command, Stdio};
 
 use chip_decklist::stem::DeckStem;
 use meldweb_git::{
-    BranchName, Change, CommitId, FetchRequest, FsStore, Identity, Integrated, PushRequest,
-    RemoteUrl, Repo, RepoPath, Signature, TagName, Timestamp, Tip, WriteCommit,
+    by_file, BranchName, Change, CommitId, FetchRequest, FsStore, Identity, Integrated,
+    PushRequest, RemoteUrl, Repo, RepoPath, Signature, TagName, Timestamp, Tip, WriteCommit,
 };
 use meldweb_wasm::layout::{self, DeckLines};
 use meldweb_wasm::merging::{
@@ -759,9 +759,12 @@ fn fetch(repo: &mut Repo<FsStore>, server: &Server) {
 /// What the browser's integrate does: a remote on version 1 is migrated
 /// here first.
 fn integrate(repo: &mut Repo<FsStore>, at: i64) -> Vec<(BranchName, Integrated)> {
-    layout::integrate(repo, &sig("Alex", at, 0), None, &mut |_, p, b, o, t| {
-        as_curator_merges(p, b, o, t)
-    })
+    layout::integrate(
+        repo,
+        &sig("Alex", at, 0),
+        None,
+        &mut by_file(|_, p, b, o, t| as_curator_merges(p, b, o, t)),
+    )
     .unwrap()
 }
 
@@ -1414,6 +1417,15 @@ fn a_syncs_clashes_on_two_branches_are_settled_each_by_its_own_picks() {
             "{branch} ends in a merge: {parents}"
         );
     }
+    // A deck's line's merge says what it did to the deck, as a deck merge
+    // does: main took A's 2 over B's 3; budget kept B's own deck.
+    let subject = |branch: &str| {
+        git(&server.0, &["log", "-1", "--format=%B", branch])
+            .trim_end()
+            .to_owned()
+    };
+    assert_eq!(subject(main), "lantern: merge origin/main: Sol Ring: 3 → 2");
+    assert_eq!(subject(budget), "lantern: merge origin/budget");
     assert!(git(&server.0, &["show", &format!("{main}:{path}")]).contains("qty = 2"));
     assert!(git(&server.0, &["show", &format!("{budget}:{path}")]).contains("qty = 5"));
     fsck(&server.0);

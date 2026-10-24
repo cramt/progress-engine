@@ -991,16 +991,25 @@ impl<S: Store> Repo<S> {
     /// `git merge-base --all` gives them: common ancestors that are no other
     /// common ancestor's ancestor. Empty when the histories are unrelated;
     /// more than one after a criss-cross merge. Sorted by id.
-    pub fn merge_base(&self, a: &CommitId, b: &CommitId) -> Result<Vec<CommitId>> {
-        let mut cache = HashMap::new();
-        let of_a = self.ancestors(&[*a], &mut cache)?;
-        let of_b = self.ancestors(&[*b], &mut cache)?;
+    pub fn merge_bases(&self, a: &CommitId, b: &CommitId) -> Result<Vec<CommitId>> {
+        self.merge_bases_in(&mut Parents::default(), a, b)
+    }
+
+    fn merge_bases_in(
+        &self,
+        parents: &mut Parents,
+        a: &CommitId,
+        b: &CommitId,
+    ) -> Result<Vec<CommitId>> {
+        let cache = &mut parents.0;
+        let of_a = self.ancestors(&[*a], cache)?;
+        let of_b = self.ancestors(&[*b], cache)?;
         let common = of_a.intersection(&of_b).copied().collect::<Vec<_>>();
         let parents_of_common = common
             .iter()
             .flat_map(|c| cache[c].iter().copied())
             .collect::<Vec<_>>();
-        let below = self.ancestors(&parents_of_common, &mut cache)?;
+        let below = self.ancestors(&parents_of_common, cache)?;
         let mut best = common
             .into_iter()
             .filter(|c| !below.contains(c))
@@ -1008,4 +1017,40 @@ impl<S: Store> Repo<S> {
         best.sort();
         Ok(best)
     }
+
+    /// The one merge base every merge of `a` and `b` starts from, and blame
+    /// reads a merge against: of [`Repo::merge_bases`], the newest by
+    /// committer time, and of those committed in the same second the lowest
+    /// id. After a criss-cross the bases disagree and which one a merge
+    /// starts from decides what it makes, so there is exactly one rule, here.
+    /// The newest is the one that has seen the most of both sides, as git's
+    /// own walk by commit date tends to find first. `None` when the
+    /// histories are unrelated.
+    pub fn merge_base(&self, a: &CommitId, b: &CommitId) -> Result<Option<CommitId>> {
+        self.merge_base_in(&mut Parents::default(), a, b)
+    }
+
+    /// [`Repo::merge_base`], reading each commit's parents once across
+    /// every call given the same `parents`: blame asks it of every merge it
+    /// walks through, over the same history.
+    pub fn merge_base_in(
+        &self,
+        parents: &mut Parents,
+        a: &CommitId,
+        b: &CommitId,
+    ) -> Result<Option<CommitId>> {
+        let mut newest: Option<(i64, CommitId)> = None;
+        for base in self.merge_bases_in(parents, a, b)? {
+            let when = self.read_commit(&base)?.committer.when.seconds();
+            // Sorted by id, so the first of a second is kept.
+            if newest.is_none_or(|(w, _)| when > w) {
+                newest = Some((when, base));
+            }
+        }
+        Ok(newest.map(|(_, base)| base))
+    }
 }
+
+/// Each commit's parents as read once, for [`Repo::merge_base_in`].
+#[derive(Debug, Default)]
+pub struct Parents(HashMap<CommitId, Vec<CommitId>>);

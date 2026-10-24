@@ -21,15 +21,15 @@ use facet::Facet;
 
 use chip_decklist::stem::DeckStem;
 use meldweb_git::{
-    BlobId, BranchMerge, BranchName, Change, CommitId, EntryKind, Error, FetchRequest, Identity,
-    Integrated, MemStore, PushRequest, RemoteUrl, Repo, RepoPath, Signature, Store, TagKind,
-    TagName, Timestamp, Tip, Unsupported, WriteCommit,
+    BlobId, BranchName, Change, CommitId, EntryKind, Error, FetchRequest, Identity, Integrated,
+    MemStore, PushRequest, RemoteUrl, Repo, RepoPath, Signature, Store, TagKind, TagName,
+    Timestamp, Tip, Unsupported, WriteCommit,
 };
 
 use crate::blame::{self, DeckBlame};
 use crate::branches::{self, BranchDeleted, BranchMade, DeckBranches, MergeDone, MergePlan};
 use crate::layout::{self, DeckLines};
-use crate::merging::{self, Conflict, Guard, Settle, Stops, SyncSettle};
+use crate::merging::{self, Conflict, Guard, Settle, Stops, SyncMerging, SyncSettle};
 use crate::preference::Upstream;
 use crate::upstream::{self, Fetched, Following, Forked};
 use crate::UpstreamFacts;
@@ -1232,16 +1232,13 @@ impl Local {
     /// `settle.prefer`.
     pub fn integrate(&mut self, who: &Who, settle: &SyncSettle) -> Out<Synced> {
         let signed = signature(who)?;
-        let mut stops: BTreeMap<String, Stops> = BTreeMap::new();
-        let mut merge_file =
-            |at: &BranchMerge<'_>, path: &str, base: &[u8], ours: &[u8], theirs: &[u8]| {
-                let settling = settle.settling(&Guard::tips(at.branch, at.ours, at.theirs));
-                let stops = stops.entry(at.branch.as_str().to_owned()).or_default();
-                merging::merge_bytes(path, base, ours, theirs, &settling, stops)
-            };
+        let mut merging = SyncMerging {
+            settle,
+            stops: BTreeMap::new(),
+        };
         let prefer = settle.prefer.map(merging::git_side);
-        let outcomes = layout::integrate(self.repo_mut()?, &signed, prefer, &mut merge_file)?;
-        Ok(synced(outcomes, stops))
+        let outcomes = layout::integrate(self.repo_mut()?, &signed, prefer, &mut merging)?;
+        Ok(synced(outcomes, merging.stops))
     }
 
     pub fn adopt_remote(&mut self) -> Out<()> {

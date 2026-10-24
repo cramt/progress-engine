@@ -16,11 +16,11 @@ mod remote;
 mod repo;
 mod store;
 
-pub use merge::{merge_lines, merge_lines_with, Hunk, MergeFile, Planned, Side, TreeMerge};
+pub use merge::{merge_lines, merge_lines_with, Hunk, MergeFile, Side, Standing, TreeMerge};
 pub use pktline::PktError;
 pub use remote::{
-    advertised_branches, BranchMerge, FetchRequest, Integrated, MergeBranchFile, Other,
-    PushRequest, Pushed, RemoteStatus, RemoteUrl, ORIGIN,
+    advertised_branches, by_file, sync_message, BranchMerge, ByFile, FetchRequest, Integrated,
+    MergeBranch, Other, PushRequest, Pushed, RemoteStatus, RemoteUrl, ORIGIN,
 };
 
 pub use names::{
@@ -28,8 +28,8 @@ pub use names::{
     Timestamp, TreeId,
 };
 pub use repo::{
-    Change, CommitInfo, DirEntry, EntryKind, Error, HistoryEntry, PathChange, Repo, Result,
-    TagInfo, TagKind, Tip, Unsupported, WriteCommit,
+    Change, CommitInfo, DirEntry, EntryKind, Error, HistoryEntry, Parents, PathChange, Repo,
+    Result, TagInfo, TagKind, Tip, Unsupported, WriteCommit,
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use store::FsStore;

@@ -4,24 +4,16 @@
 //! which there are and how far each is from `main`, making one at a commit
 //! of the deck's line, deleting one, and merging one into another.
 //!
-//! A merge is three-way from the merge base, each file both changed merged
-//! as [`crate::merging`] merges its kind, the deck's by card, as a refused
-//! save and a sync merge it. It is a
-//! fast-forward when the branch merged into has not moved since the other
-//! left it, and otherwise a merge commit with two parents whose message is
-//! the semantic diff of the deck, as every save's is (ADR-0021):
-//! `lantern: merge budget: +1 Sol Ring, -1 Mind Stone`. What does not merge,
-//! or merges into something that is not a deck, stops and says where, until
-//! the user picks a side for each card both changed. The picks settle only
-//! the merge they were shown for ([`merging::Settle`]): once either branch
-//! moves, they are refused and the merge is shown again.
+//! Merging one into another is a deck merge ([`crate::deck_merge`]), named
+//! by the branch merged: `lantern: merge budget: +1 Sol Ring, -1 Mind Stone`.
 
-use chip_decklist::changelog;
 use chip_decklist::stem::DeckStem;
 use facet::Facet;
-use meldweb_git::{BranchName, CommitId, Error, Planned, Repo, RepoPath, Signature, Store, Tip};
+use meldweb_git::{BranchName, CommitId, Error, Repo, Signature, Store};
 
-use crate::merging::{self, Conflict, Guard, Settle, Settling, Stale, Stops};
+use crate::deck_merge::{deck_path, DeckMerge};
+pub use crate::deck_merge::{MergeDone, MergePlan};
+use crate::merging::Settle;
 
 type Out<T> = Result<T, String>;
 
@@ -75,66 +67,6 @@ pub enum BranchDeleted {
     },
 }
 
-/// What merging one of a deck's branches into another would do. `into` and
-/// `from` are the two tips it was worked out from, which the merge itself
-/// is guarded by; `before` and `after` are the deck's file on the branch
-/// merged into, now and once merged, absent where the branch holds none.
-#[derive(Debug, Facet)]
-#[repr(u8)]
-#[facet(tag = "kind", rename_all = "camelCase")]
-pub enum MergePlan {
-    /// The branch merged into already holds every commit of the other.
-    UpToDate,
-    /// The branch merged into has not moved since the other left it, so it
-    /// moves to the other's tip and no commit is made.
-    FastForward {
-        into: String,
-        from: String,
-        #[facet(default, skip_serializing_if = Option::is_none)]
-        before: Option<String>,
-        #[facet(default, skip_serializing_if = Option::is_none)]
-        after: Option<String>,
-    },
-    /// A merge commit with two parents, and its message.
-    Merge {
-        into: String,
-        from: String,
-        #[facet(default, skip_serializing_if = Option::is_none)]
-        before: Option<String>,
-        #[facet(default, skip_serializing_if = Option::is_none)]
-        after: Option<String>,
-        message: String,
-    },
-    /// Both changed the same attribute of a card or of the deck, or the
-    /// same lines of another file, or the merge makes a file that does not
-    /// read. A [`Settle`] under its guard settles it.
-    Conflict { conflict: Conflict },
-    /// The two share no history.
-    Unrelated,
-    /// The settle given was made against another merge: a branch moved
-    /// since it was shown. Nothing is settled.
-    Stopped { message: String },
-}
-
-#[derive(Debug, Facet)]
-#[repr(u8)]
-#[facet(tag = "kind", rename_all = "camelCase")]
-pub enum MergeDone {
-    /// The branch's new tip; `message` is the merge commit's, absent for a
-    /// fast-forward.
-    Merged {
-        commit: String,
-        #[facet(default, skip_serializing_if = Option::is_none)]
-        message: Option<String>,
-    },
-    UpToDate,
-    /// Either branch moved since the plan was read, or the merge does not
-    /// go through as planned. Nothing changed.
-    Stopped {
-        message: String,
-    },
-}
-
 pub(crate) fn said(e: Error) -> String {
     e.to_string()
 }
@@ -158,14 +90,6 @@ fn tip_of<S: Store>(repo: &Repo<S>, branch: &BranchName) -> Out<CommitId> {
     repo.branch_tip(branch)
         .map_err(said)?
         .ok_or_else(|| format!("there is no branch {branch}"))
-}
-
-pub(crate) fn deck_path(stem: &DeckStem) -> RepoPath {
-    RepoPath::new(stem.deck_file()).expect("a stem makes a file name")
-}
-
-pub(crate) fn text(bytes: Option<Vec<u8>>) -> Option<String> {
-    bytes.map(|b| String::from_utf8_lossy(&b).into_owned())
 }
 
 fn count(n: usize) -> u32 {
@@ -261,109 +185,28 @@ pub fn delete<S: Store>(
     }
 }
 
-/// The merge's tips, its guard, its plan, and why each file that did not
-/// merge stopped.
-pub(crate) struct Worked {
-    pub(crate) into: CommitId,
-    pub(crate) from: CommitId,
-    pub(crate) guard: Guard,
-    pub(crate) planned: Planned,
-    pub(crate) stops: Stops,
-}
-
-fn work<S: Store>(
-    repo: &mut Repo<S>,
-    stem: &DeckStem,
+/// The deck merge of its branch `from` into its branch `into`.
+fn deck_merge<'a, S: Store>(
+    repo: &Repo<S>,
+    stem: &'a DeckStem,
     from: &str,
     into: &str,
-    settle: Option<&Settle>,
-) -> Out<Result<Worked, Stale>> {
+) -> Out<DeckMerge<'a>> {
     if from == into {
         return Err(format!("{from} cannot be merged into itself"));
     }
-    let branch = branch_of(stem, into)?;
-    let into_tip = tip_of(repo, &branch)?;
-    let from_tip = tip_of(repo, &branch_of(stem, from)?)?;
-    work_tips(
-        repo,
-        &branch,
-        into_tip,
-        from_tip,
-        settle,
-        |repo, prefer, merge_file| repo.plan_merge(&into_tip, &from_tip, prefer, merge_file),
-    )
+    Ok(DeckMerge {
+        stem,
+        into: branch_of(stem, into)?,
+        into_label: into.to_owned(),
+        from: tip_of(repo, &branch_of(stem, from)?)?,
+        their_stem: stem,
+        label: from.to_owned(),
+    })
 }
 
-/// The merge of `from` into `branch` at `into`, each file both changed
-/// merged as its kind merges ([`merging::merge_bytes`]), around `planning`,
-/// which plans it with the side preferred and that merge. [`Stale`] when
-/// `settle` was made against another merge than this one.
-pub(crate) fn work_tips<S: Store>(
-    repo: &mut Repo<S>,
-    branch: &BranchName,
-    into: CommitId,
-    from: CommitId,
-    settle: Option<&Settle>,
-    planning: impl FnOnce(
-        &mut Repo<S>,
-        Option<meldweb_git::Side>,
-        &mut meldweb_git::MergeFile<'_>,
-    ) -> meldweb_git::Result<Planned>,
-) -> Out<Result<Worked, Stale>> {
-    let guard = Guard::tips(branch, into, from);
-    let Ok(settling) = Settling::checked(settle, &guard) else {
-        return Ok(Err(Stale));
-    };
-    let mut stops = Stops::default();
-    let mut merge_file = |path: &str, base: &[u8], ours: &[u8], theirs: &[u8]| {
-        merging::merge_bytes(path, base, ours, theirs, &settling, &mut stops)
-    };
-    let prefer = settling.prefer.map(merging::git_side);
-    let planned = planning(repo, prefer, &mut merge_file).map_err(said)?;
-    Ok(Ok(Worked {
-        into,
-        from,
-        guard,
-        planned,
-        stops,
-    }))
-}
-
-/// What a merge whose settle was made against another one says.
-pub(crate) fn stale(into: impl std::fmt::Display, from: impl std::fmt::Display) -> String {
-    format!("{into} or {from} changed since the merge was shown; look at it again")
-}
-
-/// The merge commit's message: the deck's changelog from `before` to
-/// `after`, with what was merged, `lantern: merge budget: +1 Sol Ring`.
-pub(crate) fn message(
-    stem: &DeckStem,
-    from: &str,
-    before: Option<&str>,
-    after: Option<&str>,
-) -> String {
-    let path = stem.deck_file();
-    let head = format!("{}: merge {from}", stem.as_str().to_lowercase());
-    let said = match (before, after) {
-        (Some(b), Some(a)) if b != a => changelog::commit_message_for_text(b, a, &path).ok(),
-        _ => None,
-    };
-    let Some(said) = said else {
-        return head;
-    };
-    // The changelog starts with the same stem every save's does.
-    let changes = said.split_once(": ").map_or(said.as_str(), |(_, c)| c);
-    if changes == "reformat" {
-        head
-    } else {
-        format!("{head}: {changes}")
-    }
-}
-
-/// What merging the deck's branch `from` into its branch `into` would do,
-/// with `settle` settling what both changed once the user has picked a
-/// side for it, when it was made against this merge. It writes the merged
-/// objects and moves no ref.
+/// What merging the deck's branch `from` into its branch `into` would do
+/// ([`DeckMerge::plan`]).
 pub fn plan<S: Store>(
     repo: &mut Repo<S>,
     stem: &str,
@@ -372,43 +215,11 @@ pub fn plan<S: Store>(
     settle: Option<&Settle>,
 ) -> Out<MergePlan> {
     let stem = stem_of(stem)?;
-    let Ok(mut w) = work(repo, &stem, from, into, settle)? else {
-        return Ok(MergePlan::Stopped {
-            message: stale(into, from),
-        });
-    };
-    let deck = deck_path(&stem);
-    let before = text(repo.read_file(&w.into, &deck).map_err(said)?);
-    let (into_hex, from_hex) = (w.into.to_hex(), w.from.to_hex());
-    Ok(match w.planned {
-        Planned::UpToDate => MergePlan::UpToDate,
-        Planned::Unrelated => MergePlan::Unrelated,
-        Planned::FastForward => MergePlan::FastForward {
-            into: into_hex,
-            from: from_hex,
-            before,
-            after: text(repo.read_file(&w.from, &deck).map_err(said)?),
-        },
-        Planned::Merge { tree, .. } => {
-            let after = text(repo.read_file_in(tree, &deck).map_err(said)?);
-            MergePlan::Merge {
-                into: into_hex,
-                from: from_hex,
-                message: message(&stem, from, before.as_deref(), after.as_deref()),
-                before,
-                after,
-            }
-        }
-        Planned::Conflicts(paths) => MergePlan::Conflict {
-            conflict: Conflict::of(&w.guard, paths, &mut w.stops),
-        },
-    })
+    deck_merge(repo, &stem, from, into)?.plan(repo, settle)
 }
 
 /// Merges the deck's branch `from` into its branch `into` as [`plan`] says,
-/// while the two are still at `into_tip` and `from_tip` and `settle` was
-/// made against this merge: a fast-forward, or a merge commit by `who` with
-/// `into`'s tip then `from`'s as parents.
+/// while the two are still at `into_tip` and `from_tip` ([`DeckMerge::merge`]).
 #[allow(clippy::too_many_arguments)]
 pub fn merge<S: Store>(
     repo: &mut Repo<S>,
@@ -421,57 +232,5 @@ pub fn merge<S: Store>(
     who: &Signature,
 ) -> Out<MergeDone> {
     let stem = stem_of(stem)?;
-    let w = match work(repo, &stem, from, into, settle)? {
-        Ok(w) if w.into.to_hex() == into_tip && w.from.to_hex() == from_tip => w,
-        _ => {
-            return Ok(MergeDone::Stopped {
-                message: stale(into, from),
-            })
-        }
-    };
-    let branch = branch_of(&stem, into)?;
-    let deck = deck_path(&stem);
-    let moved = |e: Error| match e {
-        Error::Conflict { .. } => Ok(MergeDone::Stopped {
-            message: format!("{branch} moved while it was being merged"),
-        }),
-        e => Err(said(e)),
-    };
-    match w.planned {
-        Planned::UpToDate => Ok(MergeDone::UpToDate),
-        Planned::Unrelated => Ok(MergeDone::Stopped {
-            message: format!("{from} and {into} share no history"),
-        }),
-        Planned::Conflicts(paths) => Ok(MergeDone::Stopped {
-            message: format!("{} do not merge without a side picked", paths.join(", ")),
-        }),
-        Planned::FastForward => match repo.update_branch(&branch, Tip::At(w.into), &w.from) {
-            Ok(()) => Ok(MergeDone::Merged {
-                commit: w.from.to_hex(),
-                message: None,
-            }),
-            Err(e) => moved(e),
-        },
-        Planned::Merge { tree, .. } => {
-            let before = text(repo.read_file(&w.into, &deck).map_err(said)?);
-            let after = text(repo.read_file_in(tree, &deck).map_err(said)?);
-            let said_ = message(&stem, from, before.as_deref(), after.as_deref());
-            let commit = repo
-                .write_commit_of(
-                    tree,
-                    &[w.into, w.from],
-                    who,
-                    who,
-                    &format!("{}\n", said_.trim_end()),
-                )
-                .map_err(said)?;
-            match repo.update_branch(&branch, Tip::At(w.into), &commit) {
-                Ok(()) => Ok(MergeDone::Merged {
-                    commit: commit.to_hex(),
-                    message: Some(said_),
-                }),
-                Err(e) => moved(e),
-            }
-        }
-    }
+    deck_merge(repo, &stem, from, into)?.merge(repo, into_tip, from_tip, settle, who)
 }

@@ -23,8 +23,8 @@ use std::path::Path;
 use std::process::Command;
 
 use meldweb_git::{
-    merge_lines, BranchName, Change, CommitId, FetchRequest, FsStore, Identity, PushRequest,
-    RemoteUrl, Repo, RepoPath, Signature, TagName, Timestamp, Tip, WriteCommit,
+    by_file, merge_lines, BranchName, Change, CommitId, FetchRequest, FsStore, Identity,
+    PushRequest, RemoteUrl, Repo, RepoPath, Signature, TagName, Timestamp, Tip, WriteCommit,
 };
 use meldweb_wasm::layout;
 
@@ -323,7 +323,7 @@ fn main() -> Result<(), Err> {
         &mut repo,
         &sig("Alex", 1_800_000_000, 0),
         None,
-        &mut |_, p, b, o, t| by_lines(p, b, o, t),
+        &mut by_file(|_, p, b, o, t| by_lines(p, b, o, t)),
     )?;
     println!("integrate: {outcomes:?}");
     println!("status before the push: {:?}", repo.remote_status()?);

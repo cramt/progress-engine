@@ -24,6 +24,7 @@ use std::collections::HashMap;
 pub mod blame;
 pub mod branches;
 pub mod copy;
+pub mod deck_merge;
 pub mod layout;
 pub mod merging;
 pub mod preference;
@@ -2222,8 +2223,8 @@ mod tests {
         g.add_type::<branches::DeckBranches>();
         g.add_type::<branches::BranchMade>();
         g.add_type::<branches::BranchDeleted>();
-        g.add_type::<branches::MergePlan>();
-        g.add_type::<branches::MergeDone>();
+        g.add_type::<deck_merge::MergePlan>();
+        g.add_type::<deck_merge::MergeDone>();
         g.add_type::<upstream::Fetched>();
         g.add_type::<upstream::TheirDecks>();
         g.add_type::<upstream::Forked>();

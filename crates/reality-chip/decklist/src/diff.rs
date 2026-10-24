@@ -175,7 +175,7 @@ pub(crate) fn pair<'c>(
 }
 
 /// The name a commit message gives a card: its own, or its printing's.
-pub(crate) fn label_of(c: &Card, name_of: &impl Fn(&Printing) -> Option<String>) -> String {
+pub fn label_of(c: &Card, name_of: &impl Fn(&Printing) -> Option<String>) -> String {
     match &c.card {
         CardRef::Name(n) => n.clone(),
         CardRef::Printing(p) => name_of(p).unwrap_or_else(|| p.to_string()),

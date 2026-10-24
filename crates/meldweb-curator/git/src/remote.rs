@@ -33,7 +33,7 @@ use gix_hash::ObjectId;
 use gix_object::bstr::ByteSlice;
 use gix_object::{CommitRef, Kind, TagRef, TreeRef};
 
-use crate::merge::{Side, TreeMerge};
+use crate::merge::{Side, Standing, TreeMerge};
 use crate::names::{BranchName, CommitId, Signature, TreeId};
 use crate::pack;
 use crate::pktline::{self, chomp, Line, Reader};
@@ -254,10 +254,77 @@ pub struct BranchMerge<'a> {
     pub theirs: CommitId,
 }
 
-/// Merges one file both sides of a branch's sync changed: [`crate::MergeFile`]
-/// told which branch's merge it is part of.
-pub type MergeBranchFile<'a> =
-    dyn FnMut(&BranchMerge<'_>, &str, &[u8], &[u8], &[u8]) -> Option<Vec<u8>> + 'a;
+/// How a sync merges a branch both sides moved: each file both changed, as
+/// [`crate::MergeFile`] told which branch's merge it is part of, and the
+/// merge commit's message. The caller knows what the files mean; this crate
+/// does not.
+pub trait MergeBranch<S: Store> {
+    /// The merged bytes of one file both sides changed, or `None` when they
+    /// do not merge.
+    fn merge_file(
+        &mut self,
+        at: &BranchMerge<'_>,
+        path: &str,
+        base: &[u8],
+        ours: &[u8],
+        theirs: &[u8],
+    ) -> Option<Vec<u8>>;
+
+    /// The message of the merge commit holding `tree`, `taken` the paths
+    /// that took the remote's changes: by default
+    /// `sync: merge origin/<branch>` and each of them.
+    fn message(
+        &mut self,
+        repo: &Repo<S>,
+        at: &BranchMerge<'_>,
+        tree: TreeId,
+        taken: &[String],
+    ) -> Result<String> {
+        let _ = (repo, tree);
+        Ok(sync_message(at.branch, taken))
+    }
+}
+
+/// `sync: merge origin/<branch>`, and each path `taken` below it.
+pub fn sync_message(branch: &BranchName, taken: &[String]) -> String {
+    let mut message = format!("sync: merge {ORIGIN}/{branch}\n");
+    if !taken.is_empty() {
+        message.push('\n');
+        for path in taken {
+            message.push_str(path);
+            message.push('\n');
+        }
+    }
+    message
+}
+
+/// A sync's merge given only by how a file merges, with the default
+/// message: [`by_file`]'s.
+pub struct ByFile<F>(F);
+
+/// A sync's merge of each file by `merge`, with the default message.
+pub fn by_file<F>(merge: F) -> ByFile<F>
+where
+    F: FnMut(&BranchMerge<'_>, &str, &[u8], &[u8], &[u8]) -> Option<Vec<u8>>,
+{
+    ByFile(merge)
+}
+
+impl<S: Store, F> MergeBranch<S> for ByFile<F>
+where
+    F: FnMut(&BranchMerge<'_>, &str, &[u8], &[u8], &[u8]) -> Option<Vec<u8>>,
+{
+    fn merge_file(
+        &mut self,
+        at: &BranchMerge<'_>,
+        path: &str,
+        base: &[u8],
+        ours: &[u8],
+        theirs: &[u8],
+    ) -> Option<Vec<u8>> {
+        (self.0)(at, path, base, ours, theirs)
+    }
+}
 
 /// What is waiting to go to the remote.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -825,10 +892,10 @@ impl<S: Store> Repo<S> {
         &mut self,
         who: &Signature,
         prefer: Option<Side>,
-        merge_file: &mut MergeBranchFile<'_>,
+        merge: &mut dyn MergeBranch<S>,
     ) -> Result<Vec<(BranchName, Integrated)>> {
         let theirs = self.integration_targets()?;
-        self.integrate_onto(&theirs, who, prefer, merge_file)
+        self.integrate_onto(&theirs, who, prefer, merge)
     }
 
     /// The tracked branches, each as the commit to bring into the branch
@@ -867,7 +934,7 @@ impl<S: Store> Repo<S> {
         theirs: &BTreeMap<BranchName, CommitId>,
         who: &Signature,
         prefer: Option<Side>,
-        merge_file: &mut MergeBranchFile<'_>,
+        merge: &mut dyn MergeBranch<S>,
     ) -> Result<Vec<(BranchName, Integrated)>> {
         let main = main_branch();
         let mut out = Vec::new();
@@ -875,7 +942,7 @@ impl<S: Store> Repo<S> {
             out.push((main.clone(), Integrated::RemoteEmpty));
         }
         for (branch, remote) in theirs {
-            let outcome = self.integrate_branch(branch, *remote, who, prefer, merge_file)?;
+            let outcome = self.integrate_branch(branch, *remote, who, prefer, merge)?;
             out.push((branch.clone(), outcome));
         }
         Ok(out)
@@ -887,84 +954,52 @@ impl<S: Store> Repo<S> {
         remote: CommitId,
         who: &Signature,
         prefer: Option<Side>,
-        merge_file: &mut MergeBranchFile<'_>,
+        merge: &mut dyn MergeBranch<S>,
     ) -> Result<Integrated> {
         let is_main = *branch == main_branch();
-        let local = self.branch_tip(branch)?;
-        Ok(match local {
-            Some(l) if l == remote => Integrated::UpToDate,
-            Some(l) if self.is_ancestor(&remote, &l)? => Integrated::Ahead,
-            Some(l) if self.is_ancestor(&l, &remote)? => {
+        let Some(l) = self.branch_tip(branch)? else {
+            if is_main && !self.is_fresh()? {
+                unreachable!("an unborn main is fresh");
+            }
+            self.update_branch(branch, crate::Tip::Unborn, &remote)?;
+            return Ok(Integrated::Adopted { to: remote });
+        };
+        Ok(match self.standing(&l, &remote)? {
+            Standing::UpToDate if l == remote => Integrated::UpToDate,
+            Standing::UpToDate => Integrated::Ahead,
+            Standing::FastForward => {
                 self.update_branch(branch, crate::Tip::At(l), &remote)?;
                 Integrated::FastForwarded { to: remote }
             }
-            None if !is_main => {
-                self.update_branch(branch, crate::Tip::Unborn, &remote)?;
-                Integrated::Adopted { to: remote }
-            }
             _ if is_main && self.is_fresh()? => {
-                let tip = local.map_or(crate::Tip::Unborn, crate::Tip::At);
-                self.update_branch(branch, tip, &remote)?;
+                self.update_branch(branch, crate::Tip::At(l), &remote)?;
                 Integrated::Adopted { to: remote }
             }
-            None => unreachable!("an unborn main is fresh"),
-            Some(l) => {
-                let bases = self.merge_base(&l, &remote)?;
-                let Some(base) = bases.first() else {
-                    return Ok(Integrated::Unrelated);
-                };
+            Standing::Unrelated => Integrated::Unrelated,
+            Standing::Diverged { base } => {
                 let at = BranchMerge {
                     branch,
                     ours: l,
                     theirs: remote,
                 };
                 let mut file =
-                    |path: &str, b: &[u8], o: &[u8], t: &[u8]| merge_file(&at, path, b, o, t);
-                match self.merge_trees(Some(base), &l, &remote, prefer, &mut file)? {
+                    |path: &str, b: &[u8], o: &[u8], t: &[u8]| merge.merge_file(&at, path, b, o, t);
+                match self.merge_trees(Some(&base), &l, &remote, prefer, &mut file)? {
                     TreeMerge::Conflicts(paths) => Integrated::Conflict {
                         paths,
                         ours: l,
                         theirs: remote,
                     },
                     TreeMerge::Clean { tree, taken } => {
-                        let commit = self.write_merge(branch, &l, &remote, tree, &taken, who)?;
+                        let message = merge.message(self, &at, tree, &taken)?;
+                        let commit =
+                            self.write_commit_of(tree, &[l, remote], who, who, &message)?;
                         self.update_branch(branch, crate::Tip::At(l), &commit)?;
                         Integrated::Merged { commit, taken }
                     }
                 }
             }
         })
-    }
-
-    fn write_merge(
-        &mut self,
-        branch: &BranchName,
-        ours: &CommitId,
-        theirs: &CommitId,
-        tree: TreeId,
-        taken: &[String],
-        who: &Signature,
-    ) -> Result<CommitId> {
-        let mut message = format!("sync: merge {ORIGIN}/{branch}\n");
-        if !taken.is_empty() {
-            message.push('\n');
-            for path in taken {
-                message.push_str(path);
-                message.push('\n');
-            }
-        }
-        let object = gix_object::Commit {
-            tree: tree.0,
-            parents: vec![ours.0, theirs.0].into(),
-            author: who.to_gix(),
-            committer: who.to_gix(),
-            encoding: None,
-            message: message.as_str().into(),
-            extra_headers: Vec::new(),
-        };
-        let mut data = Vec::new();
-        gix_object::WriteTo::write_to(&object, &mut data).map_err(remote_err)?;
-        self.write_object(Kind::Commit, &data).map(CommitId)
     }
 
     /// Replaces this repo's branches and tags with the remote's tracked

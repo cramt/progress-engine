@@ -266,10 +266,6 @@ enum LineEdit {
     Finish(crate::deck::Finish),
 }
 
-fn same(a: &Card, b: &Card) -> bool {
-    a.qty == b.qty && a.categories == b.categories && a.card == b.card && a.finish == b.finish
-}
-
 /// Clashes as they are found, each settled by `pick` of its index or left
 /// open.
 struct Clashes<P> {
@@ -430,7 +426,7 @@ pub fn merge(
             }
             (Some(&j), None) => {
                 let kept = &o.cards[j];
-                if same(was, kept)
+                if was.same_as(kept)
                     || clashes.theirs(Clash::Card {
                         card: label(was),
                         clash: CardClash::Removed {
@@ -444,7 +440,7 @@ pub fn merge(
             }
             (None, Some(&k)) => {
                 let kept = &t.cards[k];
-                if !same(was, kept)
+                if !was.same_as(kept)
                     && clashes.theirs(Clash::Card {
                         card: label(was),
                         clash: CardClash::Removed {

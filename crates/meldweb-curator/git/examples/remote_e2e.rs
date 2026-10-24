@@ -17,8 +17,8 @@ use std::path::Path;
 use std::process::Command;
 
 use meldweb_git::{
-    merge_lines, BranchName, Change, FetchRequest, FsStore, Identity, PushRequest, RemoteUrl, Repo,
-    RepoPath, Signature, TagName, Timestamp, Tip, WriteCommit,
+    by_file, merge_lines, BranchName, Change, FetchRequest, FsStore, Identity, PushRequest,
+    RemoteUrl, Repo, RepoPath, Signature, TagName, Timestamp, Tip, WriteCommit,
 };
 
 type Err = Box<dyn std::error::Error>;
@@ -85,7 +85,11 @@ fn fetch(repo: &mut Repo<FsStore>, host: &Host) -> Result<(), Err> {
             repo.fetch_finish(&ad, Some(&response))?;
         }
     }
-    let outcome = repo.integrate(&sig(), None, &mut |_, p, b, o, t| by_lines(p, b, o, t))?;
+    let outcome = repo.integrate(
+        &sig(),
+        None,
+        &mut by_file(|_, p, b, o, t| by_lines(p, b, o, t)),
+    )?;
     println!("integrate: {outcome:?}");
     Ok(())
 }

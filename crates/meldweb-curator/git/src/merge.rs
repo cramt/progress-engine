@@ -165,18 +165,18 @@ pub enum TreeMerge {
     Conflicts(Vec<String>),
 }
 
-/// What merging one commit into a branch would do; see [`Repo::plan_merge`].
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Planned {
-    /// The branch already holds every commit of the other.
+/// How the commit `from` stands to a branch at `into`, before any tree is
+/// merged: the one decision every merge makes first, a sync's, a branch
+/// merge's and a take's; see [`Repo::standing`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Standing {
+    /// `into` already holds every commit of `from`, or is `from`.
     UpToDate,
-    /// The branch can move to the other commit as it is.
+    /// `into` is an ancestor of `from`: the branch can move to it as it is.
     FastForward,
-    /// A merge commit of this tree; `taken` are the paths that took the
-    /// other side's changes.
-    Merge { tree: TreeId, taken: Vec<String> },
-    /// Paths both sides changed in a way that does not merge.
-    Conflicts(Vec<String>),
+    /// Both have commits the other lacks; a three-way merge starts from
+    /// `base`, [`Repo::merge_base`]'s.
+    Diverged { base: CommitId },
     /// No common ancestor.
     Unrelated,
 }
@@ -303,35 +303,23 @@ impl<S: Store> Repo<S> {
         Ok(of_a.difference(&of_b).count())
     }
 
-    /// What merging the commit `from` into a branch at `into` comes to, with
-    /// no ref moved: nothing when `into` already holds `from`, a
-    /// fast-forward when `into` is an ancestor of `from` (the branch merged
-    /// into has not moved since), and otherwise [`Repo::merge_trees`] from
-    /// the merge base, whose tree a merge commit with the parents `into`
-    /// then `from` would hold. Unrelated histories do not merge.
-    pub fn plan_merge(
-        &mut self,
-        into: &CommitId,
-        from: &CommitId,
-        prefer: Option<Side>,
-        merge_file: &mut MergeFile<'_>,
-    ) -> Result<Planned> {
+    /// How `from` stands to a branch at `into`: nothing to merge when
+    /// `into` already holds it, a fast-forward when `into` is its ancestor
+    /// (the branch merged into has not moved since), and otherwise diverged
+    /// from their [`Repo::merge_base`], or unrelated. Whether a fast-forward
+    /// is taken, and what a branch only one side has comes to, is the
+    /// caller's.
+    pub fn standing(&self, into: &CommitId, from: &CommitId) -> Result<Standing> {
         if self.is_ancestor(from, into)? {
-            return Ok(Planned::UpToDate);
+            return Ok(Standing::UpToDate);
         }
         if self.is_ancestor(into, from)? {
-            return Ok(Planned::FastForward);
+            return Ok(Standing::FastForward);
         }
-        let bases = self.merge_base(into, from)?;
-        let Some(base) = bases.first() else {
-            return Ok(Planned::Unrelated);
-        };
-        Ok(
-            match self.merge_trees(Some(base), into, from, prefer, merge_file)? {
-                TreeMerge::Conflicts(paths) => Planned::Conflicts(paths),
-                TreeMerge::Clean { tree, taken } => Planned::Merge { tree, taken },
-            },
-        )
+        Ok(match self.merge_base(into, from)? {
+            Some(base) => Standing::Diverged { base },
+            None => Standing::Unrelated,
+        })
     }
 
     /// A tree of exactly these files, by path.

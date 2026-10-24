@@ -227,10 +227,10 @@ export type MergeDone =
   | { kind: "stopped"; message: string };
 
 /**
- * What merging one of a deck's branches into another would do. `into` and
- * `from` are the two tips it was worked out from, which the merge itself
- * is guarded by; `before` and `after` are the deck's file on the branch
- * merged into, now and once merged, absent where the branch holds none.
+ * What a deck merge would do. `into` and `from` are the two tips it was
+ * worked out from, which the merge itself is guarded by; `before` and
+ * `after` are the deck's file on the branch merged into, now and once
+ * merged, absent where the branch holds none.
  */
 export type MergePlan =
   | { kind: "upToDate" }

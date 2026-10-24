@@ -33,15 +33,15 @@
 //! any parent that still holds it, changed or not.
 
 use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{BinaryHeap, HashMap};
 use std::rc::Rc;
 
-use chip_decklist::deck::{Card, CardRef, Deck, Printing};
-use chip_decklist::diff::{pair_lines, Change, Diff};
+use chip_decklist::deck::{CardRef, Deck, Printing};
+use chip_decklist::diff::{label_of, pair_lines, Change, Diff};
 use chip_decklist::stem::DeckStem;
 use chip_decklist::versions::Versions;
 use facet::Facet;
-use meldweb_git::{BlobId, CommitId, CommitInfo, EntryKind, Error, Repo, RepoPath, Store};
+use meldweb_git::{BlobId, CommitId, CommitInfo, EntryKind, Error, Parents, Repo, RepoPath, Store};
 
 type Out<T> = Result<T, String>;
 
@@ -182,10 +182,6 @@ struct Suspect {
     line: usize,
 }
 
-fn same(a: &Card, b: &Card) -> bool {
-    a.qty == b.qty && a.categories == b.categories && a.card == b.card && a.finish == b.finish
-}
-
 fn said(e: Error) -> String {
     e.to_string()
 }
@@ -197,6 +193,8 @@ struct Walk<'r, S: Store> {
     versions: HashMap<CommitId, Option<Version>>,
     revs: HashMap<BlobId, Option<Rc<Rev>>>,
     links: HashMap<(BlobId, BlobId), Rc<Links>>,
+    /// Parents read for merge bases, shared by every merge walked through.
+    parents: Parents,
     memo: &'r Memo,
     /// Per card: the last change, with what it did, and where it came in.
     last: Vec<Option<(Found, Vec<String>)>>,
@@ -289,7 +287,7 @@ impl<'r, S: Store> Walk<'r, S> {
             }
             pair_lines(before, after, names)
                 .into_iter()
-                .map(|(b, a)| (a, (b, same(&before.cards[b], &after.cards[a]))))
+                .map(|(b, a)| (a, (b, before.cards[b].same_as(&after.cards[a]))))
                 .collect()
         };
         match (parent.blob, child.blob) {
@@ -308,15 +306,7 @@ impl<'r, S: Store> Walk<'r, S> {
 fn changes_of(parent: Option<&Version>, child: &Version, line: usize) -> Vec<String> {
     let card = &child.rev.deck.cards[line];
     let Some(parent) = parent else {
-        let label = match &card.card {
-            CardRef::Name(n) => n.clone(),
-            CardRef::Printing(p) => child
-                .rev
-                .names
-                .get(p)
-                .cloned()
-                .unwrap_or_else(|| p.to_string()),
-        };
+        let label = label_of(card, &|p: &Printing| child.rev.names.get(p).cloned());
         return vec![format!("+{} {label}", card.qty)];
     };
     let names = |p: &Printing| {
@@ -413,7 +403,13 @@ impl<'r, S: Store> Walk<'r, S> {
         let [(a, Some(_)), (b, Some(_))] = parents else {
             return Ok(None);
         };
-        let Some(m) = self.merge_base(*a, *b)? else {
+        // The base the merge itself started from, so a side blame says the
+        // merge dropped is one the merge saw change.
+        let Some(m) = self
+            .repo
+            .merge_base_in(&mut self.parents, a, b)
+            .map_err(said)?
+        else {
             return Ok(None);
         };
         let Some(base) = self.version(&m, &child.path)? else {
@@ -427,35 +423,6 @@ impl<'r, S: Store> Walk<'r, S> {
             version: base,
             links,
         }))
-    }
-
-    /// The newest commit both `a` and `b` descend from, by committer time:
-    /// a merge base, as `git merge-base` finds one, through the commits this
-    /// walk has mostly read already.
-    fn merge_base(&mut self, a: CommitId, b: CommitId) -> Out<Option<CommitId>> {
-        let mut of_a = HashSet::new();
-        let mut stack = vec![a];
-        while let Some(c) = stack.pop() {
-            if of_a.insert(c) {
-                stack.extend(self.commit(&c)?.parents.iter().copied());
-            }
-        }
-        let mut seen = HashSet::new();
-        let mut queue = BinaryHeap::new();
-        queue.push((self.commit(&b)?.committer.when.seconds(), b));
-        while let Some((_, c)) = queue.pop() {
-            if of_a.contains(&c) {
-                return Ok(Some(c));
-            }
-            if !seen.insert(c) {
-                continue;
-            }
-            for p in self.commit(&c)?.parents.clone() {
-                let when = self.commit(&p)?.committer.when.seconds();
-                queue.push((when, p));
-            }
-        }
-        Ok(None)
     }
 
     fn facts(&mut self, id: &CommitId) -> Out<BlameCommit> {
@@ -495,8 +462,8 @@ fn dropped_a_side(
             .as_ref()
             .and_then(|l| l.get(&k))
             .map(|&(b, _)| &base.rev.deck.cards[b]);
-        let side_changed = !was.is_some_and(|was| same(was, theirs));
-        side_changed && !same(theirs, now)
+        let side_changed = !was.is_some_and(|was| was.same_as(theirs));
+        side_changed && !theirs.same_as(now)
     })
 }
 
@@ -566,7 +533,7 @@ pub fn blame<S: Store>(
                         changes: changes_of(Some(&version), &top, i),
                         blame: Blame::AddedUnsaved,
                     },
-                    Some(&k) if same(&version.rev.deck.cards[k], &top.rev.deck.cards[i]) => {
+                    Some(&k) if version.rev.deck.cards[k].same_as(&top.rev.deck.cards[i]) => {
                         settled_card(i, &settled[k])
                     }
                     Some(&k) => CardBlame {
@@ -644,6 +611,7 @@ fn blame_commit<S: Store>(
         versions: HashMap::new(),
         revs: HashMap::new(),
         links: HashMap::new(),
+        parents: Parents::default(),
         last: vec![],
         added: vec![],
     };

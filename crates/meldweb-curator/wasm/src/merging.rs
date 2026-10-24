@@ -20,8 +20,14 @@ use std::collections::BTreeMap;
 
 pub use chip_decklist::merge::Side;
 use chip_decklist::merge::{self as by_card, Merged};
+use chip_decklist::stem::DeckStem;
 use facet::Facet;
-use meldweb_git::{merge_lines_with, BranchName, CommitId};
+use meldweb_git::{
+    merge_lines_with, sync_message, BranchMerge, BranchName, CommitId, MergeBranch, Repo, Store,
+    TreeId, ORIGIN,
+};
+
+use crate::deck_merge;
 
 /// `side` as `meldweb-git` merges lines and trees.
 pub fn git_side(side: Side) -> meldweb_git::Side {
@@ -260,6 +266,62 @@ impl SyncSettle {
 /// Why each file of one merge did not merge, by its path.
 #[derive(Debug, Default)]
 pub struct Stops(BTreeMap<String, FileConflict>);
+
+/// How a sync merges each branch both sides moved: each file as
+/// [`merge_bytes`] merges its kind, settled by the settle made against that
+/// branch's tips, and a deck's line's merge commit saying what it did to
+/// the deck, as a deck merge's does (`lantern: merge origin/main: +1 Sol
+/// Ring`); any other branch's says `sync: merge origin/<branch>`.
+pub struct SyncMerging<'a> {
+    pub settle: &'a SyncSettle,
+    /// Why each file did not merge, by branch.
+    pub stops: BTreeMap<String, Stops>,
+}
+
+impl<S: Store> MergeBranch<S> for SyncMerging<'_> {
+    fn merge_file(
+        &mut self,
+        at: &BranchMerge<'_>,
+        path: &str,
+        base: &[u8],
+        ours: &[u8],
+        theirs: &[u8],
+    ) -> Option<Vec<u8>> {
+        let settling = self
+            .settle
+            .settling(&Guard::tips(at.branch, at.ours, at.theirs));
+        let stops = self.stops.entry(at.branch.as_str().to_owned()).or_default();
+        merge_bytes(path, base, ours, theirs, &settling, stops)
+    }
+
+    fn message(
+        &mut self,
+        repo: &Repo<S>,
+        at: &BranchMerge<'_>,
+        tree: TreeId,
+        taken: &[String],
+    ) -> meldweb_git::Result<String> {
+        let line = at
+            .branch
+            .as_str()
+            .strip_prefix("decks/")
+            .and_then(|rest| rest.split_once('/'))
+            .and_then(|(stem, name)| Some((DeckStem::new(stem).ok()?, name)));
+        let Some((stem, name)) = line else {
+            return Ok(sync_message(at.branch, taken));
+        };
+        let deck = deck_merge::deck_path(&stem);
+        let before = deck_merge::text(repo.read_file(&at.ours, &deck)?);
+        let after = deck_merge::text(repo.read_file_in(tree, &deck)?);
+        let said = deck_merge::message(
+            &stem,
+            &format!("{ORIGIN}/{name}"),
+            before.as_deref(),
+            after.as_deref(),
+        );
+        Ok(format!("{}\n", said.trim_end()))
+    }
+}
 
 /// Whether `path` is a deck's file: `<stem>.deck.toml` at the root of its
 /// own line (ADR-0041).

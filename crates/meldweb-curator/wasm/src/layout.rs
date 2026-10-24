@@ -30,8 +30,8 @@ use chip_decklist::collection;
 use chip_decklist::edit;
 use chip_decklist::stem::DeckStem;
 use meldweb_git::{
-    BlobId, BranchName, Change, CommitId, EntryKind, Error, Identity, Integrated, MergeBranchFile,
-    Repo, RepoPath, Side, Signature, Store, TagKind, Timestamp, Tip, WriteCommit,
+    BlobId, BranchName, Change, CommitId, EntryKind, Error, Identity, Integrated, MergeBranch,
+    Repo, RepoPath, Side, Signature, Standing, Store, TagKind, Timestamp, Tip, WriteCommit,
 };
 
 /// The repo version this layout is.
@@ -591,15 +591,17 @@ pub fn migrate<S: Store>(repo: &mut Repo<S>) -> Out<Migrated> {
             Some(existing) => {
                 // A branch the remote made (fetched before this migrated):
                 // take whichever line holds the other.
-                let bases = repo.merge_base(&existing, line_tip).map_err(said)?;
-                if bases == [existing] {
-                    repo.update_branch(&branch, Tip::At(existing), line_tip)
-                        .map_err(said)?;
-                } else if bases != [*line_tip] {
-                    return Err(format!(
-                        "{branch} is here already with history this migration did not make; \
-                         nothing was changed"
-                    ));
+                match repo.standing(&existing, line_tip).map_err(said)? {
+                    Standing::UpToDate => {}
+                    Standing::FastForward => repo
+                        .update_branch(&branch, Tip::At(existing), line_tip)
+                        .map_err(said)?,
+                    Standing::Diverged { .. } | Standing::Unrelated => {
+                        return Err(format!(
+                            "{branch} is here already with history this migration did not make; \
+                             nothing was changed"
+                        ))
+                    }
                 }
             }
         }
@@ -625,7 +627,7 @@ pub fn integrate<S: Store>(
     repo: &mut Repo<S>,
     who: &Signature,
     prefer: Option<Side>,
-    merge_file: &mut MergeBranchFile<'_>,
+    merge: &mut dyn MergeBranch<S>,
 ) -> Out<Vec<(BranchName, Integrated)>> {
     let mut theirs = repo.integration_targets().map_err(said)?;
     let main = branch_name("main");
@@ -642,7 +644,7 @@ pub fn integrate<S: Store>(
             move_snapshots(repo, &rewritten)?;
         }
     }
-    repo.integrate_onto(&theirs, who, prefer, merge_file)
+    repo.integrate_onto(&theirs, who, prefer, merge)
         .map_err(said)
 }
 

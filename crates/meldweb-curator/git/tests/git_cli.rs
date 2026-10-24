@@ -291,13 +291,13 @@ fn git_accepts_and_reads_what_the_crate_writes() {
         &["merge-base", "--all", &c4.to_hex(), &f1.to_hex()],
     );
     assert_eq!(lines(base), [f1.to_hex()]);
-    assert_eq!(repo.merge_base(&c4, &f1).unwrap(), [f1]);
+    assert_eq!(repo.merge_bases(&c4, &f1).unwrap(), [f1]);
     let base = git(
         &gitdir,
         &["merge-base", "--all", &c2.to_hex(), &f1.to_hex()],
     );
     assert_eq!(lines(base), [c1.to_hex()]);
-    assert_eq!(repo.merge_base(&c2, &f1).unwrap(), [c1]);
+    assert_eq!(repo.merge_bases(&c2, &f1).unwrap(), [c1]);
 
     let show = git(&gitdir, &["cat-file", "-p", "snapshot/v2"]);
     eprintln!("git cat-file -p snapshot/v2:\n{show}");
@@ -344,7 +344,7 @@ fn criss_cross_merge_bases_match_git_merge_base_all() {
     eprintln!("git merge-base --all x2 y2: {from_git:?}");
     assert_eq!(from_git.len(), 2);
     assert_eq!(
-        repo.merge_base(&x2, &y2)
+        repo.merge_bases(&x2, &y2)
             .unwrap()
             .iter()
             .map(CommitId::to_hex)
@@ -517,7 +517,7 @@ fn the_crate_reads_and_extends_what_git_writes() {
     );
     let base = git(work, &["merge-base", "--all", "main~2", "side"]);
     let ours = repo
-        .merge_base(&repo.read_commit(&merge).unwrap().parents[0], &side)
+        .merge_bases(&repo.read_commit(&merge).unwrap().parents[0], &side)
         .unwrap();
     assert_eq!(
         ours.iter().map(CommitId::to_hex).collect::<Vec<_>>(),

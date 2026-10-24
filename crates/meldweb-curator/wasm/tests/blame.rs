@@ -546,3 +546,105 @@ fn a_remembered_blame_answers_as_digging_again_does() {
         took.as_secs_f64() * 1000.0
     );
 }
+
+/// After a criss-cross (main and the branch each merged the other's same
+/// two saves, settling the clash between them each its own way) the next
+/// merge has two merge bases, and which it starts from decides what it
+/// makes: from main's save it takes the branch's quantity, from the
+/// branch's it keeps main's. The merge and blame start from the same one,
+/// the newest, so blame says what the merge did rather than blaming the
+/// merge for dropping a side it never saw.
+#[test]
+fn after_a_criss_cross_the_merge_and_blame_start_from_the_same_merge_base() {
+    let sol = |q: u32| format!(r#"{{ name = "Sol Ring", qty = {q}, in = ["Ramp"] }}"#);
+    let island = r#"{ name = "Island", qty = 10, in = ["Land"] }"#;
+    let with = |q: u32| deck(&[sol(q).as_str(), island]);
+    // The old code took the merge base with the lowest id, so the fixture
+    // is made until main's save, the older base, has the lower id: there it
+    // and the newest base disagree.
+    for salt in 0.. {
+        let dir = tempfile::tempdir().unwrap();
+        let mut repo = Repo::init(FsStore::new(dir.path())).unwrap();
+        let made = save(
+            &mut repo,
+            "lantern",
+            "main",
+            &with(1),
+            "lantern: made",
+            "Alex",
+            T0,
+        );
+        branches::create(&mut repo, "lantern", "budget", &hex(made)).unwrap();
+        let on_main = save(
+            &mut repo,
+            "lantern",
+            "main",
+            &with(2),
+            &format!("lantern: Sol Ring: 1 → 2 ({salt})"),
+            "Alex",
+            T0 + DAY,
+        );
+        let on_branch = save(
+            &mut repo,
+            "lantern",
+            "budget",
+            &with(3),
+            "lantern: Sol Ring: 1 → 3",
+            "Bo",
+            T0 + 2 * DAY,
+        );
+        if on_main > on_branch {
+            continue;
+        }
+        // main merges the branch keeping its 2; the branch merges main's
+        // same save keeping its 3.
+        branches::create(&mut repo, "lantern", "was-main", &hex(on_main)).unwrap();
+        let main_merged =
+            plan_and_merge(&mut repo, "budget", "main", Some(Side::Ours), T0 + 3 * DAY);
+        let branch_merged = plan_and_merge(
+            &mut repo,
+            "was-main",
+            "budget",
+            Some(Side::Ours),
+            T0 + 4 * DAY,
+        );
+        if have_git() {
+            let mut bases: Vec<String> = git(
+                dir.path(),
+                &[
+                    "merge-base",
+                    "--all",
+                    &hex(main_merged),
+                    &hex(branch_merged),
+                ],
+            )
+            .lines()
+            .map(str::to_owned)
+            .collect();
+            bases.sort();
+            let mut want = vec![hex(on_main), hex(on_branch)];
+            want.sort();
+            assert_eq!(bases, want, "git sees two merge bases");
+        }
+
+        let plan = branches::plan(&mut repo, "lantern", "budget", "main", None).unwrap();
+        let MergePlan::Merge { after, .. } = &plan else {
+            panic!("not a clean merge: {plan:?}");
+        };
+        // From the branch's save, the newest base, main changed Sol Ring to 2
+        // and the branch did not.
+        assert_eq!(
+            after.as_deref(),
+            Some(with(2).as_str()),
+            "the merge keeps main's 2"
+        );
+        let merged = plan_and_merge(&mut repo, "budget", "main", None, T0 + 5 * DAY);
+        let cards = blamed(&repo, "lantern", merged, None);
+        assert_eq!(
+            commits_of(&cards[0]),
+            (hex(made), hex(main_merged)),
+            "Sol Ring is main's merge's, which kept the 2, not this merge's"
+        );
+        return;
+    }
+}

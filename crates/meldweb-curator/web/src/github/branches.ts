@@ -77,17 +77,3 @@ export function planSummary(plan: MergePlan, ask: MergeAsk): string {
       return plan.message;
   }
 }
-
-/** Plans then merges in one go, as a caller that has already shown the plan does. */
-export async function mergeAsPlanned(
-  repo: Repo,
-  stem: string,
-  ask: MergeAsk,
-  plan: MergePlan,
-): Promise<MergeDone> {
-  if (plan.kind !== "fastForward" && plan.kind !== "merge") {
-    if (plan.kind === "upToDate") return { kind: "upToDate" };
-    return { kind: "stopped", message: planSummary(plan, ask) };
-  }
-  return repo.merge(stem, { ...ask, intoTip: plan.into, fromTip: plan.from });
-}

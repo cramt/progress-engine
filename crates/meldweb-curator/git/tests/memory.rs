@@ -343,19 +343,19 @@ fn merge_base_walks_every_parent() {
     let f1 = repo
         .commit(&fork, Tip::At(base), &edit(vec![put("g", "1")], "f1", 2))
         .unwrap();
-    assert_eq!(repo.merge_base(&m1, &f1).unwrap(), vec![base]);
-    assert_eq!(repo.merge_base(&m1, &base).unwrap(), vec![base]);
+    assert_eq!(repo.merge_bases(&m1, &f1).unwrap(), vec![base]);
+    assert_eq!(repo.merge_bases(&m1, &base).unwrap(), vec![base]);
 
     let merge = repo
         .commit_merge(&main, &m1, &f1, &edit(vec![put("g", "1")], "merge fork", 3))
         .unwrap();
     assert_eq!(repo.read_commit(&merge).unwrap().parents, vec![m1, f1]);
     assert_eq!(repo.read_file(&merge, &path("m")).unwrap().unwrap(), b"1");
-    assert_eq!(repo.merge_base(&merge, &f1).unwrap(), vec![f1]);
+    assert_eq!(repo.merge_bases(&merge, &f1).unwrap(), vec![f1]);
     let f2 = repo
         .commit(&fork, Tip::At(f1), &edit(vec![put("g", "2")], "f2", 4))
         .unwrap();
-    assert_eq!(repo.merge_base(&merge, &f2).unwrap(), vec![f1]);
+    assert_eq!(repo.merge_bases(&merge, &f2).unwrap(), vec![f1]);
 
     // Criss-cross: each side merges the other, so both are best.
     let x = repo
@@ -366,7 +366,10 @@ fn merge_base_walks_every_parent() {
         .unwrap();
     let mut both = vec![merge, f2];
     both.sort();
-    assert_eq!(repo.merge_base(&x, &y).unwrap(), both);
+    assert_eq!(repo.merge_bases(&x, &y).unwrap(), both);
+    // The one a merge starts from is the newest: f2, committed after merge.
+    assert_eq!(repo.merge_base(&x, &y).unwrap(), Some(f2));
+    assert_eq!(repo.merge_base(&y, &x).unwrap(), Some(f2));
 
     let mut other = Repo::init(MemStore::new()).unwrap();
     let lone = other
@@ -379,7 +382,8 @@ fn merge_base_walks_every_parent() {
         unrelated, lone,
         "the same content and signatures are the same commit in any repo"
     );
-    assert!(repo.merge_base(&x, &unrelated).unwrap().is_empty());
+    assert!(repo.merge_bases(&x, &unrelated).unwrap().is_empty());
+    assert_eq!(repo.merge_base(&x, &unrelated).unwrap(), None);
 }
 
 #[test]

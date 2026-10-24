@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use meldweb_git::{
-    merge_lines, BranchName, Change, FetchRequest, FsStore, Identity, Integrated, PushRequest,
-    RemoteUrl, Repo, RepoPath, Side, Signature, TagName, Timestamp, Tip, WriteCommit,
+    by_file, merge_lines, BranchName, Change, FetchRequest, FsStore, Identity, Integrated,
+    PushRequest, RemoteUrl, Repo, RepoPath, Side, Signature, TagName, Timestamp, Tip, WriteCommit,
 };
 
 fn have_git() -> bool {
@@ -189,8 +189,12 @@ fn integrate_all(
     prefer: Option<Side>,
     at: i64,
 ) -> Vec<(BranchName, Integrated)> {
-    repo.integrate(&sig(at), prefer, &mut |_, p, b, o, t| by_lines(p, b, o, t))
-        .unwrap()
+    repo.integrate(
+        &sig(at),
+        prefer,
+        &mut by_file(|_, p, b, o, t| by_lines(p, b, o, t)),
+    )
+    .unwrap()
 }
 
 fn branch(name: &str) -> BranchName {

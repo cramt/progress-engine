@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { settleOf } from "../deck/ClashPicks";
 import { ConflictError } from "../repo/api";
 import { memoryRepo } from "../repo/memory";
-import { MAIN, makeBranch, mergeAsPlanned, planSummary } from "./branches";
+import { MAIN, makeBranch, planSummary } from "./branches";
 import { deckFile } from "./decks";
 import { head, revisions, takeSnapshot } from "./history";
 import { commitEdit } from "./repoFile";
@@ -96,7 +96,11 @@ describe("a deck's branches", () => {
     const both = swap(budget, "Island", "Snow-Covered Island");
     expect(plan.after).toBe(deck(both));
 
-    const done = await mergeAsPlanned(repo, STEM, ask, plan);
+    const done = await repo.merge(STEM, {
+      ...ask,
+      intoTip: plan.into,
+      fromTip: plan.from,
+    });
     expect(done.kind).toBe("merged");
     expect(await text(MAIN)).toBe(deck(both));
     const [top] = await revisions(repo, STEM);
@@ -109,10 +113,14 @@ describe("a deck's branches", () => {
     // Updating the branch from main is now a fast-forward.
     const update = { from: MAIN, into: "budget-test" };
     const forward = await repo.planMerge(STEM, update);
-    expect(forward.kind).toBe("fastForward");
-    expect(await mergeAsPlanned(repo, STEM, update, forward)).toMatchObject({
-      kind: "merged",
-    });
+    if (forward.kind !== "fastForward") throw new Error(forward.kind);
+    expect(
+      await repo.merge(STEM, {
+        ...update,
+        intoTip: forward.into,
+        fromTip: forward.from,
+      }),
+    ).toMatchObject({ kind: "merged" });
     expect(await text("budget-test")).toBe(deck(both));
   });
 
@@ -123,8 +131,8 @@ describe("a deck's branches", () => {
     await save(MAIN, swap(CARDS, "Ponder", "Serum Visions"));
     const ask = { from: "swap", into: MAIN };
     const plan = await repo.planMerge(STEM, ask);
-    expect(plan.kind).toBe("merge");
-    await mergeAsPlanned(repo, STEM, ask, plan);
+    if (plan.kind !== "merge") throw new Error(plan.kind);
+    await repo.merge(STEM, { ...ask, intoTip: plan.into, fromTip: plan.from });
     const both = swap(CARDS, "Ponder", "Preordain");
     both.splice(6, 0, "Serum Visions");
     expect(await text(MAIN)).toBe(deck(both));
@@ -164,9 +172,18 @@ describe("a deck's branches", () => {
       },
     });
     if (plan.kind !== "conflict") return;
-    // Nothing merges until a side is picked.
-    expect(await mergeAsPlanned(repo, STEM, ask, plan)).toMatchObject({
+    // Nothing merges until a side is picked: Rust refuses it at the tips.
+    const branches = await repo.branches(STEM);
+    const tip = (name: string) => branches.find((b) => b.name === name)?.commit;
+    expect(
+      await repo.merge(STEM, {
+        ...ask,
+        intoTip: tip(MAIN) ?? "",
+        fromTip: tip("clash") ?? "",
+      }),
+    ).toMatchObject({
       kind: "stopped",
+      message: expect.stringMatching(/without a side picked/),
     });
     // The settle the dialog builds from the picks, through the real wasm.
     const settle = settleOf(plan.conflict, () => ({ picks: ["theirs"] }));
@@ -174,8 +191,12 @@ describe("a deck's branches", () => {
     if (!settle) return;
     const picked = { ...ask, settle };
     const settled = await repo.planMerge(STEM, picked);
-    expect(settled.kind).toBe("merge");
-    await mergeAsPlanned(repo, STEM, picked, settled);
+    if (settled.kind !== "merge") throw new Error(settled.kind);
+    await repo.merge(STEM, {
+      ...picked,
+      intoTip: settled.into,
+      fromTip: settled.from,
+    });
     expect(await text(MAIN)).toBe(ponders(3));
   });
 

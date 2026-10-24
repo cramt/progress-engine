@@ -20,8 +20,14 @@ It can:
   annotated tags. It also reads lightweight tags.
 - give a path's history along the first-parent chain, newest first, with each
   commit marked as added, modified or deleted.
-- give `merge_base` over all parents, as `git merge-base --all` does: none for
-  unrelated histories, two after a criss-cross merge.
+- give `merge_bases` over all parents, as `git merge-base --all` does: none
+  for unrelated histories, two after a criss-cross merge; and `merge_base`,
+  the one every merge starts from and blame reads a merge against: the newest
+  of those by committer time, then the lowest id.
+- say how a commit stands to a branch (`standing`): up to date, a
+  fast-forward, diverged from the merge base, or unrelated. A sync and every
+  deck merge in `meldweb-wasm` decide by it; a sync adds what only it has,
+  a branch only one side has and this repo being ahead.
 - merge two texts three-way by lines (`merge_lines`, Curator's merge for
   every file but a deck's), and two commits' trees path by path from a merge
   base, a file both sides changed going to a caller's merge, as git hands a
@@ -126,7 +132,9 @@ fast-forward push with a tag, a push refused by the compare-and-swap and
 then merged and pushed, a conflict settled by choosing a side, an empty
 remote, and unrelated history; and every branch and tag syncing both ways:
 decks made here pushed, a deck the remote moved fast-forwarded on fetch, one
-it made taken, one both moved merged (`sync: merge origin/decks/a/main`), a
+it made taken, one both moved merged (`sync: merge origin/decks/a/main` by default; the
+caller's `MergeBranch` hook writes the message, and `meldweb-wasm` gives a
+deck's line its changelog), a
 branch and a snapshot deleted or retargeted here pushed as deletions and
 updates, one deleted there deleted here. `git fsck --strict` passes on both
 sides.

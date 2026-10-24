@@ -4,7 +4,6 @@ import type { Conflict, FileConflict } from "../deck.gen";
 import {
   type MergeDone,
   type MergePlan,
-  mergeAsPlanned,
   planSummary,
 } from "../github/branches";
 import type { MergeAsk, Repo, Settle, Side } from "../repo/api";
@@ -22,10 +21,19 @@ type Planning =
   | { kind: "failed"; message: string }
   | { kind: "ready"; plan: MergePlan };
 
-/** Where a merge comes from: planning it, and making it as planned. */
+/** The two tips a plan was worked out from, which its merge is guarded by. */
+export interface MergeTips {
+  intoTip: string;
+  fromTip: string;
+}
+
+/**
+ * Where a merge comes from: planning it, and making it at the tips the plan
+ * showed. Rust refuses a merge whose tips or picks are not the plan's.
+ */
 export interface MergeSource {
   plan(settle?: Settle): Promise<MergePlan>;
-  merge(plan: MergePlan, settle?: Settle): Promise<MergeDone>;
+  merge(tips: MergeTips, settle?: Settle): Promise<MergeDone>;
 }
 
 /**
@@ -71,13 +79,8 @@ export function MergeDialog({
   const merging: MergeSource = source ?? {
     plan: (s) =>
       repo.planMerge(stem, { from, into, ...(s ? { settle: s } : {}) }),
-    merge: (plan, s) =>
-      mergeAsPlanned(
-        repo,
-        stem,
-        { from, into, ...(s ? { settle: s } : {}) },
-        plan,
-      ),
+    merge: (tips, s) =>
+      repo.merge(stem, { from, into, ...tips, ...(s ? { settle: s } : {}) }),
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `round` plans again after a refused merge, and `merging` is made anew each render from what is listed
@@ -106,9 +109,12 @@ export function MergeDialog({
         className="merge-dialog"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (!plan) return;
+          if (plan?.kind !== "merge" && plan?.kind !== "fastForward") return;
           const ok = await run(async () => {
-            const done = await merging.merge(plan, settle);
+            const done = await merging.merge(
+              { intoTip: plan.into, fromTip: plan.from },
+              settle,
+            );
             if (done.kind === "merged") {
               onMerged(done);
               return null;

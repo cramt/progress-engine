@@ -78,16 +78,8 @@ export function useUpstream(repo: Repo, stem: string) {
   /** Their deck's changes, merged into the deck's main as planned. */
   const source: MergeSource = {
     plan: (settle) => repo.planTake(stem, settle),
-    async merge(plan, settle) {
-      if (plan.kind === "upToDate") return { kind: "upToDate" };
-      if (plan.kind !== "fastForward" && plan.kind !== "merge")
-        return { kind: "stopped", message: "Pick whose side to keep first." };
-      return repo.takeUpstream(stem, {
-        intoTip: plan.into,
-        fromTip: plan.from,
-        ...(settle ? { settle } : {}),
-      });
-    },
+    merge: (tips, settle) =>
+      repo.takeUpstream(stem, { ...tips, ...(settle ? { settle } : {}) }),
   };
 
   return { state, refresh, source };

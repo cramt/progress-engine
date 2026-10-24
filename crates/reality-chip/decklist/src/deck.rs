@@ -174,6 +174,17 @@ impl Card {
     pub fn is_commander(&self) -> bool {
         self.place == CategoryType::Commander
     }
+
+    /// Whether `other` is this card line unchanged: the same card, quantity,
+    /// categories and finish, as a merge and blame compare a card against
+    /// the merge base. Its place follows from its categories and the deck's,
+    /// so it is not compared.
+    pub fn same_as(&self, other: &Card) -> bool {
+        self.qty == other.qty
+            && self.categories == other.categories
+            && self.card == other.card
+            && self.finish == other.finish
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
