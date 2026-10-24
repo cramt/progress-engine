@@ -3,10 +3,11 @@
 #![allow(dead_code)]
 
 use meldweb_git::{
-    BranchName, Change, CommitId, Identity, Repo, RepoPath, Side, Signature, Store, Timestamp, Tip,
+    BranchName, Change, CommitId, Identity, Repo, RepoPath, Signature, Store, Timestamp, Tip,
     WriteCommit,
 };
 use meldweb_wasm::branches::{self, MergeDone, MergePlan};
+use meldweb_wasm::merging::{Settle, Side};
 
 pub fn sig(who: &str, seconds: i64) -> Signature {
     Signature {
@@ -77,11 +78,20 @@ pub fn plan_and_merge<S: Store>(
     prefer: Option<Side>,
     at: i64,
 ) -> CommitId {
-    let plan = branches::plan(repo, "lantern", from, into, prefer).unwrap();
+    // `prefer` settles whatever the merge stops on, as picked against it.
+    let mut plan = branches::plan(repo, "lantern", from, into, None).unwrap();
+    let mut settle = None;
+    if let (MergePlan::Conflict { conflict }, Some(prefer)) = (&plan, prefer) {
+        let s = Settle {
+            guard: conflict.guard.clone(),
+            prefer: Some(prefer),
+            files: vec![],
+        };
+        plan = branches::plan(repo, "lantern", from, into, Some(&s)).unwrap();
+        settle = Some(s);
+    }
     let (i, f) = match &plan {
-        MergePlan::Merge { into, from, .. } | MergePlan::Conflict { into, from, .. } => {
-            (into.clone(), from.clone())
-        }
+        MergePlan::Merge { into, from, .. } => (into.clone(), from.clone()),
         other => panic!("not a merge: {other:?}"),
     };
     match branches::merge(
@@ -91,7 +101,7 @@ pub fn plan_and_merge<S: Store>(
         into,
         &i,
         &f,
-        prefer,
+        settle.as_ref(),
         &sig("Alex", at),
     )
     .unwrap()

@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { settleOf } from "../deck/ClashPicks";
 import { ConflictError } from "../repo/api";
 import { memoryRepo } from "../repo/memory";
 import { MAIN, makeBranch, mergeAsPlanned, planSummary } from "./branches";
@@ -144,27 +145,76 @@ describe("a deck's branches", () => {
     const plan = await repo.planMerge(STEM, ask);
     expect(plan).toMatchObject({
       kind: "conflict",
-      hunks: [],
-      clashes: [
-        {
-          path: "lantern.deck.toml",
-          index: 0,
-          subject: "Ponder",
-          attribute: "quantity",
-          ours: "2",
-          theirs: "3",
-        },
-      ],
+      conflict: {
+        files: [
+          {
+            needs: "eachClash",
+            path: "lantern.deck.toml",
+            clashes: [
+              {
+                index: 0,
+                subject: "Ponder",
+                attribute: "quantity",
+                ours: "2",
+                theirs: "3",
+              },
+            ],
+          },
+        ],
+      },
     });
+    if (plan.kind !== "conflict") return;
     // Nothing merges until a side is picked.
     expect(await mergeAsPlanned(repo, STEM, ask, plan)).toMatchObject({
       kind: "stopped",
     });
-    const picked = { ...ask, picks: ["theirs" as const] };
+    // The settle the dialog builds from the picks, through the real wasm.
+    const settle = settleOf(plan.conflict, () => ({ picks: ["theirs"] }));
+    expect(settle).not.toBeNull();
+    if (!settle) return;
+    const picked = { ...ask, settle };
     const settled = await repo.planMerge(STEM, picked);
     expect(settled.kind).toBe("merge");
     await mergeAsPlanned(repo, STEM, picked, settled);
     expect(await text(MAIN)).toBe(ponders(3));
+  });
+
+  it("refuse picks once either branch moved since the clash was shown", async () => {
+    const { repo, text, first } = await lantern();
+    await makeBranch(repo, STEM, "clash", first);
+    const ponders = (n: number) =>
+      deck(CARDS).replace('"Ponder" }', `"Ponder", qty = ${n} }`);
+    const saveText = (on: string, body: string) => {
+      const file = deckFile(STEM, on);
+      return commitEdit(repo, file.path, () => body, file.branch);
+    };
+    await saveText("clash", ponders(3));
+    await saveText(MAIN, ponders(2));
+    const ask = { from: "clash", into: MAIN };
+    const shown = await repo.planMerge(STEM, ask);
+    if (shown.kind !== "conflict") throw new Error(shown.kind);
+    const settle = settleOf(shown.conflict, () => ({ picks: ["theirs"] }));
+    if (!settle) throw new Error("no settle");
+    // Another tab saves main: the clash is 4 against 3 now, never shown.
+    await saveText(MAIN, ponders(4));
+    const picked = { ...ask, settle };
+    expect(await repo.planMerge(STEM, picked)).toMatchObject({
+      kind: "stopped",
+      message: expect.stringMatching(/changed since the merge was shown/),
+    });
+    const now = await repo.planMerge(STEM, ask);
+    if (now.kind !== "conflict") throw new Error(now.kind);
+    // Even at the tips main has now, the old picks are refused.
+    const branches = await repo.branches(STEM);
+    const tip = (name: string) => branches.find((b) => b.name === name)?.commit;
+    expect(
+      await repo.merge(STEM, {
+        ...picked,
+        intoTip: tip(MAIN) ?? "",
+        fromTip: tip("clash") ?? "",
+      }),
+    ).toMatchObject({ kind: "stopped" });
+    expect(await text(MAIN)).toBe(ponders(4));
   });
 
   it("start from a snapshot, refuse a taken name, and delete only at their tip", async () => {

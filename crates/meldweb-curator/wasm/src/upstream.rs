@@ -33,7 +33,7 @@ use meldweb_git::{
 
 use crate::branches::{self, deck_path, said, text, MergeDone, MergePlan};
 use crate::layout::{self, version_at};
-use crate::merging::Settle;
+use crate::merging::{Conflict, Settle, Stale};
 use crate::preference::{self, Upstream};
 
 type Out<T> = Result<T, String>;
@@ -480,36 +480,44 @@ fn work<S: Store>(
     repo: &mut Repo<S>,
     stem: &DeckStem,
     up: &Upstream,
-    settle: &Settle,
-) -> Out<branches::Worked> {
+    settle: Option<&Settle>,
+) -> Out<Result<branches::Worked, Stale>> {
     let into = mine(repo, stem)?;
     let from = their_tip(repo, up)?;
     let same = *stem == up.deck;
-    branches::work_tips(repo, into, from, settle, |repo, merge_file| {
-        if repo.is_ancestor(&from, &into)? {
-            return Ok(Planned::UpToDate);
-        }
-        if same && repo.is_ancestor(&into, &from)? {
-            return Ok(Planned::FastForward);
-        }
-        let Some(base) = repo.merge_base(&into, &from)?.first().copied() else {
-            return Ok(Planned::Unrelated);
-        };
-        let (base, theirs) = if same {
-            (base, from)
-        } else {
-            let renamed = |repo: &mut Repo<S>, at| {
-                as_ours(repo, at, &up.deck, stem).map_err(meldweb_git::Error::Remote)
+    let line = layout::main_line(stem);
+    branches::work_tips(
+        repo,
+        &line,
+        into,
+        from,
+        settle,
+        |repo, prefer, merge_file| {
+            if repo.is_ancestor(&from, &into)? {
+                return Ok(Planned::UpToDate);
+            }
+            if same && repo.is_ancestor(&into, &from)? {
+                return Ok(Planned::FastForward);
+            }
+            let Some(base) = repo.merge_base(&into, &from)?.first().copied() else {
+                return Ok(Planned::Unrelated);
             };
-            (renamed(repo, base)?, renamed(repo, from)?)
-        };
-        Ok(
-            match repo.merge_trees(Some(&base), &into, &theirs, settle.prefer, merge_file)? {
-                TreeMerge::Conflicts(paths) => Planned::Conflicts(paths),
-                TreeMerge::Clean { tree, taken } => Planned::Merge { tree, taken },
-            },
-        )
-    })
+            let (base, theirs) = if same {
+                (base, from)
+            } else {
+                let renamed = |repo: &mut Repo<S>, at| {
+                    as_ours(repo, at, &up.deck, stem).map_err(meldweb_git::Error::Remote)
+                };
+                (renamed(repo, base)?, renamed(repo, from)?)
+            };
+            Ok(
+                match repo.merge_trees(Some(&base), &into, &theirs, prefer, merge_file)? {
+                    TreeMerge::Conflicts(paths) => Planned::Conflicts(paths),
+                    TreeMerge::Clean { tree, taken } => Planned::Merge { tree, taken },
+                },
+            )
+        },
+    )
 }
 
 /// `alice's lantern`, as a merge of theirs is named.
@@ -522,14 +530,20 @@ fn label(up: &Upstream) -> String {
     }
 }
 
-/// What taking their changes into `stem`'s `main` would do; nothing moves.
+/// What taking their changes into `stem`'s `main` would do, with `settle`
+/// settling what both changed when it was made against this merge; nothing
+/// moves.
 pub fn plan<S: Store>(
     repo: &mut Repo<S>,
     stem: &DeckStem,
-    settle: impl Into<Settle>,
+    settle: Option<&Settle>,
 ) -> Out<MergePlan> {
     let up = followed(repo, stem)?;
-    let w = work(repo, stem, &up, &settle.into())?;
+    let Ok(mut w) = work(repo, stem, &up, settle)? else {
+        return Ok(MergePlan::Stopped {
+            message: branches::stale(stem, label(&up)),
+        });
+    };
     let deck = deck_path(stem);
     let before = text(repo.read_file(&w.into, &deck).map_err(said)?);
     let (into, from) = (w.into.to_hex(), w.from.to_hex());
@@ -552,36 +566,32 @@ pub fn plan<S: Store>(
                 after,
             }
         }
-        Planned::Conflicts(_) => MergePlan::Conflict {
-            into,
-            from,
-            clashes: w.clashes,
-            hunks: w.hunks,
-            unreadable: w.unreadable,
+        Planned::Conflicts(paths) => MergePlan::Conflict {
+            conflict: Conflict::of(&w.guard, paths, &mut w.stops),
         },
     })
 }
 
 /// Takes their changes into `stem`'s `main` as [`plan`] said, while the
-/// deck and theirs are still at `into_tip` and `from_tip`.
+/// deck and theirs are still at `into_tip` and `from_tip` and `settle` was
+/// made against this merge.
 pub fn take<S: Store>(
     repo: &mut Repo<S>,
     stem: &DeckStem,
     into_tip: &str,
     from_tip: &str,
-    settle: impl Into<Settle>,
+    settle: Option<&Settle>,
     who: &Signature,
 ) -> Out<MergeDone> {
     let up = followed(repo, stem)?;
-    let w = work(repo, stem, &up, &settle.into())?;
-    if w.into.to_hex() != into_tip || w.from.to_hex() != from_tip {
-        return Ok(MergeDone::Stopped {
-            message: format!(
-                "{stem} or {} changed since the merge was shown; look at it again",
-                label(&up)
-            ),
-        });
-    }
+    let w = match work(repo, stem, &up, settle)? {
+        Ok(w) if w.into.to_hex() == into_tip && w.from.to_hex() == from_tip => w,
+        _ => {
+            return Ok(MergeDone::Stopped {
+                message: branches::stale(stem, label(&up)),
+            })
+        }
+    };
     let line = layout::main_line(stem);
     let deck = deck_path(stem);
     let moved = |e: Error| match e {

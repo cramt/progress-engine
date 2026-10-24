@@ -22,15 +22,14 @@ use facet::Facet;
 use chip_decklist::stem::DeckStem;
 use meldweb_git::{
     BlobId, BranchMerge, BranchName, Change, CommitId, EntryKind, Error, FetchRequest, Identity,
-    Integrated, MemStore, PushRequest, RemoteUrl, Repo, RepoPath, Side, Signature, Store, TagKind,
+    Integrated, MemStore, PushRequest, RemoteUrl, Repo, RepoPath, Signature, Store, TagKind,
     TagName, Timestamp, Tip, Unsupported, WriteCommit,
 };
 
 use crate::blame::{self, DeckBlame};
-use crate::branches::ConflictHunk;
 use crate::branches::{self, BranchDeleted, BranchMade, DeckBranches, MergeDone, MergePlan};
 use crate::layout::{self, DeckLines};
-use crate::merging::{self, FileMerge, FileSettle, MergeClash, Settle, SyncSettle};
+use crate::merging::{self, Conflict, Guard, Settle, Stops, SyncSettle};
 use crate::preference::Upstream;
 use crate::upstream::{self, Fetched, Following, Forked};
 use crate::UpstreamFacts;
@@ -263,29 +262,22 @@ pub enum Synced {
         commit: String,
         taken: Vec<String>,
     },
-    /// Nothing moved on the branches in `files`; each file changed here and
-    /// on the remote so that it does not merge. Other branches merged.
+    /// Nothing moved on the branches in `conflicts`; each of their files
+    /// changed here and on the remote so that it does not merge. Other
+    /// branches merged.
     Conflict {
-        files: Vec<SyncConflict>,
+        conflicts: Vec<SyncConflict>,
     },
     Unrelated,
 }
 
-/// One file of one branch that a sync could not merge, and why: a deck's
-/// clashes card by card, another file's stretches of lines, or a merge that
-/// would not read. `ours` and `theirs` are the branch's tips here and on the
-/// remote, which a [`FileSettle`] names back to settle this merge and no
-/// later one.
+/// One branch whose sync merge stopped, and its [`Conflict`], whose guard
+/// is the branch's tips here and on the remote: a [`Settle`] under it
+/// settles this merge and no later one.
 #[derive(Debug, Facet)]
 pub struct SyncConflict {
     pub branch: String,
-    pub path: String,
-    pub ours: String,
-    pub theirs: String,
-    pub clashes: Vec<MergeClash>,
-    pub hunks: Vec<ConflictHunk>,
-    #[facet(default, skip_serializing_if = Option::is_none)]
-    pub unreadable: Option<String>,
+    pub conflict: Conflict,
 }
 
 #[derive(Debug, Facet)]
@@ -403,19 +395,9 @@ fn repo_path(path: &str) -> Out<RepoPath> {
     RepoPath::new(path).map_err(|e| e.to_string())
 }
 
-/// Why one file of one branch did not merge in a sync.
-#[derive(Debug, Default)]
-struct Why {
-    clashes: Vec<MergeClash>,
-    hunks: Vec<ConflictHunk>,
-    unreadable: Option<String>,
-}
-
-/// Every branch's outcome as one: what stops the sync first, then what moved.
-fn synced(
-    outcomes: Vec<(BranchName, Integrated)>,
-    mut why: BTreeMap<(String, String), Why>,
-) -> Synced {
+/// Every branch's outcome as one: what stops the sync first, then what
+/// moved. `stops` is why each branch's files did not merge.
+fn synced(outcomes: Vec<(BranchName, Integrated)>, mut stops: BTreeMap<String, Stops>) -> Synced {
     let named = |branch: &BranchName, path: String| {
         if branch.as_str() == "main" {
             path
@@ -437,20 +419,11 @@ fn synced(
                 ours,
                 theirs,
             } => {
-                for path in paths {
-                    let w = why
-                        .remove(&(branch.as_str().to_owned(), path.clone()))
-                        .unwrap_or_default();
-                    conflicts.push(SyncConflict {
-                        branch: branch.as_str().to_owned(),
-                        path,
-                        ours: ours.to_hex(),
-                        theirs: theirs.to_hex(),
-                        clashes: w.clashes,
-                        hunks: w.hunks,
-                        unreadable: w.unreadable,
-                    });
-                }
+                let stops = stops.entry(branch.as_str().to_owned()).or_default();
+                conflicts.push(SyncConflict {
+                    branch: branch.as_str().to_owned(),
+                    conflict: Conflict::of(&Guard::tips(&branch, ours, theirs), paths, stops),
+                });
             }
             Integrated::Unrelated => unrelated = true,
             Integrated::Merged { commit, taken } => {
@@ -476,7 +449,7 @@ fn synced(
         }
     }
     if !conflicts.is_empty() {
-        return Synced::Conflict { files: conflicts };
+        return Synced::Conflict { conflicts };
     }
     if unrelated {
         return Synced::Unrelated;
@@ -1085,7 +1058,7 @@ impl Local {
         stem: &str,
         from: &str,
         into: &str,
-        settle: Settle,
+        settle: Option<&Settle>,
     ) -> Out<MergePlan> {
         branches::plan(self.repo_mut()?, stem, from, into, settle)
     }
@@ -1099,7 +1072,7 @@ impl Local {
         into: &str,
         into_tip: &str,
         from_tip: &str,
-        settle: Settle,
+        settle: Option<&Settle>,
         who: &Who,
     ) -> Out<MergeDone> {
         let signed = signature(who)?;
@@ -1173,7 +1146,7 @@ impl Local {
     }
 
     /// [`upstream::plan`].
-    pub fn plan_take(&mut self, stem: &str, settle: Settle) -> Out<MergePlan> {
+    pub fn plan_take(&mut self, stem: &str, settle: Option<&Settle>) -> Out<MergePlan> {
         let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
         upstream::plan(self.repo_mut()?, &stem, settle)
     }
@@ -1184,7 +1157,7 @@ impl Local {
         stem: &str,
         into_tip: &str,
         from_tip: &str,
-        settle: Settle,
+        settle: Option<&Settle>,
         who: &Who,
     ) -> Out<MergeDone> {
         let stem = DeckStem::new(stem).map_err(|e| e.to_string())?;
@@ -1254,36 +1227,21 @@ impl Local {
     /// anything else by lines, and only into what is still a file Progress
     /// Engine reads, as a refused save merges (ADR-0021).
     ///
-    /// `settle` settles what the user chose: a file of a branch by its own
-    /// picks, when they were made against the tips the branch has now, and
-    /// everything else by `settle.prefer`.
+    /// `settle` settles what the user chose: a branch's merge by the settle
+    /// made against the tips it has now, and everything else by
+    /// `settle.prefer`.
     pub fn integrate(&mut self, who: &Who, settle: &SyncSettle) -> Out<Synced> {
         let signed = signature(who)?;
-        let mut why: BTreeMap<(String, String), Why> = BTreeMap::new();
+        let mut stops: BTreeMap<String, Stops> = BTreeMap::new();
         let mut merge_file =
             |at: &BranchMerge<'_>, path: &str, base: &[u8], ours: &[u8], theirs: &[u8]| {
-                merging::merge_sync_bytes(at, path, base, ours, theirs, settle, &mut |stopped| {
-                    let w = why
-                        .entry((at.branch.as_str().to_owned(), path.to_owned()))
-                        .or_default();
-                    match stopped {
-                        FileMerge::Clashed(c) => w.clashes.extend(c),
-                        FileMerge::Hunks(h) => {
-                            w.hunks.extend(h.into_iter().map(|h| ConflictHunk {
-                                path: path.to_owned(),
-                                base: h.base,
-                                ours: h.ours,
-                                theirs: h.theirs,
-                            }))
-                        }
-                        FileMerge::Unreadable(reason) => w.unreadable = Some(reason),
-                        FileMerge::Merged(_) => {}
-                    }
-                })
+                let settling = settle.settling(&Guard::tips(at.branch, at.ours, at.theirs));
+                let stops = stops.entry(at.branch.as_str().to_owned()).or_default();
+                merging::merge_bytes(path, base, ours, theirs, &settling, stops)
             };
-        let outcomes =
-            layout::integrate(self.repo_mut()?, &signed, settle.prefer, &mut merge_file)?;
-        Ok(synced(outcomes, why))
+        let prefer = settle.prefer.map(merging::git_side);
+        let outcomes = layout::integrate(self.repo_mut()?, &signed, prefer, &mut merge_file)?;
+        Ok(synced(outcomes, stops))
     }
 
     pub fn adopt_remote(&mut self) -> Out<()> {
@@ -1481,24 +1439,14 @@ fn who_of(who: &str) -> Result<Who, JsError> {
     facet_json::from_str(who).map_err(|e| JsError::new(&format!("who is not a Who: {e}")))
 }
 
-fn side_of(side: Option<String>) -> Result<Option<Side>, JsError> {
-    match side.as_deref() {
-        None => Ok(None),
-        Some("ours") => Ok(Some(Side::Ours)),
-        Some("theirs") => Ok(Some(Side::Theirs)),
-        Some(other) => Err(JsError::new(&format!("{other} is not a side"))),
-    }
-}
-
-/// `prefer` and each clash's pick, as the page sends them.
-fn settle_of(prefer: Option<String>, picks: Vec<String>) -> Result<Settle, JsError> {
-    Ok(Settle {
-        prefer: side_of(prefer)?,
-        picks: picks
-            .into_iter()
-            .map(|p| side_of(Some(p)).map(|s| s.expect("a side was given")))
-            .collect::<Result<_, _>>()?,
-    })
+/// A [`Settle`] as the page sends it: its JSON, or nothing.
+fn settle_of(settle: Option<String>) -> Result<Option<Settle>, JsError> {
+    settle
+        .map(|s| {
+            facet_json::from_str(&s)
+                .map_err(|e| JsError::new(&format!("settle is not a Settle: {e}")))
+        })
+        .transpose()
 }
 
 fn js<T>(r: Out<T>) -> Result<T, JsError> {
@@ -1682,22 +1630,20 @@ impl GitRepo {
         js(self.0.delete_branch(stem, name, commit)).map(|r| json(&r))
     }
 
-    /// [`MergePlan`]; `prefer` is `"ours"` (the branch merged into) or
-    /// `"theirs"` for what both changed, once the user picked, and
-    /// `picks[i]` the side for the deck's clash `i`.
+    /// [`MergePlan`]; `settle` is JSON of a [`Settle`] under the guard of
+    /// the conflict the user picked sides of, once they have.
     pub fn plan_merge(
         &mut self,
         stem: &str,
         from: &str,
         into: &str,
-        prefer: Option<String>,
-        picks: Vec<String>,
+        settle: Option<String>,
     ) -> Result<String, JsError> {
-        let settle = settle_of(prefer, picks)?;
-        js(self.0.plan_merge(stem, from, into, settle)).map(|r| json(&r))
+        let settle = settle_of(settle)?;
+        js(self.0.plan_merge(stem, from, into, settle.as_ref())).map(|r| json(&r))
     }
 
-    /// [`MergeDone`]; `who` is a [`Who`].
+    /// [`MergeDone`]; `settle` as for `plan_merge`, `who` a [`Who`].
     #[allow(clippy::too_many_arguments)]
     pub fn merge_branch(
         &mut self,
@@ -1706,15 +1652,14 @@ impl GitRepo {
         into: &str,
         into_tip: &str,
         from_tip: &str,
-        prefer: Option<String>,
-        picks: Vec<String>,
+        settle: Option<String>,
         who: &str,
     ) -> Result<String, JsError> {
-        let settle = settle_of(prefer, picks)?;
+        let settle = settle_of(settle)?;
         let who = who_of(who)?;
         js(self
             .0
-            .merge_branch(stem, from, into, into_tip, from_tip, settle, &who))
+            .merge_branch(stem, from, into, into_tip, from_tip, settle.as_ref(), &who))
         .map(|r| json(&r))
     }
 
@@ -1766,30 +1711,28 @@ impl GitRepo {
         js(self.0.unfollow(stem, &who))
     }
 
-    /// [`MergePlan`] of taking the followed deck's changes.
-    pub fn plan_take(
-        &mut self,
-        stem: &str,
-        prefer: Option<String>,
-        picks: Vec<String>,
-    ) -> Result<String, JsError> {
-        let settle = settle_of(prefer, picks)?;
-        js(self.0.plan_take(stem, settle)).map(|r| json(&r))
+    /// [`MergePlan`] of taking the followed deck's changes; `settle` as for
+    /// `plan_merge`.
+    pub fn plan_take(&mut self, stem: &str, settle: Option<String>) -> Result<String, JsError> {
+        let settle = settle_of(settle)?;
+        js(self.0.plan_take(stem, settle.as_ref())).map(|r| json(&r))
     }
 
-    /// [`MergeDone`]; `who` is a [`Who`].
+    /// [`MergeDone`]; `settle` as for `plan_merge`, `who` a [`Who`].
     pub fn take_upstream(
         &mut self,
         stem: &str,
         into_tip: &str,
         from_tip: &str,
-        prefer: Option<String>,
-        picks: Vec<String>,
+        settle: Option<String>,
         who: &str,
     ) -> Result<String, JsError> {
-        let settle = settle_of(prefer, picks)?;
+        let settle = settle_of(settle)?;
         let who = who_of(who)?;
-        js(self.0.take_upstream(stem, into_tip, from_tip, settle, &who)).map(|r| json(&r))
+        js(self
+            .0
+            .take_upstream(stem, into_tip, from_tip, settle.as_ref(), &who))
+        .map(|r| json(&r))
     }
 
     /// [`MigratedFacts`].
@@ -1840,21 +1783,13 @@ impl GitRepo {
         js(self.0.fetch_finish(advertised, response.as_deref()))
     }
 
-    /// [`Synced`]; `who` is a [`Who`], `prefer` `"ours"` or `"theirs"` for
-    /// every clash the user settled one way, and `files` JSON of the
-    /// [`FileSettle`]s they settled file by file.
-    pub fn integrate(
-        &mut self,
-        who: &str,
-        prefer: Option<String>,
-        files: &str,
-    ) -> Result<String, JsError> {
+    /// [`Synced`]; `who` is a [`Who`], and `settle` JSON of a
+    /// [`SyncSettle`]: what the user settled one way, and each branch's
+    /// merge under the guard of its conflict.
+    pub fn integrate(&mut self, who: &str, settle: &str) -> Result<String, JsError> {
         let who = who_of(who)?;
-        let settle = SyncSettle {
-            prefer: side_of(prefer)?,
-            files: facet_json::from_str::<Vec<FileSettle>>(files)
-                .map_err(|e| JsError::new(&format!("files are not FileSettle[]: {e}")))?,
-        };
+        let settle: SyncSettle = facet_json::from_str(settle)
+            .map_err(|e| JsError::new(&format!("settle is not a SyncSettle: {e}")))?;
         js(self.0.integrate(&who, &settle)).map(|r| json(&r))
     }
 

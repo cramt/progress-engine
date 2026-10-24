@@ -345,7 +345,6 @@ describe("a save another client got in ahead of", () => {
       status: "conflict",
       clashes: [
         {
-          path: PATH,
           index: 0,
           subject: "b",
           attribute: "quantity",

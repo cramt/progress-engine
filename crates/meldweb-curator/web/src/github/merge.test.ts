@@ -46,17 +46,20 @@ describe("merging a deck two clients edited, card by card", () => {
     const ours = BASE.replace("qty = 10", "qty = 9");
     const theirs = BASE.replace("qty = 10", "qty = 11");
     expect(mergeFile("lantern.deck.toml", BASE, ours, theirs)).toEqual({
-      kind: "clashed",
-      clashes: [
-        {
-          path: "lantern.deck.toml",
-          index: 0,
-          subject: "Island",
-          attribute: "quantity",
-          ours: "9",
-          theirs: "11",
-        },
-      ],
+      kind: "stopped",
+      file: {
+        needs: "eachClash",
+        path: "lantern.deck.toml",
+        clashes: [
+          {
+            index: 0,
+            subject: "Island",
+            attribute: "quantity",
+            ours: "9",
+            theirs: "11",
+          },
+        ],
+      },
     });
   });
 });
@@ -86,9 +89,19 @@ describe("merging any other file by lines", () => {
     }
   });
 
-  it("gives up when both changed the same line differently", () => {
+  it("gives up when both changed the same line differently, and says which lines", () => {
     const ours = lines("cards = [", "  a,", "  B1,", "  c,", "  d,", "]");
     const theirs = lines("cards = [", "  a,", "  B2,", "  c,", "  d,", "]");
-    expect(merge(ours, theirs)).toEqual({ kind: "clashed", clashes: [] });
+    expect(merge(ours, theirs)).toEqual({
+      kind: "stopped",
+      file: {
+        needs: "wholeFile",
+        path: "notes.txt",
+        why: {
+          kind: "lines",
+          hunks: [{ base: ["  b,"], ours: ["  B1,"], theirs: ["  B2,"] }],
+        },
+      },
+    });
   });
 });

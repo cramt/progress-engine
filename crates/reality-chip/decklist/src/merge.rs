@@ -38,8 +38,11 @@ use crate::deck::{Card, CardRef, CategoryType, Deck, DeckError, Printing};
 use crate::diff::{categories, label_of, pair, pair_lines, printing_names, Diff};
 use crate::edit::{self, card_comments, EditError};
 
-/// One side of a merge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// One side of a merge, and the side a user picks for a clash: `ours` is
+/// the version merged into.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, facet::Facet)]
+#[repr(u8)]
+#[facet(rename_all = "kebab-case")]
 pub enum Side {
     /// The version merged into: the text the result is made from.
     Ours,

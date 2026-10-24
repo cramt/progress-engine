@@ -85,7 +85,7 @@ export function useUpstream(repo: Repo, stem: string) {
       return repo.takeUpstream(stem, {
         intoTip: plan.into,
         fromTip: plan.from,
-        ...settle,
+        ...(settle ? { settle } : {}),
       });
     },
   };

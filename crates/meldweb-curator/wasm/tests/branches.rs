@@ -12,11 +12,11 @@ use std::path::Path;
 use std::process::Command;
 
 use meldweb_git::{
-    BranchName, Change, CommitId, FsStore, Identity, Repo, RepoPath, Side, Signature, TagName,
-    Timestamp, Tip, WriteCommit,
+    BranchName, Change, CommitId, FsStore, Identity, Repo, RepoPath, Signature, TagName, Timestamp,
+    Tip, WriteCommit,
 };
 use meldweb_wasm::branches::{self, BranchDeleted, BranchMade, MergeDone, MergePlan};
-use meldweb_wasm::merging::Settle;
+use meldweb_wasm::merging::{Conflict, FileConflict, FileSettle, Settle, Side, WholeFile};
 
 fn have_git() -> bool {
     let found = Command::new("git")
@@ -116,24 +116,44 @@ fn text_on(repo: &Repo<FsStore>, name: &str) -> String {
 
 fn tips(plan: &MergePlan) -> (String, String) {
     match plan {
-        MergePlan::FastForward { into, from, .. }
-        | MergePlan::Merge { into, from, .. }
-        | MergePlan::Conflict { into, from, .. } => (into.clone(), from.clone()),
+        MergePlan::FastForward { into, from, .. } | MergePlan::Merge { into, from, .. } => {
+            (into.clone(), from.clone())
+        }
         other => panic!("no tips in {other:?}"),
     }
 }
 
+/// Plans, then merges at the plan's tips, as the dialog does.
 fn merge(
     repo: &mut Repo<FsStore>,
     from: &str,
     into: &str,
-    settle: impl Into<Settle>,
+    settle: Option<&Settle>,
     at: i64,
 ) -> MergeDone {
-    let settle = settle.into();
-    let plan = branches::plan(repo, "lantern", from, into, settle.clone()).unwrap();
+    let plan = branches::plan(repo, "lantern", from, into, settle).unwrap();
     let (i, f) = tips(&plan);
     branches::merge(repo, "lantern", from, into, &i, &f, settle, &sig(at)).unwrap()
+}
+
+/// What a plan stopped on, as the dialog shows it.
+fn conflict(plan: &MergePlan) -> &Conflict {
+    match plan {
+        MergePlan::Conflict { conflict } => conflict,
+        other => panic!("no conflict in {other:?}"),
+    }
+}
+
+/// `picks` for the deck's clashes in `conflict`, under its guard.
+fn picking(conflict: &Conflict, picks: &[Side]) -> Settle {
+    Settle {
+        guard: conflict.guard.clone(),
+        prefer: None,
+        files: vec![FileSettle::EachClash {
+            path: FILE.to_owned(),
+            picks: picks.to_vec(),
+        }],
+    }
 }
 
 fn facts(repo: &Repo<FsStore>) -> Vec<(String, u32, u32)> {
@@ -385,19 +405,14 @@ fn a_clash_stops_the_merge_until_a_side_is_picked_for_the_card() {
     );
 
     let plan = branches::plan(&mut repo, "lantern", "clash", "main", None).unwrap();
-    let MergePlan::Conflict {
-        ref clashes,
-        ref hunks,
-        ..
-    } = plan
-    else {
-        panic!("{plan:?}")
+    let shown = conflict(&plan);
+    println!("{shown:#?}");
+    let [FileConflict::EachClash { path, clashes }] = &shown.files[..] else {
+        panic!("{shown:?}")
     };
-    println!("{clashes:#?}");
-    assert!(hunks.is_empty());
+    assert_eq!(path, FILE);
     assert_eq!(clashes.len(), 1);
     let c = &clashes[0];
-    assert_eq!(c.path, FILE);
     assert_eq!(
         (
             c.subject.as_str(),
@@ -408,19 +423,27 @@ fn a_clash_stops_the_merge_until_a_side_is_picked_for_the_card() {
         ("Ponder", "quantity", "2", "3")
     );
     let main_before = repo.branch_tip(&line("main")).unwrap();
+    let clash_tip = repo.branch_tip(&line("clash")).unwrap().unwrap();
     assert!(matches!(
-        merge(&mut repo, "clash", "main", None, t0 + 30),
+        branches::merge(
+            &mut repo,
+            "lantern",
+            "clash",
+            "main",
+            &main_before.unwrap().to_hex(),
+            &clash_tip.to_hex(),
+            None,
+            &sig(t0 + 30)
+        )
+        .unwrap(),
         MergeDone::Stopped { .. }
     ));
     assert_eq!(repo.branch_tip(&line("main")).unwrap(), main_before);
 
     // Picking the branch's side for the card settles only it: main keeps
     // its snow, and the branch's Mana Crypt comes in where it had it.
-    let pick = Settle {
-        prefer: None,
-        picks: vec![Side::Theirs],
-    };
-    let plan = branches::plan(&mut repo, "lantern", "clash", "main", pick.clone()).unwrap();
+    let pick = picking(shown, &[Side::Theirs]);
+    let plan = branches::plan(&mut repo, "lantern", "clash", "main", Some(&pick)).unwrap();
     let mut settled = CARDS.to_vec();
     settled[0] = "Mana Crypt";
     settled[7] = "Snow-Covered Island";
@@ -430,7 +453,7 @@ fn a_clash_stops_the_merge_until_a_side_is_picked_for_the_card() {
         "{plan:?}"
     );
     assert!(matches!(
-        merge(&mut repo, "clash", "main", pick, t0 + 30),
+        merge(&mut repo, "clash", "main", Some(&pick), t0 + 30),
         MergeDone::Merged {
             message: Some(_),
             ..
@@ -467,22 +490,79 @@ fn a_merge_that_makes_no_deck_stops_with_why() {
     save(&mut repo, "notes", &theirs, "lantern: b", t0 + 10);
     save(&mut repo, "main", &ours, "lantern: a", t0 + 20);
     let plan = branches::plan(&mut repo, "lantern", "notes", "main", None).unwrap();
-    let MergePlan::Conflict {
-        ref hunks,
-        ref clashes,
-        ref unreadable,
+    let shown = conflict(&plan);
+    let [FileConflict::WholeFile {
+        why: WholeFile::Unreadable { reason },
         ..
-    } = plan
+    }] = &shown.files[..]
     else {
-        panic!("{plan:?}")
+        panic!("{shown:?}")
     };
-    assert!(hunks.is_empty() && clashes.is_empty());
-    assert_eq!(unreadable.len(), 1);
-    println!("unreadable: {}", unreadable[0].reason);
+    println!("unreadable: {reason}");
     // A side picked still merges into no deck, so the whole file takes it.
-    let plan = branches::plan(&mut repo, "lantern", "notes", "main", Some(Side::Ours)).unwrap();
+    let ours_whole = Settle {
+        guard: shown.guard.clone(),
+        prefer: None,
+        files: vec![FileSettle::WholeFile {
+            path: FILE.to_owned(),
+            side: Side::Ours,
+        }],
+    };
+    let plan = branches::plan(&mut repo, "lantern", "notes", "main", Some(&ours_whole)).unwrap();
     assert!(
         matches!(plan, MergePlan::Merge { ref after, ref message, .. } if after.as_deref() == Some(ours.as_str()) && message == "lantern: merge notes"),
         "{plan:?}"
     );
+}
+
+#[test]
+fn a_pick_settles_only_the_merge_it_was_shown_for() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut repo = Repo::init(FsStore::new(dir.path())).unwrap();
+    let t0 = 1_760_000_000;
+    let first = save(&mut repo, "main", &deck(&CARDS), "lantern: made", t0);
+    branches::create(&mut repo, "lantern", "clash", &first.to_hex()).unwrap();
+    let ponders = |n: u32| {
+        deck(&CARDS).replace(
+            "{ name = \"Ponder\" }",
+            &format!("{{ name = \"Ponder\", qty = {n} }}"),
+        )
+    };
+    save(
+        &mut repo,
+        "clash",
+        &ponders(3),
+        "lantern: 3 ponder",
+        t0 + 10,
+    );
+    save(&mut repo, "main", &ponders(2), "lantern: 2 ponder", t0 + 20);
+    let plan = branches::plan(&mut repo, "lantern", "clash", "main", None).unwrap();
+    // The player picks the branch's 3 over main's 2 ...
+    let pick = picking(conflict(&plan), &[Side::Theirs]);
+    // ... while another tab saves main again: the clash is now 4 against 3,
+    // which the player never saw.
+    let moved = save(&mut repo, "main", &ponders(4), "lantern: 4 ponder", t0 + 30);
+    let main_before = repo.branch_tip(&line("main")).unwrap();
+    // Planned again with the picks, as the dialog does, it says so ...
+    let plan = branches::plan(&mut repo, "lantern", "clash", "main", Some(&pick)).unwrap();
+    assert!(
+        matches!(&plan, MergePlan::Stopped { message } if message.contains("changed since the merge was shown")),
+        "{plan:?}"
+    );
+    // ... and merged at the tips the branches have now, the picks are refused.
+    let clash_tip = repo.branch_tip(&line("clash")).unwrap().unwrap();
+    let done = branches::merge(
+        &mut repo,
+        "lantern",
+        "clash",
+        "main",
+        &moved.to_hex(),
+        &clash_tip.to_hex(),
+        Some(&pick),
+        &sig(t0 + 40),
+    )
+    .unwrap();
+    assert!(matches!(done, MergeDone::Stopped { .. }), "{done:?}");
+    assert_eq!(repo.branch_tip(&line("main")).unwrap(), main_before);
+    assert_eq!(text_on(&repo, "main"), ponders(4));
 }

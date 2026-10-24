@@ -12,7 +12,7 @@
  * merge alike.
  */
 import type { TextMerge } from "../deck.gen";
-import type { MergeSide } from "../repo/api";
+import type { Side } from "../repo/api";
 import { merge_file } from "../wasm/pkg/meldweb_wasm.js";
 
 export type { TextMerge };
@@ -27,7 +27,7 @@ export function mergeFile(
   base: string,
   ours: string,
   theirs: string,
-  picks: readonly MergeSide[] = [],
+  picks: readonly Side[] = [],
 ): TextMerge {
   return JSON.parse(
     merge_file(path, base, ours, theirs, JSON.stringify(picks)),

@@ -26,12 +26,14 @@
  * repo's worker, so a save landing between steps is merged or pushed next.
  */
 import type {
-  FileSettle,
   RemoteFacts,
+  Settle,
+  Side,
   SyncConflict,
   Synced,
+  SyncSettle,
 } from "../deck.gen";
-import type { RemoteSteps, Side, SyncSettle } from "../repo/local";
+import type { RemoteSteps } from "../repo/local";
 import { type GitTransport, NeedsLogin } from "./transport";
 
 /** How long after the last local commit a push waits, as saving waits. */
@@ -54,7 +56,7 @@ export type Phase =
    * merge, each on its branch (`decks/lantern/main`, `lantern.deck.toml`),
    * with a deck's clashes card by card.
    */
-  | { kind: "conflict"; files: SyncConflict[] }
+  | { kind: "conflict"; conflicts: SyncConflict[] }
   /** The remote's history shares nothing with this repo's. */
   | { kind: "unrelated" }
   | { kind: "failed"; message: string };
@@ -95,10 +97,10 @@ export interface SyncEngine {
   /** After a conflict: takes `side` for everything that clashes, then syncs. */
   resolve(side: Side): Promise<void>;
   /**
-   * After a conflict: settles each file by its own picks, keyed by branch
-   * and path as the conflict named them, then syncs.
+   * After a conflict: settles each branch's merge by its own picks, each
+   * under the guard of the conflict they were made against, then syncs.
    */
-  settle(files: readonly FileSettle[]): Promise<void>;
+  settle(settles: readonly Settle[]): Promise<void>;
   /** After unrelated history: this repo becomes the remote's, then syncs. */
   replaceWithRemote(): Promise<void>;
   /** Makes `url` the remote and syncs with it. */
@@ -179,7 +181,7 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
     (state.phase.kind === "conflict" || state.phase.kind === "unrelated");
 
   type Stop =
-    | { kind: "conflict"; files: SyncConflict[] }
+    | { kind: "conflict"; conflicts: SyncConflict[] }
     | { kind: "unrelated" };
 
   /** Fetches and integrates; a stop when the user has to choose. */
@@ -201,7 +203,7 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
       for (const l of moved) l();
     }
     if (synced.kind === "conflict")
-      return { kind: "conflict", files: synced.files };
+      return { kind: "conflict", conflicts: synced.conflicts };
     if (synced.kind === "unrelated") return { kind: "unrelated" };
     return null;
   }
@@ -298,8 +300,8 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
     resolve(side) {
       return run({ prefer: side });
     },
-    settle(files) {
-      return run({ files });
+    settle(settles) {
+      return run({ settles: [...settles] });
     },
     replaceWithRemote() {
       return run(undefined, () => steps.adoptRemote());

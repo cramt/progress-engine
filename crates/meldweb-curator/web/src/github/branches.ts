@@ -73,6 +73,8 @@ export function planSummary(plan: MergePlan, ask: MergeAsk): string {
       return `${ask.into} and ${ask.from} changed the same things differently, so pick whose to keep where they clash. Everything else from both is kept.`;
     case "unrelated":
       return `${ask.into} and ${ask.from} share no history, so they do not merge.`;
+    case "stopped":
+      return plan.message;
   }
 }
 

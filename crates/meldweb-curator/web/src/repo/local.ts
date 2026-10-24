@@ -31,7 +31,6 @@ import type {
   DeckLineList,
   Fetched,
   FileRead,
-  FileSettle,
   FollowingRead,
   Forked,
   Journal,
@@ -44,6 +43,7 @@ import type {
   Revisions,
   Snapshots,
   Synced,
+  SyncSettle,
   TagFacts,
   Tagged,
   Who,
@@ -112,8 +112,7 @@ export type Request =
       stem: string;
       from: string;
       into: string;
-      prefer?: Side;
-      picks?: readonly Side[];
+      settle?: Settle;
     }
   | {
       kind: "merge";
@@ -122,8 +121,7 @@ export type Request =
       into: string;
       intoTip: string;
       fromTip: string;
-      prefer?: Side;
-      picks?: readonly Side[];
+      settle?: Settle;
       who: Who;
     }
   | {
@@ -159,33 +157,18 @@ export type Request =
   | {
       kind: "planTake";
       stem: string;
-      prefer?: Side;
-      picks?: readonly Side[];
+      settle?: Settle;
     }
   | {
       kind: "takeUpstream";
       stem: string;
       intoTip: string;
       fromTip: string;
-      prefer?: Side;
-      picks?: readonly Side[];
+      settle?: Settle;
       who: Who;
     }
   | { kind: "pushRequest"; advertised: Uint8Array }
   | { kind: "pushFinish"; sent: Uint8Array; response: Uint8Array };
-
-/** Which side a path both sides changed takes, once the user has chosen. */
-export type Side = "ours" | "theirs";
-
-/**
- * How the user settled a sync's clashes: each file of each branch by its
- * own picks, keyed by branch and path and guarded by the tips they were
- * made against, and `prefer` for everything else.
- */
-export interface SyncSettle {
-  prefer?: Side;
-  files?: readonly FileSettle[];
-}
 
 /** What a push's ref advertisement came to; see `GitRepo.push_request`. */
 export type PushPlan =
@@ -557,9 +540,7 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
         return writing((g) =>
           done(
             JSON.parse(
-              g.plan_merge(r.stem, r.from, r.into, r.prefer, [
-                ...(r.picks ?? []),
-              ]),
+              g.plan_merge(r.stem, r.from, r.into, wire(r.settle)),
             ) as MergePlan,
           ),
         );
@@ -573,8 +554,7 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
                 r.into,
                 r.intoTip,
                 r.fromTip,
-                r.prefer,
-                [...(r.picks ?? [])],
+                wire(r.settle),
                 JSON.stringify(r.who),
               ),
             ) as MergeDone,
@@ -613,11 +593,7 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
         return writing((g) =>
           done(
             JSON.parse(
-              g.integrate(
-                JSON.stringify(r.who),
-                r.settle.prefer,
-                JSON.stringify(r.settle.files ?? []),
-              ),
+              g.integrate(JSON.stringify(r.who), JSON.stringify(r.settle)),
             ) as Synced,
           ),
         );
@@ -692,11 +668,7 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
       // A plan writes the merged objects, which no ref names until a merge.
       case "planTake":
         return writing((g) =>
-          done(
-            JSON.parse(
-              g.plan_take(r.stem, r.prefer, [...(r.picks ?? [])]),
-            ) as MergePlan,
-          ),
+          done(JSON.parse(g.plan_take(r.stem, wire(r.settle))) as MergePlan),
         );
       case "takeUpstream":
         return writing((g) =>
@@ -706,8 +678,7 @@ export function createLocalCore(options: LocalCoreOptions): LocalCore {
                 r.stem,
                 r.intoTip,
                 r.fromTip,
-                r.prefer,
-                [...(r.picks ?? [])],
+                wire(r.settle),
                 JSON.stringify(r.who),
               ),
             ) as MergeDone,
@@ -797,16 +768,9 @@ export interface LocalRepo extends Repo {
   readonly remote: RemoteSteps;
 }
 
-/** A settle as a request carries it: only what was given. */
-function settled({ prefer, picks }: Settle): {
-  prefer?: Side;
-  picks?: readonly Side[];
-} {
-  return {
-    ...(prefer === undefined ? {} : { prefer }),
-    ...(picks === undefined || picks.length === 0 ? {} : { picks }),
-  };
-}
+/** A settle as the wasm takes it: its JSON, or nothing when none was made. */
+const wire = (settle: Settle | undefined) =>
+  settle === undefined ? undefined : JSON.stringify(settle);
 
 /** Carries one request to the core and its reply back. */
 export type Call = <K extends Kind>(
@@ -895,19 +859,8 @@ export function createLocalRepo(
     async deleteBranch(stem, name, commit) {
       await ask({ kind: "deleteBranch", stem, name, commit });
     },
-    planMerge: (stem, { from, into, ...settle }) =>
-      ask({ kind: "planMerge", stem, from, into, ...settled(settle) }),
-    merge: (stem, { from, into, intoTip, fromTip, ...settle }) =>
-      ask({
-        kind: "merge",
-        stem,
-        from,
-        into,
-        intoTip,
-        fromTip,
-        ...settled(settle),
-        who: who(),
-      }),
+    planMerge: (stem, ask_) => ask({ kind: "planMerge", stem, ...ask_ }),
+    merge: (stem, ask_) => ask({ kind: "merge", stem, ...ask_, who: who() }),
     async deleteFile(path, del) {
       await ask({ kind: "deleteFile", path, ...del, who: who() });
     },
@@ -921,16 +874,9 @@ export function createLocalRepo(
       await ask({ kind: "unfollow", stem, who: who() });
     },
     planTake: (stem, settle) =>
-      ask({ kind: "planTake", stem, ...settled(settle ?? {}) }),
-    takeUpstream: (stem, { intoTip, fromTip, ...settle }) =>
-      ask({
-        kind: "takeUpstream",
-        stem,
-        intoTip,
-        fromTip,
-        ...settled(settle),
-        who: who(),
-      }),
+      ask({ kind: "planTake", stem, ...(settle ? { settle } : {}) }),
+    takeUpstream: (stem, take) =>
+      ask({ kind: "takeUpstream", stem, ...take, who: who() }),
     exportZip: () => ask({ kind: "exportZip" }),
     async importZip(bytes) {
       await ask({ kind: "importZip", bytes });

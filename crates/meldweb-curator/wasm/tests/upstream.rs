@@ -13,13 +13,13 @@ use std::process::{Command, Stdio};
 
 use chip_decklist::stem::DeckStem;
 use meldweb_git::{
-    BranchName, Change, CommitId, FsStore, Identity, PushRequest, RemoteUrl, Repo, RepoPath, Side,
+    BranchName, Change, CommitId, FsStore, Identity, PushRequest, RemoteUrl, Repo, RepoPath,
     Signature, Timestamp, Tip, WriteCommit,
 };
 use meldweb_wasm::blame::{self, Blame, DeckBlame};
 use meldweb_wasm::branches::{MergeDone, MergePlan};
 use meldweb_wasm::layout;
-use meldweb_wasm::merging::Settle;
+use meldweb_wasm::merging::{Conflict, FileConflict, FileSettle, Settle, Side};
 use meldweb_wasm::preference::{self, Upstream};
 use meldweb_wasm::upstream::{self, Forked};
 
@@ -403,11 +403,13 @@ fn a_fork_of_alices_deck_keeps_her_commits_and_takes_her_changes() {
     );
     fetch(&mut me, &host, &up);
     let plan = upstream::plan(&mut me, &stem("lantern"), None).unwrap();
-    let MergePlan::Conflict { clashes, hunks, .. } = &plan else {
+    let MergePlan::Conflict { conflict } = &plan else {
         panic!("{plan:?}")
     };
-    println!("{clashes:#?}");
-    assert!(hunks.is_empty(), "{hunks:?}");
+    println!("{conflict:#?}");
+    let [FileConflict::EachClash { clashes, .. }] = &conflict.files[..] else {
+        panic!("{conflict:?}")
+    };
     assert_eq!(clashes.len(), 1, "{clashes:?}");
     let c = &clashes[0];
     assert_eq!(
@@ -419,11 +421,8 @@ fn a_fork_of_alices_deck_keeps_her_commits_and_takes_her_changes() {
         ),
         ("Arcane Signet", "quantity", "2", "3")
     );
-    let pick_theirs = Settle {
-        prefer: None,
-        picks: vec![Side::Theirs],
-    };
-    let plan = upstream::plan(&mut me, &stem("lantern"), pick_theirs.clone()).unwrap();
+    let pick_theirs = picking(conflict, "lantern.deck.toml", Side::Theirs);
+    let plan = upstream::plan(&mut me, &stem("lantern"), Some(&pick_theirs)).unwrap();
     let MergePlan::Merge {
         into, from, after, ..
     } = &plan
@@ -439,7 +438,7 @@ fn a_fork_of_alices_deck_keeps_her_commits_and_takes_her_changes() {
         &stem("lantern"),
         into,
         from,
-        pick_theirs,
+        Some(&pick_theirs),
         &me_at(7),
     )
     .unwrap();
@@ -696,6 +695,18 @@ fn her_change_merges_into_a_fork_whose_editor_pinned_every_printing() {
     fsck(&me_dir);
 }
 
+/// A side for the one clash of `path` in `conflict`, under its guard.
+fn picking(conflict: &Conflict, path: &str, side: Side) -> Settle {
+    Settle {
+        guard: conflict.guard.clone(),
+        prefer: None,
+        files: vec![FileSettle::EachClash {
+            path: path.to_owned(),
+            picks: vec![side],
+        }],
+    }
+}
+
 /// One commit on a version-1 `main`.
 fn save_v1(repo: &mut Repo<FsStore>, puts: &[(&str, &str)], message: &str, who: &Signature) {
     commit(repo, "main", puts, message, who);
@@ -796,4 +807,88 @@ fn a_fork_from_a_repo_still_at_version_1_holds_the_ids_its_own_migration_makes()
     );
     fsck(&me_dir);
     fsck(&copy);
+}
+
+#[test]
+fn a_pick_settles_only_the_take_it_was_shown_for() {
+    if !have_git() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let a = |t: i64| sig("Alice", 1_760_000_000 + t);
+    let me_at = |t: i64| sig("Me", 1_760_100_000 + t);
+    let alice_dir = dir.path().join("alice.git");
+    let mut alice = v2_repo(&alice_dir, &a(0));
+    let shredders = |n: u32| {
+        deck("Lantern", &BASE).replace(
+            "{ name = \"Codex Shredder\" }",
+            &format!("{{ name = \"Codex Shredder\", qty = {n} }}"),
+        )
+    };
+    commit(
+        &mut alice,
+        "decks/lantern/main",
+        &[("lantern.deck.toml", &deck("Lantern", &BASE))],
+        "lantern: new deck",
+        &a(10),
+    );
+    let host = Host(alice_dir.clone());
+    let me_dir = dir.path().join("me.git");
+    let mut me = v2_repo(&me_dir, &me_at(0));
+    let up = alice_up();
+    fetch(&mut me, &host, &up);
+    upstream::fork(&mut me, &up, &stem("lantern"), &me_at(1)).unwrap();
+    commit(
+        &mut alice,
+        "decks/lantern/main",
+        &[("lantern.deck.toml", &shredders(3))],
+        "lantern: Codex Shredder: 1 → 3",
+        &a(20),
+    );
+    commit(
+        &mut me,
+        "decks/lantern/main",
+        &[("lantern.deck.toml", &shredders(2))],
+        "lantern: Codex Shredder: 1 → 2",
+        &me_at(2),
+    );
+    fetch(&mut me, &host, &up);
+    let plan = upstream::plan(&mut me, &stem("lantern"), None).unwrap();
+    let MergePlan::Conflict { conflict } = &plan else {
+        panic!("{plan:?}")
+    };
+    // I pick her 3 over my 2, while another tab saves 4: the clash I would
+    // settle is 4 against 3, which I never saw.
+    let pick = picking(conflict, "lantern.deck.toml", Side::Theirs);
+    let moved = commit(
+        &mut me,
+        "decks/lantern/main",
+        &[("lantern.deck.toml", &shredders(4))],
+        "lantern: Codex Shredder: 2 → 4",
+        &me_at(3),
+    );
+    // Planned again with the picks, as the dialog does, it says so ...
+    let plan = upstream::plan(&mut me, &stem("lantern"), Some(&pick)).unwrap();
+    assert!(
+        matches!(&plan, MergePlan::Stopped { message } if message.contains("changed since the merge was shown")),
+        "{plan:?}"
+    );
+    // ... and taken at the tips both have now, the picks are refused.
+    let theirs = upstream::following(&me, &stem("lantern"))
+        .unwrap()
+        .unwrap()
+        .theirs
+        .unwrap()
+        .commit;
+    let done = upstream::take(
+        &mut me,
+        &stem("lantern"),
+        &moved.to_hex(),
+        &theirs,
+        Some(&pick),
+        &me_at(4),
+    )
+    .unwrap();
+    assert!(matches!(done, MergeDone::Stopped { .. }), "{done:?}");
+    assert_eq!(mine(&me, "lantern"), moved);
 }

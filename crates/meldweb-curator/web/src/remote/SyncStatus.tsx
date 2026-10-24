@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { connect } from "../github/connect";
 import { Sheet } from "../ui/Sheet";
 import { hostName, type Remote, useSyncState } from "./index";
-import { conflictName, SyncConflicts } from "./SyncConflicts";
+import { conflictNames, SyncConflicts } from "./SyncConflicts";
 import type { SyncState } from "./sync";
 import "./remote.css";
 
@@ -18,7 +18,7 @@ export function syncLine(state: SyncState): string | null {
   const host = hostName(state.url);
   switch (state.phase.kind) {
     case "conflict":
-      return `Syncing with ${host} stopped: ${state.phase.files.map(conflictName).join(", ")} changed here and on ${host} in ways that clash.`;
+      return `Syncing with ${host} stopped: ${conflictNames(state.phase.conflicts).join(", ")} changed here and on ${host} in ways that clash.`;
     case "unrelated":
       return `Syncing with ${host} stopped: its repo has a different history from this browser's.`;
     case "logged-out":
@@ -98,10 +98,10 @@ export function SyncStatus() {
               with your picks.
             </p>
             <SyncConflicts
-              files={conflict.phase.files}
+              conflicts={conflict.phase.conflicts}
               host={hostName(conflict.url)}
               disabled={busy}
-              onSettle={(files) => void act(() => held.sync.settle(files))}
+              onSettle={(settles) => void act(() => held.sync.settle(settles))}
               onResolve={(side) => void act(() => held.sync.resolve(side))}
             />
             {refusal && (

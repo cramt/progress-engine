@@ -612,14 +612,9 @@ pub enum TextMerge {
     Merged {
         text: String,
     },
-    /// A deck's cards both changed differently, or stretches of another
-    /// file's lines; `clashes` lists a deck's, and is empty for lines.
-    Clashed {
-        clashes: Vec<merging::MergeClash>,
-    },
-    /// What the merge makes is not a file of its kind.
-    Unreadable {
-        reason: String,
+    /// Both changed the same things differently, and what settles it.
+    Stopped {
+        file: merging::FileConflict,
     },
 }
 
@@ -627,7 +622,7 @@ pub enum TextMerge {
 /// file merges ([`merging::merge_file`]): a deck by card, anything else by
 /// lines. A refused save merges through this, and a sync and every branch
 /// merge through the same dispatch (ADR-0021, ADR-0041). `picks` is JSON of
-/// a [`merging::Pick`] for each of a deck's clashes, by its index, as the
+/// a [`merging::Side`] for each of a deck's clashes, by its index, as the
 /// user settled a refused save; `[]` settles none.
 #[wasm_bindgen]
 pub fn merge_file(
@@ -637,25 +632,17 @@ pub fn merge_file(
     theirs: &str,
     picks: &str,
 ) -> Result<String, JsError> {
-    let picks: Vec<merging::Pick> =
-        facet_json::from_str(picks).map_err(|e| refused(format!("picks are not Pick[]: {e}")))?;
-    let settle = merging::Settle {
-        prefer: None,
-        picks: picks.into_iter().map(Into::into).collect(),
+    let picks: Vec<merging::Side> =
+        facet_json::from_str(picks).map_err(|e| refused(format!("picks are not Side[]: {e}")))?;
+    let how = merging::FileSettling {
+        picks: &picks,
+        whole: None,
     };
-    Ok(text_merge(merging::merge_file(
-        path, base, ours, theirs, &settle,
-    )))
-}
-
-fn text_merge(merged: merging::FileMerge) -> String {
-    let merged = match merged {
-        merging::FileMerge::Merged(text) => TextMerge::Merged { text },
-        merging::FileMerge::Clashed(clashes) => TextMerge::Clashed { clashes },
-        merging::FileMerge::Hunks(_) => TextMerge::Clashed { clashes: vec![] },
-        merging::FileMerge::Unreadable(reason) => TextMerge::Unreadable { reason },
+    let merged = match merging::merge_file(path, base, ours, theirs, how) {
+        Ok(text) => TextMerge::Merged { text },
+        Err(file) => TextMerge::Stopped { file },
     };
-    facet_json::to_string(&merged).expect("TextMerge serialises")
+    Ok(facet_json::to_string(&merged).expect("TextMerge serialises"))
 }
 
 /// Why a line merge that turned `theirs` into `merged` at `path` leaves a
@@ -2227,7 +2214,7 @@ mod tests {
         g.add_type::<repo::Wrote>();
         g.add_type::<repo::RemoteFacts>();
         g.add_type::<repo::Synced>();
-        g.add_type::<merging::FileSettle>();
+        g.add_type::<merging::SyncSettle>();
         g.add_type::<repo::PushOutcome>();
         g.add_type::<repo::DeckLineList>();
         g.add_type::<repo::DeckDeleted>();

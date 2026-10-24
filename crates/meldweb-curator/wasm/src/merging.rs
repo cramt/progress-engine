@@ -1,7 +1,7 @@
 //! How a file both sides changed merges, chosen by its path, as git chooses
 //! a merge driver: a deck's file by card (`chip_decklist::merge`), every
 //! other file by lines (`meldweb_git::merge_lines_with`). `meldweb-git`
-//! merges trees and knows nothing of Magic; it calls [`merge_file`] through
+//! merges trees and knows nothing of Magic; it calls [`merge_bytes`] through
 //! its `MergeFile` hook for each file both sides changed.
 //!
 //! A deck merges by card because a line merge clashed wherever two edits
@@ -9,138 +9,67 @@
 //! card named by name (ADR-0027), so a fork clashed with nearly any change
 //! of the deck it came from. The collection, the wanted list, the settings,
 //! criteria and custom cards still merge by lines for now.
+//!
+//! A merge that stops is a [`Conflict`]: every file it stopped on, each by
+//! what settles it, and a guard naming what it was worked out from. The
+//! page hands the guard back with its picks as a [`Settle`], and only a
+//! merge with the same guard takes them, so a pick settles only the clash
+//! it was shown for: a branch merge, a take and a sync alike.
 
+use std::collections::BTreeMap;
+
+pub use chip_decklist::merge::Side;
 use chip_decklist::merge::{self as by_card, Merged};
 use facet::Facet;
-use meldweb_git::{merge_lines_with, BranchMerge, Hunk, Side};
+use meldweb_git::{merge_lines_with, BranchName, CommitId};
 
-/// How the user settled a merge's clashes: `picks[i]` for a deck's clash
-/// `i`, and `prefer` for any clash not picked and for every stretch of
-/// lines both changed in a file merged by lines.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Settle {
-    pub prefer: Option<Side>,
-    pub picks: Vec<Side>,
+/// `side` as `meldweb-git` merges lines and trees.
+pub fn git_side(side: Side) -> meldweb_git::Side {
+    match side {
+        Side::Ours => meldweb_git::Side::Ours,
+        Side::Theirs => meldweb_git::Side::Theirs,
+    }
 }
 
-impl From<Option<Side>> for Settle {
-    fn from(prefer: Option<Side>) -> Self {
-        Settle {
-            prefer,
-            picks: Vec::new(),
+/// What a conflict was worked out from. Picks made against it settle only
+/// a merge worked out from the same; a refused save's would be the blob
+/// the save started from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Guard {
+    /// Merging `theirs` into `branch` while it is at `ours`.
+    Tips {
+        branch: BranchName,
+        ours: CommitId,
+        theirs: CommitId,
+    },
+}
+
+impl Guard {
+    pub fn tips(branch: &BranchName, ours: CommitId, theirs: CommitId) -> Self {
+        Guard::Tips {
+            branch: branch.clone(),
+            ours,
+            theirs,
         }
     }
-}
 
-impl Settle {
-    fn deck(&self, i: usize) -> Option<by_card::Side> {
-        let side = self.picks.get(i).copied().or(self.prefer)?;
-        Some(match side {
-            Side::Ours => by_card::Side::Ours,
-            Side::Theirs => by_card::Side::Theirs,
-        })
-    }
-}
-
-/// A side, as the page sends a pick: `ours` is the branch merged into.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Facet)]
-#[repr(u8)]
-#[facet(rename_all = "kebab-case")]
-pub enum Pick {
-    Ours,
-    Theirs,
-}
-
-impl From<Pick> for Side {
-    fn from(p: Pick) -> Side {
-        match p {
-            Pick::Ours => Side::Ours,
-            Pick::Theirs => Side::Theirs,
-        }
-    }
-}
-
-/// How the user settled one file of one branch's sync merge: its deck's
-/// clashes one by one, or the whole file one way. Keyed by the branch and
-/// the path, and guarded by the two tips the clashes were shown from, so a
-/// pick made against one merge never settles a later one whose clash `i`
-/// may be another card.
-#[derive(Debug, Clone, PartialEq, Eq, Facet)]
-pub struct FileSettle {
-    pub branch: String,
-    pub path: String,
-    /// The branch's tip here, as the clashes were shown from.
-    pub ours: String,
-    /// The remote's tip of the branch, as the clashes were shown from.
-    pub theirs: String,
-    #[facet(default)]
-    pub prefer: Option<Pick>,
-    #[facet(default)]
-    pub picks: Vec<Pick>,
-}
-
-/// How the user settled a sync's clashes: file by file, and `prefer` for
-/// every file not settled on its own.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct SyncSettle {
-    pub prefer: Option<Side>,
-    pub files: Vec<FileSettle>,
-}
-
-impl SyncSettle {
-    /// What settles `path` in `at`'s merge: its own picks when they were
-    /// made against these two tips, otherwise `prefer`.
-    pub fn of(&self, at: &BranchMerge<'_>, path: &str) -> Settle {
-        let own = self.files.iter().find(|f| {
-            f.branch == at.branch.as_str()
-                && f.path == path
-                && f.ours == at.ours.to_hex()
-                && f.theirs == at.theirs.to_hex()
-        });
-        match own {
-            Some(f) => Settle {
-                prefer: f.prefer.map(Side::from),
-                picks: f.picks.iter().copied().map(Side::from).collect(),
-            },
-            None => Settle::from(self.prefer),
-        }
-    }
-}
-
-/// [`merge_bytes`] for one file of one branch's sync merge, settled by its
-/// own picks when it has them. A file the user settled one way whole takes
-/// that side's bytes even where merging it would not make a file Progress
-/// Engine reads, as `prefer` does for the whole sync.
-pub fn merge_sync_bytes(
-    at: &BranchMerge<'_>,
-    path: &str,
-    base: &[u8],
-    ours: &[u8],
-    theirs: &[u8],
-    settle: &SyncSettle,
-    stop: &mut impl FnMut(FileMerge),
-) -> Option<Vec<u8>> {
-    let own = settle.of(at, path);
-    let mut stopped = Vec::new();
-    let merged = merge_bytes(path, base, ours, theirs, &own, &mut |s| stopped.push(s));
-    if merged.is_some() {
-        return merged;
-    }
-    match own.prefer {
-        Some(Side::Ours) => Some(ours.to_vec()),
-        Some(Side::Theirs) => Some(theirs.to_vec()),
-        None => {
-            stopped.into_iter().for_each(stop);
-            None
+    /// The guard as the page carries it, which it never reads.
+    pub fn token(&self) -> String {
+        match self {
+            Guard::Tips {
+                branch,
+                ours,
+                theirs,
+            } => format!("tips {branch} {ours} {theirs}"),
         }
     }
 }
 
 /// One thing in a deck both sides changed differently, in words: `Sol Ring`,
-/// `quantity`, `2`, `3`. A merge's `picks` settle it by its `index`.
+/// `quantity`, `2`, `3`. A [`FileSettle::EachClash`] settles it by `index`,
+/// its place among its file's clashes.
 #[derive(Debug, Clone, PartialEq, Eq, Facet)]
 pub struct MergeClash {
-    pub path: String,
     pub index: u32,
     /// The card, `the deck`, or `category ramp`.
     pub subject: String,
@@ -151,17 +80,186 @@ pub struct MergeClash {
     pub theirs: String,
 }
 
-/// What merging one file came to.
-#[derive(Debug)]
-pub enum FileMerge {
-    Merged(String),
-    /// A deck's cards or fields both changed differently.
-    Clashed(Vec<MergeClash>),
-    /// Stretches of lines both changed differently.
-    Hunks(Vec<Hunk>),
-    /// What the merge would make is not a file Progress Engine reads.
-    Unreadable(String),
+/// One stretch of a file merged by lines that both sides changed, differently.
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
+pub struct ConflictHunk {
+    /// The lines as the merge base had them.
+    pub base: Vec<String>,
+    /// As the side merged into has them.
+    pub ours: Vec<String>,
+    /// As the side merged from has them.
+    pub theirs: Vec<String>,
 }
+
+/// Why a file that only a side for the whole of it settles did not merge.
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum WholeFile {
+    /// Stretches of lines both changed differently.
+    Lines { hunks: Vec<ConflictHunk> },
+    /// What the merge would make is not a file Progress Engine reads.
+    Unreadable { reason: String },
+}
+
+/// One file a merge stopped on, by what settles it.
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
+#[repr(u8)]
+#[facet(tag = "needs", rename_all = "camelCase")]
+pub enum FileConflict {
+    /// A deck's cards or fields both changed differently: a side for each
+    /// clash settles it.
+    EachClash {
+        path: String,
+        clashes: Vec<MergeClash>,
+    },
+    /// A side for the whole file settles it.
+    WholeFile { path: String, why: WholeFile },
+    /// One side deleted or replaced it whole, or it is not text: only
+    /// settling everything one way settles it.
+    AllOneWay { path: String },
+}
+
+/// A merge that stopped: the files it stopped on, in git's order, and the
+/// guard of what it was worked out from, which a [`Settle`] hands back.
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
+pub struct Conflict {
+    pub guard: String,
+    pub files: Vec<FileConflict>,
+}
+
+impl Conflict {
+    /// The conflict over `paths`, what git says did not merge, each file's
+    /// why as [`merge_bytes`] left it in `stops`.
+    pub fn of(guard: &Guard, paths: impl IntoIterator<Item = String>, stops: &mut Stops) -> Self {
+        Conflict {
+            guard: guard.token(),
+            files: paths
+                .into_iter()
+                .map(|path| {
+                    stops
+                        .0
+                        .remove(&path)
+                        .unwrap_or(FileConflict::AllOneWay { path })
+                })
+                .collect(),
+        }
+    }
+}
+
+/// How the user settled one file of a conflict, as the conflict said it is
+/// settled.
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
+#[repr(u8)]
+#[facet(tag = "needs", rename_all = "camelCase")]
+pub enum FileSettle {
+    /// A side for each of its clashes, by [`MergeClash::index`].
+    EachClash { path: String, picks: Vec<Side> },
+    /// The whole file one way.
+    WholeFile { path: String, side: Side },
+}
+
+/// How the user settled a [`Conflict`]: file by file, and `prefer` for what
+/// is not, under the guard of the conflict the picks were made against.
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
+pub struct Settle {
+    pub guard: String,
+    #[facet(default)]
+    pub prefer: Option<Side>,
+    #[facet(default)]
+    pub files: Vec<FileSettle>,
+}
+
+/// A settle made against another merge than the one at hand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Stale;
+
+/// What settles one merge, once its picks are known to be for it: its files
+/// one by one, and `prefer` for everything else.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Settling<'a> {
+    files: &'a [FileSettle],
+    pub prefer: Option<Side>,
+}
+
+/// What settles one file: a side for each of a deck's clashes by its index,
+/// and `whole` for any clash not picked, for every stretch of lines both
+/// changed, and for the file itself where it would not merge.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FileSettling<'a> {
+    pub picks: &'a [Side],
+    pub whole: Option<Side>,
+}
+
+impl<'a> Settling<'a> {
+    /// `settle` for the merge `guard` names, or [`Stale`] when it was made
+    /// against another; nothing settles a merge with no settle.
+    pub fn checked(settle: Option<&'a Settle>, guard: &Guard) -> Result<Self, Stale> {
+        match settle {
+            None => Ok(Settling::default()),
+            Some(s) if s.guard == guard.token() => Ok(Settling {
+                files: &s.files,
+                prefer: s.prefer,
+            }),
+            Some(_) => Err(Stale),
+        }
+    }
+
+    fn file(&self, path: &str) -> FileSettling<'a> {
+        let own = self.files.iter().find(|f| match f {
+            FileSettle::EachClash { path: p, .. } | FileSettle::WholeFile { path: p, .. } => {
+                p == path
+            }
+        });
+        match own {
+            Some(FileSettle::EachClash { picks, .. }) => FileSettling {
+                picks,
+                whole: self.prefer,
+            },
+            Some(FileSettle::WholeFile { side, .. }) => FileSettling {
+                picks: &[],
+                whole: Some(*side),
+            },
+            None => FileSettling {
+                picks: &[],
+                whole: self.prefer,
+            },
+        }
+    }
+}
+
+/// How the user settled a sync: each branch's merge by the settle made
+/// against it, and `prefer` for every branch and file with none.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Facet)]
+pub struct SyncSettle {
+    #[facet(default)]
+    pub prefer: Option<Side>,
+    #[facet(default)]
+    pub settles: Vec<Settle>,
+}
+
+impl SyncSettle {
+    /// What settles the merge `guard` names: the settle made against it,
+    /// otherwise `prefer` alone. A settle made against other tips of the
+    /// branch settles nothing, so the clashes are shown again.
+    pub fn settling(&self, guard: &Guard) -> Settling<'_> {
+        let token = guard.token();
+        match self.settles.iter().find(|s| s.guard == token) {
+            Some(s) => Settling {
+                files: &s.files,
+                prefer: s.prefer.or(self.prefer),
+            },
+            None => Settling {
+                files: &[],
+                prefer: self.prefer,
+            },
+        }
+    }
+}
+
+/// Why each file of one merge did not merge, by its path.
+#[derive(Debug, Default)]
+pub struct Stops(BTreeMap<String, FileConflict>);
 
 /// Whether `path` is a deck's file: `<stem>.deck.toml` at the root of its
 /// own line (ADR-0041).
@@ -170,19 +268,32 @@ pub fn is_deck(path: &str) -> bool {
 }
 
 /// `ours` and `theirs`, both made from `base`, merged as `path`'s kind of
-/// file merges, with `settle` settling what it can.
-pub fn merge_file(path: &str, base: &str, ours: &str, theirs: &str, settle: &Settle) -> FileMerge {
+/// file merges, with `how` settling what it can; what is left is the file's
+/// [`FileConflict`].
+pub fn merge_file(
+    path: &str,
+    base: &str,
+    ours: &str,
+    theirs: &str,
+    how: FileSettling<'_>,
+) -> Result<String, FileConflict> {
+    let unreadable = |reason: String| FileConflict::WholeFile {
+        path: path.to_owned(),
+        why: WholeFile::Unreadable { reason },
+    };
     if is_deck(path) {
-        return match by_card::merge(base, ours, theirs, |i| settle.deck(i)) {
-            Ok(Merged::Clean { text, .. }) => FileMerge::Merged(text),
-            Ok(Merged::Clashed(clashes)) => FileMerge::Clashed(
-                clashes
+        return match by_card::merge(base, ours, theirs, |i| {
+            how.picks.get(i).copied().or(how.whole)
+        }) {
+            Ok(Merged::Clean { text, .. }) => Ok(text),
+            Ok(Merged::Clashed(clashes)) => Err(FileConflict::EachClash {
+                path: path.to_owned(),
+                clashes: clashes
                     .iter()
                     .enumerate()
                     .map(|(i, c)| {
                         let said = c.said();
                         MergeClash {
-                            path: path.to_owned(),
                             index: u32::try_from(i).unwrap_or(u32::MAX),
                             subject: said.subject,
                             attribute: said.attribute.to_owned(),
@@ -191,37 +302,65 @@ pub fn merge_file(path: &str, base: &str, ours: &str, theirs: &str, settle: &Set
                         }
                     })
                     .collect(),
-            ),
-            Err(e) => FileMerge::Unreadable(e.to_string()),
+            }),
+            Err(e) => Err(unreadable(e.to_string())),
         };
     }
-    match merge_lines_with(base, ours, theirs, settle.prefer) {
-        Err(hunks) => FileMerge::Hunks(hunks),
+    match merge_lines_with(base, ours, theirs, how.whole.map(git_side)) {
+        Err(hunks) => Err(FileConflict::WholeFile {
+            path: path.to_owned(),
+            why: WholeFile::Lines {
+                hunks: hunks
+                    .into_iter()
+                    .map(|h| ConflictHunk {
+                        base: h.base,
+                        ours: h.ours,
+                        theirs: h.theirs,
+                    })
+                    .collect(),
+            },
+        }),
         Ok(merged) => match crate::unreadable(path, theirs, &merged) {
-            None => FileMerge::Merged(merged),
-            Some(reason) => FileMerge::Unreadable(reason),
+            None => Ok(merged),
+            Some(reason) => Err(unreadable(reason)),
         },
     }
 }
 
-/// [`merge_file`] over bytes, as `meldweb_git`'s `MergeFile` hook takes
-/// them: `None` for a file that is not text or does not merge, with `stop`
-/// told why.
+/// One file both sides of a merge changed, over bytes as `meldweb_git`'s
+/// merge hooks take them, settled by `settling`: `None` when it does not
+/// merge, with why in `stops`. A file settled one way whole takes that
+/// side's bytes even where merging it would not make a file Progress Engine
+/// reads, or it is not text. Every merge Curator makes goes through here: a
+/// branch merge, a take and a sync.
 pub fn merge_bytes(
     path: &str,
     base: &[u8],
     ours: &[u8],
     theirs: &[u8],
-    settle: &Settle,
-    stop: &mut impl FnMut(FileMerge),
+    settling: &Settling<'_>,
+    stops: &mut Stops,
 ) -> Option<Vec<u8>> {
     fn text(b: &[u8]) -> Option<&str> {
         std::str::from_utf8(b).ok()
     }
-    match merge_file(path, text(base)?, text(ours)?, text(theirs)?, settle) {
-        FileMerge::Merged(m) => Some(m.into_bytes()),
-        other => {
-            stop(other);
+    let how = settling.file(path);
+    let merged = match (text(base), text(ours), text(theirs)) {
+        (Some(b), Some(o), Some(t)) => Some(merge_file(path, b, o, t, how)),
+        _ => None,
+    };
+    let stopped = match merged {
+        Some(Ok(m)) => return Some(m.into_bytes()),
+        Some(Err(why)) => Some(why),
+        None => None,
+    };
+    match how.whole {
+        Some(Side::Ours) => Some(ours.to_vec()),
+        Some(Side::Theirs) => Some(theirs.to_vec()),
+        None => {
+            if let Some(why) = stopped {
+                stops.0.insert(path.to_owned(), why);
+            }
             None
         }
     }

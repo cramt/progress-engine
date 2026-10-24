@@ -4,8 +4,9 @@ import type {
   RemoteFacts,
   SyncConflict,
   Synced,
+  SyncSettle,
 } from "../deck.gen";
-import type { PushPlan, RemoteSteps, SyncSettle } from "../repo/local";
+import type { PushPlan, RemoteSteps } from "../repo/local";
 import { createSyncEngine, PUSH_IDLE_MS } from "./sync";
 import { type GitTransport, NeedsLogin } from "./transport";
 
@@ -206,17 +207,23 @@ describe("a sync", () => {
   it("stops at a conflict, pushes nothing, and goes on once a side is chosen", async () => {
     const lines: SyncConflict = {
       branch: "main",
-      path: "collection.toml",
-      ours: "a1",
-      theirs: "b1",
-      clashes: [],
-      hunks: [
-        { path: "collection.toml", base: ["x"], ours: ["y"], theirs: ["z"] },
-      ],
+      conflict: {
+        guard: "tips main a1 b1",
+        files: [
+          {
+            needs: "wholeFile",
+            path: "collection.toml",
+            why: {
+              kind: "lines",
+              hunks: [{ base: ["x"], ours: ["y"], theirs: ["z"] }],
+            },
+          },
+        ],
+      },
     };
     const repo = fakeRepo({
       integrate: [
-        { kind: "conflict", files: [lines] },
+        { kind: "conflict", conflicts: [lines] },
         { kind: "merged", commit: "m", taken: ["decks/lantern.deck.toml"] },
       ],
       push: ["send"],
@@ -227,7 +234,7 @@ describe("a sync", () => {
     let state = sync.getState();
     expect(state.kind === "on" && state.phase).toEqual({
       kind: "conflict",
-      files: [lines],
+      conflicts: [lines],
     });
     expect(repo.log.some((l) => l.startsWith("pushRequest"))).toBe(false);
 
@@ -243,31 +250,35 @@ describe("a sync", () => {
     expect(state.kind === "on" && state.phase.kind).toBe("idle");
   });
 
-  it("settles each branch's file by its own picks, keyed by branch and path", async () => {
+  it("settles each branch's merge by its own picks, under its conflict's guard", async () => {
     const clash = (branch: string, ours: string, theirs: string) => ({
       branch,
-      path: "lantern.deck.toml",
-      ours: `${branch}-here`,
-      theirs: `${branch}-there`,
-      clashes: [
-        {
-          path: "lantern.deck.toml",
-          index: 0,
-          subject: "Sol Ring",
-          attribute: "quantity",
-          ours,
-          theirs,
-        },
-      ],
-      hunks: [],
+      conflict: {
+        guard: `tips ${branch} here there`,
+        files: [
+          {
+            needs: "eachClash" as const,
+            path: "lantern.deck.toml",
+            clashes: [
+              {
+                index: 0,
+                subject: "Sol Ring",
+                attribute: "quantity",
+                ours,
+                theirs,
+              },
+            ],
+          },
+        ],
+      },
     });
-    const files = [
+    const conflicts = [
       clash("decks/lantern/budget", "5", "4"),
       clash("decks/lantern/main", "3", "2"),
     ];
     const repo = fakeRepo({
       integrate: [
-        { kind: "conflict", files },
+        { kind: "conflict", conflicts },
         { kind: "merged", commit: "m", taken: [] },
       ],
       push: ["send"],
@@ -278,18 +289,19 @@ describe("a sync", () => {
     let state = sync.getState();
     expect(state.kind === "on" && state.phase).toEqual({
       kind: "conflict",
-      files,
+      conflicts,
     });
     const sides = ["ours", "theirs"] as const;
-    const picks = files.map(({ branch, path, ours, theirs }, i) => ({
-      branch,
-      path,
-      ours,
-      theirs,
-      picks: [sides[i] ?? "ours"],
+    const picks = conflicts.map(({ conflict }, i) => ({
+      guard: conflict.guard,
+      files: conflict.files.map((f) => ({
+        needs: "eachClash" as const,
+        path: f.path,
+        picks: [sides[i] ?? "ours"],
+      })),
     }));
     await sync.settle(picks);
-    expect(repo.settles.at(-1)).toEqual({ files: picks });
+    expect(repo.settles.at(-1)).toEqual({ settles: picks });
     expect(repo.log).toContain("pushFinish push answer:git-receive-pack");
     state = sync.getState();
     expect(state.kind === "on" && state.phase.kind).toBe("idle");

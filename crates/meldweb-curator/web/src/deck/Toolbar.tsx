@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import type { MergeClash } from "../deck.gen";
 import type { SaveState } from "../github/save";
-import type { MergeSide } from "../repo/api";
+import type { Side } from "../repo/api";
 import { BrandMark, CloseIcon, RedoIcon, UndoIcon } from "../ui/icons";
 import { Waiting } from "../ui/Spinner";
 import { allPicked, ClashPicks, picked } from "./ClashPicks";
@@ -160,7 +160,7 @@ export function Banners({
   refusal: string | null;
   onReload: () => void;
   onOverwrite: () => void;
-  onPicks?: (picks: MergeSide[]) => void;
+  onPicks?: (picks: Side[]) => void;
   onDismiss: () => void;
   notice?: string | null;
 }) {
@@ -233,11 +233,11 @@ function SaveClashes({
   onOverwrite,
 }: {
   clashes: readonly MergeClash[];
-  onPicks: (picks: MergeSide[]) => void;
+  onPicks: (picks: Side[]) => void;
   onReload: () => void;
   onOverwrite: () => void;
 }) {
-  const [picks, setPicks] = useState<(MergeSide | undefined)[]>(() =>
+  const [picks, setPicks] = useState<(Side | undefined)[]>(() =>
     clashes.map(() => undefined),
   );
   const all = allPicked(picks);

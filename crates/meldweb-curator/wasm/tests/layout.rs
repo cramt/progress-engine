@@ -19,7 +19,10 @@ use meldweb_git::{
     RemoteUrl, Repo, RepoPath, Signature, TagName, Timestamp, Tip, WriteCommit,
 };
 use meldweb_wasm::layout::{self, DeckLines};
-use meldweb_wasm::merging::{self, FileMerge, FileSettle, Pick, Settle, SyncSettle};
+use meldweb_wasm::merging::{
+    self, FileConflict, FileSettle, FileSettling, Settle, Settling, Side, Stops, SyncSettle,
+};
+use meldweb_wasm::repo::SyncConflict;
 use meldweb_wasm::repo::Synced;
 
 fn have_git() -> bool {
@@ -732,7 +735,14 @@ fn a_named_criteria_set_without_its_deck_is_refused() {
 /// What the browser's sync merges a file both changed with: a deck by card,
 /// anything else by lines.
 fn as_curator_merges(path: &str, base: &[u8], ours: &[u8], theirs: &[u8]) -> Option<Vec<u8>> {
-    merging::merge_bytes(path, base, ours, theirs, &Settle::default(), &mut |_| {})
+    merging::merge_bytes(
+        path,
+        base,
+        ours,
+        theirs,
+        &Settling::default(),
+        &mut Stops::default(),
+    )
 }
 
 fn fetch(repo: &mut Repo<FsStore>, server: &Server) {
@@ -1064,20 +1074,16 @@ fn a_sync_merges_a_deck_both_browsers_changed_by_card() {
     let base_text = lantern(&b);
     let a_text = base_text.replace("qty = 3", "qty = 1");
     let b_text = base_text.replace("qty = 3", "qty = 5");
-    let mut said = Vec::new();
-    let merged = merging::merge_bytes(
+    let merged = merging::merge_file(
         "lantern.deck.toml",
-        base_text.as_bytes(),
-        a_text.as_bytes(),
-        b_text.as_bytes(),
-        &Settle::default(),
-        &mut |stop| {
-            if let FileMerge::Clashed(c) = stop {
-                said.extend(c);
-            }
-        },
+        &base_text,
+        &a_text,
+        &b_text,
+        FileSettling::default(),
     );
-    assert!(merged.is_none());
+    let Err(FileConflict::EachClash { clashes: said, .. }) = merged else {
+        panic!("{merged:?}")
+    };
     println!("{said:#?}");
     assert_eq!(
         (
@@ -1307,18 +1313,33 @@ fn a_syncs_clashes_on_two_branches_are_settled_each_by_its_own_picks() {
     browser::put(&mut b, budget, path, &qty(5), 7);
     browser::fetch(&mut b, &server);
 
-    let Synced::Conflict { files } = browser::integrate(&mut b, &SyncSettle::default(), 8) else {
+    let Synced::Conflict { conflicts } = browser::integrate(&mut b, &SyncSettle::default(), 8)
+    else {
         panic!("both branches clash");
     };
-    println!("{files:#?}");
-    let keys: Vec<(&str, &str)> = files
+    println!("{conflicts:#?}");
+    let keys: Vec<(&str, Vec<&str>)> = conflicts
         .iter()
-        .map(|f| (f.branch.as_str(), f.path.as_str()))
+        .map(|c| {
+            let paths = c
+                .conflict
+                .files
+                .iter()
+                .map(|f| match f {
+                    FileConflict::EachClash { path, .. } => path.as_str(),
+                    other => panic!("{other:?}"),
+                })
+                .collect();
+            (c.branch.as_str(), paths)
+        })
         .collect();
-    assert_eq!(keys, vec![(budget, path), (main, path)]);
-    for (f, (ours, theirs)) in files.iter().zip([("5", "4"), ("3", "2")]) {
-        assert_eq!(f.clashes.len(), 1);
-        let c = &f.clashes[0];
+    assert_eq!(keys, vec![(budget, vec![path]), (main, vec![path])]);
+    for (c, (ours, theirs)) in conflicts.iter().zip([("5", "4"), ("3", "2")]) {
+        let [FileConflict::EachClash { clashes, .. }] = &c.conflict.files[..] else {
+            panic!("{c:?}")
+        };
+        assert_eq!(clashes.len(), 1);
+        let c = &clashes[0];
         assert_eq!(
             (
                 c.subject.as_str(),
@@ -1329,53 +1350,44 @@ fn a_syncs_clashes_on_two_branches_are_settled_each_by_its_own_picks() {
             ("Sol Ring", "quantity", ours, theirs)
         );
     }
-    let settle_of = |branch: &str, pick: Pick| {
-        let f = files.iter().find(|f| f.branch == branch).unwrap();
-        FileSettle {
-            branch: f.branch.clone(),
-            path: f.path.clone(),
-            ours: f.ours.clone(),
-            theirs: f.theirs.clone(),
+    let settle_of = |conflicts: &[SyncConflict], branch: &str, pick: Side| {
+        let c = conflicts.iter().find(|c| c.branch == branch).unwrap();
+        Settle {
+            guard: c.conflict.guard.clone(),
             prefer: None,
-            picks: vec![pick],
+            files: vec![FileSettle::EachClash {
+                path: path.to_owned(),
+                picks: vec![pick],
+            }],
         }
     };
 
     // A pick made against other tips settles nothing: B saved again since.
-    let stale = settle_of(main, Pick::Theirs);
-    let b_tip = browser::put(&mut b, main, path, &qty(3).replace("Island", "Plains"), 9);
-    let Synced::Conflict { files: again } = browser::integrate(
+    let stale = settle_of(&conflicts, main, Side::Theirs);
+    browser::put(&mut b, main, path, &qty(3).replace("Island", "Plains"), 9);
+    let Synced::Conflict { conflicts: again } = browser::integrate(
         &mut b,
         &SyncSettle {
             prefer: None,
-            files: vec![stale, settle_of(budget, Pick::Ours)],
+            settles: vec![stale.clone(), settle_of(&conflicts, budget, Side::Ours)],
         },
         10,
     ) else {
         panic!("main's pick was made against a tip B has moved from");
     };
     assert_eq!(again.len(), 1, "budget's pick settled budget: {again:#?}");
-    assert_eq!(
-        (again[0].branch.as_str(), again[0].ours.as_str()),
-        (main, b_tip.as_str())
-    );
+    assert_eq!(again[0].branch.as_str(), main);
+    assert_ne!(again[0].conflict.guard, stale.guard, "main's tip moved");
     let budget_merged = browser::read(&b, budget, path).0;
     assert!(budget_merged.contains("qty = 5"), "{budget_merged}");
 
     // Picked against the tips it has now, main takes A's quantity.
-    let fresh = FileSettle {
-        branch: again[0].branch.clone(),
-        path: again[0].path.clone(),
-        ours: again[0].ours.clone(),
-        theirs: again[0].theirs.clone(),
-        prefer: None,
-        picks: vec![Pick::Theirs],
-    };
+    let fresh = settle_of(&again, main, Side::Theirs);
     let synced = browser::integrate(
         &mut b,
         &SyncSettle {
             prefer: None,
-            files: vec![fresh],
+            settles: vec![fresh],
         },
         11,
     );

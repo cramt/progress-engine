@@ -6,15 +6,47 @@
  */
 export type TextMerge =
   | { kind: "merged"; text: string }
-  | { kind: "clashed"; clashes: MergeClash[] }
+  | { kind: "stopped"; file: FileConflict };
+
+/**
+ * One file a merge stopped on, by what settles it.
+ */
+export type FileConflict =
+  | { needs: "eachClash"; path: string; clashes: MergeClash[] }
+  | { needs: "wholeFile"; path: string; why: WholeFile }
+  | { needs: "allOneWay"; path: string };
+
+/**
+ * Why a file that only a side for the whole of it settles did not merge.
+ */
+export type WholeFile =
+  | { kind: "lines"; hunks: ConflictHunk[] }
   | { kind: "unreadable"; reason: string };
 
 /**
+ * One stretch of a file merged by lines that both sides changed, differently.
+ */
+export interface ConflictHunk {
+  /**
+   * The lines as the merge base had them.
+   */
+  base: string[];
+  /**
+   * As the side merged into has them.
+   */
+  ours: string[];
+  /**
+   * As the side merged from has them.
+   */
+  theirs: string[];
+}
+
+/**
  * One thing in a deck both sides changed differently, in words: `Sol Ring`,
- * `quantity`, `2`, `3`. A merge's `picks` settle it by its `index`.
+ * `quantity`, `2`, `3`. A [`FileSettle::EachClash`] settles it by `index`,
+ * its place among its file's clashes.
  */
 export interface MergeClash {
-  path: string;
   index: number;
   /**
    * The card, `the deck`, or `category ramp`.
@@ -204,34 +236,17 @@ export type MergePlan =
   | { kind: "upToDate" }
   | { kind: "fastForward"; into: string; from: string; before?: string; after?: string }
   | { kind: "merge"; into: string; from: string; before?: string; after?: string; message: string }
-  | { kind: "conflict"; into: string; from: string; clashes: MergeClash[]; hunks: ConflictHunk[]; unreadable: MergeRefusal[] }
-  | { kind: "unrelated" };
+  | { kind: "conflict"; conflict: Conflict }
+  | { kind: "unrelated" }
+  | { kind: "stopped"; message: string };
 
 /**
- * A file whose merge makes something Progress Engine does not read.
+ * A merge that stopped: the files it stopped on, in git's order, and the
+ * guard of what it was worked out from, which a [`Settle`] hands back.
  */
-export interface MergeRefusal {
-  path: string;
-  reason: string;
-}
-
-/**
- * One stretch of a file that both branches changed, differently.
- */
-export interface ConflictHunk {
-  path: string;
-  /**
-   * The lines as the merge base had them.
-   */
-  base: string[];
-  /**
-   * As the branch merged into has them.
-   */
-  ours: string[];
-  /**
-   * As the branch merged from has them.
-   */
-  theirs: string[];
+export interface Conflict {
+  guard: string;
+  files: FileConflict[];
 }
 
 export type BranchDeleted =
@@ -337,31 +352,37 @@ export interface Refused {
 }
 
 /**
- * How the user settled one file of one branch's sync merge: its deck's
- * clashes one by one, or the whole file one way. Keyed by the branch and
- * the path, and guarded by the two tips the clashes were shown from, so a
- * pick made against one merge never settles a later one whose clash `i`
- * may be another card.
+ * How the user settled a sync: each branch's merge by the settle made
+ * against it, and `prefer` for every branch and file with none.
  */
-export interface FileSettle {
-  branch: string;
-  path: string;
-  /**
-   * The branch's tip here, as the clashes were shown from.
-   */
-  ours: string;
-  /**
-   * The remote's tip of the branch, as the clashes were shown from.
-   */
-  theirs: string;
-  prefer?: Pick;
-  picks?: Pick[];
+export interface SyncSettle {
+  prefer?: Side;
+  settles?: Settle[];
 }
 
 /**
- * A side, as the page sends a pick: `ours` is the branch merged into.
+ * How the user settled a [`Conflict`]: file by file, and `prefer` for what
+ * is not, under the guard of the conflict the picks were made against.
  */
-export type Pick = "ours" | "theirs";
+export interface Settle {
+  guard: string;
+  prefer?: Side;
+  files?: FileSettle[];
+}
+
+/**
+ * How the user settled one file of a conflict, as the conflict said it is
+ * settled.
+ */
+export type FileSettle =
+  | { needs: "eachClash"; path: string; picks: Side[] }
+  | { needs: "wholeFile"; path: string; side: Side };
+
+/**
+ * One side of a merge, and the side a user picks for a clash: `ours` is
+ * the version merged into.
+ */
+export type Side = "ours" | "theirs";
 
 /**
  * What bringing the remote's branches into these came to, all of them
@@ -377,24 +398,17 @@ export type Synced =
   | { kind: "fastForwarded"; to: string }
   | { kind: "adopted"; to: string }
   | { kind: "merged"; commit: string; taken: string[] }
-  | { kind: "conflict"; files: SyncConflict[] }
+  | { kind: "conflict"; conflicts: SyncConflict[] }
   | { kind: "unrelated" };
 
 /**
- * One file of one branch that a sync could not merge, and why: a deck's
- * clashes card by card, another file's stretches of lines, or a merge that
- * would not read. `ours` and `theirs` are the branch's tips here and on the
- * remote, which a [`FileSettle`] names back to settle this merge and no
- * later one.
+ * One branch whose sync merge stopped, and its [`Conflict`], whose guard
+ * is the branch's tips here and on the remote: a [`Settle`] under it
+ * settles this merge and no later one.
  */
 export interface SyncConflict {
   branch: string;
-  path: string;
-  ours: string;
-  theirs: string;
-  clashes: MergeClash[];
-  hunks: ConflictHunk[];
-  unreadable?: string;
+  conflict: Conflict;
 }
 
 /**

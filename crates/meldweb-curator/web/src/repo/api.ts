@@ -17,6 +17,8 @@ import type {
   Forked,
   MergeDone,
   MergePlan,
+  Settle,
+  Side,
   UpstreamFacts,
 } from "../deck.gen";
 
@@ -108,24 +110,14 @@ export interface Branch {
   behind: number;
 }
 
-/** A side of a merge: `ours` is the branch merged into, `theirs` the other. */
-export type MergeSide = "ours" | "theirs";
-
-/** How the user settled a merge's clashes. */
-export interface Settle {
-  /**
-   * For whatever is not picked one by one, and for every stretch of lines
-   * both changed in a file merged by lines (criteria, the collection).
-   */
-  prefer?: MergeSide;
-  /** The side for each of a deck's clashes, by its `index`. */
-  picks?: readonly MergeSide[];
-}
-
-/** Merging one of a deck's branches into another: which, and how its clashes are settled. */
-export interface MergeAsk extends Settle {
+/**
+ * Merging one of a deck's branches into another: which, and how its clashes
+ * are settled, under the guard of the conflict the picks were made against.
+ */
+export interface MergeAsk {
   from: string;
   into: string;
+  settle?: Settle;
 }
 
 export interface Repo {
@@ -229,7 +221,7 @@ export interface Repo {
   /** Takes them as `planTake` said, while both are still at its tips. */
   takeUpstream(
     stem: string,
-    ask: Settle & { intoTip: string; fromTip: string },
+    ask: { intoTip: string; fromTip: string; settle?: Settle },
   ): Promise<MergeDone>;
 }
 
@@ -240,7 +232,16 @@ export interface BlameRead {
   cards: CardBlame[];
 }
 
-export type { CardBlame, Fetched, Following, Forked, MergeDone, MergePlan };
+export type {
+  CardBlame,
+  Fetched,
+  Following,
+  Forked,
+  MergeDone,
+  MergePlan,
+  Settle,
+  Side,
+};
 
 /**
  * The file moved in the repo since its sha was read, or a create found it

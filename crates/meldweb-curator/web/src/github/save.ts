@@ -12,7 +12,7 @@
  * the repo's sha, as a merge that never clashed is.
  */
 import type { MergeClash } from "../deck.gen";
-import { ConflictError, type MergeSide, type Repo } from "../repo/api";
+import { ConflictError, type Repo, type Side } from "../repo/api";
 import { mergeFile } from "./merge";
 import { commitMessageFor, spotKey, track } from "./repoFile";
 
@@ -65,7 +65,7 @@ export interface SaveStore {
    * picks may mean other cards, so they settle nothing and the conflict
    * names the clashes as they are now.
    */
-  resolve(picks: readonly MergeSide[]): Promise<void>;
+  resolve(picks: readonly Side[]): Promise<void>;
   /** Listens for hide, close and unload on the page; returns the detach. */
   attach(target?: PageEvents): () => void;
   /** Stops the idle clock and detaches. Later edits start it again. */
@@ -207,7 +207,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
   async function merge(
     onMerge: (text: string) => void,
     refused: Error,
-    picks?: readonly MergeSide[],
+    picks?: readonly Side[],
   ) {
     for (let attempt = 1; ; attempt++) {
       const file = await repo.getFile(path, branch);
@@ -226,9 +226,17 @@ export function createSaveStore(options: SaveOptions): SaveStore {
         file.text,
         fresh ? picks : undefined,
       );
-      if (merging.kind === "clashed") {
+      const stopped = merging.kind === "stopped" ? merging.file : null;
+      // A deck's clashes are picked one by one; lines only reload or overwrite.
+      if (
+        stopped?.needs === "eachClash" ||
+        (stopped?.needs === "wholeFile" && stopped.why.kind === "lines")
+      ) {
         clashedAt = { sha: file.sha, ours: current, base };
-        throw new Clashed(refused.message, merging.clashes);
+        throw new Clashed(
+          refused.message,
+          stopped.needs === "eachClash" ? stopped.clashes : [],
+        );
       }
       clashedAt = null;
       if (merging.kind !== "merged") throw refused;

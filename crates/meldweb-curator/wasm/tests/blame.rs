@@ -13,9 +13,10 @@ use std::process::Command;
 use std::time::Instant;
 
 use chip_decklist::stem::DeckStem;
-use meldweb_git::{CommitId, FsStore, Repo, RepoPath, Side, Store};
+use meldweb_git::{CommitId, FsStore, Repo, RepoPath, Store};
 use meldweb_wasm::blame::{blame, Blame, CardBlame, DeckBlame, Memo};
 use meldweb_wasm::branches::{self, MergePlan};
+use meldweb_wasm::merging::Side;
 
 mod common;
 use common::*;

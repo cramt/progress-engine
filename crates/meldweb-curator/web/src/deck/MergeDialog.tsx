@@ -1,15 +1,20 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { compareDecks } from "../deck";
-import type { ConflictHunk, MergeClash } from "../deck.gen";
+import type { Conflict, FileConflict } from "../deck.gen";
 import {
   type MergeDone,
   type MergePlan,
   mergeAsPlanned,
   planSummary,
 } from "../github/branches";
-import type { MergeAsk, MergeSide, Repo, Settle } from "../repo/api";
+import type { MergeAsk, Repo, Settle, Side } from "../repo/api";
 import { messageOf, Sheet, useBusy } from "../ui/Sheet";
-import { ClashPicks, Hunks, picked } from "./ClashPicks";
+import {
+  type FileChoice,
+  FileConflictPicks,
+  settleOf,
+  unpicked,
+} from "./ClashPicks";
 import { GROUP_TITLES, grouped, takeable } from "./versions";
 
 type Planning =
@@ -19,8 +24,8 @@ type Planning =
 
 /** Where a merge comes from: planning it, and making it as planned. */
 export interface MergeSource {
-  plan(settle: Settle): Promise<MergePlan>;
-  merge(plan: MergePlan, settle: Settle): Promise<MergeDone>;
+  plan(settle?: Settle): Promise<MergePlan>;
+  merge(plan: MergePlan, settle?: Settle): Promise<MergeDone>;
 }
 
 /**
@@ -58,17 +63,22 @@ export function MergeDialog({
   onClose: () => void;
   onMerged: (done: Extract<MergeDone, { kind: "merged" }>) => void;
 }) {
-  const [settle, setSettle] = useState<Settle>({});
+  const [settle, setSettle] = useState<Settle | undefined>();
   const [planning, setPlanning] = useState<Planning>({ kind: "loading" });
   const [round, setRound] = useState(0);
   const { busy, refusal, run } = useBusy();
-  const ask: MergeAsk = { from, into, ...settle };
+  const ask: MergeAsk = { from, into, ...(settle ? { settle } : {}) };
   const merging: MergeSource = source ?? {
-    plan: (s) => repo.planMerge(stem, { from, into, ...s }),
-    merge: (plan, s) => mergeAsPlanned(repo, stem, { from, into, ...s }, plan),
+    plan: (s) =>
+      repo.planMerge(stem, { from, into, ...(s ? { settle: s } : {}) }),
+    merge: (plan, s) =>
+      mergeAsPlanned(
+        repo,
+        stem,
+        { from, into, ...(s ? { settle: s } : {}) },
+        plan,
+      ),
   };
-  const settled =
-    settle.prefer !== undefined || (settle.picks?.length ?? 0) > 0;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `round` plans again after a refused merge, and `merging` is made anew each render from what is listed
   useEffect(() => {
@@ -124,23 +134,32 @@ export function MergeDialog({
         )}
         {plan && <p className="hint">{planSummary(plan, ask)}</p>}
         {children}
-        {settled && plan?.kind !== "conflict" && (
+        {settle && plan?.kind !== "conflict" && plan?.kind !== "stopped" && (
           <p className="notice">
             {settledSummary(settle, into, from)}{" "}
             <button
               type="button"
               className="small"
-              onClick={() => setSettle({})}
+              onClick={() => setSettle(undefined)}
             >
               Change
             </button>
           </p>
         )}
+        {plan?.kind === "stopped" && (
+          <p className="notice">
+            <button
+              type="button"
+              className="small"
+              onClick={() => setSettle(undefined)}
+            >
+              Look at it again
+            </button>
+          </p>
+        )}
         {plan?.kind === "conflict" && (
           <Clashes
-            clashes={plan.clashes}
-            hunks={plan.hunks}
-            unreadable={plan.unreadable}
+            conflict={plan.conflict}
             from={from}
             into={into}
             onSettle={setSettle}
@@ -244,95 +263,79 @@ export function WhatChanges({
 
 /** What the user picked, said back above the merge it makes. */
 function settledSummary(settle: Settle, into: string, from: string): string {
-  const name = (side: MergeSide) => (side === "ours" ? into : from);
-  const picks = settle.picks ?? [];
-  if (picks.length === 0 && settle.prefer)
+  const name = (side: Side) => (side === "ours" ? into : from);
+  const files = settle.files ?? [];
+  const picks = files.flatMap((f) => (f.needs === "eachClash" ? f.picks : []));
+  const wholes = files.flatMap((f) =>
+    f.needs === "wholeFile" ? [`${f.path} as ${name(f.side)} has it`] : [],
+  );
+  if (files.length === 0 && settle.prefer)
     return `Where they clash, ${name(settle.prefer)}'s side is kept.`;
   const theirs = picks.filter((p) => p === "theirs").length;
-  return `${picks.length} clash${picks.length === 1 ? "" : "es"} settled: ${theirs} from ${from}, ${picks.length - theirs} kept as ${into} has ${picks.length - theirs === 1 ? "it" : "them"}.`;
+  const said =
+    picks.length === 0
+      ? []
+      : [
+          `${picks.length} clash${picks.length === 1 ? "" : "es"} settled: ${theirs} from ${from}, ${picks.length - theirs} kept as ${into} has ${picks.length - theirs === 1 ? "it" : "them"}`,
+        ];
+  return `${[...said, ...wholes].join("; ")}.`;
 }
 
 /**
- * Everything both changed differently, and the choices that settle it: a
- * side for each card's (or the deck's) clash one by one, or one side for
- * everything; another file's stretches of lines take one side.
+ * Everything both changed differently, file by file, and the choices that
+ * settle it: what each file needs (`FileConflictPicks`), or one side for
+ * everything. The picks go back under the conflict's guard, so they settle
+ * this merge and no later one.
  */
 function Clashes({
-  clashes,
-  hunks,
-  unreadable,
+  conflict,
   from,
   into,
   onSettle,
 }: {
-  clashes: readonly MergeClash[];
-  hunks: readonly ConflictHunk[];
-  unreadable: readonly { path: string; reason: string }[];
+  conflict: Conflict;
   from: string;
   into: string;
   onSettle: (settle: Settle) => void;
 }) {
-  const [picks, setPicks] = useState<(MergeSide | undefined)[]>(() =>
-    clashes.map(() => undefined),
-  );
-  const [lines, setLines] = useState<MergeSide | undefined>();
-  const all = (side: MergeSide) => onSettle({ prefer: side });
-  const ready =
-    picks.every((p) => p !== undefined) &&
-    (hunks.length === 0 || lines !== undefined);
+  const [choices, setChoices] = useState<Record<string, FileChoice>>({});
+  const choiceOf = (f: FileConflict) => choices[f.path] ?? unpicked(f);
+  const all = (side: Side) => onSettle({ guard: conflict.guard, prefer: side });
+  const picks = settleOf(conflict, choiceOf);
+  const own = conflict.files.every((f) => f.needs !== "allOneWay");
+  const clashes = conflict.files.some((f) => f.needs === "eachClash");
   return (
     <section className="merge-clashes" aria-label="Where they clash">
-      {clashes.length > 0 && (
-        <ClashPicks
-          clashes={clashes}
-          picks={picks}
-          onPick={(i, side) => setPicks((was) => picked(was, i, side))}
-          ours={into}
-          theirs={from}
-          group="clash"
-        />
-      )}
-      <Hunks hunks={hunks} ours={into} theirs={from} />
-      {hunks.length > 0 && clashes.length > 0 && (
-        <fieldset className="merge-card-clash-sides">
-          <legend>Those lines</legend>
-          {(["ours", "theirs"] as const).map((side) => (
-            <label key={side}>
-              <input
-                type="radio"
-                name="clash-lines"
-                checked={lines === side}
-                onChange={() => setLines(side)}
-              />{" "}
-              {side === "ours" ? `Keep ${into}'s` : `Take ${from}'s`}
-            </label>
-          ))}
-        </fieldset>
-      )}
-      {unreadable.map((u) => (
-        <p key={u.path} className="refusal" role="alert">
-          Merged, {u.path} would not be a deck Progress Engine reads: {u.reason}
-          . Pick a side and the whole file takes it.
-        </p>
+      {conflict.files.map((f) => (
+        <div key={f.path} className="merge-clash-file">
+          {conflict.files.length > 1 && (
+            <p className="merge-clash-path">{f.path}</p>
+          )}
+          <FileConflictPicks
+            file={f}
+            choice={choiceOf(f)}
+            onChoice={(next) =>
+              setChoices((was) => ({ ...was, [f.path]: next }))
+            }
+            ours={into}
+            theirs={from}
+            group={`clash-${f.path}`}
+          />
+        </div>
       ))}
       <div className="dialog-buttons merge-pick">
         <button type="button" onClick={() => all("ours")}>
-          Keep {into}'s side of {clashes.length > 0 ? "every clash" : "them"}
+          Keep {into}'s side of {clashes ? "every clash" : "them"}
         </button>
         <button type="button" onClick={() => all("theirs")}>
-          Take {from}'s side of {clashes.length > 0 ? "every clash" : "them"}
+          Take {from}'s side of {clashes ? "every clash" : "them"}
         </button>
-        {clashes.length > 0 && (
+        {own && (
           <button
             type="button"
             className="primary"
-            disabled={!ready}
-            onClick={() =>
-              onSettle({
-                picks: picks.filter((p): p is MergeSide => p !== undefined),
-                ...(lines ? { prefer: lines } : {}),
-              })
-            }
+            disabled={picks === null}
+            onClick={() => picks && onSettle(picks)}
           >
             Use these picks
           </button>
