@@ -308,7 +308,9 @@ impl<S: Store> Repo<S> {
     pub(crate) fn write_object(&mut self, kind: Kind, data: &[u8]) -> Result<ObjectId> {
         let id = gix_object::compute_hash(SHA1, kind, data).map_err(|e| corrupt("an object", e))?;
         let path = Self::object_path(&id);
-        if st(self.store.read(&path))?.is_some() {
+        // A file storage cut short holds the name without the object, and
+        // keeping it would leave the repo unable to read it for good.
+        if self.has_object(&id)? && self.read_raw(&id).is_ok() {
             return Ok(id);
         }
         let mut z = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
@@ -330,7 +332,9 @@ impl<S: Store> Repo<S> {
 
     /// The object's kind and data, its hash checked.
     fn read_raw(&self, id: &ObjectId) -> Result<(Kind, Vec<u8>)> {
-        let Some(compressed) = st(self.store.read(&Self::object_path(id)))? else {
+        // Empty is missing, as in `has_object`.
+        let stored = st(self.store.read(&Self::object_path(id)))?.filter(|b| !b.is_empty());
+        let Some(compressed) = stored else {
             if !st(self.store.list("objects/pack"))?.is_empty() {
                 return Err(Error::Unsupported(Unsupported::Packfile));
             }
@@ -368,16 +372,24 @@ impl<S: Store> Repo<S> {
         Ok(data)
     }
 
-    /// The object's kind and data, or `None` when the repo lacks it.
+    /// The object's kind and data, or `None` when the repo lacks it or
+    /// holds it damaged, so a fetch asks for it again and replaces it.
     pub(crate) fn read_any(&self, id: &ObjectId) -> Result<Option<(Kind, Vec<u8>)>> {
         if !self.has_object(id)? {
             return Ok(None);
         }
-        self.read_raw(id).map(Some)
+        match self.read_raw(id) {
+            Ok(found) => Ok(Some(found)),
+            Err(Error::Corrupt { .. }) => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 
+    /// Whether the object's file is there. An empty one is not: no object
+    /// compresses to nothing, and a browser closed between making the file
+    /// and filling it leaves one.
     pub(crate) fn has_object(&self, id: &ObjectId) -> Result<bool> {
-        Ok(st(self.store.read(&Self::object_path(id)))?.is_some())
+        Ok(st(self.store.read(&Self::object_path(id)))?.is_some_and(|b| !b.is_empty()))
     }
 
     pub fn read_blob(&self, id: &BlobId) -> Result<Vec<u8>> {

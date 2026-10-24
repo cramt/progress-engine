@@ -34,9 +34,13 @@ scope.onmessage = ({ data: { id, request } }) => {
     .then((c) =>
       c.handle(request as Extract<Request, { kind: typeof request.kind }>),
     )
-    .catch((e: unknown) => ({
-      kind: "failed" as const,
-      message: e instanceof Error ? e.message : String(e),
-    }))
+    .catch((e: unknown) => {
+      // The page shows only the message; the request and stack land here.
+      console.error(`the repo's ${request.kind} failed`, e);
+      return {
+        kind: "failed" as const,
+        message: e instanceof Error ? e.message : String(e),
+      };
+    })
     .then((reply) => scope.postMessage({ id, reply }));
 };

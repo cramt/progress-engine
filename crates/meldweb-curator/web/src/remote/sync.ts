@@ -162,6 +162,7 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
     try {
       facts = await steps.facts();
     } catch (e) {
+      console.error("the repo could not be read to sync it", e);
       return { kind: "unreadable", message: messageOf(e) };
     }
     if (!facts.url) return { kind: "off" };
@@ -253,6 +254,7 @@ export function createSyncEngine(options: SyncOptions): SyncEngine {
           phase = { kind: "idle" };
         }
       } catch (e) {
+        if (!(e instanceof NeedsLogin)) console.error("syncing failed", e);
         phase =
           e instanceof NeedsLogin
             ? { kind: "logged-out" }

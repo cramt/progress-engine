@@ -1042,10 +1042,11 @@ impl<S: Store> Repo<S> {
             .filter(|(n, _)| !n.starts_with("tags/"))
             .collect();
         let mut cache = Default::default();
-        // A tip storage lost history under counts as nothing until the next
-        // fetch makes it whole (see `is_whole`). Only its commits are walked
-        // here, so only a missing commit stops the walk: this runs on every
-        // save, and reading every tree too would cost a tenth of a second.
+        // A tip storage lost or damaged history under counts as nothing
+        // until the next fetch makes it whole (see `is_whole`). Only its
+        // commits are walked here, so only a missing commit stops the walk:
+        // this runs on every save, and reading every tree too would cost a
+        // tenth of a second.
         let mut history = |m: &BTreeMap<String, ObjectId>| -> Result<HashSet<CommitId>> {
             let mut out = HashSet::new();
             for id in m.values() {
@@ -1054,7 +1055,7 @@ impl<S: Store> Repo<S> {
                 };
                 match self.ancestors(&[tip], &mut cache) {
                     Ok(walked) => out.extend(walked),
-                    Err(Error::MissingObject(_)) => {}
+                    Err(Error::MissingObject(_) | Error::Corrupt { .. }) => {}
                     Err(e) => return Err(e),
                 }
             }

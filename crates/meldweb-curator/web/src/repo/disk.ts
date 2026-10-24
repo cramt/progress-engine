@@ -78,6 +78,37 @@ type Listable = FileSystemDirectoryHandle & {
   entries(): AsyncIterable<[string, FileSystemHandle]>;
 };
 
+/** Writes not yet moved into place, outside every slot. */
+const TMP = "tmp";
+
+// `move` is in every browser with OPFS, but not in TypeScript's DOM library.
+type MovableFile = FileSystemFileHandle & {
+  move(parent: FileSystemDirectoryHandle, name: string): Promise<void>;
+};
+
+/** Replaces what `handle` holds with `bytes`. */
+async function fill(handle: FileSystemFileHandle, bytes: Uint8Array) {
+  // A writable stream swaps the file in whole on close, so a tab closed
+  // mid-write never leaves a ref half written. Where there is none, a sync
+  // access handle, with the lock around every write keeping readers out
+  // meanwhile.
+  if ("createWritable" in handle) {
+    const out = await handle.createWritable();
+    await out.write(bytes as Uint8Array<ArrayBuffer>);
+    await out.close();
+    return;
+  }
+  const access = await (handle as WritableFile).createSyncAccessHandle();
+  try {
+    access.truncate(0);
+    let at = 0;
+    while (at < bytes.length) at += access.write(bytes.subarray(at), { at });
+    access.flush();
+  } finally {
+    access.close();
+  }
+}
+
 const isMissing = (e: unknown) =>
   e instanceof DOMException &&
   (e.name === "NotFoundError" || e.name === "TypeMismatchError");
@@ -130,37 +161,30 @@ export function opfsDisk(root: FileSystemDirectoryHandle): Disk {
     },
     async write(path, bytes) {
       const { parent, name } = await parentOf(path, true);
-      let handle: FileSystemFileHandle;
+      let handle: FileSystemFileHandle | null;
       try {
-        handle = await parent.getFileHandle(name, { create: true });
+        handle = await parent.getFileHandle(name);
       } catch (e) {
+        if (!isMissing(e)) throw e;
         // Deleting the branch `a/b` leaves `refs/heads/a/` behind, which a
         // later branch `a` has to replace, as git's own ref pruning would.
-        if (!(e instanceof DOMException && e.name === "TypeMismatchError"))
-          throw e;
-        await parent.removeEntry(name, { recursive: true });
-        handle = await parent.getFileHandle(name, { create: true });
+        if (e instanceof DOMException && e.name === "TypeMismatchError")
+          await parent.removeEntry(name, { recursive: true });
+        handle = null;
       }
-      // A writable stream swaps the file in whole on close, so a tab closed
-      // mid-write never leaves a ref half written. Where there is none, a
-      // sync access handle, with the lock around every write keeping readers
-      // out meanwhile.
-      if ("createWritable" in handle) {
-        const out = await handle.createWritable();
-        await out.write(bytes as Uint8Array<ArrayBuffer>);
-        await out.close();
+      if (handle === null) {
+        // Made whole under a name of its own and moved into place, as git
+        // does: making the file first and filling it after left an empty
+        // object behind a tab closed in between, which every later sync
+        // failed on.
+        const tmp = await dir([TMP], true);
+        const tmpName = crypto.randomUUID();
+        const fresh = await tmp.getFileHandle(tmpName, { create: true });
+        await fill(fresh, bytes);
+        await (fresh as MovableFile).move(parent, name);
         return;
       }
-      const access = await (handle as WritableFile).createSyncAccessHandle();
-      try {
-        access.truncate(0);
-        let at = 0;
-        while (at < bytes.length)
-          at += access.write(bytes.subarray(at), { at });
-        access.flush();
-      } finally {
-        access.close();
-      }
+      await fill(handle, bytes);
     },
     async remove(path) {
       try {

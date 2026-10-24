@@ -1016,3 +1016,23 @@ fn a_tracked_tip_missing_history_is_fetched_again() {
     std::fs::remove_file(gitdir.join("objects").join(&lost[..2]).join(&lost[2..])).unwrap();
     refetch_is_whole(&mut repo, &gitdir, &server);
 }
+
+/// A browser closed mid-write leaves an object's file empty or cut short.
+/// The repo cannot read it, so the next fetch asks for it again and
+/// replaces it, rather than failing on it every sync from then on.
+#[test]
+fn an_object_storage_cut_short_is_fetched_again() {
+    if !have_git() {
+        return;
+    }
+    let (dir, server) = six_versions();
+    let (mut repo, gitdir) = browser(dir.path(), "browser.git");
+    fetch(&mut repo, &server).unwrap();
+    let file = |id: &str| gitdir.join("objects").join(&id[..2]).join(&id[2..]);
+    let tree = file(&server.rev("main^{tree}"));
+    let whole = std::fs::read(&tree).unwrap();
+    std::fs::write(&tree, &whole[..whole.len() / 2]).unwrap();
+    std::fs::write(file(&server.rev("main:decks/lantern.deck.toml")), b"").unwrap();
+    std::fs::write(file(&server.rev("main~1")), b"").unwrap();
+    refetch_is_whole(&mut repo, &gitdir, &server);
+}
