@@ -639,7 +639,7 @@ face: Relentless Assault
 type: Sorcery
 cost: {2}{R}{R}
 > Untap all creatures that attacked this turn. After this main phase, there is an additional combat phase followed by an additional main phase.
-= BROKE at "." after: untap all creatures that attacked this turn
+= Spell([Untap(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Attacked { this_combat: false }], or: None } }), AdditionalPhases { after: Some(Main), phases: [Combat, Main] }])
 
 ## Renewal
 face: Renewal

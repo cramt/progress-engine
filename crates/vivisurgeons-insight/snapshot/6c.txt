@@ -13,7 +13,7 @@ cost: {5}{B}{G}
 > Agent Frank Horrigan has indestructible as long as it attacked this turn.
 > Whenever Agent Frank Horrigan enters or attacks, proliferate twice. (To proliferate, choose any number of permanents and/or players, then give each another counter of each kind already there.)
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "this" after: ~ has indestructible as long as it attacked
+= Static([AsLongAs { order: Trailing, cond: Attacked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: false }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 = Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Repeat { times: N(2), then: [Action { by: None, name: "proliferate", n: None }] }], limits: [] }
 
 ## Air Response Unit

@@ -739,7 +739,7 @@ type: Instant
 cost: {6}{U}
 > This spell costs {1} less to cast for each creature that attacked this turn.
 > Draw three cards.
-= BROKE at "attacked" after: this spell costs {1} less to cast for each creature that
+= Static([CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Attacked { this_combat: false }], or: None } }) }])
 = Spell([Draw { who: You, n: N(3) }])
 
 ## Sauron, Dino Devotee

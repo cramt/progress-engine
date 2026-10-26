@@ -886,7 +886,7 @@ cost: {6}{R}
 > At the beginning of your end step, if this creature attacked this turn, return it to its owner's hand. If you do, create a number of 1/1 white Human Soldier creature tokens equal to its toughness.
 = Keywords([Keyword { name: "affinity", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } })) }])
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "this" after: at the beginning of your end step , if this creature attacked
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), Attacked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: false }), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, IfYouDo([Create { who: You, n: ToughnessOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }])], limits: [] }
 
 ## Runadi, Behemoth Caller
 face: Runadi, Behemoth Caller

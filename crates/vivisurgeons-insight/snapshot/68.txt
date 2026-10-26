@@ -162,7 +162,7 @@ cost: {1}{W/P}
 > Defender
 > When this creature dies during combat, it deals 6 damage to each creature it blocked this combat.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "," after: when this creature dies during combat
+= BROKE at "blocked" after: when this creature dies during combat , it deals 6 damage to each creature it
 
 ## Celestial Convergence
 face: Celestial Convergence
@@ -980,7 +980,7 @@ cost: {2}{W}{U}
 > Instant, sorcery, and Dragon spells you control can't be countered.
 > Whenever you cast an instant or sorcery spell from your hand, if Taigam attacked this turn, that spell gains rebound. (Exile the spell as it resolves. At the beginning of your next upkeep, you may cast that card from exile without paying its mana cost.)
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")], [Subtype("dragon")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, rule: CantBeCountered }])
-= BROKE at "this" after: whenever you cast an instant or sorcery spell from your hand , if ~ attacked
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } }], ability: Triggered { trigger: InterveningIf(When(Casts { who: You, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), Attacked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: false }), effect: [Modify { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, pt: None, gains: [Keyword { name: "rebound", param: None }], dur: Permanent }], limits: [] } }
 
 ## Tergrid, God of Fright // Tergrid's Lantern
 face: Tergrid, God of Fright

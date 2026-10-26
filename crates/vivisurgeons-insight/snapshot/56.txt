@@ -387,7 +387,7 @@ face: Gideon's Triumph
 type: Instant
 cost: {1}{W}
 > Target opponent sacrifices a creature of their choice that attacked or blocked this turn. If you control a Gideon planeswalker, that player sacrifices two of those creatures of their choice instead.
-= BROKE at "attacked" after: target opponent sacrifices a creature of their choice that
+= BROKE at "or" after: target opponent sacrifices a creature of their choice that attacked
 
 ## Goblin Kites
 face: Goblin Kites

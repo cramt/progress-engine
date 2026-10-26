@@ -919,7 +919,7 @@ cost: {3}{G}{G}
 > Trample
 > Whenever this creature attacks, if defending player controls no black permanents, it doesn't untap during your next untap step.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "black" after: whenever this creature attacks , if defending player controls no
+= BROKE at "next" after: whenever this creature attacks , if defending player controls no black permanents , it doesn't untap during your
 
 ## Spread the Sickness
 face: Spread the Sickness

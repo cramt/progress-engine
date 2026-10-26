@@ -1025,7 +1025,7 @@ cost: {1}{G}{U}
 > When Uro enters, sacrifice it unless it escaped.
 > Whenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.
 > Escape—{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)
-= BROKE at "escaped" after: when ~ enters , sacrifice it unless it
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: Not(Escaped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [GainLife { who: You, n: N(3) }, Draw { who: You, n: N(1) }, May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 = Keywords([Keyword { name: "escape", param: Some(Cost([Mana(Mana(["G", "G", "U", "U"])), Exile(Objects { quant: N(N(5)), filter: Filter { alts: [[State(Other)]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })])) }])
 

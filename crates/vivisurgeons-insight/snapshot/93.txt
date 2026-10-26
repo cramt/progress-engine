@@ -491,7 +491,7 @@ cost: {5}{R}{R}
 > You may exile two red cards from your hand rather than pay this spell's mana cost.
 > Untap all creatures that attacked this turn. After this main phase, there is an additional combat phase followed by an additional main phase.
 = Static([AlternativeCost([Exile(Objects { quant: N(N(2)), filter: Filter { alts: [[Color(Red)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])])
-= BROKE at "." after: untap all creatures that attacked this turn
+= Spell([Untap(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Attacked { this_combat: false }], or: None } }), AdditionalPhases { after: Some(Main), phases: [Combat, Main] }])
 
 ## Ghost Vacuum
 face: Ghost Vacuum

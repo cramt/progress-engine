@@ -394,6 +394,10 @@ impl Walk for Condition {
             Condition::YouDontControl(f0) => {
                 Walk::walk(f0, v);
             }
+            Condition::ControlsNone(f0, f1) => {
+                Walk::walk(f0, v);
+                Walk::walk(f1, v);
+            }
             Condition::Is { what, filter } => {
                 Walk::walk(what, v);
                 Walk::walk(filter, v);
@@ -553,11 +557,17 @@ impl Walk for Condition {
             Condition::AttackedOrBlocked { what, .. } => {
                 Walk::walk(what, v);
             }
+            Condition::Attacked { what, .. } => {
+                Walk::walk(what, v);
+            }
             Condition::Protects { who, what } => {
                 Walk::walk(who, v);
                 Walk::walk(what, v);
             }
             Condition::WasCycled(f0) => {
+                Walk::walk(f0, v);
+            }
+            Condition::Escaped(f0) => {
                 Walk::walk(f0, v);
             }
             Condition::ThereAre(f0) => {

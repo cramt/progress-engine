@@ -798,7 +798,7 @@ cost: {3}{U}
 > You may cast the first creature spell you cast each turn as though it had flash.
 > Whenever a nontoken creature you control enters during combat, draw a card.
 = Static([CastAsThoughFlash(Objects { quant: NthEachTurn { n: 1, of: You }, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } })])
-= BROKE at "combat" after: whenever a nontoken creature you control enters during
+= Triggered { trigger: When(While { event: Enters { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, cond: DuringCombat }), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Thunder Strike
 face: Thunder Strike

@@ -412,6 +412,7 @@ pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
                 |p| p.words("during your turn").map(|_| Condition::ItsYourTurn),
                 |p| p.words("during an opponent 's turn").map(|_| Condition::OpponentsTurn),
                 |p| p.words("during their turn").map(|_| Condition::TheirTurn),
+                |p| p.words("during combat").map(|_| Condition::DuringCombat),
                 // "Whenever this creature attacks while saddled": the
                 // attacker is saddled (CR 702.171b).
                 |p| {

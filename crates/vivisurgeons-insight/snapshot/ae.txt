@@ -503,7 +503,7 @@ cost: {1}{B}
 > Choose one —
 > • Destroy target creature with no counters on it.
 > • Remove up to three counters from target creature.
-= BROKE at "." after: choose one — • destroy target creature with no counters on it
+= Spell([Modal { choose: One, modes: [[Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Not(WithCounter(None))], or: None } }, no_regen: false }], [RemoveAnyCounters { n: UpTo(N(3)), from: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }]] }])
 
 ## Heartwood Crafter // Soul Tether
 face: Heartwood Crafter

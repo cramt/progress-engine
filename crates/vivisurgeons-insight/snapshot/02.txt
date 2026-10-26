@@ -667,7 +667,7 @@ cost: {B}
 > Enchanted creature has intimidate as long as its controller controls no other creatures. (It can't be blocked except by artifact creatures and/or creatures that share a color with it.)
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }])
-= BROKE at "other" after: enchanted creature has intimidate as long as its controller controls no
+= Let { bind: [/* enchanted */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([AsLongAs { order: Trailing, cond: ControlsNone(ControllerOf(Objects { quant: Bound(0) /* enchanted */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Introduced(0) /* enchanted */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "intimidate", param: None }], per: None }] }]) }
 
 ## Prismatic Lace
 face: Prismatic Lace

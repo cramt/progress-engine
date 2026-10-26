@@ -348,7 +348,7 @@ face: Fear of the Dark
 type: Enchantment Creature — Nightmare
 cost: {4}{B}
 > Whenever this creature attacks, if defending player controls no Glimmer creatures, it gains menace and deathtouch until end of turn. (A creature with menace can't be blocked except by two or more creatures.)
-= BROKE at "glimmer" after: whenever this creature attacks , if defending player controls no
+= Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), ControlsNone(DefendingPlayer, Objects { quant: Plural, filter: Filter { alts: [[Subtype("glimmer"), Type("creature")]], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "menace", param: None }, Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Feral Deathgorger // Dusk Sight
 face: Feral Deathgorger

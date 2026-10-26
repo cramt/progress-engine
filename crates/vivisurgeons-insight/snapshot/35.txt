@@ -473,7 +473,7 @@ type: Instant
 cost: {2}{B}{B}
 > This spell costs {1} less to cast if an opponent controls no basic lands.
 > Destroy target creature.
-= BROKE at "basic" after: this spell costs {1} less to cast if an opponent controls no
+= Static([If { order: Trailing, cond: ControlsNone(AnOpponent, Objects { quant: Plural, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: None, posts: [], or: None } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }])
 
 ## Hagra Mauling // Hagra Broodpit

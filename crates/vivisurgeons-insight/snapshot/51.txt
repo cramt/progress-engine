@@ -519,7 +519,7 @@ cost: {3}{W}{W}
 > Cast this spell only after combat.
 > Gain control of target nonartifact, nonblack creature that attacked you this turn and put a -1/-0 counter on it.
 = BROKE at "." after: cast this spell only after combat
-= BROKE at "attacked" after: gain control of target nonartifact , nonblack creature that
+= BROKE at "you" after: gain control of target nonartifact , nonblack creature that attacked
 
 ## Jetfire, Ingenious Scientist // Jetfire, Air Guardian
 face: Jetfire, Ingenious Scientist

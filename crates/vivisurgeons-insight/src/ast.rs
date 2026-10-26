@@ -1298,6 +1298,12 @@ pub enum Post {
     /// "who attacked you or a planeswalker you control this turn": the
     /// player attacked one of these this turn (CR 508.1a).
     AttackedThisTurn(Vec<Recipient>),
+    /// "each creature that attacked this turn", "… this combat": said of a
+    /// permanent declared as an attacker then (CR 508.1a).
+    Attacked {
+        /// This combat rather than any combat this turn.
+        this_combat: bool,
+    },
     /// "permanents that were cast this turn": by any player.
     WasCastThisTurn,
     /// "each opponent who lost life this turn".
@@ -4002,6 +4008,9 @@ pub enum Condition {
     /// contains {X}" (Unbound Flourishing).
     CostHasX(Objects),
     YouDontControl(Objects),
+    /// "an opponent controls no basic lands", "defending player controls no
+    /// Walls": that player controls none of them.
+    ControlsNone(Player, Objects),
     ItsYourTurn,
     /// "if it's the first combat phase of the turn": no combat phase came
     /// before this one this turn, where extra combat phases follow it (CR
@@ -4116,6 +4125,9 @@ pub enum Condition {
     YourNthTurn(Vec<u32>),
     /// "it's your main phase".
     InStep(Step),
+    /// "When this creature dies during combat": it's the combat phase, any
+    /// of its steps (CR 506.1).
+    DuringCombat,
     /// "no mana was spent to cast it".
     NoManaSpentToCast(Objects),
     /// "mana from a Treasure was spent to cast it": any of the mana paid
@@ -4213,6 +4225,12 @@ pub enum Condition {
         what: Objects,
         this_combat: bool,
     },
+    /// "if this creature attacked this turn", "~ attacked this combat": it was
+    /// declared as an attacker this turn, or in this combat (CR 508.1a).
+    Attacked {
+        what: Objects,
+        this_combat: bool,
+    },
     /// "an opponent protects it" (Portent Tracker): the player is the
     /// battle's protector (CR 310.9).
     Protects {
@@ -4222,6 +4240,9 @@ pub enum Condition {
     /// "it wasn't cycled" (Abandoned Sarcophagus): it is not being
     /// discarded to pay a cycling cost (CR 702.29a).
     WasCycled(Objects),
+    /// "unless it escaped" (Uro): it, or the spell that became it, was cast
+    /// with an escape ability (CR 702.138b).
+    Escaped(Objects),
     /// "there is an instant card and a sorcery card in your graveyard".
     ThereAre(Vec<Objects>),
     /// "If a creature card was exiled this way", "if an artifact is

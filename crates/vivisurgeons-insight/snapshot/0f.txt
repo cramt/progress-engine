@@ -626,7 +626,7 @@ cost: {5}{R}{R}
 > Whenever this creature attacks, if defending player controls no Walls, it deals 2 damage to each creature without flying that player controls.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[Subtype("wall")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, no_regen: false }], limits: [] }
-= BROKE at "walls" after: whenever this creature attacks , if defending player controls no
+= Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), ControlsNone(DefendingPlayer, Objects { quant: Plural, filter: Filter { alts: [[Subtype("wall")]], kind: None, posts: [], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithoutKeyword("flying"), Controller(That)], or: None } })] }], limits: [] }
 
 ## Silumgar, the Drifting Death
 face: Silumgar, the Drifting Death

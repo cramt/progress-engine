@@ -5209,6 +5209,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             that_is(o, n);
             only_color_chosen_by(o, w);
         }
+        // "with no counters on it".
+        Post::Not(q) if matches!(&**q, Post::WithCounter(None)) => {
+            o.w("with no counters on");
+            syn::it(o);
+        }
         // "without a fate counter on it".
         Post::Not(q) if matches!(&**q, Post::WithCounter(Some(_))) => {
             if let Post::WithCounter(Some(k)) = &**q {
@@ -5429,6 +5434,14 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 Holding::CardsInHand => "cards in their hand",
                 Holding::CardsInGraveyard => "cards in their graveyard",
                 Holding::Opponents => "opponents",
+            });
+        }
+        Post::Attacked { this_combat } => {
+            o.w("that attacked");
+            o.w(if *this_combat {
+                "this combat"
+            } else {
+                "this turn"
             });
         }
         Post::AttackedThisTurn(v) => {
@@ -10973,6 +10986,7 @@ fn event(o: &mut Out, e: &Event) {
                 Condition::ItsYourTurn => o.w("during your turn"),
                 Condition::OpponentsTurn => o.w("during an opponent's turn"),
                 Condition::TheirTurn => o.w("during their turn"),
+                Condition::DuringCombat => o.w("during combat"),
                 // "attacks while saddled": the attacker, said once.
                 Condition::Is { what, filter: f }
                     if matches!(&**e, Event::Attacks(x) if x == what)
@@ -11552,6 +11566,18 @@ fn condition_said(o: &mut Out, c: &Condition) {
             syn::number(o, *n);
             o.w("or more opponents");
         }
+        Condition::ControlsNone(p, x) => {
+            player(o, p);
+            o.verb("control", player_num(p));
+            o.w("no");
+            objects(
+                o,
+                &Objects {
+                    quant: Quant::Plural,
+                    ..x.clone()
+                },
+            );
+        }
         Condition::PlayerControls(p, x) => {
             player(o, p);
             o.verb("control", player_num(p));
@@ -11972,6 +11998,7 @@ fn condition_said(o: &mut Out, c: &Condition) {
             }
             o.w("turn of the game");
         }
+        Condition::DuringCombat => o.w("it's the combat phase"),
         Condition::InStep(s) => {
             o.w("it's");
             step(o, s);
@@ -12194,6 +12221,19 @@ fn condition_said(o: &mut Out, c: &Condition) {
         Condition::WasCycled(x) => {
             objects(o, x);
             o.w("was cycled");
+        }
+        Condition::Escaped(x) => {
+            objects(o, x);
+            o.w("escaped");
+        }
+        Condition::Attacked { what, this_combat } => {
+            objects(o, what);
+            o.w("attacked");
+            o.w(if *this_combat {
+                "this combat"
+            } else {
+                "this turn"
+            });
         }
         Condition::AttackedOrBlocked { what, this_combat } => {
             objects(o, what);
@@ -13564,9 +13604,7 @@ fn static_other(o: &mut Out, s: &Static) {
                 CastVerb::Play => "play",
                 CastVerb::Cast => "cast",
             });
-            objects(o, what);
-            o.w("from");
-            zone(o, z);
+            play_what_from(o, what, z);
         }
         Static::CastPaying {
             what,
@@ -14047,12 +14085,35 @@ fn play_from_run(o: &mut Out, ss: &[Static], i: usize) -> Option<usize> {
                 o.add(word);
             }
             last_verb = Some(*verb);
+            if j - i == 1 {
+                play_what_from(o, what, z);
+                return Some(j);
+            }
             objects(o, what);
         }
     }
     o.w("from");
     zone(o, z);
     Some(j)
+}
+
+/// "play the top card of your library" (The Lunar Whale): one card from the
+/// top, said with its zone as the parser read it before taking the zone out.
+fn play_what_from(o: &mut Out, what: &Objects, z: &Zone) {
+    if what.quant == Quant::N(Amount::N(1))
+        && what.filter.kind == Some(Noun::Card)
+        && what.filter.alts.is_empty()
+        && what.filter.posts.is_empty()
+        && matches!(z, Zone::TopOfLibrary(_))
+    {
+        let mut w = what.clone();
+        w.filter.posts.push(Post::In(z.clone()));
+        objects(o, &w);
+        return;
+    }
+    objects(o, what);
+    o.w("from");
+    zone(o, z);
 }
 
 fn statics_joined(o: &mut Out, ss: &[Static]) {

@@ -824,6 +824,13 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.words("on them")?;
             Some(Post::WithCounter(Some(k)))
         },
+        // "target creature with no counters on it" (Heartless Act): none of
+        // any kind.
+        |p| {
+            p.words("with no counters")?;
+            p.one_of(&["on it", "on them"])?;
+            Some(Post::Not(Box::new(Post::WithCounter(None))))
+        },
         // "with a counter on it", "with counters on them": of any kind.
         |p| {
             p.word("with")?;
@@ -1126,6 +1133,11 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             Some(Post::ControllerIs(Box::new(of)))
         },
         |p| p.words("that were cast this turn").map(|_| Post::WasCastThisTurn),
+        |p| {
+            p.words("that attacked")?;
+            let this_combat = p.one_of(&["this combat", "this turn"])? == "this combat";
+            Some(Post::Attacked { this_combat })
+        },
         |p| p.words("who lost life this turn").map(|_| Post::LostLifeThisTurn),
         // "who attacked you or a planeswalker you control this turn".
         |p| {

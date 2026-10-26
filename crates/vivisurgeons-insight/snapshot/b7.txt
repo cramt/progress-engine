@@ -722,7 +722,7 @@ cost: {1}{R}{W}
 > When Phlage enters, sacrifice it unless it escaped.
 > Whenever Phlage enters or attacks, it deals 3 damage to any target and you gain 3 life.
 > Escape—{R}{R}{W}{W}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)
-= BROKE at "escaped" after: when ~ enters , sacrifice it unless it
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: Not(Escaped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, GainLife { who: You, n: N(3) }], limits: [] }
 = Keywords([Keyword { name: "escape", param: Some(Cost([Mana(Mana(["R", "R", "W", "W"])), Exile(Objects { quant: N(N(5)), filter: Filter { alts: [[State(Other)]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })])) }])
 

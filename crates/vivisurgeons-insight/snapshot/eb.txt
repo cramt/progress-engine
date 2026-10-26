@@ -484,7 +484,7 @@ type: Land
 > {2}, {T}: Target creature that attacked this turn becomes prepared. Activate only as a sorcery. (Only creatures with prepare spells can become prepared.)
 > {4}, {T}: Target creature becomes prepared.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= BROKE at "attacked" after: {2} , {T} : target creature that
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [BecomesPrepared(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Attacked { this_combat: false }], or: None } })], limits: [SorcerySpeed] }
 = Activated { cost: [Mana(Mana(["4"])), Tap], effect: [BecomesPrepared(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Hide // Seek

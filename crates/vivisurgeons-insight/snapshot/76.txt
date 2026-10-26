@@ -509,7 +509,7 @@ face: Mongrel Pack
 type: Creature — Dog
 cost: {3}{G}
 > When this creature dies during combat, create four 1/1 green Dog creature tokens.
-= BROKE at "," after: when this creature dies during combat
+= Triggered { trigger: When(While { event: Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cond: DuringCombat }), effect: [Create { who: You, n: N(4), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["dog", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Nausea
 face: Nausea

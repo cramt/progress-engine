@@ -96,7 +96,7 @@ cost: {G}
 > Cast this spell only before the combat damage step.
 > Target creature gains trample and gets +X/+0 until end of turn, where X is its power. At the beginning of the next end step, destroy that creature if it attacked this turn.
 = BROKE at "damage" after: cast this spell only before the combat
-= BROKE at "this" after: target creature gains trample and gets <pt> until end of turn , where x is its power . at the beginning of the next end step , destroy that creature if it attacked
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Where { then: [Modify { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: N(0), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], x: PowerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }, Delayed { step: EndStep(Next), then: [If { order: Trailing, cond: Attacked { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: false }, then: [Destroy { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }] }]) }
 
 ## Bladecoil Serpent
 face: Bladecoil Serpent

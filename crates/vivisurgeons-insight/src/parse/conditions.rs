@@ -477,6 +477,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::AmountIs { n: Amount::CardsDrawnThisTurn(Player::You), op: Op::Ge, value: Amount::N(value) })
         },
         |p| { p.words("you control no")?; objects(p).map(Condition::YouDontControl) },
+        |p| { let who = player_simple(p)?; p.words("controls no")?; let o = objects(p)?; Some(Condition::ControlsNone(who, o)) },
         |p| {
             let w = whose(p)?;
             p.words("library has no cards in it")?;
@@ -682,11 +683,17 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| { p.words("was cast from")?; let zone = zone(p)?; Some(Condition::CastFrom { what: what.clone(), zone }) },
                 |p| { p.words("wasn't cast from")?; let zone = zone(p)?; Some(Condition::Not(Box::new(Condition::CastFrom { what: what.clone(), zone }))) },
                 |p| p.words("wasn't cast").map(|_| Condition::Not(Box::new(Condition::WasCast(what.clone())))),
+                |p| p.word("escaped").map(|_| Condition::Escaped(what.clone())),
                 |p| p.words("wasn't cycled").map(|_| Condition::Not(Box::new(Condition::WasCycled(what.clone())))),
                 |p| {
                     p.words("attacked or blocked")?;
                     let this_combat = p.one_of(&["this combat", "this turn"])? == "this combat";
                     Some(Condition::AttackedOrBlocked { what: what.clone(), this_combat })
+                },
+                |p| {
+                    p.word("attacked")?;
+                    let this_combat = p.one_of(&["this combat", "this turn"])? == "this combat";
+                    Some(Condition::Attacked { what: what.clone(), this_combat })
                 },
                 |p| { p.one_of(&["is", "are"])?; p.words("face down")?; Some(Condition::FaceDown(what.clone())) },
                 // "a card is exiled with this land".

@@ -778,7 +778,7 @@ cost: {3}{U}
 > Crew 1
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([LookAtTopAnyTime])
-= BROKE at "," after: as long as ~ attacked this turn
+= Static([AsLongAs { order: Leading, cond: Attacked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: false }, then: [PlayFrom { verb: Play, what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, zone: TopOfLibrary(You) }] }])
 = Keywords([Keyword { name: "crew", param: Some(N(N(1))) }])
 
 ## The Phasing of Zhalfir

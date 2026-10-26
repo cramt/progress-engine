@@ -1048,7 +1048,7 @@ type: Instant
 cost: {3}{R}
 > This spell costs {1} less to cast for each creature that attacked this turn.
 > Witchstalker Frenzy deals 5 damage to target creature.
-= BROKE at "attacked" after: this spell costs {1} less to cast for each creature that
+= Static([CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Attacked { this_combat: false }], or: None } }) }])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
 
 ## Woodland Mystic

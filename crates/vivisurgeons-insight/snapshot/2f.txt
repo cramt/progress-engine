@@ -1114,7 +1114,7 @@ cost: {2}{W}
 > Creatures you control have training. (Whenever a creature you control attacks with another creature with greater power, put a +1/+1 counter on the creature with lesser power.)
 > At the beginning of your end step, if you control a creature with a +1/+1 counter on it that attacked this turn, draw a card.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "training", param: None }], per: None }])
-= BROKE at "attacked" after: at the beginning of your end step , if you control a creature with a <pt> counter on it that
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(Some("+1/+1")), Attacked { this_combat: false }], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Weatherseed Elf
 face: Weatherseed Elf

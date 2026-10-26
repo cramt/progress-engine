@@ -596,7 +596,7 @@ type: Legendary Creature — Human Noble
 cost: {W}{U}{B}
 > Whenever a creature you control enters during combat, you may attach target Equipment you control to target creature you control.
 > Warp-Strike — {3}: Exile Noctis. Return it to the battlefield under its owner's control tapped and attacking at the beginning of that player's next declare attackers step. It can't be blocked that combat.
-= BROKE at "combat" after: whenever a creature you control enters during
+= Triggered { trigger: When(While { event: Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, cond: DuringCombat }), effect: [May { who: You, then: [Attach { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }] }], limits: [] }
 = BROKE at "next" after: warp-strike — {3} : exile ~ . return it to the battlefield under its owner 's control tapped and attacking at the beginning of that player 's
 
 ## Omenport Vigilante

@@ -1084,5 +1084,5 @@ cost: {1}{R}
 > Whenever you cast a spell during combat, you get an experience counter.
 = Keywords([Keyword { name: "first strike", param: None }])
 = BROKE at "have" after: firebending x , where x is the number of experience counters you
-= BROKE at "," after: whenever you cast a spell during combat
+= Triggered { trigger: When(While { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }, cond: DuringCombat }), effect: [GetCounters { who: You, n: N(1), kind: "experience" }], limits: [] }
 
