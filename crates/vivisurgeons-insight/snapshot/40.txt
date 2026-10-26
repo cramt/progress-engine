@@ -550,7 +550,7 @@ cost: {1}{B}{B}
 > Flying
 > Hellbent — Whenever this creature deals combat damage to a player, if you have no cards in hand, that player discards a card at random.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "no" after: hellbent — whenever this creature deals combat damage to a player , if you have
+= Labelled { label: "hellbent", ability: Triggered { trigger: InterveningIf(When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), CardsInHandAtMost(0)), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [] } }
 
 ## Increasing Vengeance
 face: Increasing Vengeance
@@ -992,7 +992,7 @@ cost: {2}{W}
 > Brave Heart — Whenever you attack, target attacking historic creature gets +1/+1 and gains indestructible until end of turn. (Artifacts, legendaries, and Sagas are historic.)
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Labelled { label: "brave heart", ability: Triggered { trigger: When(YouAttack), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), State(Historic), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }], limits: [] } }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Teo, Spirited Glider
 face: Teo, Spirited Glider

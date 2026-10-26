@@ -487,7 +487,7 @@ cost: {1}{B}{R}
 > Whenever this creature is dealt damage, discard that many cards.
 > Hellbent — Whenever this creature deals combat damage to a player, if you have no cards in hand, that player discards cards equal to the damage.
 = Triggered { trigger: When(IsDealtDamage(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: You, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
-= BROKE at "no" after: hellbent — whenever this creature deals combat damage to a player , if you have
+= BROKE at "equal" after: hellbent — whenever this creature deals combat damage to a player , if you have no cards in hand , that player discards cards
 
 ## Jasmine Seer
 face: Jasmine Seer

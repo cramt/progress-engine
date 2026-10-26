@@ -732,7 +732,7 @@ cost: {3}{B}
 > Hellbent — This creature has lifelink as long as you have no cards in hand.
 > {B}, Discard a card: This creature gains indestructible until end of turn. Tap it.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "no" after: hellbent — this creature has lifelink as long as you have
+= Labelled { label: "hellbent", ability: Static([AsLongAs { order: Trailing, cond: CardsInHandAtMost(0), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }]) }
 = Activated { cost: [Mana(Mana(["B"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }, Tap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Niblis of the Mist

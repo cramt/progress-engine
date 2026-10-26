@@ -490,7 +490,7 @@ face: Idle Thoughts
 type: Enchantment
 cost: {3}{U}
 > {2}: Draw a card if you have no cards in hand.
-= BROKE at "no" after: {2} : draw a card if you have
+= Activated { cost: [Mana(Mana(["2"]))], effect: [If { order: Trailing, cond: CardsInHandAtMost(0), then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Ingenious Smith
 face: Ingenious Smith

@@ -450,7 +450,7 @@ cost: {3}{G}
 > Whenever an opponent draws a card except the first one they draw in each of their draw steps, put a +1/+1 counter on Leela.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Triggered { trigger: When(DrawsExceptFirstInDrawStep(AnOpponent)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Let the Galaxy Burn
 face: Let the Galaxy Burn

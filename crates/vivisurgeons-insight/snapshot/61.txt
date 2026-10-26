@@ -116,7 +116,7 @@ face: Bladeback Sliver
 type: Creature — Sliver
 cost: {1}{R}
 > Hellbent — As long as you have no cards in hand, Sliver creatures you control have "{T}: This creature deals 1 damage to target player or planeswalker."
-= BROKE at "in" after: hellbent — as long as you have no cards
+= Labelled { label: "hellbent", ability: Static([AsLongAs { order: Leading, cond: CardsInHandAtMost(0), then: [HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("sliver"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }], limits: [] } }] }]) }
 
 ## Blazing Sunsteel
 face: Blazing Sunsteel

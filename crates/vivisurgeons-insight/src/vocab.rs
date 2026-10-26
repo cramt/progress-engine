@@ -25,9 +25,16 @@ fn lines(s: &str) -> impl Iterator<Item = String> + '_ {
 }
 
 /// Longest first, so "first strike" is tried before "first" could be.
+/// The lexer splits a possessive "'s" into its own token ("Doctor's companion"
+/// reads "doctor 's companion"), so a phrase is matched the same way.
 fn phrases(s: &str) -> Vec<Vec<String>> {
     let mut v: Vec<Vec<String>> = lines(s)
-        .map(|l| l.split_whitespace().map(str::to_string).collect())
+        .map(|l| {
+            l.replace("'s", " 's")
+                .split_whitespace()
+                .map(str::to_string)
+                .collect()
+        })
         .collect();
     v.sort_by_key(|p| std::cmp::Reverse(p.len()));
     v

@@ -701,7 +701,7 @@ face: Ragamuffyn
 type: Creature — Zombie Cleric
 cost: {2}{B}
 > Hellbent — {T}, Sacrifice a creature or land: Draw a card. Activate only if you have no cards in hand.
-= BROKE at "no" after: hellbent — {T} , sacrifice a creature or land : draw a card . activate only if you have
+= Labelled { label: "hellbent", ability: Activated { cost: [Tap, Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [OnlyIf(CardsInHandAtMost(0))] } }
 
 ## Ravenous Squirrel
 face: Ravenous Squirrel

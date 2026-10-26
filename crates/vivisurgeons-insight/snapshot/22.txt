@@ -134,7 +134,7 @@ cost: {6}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "," after: impossible girl — if ~ is your commander
 = Static([AdditionalTrigger { of: Objects { quant: One, filter: Filter { alts: [[Subtype("doctor")]], kind: None, posts: [Controller(You)], or: None } }, cause: None }])
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Conscripted Infantry
 face: Conscripted Infantry

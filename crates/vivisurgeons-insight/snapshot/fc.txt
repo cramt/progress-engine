@@ -329,7 +329,7 @@ cost: {G}{U}{R}
 > You may play an additional land on each of your turns.
 > Whenever you play a land or cast a spell, draw a card if you have no cards in hand. Otherwise, discard a card.
 = Static([ExtraLand(N(1))])
-= BROKE at "no" after: whenever you play a land or cast a spell , draw a card if you have
+= Triggered { trigger: When(Or([PlaysLand(You), Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }])), effect: [If { order: Trailing, cond: CardsInHandAtMost(0), then: [Draw { who: You, n: N(1) }] }, Otherwise([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
 
 ## Genesis Storm
 face: Genesis Storm

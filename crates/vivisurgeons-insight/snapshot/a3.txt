@@ -618,7 +618,7 @@ cost: {2}{R}{R}
 > Hellbent — This creature has double strike as long as you have no cards in hand.
 = Activated { cost: [Mana(Mana(["R", "R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], limits: [] }
 = Activated { cost: [Mana(Mana(["R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
-= BROKE at "no" after: hellbent — this creature has double strike as long as you have
+= Labelled { label: "hellbent", ability: Static([AsLongAs { order: Trailing, cond: CardsInHandAtMost(0), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }], per: None }] }]) }
 
 ## Scampering Surveyor
 face: Scampering Surveyor

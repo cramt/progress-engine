@@ -716,7 +716,7 @@ cost: {3}{W}
 > The first historic spell you cast each turn has convoke. (Your creatures can help cast it. Each creature you tap while casting it pays for {1} or one mana of that creature's color.)
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Static([Modify { what: Objects { quant: NthEachTurn { n: 1, of: You }, filter: Filter { alts: [[State(Historic)]], kind: Some(Spell), posts: [], or: None } }, pt: None, has: [Keyword { name: "convoke", param: None }], per: None }])
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Phosphorescent Feast
 face: Phosphorescent Feast

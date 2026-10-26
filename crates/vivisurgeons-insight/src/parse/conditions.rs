@@ -270,6 +270,8 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("this turn")?;
             Some(Condition::DidThisTurn(Box::new(e)))
         },
+        // Hellbent: "you have no cards in hand" is at most zero.
+        |p| p.words("you have no cards in hand").map(|_| Condition::CardsInHandAtMost(0)),
         |p| { p.words("you have")?; let n = number(p)?; p.words("or fewer cards in hand")?; Some(Condition::CardsInHandAtMost(n)) },        // "an opponent has 10 or less life": "you have" reads as its own.
         |p| {
             let who = player_simple(p)?;

@@ -374,7 +374,7 @@ face: Fool's Tome
 type: Artifact — Book
 cost: {4}
 > {2}, {T}: Draw a card. Activate only if you have no cards in hand.
-= BROKE at "no" after: {2} , {T} : draw a card . activate only if you have
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: You, n: N(1) }], limits: [OnlyIf(CardsInHandAtMost(0))] }
 
 ## Force Away
 face: Force Away

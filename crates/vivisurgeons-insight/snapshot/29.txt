@@ -1102,8 +1102,8 @@ type: Instant
 cost: {3}{B}{R}
 > Twinstrike deals 2 damage to each of two target creatures.
 > Hellbent — Destroy those creatures instead if you have no cards in hand.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
-= BROKE at "no" after: hellbent — destroy those creatures instead if you have
+= Let { bind: [/* target */ Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }]) }
+= Labelled { label: "hellbent", ability: Spell([Instead { cond: CardsInHandAtMost(0), then: [Destroy { what: Objects { quant: LinkedBound { line: 0, binder: 0 }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }]) }
 
 ## Ulvenwald Observer
 face: Ulvenwald Observer

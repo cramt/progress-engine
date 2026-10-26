@@ -391,7 +391,7 @@ type: Creature — Demon Dog
 cost: {5}{B}{B}
 > At the beginning of your upkeep, if you have no cards in hand, each opponent loses 2 life.
 > At the beginning of each opponent's upkeep, if that player has no cards in hand, they lose 2 life.
-= BROKE at "no" after: at the beginning of your upkeep , if you have
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), CardsInHandAtMost(0)), effect: [LoseLife { who: EachOpponent, n: N(2) }], limits: [] }
 = BROKE at "in" after: at the beginning of each opponent 's upkeep , if that player has no cards
 
 ## Homarid Spawning Bed

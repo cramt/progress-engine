@@ -736,8 +736,8 @@ cost: {3}{U}
 > Whenever you cast a Doctor spell or creature spell with doctor's companion, draw a card.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Keywords([Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
-= BROKE at "'s" after: whenever you cast a doctor spell or creature spell with doctor
-= BROKE at "<end>" after: doctor 's companion
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("doctor")]], kind: Some(Spell), posts: [], or: Some(Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [WithKeyword("doctor's companion")], or: None }) } } }), effect: [Draw { who: You, n: N(1) }], limits: [] }
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Rover Blades
 face: Rover Blades

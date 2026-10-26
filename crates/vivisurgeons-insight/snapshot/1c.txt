@@ -218,7 +218,7 @@ cost: {X}{R}
 > Demonfire deals X damage to any target. If a creature dealt damage this way would die this turn, exile it instead.
 > Hellbent — If you have no cards in hand, this spell can't be countered and the damage can't be prevented.
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [DealtDamageThisWay], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }])
-= BROKE at "," after: hellbent — if you have no cards in hand
+= BROKE at "can't" after: hellbent — if you have no cards in hand , this spell can't be countered and the damage
 
 ## Diregraf Ghoul
 face: Diregraf Ghoul

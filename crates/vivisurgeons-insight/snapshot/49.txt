@@ -30,7 +30,7 @@ cost: {2}{R}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Keywords([Keyword { name: "partner with", param: Some(PartnerWith("rory williams")) }])
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[State(Suspended)]], kind: Some(Card), posts: [Owner(You)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), RemoveCounters { n: ThatMany, kind: "time", from: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Animus of Predation
 face: Animus of Predation

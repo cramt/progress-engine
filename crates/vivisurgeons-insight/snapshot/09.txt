@@ -120,7 +120,7 @@ cost: {3}{R}
 > Cackling Flames deals 3 damage to any target.
 > Hellbent — Cackling Flames deals 5 damage instead if you have no cards in hand.
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
-= BROKE at "no" after: hellbent — ~ deals 5 damage instead if you have
+= Labelled { label: "hellbent", ability: Spell([Instead { cond: CardsInHandAtMost(0), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Same] }] }]) }
 
 ## Cacophony Scamp
 face: Cacophony Scamp

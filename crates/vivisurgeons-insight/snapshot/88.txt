@@ -742,7 +742,7 @@ face: Slaughterhouse Bouncer
 type: Creature — Ogre Warrior
 cost: {4}{B}
 > Hellbent — When this creature dies, if you have no cards in hand, target creature gets -3/-3 until end of turn.
-= BROKE at "no" after: hellbent — when this creature dies , if you have
+= Labelled { label: "hellbent", ability: Triggered { trigger: InterveningIf(When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), CardsInHandAtMost(0)), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(-3), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Slickshot Show-Off
 face: Slickshot Show-Off

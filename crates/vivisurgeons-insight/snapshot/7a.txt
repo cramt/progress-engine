@@ -802,7 +802,7 @@ cost: {2}{R}
 > Whenever Ryan attacks, exile cards from the top of your library until you exile a nonland card. You may cast the exiled card without paying its mana cost if it's a spell with mana value less than or equal to Ryan's power. Put the exiled cards not cast this way on the bottom of your library in a random order.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "," after: whenever ryan attacks
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Sarinth Greatwurm
 face: Sarinth Greatwurm

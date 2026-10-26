@@ -92,7 +92,7 @@ cost: {1}{W}
 > History Teacher — Sagas you control have read ahead. (As a Saga enters, choose a chapter and start with that many lore counters. Skipped chapters don't trigger.)
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Labelled { label: "history teacher", ability: Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("saga")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "read ahead", param: None }], per: None }]) }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Battlefront Krushok
 face: Battlefront Krushok

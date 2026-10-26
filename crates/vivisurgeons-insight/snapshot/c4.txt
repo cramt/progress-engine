@@ -1093,7 +1093,7 @@ cost: {3}{B}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "goaded" after: deal with the black guardian — when ~ enters , you may have an opponent gain control of it . if you do , it's
 = Triggered { trigger: At(EndStep(Yours)), effect: [Draw { who: You, n: N(1) }, LoseLife { who: You, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }) }], limits: [] }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Voice of the Provinces
 face: Voice of the Provinces

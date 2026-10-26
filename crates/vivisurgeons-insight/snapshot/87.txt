@@ -466,7 +466,7 @@ face: Gobhobbler Rats
 type: Creature — Rat
 cost: {B}{R}
 > Hellbent — As long as you have no cards in hand, this creature gets +1/+0 and has "{B}: Regenerate this creature." (The next time it would be destroyed this turn, instead tap it, remove it from combat, and heal all damage on it.)
-= BROKE at "in" after: hellbent — as long as you have no cards
+= Labelled { label: "hellbent", ability: Static([AsLongAs { order: Leading, cond: CardsInHandAtMost(0), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["B"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] } }] }]) }
 
 ## Grave Defiler
 face: Grave Defiler

@@ -877,7 +877,7 @@ cost: {B}
 > Hellbent — This creature can attack as though it didn't have defender as long as you have no cards in hand.
 = Keywords([Keyword { name: "defender", param: None }])
 = Activated { cost: [Mana(Mana(["B"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
-= BROKE at "no" after: hellbent — this creature can attack as though it didn't have defender as long as you have
+= Labelled { label: "hellbent", ability: Static([AsLongAs { order: Trailing, cond: CardsInHandAtMost(0), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender }] }]) }
 
 ## Sorin of House Markov // Sorin, Ravenous Neonate
 face: Sorin of House Markov

@@ -22,7 +22,7 @@ type: Creature — Vampire Cleric
 cost: {2}{B}{R}
 > Whenever this creature enters or attacks, if you have no cards in hand, this creature deals 2 damage to any target.
 > Madness {1}{B}{R} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)
-= BROKE at "no" after: whenever this creature enters or attacks , if you have
+= Triggered { trigger: InterveningIf(When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), CardsInHandAtMost(0)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 = Keywords([Keyword { name: "madness", param: Some(Cost([Mana(Mana(["1", "B", "R"]))])) }])
 
 ## Brimaz, Blight of Oreskos

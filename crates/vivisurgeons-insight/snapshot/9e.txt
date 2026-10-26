@@ -399,7 +399,7 @@ cost: {2}{W}
 > Science Teacher — Each Saga spell you cast has replicate. The replicate cost is equal to its mana cost. (When you cast that Saga, copy it for each time you paid its replicate cost. Copies of Saga spells become tokens.)
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "mana" after: science teacher — each saga spell you cast has replicate . the replicate cost is equal to its
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Insidious Dreams
 face: Insidious Dreams

@@ -688,7 +688,7 @@ cost: {3}{U}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Static([MaxHandSize])
 = Labelled { label: "sonic booster", ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, WhenThisWay { event: Sacrifices { who: You, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, then: [Tap(Objects { quant: Target { n: ThatMany, up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Draw { who: You, n: ThatMany }] }], limits: [] } }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Ornery Goblin
 face: Ornery Goblin

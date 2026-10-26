@@ -523,7 +523,7 @@ cost: {2}{W}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Static([Modify { what: Objects { quant: Each, filter: Filter { alts: [[State(Historic)]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, pt: None, has: [Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["2", "W"]))])) }], per: None }])
 = Triggered { trigger: When(Cycles { who: You, what: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }) }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Karn's Touch
 face: Karn's Touch

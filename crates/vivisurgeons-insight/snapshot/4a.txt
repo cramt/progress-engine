@@ -10,7 +10,7 @@ type: Enchantment — Saga
 cost: {1}{U}{U}
 > (As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)
 > I, II, III — Reveal cards from the top of your library until you reveal a Doctor card, a card with doctor's companion, or a Vehicle card. Put that card into your hand and the rest on the bottom of your library in a random order.
-= BROKE at "'s" after: i , ii , iii — reveal cards from the top of your library until you reveal a doctor card , a card with doctor
+= BROKE at "." after: i , ii , iii — reveal cards from the top of your library until you reveal a doctor card , a card with doctor 's companion , or a vehicle card
 
 ## Animar, Soul of Elements
 face: Animar, Soul of Elements

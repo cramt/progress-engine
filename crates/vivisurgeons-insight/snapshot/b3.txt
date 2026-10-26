@@ -188,7 +188,7 @@ cost: {3}{B}
 > Flying
 > Hellbent — This creature gets +2/+1 as long as you have no cards in hand.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "no" after: hellbent — this creature gets <pt> as long as you have
+= Labelled { label: "hellbent", ability: Static([AsLongAs { order: Trailing, cond: CardsInHandAtMost(0), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }] }]) }
 
 ## Deputy of Detention
 face: Deputy of Detention

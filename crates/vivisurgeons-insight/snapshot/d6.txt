@@ -559,7 +559,7 @@ cost: {U}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "have" after: negative — as long as ~ is untapped , other legendary creatures you control
 = Labelled { label: "affirmative", ability: Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] } }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Kang Dynasty
 face: Kang Dynasty

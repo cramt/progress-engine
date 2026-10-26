@@ -973,7 +973,7 @@ cost: {3}
 > If you would draw a card while you have no cards in hand, draw two cards instead.
 > If you would gain life while you have 5 or less life, you gain twice that much life instead.
 > {T}: Add one mana of any color.
-= BROKE at "no" after: if you would draw a card while you have
+= Static([Replacement { event: While { event: Draws(You), cond: CardsInHandAtMost(0) }, instead: [Draw { who: You, n: N(2) }] }])
 = Static([Replacement { event: While { event: GainsLife(You), cond: LifeAtMost(5) }, instead: [GainLife { who: You, n: Twice(ThatMany) }] }])
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 

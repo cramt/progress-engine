@@ -436,7 +436,7 @@ cost: {5}{U}
 = Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouCastIt(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(5) }], limits: [] }
 = BROKE at "lose" after: you have no maximum hand size and don't
 = Triggered { trigger: When(GainsLife(You)), effect: [Draw { who: You, n: ThatMany }], limits: [] }
-= BROKE at "no" after: whenever you lose life , discard that many cards . then if you have
+= Triggered { trigger: When(LosesLife(You)), effect: [Discard { who: You, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: CardsInHandAtMost(0), then: [LoseGame(You)] }], limits: [] }
 
 ## Matterbending Mage
 face: Matterbending Mage

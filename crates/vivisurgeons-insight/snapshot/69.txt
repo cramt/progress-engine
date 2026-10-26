@@ -359,7 +359,7 @@ cost: {1}{G}
 > Paradox — Whenever you cast a spell from anywhere other than your hand, create a Food token. (It's an artifact with "{2}, {T}, Sacrifice this token: You gain 3 life.")
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Labelled { label: "paradox", ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(You)))], or: None } } }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }], limits: [] } }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Grasp of Fate
 face: Grasp of Fate

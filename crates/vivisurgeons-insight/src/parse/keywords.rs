@@ -4,7 +4,8 @@ use super::*;
 
 pub(super) fn keyword_name(p: &mut P) -> Option<String> {
     let candidates = vocab().keyword_abilities.get(p.peek_word()?)?;
-    candidates.iter().find(|k| p.words(k).is_some()).cloned()
+    let k = candidates.iter().find(|k| p.words(k).is_some())?;
+    Some(k.replace(" 's", "'s"))
 }
 
 pub(super) fn keyword(p: &mut P) -> Option<Keyword> {

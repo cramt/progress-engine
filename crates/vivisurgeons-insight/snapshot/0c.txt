@@ -799,7 +799,7 @@ type: Land
 > {T}: Add {C}. ({C} represents colorless mana.)
 > {2}{C}, {T}: Draw a card. Activate only if you have no cards in hand.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= BROKE at "no" after: {2} {C} , {T} : draw a card . activate only if you have
+= Activated { cost: [Mana(Mana(["2", "C"])), Tap], effect: [Draw { who: You, n: N(1) }], limits: [OnlyIf(CardsInHandAtMost(0))] }
 
 ## Seed the Land
 face: Seed the Land

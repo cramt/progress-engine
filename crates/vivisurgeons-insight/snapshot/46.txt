@@ -423,7 +423,7 @@ type: Land
 > Hellbent — {1}{R}, {T}: This land deals 1 damage to any target. Activate only if you have no cards in hand.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["R"])))], limits: [] }
-= BROKE at "no" after: hellbent — {1} {R} , {T} : this land deals 1 damage to any target . activate only if you have
+= Labelled { label: "hellbent", ability: Activated { cost: [Mana(Mana(["1", "R"])), Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [OnlyIf(CardsInHandAtMost(0))] } }
 
 ## Kraul Harpooner
 face: Kraul Harpooner

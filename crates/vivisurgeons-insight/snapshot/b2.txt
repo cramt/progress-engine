@@ -366,7 +366,7 @@ type: Creature — Human Warrior
 cost: {3}{R}{R}
 > Hellbent — This creature gets +2/+2 as long as you have no cards in hand.
 > Morph—Discard a card. (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
-= BROKE at "no" after: hellbent — this creature gets <pt> as long as you have
+= Labelled { label: "hellbent", ability: Static([AsLongAs { order: Trailing, cond: CardsInHandAtMost(0), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
 = Keywords([Keyword { name: "morph", param: Some(Cost([Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])) }])
 
 ## Golden Bear

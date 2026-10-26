@@ -825,7 +825,7 @@ cost: {3}{W}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Activated { cost: [Mana(Mana(["1"])), Tap], effect: [CreateCopy { n: N(1), tapped: true, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [EnteredThisTurn], or: None } }, except: [] }], limits: [] }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Runed Servitor
 face: Runed Servitor

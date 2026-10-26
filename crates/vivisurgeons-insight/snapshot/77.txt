@@ -953,7 +953,7 @@ cost: {1}{G}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "," after: if you would planeswalk
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Syr Alin, the Lion's Claw
 face: Syr Alin, the Lion's Claw

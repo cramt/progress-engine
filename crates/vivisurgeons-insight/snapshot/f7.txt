@@ -857,7 +857,7 @@ cost: {1}{W}
 > Whenever you cast a historic spell, investigate. This ability triggers only once each turn. (Artifacts, legendaries, and Sagas are historic. To investigate, create a Clue token. It's an artifact with "{2}, Sacrifice this token: Draw a card.")
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[State(Historic)]], kind: Some(Spell), posts: [], or: None } } }), effect: [Action { by: None, name: "investigate", n: None }], limits: [OncePerTurn] }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Scaled Hulk
 face: Scaled Hulk

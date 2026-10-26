@@ -11512,6 +11512,7 @@ fn condition_said(o: &mut Out, c: &Condition) {
             syn::number(o, *n);
             o.w("or less life");
         }
+        Condition::CardsInHandAtMost(0) => o.w("you have no cards in hand"),
         Condition::CardsInHandAtMost(n) => {
             o.w("you have");
             syn::number(o, *n);
