@@ -1071,7 +1071,7 @@ cost: {4}{R}{W}
 > Whenever one or more creatures deal combat damage to you while you're the monarch, tap those creatures and put a stun counter on each of them.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "double strike", param: None }, Keyword { name: "haste", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: whenever one or more creatures deal combat damage to you while you're the
+= Let { bind: [/* trigger */ Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(While { event: DealsCombatDamageTo { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Player(You) }, cond: IsMonarch(You) }), effect: [Tap(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), PutCounters { n: N(1), kind: "stun", on: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
 
 ## Tawnos, the Toymaker
 face: Tawnos, the Toymaker

@@ -1028,7 +1028,7 @@ face: Throne Warden
 type: Creature — Human Soldier
 cost: {1}{W}
 > At the beginning of your end step, if you're the monarch, put a +1/+1 counter on this creature.
-= BROKE at "monarch" after: at the beginning of your end step , if you're the
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), IsMonarch(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Town Sentry
 face: Town Sentry

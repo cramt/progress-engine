@@ -402,7 +402,7 @@ face: Garrulous Sycophant
 type: Creature — Human Advisor
 cost: {2}{B}
 > At the beginning of your end step, if you're the monarch, each opponent loses 1 life and you gain 1 life.
-= BROKE at "monarch" after: at the beginning of your end step , if you're the
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), IsMonarch(You)), effect: [LoseLife { who: EachOpponent, n: N(1) }, GainLife { who: You, n: N(1) }], limits: [] }
 
 ## Giant Inheritance
 face: Giant Inheritance

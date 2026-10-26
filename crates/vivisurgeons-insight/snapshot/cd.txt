@@ -158,7 +158,7 @@ cost: {4}{R}
 > When this creature enters, you become the monarch.
 > This creature can't attack unless defending player is the monarch.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "the" after: this creature can't attack unless defending player is
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: Unless(CantAttack, IsMonarch(DefendingPlayer)) }])
 
 ## Crushing Disappointment
 face: Crushing Disappointment

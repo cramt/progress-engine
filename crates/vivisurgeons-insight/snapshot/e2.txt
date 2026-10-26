@@ -207,7 +207,7 @@ cost: {3}
 > When a legendary creature you control enters, if there is no monarch, you become the monarch.
 > Equip {4}. This ability costs {3} less to activate if you're the monarch.
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }])
-= BROKE at "monarch" after: when a legendary creature you control enters , if there is no
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), NoMonarch), effect: [Designation("monarch")], limits: [] }
 = BROKE at "this" after: equip {4} .
 
 ## Darksteel Pendant

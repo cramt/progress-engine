@@ -249,7 +249,7 @@ cost: {6}
 > At the beginning of each upkeep, if you're the monarch, create a Gingerbrute token. (It's a {1} 1/1 Food Golem artifact creature with haste, "{1}: This token can't be blocked this turn except by creatures with haste," and "{2}, {T}, Sacrifice this token: You gain 3 life.")
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
 = Activated { cost: [Mana(Mana(["2"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [GainLife { who: You, n: N(6) }], limits: [] }
-= BROKE at "monarch" after: at the beginning of each upkeep , if you're the
+= BROKE at "~" after: at the beginning of each upkeep , if you're the monarch , create a
 
 ## Golgari Grave-Troll
 face: Golgari Grave-Troll
@@ -692,7 +692,7 @@ cost: {3}{B}
 > Whenever one or more creatures deal combat damage to you, convert Starscream.
 = Keywords([Keyword { name: "more than meets the eye", param: Some(Cost([Mana(Mana(["2", "B"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "monarch" after: whenever you draw a card , if you're the
+= Triggered { trigger: InterveningIf(When(Draws(You)), IsMonarch(You)), effect: [LoseLife { who: TargetOpponent, n: N(2) }], limits: [] }
 = BROKE at "~" after: whenever one or more creatures deal combat damage to you , convert
 
 ## Starscream, Power Hungry // Starscream, Seeker Leader
@@ -704,7 +704,7 @@ type: Legendary Artifact — Vehicle
 > Whenever you become the monarch, convert Starscream.
 = Keywords([Keyword { name: "living metal", param: None }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "menace", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "monarch" after: whenever ~ deals combat damage to a player , if there is no
+= BROKE at "the" after: whenever ~ deals combat damage to a player , if there is no monarch , that player becomes
 = BROKE at "," after: whenever you become the monarch
 
 ## Syncopate

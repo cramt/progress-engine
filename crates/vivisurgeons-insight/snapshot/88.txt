@@ -189,7 +189,7 @@ cost: {2}{G}{G}
 > When this enchantment enters, you become the monarch.
 > At the beginning of your upkeep, you may put a land card from your hand onto the battlefield. If you're the monarch, instead you may put a creature or land card from your hand onto the battlefield.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of your upkeep , you may put a land card from your hand onto the battlefield . if you're the
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, Instead { cond: IsMonarch(You), then: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }], limits: [] }
 
 ## Crookclaw Elder
 face: Crookclaw Elder

@@ -291,7 +291,7 @@ cost: {5}{G}{G}
 > When this creature enters, you become the monarch.
 > As long as you're the monarch, permanents you control have hexproof.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "," after: as long as you're the monarch
+= Static([AsLongAs { order: Leading, cond: IsMonarch(You), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 
 ## Demonic Hordes
 face: Demonic Hordes

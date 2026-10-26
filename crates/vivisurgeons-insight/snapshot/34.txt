@@ -43,7 +43,7 @@ type: Creature — Human Advisor
 cost: {2}{U}
 > When your commander deals combat damage to a player, if there is no monarch, you become the monarch.
 > At the beginning of the monarch's end step, that player draws a card.
-= BROKE at "monarch" after: when your commander deals combat damage to a player , if there is no
+= Triggered { trigger: InterveningIf(When(DealsCombatDamageToPlayer(Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } })), NoMonarch), effect: [Designation("monarch")], limits: [] }
 = BROKE at "step" after: at the beginning of the monarch 's end
 
 ## Armored Warhorse

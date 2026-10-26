@@ -707,7 +707,7 @@ cost: {1}{R}{W}{B}
 > At the beginning of your upkeep, if an opponent is the monarch, create a 1/1 black Assassin creature token with deathtouch and haste.
 = Keywords([Keyword { name: "deathtouch", param: None }, Keyword { name: "haste", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of your upkeep , if an opponent is the
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), IsMonarch(AnOpponent)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["assassin", "creature"], keywords: [Keyword { name: "deathtouch", param: None }, Keyword { name: "haste", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Recruiter of the Guard
 face: Recruiter of the Guard

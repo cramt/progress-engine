@@ -70,7 +70,7 @@ cost: {4}{W}{W}
 > As long as you're the monarch, damage doesn't cause you to lose life. (When a creature deals combat damage to you, its controller still becomes the monarch.)
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "," after: as long as you're the monarch
+= BROKE at "doesn't" after: as long as you're the monarch , damage
 
 ## Arctic Flats
 face: Arctic Flats

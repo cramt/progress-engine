@@ -182,7 +182,7 @@ cost: {2}{W}{W}
 > When this enchantment enters, you become the monarch.
 > At the beginning of your upkeep, create a 1/1 white Spirit creature token with flying. If you're the monarch, create a 4/4 white Angel creature token with flying instead.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of your upkeep , create a <pt> white spirit creature token with flying . if you're the
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["spirit", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }, Instead { cond: IsMonarch(You), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [White], types: ["angel", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }] }], limits: [] }
 
 ## Crashing Wave
 face: Crashing Wave

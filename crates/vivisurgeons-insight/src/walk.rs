@@ -509,6 +509,9 @@ impl Walk for Condition {
             Condition::CitysBlessing(f0) => {
                 Walk::walk(f0, v);
             }
+            Condition::IsMonarch(f0) => {
+                Walk::walk(f0, v);
+            }
             Condition::ZoneHasCards { zone, .. } => {
                 Walk::walk(zone, v);
             }

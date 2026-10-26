@@ -520,8 +520,8 @@ type: Legendary Creature — Human Noble Warrior
 cost: {1}{G}{G}
 > At the beginning of your end step, if there is no monarch, target opponent becomes the monarch.
 > Whenever a creature attacks one of your opponents, if that player is the monarch, that creature gets +1/+1 and gains trample until end of turn.
-= BROKE at "monarch" after: at the beginning of your end step , if there is no
-= BROKE at "monarch" after: whenever a creature attacks one of your opponents , if that player is the
+= BROKE at "the" after: at the beginning of your end step , if there is no monarch , target opponent becomes
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: InterveningIf(When(AttacksAnyOf { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), IsMonarch(That)), effect: [Modify { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Maestros Ascendancy
 face: Maestros Ascendancy

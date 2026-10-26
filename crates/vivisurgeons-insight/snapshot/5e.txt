@@ -48,7 +48,7 @@ cost: {1}{U}{R}{W}
 > Whenever Aragorn attacks, up to one target creature can't block this turn. If you're the monarch, creatures can't block this turn.
 = Keywords([Keyword { name: "vigilance", param: None }, Keyword { name: "lifelink", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: whenever ~ attacks , up to one target creature can't block this turn . if you're the
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBlock, dur: ThisTurn }, If { order: Leading, cond: IsMonarch(You), then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBlock, dur: ThisTurn }] }], limits: [] }
 
 ## Arcanum Wings
 face: Arcanum Wings

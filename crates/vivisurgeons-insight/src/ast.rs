@@ -4156,6 +4156,10 @@ pub enum Condition {
     },
     /// "you have the city's blessing".
     CitysBlessing(Player),
+    /// "you're the monarch", "an opponent is the monarch" (CR 725.1).
+    IsMonarch(Player),
+    /// "there is no monarch": no player has the designation (CR 725.1).
+    NoMonarch,
     /// "a graveyard has twenty or more cards in it": some one zone of that
     /// kind, not all of them together.
     ZoneHasCards {

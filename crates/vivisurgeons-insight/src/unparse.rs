@@ -12054,6 +12054,13 @@ fn condition_said(o: &mut Out, c: &Condition) {
             o.w("was spent to cast");
             objects(o, what);
         }
+        Condition::IsMonarch(Player::You) => o.w("you're the monarch"),
+        Condition::IsMonarch(p) => {
+            player(o, p);
+            o.verb("is", player_num(p));
+            o.w("the monarch");
+        }
+        Condition::NoMonarch => o.w("there is no monarch"),
         Condition::CitysBlessing(p) => {
             player(o, p);
             o.verb("have", player_num(p));

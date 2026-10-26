@@ -726,7 +726,7 @@ cost: {3}{W}{W}
 > When Queen Mother Ramonda enters, you become the monarch.
 > As long as you're the monarch, creatures with power 2 or less can't attack you.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "," after: as long as you're the monarch
+= Static([AsLongAs { order: Leading, cond: IsMonarch(You), then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(2) })], or: None } }, rule: CantAttackPlayer(You) }] }])
 
 ## Rampaging Yao Guai
 face: Rampaging Yao Guai

@@ -794,7 +794,7 @@ cost: {5}{R}{R}
 > At the beginning of your upkeep, if you're the monarch, create a 5/5 red Dragon creature token with flying.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of your upkeep , if you're the
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), IsMonarch(You)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), colors: [Red], types: ["dragon", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Snort
 face: Snort

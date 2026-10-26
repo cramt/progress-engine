@@ -320,7 +320,7 @@ cost: {2}{U}
 > Enchanted creature doesn't untap during its controller's untap step unless that player is the monarch.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Tap(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: enchanted creature doesn't untap during its controller 's untap step unless that player is the
+= Let { bind: [/* enchanted */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([Restrict { what: Objects { quant: Introduced(0) /* enchanted */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: Unless(DoesntUntap(ControllerOf(Objects { quant: Bound(0) /* enchanted */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), IsMonarch(That)) }]) }
 
 ## Fall of the Hammer
 face: Fall of the Hammer

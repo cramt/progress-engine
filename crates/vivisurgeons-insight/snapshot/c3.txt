@@ -244,7 +244,7 @@ cost: {3}{R}
 > When this creature enters, you become the monarch.
 > Whenever an opponent attacks you while you're the monarch, this creature deals damage to that player equal to the number of cards in their hand.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: whenever an opponent attacks you while you're the
+= Triggered { trigger: When(While { event: AttacksAnyOf { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, to: [Player(You)] }, cond: IsMonarch(You) }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }), to: [Player(That)] }], limits: [] }
 
 ## Embolden
 face: Embolden

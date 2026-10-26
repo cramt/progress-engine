@@ -775,7 +775,7 @@ cost: {4}{G}{G}
 > Whenever you tap a land for mana while you're the monarch, add an additional one mana of any color.
 = Keywords([Keyword { name: "trample", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: whenever you tap a land for mana while you're the
+= Triggered { trigger: When(While { event: TapsForMana { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } } }, cond: IsMonarch(You) }), effect: [AddMana(Additional(Of { n: N(1), pick: AnyColor, within: None }))], limits: [] }
 
 ## Remembrance
 face: Remembrance

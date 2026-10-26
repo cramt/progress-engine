@@ -879,7 +879,7 @@ cost: {4}{W}
 > Equipped creature gets +2/+2 and has vigilance.
 > Whenever equipped creature attacks the monarch, destroy target tapped nonland permanent that player controls.
 > Equip {2}
-= BROKE at "monarch" after: when ~ enters , if there is no
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), NoMonarch), effect: [Designation("monarch")], limits: [] }
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }])
 = BROKE at "," after: whenever equipped creature attacks the monarch
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])

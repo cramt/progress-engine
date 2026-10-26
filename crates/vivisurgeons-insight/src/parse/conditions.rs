@@ -135,6 +135,9 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::ManaSpent { mana, what })
         },
         |p| p.words("you have the city 's blessing").map(|_| Condition::CitysBlessing(Player::You)),
+        |p| p.words("you're the monarch").map(|_| Condition::IsMonarch(Player::You)),
+        |p| p.words("there is no monarch").map(|_| Condition::NoMonarch),
+        |p| { let who = player(p)?; p.words("is the monarch")?; Some(Condition::IsMonarch(who)) },
         |p| p.words("you have max speed").map(|_| Condition::MaxSpeed(Player::You)),
         // "this is the fourth time this ability has resolved this turn", and
         // after the first, "it's the second time".
