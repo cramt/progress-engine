@@ -828,7 +828,7 @@ face: Scytheclaw Raptor
 type: Creature — Dinosaur
 cost: {2}{R}
 > Whenever a player casts a spell, if it's not their turn, this creature deals 4 damage to them.
-= BROKE at "turn" after: whenever a player casts a spell , if it's not their
+= Triggered { trigger: InterveningIf(When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), Not(TheirTurn)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Player(That)] }], limits: [] }
 
 ## Simic Cluestone
 face: Simic Cluestone

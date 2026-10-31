@@ -1046,6 +1046,6 @@ type: Legendary Creature — Devil
 cost: {2}{R}
 > Whenever an opponent draws their first card each turn, if it's not their turn, you create a 1/1 red Devil creature token with "When this token dies, it deals 1 damage to any target."
 > Whenever one or more Devils you control attack one or more players, you and those players each draw a card, then discard a card at random.
-= BROKE at "turn" after: whenever an opponent draws their first card each turn , if it's not their
+= Triggered { trigger: InterveningIf(When(DrawsNth { who: AnOpponent, n: 1 }), Not(TheirTurn)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["devil", "creature"], keywords: [], abilities: [Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }], named: None, attacking: None } }], limits: [] }
 = BROKE at "draw" after: whenever one or more devils you control attack one or more players , you and those players each
 

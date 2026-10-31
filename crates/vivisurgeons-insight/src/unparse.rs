@@ -12436,6 +12436,21 @@ fn past(o: &mut Out, c: &Condition) {
 
 fn not_condition(o: &mut Out, c: &Condition) {
     match c {
+        Condition::TheirTurn => {
+            let turn = |o: &mut Out| {
+                syn::their(o);
+                o.w("turn");
+            };
+            let isnt = out(|o| {
+                o.w("it isn't");
+                turn(o);
+            });
+            let its_not = out(|o| {
+                o.w("it's not");
+                turn(o);
+            });
+            syn::its_not(o, isnt, its_not);
+        }
         // "none of those creatures attacked you" (Firemane Commando).
         Condition::Is { what, filter }
             if what.quant == Quant::AtLeast(Amount::N(1))

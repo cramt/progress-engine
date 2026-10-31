@@ -410,7 +410,7 @@ face: Glademuse
 type: Creature — Beast
 cost: {2}{G}
 > Whenever a player casts a spell, if it's not their turn, that player draws a card.
-= BROKE at "turn" after: whenever a player casts a spell , if it's not their
+= Triggered { trigger: InterveningIf(When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), Not(TheirTurn)), effect: [Draw { who: That, n: N(1) }], limits: [] }
 
 ## Goblin Fireslinger
 face: Goblin Fireslinger

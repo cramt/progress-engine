@@ -983,7 +983,7 @@ cost: {4}
 > • Put a +1/+1 counter on Vision.
 > • Vision phases out. (Treat him and anything attached to him as though they don't exist until your next turn.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "'s" after: whenever a player casts a spell , if it isn't that player
+= Triggered { trigger: InterveningIf(When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), Not(TheirTurn)), effect: [Modal { choose: One, modes: [[PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], [PhaseOut(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]] }], limits: [] }
 
 ## Vodalian Wave-Knight
 face: Vodalian Wave-Knight

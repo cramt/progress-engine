@@ -88,13 +88,13 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1802/1803 (99.9%) | pinned; Saw in Half was outside the old corpus |
-| My decks: every card in the 20 decks of cramt/mtg | 1171/1207 (97.0%) | 2465/2504 (98.4%) | reopened by 3 new decks; 1023 cards pinned |
-| Standard after the early-2027 rotation | 3062/3517 (87.1%) | 6574/7055 (93.2%) | |
+| My decks: every card in the 20 decks of cramt/mtg | 1172/1207 (97.1%) | 2466/2504 (98.5%) | reopened by 3 new decks; 1023 cards pinned |
+| Standard after the early-2027 rotation | 3064/3517 (87.1%) | 6576/7055 (93.2%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4261/5157 (82.6%) | 9446/10421 (90.6%) | |
-| EDHREC top 2000 | 1816/1987 (91.4%) | 3645/3844 (94.8%) | |
-| EDHREC top 5000 | 4128/4977 (82.9%) | 9131/10106 (90.4%) | |
-| Commander precons | 4698/6114 (76.8%) | 10605/12175 (87.1%) | |
+| All of Standard | 4264/5157 (82.7%) | 9449/10421 (90.7%) | |
+| EDHREC top 2000 | 1817/1987 (91.4%) | 3646/3844 (94.8%) | |
+| EDHREC top 5000 | 4131/4977 (83.0%) | 9134/10106 (90.4%) | |
+| Commander precons | 4701/6114 (76.9%) | 10609/12175 (87.1%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -160,8 +160,8 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | My decks (pinned) | 2136/2136 (100%) |
-| EDHREC top 2000 | 3643/3645 (99.9%) |
-| All parsed abilities | 50724/50752 (99.9%) |
+| EDHREC top 2000 | 3644/3646 (99.9%) |
+| All parsed abilities | 50732/50760 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading

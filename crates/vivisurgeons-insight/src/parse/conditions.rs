@@ -552,6 +552,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::FirstCombatPhase { your_turn })
         },
         |p| p.words("it's not your turn").map(|_| Condition::NotYourTurn),
+        // "if it isn't that player's turn" (Tataru Taru), "if it's not their
+        // turn": not the turn of the player the trigger names.
+        |p| {
+            p.one_of(&["it's not", "it isn't"])?;
+            p.one_of(&["their", "that player 's"])?;
+            p.word("turn")?;
+            Some(Condition::Not(Box::new(Condition::TheirTurn)))
+        },
         |p| p.words("it's an opponent 's turn").map(|_| Condition::OpponentsTurn),
         |p| { p.words("you have")?; let n = number(p)?; p.words("or more life")?; Some(Condition::LifeAtLeast(n)) },
         |p| {
