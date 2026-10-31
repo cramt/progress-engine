@@ -245,7 +245,7 @@ type: Legendary Creature — Vampire Pirate
 cost: {1}{U}{B}{R}
 > Each creature you control but don't own gets +2/+2, has menace and deathtouch, and is a Pirate in addition to its other types.
 > Whenever you cast a noncreature spell you don't own, create two tapped Treasure tokens.
-= BROKE at "gets" after: each creature you control but don't own
+= Static([Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }, Keyword { name: "deathtouch", param: None }], per: None }, AlsoIs { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }, types: Listed([Subtype("pirate")]) }])
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [NotOwnedBy(You)], or: None } } }), effect: [Create { who: You, n: N(2), token: Token { tapped: true, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [] }
 
 ## Dragon Scales

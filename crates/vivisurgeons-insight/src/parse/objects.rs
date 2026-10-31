@@ -800,6 +800,11 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // Not "your opponents own": in Two-Headed Giant a teammate owns cards
         // too (CR 810.1).
         |p| p.words("you don't own").map(|_| Post::NotOwnedBy(Player::You)),
+        // "creatures you control but don't own", "spells you cast but don't
+        // own": the owner said after the controller or caster is you.
+        |p| p.words("but don't own").map(|_| Post::NotOwnedBy(Player::You)),
+        // "a spell they don't own" (Gonti, Night Minister).
+        |p| { let pl = player_simple(p)?; if pl == Player::You { return None; } p.one_of(&["doesn't own", "don't own"])?; Some(Post::NotOwnedBy(pl)) },
         |p| { let pl = player_simple(p)?; p.one_of(&["controls", "control"])?; Some(Post::Controller(pl)) },
         |p| { let pl = player_simple(p)?; p.one_of(&["doesn't control", "don't control"])?; Some(Post::NotControlledBy(pl)) },
         |p| { p.words("with total")?; compare(p).map(Post::Total) },

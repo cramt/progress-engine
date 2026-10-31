@@ -901,7 +901,7 @@ cost: {5}{B}{B}
 > At the beginning of each opponent's upkeep, you manifest the top card of that player's library. (Put it onto the battlefield face down as a 2/2 creature. Turn it face up any time for its mana cost if it's a creature card.)
 > Whenever a creature you control but don't own dies, its owner loses 2 life and you gain 2 life.
 = Triggered { trigger: At(Upkeep(EachOpponent)), effect: [ActionOn { who: You, name: "manifest", what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(That))], or: None } } }], limits: [] }
-= BROKE at "own" after: whenever a creature you control but don't
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }], ability: Triggered { trigger: When(Dies(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: OwnerOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2) }, GainLife { who: You, n: N(2) }], limits: [] } }
 
 ## Thriving Bluff
 face: Thriving Bluff

@@ -549,7 +549,7 @@ type: Legendary Creature — Lizard Rogue
 cost: {1}{B}{R}
 > Creatures you control but don't own are Mercenaries in addition to their other types.
 > At the beginning of your upkeep, exile the top X cards of target opponent's library, where X is the number of outlaws you control. Until end of turn, you may cast spells from among those cards, and mana of any type can be spent to cast those spells.
-= BROKE at "mercenaries" after: creatures you control but don't own are
+= Static([AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }, types: Listed([Subtype("mercenary")]) }])
 = BROKE at "you" after: at the beginning of your upkeep , exile the top x cards of target opponent 's library , where x is the number of outlaws
 
 ## Linessa, Zephyr Mage

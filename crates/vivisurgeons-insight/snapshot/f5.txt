@@ -379,7 +379,7 @@ cost: {2}{U}{B}
 > Creatures you control but don't own get +2/+2 and can't be sacrificed.
 = BROKE at "the" after: when ~ enters , target opponent becomes
 = BROKE at "," after: whenever an opponent becomes the monarch
-= BROKE at "<pt>" after: creatures you control but don't own get
+= Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }, rule: CantBeSacrificed }])
 
 ## Ghost-Spider, Gwen Stacy
 face: Ghost-Spider, Gwen Stacy

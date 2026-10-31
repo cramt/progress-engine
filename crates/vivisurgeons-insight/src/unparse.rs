@@ -4994,6 +4994,17 @@ fn posts(o: &mut Out, ps: &[Post], n: Num) {
 fn posts_said(o: &mut Out, ps: &[Post], n: Num) {
     let mut i = 0;
     while i < ps.len() {
+        // "creatures you control but don't own", "spells you cast but don't own".
+        if let (
+            Post::Controller(Player::You) | Post::Cast(Player::You),
+            Some(Post::NotOwnedBy(Player::You)),
+        ) = (&ps[i], ps.get(i + 1))
+        {
+            post(o, &ps[i], n);
+            o.w("but don't own");
+            i += 2;
+            continue;
+        }
         // "that each have a different mana value 3 or less": the bound
         // follows the post that says the values differ.
         if let (Post::DifferentValues(s), Some(Post::With(c))) = (&ps[i], ps.get(i + 1)) {

@@ -991,7 +991,7 @@ cost: {6}
 > When Staff of Eden enters, put target legendary permanent card not named Staff of Eden, Vault's Key from a graveyard onto the battlefield under your control.
 > {T}: Draw a card for each permanent you control but don't own.
 = BROKE at "named" after: when ~ enters , put target legendary permanent card not
-= BROKE at "but" after: {T} : draw a card for each permanent you control
+= Activated { cost: [Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You), NotOwnedBy(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Stillmoon Cavalier
 face: Stillmoon Cavalier

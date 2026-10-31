@@ -237,7 +237,7 @@ cost: {1}{U}{U}
 > Disguise {1}{U}
 > When this creature is turned face up, target opponent gains control of any number of target permanents you control. Draw a card for each one they gained control of this way.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "but" after: whenever this creature attacks , gain control of target permanent you own
+= BROKE at "control" after: whenever this creature attacks , gain control of target permanent you own but don't
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["1", "U"]))])) }])
 = BROKE at "gained" after: when this creature is turned face up , target opponent gains control of any number of target permanents you control . draw a card for each one they
 
