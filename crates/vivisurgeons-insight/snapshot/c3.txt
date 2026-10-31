@@ -149,7 +149,7 @@ face: Centaur Omenreader
 type: Snow Creature — Centaur Shaman
 cost: {3}{G}
 > As long as this creature is tapped, creature spells you cast cost {2} less to cast.
-= BROKE at "cost" after: as long as this creature is tapped , creature spells you cast
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }, then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 
 ## Charmed Clothier
 face: Charmed Clothier

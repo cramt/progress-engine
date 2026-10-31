@@ -406,7 +406,13 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
             }
             None if or_kind.is_some() => {}
             // "noncreature, nonland permanent": words before any type are an and.
-            None if !groups[0].iter().any(is_typed) => {
+            // A lone state never starts such a run: "is untapped, creatures
+            // you control have …" ends the condition at the comma.
+            None if !groups[0].iter().any(is_typed)
+                && !groups[0]
+                    .iter()
+                    .all(|a| matches!(a, Adj::State(State::Tapped | State::Untapped))) =>
+            {
                 for c in commas {
                     groups[0].extend(c);
                 }

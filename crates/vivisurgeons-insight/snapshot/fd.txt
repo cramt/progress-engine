@@ -457,7 +457,7 @@ face: Guardian Beast
 type: Creature — Beast
 cost: {3}{B}
 > As long as this creature is untapped, noncreature artifacts you control can't be enchanted, they have indestructible, and other players can't gain control of them. This effect doesn't remove Auras already attached to those artifacts.
-= BROKE at "can't" after: as long as this creature is untapped , noncreature artifacts you control
+= BROKE at "enchanted" after: as long as this creature is untapped , noncreature artifacts you control can't be
 
 ## Gudul Lurker
 face: Gudul Lurker

@@ -1057,7 +1057,7 @@ face: Spectral Guardian
 type: Creature — Spirit
 cost: {2}{W}{W}
 > As long as this creature is untapped, noncreature artifacts have shroud. (They can't be the targets of spells or abilities.)
-= BROKE at "shroud" after: as long as this creature is untapped , noncreature artifacts have
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "shroud", param: None }], per: None }] }])
 
 ## Spider-Man, New Champion
 face: Spider-Man, New Champion

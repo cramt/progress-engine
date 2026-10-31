@@ -557,7 +557,7 @@ cost: {U}
 > Negative — As long as K-9 is untapped, other legendary creatures you control have ward {1}.
 > Affirmative — {1}{U}, {T}: Target legendary creature can't be blocked this turn.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
-= BROKE at "have" after: negative — as long as ~ is untapped , other legendary creatures you control
+= Labelled { label: "negative", ability: Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["1"]))])) }], per: None }] }]) }
 = Labelled { label: "affirmative", ability: Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] } }
 = Keywords([Keyword { name: "doctor's companion", param: None }])
 
