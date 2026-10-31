@@ -474,7 +474,7 @@ function RuleList({
             </span>
             {/* biome-ignore lint/a11y/useSemanticElements: two pressed buttons read better than radios here */}
             <div
-              className="verb-toggle"
+              className="verb-toggle segmented"
               role="group"
               aria-label={`Rule ${i + 1}: prefer or avoid`}
             >

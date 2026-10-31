@@ -17,7 +17,7 @@ export function ViewTabs({
   onView: (view: DeckView) => void;
 }) {
   return (
-    <nav className="deck-views segmented" aria-label="Deck view">
+    <nav className="deck-views tabs" aria-label="Deck view">
       {DECK_VIEWS.map((v) => (
         <button
           key={v}

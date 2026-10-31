@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useSettingsFile } from "../card/preference";
 import { Toolbar } from "../deck/Toolbar";
@@ -82,7 +82,6 @@ function Decks({
     <main>
       <Toolbar
         name="Decks"
-        up={false}
         actions={
           <>
             <span
@@ -91,30 +90,6 @@ function Decks({
             >
               {repo.where}
             </span>
-            <Link to="/collection" className="button">
-              Collection
-            </Link>
-            <Link
-              to="/wanted"
-              className="button"
-              title="Cards you want, and the ones your decks hold that you don't own"
-            >
-              Wanted
-            </Link>
-            <Link
-              to="/cards"
-              className="button"
-              title="Cards of your own making, drawn and printed by Mirage Mockery"
-            >
-              Custom cards
-            </Link>
-            <Link
-              to="/settings"
-              className="button"
-              title="Which printing of a card is offered first"
-            >
-              Settings
-            </Link>
             <button
               type="button"
               onClick={() => setForking(true)}

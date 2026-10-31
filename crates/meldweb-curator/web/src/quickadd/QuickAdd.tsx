@@ -164,19 +164,21 @@ export function QuickAdd({
       </div>
       {/* With nowhere else to go, there is nothing to choose. */}
       {categories.length > 0 && (
-        <select
-          aria-label="Quick add category"
-          title="Where quick add puts a card"
-          value={category ?? ""}
-          onChange={(e) => setCategory(e.target.value || null)}
-        >
-          <option value="">{anywhere}</option>
-          {categories.map((c) => (
-            <option key={c.name} value={c.name}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <label className="quick-add-into">
+          into
+          <select
+            title="Where quick add puts a card"
+            value={category ?? ""}
+            onChange={(e) => setCategory(e.target.value || null)}
+          >
+            <option value="">{anywhere}</option>
+            {categories.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
       <span className="quick-add-status" role="status">
         {error ?? (added ? `Added ${added}` : "")}

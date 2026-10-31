@@ -223,7 +223,7 @@ function CardEditor({
         <div className="custom-card-head">
           <code>{file.path}</code>
           <SaveStatus save={save} path={file.path} />
-          <div className="segmented">
+          <div className="tabs">
             {MODES.map((m) => (
               <button
                 key={m}
@@ -465,7 +465,7 @@ function FacePicker({
   onPick: (face: number) => void;
 }) {
   return (
-    <div className="segmented face-picker">
+    <div className="tabs face-picker">
       {labels.map((label, i) => (
         <button
           key={label}
