@@ -636,8 +636,8 @@ impl Visitor for Collect {
     fn amount_done(&mut self, _a: &mut Amount) {
         self.pop_frame();
     }
-    fn statik(&mut self, _s: &mut Static) {
-        self.push_frame(Fk::Static, String::new());
+    fn statik(&mut self, s: &mut Static) {
+        self.push_frame(Fk::Static, format!("@static:{}", head(s)));
     }
     fn statik_done(&mut self, s: &mut Static) {
         let id = self.pop_frame();
@@ -1536,6 +1536,32 @@ fn resolve_one(
     }
     let mut seen = BTreeSet::new();
     cands.retain(|t| seen.insert(t.clone()));
+    // "Creatures can't attack you or planeswalkers you control unless their
+    // controller pays {1} for each of those creatures": a reference inside a
+    // restriction means the restricted subject, said first, before any
+    // object of its rule ([restricted-subject]).
+    if cands.len() > 1 {
+        if let Some(&rf) = e.frames.iter().rev().find(|&&f| {
+            matches!(
+                ld.c.frames[f].verb.as_str(),
+                "Restrict" | "@static:Restrict"
+            )
+        }) {
+            let subject = cands
+                .iter()
+                .filter_map(|t| match t {
+                    Target::Intro(l, i) if *l == li && ld.c.evs[*i].frames.contains(&rf) => {
+                        Some(*i)
+                    }
+                    _ => None,
+                })
+                .min();
+            if let Some(i) = subject {
+                cands.retain(|t| *t == Target::Intro(li, i));
+                note = "the restricted subject".into();
+            }
+        }
+    }
     let class = match cands.len() {
         0 => Class::None,
         1 => Class::Determined,
