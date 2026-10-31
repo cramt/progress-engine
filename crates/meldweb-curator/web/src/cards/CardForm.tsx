@@ -70,7 +70,7 @@ export function CardForm({
 
       <fieldset className="field">
         <legend>Type</legend>
-        <div className="card-form-chips">
+        <div className="chips">
           {[...SUPERTYPES, ...CARD_TYPES].map((t) => (
             <button
               key={t}
@@ -92,7 +92,7 @@ export function CardForm({
 
       <fieldset className="field">
         <legend>Colour indicator</legend>
-        <div className="card-form-chips card-form-symbols">
+        <div className="chips card-form-symbols">
           {(["W", "U", "B", "R", "G"] as const).map((c) => (
             <button
               key={c}

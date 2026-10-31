@@ -52,6 +52,15 @@
   background: var(--accent-soft);
 }
 
+.quick-add-into {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .quick-add-status {
   min-width: 0;
   color: var(--muted);

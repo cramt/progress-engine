@@ -120,7 +120,7 @@ export function VersionView({
           )}
           {blame && (
             <nav
-              className="segmented version-modes"
+              className="tabs version-modes"
               aria-label="What this version shows"
             >
               <button

@@ -59,12 +59,11 @@ export function Preview({
         <h2 id="settings-preview">Preview</h2>
         <CardPicker card={card} onCard={onCard} />
       </div>
-      <div className="preview-samples">
+      <div className="tabs preview-samples">
         {SAMPLES.map((name) => (
           <button
             key={name}
             type="button"
-            className="small"
             aria-pressed={name === card}
             onClick={() => onCard(name)}
           >

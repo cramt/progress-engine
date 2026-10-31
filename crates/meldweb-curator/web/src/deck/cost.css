@@ -1,6 +1,9 @@
 /* The cost view: the deck dearest first, each line beside its cheapest printing. */
+/* Inline, so Add a description sits beside the views rather than under them. */
 .deck-views {
+  display: inline-flex;
   margin-bottom: 16px;
+  vertical-align: middle;
 }
 
 .cost {

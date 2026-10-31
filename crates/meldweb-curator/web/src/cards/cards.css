@@ -219,23 +219,6 @@
   min-width: 140px;
 }
 
-.card-form-chips,
-.card-form-symbols {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.card-form-chips button {
-  --control-h: 26px;
-  font-size: 12px;
-}
-
-.card-form-chips button[aria-pressed="false"] {
-  --line: none;
-  color: var(--faint);
-}
-
 .card-form-symbols button,
 .card-form-cost button {
   --control-h: 28px;

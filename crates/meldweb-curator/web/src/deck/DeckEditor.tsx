@@ -786,49 +786,58 @@ export function DeckEditor({
                 Scan
               </button>
             )}
-            <PlaytestArchidekt
-              cards={parsed.cards}
-              printings={printings}
-              onRefusal={setRefusal}
-            />
-            <CopyDeck
-              text={history.present}
-              cards={parsed.cards}
-              printings={printings}
-              onRefusal={setRefusal}
-            />
-            {built && (
-              <PrintProxies
-                repo={repo}
-                stem={stem}
-                name={stem}
-                text={built.text}
-                cards={built.deck.cards}
-                printings={built.printings}
-                {...(onMain ? {} : { of: MAIN })}
-              />
-            )}
-            <Link
-              to="/trade"
-              search={{ deck: stem }}
-              className="button"
-              title="What another player's collection holds of what this deck lacks"
-            >
-              Trade for…
-            </Link>
-            <ReplaceArchidekt
-              name={parsed.name ?? stem}
-              format={parsed.format}
-              onReplace={(text) => {
-                // Archidekt has no description to replace it with.
-                history.edit(
-                  setDeckDescription(text, parsed.description ?? ""),
-                );
-                setRefusal(null);
-              }}
-            />
           </>
         }
+        more={{
+          title:
+            "Playtest, copy, print proxies, trade for, replace from Archidekt",
+          actions: (
+            <>
+              <PlaytestArchidekt
+                cards={parsed.cards}
+                printings={printings}
+                onRefusal={setRefusal}
+              />
+              <CopyDeck
+                text={history.present}
+                cards={parsed.cards}
+                printings={printings}
+                onCopied={(label) => setNotice(`Copied the deck for ${label}.`)}
+                onRefusal={setRefusal}
+              />
+              {built && (
+                <PrintProxies
+                  repo={repo}
+                  stem={stem}
+                  name={stem}
+                  text={built.text}
+                  cards={built.deck.cards}
+                  printings={built.printings}
+                  {...(onMain ? {} : { of: MAIN })}
+                />
+              )}
+              <Link
+                to="/trade"
+                search={{ deck: stem }}
+                className="button"
+                title="What another player's collection holds of what this deck lacks"
+              >
+                Trade for…
+              </Link>
+              <ReplaceArchidekt
+                name={parsed.name ?? stem}
+                format={parsed.format}
+                onReplace={(text) => {
+                  // Archidekt has no description to replace it with.
+                  history.edit(
+                    setDeckDescription(text, parsed.description ?? ""),
+                  );
+                  setRefusal(null);
+                }}
+              />
+            </>
+          ),
+        }}
         status={
           <SaveStatus
             save={save}

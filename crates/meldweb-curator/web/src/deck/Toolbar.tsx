@@ -1,78 +1,195 @@
-import { Link } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Conflict, FileConflict, Settle, Side } from "../deck.gen";
 import type { SaveState } from "../github/save";
-import { BrandMark, CloseIcon, RedoIcon, UndoIcon } from "../ui/icons";
+import {
+  BrandMark,
+  ChevronIcon,
+  CloseIcon,
+  RedoIcon,
+  UndoIcon,
+} from "../ui/icons";
 import { Waiting } from "../ui/Spinner";
 import { ClashPicks, picked, settleOf } from "./ClashPicks";
 
 /**
- * The bar along the top of every page, sticky on scroll: Archidekt's toolbar,
- * what stays in reach while reading a long deck. Every slot but the title is
+ * The site's places, in every page's bar so any page is one click from any
+ * other. A deck is one of the decks, and a trade is worked out from Wanted.
+ */
+const PLACES: readonly {
+  to: "/" | "/collection" | "/wanted" | "/cards" | "/settings";
+  label: string;
+  title: string;
+  here: (path: string) => boolean;
+}[] = [
+  {
+    to: "/",
+    label: "Decks",
+    title: "Every deck in this repo",
+    here: (p) => p === "/" || p.startsWith("/deck/"),
+  },
+  {
+    to: "/collection",
+    label: "Collection",
+    title: "The cards you own, each copy in its place",
+    here: (p) => p.startsWith("/collection"),
+  },
+  {
+    to: "/wanted",
+    label: "Wanted",
+    title: "Cards you want, and the ones your decks hold that you don't own",
+    here: (p) => p.startsWith("/wanted") || p.startsWith("/trade"),
+  },
+  {
+    to: "/cards",
+    label: "Custom cards",
+    title: "Cards of your own making, drawn and printed by Mirage Mockery",
+    here: (p) => p.startsWith("/cards"),
+  },
+  {
+    to: "/settings",
+    label: "Settings",
+    title: "Which printing of a card is offered first",
+    here: (p) => p.startsWith("/settings"),
+  },
+];
+
+function SiteNav() {
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  return (
+    <nav className="site-nav" aria-label="Site">
+      {PLACES.map((place) => (
+        <Link
+          key={place.to}
+          to={place.to}
+          title={place.title}
+          aria-current={place.here(path) ? "page" : undefined}
+        >
+          {place.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/**
+ * The bar along the top of every page, sticky on scroll: the site's places
+ * above, and under them this page's name and tools, Archidekt's toolbar, what
+ * stays in reach while reading a long deck. Every slot but the title is
  * optional, and each holds one thing, so a feature adds itself by filling its
  * slot rather than by rearranging the bar. Left to right:
  *
- *   mark · Decks / title · count | search  quickAdd | … | actions  status  history
+ *   mark · Decks  Collection  Wanted  Custom cards  Settings
+ *   title · count | search  quickAdd | … | actions  more  status  history
  */
 export function Toolbar({
   name,
-  up = true,
   count,
   search,
   quickAdd,
   actions,
+  more,
   status,
   history,
 }: {
   /** Where this page is: the deck's name, or its path until it has one. */
   name: ReactNode;
-  /** Whether the title sits under Decks; the deck list is the top. */
-  up?: boolean;
   /** Cards on the page, each counted once whatever categories it is in (ADR-0020). */
   count?: number;
   /** The card search button, which opens the search overlay. */
   search?: ReactNode;
   /** The quick add box. */
   quickAdd?: ReactNode;
-  /** Page-wide actions, such as copying the deck as Archidekt text. */
+  /** The page's actions used while working on it, such as Scan. */
   actions?: ReactNode;
+  /**
+   * Actions that take the page elsewhere, such as Copy for…, under one More
+   * button, and what they are, said on hover; see `MoreMenu`.
+   */
+  more?: { title: string; actions: ReactNode };
   /** Whether the page's file is saved: unsaved changes, saving, committed. */
   status?: ReactNode;
   /** Undo and redo; see `UndoRedo`. */
   history?: ReactNode;
 }) {
   return (
-    <div className="toolbar" role="toolbar" aria-label="Page">
-      <div className="toolbar-deck">
+    <header className="toolbar">
+      <div className="toolbar-site">
         <Link to="/" className="brand" title="Progress Engine: all decks">
           <BrandMark />
           <span className="wordmark brand-name">Progress Engine</span>
         </Link>
-        <h1 className="crumbs">
-          {up && (
-            <>
-              <Link to="/" className="toolbar-back" title="All decks">
-                Decks
-              </Link>
-              <span className="crumb-sep" aria-hidden="true">
-                /
-              </span>
-            </>
-          )}
-          <span className="crumb-here">{name}</span>
-        </h1>
-        {count !== undefined && (
-          <span className="badge toolbar-count" title="Cards">
-            {count} card{count === 1 ? "" : "s"}
-          </span>
-        )}
+        <SiteNav />
       </div>
-      {search && <div className="toolbar-search">{search}</div>}
-      {quickAdd && <div className="toolbar-quick-add">{quickAdd}</div>}
-      <div className="toolbar-spacer" />
-      {actions && <div className="toolbar-actions">{actions}</div>}
-      {status && <div className="toolbar-status">{status}</div>}
-      {history && <div className="toolbar-history">{history}</div>}
+      <div className="toolbar-page" role="toolbar" aria-label="Page">
+        <div className="toolbar-deck">
+          <h1 className="crumbs">
+            <span className="crumb-here">{name}</span>
+          </h1>
+          {count !== undefined && (
+            <span className="badge toolbar-count" title="Cards">
+              {count} card{count === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+        {search && <div className="toolbar-search">{search}</div>}
+        {quickAdd && <div className="toolbar-quick-add">{quickAdd}</div>}
+        <div className="toolbar-spacer" />
+        {actions && <div className="toolbar-actions">{actions}</div>}
+        {more && <MoreMenu title={more.title}>{more.actions}</MoreMenu>}
+        {status && <div className="toolbar-status">{status}</div>}
+        {history && <div className="toolbar-history">{history}</div>}
+      </div>
+    </header>
+  );
+}
+
+/**
+ * More: the page's less used actions, one button opening a list of them.
+ * The list stays mounted while closed, only out of sight, because an action
+ * in it may own a dialog that has to outlive the list (Proxies…); its
+ * stylesheet makes a dialog visible inside a hidden list. Picking an entry,
+ * a click elsewhere and Escape close it.
+ */
+function MoreMenu({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: Event) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("pointerdown", away, true);
+    window.addEventListener("keydown", key);
+    return () => {
+      window.removeEventListener("pointerdown", away, true);
+      window.removeEventListener("keydown", key);
+    };
+  }, [open]);
+  return (
+    <div className="more" ref={ref}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={title}
+        onClick={() => setOpen((was) => !was)}
+      >
+        More
+        <ChevronIcon />
+      </button>
+      {/* Entries are buttons and links already; closing follows their own click. */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape and the entries' own keys cover the keyboard */}
+      <div
+        className={open ? "more-list open" : "more-list"}
+        role="menu"
+        onClick={(e) => {
+          if ((e.target as Element).closest("button, a")) setOpen(false);
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }

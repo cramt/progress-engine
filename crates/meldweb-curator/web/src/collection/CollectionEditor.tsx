@@ -290,9 +290,6 @@ export function CollectionEditor({
               places={parsed.places}
               onImport={(next) => change(() => next)}
             />
-            <Link to="/wanted" className="button">
-              Wanted
-            </Link>
           </>
         }
         status={<SaveStatus save={save} path={path} />}
