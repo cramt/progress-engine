@@ -743,7 +743,7 @@ face: Songstitcher
 type: Creature — Human Cleric
 cost: {W}
 > {1}{W}: Prevent all combat damage that would be dealt this turn by target attacking creature with flying.
-= BROKE at "by" after: {1} {W} : prevent all combat damage that would be dealt this turn
+= Activated { cost: [Mana(Mana(["1", "W"]))], effect: [Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }), dur: ThisTurn }], limits: [] }
 
 ## Spider-Man, Web-Slinger
 face: Spider-Man, Web-Slinger

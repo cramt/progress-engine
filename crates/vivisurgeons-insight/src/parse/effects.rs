@@ -2677,6 +2677,9 @@ pub(super) fn prevent(p: &mut P) -> Option<Effect> {
             dur,
         });
     }
+    // "that would be dealt this turn to Dogs you control": the duration
+    // said before the recipient ([prevent-duration-first]).
+    let lead = p.attempt(duration);
     let to = p.attempt(|p| {
         p.word("to")?;
         recipients(p)
@@ -2685,7 +2688,9 @@ pub(super) fn prevent(p: &mut P) -> Option<Effect> {
         p.word("by")?;
         objects(p)
     });
-    let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+    let dur = lead
+        .or_else(|| p.attempt(duration))
+        .unwrap_or(Duration::Permanent);
     Some(Effect::Prevent {
         combat_only,
         n,

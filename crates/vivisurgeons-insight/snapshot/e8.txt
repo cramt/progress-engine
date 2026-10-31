@@ -79,7 +79,7 @@ cost: {6}{W}{W}
 > When this creature enters, prevent the next 5 damage that would be dealt this turn to any number of targets, divided as you choose.
 = BROKE at ";" after: flash
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "to" after: when this creature enters , prevent the next 5 damage that would be dealt this turn
+= BROKE at "," after: when this creature enters , prevent the next 5 damage that would be dealt this turn to any number of targets
 
 ## Aphetto Runecaster
 face: Aphetto Runecaster

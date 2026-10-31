@@ -606,7 +606,7 @@ cost: {W}
 > Kicker—Sacrifice a land. (You may sacrifice a land in addition to any other costs as you cast this spell.)
 > Prevent the next 3 damage that would be dealt this turn to any number of targets, divided as you choose. If this spell was kicked, prevent the next 6 damage this way instead.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])) }])
-= BROKE at "to" after: prevent the next 3 damage that would be dealt this turn
+= BROKE at "," after: prevent the next 3 damage that would be dealt this turn to any number of targets
 
 ## Primoc Escapee
 face: Primoc Escapee

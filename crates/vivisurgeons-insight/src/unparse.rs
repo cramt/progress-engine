@@ -1885,6 +1885,14 @@ mod syn {
         alt(o, vec![spelled, of("those cards")]);
     }
 
+    /// Named rewrite [prevent-duration-first]: "prevent all combat damage
+    /// that would be dealt this turn to Dogs you control" (Pack Leader,
+    /// Divine Light, Obscuring Haze) says the duration before the recipient or source; the same
+    /// shield as "dealt to Dogs you control this turn" (CR 615.1).
+    pub fn prevent_duration_first(o: &mut Out, spelled: Out, first: Out) {
+        alt(o, vec![spelled, first]);
+    }
+
     /// Named rewrite [chosen-counter]: after "choose a counter on target
     /// permanent", one counter of the chosen kind is "a counter of that
     /// kind"; Oracle says it "another of those counters", "another
@@ -7907,14 +7915,30 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                     objects(o, &both(t, b).unwrap_or_else(|| b.clone()));
                 }
                 _ => {
-                    if let Some(t) = to {
-                        o.w("to");
-                        recipients(o, t);
+                    let tail = out(|o| {
+                        if let Some(t) = to {
+                            o.w("to");
+                            recipients(o, t);
+                        }
+                        if let Some(b) = by {
+                            o.w("by");
+                            objects(o, b);
+                        }
+                    });
+                    let spelled = out(|o| {
+                        o.add(tail.clone());
+                        dur(o, d);
+                    });
+                    if (to.is_some() || by.is_some()) && *d != Duration::Permanent {
+                        let first = out(|o| {
+                            dur(o, d);
+                            o.add(tail.clone());
+                        });
+                        syn::prevent_duration_first(o, spelled, first);
+                    } else {
+                        o.add(spelled);
                     }
-                    if let Some(b) = by {
-                        o.w("by");
-                        objects(o, b);
-                    }
+                    return;
                 }
             }
             dur(o, d);

@@ -275,7 +275,7 @@ face: Divine Light
 type: Sorcery
 cost: {W}
 > Prevent all damage that would be dealt this turn to creatures you control.
-= BROKE at "to" after: prevent all damage that would be dealt this turn
+= Spell([Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })]), by: None, dur: ThisTurn }])
 
 ## Dong Zhou, the Tyrant
 face: Dong Zhou, the Tyrant

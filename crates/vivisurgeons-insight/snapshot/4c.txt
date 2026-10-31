@@ -774,7 +774,7 @@ face: Samite Alchemist
 type: Creature — Human Cleric
 cost: {3}{W}
 > {W}{W}, {T}: Prevent the next 4 damage that would be dealt this turn to target creature you control. Tap that creature. It doesn't untap during your next untap step.
-= BROKE at "to" after: {W} {W} , {T} : prevent the next 4 damage that would be dealt this turn
+= BROKE at "next" after: {W} {W} , {T} : prevent the next 4 damage that would be dealt this turn to target creature you control . tap that creature . it doesn't untap during your
 
 ## Sandbar Crocodile
 face: Sandbar Crocodile

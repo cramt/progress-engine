@@ -716,7 +716,7 @@ cost: {W}
 > At the beginning of your upkeep, you may put a verse counter on this enchantment.
 > Sacrifice this enchantment: Prevent the next X damage that would be dealt this turn to any number of targets, divided as you choose, where X is the number of verse counters on this enchantment.
 = Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "verse", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
-= BROKE at "to" after: sacrifice this enchantment : prevent the next x damage that would be dealt this turn
+= BROKE at "," after: sacrifice this enchantment : prevent the next x damage that would be dealt this turn to any number of targets
 
 ## Shelter
 face: Shelter

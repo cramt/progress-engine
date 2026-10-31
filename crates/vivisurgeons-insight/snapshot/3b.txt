@@ -533,7 +533,7 @@ cost: {2}{G}
 > If you control a commander, you may cast this spell without paying its mana cost.
 > Prevent all damage that would be dealt this turn by creatures your opponents control.
 = Static([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }), then: [CastWithoutPaying] }])
-= BROKE at "by" after: prevent all damage that would be dealt this turn
+= Spell([Prevent { combat_only: false, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }), dur: ThisTurn }])
 
 ## Obsianus Golem
 face: Obsianus Golem

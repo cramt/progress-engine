@@ -277,7 +277,7 @@ type: Instant
 cost: {2}{W}
 > Prevent all combat damage that would be dealt this turn by creatures target opponent controls.
 > Awaken 2—{4}{W} (If you cast this spell for {4}{W}, also put two +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)
-= BROKE at "by" after: prevent all combat damage that would be dealt this turn
+= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(TargetOpponent)], or: None } }), dur: ThisTurn }])
 = Keywords([Keyword { name: "awaken", param: Some(NCost { n: N(2), cost: [Mana(Mana(["4", "W"]))] }) }])
 
 ## Envelop

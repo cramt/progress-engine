@@ -820,7 +820,7 @@ face: Redeem
 type: Instant
 cost: {1}{W}
 > Prevent all damage that would be dealt this turn to up to two target creatures.
-= BROKE at "to" after: prevent all damage that would be dealt this turn
+= Spell([Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
 
 ## Rejoin the Fight
 face: Rejoin the Fight

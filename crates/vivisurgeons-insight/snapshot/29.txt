@@ -404,7 +404,7 @@ face: Harmless Assault
 type: Instant
 cost: {2}{W}{W}
 > Prevent all combat damage that would be dealt this turn by attacking creatures.
-= BROKE at "by" after: prevent all combat damage that would be dealt this turn
+= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }])
 
 ## Haunted Fengraf
 face: Haunted Fengraf

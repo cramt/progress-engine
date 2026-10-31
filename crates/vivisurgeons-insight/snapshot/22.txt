@@ -881,7 +881,7 @@ face: Tanglesap
 type: Instant
 cost: {1}{G}
 > Prevent all combat damage that would be dealt this turn by creatures without trample.
-= BROKE at "by" after: prevent all combat damage that would be dealt this turn
+= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithoutKeyword("trample")], or: None } }), dur: ThisTurn }])
 
 ## Tezzeret's Betrayal
 face: Tezzeret's Betrayal

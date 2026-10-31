@@ -637,7 +637,7 @@ cost: {1}{W}
 > Other Dogs you control get +1/+1.
 > Whenever this creature attacks, prevent all combat damage that would be dealt this turn to Dogs you control.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("dog")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
-= BROKE at "to" after: whenever this creature attacks , prevent all combat damage that would be dealt this turn
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[Subtype("dog")]], kind: None, posts: [Controller(You)], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
 
 ## Paragon of Gathering Mists
 face: Paragon of Gathering Mists

@@ -1046,7 +1046,7 @@ face: Vine Snare
 type: Instant
 cost: {2}{G}
 > Prevent all combat damage that would be dealt this turn by creatures with power 4 or less.
-= BROKE at "by" after: prevent all combat damage that would be dealt this turn
+= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(4) })], or: None } }), dur: ThisTurn }])
 
 ## Volunteer Militia
 face: Volunteer Militia

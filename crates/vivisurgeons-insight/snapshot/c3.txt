@@ -252,7 +252,7 @@ type: Instant
 cost: {2}{W}
 > Prevent the next 4 damage that would be dealt this turn to any number of targets, divided as you choose.
 > Flashback {1}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= BROKE at "to" after: prevent the next 4 damage that would be dealt this turn
+= BROKE at "," after: prevent the next 4 damage that would be dealt this turn to any number of targets
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["1", "W"]))])) }])
 
 ## Espers to Magicite

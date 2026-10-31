@@ -938,7 +938,7 @@ face: Thwart the Enemy
 type: Instant
 cost: {2}{G}
 > Prevent all damage that would be dealt this turn by creatures your opponents control.
-= BROKE at "by" after: prevent all damage that would be dealt this turn
+= Spell([Prevent { combat_only: false, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }), dur: ThisTurn }])
 
 ## Timetwister
 face: Timetwister

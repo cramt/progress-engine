@@ -634,7 +634,7 @@ face: Moonmist
 type: Instant
 cost: {1}{G}
 > Transform all Humans. Prevent all combat damage that would be dealt this turn by creatures other than Werewolves and Wolves. (Only double-faced cards can be transformed.)
-= BROKE at "by" after: transform all humans . prevent all combat damage that would be dealt this turn
+= BROKE at "werewolves" after: transform all humans . prevent all combat damage that would be dealt this turn by creatures other than
 
 ## Nacatl Savage
 face: Nacatl Savage

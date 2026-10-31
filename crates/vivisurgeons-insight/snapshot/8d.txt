@@ -711,7 +711,7 @@ face: Remedy
 type: Instant
 cost: {1}{W}
 > Prevent the next 5 damage that would be dealt this turn to any number of targets, divided as you choose.
-= BROKE at "to" after: prevent the next 5 damage that would be dealt this turn
+= BROKE at "," after: prevent the next 5 damage that would be dealt this turn to any number of targets
 
 ## Render Inert
 face: Render Inert

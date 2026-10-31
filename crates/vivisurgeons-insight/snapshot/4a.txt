@@ -852,7 +852,7 @@ face: Repel the Abominable
 type: Instant
 cost: {1}{W}
 > Prevent all damage that would be dealt this turn by non-Human sources.
-= BROKE at "by" after: prevent all damage that would be dealt this turn
+= Spell([Prevent { combat_only: false, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Non("human")]], kind: Some(Source), posts: [], or: None } }), dur: ThisTurn }])
 
 ## Restless Vents
 face: Restless Vents

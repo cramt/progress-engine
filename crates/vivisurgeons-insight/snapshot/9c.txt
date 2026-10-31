@@ -398,7 +398,7 @@ face: Hindervines
 type: Instant
 cost: {2}{G}
 > Prevent all combat damage that would be dealt this turn by creatures with no +1/+1 counters on them.
-= BROKE at "by" after: prevent all combat damage that would be dealt this turn
+= BROKE at "<pt>" after: prevent all combat damage that would be dealt this turn by creatures with no
 
 ## Hobgoblin Bandit Lord
 face: Hobgoblin Bandit Lord
@@ -484,7 +484,7 @@ face: Kry Shield
 type: Artifact
 cost: {2}
 > {2}, {T}: Prevent all damage that would be dealt this turn by target creature you control. That creature gets +0/+X until end of turn, where X is its mana value.
-= BROKE at "by" after: {2} , {T} : prevent all damage that would be dealt this turn
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }], ability: Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Prevent { combat_only: false, n: None, to: None, by: Some(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn }, Where { then: [Modify { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: X, signed: true }), gains: [], dur: UntilEndOfTurn }], x: ManaValueOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], limits: [] } }
 
 ## Legion Extruder
 face: Legion Extruder

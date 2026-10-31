@@ -713,7 +713,7 @@ cost: {2}{W}{W}
 > If an opponent controls a Mountain and you control a Plains, you may cast this spell without paying its mana cost.
 > Prevent all damage that would be dealt this turn to creatures you control.
 = Static([If { order: Leading, cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
-= BROKE at "to" after: prevent all damage that would be dealt this turn
+= Spell([Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })]), by: None, dur: ThisTurn }])
 
 ## Skeleton Crew
 face: Skeleton Crew
