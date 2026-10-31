@@ -332,7 +332,7 @@ face: Desynchronization
 type: Instant
 cost: {2}{U}{U}
 > Return each nonland permanent that's not historic to its owner's hand. (Artifacts, legendaries, and Sagas are historic.)
-= BROKE at "to" after: return each nonland permanent that's not historic
+= Spell([Move { what: Objects { quant: Each, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Not(ThatIs(Filter { alts: [[State(Historic)]], kind: None, posts: [], or: None }))], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
 
 ## Drakuseth, Maw of Flames
 face: Drakuseth, Maw of Flames

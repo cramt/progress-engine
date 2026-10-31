@@ -839,7 +839,7 @@ cost: {2}{W}{W}
 > When this creature enters, you become the monarch.
 > When this creature enters, exile target creature an opponent controls until an opponent becomes the monarch.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "becomes" after: when this creature enters , exile target creature an opponent controls until an opponent
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ExileUntil { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, until: BecomesMonarch(AnOpponent) }], limits: [] }
 
 ## Pox
 face: Pox

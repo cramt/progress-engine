@@ -1256,7 +1256,7 @@ face: Wind Shear
 type: Instant
 cost: {2}{G}
 > Attacking creatures with flying get -2/-2 and lose flying until end of turn.
-= BROKE at "until" after: attacking creatures with flying get <pt> and lose flying
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }, Loses { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, lost: [Keywords([Keyword { name: "flying", param: None }])], dur: UntilEndOfTurn }])
 
 ## Withering Wisps
 face: Withering Wisps

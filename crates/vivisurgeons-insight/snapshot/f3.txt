@@ -1207,7 +1207,7 @@ face: Trade Route Envoy
 type: Creature — Dog Soldier
 cost: {3}{G}
 > When this creature enters, draw a card if you control a creature with a counter on it. If you don't draw a card this way, put a +1/+1 counter on this creature.
-= BROKE at "draw" after: when this creature enters , draw a card if you control a creature with a counter on it . if you don't
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(None)], or: None } }), then: [Draw { who: You, n: N(1) }] }, If { order: Leading, cond: Not(ThisWay(Draws(You))), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Unstable Shapeshifter
 face: Unstable Shapeshifter

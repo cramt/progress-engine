@@ -600,7 +600,7 @@ cost: {4}{G}{G}
 > Multani gets +1/+1 for each land you control and each land card in your graveyard.
 > {1}{G}, Return two lands you control to their owner's hand: Return this card from your graveyard to your hand.
 = Keywords([Keyword { name: "reach", param: None }, Keyword { name: "trample", param: None }])
-= BROKE at "." after: ~ gets <pt> for each land you control and each land card in your graveyard
+= Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })) }, Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })) }])
 = Activated { cost: [Mana(Mana(["1", "G"])), ReturnToHand(Objects { quant: N(N(2)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Mystic Penitent

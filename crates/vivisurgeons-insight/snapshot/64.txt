@@ -877,7 +877,7 @@ type: Legendary Artifact
 cost: {3}
 > {3}, {T}: Exile target instant or sorcery spell that targets you. (The spell has no effect.)
 > {3}, {T}, Sacrifice Shell of the Last Kappa: You may cast a spell from among cards exiled with Shell of the Last Kappa without paying its mana cost.
-= BROKE at "." after: {3} , {T} : exile target instant or sorcery spell that targets you
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [TargetsRecipient(Player(You))], or: None } })], limits: [] }
 = Activated { cost: [Mana(Mana(["3"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [FromAmong(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })], or: None } }, payment: Free, dur: Permanent }] }], limits: [] }
 
 ## Simic Manipulator

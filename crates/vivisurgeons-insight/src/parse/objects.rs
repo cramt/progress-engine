@@ -803,6 +803,9 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // "creatures you control but don't own", "spells you cast but don't
         // own": the owner said after the controller or caster is you.
         |p| p.words("but don't own").map(|_| Post::NotOwnedBy(Player::You)),
+        // "a creature you own but don't control" (Coveted Falcon): the
+        // controller said after the owner is you.
+        |p| p.words("but don't control").map(|_| Post::NotControlledBy(Player::You)),
         // "a spell they don't own" (Gonti, Night Minister).
         |p| { let pl = player_simple(p)?; if pl == Player::You { return None; } p.one_of(&["doesn't own", "don't own"])?; Some(Post::NotOwnedBy(pl)) },
         |p| { let pl = player_simple(p)?; p.one_of(&["controls", "control"])?; Some(Post::Controller(pl)) },
@@ -917,8 +920,8 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         // "creatures that aren't enchanted": not in that state.
         |p| {
-            p.one_of(&["that aren't", "that isn't"])?;
-            let s = p.peek_word().and_then(state_word).filter(|s| matches!(s, State::Enchanted | State::Equipped | State::Tapped | State::Untapped))?;
+            p.one_of(&["that aren't", "that isn't", "that's not"])?;
+            let s = p.peek_word().and_then(state_word).filter(|s| matches!(s, State::Enchanted | State::Equipped | State::Tapped | State::Untapped | State::Historic))?;
             p.bump();
             let f = Filter { alts: vec![vec![Adj::State(s)]], ..Filter::default() };
             Some(Post::Not(Box::new(Post::ThatIs(f))))
@@ -1043,6 +1046,17 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| { p.word("named")?; p.tok(&Tok::SelfRef)?; Some(Post::Named(PrintedName(p.name.to_string()))) },
         // "a creature named Hanweir Garrison": another card, by its name.
         |p| { p.word("named")?; super::effects::named_card(p).map(Post::NamedCard) },
+        // "that targets you or a creature you control": a player among what
+        // it may target (Siren Stormtamer).
+        |p| {
+            p.one_of(&["that target", "that targets"])?;
+            p.word("you")?;
+            let r = match p.attempt(|p| { p.word("or")?; objects(p) }) {
+                Some(o) => Recipient::Or(vec![Recipient::Player(Player::You), Recipient::Objects(o)]),
+                None => Recipient::Player(Player::You),
+            };
+            Some(Post::TargetsRecipient(Box::new(r)))
+        },
         |p| { p.one_of(&["that target", "that targets"])?; objects(p).map(|o| Post::Targets(Box::new(o))) },
         // "a spell that's exactly two colors", "that isn't exactly two colors".
         |p| {
@@ -1416,6 +1430,17 @@ pub(super) fn player_simple(p: &mut P) -> Option<Player> {
         |p| p.words("your opponents").map(|_| Player::EachOpponent),
         |p| p.words("that attacking player").map(|_| Player::AttackingPlayer),
         |p| p.words("that player").map(|_| Player::That),
+        // "That opponent may put …" (Metamorphose): the opponent an earlier
+        // clause named, said by what it is ([that-player]).
+        // Not after "for each opponent," in the sentence: a target there is
+        // one per opponent (Omega, Heartless Evolution), which a later
+        // reference back would bind once.
+        |p| {
+            let w = |s: &str| Tok::Word(s.into());
+            let said: Vec<&Tok> = p.t[..p.i.min(p.t.len())].iter().rev().take_while(|t| **t != Tok::Period).collect();
+            if said.windows(3).any(|x| *x[0] == Tok::Comma && *x[1] == w("opponent") && *x[2] == w("each")) { return None; }
+            p.words("that opponent").map(|_| Player::That)
+        },
         |p| p.words("defending player").map(|_| Player::DefendingPlayer),
         |p| p.words("enchanted player").map(|_| Player::Enchanted),
         |p| p.words("the chosen player").map(|_| Player::Chosen),

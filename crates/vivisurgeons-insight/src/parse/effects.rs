@@ -732,6 +732,17 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             p.words("leaves the battlefield")?;
             Some(Effect::ExileUntilLeaves { what, until })
         },
+        // "exile target creature an opponent controls until an opponent
+        // becomes the monarch" (Palace Jailer, CR 610.3).
+        |p| {
+            p.word("exile")?;
+            let what = objects(p)?;
+            p.word("until")?;
+            let who = player(p)?;
+            p.verb("become")?;
+            p.words("the monarch")?;
+            Some(Effect::ExileUntil { what, until: Event::BecomesMonarch(who) })
+        },
         |p| {
             p.word("exile")?;
             let what = objects(p)?;

@@ -708,7 +708,7 @@ cost: {1}{U}{U}
 > +2: Until your next turn, up to one target creature gets -2/-0 and loses flying.
 > −3: Create a 4/4 blue Elemental Bird creature token with flying.
 > −8: You get an emblem with "Islands you control have '{T}: Draw a card.'"
-= BROKE at "flying" after: N(2) : until your next turn , up to one target creature gets <pt> and loses
+= BROKE at "." after: N(2) : until your next turn , up to one target creature gets <pt> and loses flying
 = Loyalty { change: N(-3), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [Blue], types: ["elemental", "bird", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }] }
 = Loyalty { change: N(-8), effect: [Emblem([Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }], limits: [] } }])])] }
 

@@ -383,6 +383,12 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.attempt(|p| p.words("this way"));
             Some(Condition::Not(Box::new(Condition::ThisWay(Box::new(Event::Casts { who: Player::You, what })))))
         },
+        // "draw a card if you control …. If you don't draw a card this way"
+        // (Trade Route Envoy): the draw didn't happen ([didnt-put]).
+        |p| {
+            p.words("you don't draw a card this way")?;
+            Some(Condition::Not(Box::new(Condition::ThisWay(Box::new(Event::Draws(Player::You))))))
+        },
         // "you didn't create a token this way": the event, not done.
         |p| {
             let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;

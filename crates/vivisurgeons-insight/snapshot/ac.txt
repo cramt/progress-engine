@@ -237,7 +237,7 @@ cost: {1}{U}{U}
 > Disguise {1}{U}
 > When this creature is turned face up, target opponent gains control of any number of target permanents you control. Draw a card for each one they gained control of this way.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "control" after: whenever this creature attacks , gain control of target permanent you own but don't
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Owner(You), NotControlledBy(You)], or: None } }, dur: Permanent }], limits: [] }
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["1", "U"]))])) }])
 = BROKE at "gained" after: when this creature is turned face up , target opponent gains control of any number of target permanents you control . draw a card for each one they
 

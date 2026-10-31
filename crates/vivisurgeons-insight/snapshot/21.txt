@@ -793,7 +793,7 @@ face: Reparations
 type: Enchantment
 cost: {1}{W}{U}
 > Whenever an opponent casts a spell that targets you or a creature you control, you may draw a card.
-= BROKE at "or" after: whenever an opponent casts a spell that targets you
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [TargetsRecipient(Or([Player(You), Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })]))], or: None } } }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Riders of Gavony
 face: Riders of Gavony

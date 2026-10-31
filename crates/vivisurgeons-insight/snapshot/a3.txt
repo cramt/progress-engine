@@ -468,7 +468,7 @@ face: Mirror Sheen
 type: Enchantment
 cost: {1}{U/R}{U/R}
 > {1}{U/R}{U/R}: Copy target instant or sorcery spell that targets you. You may choose new targets for the copy.
-= BROKE at "." after: {1} {U/R} {U/R} : copy target instant or sorcery spell that targets you
+= Activated { cost: [Mana(Mana(["1", "U/R", "U/R"]))], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [TargetsRecipient(Player(You))], or: None } }, may_choose_new_targets: true }], limits: [] }
 
 ## Molten Monstrosity
 face: Molten Monstrosity

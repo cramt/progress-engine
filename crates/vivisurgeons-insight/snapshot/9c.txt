@@ -188,7 +188,7 @@ cost: {3}{B}{B}
 > When this creature enters, you become the monarch.
 > Whenever you become the monarch, target player sacrifices a creature of their choice.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "," after: whenever you become the monarch
+= Triggered { trigger: When(BecomesMonarch(You)), effect: [Sacrifice { who: Target, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }], limits: [] }
 
 ## Daru Healer
 face: Daru Healer

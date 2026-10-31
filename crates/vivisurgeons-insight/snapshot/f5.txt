@@ -378,7 +378,7 @@ cost: {2}{U}{B}
 > Whenever an opponent becomes the monarch, gain control of target creature that player controls for as long as they're the monarch.
 > Creatures you control but don't own get +2/+2 and can't be sacrificed.
 = BROKE at "the" after: when ~ enters , target opponent becomes
-= BROKE at "," after: whenever an opponent becomes the monarch
+= BROKE at "the" after: whenever an opponent becomes the monarch , gain control of target creature that player controls for as long as they're
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }, rule: CantBeSacrificed }])
 
 ## Ghost-Spider, Gwen Stacy
@@ -657,7 +657,7 @@ cost: {2}{R}{R}
 > • This creature deals 4 damage to each other opponent.
 > • Exile the top card of your library. You may play it this turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "." after: whenever one or more dragons you control deal combat damage to an opponent , choose one that hasn't been chosen this turn — • destroy target artifact that opponent controls
+= Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [Controller(You)], or: None } }, to: Player(AnOpponent) }), effect: [With { bind: [/* exiled */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }], then: [Modal { choose: NotChosenThisTurn(One), modes: [[Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(That)], or: None } }, no_regen: false }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[State(Other)]], kind: Some(Opponent), posts: [], or: None } })] }], [Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, payment: ManaCost, dur: ThisTurn }] }]] }] }], limits: [] }
 
 ## Party Dude
 face: Party Dude

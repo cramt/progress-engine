@@ -1121,6 +1121,10 @@ pub enum Post {
     Named(PrintedName),
     /// "spells your opponents cast that target this creature".
     Targets(Box<Objects>),
+    /// "a spell or ability that targets you or a creature you control"
+    /// (Siren Stormtamer), "a spell that targets you": what it targets may
+    /// be a player.
+    TargetsRecipient(Box<Recipient>),
     /// "each spell you cast that's red or green".
     ThatIs(Filter),
     Attacking,
@@ -1675,6 +1679,14 @@ pub enum Effect {
     ExileUntilLeaves {
         what: Objects,
         until: Objects,
+    },
+    /// "exile target creature an opponent controls until an opponent becomes
+    /// the monarch" (Palace Jailer): it returns once the event happens (CR
+    /// 610.3).
+    ExileUntil {
+        /// What is exiled.
+        what: Objects,
+        until: Event,
     },
     Prevent {
         combat_only: bool,
@@ -3477,6 +3489,9 @@ pub enum Event {
         who: Player,
         what: Objects,
     },
+    /// "Whenever an opponent becomes the monarch", "until an opponent becomes
+    /// the monarch": the player takes the designation (CR 725.1).
+    BecomesMonarch(Player),
     /// "you scry", "you surveil": a keyword action the player performs.
     Performs {
         who: Player,

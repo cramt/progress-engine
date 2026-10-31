@@ -554,6 +554,19 @@ mod syn {
         any_of(o, &["you spend this mana", "that mana is spent"]);
     }
 
+    /// [each-and-each]: "gets +1/+1 for each land you control and +1/+1 for
+    /// each land card in your graveyard", which Oracle says "… and each land
+    /// card in your graveyard" (Multani, Yavimaya's Avatar): two bonuses.
+    pub fn each_and_each(o: &mut Out, spelled: Out, oracle: Out) {
+        alt(o, vec![spelled, oracle]);
+    }
+
+    /// "a permanent that isn't historic" and "that's not historic"
+    /// (Desynchronization): one contraction or the other, the same words.
+    pub fn that_isnt(o: &mut Out) {
+        any_of(o, &["that isn't", "that's not"]);
+    }
+
     /// "it isn't a creature" and "it's not a creature".
     pub fn its_not(o: &mut Out, isnt: Out, its_not: Out) {
         alt(o, vec![isnt, its_not]);
@@ -1391,7 +1404,16 @@ mod syn {
     /// "that player", "they", "the player"; "their", "that player's": the
     /// player an earlier clause named. The verb agrees with the form.
     pub fn that_player(o: &mut Out) {
-        any_of(o, &["that player", "they", "the player", "those players"]);
+        any_of(
+            o,
+            &[
+                "that player",
+                "they",
+                "the player",
+                "those players",
+                "that opponent",
+            ],
+        );
     }
 
     pub fn their(o: &mut Out) {
@@ -3574,6 +3596,7 @@ fn moves_from_a_zone(e: &Effect) -> bool {
         Effect::Exile(_)
             | Effect::ExileFaceDown(_)
             | Effect::ExileUntilLeaves { .. }
+            | Effect::ExileUntil { .. }
             | Effect::ExileWithCounters { .. }
             | Effect::Move { .. }
             | Effect::ShuffleInto { .. }
@@ -4994,6 +5017,15 @@ fn posts(o: &mut Out, ps: &[Post], n: Num) {
 fn posts_said(o: &mut Out, ps: &[Post], n: Num) {
     let mut i = 0;
     while i < ps.len() {
+        // "a creature you own but don't control".
+        if let (Post::Owner(Player::You), Some(Post::NotControlledBy(Player::You))) =
+            (&ps[i], ps.get(i + 1))
+        {
+            post(o, &ps[i], n);
+            o.w("but don't control");
+            i += 2;
+            continue;
+        }
         // "creatures you control but don't own", "spells you cast but don't own".
         if let (
             Post::Controller(Player::You) | Post::Cast(Player::You),
@@ -5127,6 +5159,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.verb("target", n);
             objects(o, x);
         }
+        Post::TargetsRecipient(r) => {
+            o.w("that");
+            o.verb("target", n);
+            recipient(o, r);
+        }
         // "that's a land card", "that are black or red": the verb agrees
         // with the objects.
         Post::ThatIs(f) if n == Num::Pl => {
@@ -5188,11 +5225,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             }
         }
         Post::Not(q) if matches!(&**q, Post::ThatIs(_)) => {
-            o.w(if n == Num::Sg {
-                "that isn't"
+            if n == Num::Sg {
+                syn::that_isnt(o);
             } else {
-                "that aren't"
-            });
+                o.w("that aren't");
+            }
             if let Post::ThatIs(f) = &**q {
                 // "that isn't a Dragon", "that aren't enchanted".
                 let state = f.alts.iter().flatten().all(|a| matches!(a, Adj::State(_)));
@@ -6355,6 +6392,34 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
             i += taken;
             continue;
         }
+        // "another target creature gets +2/+2 and loses all abilities until
+        // end of turn" (Invasion of Muraganda): one subject, one duration.
+        if let (
+            Effect::Modify {
+                what,
+                pt: Some(pt),
+                gains,
+                dur: d,
+            },
+            Some(Effect::Loses {
+                what: w2,
+                lost,
+                dur: d2,
+            }),
+        ) = (e, es.get(i + 1))
+        {
+            if same_subject(what, w2) && d == d2 && gains.is_empty() && *d != Duration::Permanent {
+                obj_subj(o, what, "get");
+                o.tok(Tok::Pt(*pt));
+                o.w("and");
+                o.verb("lose", obj_num(what));
+                lost_words(o, lost);
+                dur(o, d);
+                last = Out(o.0[start..].to_vec());
+                i += 2;
+                continue;
+            }
+        }
         // "creatures target player controls lose all abilities and have base
         // power and toughness 0/2": one subject, one duration.
         if let (
@@ -6711,7 +6776,14 @@ fn only_color_chosen_by(o: &mut Out, w: &Player) {
 fn same_subject(a: &Objects, b: &Objects) -> bool {
     a == b
         || b.quant == Quant::Unresolved(Hint::Antecedent)
-            && matches!(a.quant, Quant::Target { .. })
+            && matches!(
+                a.quant,
+                Quant::Target { .. }
+                    | Quant::AnotherTarget
+                    | Quant::OtherTarget { .. }
+                    | Quant::AnyNumberOfTarget
+                    | Quant::AnyNumberOfOtherTarget
+            )
             && a.filter == b.filter
 }
 
@@ -7867,6 +7939,12 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
             dur(o, d);
             o.w(",");
             clauses(o, then, cx);
+        }
+        Effect::ExileUntil { what, until } => {
+            o.w("exile");
+            objects(o, what);
+            o.w("until");
+            event(o, until);
         }
         Effect::ExileUntilLeaves { what, until } => {
             o.w("exile");
@@ -10804,6 +10882,11 @@ fn event(o: &mut Out, e: &Event) {
             player(o, who);
             o.verb(action, player_num(who));
         }
+        Event::BecomesMonarch(who) => {
+            player(o, who);
+            o.verb("become", player_num(who));
+            o.w("the monarch");
+        }
         Event::Exerts { who, what } => {
             player(o, who);
             o.verb("exert", player_num(who));
@@ -11241,7 +11324,8 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
             by: Some(Actor::Player(who)),
             ..
         } => Subject::Player(who),
-        Event::GainsLife(p)
+        Event::BecomesMonarch(p)
+        | Event::GainsLife(p)
         | Event::RollsDice { who: p, .. }
         | Event::LosesLife(p)
         | Event::Draws(p)
@@ -11941,6 +12025,7 @@ fn condition_said(o: &mut Out, c: &Condition) {
             o.w("as you cast this spell");
         }
         Condition::ThisWay(e) => match &**e {
+            Event::Draws(Player::You) => o.w("you draw a card this way"),
             Event::WasCast(x) => {
                 objects(o, x);
                 o.w("was cast this way");
@@ -12501,6 +12586,7 @@ fn not_condition(o: &mut Out, c: &Condition) {
             syn::there_are_on(o, has, there);
         }
         Condition::ThisWay(e) => match &**e {
+            Event::Draws(Player::You) => o.w("you don't draw a card this way"),
             Event::WasCast(x) => {
                 objects(o, x);
                 o.w("wasn't cast this way");
@@ -12938,6 +13024,40 @@ fn statics(o: &mut Out, ss: &[Static]) {
                 o.w("other types");
                 j += 2;
                 continue;
+            }
+            // "+1/+1 for each land you control and +1/+1 for each land card
+            // in your graveyard", which Oracle says "… and each land card in
+            // your graveyard" ([each-and-each]).
+            if let (
+                Static::Modify {
+                    pt: Some(p1),
+                    per: Some(Amount::CountOf(_)),
+                    has: h1,
+                    ..
+                },
+                Static::Modify {
+                    pt: Some(p2),
+                    per: Some(Amount::CountOf(b)),
+                    has: h2,
+                    ..
+                },
+            ) = (&ss[j - 1], next)
+            {
+                if p1 == p2 && h1.is_empty() && h2.is_empty() {
+                    let spelled = out(|o| {
+                        o.tok(Tok::Pt(*p2));
+                        o.w("for each");
+                        each_objects(o, b);
+                    });
+                    let oracle = out(|o| {
+                        o.w("each");
+                        each_objects(o, b);
+                    });
+                    o.w("and");
+                    syn::each_and_each(o, spelled, oracle);
+                    j += 1;
+                    continue;
+                }
             }
             let pred = out(|o| static_predicate(o, next));
             let after_is = matches!(ss[j - 1], Static::Is { .. })

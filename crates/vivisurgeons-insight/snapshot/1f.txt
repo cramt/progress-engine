@@ -399,7 +399,7 @@ cost: {3}{U}{U}
 > Flying
 > Whenever this creature attacks, target creature defending player controls gets -2/-0 and loses flying until your next turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "loses" after: whenever this creature attacks , target creature defending player controls gets <pt> and
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(DefendingPlayer)], or: None } }], ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(0), signed: true }), gains: [], dur: UntilYourNextTurn }, Loses { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(DefendingPlayer)], or: None } }, lost: [Keywords([Keyword { name: "flying", param: None }])], dur: UntilYourNextTurn }], limits: [] } }
 
 ## Festering Goblin
 face: Festering Goblin

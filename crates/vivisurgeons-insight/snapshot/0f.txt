@@ -705,7 +705,7 @@ type: Legendary Artifact — Vehicle
 = Keywords([Keyword { name: "living metal", param: None }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "menace", param: None }, Keyword { name: "haste", param: None }])
 = BROKE at "the" after: whenever ~ deals combat damage to a player , if there is no monarch , that player becomes
-= BROKE at "," after: whenever you become the monarch
+= BROKE at "~" after: whenever you become the monarch , convert
 
 ## Syncopate
 face: Syncopate

@@ -169,7 +169,7 @@ cost: {1}{U}
 > Sacrifice this creature: Counter target spell that targets you.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "protection", param: Some(Colors([Red])) }])
-= BROKE at "." after: sacrifice this creature : counter target spell that targets you
+= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [TargetsRecipient(Player(You))], or: None } }, unless: None }], limits: [] }
 
 ## Charge the Sanctum
 face: Charge the Sanctum

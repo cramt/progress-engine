@@ -219,7 +219,7 @@ cost: {2}{W}{U}
 > Artifact creatures and Heroes you control get +1/+1 for each Artificer you control and each Artificer card in your graveyard.
 > A deck can have any number of cards named Cid, Timeless Artificer.
 > Cycling {W}{U} ({W}{U}, Discard this card: Draw a card.)
-= BROKE at "." after: artifact creatures and heroes you control get <pt> for each artificer you control and each artificer card in your graveyard
+= Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact"), Type("creature")], [Subtype("hero")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("artificer")]], kind: None, posts: [Controller(You)], or: None } })) }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact"), Type("creature")], [Subtype("hero")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("artificer")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })) }])
 = Static([DeckCanHave(None)])
 = Keywords([Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["W", "U"]))])) }])
 

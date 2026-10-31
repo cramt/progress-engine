@@ -950,6 +950,10 @@ impl Walk for Effect {
                 Walk::walk(what, v);
                 Walk::walk(until, v);
             }
+            Effect::ExileUntil { what, until } => {
+                Walk::walk(what, v);
+                Walk::walk(until, v);
+            }
             Effect::Prevent { n, to, by, dur, .. } => {
                 if let Some(x0) = (n).as_mut() {
                     Walk::walk(x0, v);
@@ -1881,6 +1885,9 @@ impl Walk for Event {
                 Walk::walk(who, v);
                 Walk::walk(what, v);
             }
+            Event::BecomesMonarch(f0) => {
+                Walk::walk(f0, v);
+            }
             Event::Performs { who, .. } => {
                 Walk::walk(who, v);
             }
@@ -2261,6 +2268,9 @@ impl Walk for Post {
                 Walk::walk(&mut **f0, v);
             }
             Post::Targets(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
+            Post::TargetsRecipient(f0) => {
                 Walk::walk(&mut **f0, v);
             }
             Post::ThatIs(f0) => {

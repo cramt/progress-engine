@@ -197,7 +197,7 @@ cost: {1}{W}
 > • Prevent all combat damage that would be dealt this turn.
 > • Regenerate target creature.
 > • Counter target spell that targets you.
-= BROKE at "." after: choose one — • prevent all combat damage that would be dealt this turn . • regenerate target creature . • counter target spell that targets you
+= Spell([Modal { choose: One, modes: [[Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }], [Regenerate(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [TargetsRecipient(Player(You))], or: None } }, unless: None }]] }])
 
 ## Derelor
 face: Derelor

@@ -804,7 +804,7 @@ cost: {U}
 > Flying
 > {U}, Sacrifice this creature: Counter target spell or ability that targets you or a creature you control.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "or" after: {U} , sacrifice this creature : counter target spell or ability that targets you
+= Activated { cost: [Mana(Mana(["U"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [TargetsRecipient(Or([Player(You), Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })]))], or: None } }, unless: None }], limits: [] }
 
 ## Skeletal Grimace
 face: Skeletal Grimace

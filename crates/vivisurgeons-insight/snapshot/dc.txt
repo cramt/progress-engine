@@ -872,7 +872,7 @@ face: Skulking Killer
 type: Creature — Vampire Assassin
 cost: {3}{B}
 > When this creature enters, target creature an opponent controls gets -2/-2 until end of turn if that opponent controls no other creatures.
-= BROKE at "controls" after: when this creature enters , target creature an opponent controls gets <pt> until end of turn if that opponent
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: ControlsNone(That, Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Skull Prophet
 face: Skull Prophet

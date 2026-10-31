@@ -340,6 +340,23 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             }
             Some(v)
         },
+        // "another target creature gets +2/+2 and loses all abilities until
+        // end of turn" (Invasion of Muraganda), "get -2/-2 and lose flying
+        // until end of turn": one subject, one trailing duration for both.
+        |p| {
+            let what = objects(p)?;
+            p.attempt(|p| p.word("each"));
+            p.verb("get")?;
+            let pt = pt_signed(p)?;
+            p.word("and")?;
+            p.verb("lose")?;
+            let lost = super::statics::lost(p)?;
+            let dur = duration(p)?;
+            Some(vec![
+                Effect::Modify { what: what.clone(), pt: Some(pt), gains: vec![], dur: dur.clone() },
+                Effect::Loses { what, lost, dur },
+            ])
+        },
         // "This land becomes a 2/2 creature with all creature types until end
         // of turn. It's still a land.": the new types, and all creature types
         // on top of them.
@@ -1007,7 +1024,14 @@ pub(super) fn continue_target(es: &mut [Effect]) {
     let Some(o) = object_subject_mut(first).cloned() else {
         return;
     };
-    if !matches!(o.quant, Quant::Target { .. }) {
+    if !matches!(
+        o.quant,
+        Quant::Target { .. }
+            | Quant::AnotherTarget
+            | Quant::OtherTarget { .. }
+            | Quant::AnyNumberOfTarget
+            | Quant::AnyNumberOfOtherTarget
+    ) {
         return;
     }
     for e in rest.iter_mut() {

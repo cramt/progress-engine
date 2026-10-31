@@ -478,7 +478,7 @@ cost: {2}{U}{B}
 > At the beginning of your end step, target opponent gains control of up to one target creature you control. Put two +1/+1 counters on it and tap it. It's goaded for the rest of the game and it gains "This creature can't be sacrificed." (It attacks each combat if able and attacks a player other than you if able.)
 > Whenever a creature you own but don't control attacks, you draw a card.
 = BROKE at "goaded" after: at the beginning of your end step , target opponent gains control of up to one target creature you control . put two <pt> counters on it and tap it . it's
-= BROKE at "control" after: whenever a creature you own but don't
+= Triggered { trigger: When(Attacks(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Owner(You), NotControlledBy(You)], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Karoo Meerkat
 face: Karoo Meerkat

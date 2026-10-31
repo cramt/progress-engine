@@ -602,7 +602,7 @@ cost: {2}{G}{G}
 > Trample
 > This creature gets +1/+1 for each creature you control and each creature card in your graveyard.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "." after: this creature gets <pt> for each creature you control and each creature card in your graveyard
+= Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }, Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })) }])
 
 ## Morcant's Loyalist
 face: Morcant's Loyalist

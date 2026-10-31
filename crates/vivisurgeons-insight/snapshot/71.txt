@@ -496,7 +496,7 @@ cost: {4}{G}
 face: Primordial Plasm
 type: Creature — Ooze
 > At the beginning of combat on your turn, another target creature gets +2/+2 and loses all abilities until end of turn.
-= BROKE at "loses" after: at the beginning of combat on your turn , another target creature gets <pt> and
+= Let { bind: [/* target */ Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: At(Combat(Yours)), effect: [Modify { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, Loses { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Jade Statue
 face: Jade Statue

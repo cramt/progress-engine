@@ -822,7 +822,7 @@ face: Reins of Power
 type: Instant
 cost: {2}{U}{U}
 > Untap all creatures you control and all creatures target opponent controls. You and that opponent each gain control of all creatures the other controls until end of turn. Those creatures gain haste until end of turn.
-= BROKE at "gain" after: untap all creatures you control and all creatures target opponent controls . you and that opponent each
+= BROKE at "other" after: untap all creatures you control and all creatures target opponent controls . you and that opponent each gain control of all creatures the
 
 ## Relic Vial
 face: Relic Vial

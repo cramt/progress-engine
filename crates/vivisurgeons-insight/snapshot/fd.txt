@@ -799,7 +799,7 @@ type: Instant
 cost: {1}{U}
 > Counter target instant or sorcery spell that targets you.
 > Spell mastery — If there are two or more instant and/or sorcery cards in your graveyard, you may copy the spell countered this way. You may choose new targets for the copy.
-= BROKE at "." after: counter target instant or sorcery spell that targets you
+= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [TargetsRecipient(Player(You))], or: None } }, unless: None }])
 = BROKE at "countered" after: spell mastery — if there are two or more instant and/or sorcery cards in your graveyard , you may copy the spell
 
 ## Rat King, Pale Piper
