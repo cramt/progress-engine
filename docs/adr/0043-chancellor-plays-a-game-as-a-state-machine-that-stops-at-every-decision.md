@@ -2,7 +2,9 @@
 status: accepted
 ---
 
-# Chancellor plays a game as a state machine that stops at every decision, and its first game is Loam goldfished
+# Chancellor plays a game as a state machine that stops at every decision, and real games replayed are its test
+
+**Amended 2026-11-01:** the first target moved from Loam goldfished to replaying real Magic Online games from PDBot's logs (below). Loam's goldfish stays as the first scripted game; the decision surface is unchanged.
 
 Chancellor of the Spires answers what each permanent is through the layers ([ADR-0037](0037-chancellor-lowers-insights-trees-into-its-own-effects-and-applies-them-layer-by-layer.md)), and nothing plays a game. The next step is the game: turns, zones, priority, the stack, mana, casting, resolution and state-based actions, with the cards Insight reads.
 
@@ -22,6 +24,15 @@ Two Modern decks against each other would have been the smaller pool, and playin
 ## Card text runs through lowering, refused by name
 
 Each effect Insight reads is lowered into an action of Chancellor's own before it runs, as continuous effects are lowered into `Op`s: a node with no lowering is refused by name, never skipped. The milestone is a number like the layers' coverage: how many of Loam's cards run whole, then a game that plays Loam to turn 10 with no refusal. The order is whatever Loam's goldfish needs next, card by card.
+
+## Real games replayed are the acceptance test
+
+PDBot watches Magic Online games and publishes the client's own log at logs.pennydreadfulmagic.com: every land played, spell cast with its targets, ability activated, trigger, attack, reveal, scry and mulligan, and who won. About 57,000 Penny Dreadful matches and 1,660 freeform ones (where Modern is) were there on 2026-11-01. Magic Online's engine adjudicated each line, so each is a legal play with a known result, and a game is a test no one had to write. Pro Tour coverage is video and narration, never a full record, and transcribing Arena-era broadcasts from video was judged too slow and too error-prone next to logs that are already text.
+
+- A replay feeds the log's events to the engine as answers. Every line must be legal in Chancellor and lead to the state the next line assumes; the first one that isn't is a named refusal, or a bug.
+- The log hides what it doesn't show: a card drawn is unknown until it is played or revealed, and which lands paid a cost isn't said. A hidden card is put in the hand when the log first shows it, and a payment is solved by the engine, not replayed.
+- The number is **games replayed to the end**, and the worklist is the cards and nodes that block the most games, ranked by count, for Insight and Chancellor both. On a sample of 201 matches (430 games), Insight read every card in 90.
+- A few thousand matches are fetched, at one request a second, and cached under `~/.cache`, never committed: the logs carry players' names, and they are the site's.
 
 ## The goldfish pilot's choices are Gauntlet's declared policy
 
