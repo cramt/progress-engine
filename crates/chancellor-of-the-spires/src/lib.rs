@@ -6,6 +6,8 @@
 //! Insight's ability trees, lowered into the engine's own effects
 //! (ADR-0037). docs/research/rules-engine.md is the plan.
 
+pub mod deck;
+pub mod game;
 pub mod layers;
 pub mod lower;
 pub mod model;

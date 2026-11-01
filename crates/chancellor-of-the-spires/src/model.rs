@@ -396,6 +396,18 @@ impl State {
         id
     }
 
+    /// An object leaves the battlefield, and its static abilities stop
+    /// generating effects (CR 611.3b).
+    pub fn leave(&mut self, id: ObjectId) {
+        if let Some(o) = self.objects.remove(&id) {
+            for a in &o.printed.abilities {
+                if let Ability::Static(s) = a {
+                    self.statics.remove(s);
+                }
+            }
+        }
+    }
+
     /// A spell or ability resolves into a continuous effect on these
     /// objects (CR 611.2c, 613.7b).
     pub fn resolve(&mut self, affects: impl IntoIterator<Item = ObjectId>, ops: Vec<Op>) {

@@ -1,8 +1,11 @@
 # Chancellor of the Spires
 
-A rules engine for Magic. So far it answers one question: **what is each
-object on the battlefield right now**, through the layer system (CR 613),
-with counters. Nothing plays a game yet.
+A rules engine for Magic. It answers **what is each object on the
+battlefield right now**, through the layer system (CR 613), with counters,
+and it plays the first slice of a game of Commander: turns, priority,
+land drops and basic lands' mana, as a state machine that stops at every
+decision ([ADR-0043](../../docs/adr/0043-chancellor-plays-a-game-as-a-state-machine-that-stops-at-every-decision.md)).
+No spell is cast yet.
 
 [docs/research/rules-engine.md](../../docs/research/rules-engine.md) is the
 plan, and [ADR-0037](../../docs/adr/0037-chancellor-lowers-insights-trees-into-its-own-effects-and-applies-them-layer-by-layer.md)
@@ -25,7 +28,47 @@ the seam:
 - It builds for `wasm32-unknown-unknown`, so Meldweb Curator can carry it;
   natively ascent's `par` is on.
 
-## What it covers
+## The game
+
+`game::Game::new(decks, seed)` sets up Commander (CR 903.6–903.7): each
+commander in the command zone, the rest shuffled by the seed into the
+library, 40 life, seven cards, everyone keeping. `deck::read` makes a
+player's cards from a `.deck.toml` and the card index (`decks/index.jsonl`).
+The engine then runs until a player has to choose and returns a
+`Decision`: `Priority { player, actions }` (pass, play a land, tap a
+land for mana), `Discard { player, count, hand }` in cleanup (CR 514.1),
+or `Over`. `game.step(Answer)` takes an answer among the legal ones,
+refuses any other with the game unchanged, and runs on. Turn-based and
+state-based actions are never decisions.
+
+Covered: every step of the turn with priority, all players passing with
+the stack empty ending the step (CR 117.4, 500.2); untap (CR 502.3); the
+starting player skipping their first draw in a two-player game and no one
+in a larger one (CR 103.8a, 103.8c); one land a turn, only in your main
+phase with priority and the stack empty (CR 305.1–305.2); a basic land
+type's intrinsic mana ability (CR 305.6), read off the layers, so a land
+Yavimaya makes a Forest taps for {G}; mana pools emptying as each step
+ends (CR 500.5); state-based actions whenever a player would get priority
+(CR 704.3) for 0 life and drawing from an empty library (CR 704.5a–b),
+a loser leaving the game with what they own and a multiplayer game going
+on without them (CR 800.4a).
+
+A land whose text doesn't lower, or that carries an ability the game
+can't run yet (a trigger, "enters tapped", a shock land's "as this
+enters"), is refused by name when played rather than played without it.
+Seven of Loam's 90 cards don't lower, and its multi-faced card can't be
+read from the index, which keeps only its faces' text joined.
+`tests/game.rs` plays Loam against a goldfish for three turns from a seed,
+and scripts the rules above.
+
+Not yet: casting spells, the stack's contents, costs, activated abilities
+other than basic land mana, triggers, declaring attackers (the declare
+blockers and combat damage steps aren't in `Step` until something can
+attack, CR 508.8), mulligans, and a land's back face (CR 712). A land that loses all
+abilities still taps for mana: the intrinsic ability is read off its land
+types, not carried as an ability the layers can remove.
+
+## What the layers cover
 
 Layers 4 (adding types and subtypes, setting a basic land type, CR 305.7),
 5 (colour), 6 (granting, removing, removing all) and 7b–7d (setting,

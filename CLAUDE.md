@@ -104,9 +104,11 @@ tree, and counts how much of Magic it covers. Its README holds the numbers and
 the verdict. Only Chancellor of the Spires depends on it.
 
 **Chancellor of the Spires** (`crates/chancellor-of-the-spires/`) is the rules
-engine. So far it is the layer system (CR 613) over a battlefield state; the game
-will be a typed Rust state machine, with what
-is true now derived by ascent from Insight's trees.
+engine: the layer system (CR 613) over a battlefield state, and a game of
+Commander as a typed Rust state machine that stops at every decision
+(`game::Game`, `step(Answer) -> Decision`, ADR-0043), so far turns, priority,
+land drops and basic lands' mana, with what is true now derived by ascent
+from Insight's trees.
 [docs/research/rules-engine.md](docs/research/rules-engine.md) is the plan. It
 must build for `wasm32-unknown-unknown`, so ascent's `par` (rayon) is on only off wasm.
 The Comprehensive Rules are pinned by hash in `crates/chancellor-of-the-spires/cr/pin.json`

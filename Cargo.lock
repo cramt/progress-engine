@@ -343,7 +343,10 @@ name = "chancellor-of-the-spires"
 version = "0.1.0"
 dependencies = [
  "ascent",
+ "chip-decklist",
+ "chip-scryfall",
  "imbl",
+ "thiserror",
  "vivisurgeons-insight",
 ]
 
