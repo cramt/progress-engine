@@ -5,6 +5,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+# src/bin/backref.rs is a second binary; `cargo run -p` means this one.
+default-run = "insight"
 
 [[bin]]
 name = "insight"
