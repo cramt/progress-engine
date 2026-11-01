@@ -1203,7 +1203,7 @@ cost: {1}{W}{B}
 > Whenever an opponent attacks with creatures, if two or more of those creatures are attacking you and/or planeswalkers you control, that opponent loses 3 life and you draw a card.
 = Keywords([Keyword { name: "affinity", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })) }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
-= BROKE at "3" after: whenever an opponent attacks with creatures , if two or more of those creatures are attacking you and/or planeswalkers you control , that opponent loses
+= Let { bind: [/* trigger */ Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: InterveningIf(When(AttacksWith { who: AnOpponent, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, at: None }), Is { what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], or: None } }, filter: Filter { alts: [], kind: None, posts: [AttackingAnyOf([Player(You), Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })])], or: None } }), effect: [LoseLife { who: That, n: N(3) }, Draw { who: You, n: N(1) }], limits: [] } }
 
 ## Tower of Coireall
 face: Tower of Coireall

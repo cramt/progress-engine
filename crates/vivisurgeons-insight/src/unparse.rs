@@ -1439,8 +1439,27 @@ mod syn {
         );
     }
 
+    /// Named rewrite [that-library]: "put the rest on the bottom of that
+    /// library in a random order" (Gonti, Lord of Luxury) is the library
+    /// the sentence named, "target opponent's", whose owner a later "their"
+    /// names: `Player::That`.
+    pub fn that_library(o: &mut Out) {
+        alt(
+            o,
+            vec![
+                of("their library"),
+                of("that player's library"),
+                of("that opponent's library"),
+                of("that library"),
+            ],
+        );
+    }
+
     pub fn their(o: &mut Out) {
-        alt(o, vec![of("their"), of("that player's")]);
+        alt(
+            o,
+            vec![of("their"), of("that player's"), of("that opponent's")],
+        );
     }
 
     /// "they've cast this turn", "that player has cast this turn": the
@@ -3888,6 +3907,17 @@ fn genitive(o: &mut Out, noun: &str, x: &Objects) {
 }
 
 /// A player as a possessive: "your", "their", "target player's".
+/// "their library"; "that library" too, the library named before
+/// ([that-library]).
+fn library_of(o: &mut Out, w: &Player) {
+    if *w == Player::That {
+        syn::that_library(o);
+    } else {
+        whose(o, w);
+        o.w("library");
+    }
+}
+
 fn whose(o: &mut Out, p: &Player) {
     match p {
         Player::You => o.w("your"),
@@ -5792,13 +5822,11 @@ fn zone(o: &mut Out, z: &Zone) {
         }
         Zone::TopOfLibrary(w) => {
             o.w("the top of");
-            whose(o, w);
-            o.w("library");
+            library_of(o, w);
         }
         Zone::BottomOfLibrary(w) => {
             o.w("the bottom of");
-            whose(o, w);
-            o.w("library");
+            library_of(o, w);
         }
         Zone::OwnersHand | Zone::OwnersGraveyard => {
             syn::its(o);
@@ -5881,8 +5909,7 @@ fn put_to(o: &mut Out, z: &Zone, tapped: bool, transformed: bool, under: &Option
         Zone::TopOfLibrary(w) => {
             syn::back(o);
             o.w("on top of");
-            whose(o, w);
-            o.w("library");
+            library_of(o, w);
         }
         Zone::TopOrBottomOfLibrary(_) => {
             o.w("on");
@@ -5890,8 +5917,7 @@ fn put_to(o: &mut Out, z: &Zone, tapped: bool, transformed: bool, under: &Option
         }
         Zone::BottomOfLibrary(w) => {
             o.w("on the bottom of");
-            whose(o, w);
-            o.w("library");
+            library_of(o, w);
         }
         Zone::OwnersLibraryTop | Zone::OwnersLibraryBottom => {
             o.w(if *z == Zone::OwnersLibraryTop {

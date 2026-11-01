@@ -846,7 +846,7 @@ cost: {2}{R}{G}
 > Tahngarth can't be blocked by more than one creature.
 > Whenever an opponent attacks with one or more creatures, if Tahngarth is tapped, you may have that opponent gain control of Tahngarth until end of combat. If you do, choose a player or planeswalker that opponent is attacking. Tahngarth is attacking that player or planeswalker.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlockedByMoreThanOne }])
-= BROKE at "control" after: whenever an opponent attacks with one or more creatures , if ~ is tapped , you may have that opponent gain
+= BROKE at "combat" after: whenever an opponent attacks with one or more creatures , if ~ is tapped , you may have that opponent gain control of ~ until end of
 
 ## Thought Collapse
 face: Thought Collapse

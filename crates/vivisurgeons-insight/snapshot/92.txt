@@ -380,7 +380,7 @@ cost: {4}{B}{G}{U}
 > Trample
 > Whenever this creature deals damage to an opponent, you draw a card and that opponent discards a card.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "a" after: whenever this creature deals damage to an opponent , you draw a card and that opponent discards
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Draw { who: You, n: N(1) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
 
 ## Giant-Sized Flying Ant
 face: Giant-Sized Flying Ant

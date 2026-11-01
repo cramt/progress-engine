@@ -142,6 +142,9 @@ pub(super) fn put_to(p: &mut P) -> Option<Dest> {
 
 fn library_end(p: &mut P, top: bool) -> Option<Dest> {
     let zone = alt!(p;
+        // "on the bottom of that library" (Gonti, Lord of Luxury): the one
+        // named before, whose owner "their" names ([that-library]).
+        |p| p.words("that library").map(|_| if top { Zone::TopOfLibrary(Player::That) } else { Zone::BottomOfLibrary(Player::That) }),
         |p| p.one_of(&["its owner 's library", "their owner 's library", "their owners ' libraries"]).map(|_| if top { Zone::OwnersLibraryTop } else { Zone::OwnersLibraryBottom }),
         |p| {
             let w = whose(p)?;

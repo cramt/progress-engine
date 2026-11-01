@@ -714,7 +714,7 @@ type: Enchantment
 cost: {2}{W}
 > Whenever one or more creatures an opponent controls deal combat damage to you, that opponent gets a poison counter.
 > Whenever a player attacks, if one or more players being attacked are poisoned, the attacking player draws a card.
-= BROKE at "a" after: whenever one or more creatures an opponent controls deal combat damage to you , that opponent gets
+= Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, to: Player(You) }), effect: [GetCounters { who: That, n: N(1), kind: "poison" }], limits: [] }
 = BROKE at "being" after: whenever a player attacks , if one or more players
 
 ## Nova Flame

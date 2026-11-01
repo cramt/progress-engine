@@ -990,7 +990,7 @@ face: Trade Secrets
 type: Sorcery
 cost: {1}{U}{U}
 > Target opponent draws two cards, then you draw up to four cards. That opponent may repeat this process as many times as they choose.
-= BROKE at "may" after: target opponent draws two cards , then you draw up to four cards . that opponent
+= BROKE at "as" after: target opponent draws two cards , then you draw up to four cards . that opponent may repeat this process
 
 ## Trigon of Corruption
 face: Trigon of Corruption

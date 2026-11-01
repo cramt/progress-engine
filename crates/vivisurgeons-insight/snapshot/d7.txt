@@ -183,7 +183,7 @@ face: Chaos Wand
 type: Artifact
 cost: {3}
 > {4}, {T}: Target opponent exiles cards from the top of their library until they exile an instant or sorcery card. You may cast that card without paying its mana cost. Then put the exiled cards that weren't cast this way on the bottom of that library in a random order.
-= BROKE at "in" after: {4} , {T} : target opponent exiles cards from the top of their library until they exile an instant or sorcery card . you may cast that card without paying its mana cost . then put the exiled cards that weren't cast this way on the bottom of that library
+= Activated { cost: [Mana(Mana(["4"])), Tap], effect: [With { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } }], then: [UntilFound { who: TargetOpponent, verb: Exile, zone: TopOfLibrary(That), until: Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }, Move { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled), Not(Marked(Cast))], or: None } }, from: None, to: BottomOfLibrary(That), tapped: false, transformed: false, under: None, order: Some(Random) }] }], limits: [] }
 
 ## Chatter of the Squirrel
 face: Chatter of the Squirrel

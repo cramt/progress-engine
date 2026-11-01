@@ -103,6 +103,7 @@ fn player_read(p: &mut P) -> Option<Player> {
         |p| p.words("that attacking player").map(|_| Player::AttackingPlayer),
         |p| p.words("that player").map(|_| Player::That),
         |p| p.words("those players").map(|_| Player::That),
+        that_opponent,
         |p| p.words("the chosen player").map(|_| Player::Chosen),
         |p| p.words("defending player").map(|_| Player::DefendingPlayer),
         |p| p.words("the active player").map(|_| Player::Active),
@@ -1443,6 +1444,27 @@ pub(super) fn did(p: &mut P, who: Player) -> Option<Event> {
     )
 }
 
+/// "That opponent may put …" (Metamorphose), "the top card of that
+/// opponent's library" (Gonti, Night Minister): the opponent an earlier
+/// clause named, said by what it is ([that-player]). Not after "for each
+/// opponent," in the sentence: a target there is one per opponent (Omega,
+/// Heartless Evolution), which a later reference back would bind once.
+fn that_opponent(p: &mut P) -> Option<Player> {
+    let w = |s: &str| Tok::Word(s.into());
+    let said: Vec<&Tok> = p.t[..p.i.min(p.t.len())]
+        .iter()
+        .rev()
+        .take_while(|t| **t != Tok::Period)
+        .collect();
+    if said
+        .windows(3)
+        .any(|x| *x[0] == Tok::Comma && *x[1] == w("opponent") && *x[2] == w("each"))
+    {
+        return None;
+    }
+    p.words("that opponent").map(|_| Player::That)
+}
+
 /// Players that can stand before "controls" without eating an object noun.
 pub(super) fn player_simple(p: &mut P) -> Option<Player> {
     alt!(p;
@@ -1452,17 +1474,7 @@ pub(super) fn player_simple(p: &mut P) -> Option<Player> {
         |p| p.words("your opponents").map(|_| Player::EachOpponent),
         |p| p.words("that attacking player").map(|_| Player::AttackingPlayer),
         |p| p.words("that player").map(|_| Player::That),
-        // "That opponent may put …" (Metamorphose): the opponent an earlier
-        // clause named, said by what it is ([that-player]).
-        // Not after "for each opponent," in the sentence: a target there is
-        // one per opponent (Omega, Heartless Evolution), which a later
-        // reference back would bind once.
-        |p| {
-            let w = |s: &str| Tok::Word(s.into());
-            let said: Vec<&Tok> = p.t[..p.i.min(p.t.len())].iter().rev().take_while(|t| **t != Tok::Period).collect();
-            if said.windows(3).any(|x| *x[0] == Tok::Comma && *x[1] == w("opponent") && *x[2] == w("each")) { return None; }
-            p.words("that opponent").map(|_| Player::That)
-        },
+        that_opponent,
         |p| p.words("defending player").map(|_| Player::DefendingPlayer),
         |p| p.words("enchanted player").map(|_| Player::Enchanted),
         |p| p.words("the chosen player").map(|_| Player::Chosen),

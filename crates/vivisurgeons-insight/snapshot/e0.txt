@@ -579,7 +579,7 @@ face: Mogg Assassin
 type: Creature — Goblin Assassin
 cost: {2}{R}
 > {T}: You choose target creature an opponent controls, and that opponent chooses target creature. Flip a coin. If you win the flip, destroy the creature you chose. If you lose the flip, destroy the creature your opponent chose.
-= BROKE at "chooses" after: {T} : you choose target creature an opponent controls , and that opponent
+= BROKE at "chose" after: {T} : you choose target creature an opponent controls , and that opponent chooses target creature . flip a coin . if you win the flip , destroy the creature you
 
 ## Monkey Cage
 face: Monkey Cage

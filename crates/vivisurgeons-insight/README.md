@@ -88,13 +88,13 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1802/1803 (99.9%) | pinned; Saw in Half was outside the old corpus |
-| My decks: every card in the 20 decks of cramt/mtg | 1182/1207 (97.9%) | 2479/2504 (99.0%) | reopened by 3 new decks; 1023 cards pinned |
+| My decks: every card in the 20 decks of cramt/mtg | 1184/1207 (98.1%) | 2481/2504 (99.1%) | reopened by 3 new decks; 1023 cards pinned |
 | Standard after the early-2027 rotation | 3069/3517 (87.3%) | 6582/7055 (93.3%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4271/5157 (82.8%) | 9459/10421 (90.8%) | |
+| All of Standard | 4272/5157 (82.8%) | 9460/10421 (90.8%) | |
 | EDHREC top 2000 | 1821/1987 (91.6%) | 3650/3844 (95.0%) | |
-| EDHREC top 5000 | 4141/4977 (83.2%) | 9148/10106 (90.5%) | |
-| Commander precons | 4716/6114 (77.1%) | 10627/12175 (87.3%) | |
+| EDHREC top 5000 | 4144/4977 (83.3%) | 9152/10106 (90.6%) | |
+| Commander precons | 4720/6114 (77.2%) | 10632/12175 (87.3%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -161,7 +161,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | My decks (pinned) | 2136/2136 (100%) |
 | EDHREC top 2000 | 3648/3650 (99.9%) |
-| All parsed abilities | 50795/50823 (99.9%) |
+| All parsed abilities | 50804/50832 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -240,7 +240,7 @@ each in text order (`src/walk.rs`):
 
 | Kind | What it finds | Corpus |
 |---|---|---|
-| unresolved-reference | "it", "that creature" that no object said before it fits, so the tree points it at nothing (`Quant::Unresolved`). Every other reference names the binder of the object it means ([binders]): a target, a card drawn, milled or looked at, an earlier paragraph's object (CR 608.2c), a linked ability's (CR 607.2a). "Those players" and "those counters" are no objects and are not counted | 59 |
+| unresolved-reference | "it", "that creature" that no object said before it fits, so the tree points it at nothing (`Quant::Unresolved`). Every other reference names the binder of the object it means ([binders]): a target, a card drawn, milled or looked at, an earlier paragraph's object (CR 608.2c), a linked ability's (CR 607.2a). "Those players" and "those counters" are no objects and are not counted | 54 |
 | dangling-that-player | "that player" with no player before it. A player named by the trigger ("deals combat damage to a player", "each player's upkeep") or by an owner's zone counts, and the player of the same effect does ([that-player-in-effect]) | 2 |
 | self-comparison | both sides of a comparison the same expression | 0 |
 | spell-in-zone | a spell in a zone other than the stack (CR 112.1) | 0 |

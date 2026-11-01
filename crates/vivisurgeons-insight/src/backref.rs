@@ -812,7 +812,13 @@ fn compat(r: &Objects, e: &Ev) -> bool {
                     ek,
                     Some(Noun::Spell | Noun::Card | Noun::SpellOrAbility | Noun::Copy)
                 )
-                || e.verb.contains("Cast");
+                || e.verb.contains("Cast")
+                // "look at the top card …, exile it face down. … mana of
+                // any type can be spent to cast that spell" (Dream-Thief's
+                // Bandana, Gonti): a card looked at or exiled from among
+                // them, said with no noun, is a card, and cast it is the
+                // spell.
+                || ek.is_none() && (e.role == Role::Made || e.verb.contains("Exile"));
             if !ok {
                 return false;
             }
