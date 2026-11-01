@@ -58,16 +58,19 @@ earthbend. Everything else that changes no characteristic is carried as
 `Ability::Unread` so an effect can still remove it: triggered, activated,
 loyalty and chapter abilities, keywords the model doesn't name, and an
 explicit list of statics (costs, enters tapped, restrictions, replacement
-and prevention effects, `lower::not_characteristics`). Any other node is
+and prevention effects, `lower::not_characteristics`). A reference in a
+static ("its mana value") is read through the `Let` that binds it, and an
+ability carried unread keeps its `Let`, its targets and trigger objects
+bound for the state machine. Any other node is
 refused by name, never dropped. `insight card <name>` shows what a card
 reads as.
 
-**493 of the 574 cards in the Modern metagame lower whole** (519 of 600
-faces), measured 2026-10-13 against the Scryfall bulk file:
+**495 of the 574 cards in the Modern metagame lower whole** (521 of 600
+faces), measured 2026-11-01 against the Scryfall bulk file:
 `cargo test --release -p chancellor-of-the-spires --test coverage -- --ignored --nocapture`
 prints the number and the refusals by node. The most refused are "as this
 enters" (25, a choice, or a copiable effect if it sets a size, CR 613.2a),
-"as long as" (16) and "if" (12), conditions not modelled yet; then 7a's
+"as long as" (16) and "if" (8), conditions not modelled yet; then 7a's
 characteristic-defining abilities (`SetPt`) and copy effects. Karn
 Liberated and two others don't parse: they are cards with a rule of their
 own, which Insight's headline leaves out.

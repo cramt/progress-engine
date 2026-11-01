@@ -110,10 +110,27 @@ impl Lowered {
     /// One ability, or the name of the node it can't lower.
     fn ability(&mut self, ability: i::Ability) -> Result<(), String> {
         match ability {
-            i::Ability::Static(parts) if parts.iter().all(not_characteristics) => {
-                self.unread(i::Ability::Static(parts))
-            }
-            i::Ability::Static(parts) => self.statics.push(static_ability(&parts)?),
+            // An ability word adds no rules (CR 207.2c): what it labels is
+            // the ability.
+            i::Ability::Labelled { ability, .. } => self.ability(*ability)?,
+            // Carried with its binders, since the state machine resolves
+            // them: the targets, the trigger's objects.
+            a if carried(&a) => self.unread(a),
+            i::Ability::Static(parts) => self.statics.push(static_ability(&parts, &[])?),
+            // A static's objects, bound so another sentence of it can say
+            // "its" ([binders] in Insight's SEMANTICS.md).
+            i::Ability::Let { bind, ability } => match *ability {
+                i::Ability::Static(parts) => self.statics.push(static_ability(&parts, &bind)?),
+                // Hideaway's binder is the card it exiles, for the line that
+                // plays it (CR 702.75a).
+                i::Ability::Keywords(ks) if ks.iter().all(|k| keyword(k).is_none()) => {
+                    self.unread(i::Ability::Let {
+                        bind,
+                        ability: Box::new(i::Ability::Keywords(ks)),
+                    })
+                }
+                other => return Err(short(&other)),
+            },
             i::Ability::Keywords(keywords) => {
                 for k in keywords {
                     match keyword(&k) {
@@ -126,30 +143,48 @@ impl Lowered {
                     }
                 }
             }
-            // An ability word adds no rules (CR 207.2c): what it labels is
-            // the ability.
-            i::Ability::Labelled { ability, .. } => self.ability(*ability)?,
-            // One binder ([binders] in Insight's SEMANTICS.md): every
-            // reference names it, so the tree said with it in place is the
-            // same ability.
-            a @ i::Ability::Let { .. } if matches!(&a, i::Ability::Let { bind, .. } if bind.len() == 1) => {
-                self.ability(vivisurgeons_insight::binders::inline(&a))?
-            }
-            // A spell's instructions are an ability too (CR 113.3a), run as
-            // it resolves; a loyalty ability is activated (CR 606.1), a
-            // chapter ability triggered (CR 714.2b).
-            a @ (i::Ability::Triggered { .. }
-            | i::Ability::Activated { .. }
-            | i::Ability::Spell(_)
-            | i::Ability::Loyalty { .. }
-            | i::Ability::Chapter { .. }
-            | i::Ability::DieRow { .. }
-            | i::Ability::Spree { .. }
-            | i::Ability::Tiered(_)
-            | i::Ability::OpeningHandAction(_)) => self.unread(a),
             other => return Err(short(&other)),
         }
         Ok(())
+    }
+}
+
+/// What the layers carry unread. A spell's instructions are an ability too
+/// (CR 113.3a), run as it resolves; a loyalty ability is activated (CR
+/// 606.1), a chapter ability triggered (CR 714.2b).
+fn carried(a: &i::Ability) -> bool {
+    match a {
+        i::Ability::Triggered { .. }
+        | i::Ability::Activated { .. }
+        | i::Ability::Spell(_)
+        | i::Ability::Loyalty { .. }
+        | i::Ability::Chapter { .. }
+        | i::Ability::DieRow { .. }
+        | i::Ability::Spree { .. }
+        | i::Ability::Tiered(_)
+        | i::Ability::OpeningHandAction(_) => true,
+        i::Ability::Static(parts) => parts.iter().all(not_characteristics),
+        i::Ability::Let { ability, .. } | i::Ability::Labelled { ability, .. } => carried(ability),
+        _ => false,
+    }
+}
+
+/// The binder a reference names, as an index into `scope` (a `Let`'s
+/// `bind`, outermost first), counting de Bruijn from the innermost.
+fn binder(o: &Objects, scope: &[Objects]) -> Option<usize> {
+    match o.quant {
+        Quant::Bound(i) | Quant::Introduced(i) => scope.len().checked_sub(1 + i as usize),
+        _ => None,
+    }
+}
+
+/// The objects a reference names, or the objects themselves.
+fn resolve<'a>(o: &'a Objects, scope: &'a [Objects]) -> Result<&'a Objects, String> {
+    match o.quant {
+        Quant::Bound(_) | Quant::Introduced(_) => binder(o, scope)
+            .map(|b| &scope[b])
+            .ok_or_else(|| "a reference out of scope".into()),
+        _ => Ok(o),
     }
 }
 
@@ -379,7 +414,7 @@ fn keyword(k: &i::Keyword) -> Option<Keyword> {
 /// A static ability is one ability however many sentences it has: each
 /// part is an `Op` over one filter. Parts over different objects would be
 /// two effects, and nothing needs that yet.
-fn static_ability(parts: &[i::Static]) -> Result<StaticAbility, String> {
+fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbility, String> {
     let mut filter: Option<Filter> = None;
     let mut ops = Vec::new();
     let mut carried = false;
@@ -390,8 +425,8 @@ fn static_ability(parts: &[i::Static]) -> Result<StaticAbility, String> {
             carried = true;
             continue;
         }
-        let (what, part_ops) = static_part(part)?;
-        let f = objects(what)?;
+        let (what, part_ops) = static_part(part, scope)?;
+        let f = objects(resolve(what, scope)?)?;
         if filter.as_ref().is_some_and(|g| *g != f) {
             return Err("parts over different objects".into());
         }
@@ -407,7 +442,10 @@ fn static_ability(parts: &[i::Static]) -> Result<StaticAbility, String> {
     })
 }
 
-fn static_part(part: &i::Static) -> Result<(&Objects, Vec<Op>), String> {
+fn static_part<'a>(
+    part: &'a i::Static,
+    scope: &[Objects],
+) -> Result<(&'a Objects, Vec<Op>), String> {
     let unlowered = || short(part);
     Ok(match part {
         i::Static::Modify {
@@ -497,12 +535,12 @@ fn static_part(part: &i::Static) -> Result<(&Objects, Vec<Op>), String> {
                 [CardType::Artifact, CardType::Creature].into(),
             )],
         ),
-        // "each equal to its mana value": the object's own. `what` is the
-        // only binder there is (the `Let` above), so "its" names it.
+        // "each equal to its mana value": the object's own, when "its"
+        // names the binder `what` is.
         i::Static::BasePtEqual {
             what,
             each_equal_to: i::Amount::ManaValueOf(of),
-        } if matches!(of.quant, Quant::Bound(_)) && of.filter == i::Filter::default() => {
+        } if binder(of, scope).is_some() && binder(of, scope) == binder(what, scope) => {
             (what, vec![Op::SetBasePt(PtValue::ManaValue)])
         }
         _ => return Err(unlowered()),
