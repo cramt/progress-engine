@@ -2,10 +2,11 @@
 
 A rules engine for Magic. It answers **what is each object on the
 battlefield right now**, through the layer system (CR 613), with counters,
-and it plays the first slice of a game of Commander: turns, priority,
-land drops and basic lands' mana, as a state machine that stops at every
+and it plays the first slices of a game of Commander: turns, priority,
+land drops, mana abilities, and casting and resolving permanent spells,
+the commander among them, as a state machine that stops at every
 decision ([ADR-0043](../../docs/adr/0043-chancellor-plays-a-game-as-a-state-machine-that-stops-at-every-decision.md)).
-No spell is cast yet.
+No spell's effect runs yet.
 
 [docs/research/rules-engine.md](../../docs/research/rules-engine.md) is the
 plan, and [ADR-0037](../../docs/adr/0037-chancellor-lowers-insights-trees-into-its-own-effects-and-applies-them-layer-by-layer.md)
@@ -33,40 +34,83 @@ the seam:
 `game::Game::new(decks, seed)` sets up Commander (CR 903.6–903.7): each
 commander in the command zone, the rest shuffled by the seed into the
 library, 40 life, seven cards, everyone keeping. `deck::read` makes a
-player's cards from a `.deck.toml` and the card index (`decks/index.jsonl`).
-The engine then runs until a player has to choose and returns a
-`Decision`: `Priority { player, actions }` (pass, play a land, tap a
-land for mana), `Discard { player, count, hand }` in cleanup (CR 514.1),
-or `Over`. `game.step(Answer)` takes an answer among the legal ones,
-refuses any other with the game unchanged, and runs on. Turn-based and
-state-based actions are never decisions.
+player's cards from a `.deck.toml` and the card index (`decks/index.jsonl`),
+`deck::card` one card by name. The engine then runs until a player has to
+choose and returns a `Decision`, and `game.step(Answer)` takes an answer
+among the legal ones, refuses any other with the game unchanged, and runs
+on. Turn-based and state-based actions are never decisions.
+
+- `Priority { player, actions }`: pass, play a land, `Cast(card)` from
+  hand or a commander from the command zone, or activate a mana ability
+  (`Mana(ManaActivation { source, ability, adds })`, one action for each
+  mana its text lets it add).
+- `Pay { player, spell, owed, actions }`: the spell is on the stack and
+  its total cost determined (CR 601.2a–f). The answers are `Payment::Mana`
+  (a mana ability, CR 601.2g), `Payment::Spend(mana)`, offered for every
+  amount of the pool that pays `owed` exactly (CR 601.2h; which mana paid
+  which symbol changes nothing modelled), and `Payment::Cancel`, which
+  puts the game back as it was before the cast, mana abilities included
+  (CR 733.1). A cost no pool pays offers only `Cancel`.
+- `Discard { player, count, hand }` in cleanup (CR 514.1),
+  `ReturnCommander { player, card }` (CR 903.9a, answered
+  `CommandZone(bool)`), `LegendRule { player, among }` (CR 704.5j,
+  answered `Keep(id)`), and `Over`.
 
 Covered: every step of the turn with priority, all players passing with
-the stack empty ending the step (CR 117.4, 500.2); untap (CR 502.3); the
-starting player skipping their first draw in a two-player game and no one
-in a larger one (CR 103.8a, 103.8c); one land a turn, only in your main
-phase with priority and the stack empty (CR 305.1–305.2); a basic land
-type's intrinsic mana ability (CR 305.6), read off the layers, so a land
-Yavimaya makes a Forest taps for {G}; mana pools emptying as each step
-ends (CR 500.5); state-based actions whenever a player would get priority
-(CR 704.3) for 0 life and drawing from an empty library (CR 704.5a–b),
-a loser leaving the game with what they own and a multiplayer game going
-on without them (CR 800.4a).
+the stack empty ending the step (CR 117.4, 500.2) and with it non-empty
+resolving the top (CR 405.5, 608.1), after which the active player gets
+priority (CR 117.3b); untap (CR 502.3); the starting player skipping their
+first draw in a two-player game and no one in a larger one (CR 103.8a,
+103.8c); one land a turn, only in your main phase with priority and the
+stack empty (CR 305.1–305.2); casting (CR 601.2) at sorcery speed, or any
+time you have priority for an instant or a card with flash (CR 117.1a);
+mana costs of generic, coloured, colourless and hybrid symbols (CR 107.4,
+202.1a); commander tax (CR 903.8); a permanent spell entering under its
+caster's control (CR 608.3a) and an instant or sorcery going to the
+graveyard (CR 608.2n); mana abilities that tap, pay life (CR 119.4) and
+deal their controller damage, as painlands do (CR 120.3a), adding fixed
+mana, a choice of it, any colour, or a colour of the commander's identity
+(CR 903.4), without the stack (CR 605.3b), a creature's only once it has
+been yours since your turn began (CR 302.6) or has haste; a basic land
+type's intrinsic mana ability (CR 305.6), which the layers grant after
+layer 4, so Yavimaya's Forests tap for {G}, Blood Moon's Mountains for {R}
+alone (CR 305.7), and a land that loses all abilities for nothing; "enters
+tapped", and "unless you control" a filter, read off the permanent as it
+enters (CR 614.12); mana pools emptying as each step ends (CR 500.5);
+state-based actions whenever a player would get priority (CR 704.3) for 0
+life, drawing from an empty library, toughness 0 or less and the legend
+rule (CR 704.5a–b, 704.5f, 704.5j), and a commander's return to the
+command zone (CR 903.9a); a loser leaving the game with what they own and
+a multiplayer game going on without them (CR 800.4a).
 
-A land whose text doesn't lower, or that carries an ability the game
-can't run yet (a trigger, "enters tapped", a shock land's "as this
-enters"), is refused by name when played rather than played without it.
-Seven of Loam's 90 cards don't lower, and its multi-faced card can't be
-read from the index, which keeps only its faces' text joined.
-`tests/game.rs` plays Loam against a goldfish for three turns from a seed,
-and scripts the rules above.
+A card the game can't run is refused by name when played or cast rather
+than run without what it can't do: a spell with effects (lowering them
+into actions is the next slice), a triggered ability, a static that isn't
+"enters tapped", a mana ability with a cost or effect beyond those above,
+`{X}`, Phyrexian or snow mana, a planeswalker or battle (their counters),
+an Aura (its target), and a keyword other than flash, cycling, transmute,
+partner and combat's (reach, menace, first and double strike, defender),
+which do nothing until something attacks. A non-mana activated ability is
+carried and never offered, so a fetchland plays and can't fetch.
 
-Not yet: casting spells, the stack's contents, costs, activated abilities
-other than basic land mana, triggers, declaring attackers (the declare
-blockers and combat damage steps aren't in `Step` until something can
-attack, CR 508.8), mulligans, and a land's back face (CR 712). A land that loses all
-abilities still taps for mana: the intrinsic ability is read off its land
-types, not carried as an ability the layers can remove.
+**31 of Loam's 90 distinct cards are played or cast and resolved, 8 of
+them with every ability running** (the basics, Birds of Paradise, Elvish
+Mystic, Command Tower, Karplusan Forest, Yavimaya), measured 2026-11-01:
+`cargo test -p chancellor-of-the-spires --test game loam_coverage --
+--nocapture` plays each in a game of its own and prints the rest by the
+node refused. The most refused: a spell's effects (20), triggered
+abilities (16, the commander among them), shock lands' "as this enters"
+(3), additional costs, loyalty, conditional statics and playing lands from
+a graveyard (2 each). `tests/game.rs` scripts the rules above, and plays
+Loam against a goldfish for six turns, casting what it can.
+
+Not yet: any spell's effect, activated abilities other than mana
+abilities, triggers, declaring attackers (the declare blockers and combat
+damage steps aren't in `Step` until something can attack, CR 508.8),
+mulligans, a land's back face (CR 712), and shock lands' choice as they
+enter. State-based actions that give a choice run one after the other
+rather than at once (CR 704.3), which nothing can tell apart without
+triggers.
 
 ## What the layers cover
 

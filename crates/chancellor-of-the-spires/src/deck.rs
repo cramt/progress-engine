@@ -13,10 +13,14 @@ use crate::model::{pt, Color, Pt};
 pub struct CardText {
     pub name: String,
     pub type_line: String,
+    /// As printed, `{1}{G}{G}`; empty for a card with none (CR 202.1b).
+    pub mana_cost: String,
     pub oracle: Oracle,
     pub mana_value: u32,
     pub colors: Vec<Color>,
     pub pt: Option<Pt>,
+    /// Its colour identity (CR 903.4), which a commander gives its deck.
+    pub identity: Vec<Color>,
 }
 
 /// A card's rules text, as far as the index keeps it.
@@ -60,10 +64,12 @@ impl CardText {
         CardText {
             name: name.to_string(),
             type_line: format!("Basic Land — {name}"),
+            mana_cost: String::new(),
             oracle: Oracle::OneFace(format!("({{T}}: Add {{{symbol}}}.)")),
             mana_value: 0,
             colors: Vec::new(),
             pt: None,
+            identity: Vec::new(),
         }
     }
 }
@@ -98,23 +104,7 @@ pub fn read(text: &str, index: &IndexFile) -> Result<DeckCards, LoadError> {
                 .printing(&p.set, &p.num)?
                 .ok_or_else(|| LoadError::Unknown(p.to_string()))?,
         };
-        let card = index
-            .get(&name)?
-            .ok_or_else(|| LoadError::Unknown(name.clone()))?;
-        let face = card.faces.first();
-        let number = |v: &Option<String>| v.as_deref().and_then(|s| s.parse::<i32>().ok());
-        let text = CardText {
-            name: card.name.clone(),
-            type_line: card.type_line.clone(),
-            oracle: if card.faces.len() > 1 {
-                Oracle::JoinedFaces(card.oracle.clone())
-            } else {
-                Oracle::OneFace(card.oracle.clone())
-            },
-            mana_value: card.cmc as u32,
-            colors: card.colors.iter().filter_map(|c| color(c)).collect(),
-            pt: face.and_then(|f| Some(pt(number(&f.power)?, number(&f.toughness)?))),
-        };
+        let text = card(&name, index)?;
         let into = if line.is_commander() {
             &mut cards.commander
         } else {
@@ -125,6 +115,29 @@ pub fn read(text: &str, index: &IndexFile) -> Result<DeckCards, LoadError> {
         }
     }
     Ok(cards)
+}
+
+/// One card by its name, as the index knows it.
+pub fn card(name: &str, index: &IndexFile) -> Result<CardText, LoadError> {
+    let card = index
+        .get(name)?
+        .ok_or_else(|| LoadError::Unknown(name.to_string()))?;
+    let face = card.faces.first();
+    let number = |v: &Option<String>| v.as_deref().and_then(|s| s.parse::<i32>().ok());
+    Ok(CardText {
+        name: card.name.clone(),
+        type_line: card.type_line.clone(),
+        mana_cost: card.mana_cost.clone(),
+        oracle: if card.faces.len() > 1 {
+            Oracle::JoinedFaces(card.oracle.clone())
+        } else {
+            Oracle::OneFace(card.oracle.clone())
+        },
+        mana_value: card.cmc as u32,
+        colors: card.colors.iter().filter_map(|c| color(c)).collect(),
+        pt: face.and_then(|f| Some(pt(number(&f.power)?, number(&f.toughness)?))),
+        identity: card.ci.iter().filter_map(|c| color(c)).collect(),
+    })
 }
 
 fn color(letter: &str) -> Option<Color> {

@@ -4,10 +4,12 @@
 //! with the legal answers; [`Game::step`] takes one of them and runs on to
 //! the next. A game replays from its seed and its answers.
 //!
-//! So far: the turn's steps with priority, playing lands, basic lands'
-//! mana abilities, mana pools emptying, drawing, discarding to hand size,
-//! and the state-based actions for life and an empty library. Nothing goes
-//! on the stack yet, and no creature attacks.
+//! So far: the turn's steps with priority, playing lands, casting spells
+//! and paying their mana, mana abilities, the stack and resolving permanent
+//! spells, commander tax, drawing, discarding to hand size, and the
+//! state-based actions for life, an empty library, toughness and a
+//! commander's return. No spell's effect runs yet, no trigger, and no
+//! creature attacks.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -18,13 +20,20 @@ use vivisurgeons_insight::ast as i;
 
 use crate::deck::{CardText, DeckCards};
 use crate::layers::characteristics;
-use crate::lower::{self, Lowered};
-use crate::model::{BasicLandType, CardType, Chars, ObjectId, PlayerId, State, Subtype};
+use crate::lower::{self, Lowered, Refusal};
+use crate::mana::{self as m, short};
+pub use crate::mana::{Mana, ManaCost, ManaPool, Shard};
+use crate::model::{
+    Ability, CardType, Chars, Color, Filter, Keyword, ObjectId, PlayerId, Seen, State, Subtype,
+    Supertype,
+};
 
 /// CR 903.7.
 pub const STARTING_LIFE: i32 = 40;
 /// CR 103.5, 402.2.
 pub const HAND_SIZE: usize = 7;
+/// CR 903.8.
+pub const COMMANDER_TAX: u32 = 2;
 
 /// A physical card, for the whole game: its text and its owner (CR 108.3).
 /// The zones other than the battlefield hold cards; on the battlefield a
@@ -36,7 +45,54 @@ pub struct CardId(pub u32);
 struct CardEntry {
     text: CardText,
     owner: PlayerId,
-    lowered: Result<Lowered, String>,
+    /// A commander (CR 903.3): a designation of the card, not of an object.
+    commander: bool,
+    runs: Result<Runnable, Unrunnable>,
+    cost: Result<Option<ManaCost>, Unrunnable>,
+}
+
+/// What the game can run of a card: its lowered characteristics and, of
+/// the abilities the layers carry unread, the ones this engine runs, by
+/// their index (`model::Ability::Unread`).
+struct Runnable {
+    lowered: Lowered,
+    mana: BTreeMap<u16, m::ManaAbility>,
+    enters: BTreeMap<u16, Enters>,
+    flash: bool,
+    /// The abilities it carries that nothing offers to activate yet.
+    dormant: Vec<String>,
+}
+
+/// A replacement effect on how its own permanent enters (CR 614.1c–d).
+enum Enters {
+    /// "This land enters tapped."
+    Tapped,
+    /// "This land enters tapped unless you control a legendary green
+    /// creature."
+    TappedUnlessYouControl(Filter),
+}
+
+/// Why the engine refuses a card: the node of Insight's tree (or the rule)
+/// it can't run yet, and the whole reason.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Unrunnable {
+    pub node: String,
+    pub why: String,
+}
+
+impl fmt::Display for Unrunnable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.why)
+    }
+}
+
+impl Unrunnable {
+    fn new(node: impl Into<String>, why: impl Into<String>) -> Unrunnable {
+        Unrunnable {
+            node: node.into(),
+            why: why.into(),
+        }
+    }
 }
 
 /// A turn's steps, and the main phases, which have none (CR 500.1). Combat
@@ -79,48 +135,6 @@ impl Step {
     }
 }
 
-/// One mana's type (CR 106.1b): a colour or colourless.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Mana {
-    White,
-    Blue,
-    Black,
-    Red,
-    Green,
-    Colorless,
-}
-
-impl Mana {
-    /// What a basic land type's intrinsic ability adds (CR 305.6).
-    pub fn of(land: BasicLandType) -> Mana {
-        match land {
-            BasicLandType::Plains => Mana::White,
-            BasicLandType::Island => Mana::Blue,
-            BasicLandType::Swamp => Mana::Black,
-            BasicLandType::Mountain => Mana::Red,
-            BasicLandType::Forest => Mana::Green,
-        }
-    }
-}
-
-/// CR 106.4.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ManaPool(BTreeMap<Mana, u32>);
-
-impl ManaPool {
-    pub fn get(&self, m: Mana) -> u32 {
-        self.0.get(&m).copied().unwrap_or(0)
-    }
-
-    pub fn total(&self) -> u32 {
-        self.0.values().sum()
-    }
-
-    fn add(&mut self, m: Mana) {
-        *self.0.entry(m).or_insert(0) += 1;
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct Player {
     life: i32,
@@ -135,6 +149,9 @@ pub struct Player {
     drew_from_empty: bool,
     /// The turn number their most recent turn began on (CR 302.6).
     turn_began: Option<u32>,
+    /// Their commanders' colour identity (CR 903.4), or `None` with no
+    /// commander (CR 903.4f).
+    identity: Option<Vec<Color>>,
     left: bool,
 }
 
@@ -173,10 +190,14 @@ pub struct Permanent {
     pub since: u32,
 }
 
-/// What can be on the stack. Nothing yet: no spell is cast and no
-/// non-mana ability activated, so the stack is always empty.
+/// What can be on the stack (CR 405.1): spells so far, since no ability
+/// other than a mana ability is activated and nothing triggers.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum StackObject {}
+pub enum StackObject {
+    /// A card on the stack (CR 112.1), controlled by who cast it (CR
+    /// 601.2a).
+    Spell { card: CardId, controller: PlayerId },
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Outcome {
@@ -194,10 +215,32 @@ enum Waiting {
         player: PlayerId,
         passes: usize,
     },
+    /// Casting `spell`, which is on the stack, with `owed` left to pay (CR
+    /// 601.2g–h).
+    Paying {
+        player: PlayerId,
+        spell: CardId,
+        owed: ManaCost,
+        from_command: bool,
+    },
     /// CR 514.1.
     Discard {
         player: PlayerId,
         count: usize,
+    },
+    /// CR 704.5j, before `then` gets priority.
+    LegendRule {
+        player: PlayerId,
+        among: Vec<ObjectId>,
+        then: PlayerId,
+        passes: usize,
+    },
+    /// CR 903.9a, before `then` gets priority.
+    ReturnCommander {
+        owner: PlayerId,
+        card: CardId,
+        then: PlayerId,
+        passes: usize,
     },
     Over(Outcome),
 }
@@ -209,6 +252,15 @@ pub enum Decision {
         player: PlayerId,
         actions: Vec<Action>,
     },
+    /// CR 601.2g–h: `spell` is on the stack and its total cost is
+    /// determined; activate mana abilities, then pay `owed` from the pool,
+    /// or cancel the cast (CR 733.1).
+    Pay {
+        player: PlayerId,
+        spell: CardId,
+        owed: ManaCost,
+        actions: Vec<Payment>,
+    },
     /// Discard exactly `count` distinct cards of `hand` (CR 514.1). The
     /// legal answers are every such set, given by their rule rather than
     /// listed.
@@ -217,7 +269,31 @@ pub enum Decision {
         count: usize,
         hand: Vec<CardId>,
     },
+    /// CR 903.9a: the commander went to a graveyard or exile, and its
+    /// owner may put it into the command zone. Answered with
+    /// `Answer::CommandZone`.
+    ReturnCommander {
+        player: PlayerId,
+        card: CardId,
+    },
+    /// CR 704.5j: `player` controls these legendary permanents with the
+    /// same name, and keeps one, answered with `Answer::Keep`; the rest go
+    /// to their owners' graveyards.
+    LegendRule {
+        player: PlayerId,
+        among: Vec<ObjectId>,
+    },
     Over(Outcome),
+}
+
+/// Activating a mana ability, and the mana it adds of the ways its text
+/// allows (CR 605.3b). Its source's ability is `ability`, among those the
+/// layers say it has now.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ManaActivation {
+    pub source: ObjectId,
+    pub ability: Ability,
+    pub adds: ManaPool,
 }
 
 /// What a player with priority can do.
@@ -227,15 +303,35 @@ pub enum Action {
     Pass,
     /// A special action (CR 116.2a, 305.1).
     PlayLand(CardId),
-    /// A basic land type's intrinsic mana ability (CR 305.6), which doesn't
-    /// use the stack (CR 605.3b). A land with two basic land types has two.
-    TapForMana { land: ObjectId, adds: Mana },
+    /// Begin casting a spell from hand, or a commander from the command
+    /// zone (CR 601.2, 903.8). Listed when its timing allows (CR 117.1a).
+    Cast(CardId),
+    /// A mana ability, which doesn't use the stack (CR 605.3b).
+    Mana(ManaActivation),
+}
+
+/// What a player paying a spell's cost can do.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Payment {
+    /// CR 601.2g.
+    Mana(ManaActivation),
+    /// Spend exactly this mana from the pool on the whole cost (CR 601.2h,
+    /// 118.3a). Every amount that pays it is offered.
+    Spend(ManaPool),
+    /// Stop casting: the spell returns where it was, and the mana abilities
+    /// activated while casting it are reversed (CR 733.1–733.2).
+    Cancel,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Answer {
     Act(Action),
+    Pay(Payment),
     Discard(Vec<CardId>),
+    /// CR 903.9a: put the commander into the command zone, or leave it.
+    CommandZone(bool),
+    /// CR 704.5j: the legendary permanent kept.
+    Keep(ObjectId),
 }
 
 #[derive(Debug)]
@@ -244,14 +340,14 @@ pub enum Rejected {
     Illegal(Answer),
     /// Legal, but the card's text has no lowering yet, so the engine
     /// refuses rather than play it wrong. The game is unchanged.
-    Refused { card: String, refusal: String },
+    Refused { card: String, refusal: Unrunnable },
 }
 
 impl fmt::Display for Rejected {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Rejected::Illegal(a) => write!(f, "{a:?} is not a legal answer"),
-            Rejected::Refused { card, refusal } => write!(f, "can't play {card}: {refusal}"),
+            Rejected::Refused { card, refusal } => write!(f, "can't play {card}: {}", refusal.why),
         }
     }
 }
@@ -299,9 +395,19 @@ pub struct Game {
     /// The battlefield as the layers read it (ADR-0037).
     battlefield: State,
     permanents: OrdMap<ObjectId, Permanent>,
+    /// The top is the back (CR 405.2).
     stack: Vector<StackObject>,
     exile: Vector<CardId>,
     command: Vector<CardId>,
+    /// How many times each commander has been cast from the command zone
+    /// (CR 903.8).
+    commander_casts: OrdMap<CardId, u32>,
+    /// Commanders put into a graveyard or exile since state-based actions
+    /// were last checked (CR 903.9a).
+    commanders_moved: Vector<CardId>,
+    /// The game as it was before the spell being cast was proposed, to
+    /// return to if the cast is cancelled (CR 733.1).
+    before_cast: Option<Box<Game>>,
     turn: u32,
     active: PlayerId,
     step: Step,
@@ -327,22 +433,36 @@ impl Game {
         let mut rng = Rng(seed);
         for (p, deck) in decks.into_iter().enumerate() {
             let owner = PlayerId(p as u8);
-            let mut add = |text: CardText| {
-                let lowered = text
+            let identity = (!deck.commander.is_empty()).then(|| {
+                let colors: BTreeSet<Color> = deck
+                    .commander
+                    .iter()
+                    .flat_map(|c| c.identity.iter().copied())
+                    .collect();
+                colors.into_iter().collect()
+            });
+            let mut add = |text: CardText, commander: bool| {
+                let runs = text
                     .as_card()
-                    .and_then(|c| lower::card(&c).map_err(|r| r.to_string()))
+                    .map_err(|why| Unrunnable::new("a multi-faced card", why))
+                    .and_then(|c| lower::card(&c).map_err(unlowered))
                     .and_then(runnable);
+                let cost = ManaCost::parse(&text.mana_cost)
+                    .map_err(|why| Unrunnable::new(why.clone(), why));
                 cards.push(CardEntry {
                     text,
                     owner,
-                    lowered,
+                    commander,
+                    runs,
+                    cost,
                 });
                 CardId(cards.len() as u32 - 1)
             };
             for c in deck.commander {
-                command.push_back(add(c));
+                command.push_back(add(c, true));
             }
-            let mut library: Vector<CardId> = deck.library.into_iter().map(&mut add).collect();
+            let mut library: Vector<CardId> =
+                deck.library.into_iter().map(|c| add(c, false)).collect();
             rng.shuffle(&mut library);
             players.push(Player {
                 life: STARTING_LIFE,
@@ -353,6 +473,7 @@ impl Game {
                 lands_played: 0,
                 drew_from_empty: false,
                 turn_began: None,
+                identity,
                 left: false,
             });
         }
@@ -364,6 +485,9 @@ impl Game {
             stack: Vector::new(),
             exile: Vector::new(),
             command,
+            commander_casts: OrdMap::new(),
+            commanders_moved: Vector::new(),
+            before_cast: None,
             turn: 0,
             active: PlayerId(0),
             step: Step::Untap,
@@ -412,9 +536,35 @@ impl Game {
     pub fn permanents(&self) -> &OrdMap<ObjectId, Permanent> {
         &self.permanents
     }
+    /// How many times this commander has been cast from the command zone.
+    pub fn commander_casts(&self, c: CardId) -> u32 {
+        self.commander_casts.get(&c).copied().unwrap_or(0)
+    }
     /// What each permanent is now, through the layers (CR 613).
     pub fn characteristics(&self) -> BTreeMap<ObjectId, Chars> {
         characteristics(&self.battlefield)
+    }
+
+    /// Whether the engine can run this card: why it refuses it if not. A
+    /// land is checked as it would be played, any other card as it would
+    /// be cast.
+    pub fn refusal(&self, c: CardId) -> Option<Unrunnable> {
+        let entry = &self.cards[c.0 as usize];
+        match &entry.runs {
+            Err(r) => Some(r.clone()),
+            Ok(_) if is_land(&entry.text.type_line) => None,
+            Ok(runs) => self.cast_refusal(entry, runs).err(),
+        }
+    }
+
+    /// The abilities a card the engine runs carries that nothing offers
+    /// to activate yet: its non-mana activated abilities and those that
+    /// work from a hand.
+    pub fn dormant(&self, c: CardId) -> &[String] {
+        match &self.cards[c.0 as usize].runs {
+            Ok(r) => &r.dormant,
+            Err(_) => &[],
+        }
     }
 
     /// What the game is waiting on, with the legal answers.
@@ -430,6 +580,25 @@ impl Game {
                 player: *player,
                 actions: self.actions(*player),
             },
+            Waiting::Paying {
+                player,
+                spell,
+                owed,
+                ..
+            } => Decision::Pay {
+                player: *player,
+                spell: *spell,
+                owed: owed.clone(),
+                actions: self.payments(*player, owed),
+            },
+            Waiting::ReturnCommander { owner, card, .. } => Decision::ReturnCommander {
+                player: *owner,
+                card: *card,
+            },
+            Waiting::LegendRule { player, among, .. } => Decision::LegendRule {
+                player: *player,
+                among: among.clone(),
+            },
         }
     }
 
@@ -442,6 +611,32 @@ impl Game {
             {
                 self.act(player, passes, *action)?
             }
+            (
+                Waiting::Paying {
+                    player,
+                    spell,
+                    owed,
+                    from_command,
+                },
+                Answer::Pay(pay),
+            ) if self.payments(player, &owed).contains(pay) => match *pay {
+                Payment::Mana(a) => self.activate(player, a),
+                Payment::Spend(spent) => {
+                    let pool = &mut self.players[player.0 as usize].pool;
+                    *pool = pool.minus(&spent);
+                    if from_command {
+                        *self.commander_casts.entry(spell).or_insert(0) += 1;
+                    }
+                    // CR 601.2i: the spell becomes cast, and its caster had
+                    // priority, so gets it again.
+                    self.before_cast = None;
+                    self.give_priority(player, 0);
+                }
+                Payment::Cancel => {
+                    let before = self.before_cast.take().expect("a cast to cancel");
+                    *self = *before;
+                }
+            },
             (Waiting::Discard { player, count }, Answer::Discard(cards))
                 if self.can_discard(player, count, cards) =>
             {
@@ -449,6 +644,39 @@ impl Game {
                 // The excess is gone, so beginning cleanup again discards
                 // nothing and runs the rest of it (CR 514.2–514.3).
                 self.run_from(Step::Cleanup);
+            }
+            (
+                Waiting::ReturnCommander {
+                    owner,
+                    card,
+                    then,
+                    passes,
+                },
+                Answer::CommandZone(to_command),
+            ) => {
+                self.commanders_moved.retain(|c| *c != card);
+                if *to_command {
+                    self.players[owner.0 as usize]
+                        .graveyard
+                        .retain(|c| *c != card);
+                    self.exile.retain(|c| *c != card);
+                    self.command.push_back(card);
+                }
+                self.give_priority(then, passes);
+            }
+            (
+                Waiting::LegendRule {
+                    among,
+                    then,
+                    passes,
+                    ..
+                },
+                Answer::Keep(kept),
+            ) if among.contains(kept) => {
+                for id in among.iter().filter(|id| *id != kept) {
+                    self.put_in_graveyard(*id);
+                }
+                self.give_priority(then, passes);
             }
             _ => return Err(Rejected::Illegal(answer)),
         }
@@ -458,12 +686,11 @@ impl Game {
     fn actions(&self, p: PlayerId) -> Vec<Action> {
         let mut actions = vec![Action::Pass];
         let player = self.player(p);
-        if p == self.active
-            && self.step.is_main()
-            && self.stack.is_empty()
-            // One land a turn (CR 305.2, 305.2a); nothing raises it yet.
-            && player.lands_played < 1
-        {
+        // CR 117.1a: a noninstant spell, and a land, only in your main
+        // phase with the stack empty.
+        let sorcery_speed = p == self.active && self.step.is_main() && self.stack.is_empty();
+        // One land a turn (CR 305.2, 305.2a); nothing raises it yet.
+        if sorcery_speed && player.lands_played < 1 {
             actions.extend(
                 player
                     .hand
@@ -472,73 +699,298 @@ impl Game {
                     .map(|c| Action::PlayLand(*c)),
             );
         }
-        let began = player.turn_began;
-        for (id, chars) in self.characteristics() {
-            let perm = &self.permanents[&id];
-            // CR 302.6: a creature's {T} ability needs it controlled since
-            // its controller's most recent turn began.
-            let sick = chars.is(CardType::Creature) && began.is_none_or(|t| perm.since >= t);
-            if chars.controller != p || perm.tapped || sick || !chars.is(CardType::Land) {
+        let from_command = self
+            .command
+            .iter()
+            .filter(|c| self.owner(**c) == p && self.cards[c.0 as usize].commander);
+        for c in player.hand.iter().chain(from_command) {
+            let entry = &self.cards[c.0 as usize];
+            // CR 305.9; a card with no mana cost can't be paid for, and
+            // alternative costs aren't modelled (CR 118.6).
+            if is_land(&entry.text.type_line) || matches!(entry.cost, Ok(None)) {
                 continue;
             }
-            for s in &chars.subtypes {
-                if let Subtype::BasicLand(t) = s {
-                    actions.push(Action::TapForMana {
-                        land: id,
-                        adds: Mana::of(*t),
-                    });
+            if sorcery_speed || self.instant_speed(entry) {
+                actions.push(Action::Cast(*c));
+            }
+        }
+        actions.extend(self.mana_activations(p).into_iter().map(Action::Mana));
+        actions
+    }
+
+    /// CR 117.1a, 304.1, 702.8a: an instant, or a card with flash.
+    fn instant_speed(&self, entry: &CardEntry) -> bool {
+        match &entry.runs {
+            Ok(r) => r.flash || r.lowered.chars.is(CardType::Instant),
+            Err(_) => type_words(&entry.text.type_line).any(|w| w == "Instant"),
+        }
+    }
+
+    /// Every mana ability `p` can activate now, once for each choice of
+    /// mana it gives.
+    fn mana_activations(&self, p: PlayerId) -> Vec<ManaActivation> {
+        let player = self.player(p);
+        let began = player.turn_began;
+        let mut out = Vec::new();
+        for (id, chars) in self.characteristics() {
+            if chars.controller != p {
+                continue;
+            }
+            let perm = &self.permanents[&id];
+            // CR 302.6, 702.10c: a creature's {T} ability needs it
+            // controlled since its controller's most recent turn began.
+            let sick = chars.is(CardType::Creature)
+                && !chars.abilities.contains(&Ability::Keyword(Keyword::Haste))
+                && began.is_none_or(|t| perm.since >= t);
+            let runs = self.cards[perm.card.0 as usize].runs.as_ref().ok();
+            for ability in &chars.abilities {
+                let (tap, life, options) = match ability {
+                    // CR 305.6.
+                    Ability::Intrinsic(t) => (true, 0, vec![ManaPool::of([Mana::of(*t)])]),
+                    Ability::Unread(n) => match runs.and_then(|r| r.mana.get(n)) {
+                        Some(a) => (a.tap, a.life, a.options(player.identity.as_deref())),
+                        None => continue,
+                    },
+                    _ => continue,
+                };
+                // CR 118.3, 119.4.
+                if tap && (perm.tapped || sick) || life > 0 && player.life < life as i32 {
+                    continue;
+                }
+                let mut seen = BTreeSet::new();
+                for adds in options {
+                    if seen.insert(adds) {
+                        out.push(ManaActivation {
+                            source: id,
+                            ability: *ability,
+                            adds,
+                        });
+                    }
                 }
             }
         }
-        actions
+        out
+    }
+
+    fn payments(&self, p: PlayerId, owed: &ManaCost) -> Vec<Payment> {
+        let mut out: Vec<Payment> = self
+            .mana_activations(p)
+            .into_iter()
+            .map(Payment::Mana)
+            .collect();
+        out.extend(
+            owed.payments(&self.player(p).pool)
+                .into_iter()
+                .map(Payment::Spend),
+        );
+        out.push(Payment::Cancel);
+        out
     }
 
     fn act(&mut self, p: PlayerId, passes: usize, action: Action) -> Result<(), Rejected> {
         match action {
             Action::Pass => {
                 let passes = passes + 1;
-                if passes >= self.in_game() {
-                    // CR 117.4, 500.2: the stack is empty (nothing can be
-                    // on it yet), so the step ends.
-                    self.end_step();
-                } else {
+                if passes < self.in_game() {
                     let next = self.next_in_game(p);
                     self.give_priority(next, passes);
+                } else if self.stack.is_empty() {
+                    // CR 117.4, 500.2.
+                    self.end_step();
+                } else {
+                    // CR 405.5, 608.1.
+                    self.resolve_top();
                 }
             }
             Action::PlayLand(card) => {
-                let entry = &self.cards[card.0 as usize];
-                let lowered = entry.lowered.as_ref().map_err(|r| Rejected::Refused {
-                    card: entry.text.name.clone(),
-                    refusal: r.clone(),
-                })?;
-                let mut chars = lowered.chars.clone();
-                chars.controller = p;
-                let statics = lowered.statics.clone();
+                self.runs(card)?;
                 let player = &mut self.players[p.0 as usize];
                 player.hand.retain(|c| *c != card);
                 player.lands_played += 1;
-                let id = self.battlefield.enter(chars, statics);
-                self.permanents.insert(
-                    id,
-                    Permanent {
-                        card,
-                        tapped: false,
-                        since: self.turn,
-                    },
-                );
+                self.enter(card, p);
                 // CR 117.3c.
                 self.give_priority(p, 0);
             }
-            Action::TapForMana { land, adds } => {
-                if let Some(perm) = self.permanents.get_mut(&land) {
-                    perm.tapped = true;
-                }
-                self.players[p.0 as usize].pool.add(adds);
+            Action::Cast(card) => self.cast(p, card)?,
+            Action::Mana(a) => {
+                self.activate(p, a);
+                // CR 117.3c.
                 self.give_priority(p, 0);
             }
         }
         Ok(())
+    }
+
+    fn runs(&self, card: CardId) -> Result<&Runnable, Rejected> {
+        let entry = &self.cards[card.0 as usize];
+        entry.runs.as_ref().map_err(|r| Rejected::Refused {
+            card: entry.text.name.clone(),
+            refusal: r.clone(),
+        })
+    }
+
+    /// What this engine can't cast yet, beyond the card's abilities.
+    fn cast_refusal(&self, entry: &CardEntry, runs: &Runnable) -> Result<ManaCost, Unrunnable> {
+        let cost = entry.cost.clone()?.ok_or_else(|| {
+            Unrunnable::new("no mana cost", "it has no mana cost to pay (CR 118.6)")
+        })?;
+        let chars = &runs.lowered.chars;
+        // CR 306.5b, 310.4b: they enter with counters the card index
+        // doesn't keep, and leave without them (CR 704.5i).
+        for (t, node) in [
+            (CardType::Planeswalker, "Planeswalker"),
+            (CardType::Battle, "Battle"),
+        ] {
+            if chars.is(t) {
+                return Err(Unrunnable::new(
+                    node,
+                    format!("a {} enters with counters", node.to_lowercase()),
+                ));
+            }
+        }
+        // CR 303.4a: an Aura spell targets.
+        if chars.subtypes.contains(&Subtype::Other("Aura".into())) {
+            return Err(Unrunnable::new("Aura", "an Aura spell targets"));
+        }
+        Ok(cost)
+    }
+
+    /// CR 601.2a–f: move the card to the stack, then determine its total
+    /// cost and wait for it to be paid. The card has no modes, targets, X
+    /// or additional costs to announce, since one that has any is refused
+    /// when read.
+    fn cast(&mut self, p: PlayerId, card: CardId) -> Result<(), Rejected> {
+        let entry = &self.cards[card.0 as usize];
+        let runs = self.runs(card)?;
+        let cost = self
+            .cast_refusal(entry, runs)
+            .map_err(|refusal| Rejected::Refused {
+                card: entry.text.name.clone(),
+                refusal,
+            })?;
+        let from_command = self.command.contains(&card);
+        let before = self.clone();
+        if from_command {
+            self.command.retain(|c| *c != card);
+        } else {
+            self.players[p.0 as usize].hand.retain(|c| *c != card);
+        }
+        self.stack.push_back(StackObject::Spell {
+            card,
+            controller: p,
+        });
+        let owed = if from_command {
+            cost.plus_generic(COMMANDER_TAX * self.commander_casts(card))
+        } else {
+            cost
+        };
+        self.before_cast = Some(Box::new(before));
+        self.waiting = Waiting::Paying {
+            player: p,
+            spell: card,
+            owed,
+            from_command,
+        };
+        Ok(())
+    }
+
+    /// Pay a mana ability's cost and resolve it at once (CR 605.3b).
+    fn activate(&mut self, p: PlayerId, a: ManaActivation) {
+        let chars = self.characteristics();
+        let source = &chars[&a.source];
+        let perm = &self.permanents[&a.source];
+        let (tap, life, damage) = match a.ability {
+            Ability::Intrinsic(_) => (true, 0, 0),
+            Ability::Unread(n) => {
+                let runs = self.cards[perm.card.0 as usize].runs.as_ref().ok();
+                let def = &runs.expect("a listed ability runs").mana[&n];
+                (def.tap, def.life, def.damage_to_you)
+            }
+            _ => unreachable!("only mana abilities are listed"),
+        };
+        let lifelink = source
+            .abilities
+            .contains(&Ability::Keyword(Keyword::Lifelink));
+        if tap {
+            if let Some(perm) = self.permanents.get_mut(&a.source) {
+                perm.tapped = true;
+            }
+        }
+        let player = &mut self.players[p.0 as usize];
+        // CR 119.4.
+        player.life -= life as i32;
+        player.pool.add_all(&a.adds);
+        // CR 120.3a, 120.3f: its damage to its controller is life lost,
+        // and gained back if it has lifelink.
+        player.life -= damage as i32;
+        if lifelink {
+            player.life += damage as i32;
+        }
+    }
+
+    /// The top of the stack resolves (CR 608), and the active player gets
+    /// priority (CR 117.3b).
+    fn resolve_top(&mut self) {
+        if let Some(StackObject::Spell { card, controller }) = self.stack.pop_back() {
+            let permanent = self.cards[card.0 as usize]
+                .runs
+                .as_ref()
+                .is_ok_and(|r| is_permanent(&r.lowered.chars));
+            if permanent {
+                // CR 608.3a.
+                self.enter(card, controller);
+            } else {
+                // CR 608.2n. Only a spell with no instructions gets here.
+                let owner = self.owner(card);
+                self.players[owner.0 as usize].graveyard.push_back(card);
+            }
+        }
+        self.give_priority(self.active, 0);
+    }
+
+    /// The card enters the battlefield under `controller`'s control, tapped
+    /// if its own replacement effect says so. Which of those apply is read
+    /// off the permanent as it would exist on the battlefield (CR 614.12),
+    /// so a land that enters having lost its abilities enters untapped.
+    fn enter(&mut self, card: CardId, controller: PlayerId) {
+        let runs = self.cards[card.0 as usize]
+            .runs
+            .as_ref()
+            .expect("only a card that runs enters");
+        let mut chars = runs.lowered.chars.clone();
+        chars.controller = controller;
+        let id = self.battlefield.enter(chars, runs.lowered.statics.clone());
+        self.permanents.insert(
+            id,
+            Permanent {
+                card,
+                tapped: false,
+                since: self.turn,
+            },
+        );
+        let now = self.characteristics();
+        let has = &now[&id].abilities;
+        let tapped = runs.enters.iter().any(|(n, e)| {
+            has.contains(&Ability::Unread(*n))
+                && match e {
+                    Enters::Tapped => true,
+                    Enters::TappedUnlessYouControl(filter) => !now.iter().any(|(o, c)| {
+                        *o != id
+                            && c.controller == controller
+                            && filter.matches(&Seen {
+                                id: *o,
+                                chars: c,
+                                source: *o,
+                                source_chars: c,
+                                source_attached_to: None,
+                                token: self.battlefield.objects[o].token,
+                            })
+                    }),
+                }
+        });
+        if let Some(perm) = self.permanents.get_mut(&id) {
+            perm.tapped = tapped;
+        }
     }
 
     fn can_discard(&self, p: PlayerId, count: usize, cards: &[CardId]) -> bool {
@@ -680,8 +1132,27 @@ impl Game {
     /// Give `p` priority, after state-based actions (CR 704.3). If they have
     /// left, the next player in turn order gets it (CR 800.4a, 800.4j).
     fn give_priority(&mut self, p: PlayerId, passes: usize) {
-        if self.state_based_actions() == Checked::GameOver {
-            return;
+        match self.state_based_actions() {
+            Checked::GameOver => return,
+            Checked::Commander(card) => {
+                self.waiting = Waiting::ReturnCommander {
+                    owner: self.owner(card),
+                    card,
+                    then: p,
+                    passes,
+                };
+                return;
+            }
+            Checked::Legend(player, among) => {
+                self.waiting = Waiting::LegendRule {
+                    player,
+                    among,
+                    then: p,
+                    passes,
+                };
+                return;
+            }
+            Checked::Nothing | Checked::Performed => {}
         }
         let p = if self.player(p).left {
             self.next_in_game(p)
@@ -693,7 +1164,8 @@ impl Game {
 
     /// Perform state-based actions until none apply (CR 704.3). A player
     /// who loses leaves the game, and the game ends when one player or none
-    /// is left.
+    /// is left. A commander's owner choosing where it goes stops the check
+    /// with a decision (CR 903.9a).
     fn state_based_actions(&mut self) -> Checked {
         let mut checked = Checked::Nothing;
         loop {
@@ -705,10 +1177,26 @@ impl Game {
                     !player.left && (player.life <= 0 || player.drew_from_empty)
                 })
                 .collect();
-            if losers.is_empty() {
-                return checked;
+            // CR 704.5f.
+            let dying: Vec<ObjectId> = self
+                .characteristics()
+                .into_iter()
+                .filter(|(_, c)| c.pt.is_some_and(|p| p.toughness <= 0))
+                .map(|(id, _)| id)
+                .collect();
+            if losers.is_empty() && dying.is_empty() {
+                if let Some(legends) = self.legends() {
+                    return legends;
+                }
+                return match self.commanders_moved.front() {
+                    Some(c) => Checked::Commander(*c),
+                    None => checked,
+                };
             }
             checked = Checked::Performed;
+            for id in dying {
+                self.put_in_graveyard(id);
+            }
             for p in losers {
                 self.leave(p);
             }
@@ -730,6 +1218,37 @@ impl Game {
         }
     }
 
+    /// CR 704.5j: the first player controlling two or more legendary
+    /// permanents with the same name, and those permanents.
+    fn legends(&self) -> Option<Checked> {
+        let mut named: BTreeMap<(PlayerId, &str), Vec<ObjectId>> = BTreeMap::new();
+        for (id, c) in self.characteristics() {
+            if c.supertypes.contains(&Supertype::Legendary) {
+                let name = self.card(self.permanents[&id].card).name.as_str();
+                named.entry((c.controller, name)).or_default().push(id);
+            }
+        }
+        named
+            .into_iter()
+            .find(|(_, ids)| ids.len() > 1)
+            .map(|((p, _), ids)| Checked::Legend(p, ids))
+    }
+
+    /// A permanent is put into its owner's graveyard.
+    fn put_in_graveyard(&mut self, id: ObjectId) {
+        let Some(perm) = self.permanents.remove(&id) else {
+            return;
+        };
+        self.battlefield.leave(id);
+        let owner = self.owner(perm.card);
+        self.players[owner.0 as usize]
+            .graveyard
+            .push_back(perm.card);
+        if self.cards[perm.card.0 as usize].commander {
+            self.commanders_moved.push_back(perm.card);
+        }
+    }
+
     /// CR 800.4a: everything the player owns leaves the game. Nothing
     /// changes control yet, so that is everything they control too.
     fn leave(&mut self, p: PlayerId) {
@@ -744,6 +1263,10 @@ impl Game {
         player.pool = ManaPool::default();
         self.command.retain(|c| !owned(c));
         self.exile.retain(|c| !owned(c));
+        self.commanders_moved.retain(|c| !owned(c));
+        self.stack.retain(|o| match o {
+            StackObject::Spell { card, .. } => !owned(card),
+        });
         let gone: Vec<ObjectId> = self
             .permanents
             .iter()
@@ -757,50 +1280,180 @@ impl Game {
     }
 }
 
-/// A card whose abilities the game can carry on the battlefield so far.
-/// The layers carry triggered abilities and statics such as "enters
-/// tapped" unread (ADR-0037), and nothing here runs them yet: played, the
-/// card would skip them, so it is refused by name instead. An activated
-/// ability is safe to carry, since nothing activates one yet, and so is
-/// cycling, which works only from a hand (CR 702.29a, 702.29e).
-fn runnable(lowered: Lowered) -> Result<Lowered, String> {
-    fn inert(a: &i::Ability) -> bool {
-        match a {
-            i::Ability::Activated { .. } => true,
-            i::Ability::Keywords(ks) => ks
-                .iter()
-                .all(|k| k.name.to_lowercase().ends_with("cycling")),
-            i::Ability::Let { ability, .. } | i::Ability::Labelled { ability, .. } => {
-                inert(ability)
+fn unlowered(r: Refusal) -> Unrunnable {
+    let node = match &r {
+        Refusal::TypeLine(_) => "type line".to_string(),
+        Refusal::Unparsed { .. } => "Insight breaks".to_string(),
+        Refusal::Unlowered { node, .. } => node.clone(),
+    };
+    Unrunnable::new(node, r.to_string())
+}
+
+/// Keywords that only matter once creatures attack and block, which
+/// nothing does yet (CR 702.3b, 702.4a, 702.7a, 702.17a, 702.111a), and
+/// partner, which works before the game (CR 702.124a).
+fn combat_keyword(k: &i::Keyword) -> bool {
+    let name = k.name.to_lowercase();
+    matches!(
+        name.as_str(),
+        "reach" | "menace" | "first strike" | "double strike" | "defender"
+    ) || name == "partner" && k.param.is_none()
+}
+
+/// Abilities that work only from a hand, which nothing activates yet (CR
+/// 702.29a, 702.29e, 702.53a).
+fn hand_keyword(k: &i::Keyword) -> bool {
+    let name = k.name.to_lowercase();
+    name.ends_with("cycling") || name == "transmute"
+}
+
+/// What of a card's abilities the game runs, or the first it can't. The
+/// layers carry triggered abilities and statics such as "enters tapped"
+/// unread (ADR-0037); one the game can't run is refused by name rather
+/// than skipped. A non-mana activated ability is safe to carry, since
+/// nothing offers to activate one yet.
+fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
+    let mut runs = Runnable {
+        mana: BTreeMap::new(),
+        enters: BTreeMap::new(),
+        flash: false,
+        dormant: Vec::new(),
+        lowered,
+    };
+    for (n, a) in runs.lowered.unread.iter().enumerate() {
+        let n = n as u16;
+        // An ability word adds no rules (CR 207.2c), and a `Let` binds the
+        // targets and objects the ability names.
+        let mut a = a;
+        let mut bound = false;
+        loop {
+            match a {
+                i::Ability::Labelled { ability, .. } => a = ability,
+                i::Ability::Let { ability, .. } => {
+                    bound = true;
+                    a = ability
+                }
+                _ => break,
             }
-            _ => false,
+        }
+        match a {
+            // With a target it isn't a mana ability (CR 605.5a).
+            i::Ability::Activated { .. } if bound => {
+                runs.dormant.push("an activated ability".into())
+            }
+            i::Ability::Activated { .. } => match m::mana_ability(a) {
+                None => runs.dormant.push("an activated ability".into()),
+                Some(Ok(def)) => {
+                    runs.mana.insert(n, def);
+                }
+                Some(Err(node)) => {
+                    return Err(Unrunnable::new(
+                        node.clone(),
+                        format!("the game can't run its mana ability: {node}"),
+                    ))
+                }
+            },
+            i::Ability::Keywords(ks) => {
+                for k in ks {
+                    if k.name.eq_ignore_ascii_case("flash") {
+                        runs.flash = true;
+                    } else if hand_keyword(k) {
+                        runs.dormant.push(k.name.to_lowercase());
+                    } else if !combat_keyword(k) {
+                        return Err(Unrunnable::new(
+                            format!("keyword {}", k.name),
+                            format!("the game can't run {} yet", k.name),
+                        ));
+                    }
+                }
+            }
+            i::Ability::Static(parts) => {
+                let e = enters(parts).map_err(|node| {
+                    Unrunnable::new(
+                        node.clone(),
+                        format!("the game can't run its static ability {node} yet"),
+                    )
+                })?;
+                runs.enters.insert(n, e);
+            }
+            // A spell's instructions (CR 113.3a), which run as it resolves:
+            // lowering them into actions is the next slice.
+            i::Ability::Spell(effects) if effects.is_empty() => {}
+            i::Ability::Spell(_) => {
+                return Err(Unrunnable::new(
+                    "Spell",
+                    "the game can't run a spell's effects yet",
+                ))
+            }
+            i::Ability::Triggered { .. } => {
+                return Err(Unrunnable::new(
+                    "Triggered",
+                    "the game can't run its triggered ability yet",
+                ))
+            }
+            other => {
+                let node = short(other);
+                return Err(Unrunnable::new(
+                    node.clone(),
+                    format!("the game can't run its {node} ability yet"),
+                ));
+            }
         }
     }
-    match lowered.unread.iter().find(|a| !inert(a)) {
-        None => Ok(lowered),
-        Some(a) => Err(format!(
-            "the game can't run its {} yet",
-            match a {
-                i::Ability::Triggered { .. } => "triggered ability",
-                i::Ability::Static(_) => "static ability",
-                _ => "ability",
-            }
-        )),
+    Ok(runs)
+}
+
+/// An "enters tapped" static of the card's own (CR 614.1d).
+fn enters(parts: &[i::Static]) -> Result<Enters, String> {
+    let itself = |o: &i::Objects| o.quant == i::Quant::SelfRef;
+    match parts {
+        [i::Static::EntersTapped(what)] if itself(what) => Ok(Enters::Tapped),
+        [i::Static::EntersTappedUnless {
+            what,
+            unless: i::Condition::YouControl(objects),
+        }] if itself(what) => Ok(Enters::TappedUnlessYouControl(lower::condition_objects(
+            objects,
+        )?)),
+        [one] => Err(short(one)),
+        _ => Err("a static ability of several parts".into()),
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Checked {
     Nothing,
     Performed,
+    /// A commander's owner chooses whether it goes to the command zone.
+    Commander(CardId),
+    /// A player keeps one of these legendary permanents.
+    Legend(PlayerId, Vec<ObjectId>),
     GameOver,
+}
+
+/// The card types before the dash, front face first.
+fn type_words(type_line: &str) -> impl Iterator<Item = &str> {
+    let front = type_line.split("//").next().unwrap_or("");
+    let types = front.split('—').next().unwrap_or("");
+    types.split_whitespace()
 }
 
 /// Whether a type line, front face first, has the land card type.
 fn is_land(type_line: &str) -> bool {
-    let front = type_line.split("//").next().unwrap_or("");
-    let types = front.split('—').next().unwrap_or("");
-    types.split_whitespace().any(|w| w == "Land")
+    type_words(type_line).any(|w| w == "Land")
+}
+
+/// CR 110.4b; a kindred card is the other type it has (CR 308.1).
+fn is_permanent(chars: &Chars) -> bool {
+    [
+        CardType::Artifact,
+        CardType::Battle,
+        CardType::Creature,
+        CardType::Enchantment,
+        CardType::Land,
+        CardType::Planeswalker,
+    ]
+    .iter()
+    .any(|t| chars.is(*t))
 }
 
 #[cfg(test)]

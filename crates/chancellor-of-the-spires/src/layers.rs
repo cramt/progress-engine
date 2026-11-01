@@ -14,7 +14,8 @@ use ascent::aggregators::min;
 use ascent::ascent_run;
 
 use crate::model::{
-    Ability, Chars, Counter, Layer, ObjectId, Op, Seen, State, StaticAbility, StaticId, Timestamp,
+    Ability, CardType, Chars, Counter, Layer, ObjectId, Op, Seen, State, StaticAbility, StaticId,
+    Subtype, Timestamp,
 };
 
 /// A continuous effect: a static ability of one object (CR 611.3), or what
@@ -43,12 +44,15 @@ pub fn characteristics(state: &State) -> BTreeMap<ObjectId, Chars> {
             pending.remove(&next);
             run.apply(layer, next);
         }
+        if layer == Layer::Type {
+            run.intrinsic();
+        }
         if layer == Layer::ModifyPt {
             run.counters();
         }
     }
     for c in run.now.values_mut() {
-        if !c.is(crate::model::CardType::Creature) {
+        if !c.is(CardType::Creature) {
             c.pt = None;
         }
     }
@@ -90,7 +94,7 @@ impl Run<'_> {
         let statics = self.now.iter().flat_map(|(o, c)| {
             c.abilities.iter().filter_map(move |a| match a {
                 Ability::Static(s) => Some(Effect::Static(*o, *s)),
-                Ability::Keyword(_) | Ability::Unread(_) => None,
+                Ability::Keyword(_) | Ability::Unread(_) | Ability::Intrinsic(_) => None,
             })
         });
         let resolved = (0..self.state.resolved.len()).map(Effect::Resolved);
@@ -257,6 +261,26 @@ impl Run<'_> {
                     op.apply(c, printed);
                 }
             }
+        }
+    }
+
+    /// A land has a mana ability for each basic land type it has once
+    /// layer 4 is done, and none for a type it lost (CR 305.6, 305.7).
+    fn intrinsic(&mut self) {
+        for c in self.now.values_mut() {
+            c.abilities.retain(|a| !matches!(a, Ability::Intrinsic(_)));
+            if !c.is(CardType::Land) {
+                continue;
+            }
+            let types: Vec<_> = c
+                .subtypes
+                .iter()
+                .filter_map(|s| match s {
+                    Subtype::BasicLand(t) => Some(Ability::Intrinsic(*t)),
+                    _ => None,
+                })
+                .collect();
+            c.abilities.extend(types);
         }
     }
 

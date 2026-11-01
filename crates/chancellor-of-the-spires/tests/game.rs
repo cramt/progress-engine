@@ -3,19 +3,44 @@
 
 use std::path::Path;
 
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::OnceLock;
+
+use chancellor_of_the_spires::characteristics;
 use chancellor_of_the_spires::deck::{self, CardText, DeckCards};
 use chancellor_of_the_spires::game::*;
-use chancellor_of_the_spires::model::PlayerId;
+use chancellor_of_the_spires::lower;
+use chancellor_of_the_spires::model::{
+    pt, Ability, BasicLandType, CardType, Keyword, ObjectId, Op, PlayerId, State,
+};
 use chip_scryfall::index::IndexFile;
 
 const ME: PlayerId = PlayerId(0);
 const THEM: PlayerId = PlayerId(1);
 
+fn root() -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn index() -> &'static IndexFile {
+    static INDEX: OnceLock<IndexFile> = OnceLock::new();
+    INDEX.get_or_init(|| {
+        IndexFile::open(&root().join("decks/index.jsonl")).expect("decks/index.jsonl")
+    })
+}
+
 fn loam() -> DeckCards {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let index = IndexFile::open(&root.join("decks/index.jsonl")).expect("decks/index.jsonl");
-    let text = std::fs::read_to_string(root.join("decks/loam.deck.toml")).unwrap();
-    deck::read(&text, &index).unwrap_or_else(|e| panic!("{e}"))
+    let text = std::fs::read_to_string(root().join("decks/loam.deck.toml")).unwrap();
+    deck::read(&text, index()).unwrap_or_else(|e| panic!("{e}"))
+}
+
+/// A card as the index knows it.
+fn card(name: &str) -> CardText {
+    deck::card(name, index()).unwrap_or_else(|e| panic!("{e}"))
+}
+
+fn copies(c: &CardText, n: usize) -> Vec<CardText> {
+    (0..n).map(|_| c.clone()).collect()
 }
 
 fn forests(n: usize) -> DeckCards {
@@ -47,10 +72,29 @@ fn pass_until(game: &mut Game, who: PlayerId, step: Step) -> Decision {
             Decision::Discard { count, hand, .. } => {
                 game.step(Answer::Discard(hand[..count].to_vec())).unwrap()
             }
+            Decision::ReturnCommander { .. } => game.step(Answer::CommandZone(true)).unwrap(),
             _ => game.step(Answer::Act(Action::Pass)).unwrap(),
         };
     }
     panic!("never reached {step:?} with {who:?} holding priority: {d:?}")
+}
+
+/// Every player passes until my next precombat main phase: this turn's if
+/// it hasn't begun, else the next turn's.
+fn my_next_main(game: &mut Game) -> Decision {
+    if game.active() == ME && game.step_now() >= Step::PrecombatMain {
+        let turn = game.turn();
+        while game.turn() == turn {
+            match game.decision() {
+                Decision::Discard { count, hand, .. } => {
+                    game.step(Answer::Discard(hand[..count].to_vec())).unwrap()
+                }
+                Decision::ReturnCommander { .. } => game.step(Answer::CommandZone(true)).unwrap(),
+                _ => game.step(Answer::Act(Action::Pass)).unwrap(),
+            };
+        }
+    }
+    pass_until(game, ME, Step::PrecombatMain)
 }
 
 fn act(game: &mut Game, a: Action) -> Decision {
@@ -117,7 +161,7 @@ fn loam_goldfished_for_three_turns_plays_a_land_and_taps_for_mana() {
         while let Some(tap) = priority(&game.decision())
             .1
             .iter()
-            .find(|a| matches!(a, Action::TapForMana { .. }))
+            .find(|a| matches!(a, Action::Mana(_)))
             .copied()
         {
             act(&mut game, tap);
@@ -212,15 +256,7 @@ fn mana_empties_between_steps() {
     let tap = *priority(&d)
         .1
         .iter()
-        .find(|a| {
-            matches!(
-                a,
-                Action::TapForMana {
-                    adds: Mana::Green,
-                    ..
-                }
-            )
-        })
+        .find(|a| matches!(a, Action::Mana(m) if m.adds == ManaPool::of([Mana::Green])))
         .expect("the Forest's intrinsic ability, CR 305.6");
     act(&mut game, tap);
     assert_eq!(game.player(ME).pool().get(Mana::Green), 1);
@@ -249,6 +285,7 @@ fn drawing_from_an_empty_library_loses_the_game() {
                 game.step(Answer::Discard(hand[..count].to_vec())).unwrap()
             }
             Decision::Priority { .. } => game.step(Answer::Act(Action::Pass)).unwrap(),
+            other => panic!("{other:?}"),
         };
     }
     assert_eq!(d, Decision::Over(Outcome::Won(THEM)));
@@ -295,4 +332,643 @@ fn cleanup_discards_down_to_seven_as_a_decision() {
     // The next turn is mine, and begins in upkeep after the untap step.
     assert_eq!((game.turn(), game.step_now()), (3, Step::Upkeep));
     assert_eq!(priority(&d).0, ME);
+}
+
+fn actions(game: &Game) -> Vec<Action> {
+    priority(&game.decision()).1.to_vec()
+}
+
+fn in_hand(game: &Game, p: PlayerId, name: &str) -> Option<CardId> {
+    game.player(p)
+        .hand()
+        .iter()
+        .copied()
+        .find(|c| game.card(*c).name == name)
+}
+
+/// The permanent this card is, if it is one.
+fn permanent(game: &Game, c: CardId) -> Option<ObjectId> {
+    game.permanents()
+        .iter()
+        .find(|(_, p)| p.card == c)
+        .map(|(id, _)| *id)
+}
+
+/// The mana abilities `source` can activate now.
+fn mana_of(game: &Game, source: ObjectId) -> Vec<ManaActivation> {
+    actions(game)
+        .into_iter()
+        .filter_map(|a| match a {
+            Action::Mana(m) if m.source == source => Some(m),
+            _ => None,
+        })
+        .collect()
+}
+
+/// The pilot pays the cost being paid, the simplest way that works: spend
+/// from the pool once a payment exists; until then activate a mana
+/// ability, one adding a colour the cost still lacks if any, from the
+/// source with the fewest choices. If none is left it cancels (CR 733.1).
+fn pay(game: &mut Game) -> bool {
+    loop {
+        let Decision::Pay { owed, actions, .. } = game.decision() else {
+            panic!("not paying: {:?}", game.decision());
+        };
+        if let Some(spend) = actions.iter().find(|a| matches!(a, Payment::Spend(_))) {
+            game.step(Answer::Pay(*spend)).unwrap();
+            return true;
+        }
+        let pool = *game.player(game.active()).pool();
+        let lacks = |m: Mana| {
+            let wanted = owed.shards.iter().filter(|s| **s == Shard::One(m)).count() as u32;
+            wanted > pool.get(m)
+        };
+        let mut choices: BTreeMap<ObjectId, usize> = BTreeMap::new();
+        for a in &actions {
+            if let Payment::Mana(m) = a {
+                *choices.entry(m.source).or_default() += 1;
+            }
+        }
+        let best = actions
+            .iter()
+            .filter_map(|a| match a {
+                Payment::Mana(m) => Some(*m),
+                _ => None,
+            })
+            .min_by_key(|m| {
+                let useful = Mana::ALL.iter().any(|c| m.adds.get(*c) > 0 && lacks(*c));
+                (!useful, choices[&m.source])
+            });
+        match best {
+            Some(m) => {
+                game.step(Answer::Pay(Payment::Mana(m))).unwrap();
+            }
+            None => {
+                game.step(Answer::Pay(Payment::Cancel)).unwrap();
+                return false;
+            }
+        }
+    }
+}
+
+/// Everyone passes until the stack is empty (CR 405.5).
+fn resolve_stack(game: &mut Game) {
+    while !game.stack().is_empty() {
+        match game.decision() {
+            Decision::ReturnCommander { .. } => game.step(Answer::CommandZone(true)).unwrap(),
+            _ => game.step(Answer::Act(Action::Pass)).unwrap(),
+        };
+    }
+    if let Decision::ReturnCommander { .. } = game.decision() {
+        game.step(Answer::CommandZone(true)).unwrap();
+    }
+}
+
+/// Cast `c` and pay for it, leaving it on the stack.
+fn cast(game: &mut Game, c: CardId) {
+    let d = act(game, Action::Cast(c));
+    assert!(matches!(d, Decision::Pay { .. }), "{d:?}");
+    assert!(pay(game), "couldn't pay for {}", game.card(c).name);
+}
+
+/// CR 601.2, 117.1a, 302.1, 608.3a, 117.3b, 302.6: Birds of Paradise, from
+/// Loam, cast in my main phase: it goes on the stack and is paid for with
+/// the Forest's mana; when both players pass it resolves and enters the
+/// battlefield under my control, which the layers see, and I get priority
+/// again. Its {T} ability waits for my next turn.
+#[test]
+fn a_creature_cast_at_sorcery_speed_resolves_onto_the_battlefield() {
+    let birds = card("Birds of Paradise");
+    let library = [copies(&CardText::basic("Forest"), 20), copies(&birds, 10)].concat();
+    let mut game = Game::new(
+        vec![
+            DeckCards {
+                commander: vec![],
+                library,
+            },
+            forests(20),
+        ],
+        3,
+    );
+    my_next_main(&mut game);
+    let bird = in_hand(&game, ME, "Birds of Paradise").expect("a Birds in hand");
+    let forest = in_hand(&game, ME, "Forest").expect("a Forest in hand");
+    // Not castable without mana, but the cast can begin and be cancelled.
+    let d = act(&mut game, Action::Cast(bird));
+    let Decision::Pay {
+        player,
+        spell,
+        owed,
+        actions,
+    } = d
+    else {
+        panic!("{d:?}")
+    };
+    assert_eq!((player, spell, owed.to_string()), (ME, bird, "{G}".into()));
+    assert_eq!(actions, [Payment::Cancel]);
+    assert_eq!(
+        game.stack().len(),
+        1,
+        "on the stack as it's cast (CR 601.2a)"
+    );
+    game.step(Answer::Pay(Payment::Cancel)).unwrap();
+    assert!(game.stack().is_empty());
+    assert!(
+        game.player(ME).hand().contains(&bird),
+        "back in hand (CR 733.1)"
+    );
+
+    act(&mut game, Action::PlayLand(forest));
+    cast(&mut game, bird);
+    assert_eq!(
+        game.stack().iter().collect::<Vec<_>>(),
+        [&StackObject::Spell {
+            card: bird,
+            controller: ME
+        }]
+    );
+    assert_eq!(game.player(ME).pool().total(), 0);
+    // I hold priority after casting (CR 601.2i); I pass, they pass.
+    assert_eq!(priority(&game.decision()).0, ME);
+    act(&mut game, Action::Pass);
+    let d = act(&mut game, Action::Pass);
+    assert!(game.stack().is_empty());
+    assert_eq!(priority(&d).0, ME, "CR 117.3b");
+    assert_eq!(game.step_now(), Step::PrecombatMain);
+    let id = permanent(&game, bird).expect("on the battlefield");
+    let chars = &game.characteristics()[&id];
+    assert!(chars.is(CardType::Creature));
+    assert_eq!(chars.controller, ME);
+    assert_eq!(chars.pt, Some(pt(0, 1)));
+    assert!(chars.abilities.contains(&Ability::Keyword(Keyword::Flying)));
+    assert!(mana_of(&game, id).is_empty(), "summoning sick (CR 302.6)");
+    my_next_main(&mut game);
+    let colours: BTreeSet<ManaPool> = mana_of(&game, id).iter().map(|m| m.adds).collect();
+    assert_eq!(colours.len(), 5, "one mana of any color");
+}
+
+/// CR 117.1a, 304.1: an instant can be cast whenever I have priority, a
+/// creature only in my main phase with the stack empty. Beast Within is
+/// offered in the other player's upkeep, and refused by name since its
+/// effect doesn't run yet; Birds isn't offered, and casting it is illegal.
+#[test]
+fn a_creature_cant_be_cast_at_instant_speed() {
+    let library = [
+        copies(&CardText::basic("Forest"), 10),
+        copies(&card("Birds of Paradise"), 10),
+        copies(&card("Beast Within"), 10),
+    ]
+    .concat();
+    let mut game = Game::new(
+        vec![
+            DeckCards {
+                commander: vec![],
+                library,
+            },
+            forests(20),
+        ],
+        5,
+    );
+    let bird = in_hand(&game, ME, "Birds of Paradise").expect("a Birds in hand");
+    let beast = in_hand(&game, ME, "Beast Within").expect("a Beast Within in hand");
+    pass_until(&mut game, THEM, Step::Upkeep);
+    act(&mut game, Action::Pass);
+    let d = game.decision();
+    assert_eq!(priority(&d).0, ME);
+    assert!(priority(&d).1.contains(&Action::Cast(beast)));
+    assert!(!priority(&d).1.contains(&Action::Cast(bird)));
+    assert!(matches!(
+        game.step(Answer::Act(Action::Cast(bird))),
+        Err(Rejected::Illegal(_))
+    ));
+    match game.step(Answer::Act(Action::Cast(beast))) {
+        Err(Rejected::Refused { card, refusal }) => {
+            assert_eq!(
+                (card.as_str(), refusal.node.as_str()),
+                ("Beast Within", "Spell")
+            )
+        }
+        other => panic!("{other:?}"),
+    }
+    // In my own main phase, with a spell on the stack, still not.
+    my_next_main(&mut game);
+    let forest = in_hand(&game, ME, "Forest").expect("a Forest");
+    act(&mut game, Action::PlayLand(forest));
+    cast(&mut game, bird);
+    let other = in_hand(&game, ME, "Birds of Paradise").expect("another Birds");
+    assert!(!actions(&game).contains(&Action::Cast(other)));
+}
+
+/// CR 614.1d, 614.12, 502.3: Lonely Sandbar enters tapped, so its mana
+/// ability can't be activated until it untaps in my next untap step.
+/// Argoth enters tapped unless I control a legendary green creature, and I
+/// don't.
+#[test]
+fn a_tapped_land_enters_tapped() {
+    for name in ["Lonely Sandbar", "Argoth, Sanctum of Nature"] {
+        let mut game = Game::new(
+            vec![
+                DeckCards {
+                    commander: vec![],
+                    library: copies(&card(name), 20),
+                },
+                forests(20),
+            ],
+            1,
+        );
+        my_next_main(&mut game);
+        let land = land_in_hand(&game, ME);
+        act(&mut game, Action::PlayLand(land));
+        let id = permanent(&game, land).expect("on the battlefield");
+        assert!(game.permanents()[&id].tapped, "{name}");
+        assert!(mana_of(&game, id).is_empty());
+        my_next_main(&mut game);
+        assert!(!game.permanents()[&id].tapped);
+        assert_eq!(mana_of(&game, id).len(), 1, "{name}");
+    }
+}
+
+/// CR 605.1a, 605.3b, 120.3a, 119.4, 903.4: Karplusan Forest's two mana
+/// abilities, the second dealing me 1 damage; Fiery Islet's paying 1 life;
+/// Command Tower's adding a colour of my commander's identity, which for
+/// Borborygmos and Fblthp is blue, red and green.
+#[test]
+fn nonbasic_lands_mana_abilities() {
+    let library = [
+        card("Karplusan Forest"),
+        card("Fiery Islet"),
+        card("Command Tower"),
+    ]
+    .iter()
+    .flat_map(|c| copies(c, 10))
+    .collect();
+    let deck = DeckCards {
+        commander: vec![card("Borborygmos and Fblthp")],
+        library,
+    };
+    let mut game = Game::new(vec![deck, forests(20)], 2);
+    let mut played = BTreeMap::new();
+    for _ in 0..3 {
+        my_next_main(&mut game);
+        let land = ["Karplusan Forest", "Fiery Islet", "Command Tower"]
+            .into_iter()
+            .filter(|n| !played.contains_key(*n))
+            .find_map(|n| in_hand(&game, ME, n))
+            .expect("a land not played yet");
+        act(&mut game, Action::PlayLand(land));
+        played.insert(
+            game.card(land).name.clone(),
+            permanent(&game, land).unwrap(),
+        );
+    }
+    let adds = |game: &Game, name: &str| -> Vec<String> {
+        mana_of(game, played[name])
+            .iter()
+            .map(|m| m.adds.to_string())
+            .collect()
+    };
+    assert_eq!(adds(&game, "Karplusan Forest"), ["{C}", "{R}", "{G}"]);
+    assert_eq!(adds(&game, "Fiery Islet"), ["{U}", "{R}"]);
+    assert_eq!(adds(&game, "Command Tower"), ["{U}", "{R}", "{G}"]);
+
+    let karplusan = mana_of(&game, played["Karplusan Forest"]);
+    act(&mut game, Action::Mana(karplusan[1]));
+    assert_eq!(game.player(ME).life(), 39);
+    let islet = mana_of(&game, played["Fiery Islet"]);
+    act(&mut game, Action::Mana(islet[0]));
+    assert_eq!(game.player(ME).life(), 38);
+    assert_eq!(game.player(ME).pool().to_string(), "{U}{R}");
+    // Tapped, neither has an ability left to activate.
+    assert!(mana_of(&game, played["Karplusan Forest"]).is_empty());
+    assert!(mana_of(&game, played["Fiery Islet"]).is_empty());
+}
+
+/// CR 305.6, 305.7, 613.1d, 613.1f: a basic land type grants its mana
+/// ability, so an effect that sets the type changes the ability and one
+/// that removes all abilities removes it.
+#[test]
+fn a_land_that_loses_all_abilities_has_no_mana_ability() {
+    let forest = lower::card(&CardText::basic("Forest").as_card().unwrap()).unwrap();
+    let mut state = State::default();
+    let id = state.enter(forest.chars, forest.statics);
+    let intrinsic = |state: &State| -> Vec<Ability> {
+        characteristics(state)[&id]
+            .abilities
+            .iter()
+            .copied()
+            .filter(|a| matches!(a, Ability::Intrinsic(_)))
+            .collect()
+    };
+    assert_eq!(
+        intrinsic(&state),
+        [Ability::Intrinsic(BasicLandType::Forest)]
+    );
+    state.resolve([id], vec![Op::SetBasicLandType(BasicLandType::Mountain)]);
+    assert_eq!(
+        intrinsic(&state),
+        [Ability::Intrinsic(BasicLandType::Mountain)]
+    );
+    state.resolve([id], vec![Op::LoseAll]);
+    assert_eq!(intrinsic(&state), []);
+}
+
+/// CR 903.8, 903.9a, 704.5f: Rograkh, Son of Rohgahh, a 0/1 commander
+/// costing {0}, is cast from the command zone for {0}. Night of Souls'
+/// Betrayal makes it 0/0, so it dies, and I put it back in the command
+/// zone. Cast again it costs {2}, dies again, and the third time costs {4},
+/// which three Swamps can't pay, so that cast is cancelled.
+#[test]
+fn the_commander_is_cast_again_with_tax() {
+    let night = card("Night of Souls' Betrayal");
+    let deck = || DeckCards {
+        commander: vec![card("Rograkh, Son of Rohgahh")],
+        library: [copies(&CardText::basic("Swamp"), 25), copies(&night, 5)].concat(),
+    };
+    // A seed whose opening hand holds the Night and three Swamps, so the
+    // land drops and the Night come on curve.
+    let seed = (0..)
+        .find(|s| {
+            let game = Game::new(vec![deck(), forests(20)], *s);
+            in_hand(&game, ME, "Night of Souls' Betrayal").is_some()
+                && game
+                    .player(ME)
+                    .hand()
+                    .iter()
+                    .filter(|c| game.card(**c).name == "Swamp")
+                    .count()
+                    >= 3
+        })
+        .unwrap();
+    let mut game = Game::new(vec![deck(), forests(20)], seed);
+    let rograkh = game.command()[0];
+    let drop_swamp = |game: &mut Game| {
+        let swamp = in_hand(game, ME, "Swamp").expect("a Swamp");
+        act(game, Action::PlayLand(swamp));
+    };
+
+    my_next_main(&mut game);
+    drop_swamp(&mut game);
+    let d = act(&mut game, Action::Cast(rograkh));
+    let Decision::Pay { owed, .. } = &d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(owed.to_string(), "{0}");
+    assert!(pay(&mut game));
+    resolve_stack(&mut game);
+    assert_eq!(game.commander_casts(rograkh), 1);
+    let id = permanent(&game, rograkh).expect("on the battlefield");
+    assert_eq!(game.characteristics()[&id].pt, Some(pt(0, 1)));
+
+    for _ in 0..3 {
+        my_next_main(&mut game);
+        drop_swamp(&mut game);
+    }
+    let night = in_hand(&game, ME, "Night of Souls' Betrayal").unwrap();
+    cast(&mut game, night);
+    act(&mut game, Action::Pass);
+    let d = act(&mut game, Action::Pass);
+    // It resolved, Rograkh is 0/0 and dies, and I choose where it goes.
+    assert_eq!(
+        d,
+        Decision::ReturnCommander {
+            player: ME,
+            card: rograkh
+        }
+    );
+    assert!(game.player(ME).graveyard().contains(&rograkh));
+    let d = game.step(Answer::CommandZone(true)).unwrap();
+    assert_eq!(priority(&d).0, ME);
+    assert!(game.command().contains(&rograkh));
+
+    my_next_main(&mut game);
+    drop_swamp(&mut game);
+    let d = act(&mut game, Action::Cast(rograkh));
+    let Decision::Pay { owed, .. } = &d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(owed.to_string(), "{2}");
+    assert!(pay(&mut game));
+    resolve_stack(&mut game);
+    assert_eq!(game.commander_casts(rograkh), 2);
+    assert!(game.command().contains(&rograkh));
+    let d = act(&mut game, Action::Cast(rograkh));
+    let Decision::Pay { owed, .. } = &d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(owed.to_string(), "{4}");
+    assert!(!pay(&mut game), "three Swamps left");
+    assert!(game.command().contains(&rograkh));
+    assert_eq!(game.commander_casts(rograkh), 2);
+    // Cancelling reversed the Swamps' mana abilities too (CR 733.1).
+    assert_eq!(game.player(ME).pool().total(), 0);
+    let untapped_swamps = game
+        .permanents()
+        .values()
+        .filter(|p| !p.tapped && game.card(p.card).name == "Swamp")
+        .count();
+    assert_eq!(untapped_swamps, 3);
+}
+
+/// One of my main phases as the goldfish pilot plays it: a land, the first
+/// in hand the engine runs, basics last since nonbasics fix colours; then
+/// every spell it can cast and pay for, each resolved before the next.
+/// Returns what it played and cast, and adds what was refused.
+fn pilot_main_phase(game: &mut Game, refused: &mut BTreeSet<String>) -> Vec<String> {
+    let mut did = Vec::new();
+    let mut lands: Vec<CardId> = actions(game)
+        .iter()
+        .filter_map(|a| match a {
+            Action::PlayLand(c) => Some(*c),
+            _ => None,
+        })
+        .collect();
+    lands.sort_by_key(|c| game.card(*c).type_line.starts_with("Basic"));
+    for land in lands {
+        match game.step(Answer::Act(Action::PlayLand(land))) {
+            Ok(_) => {
+                did.push(game.card(land).name.clone());
+                break;
+            }
+            Err(Rejected::Refused { card, refusal }) => {
+                refused.insert(format!("{card}: {refusal}"));
+            }
+            Err(e) => panic!("{e}"),
+        }
+    }
+    let mut tried = BTreeSet::new();
+    while let Some(c) = actions(game).iter().find_map(|a| match a {
+        Action::Cast(c) if !tried.contains(c) => Some(*c),
+        _ => None,
+    }) {
+        tried.insert(c);
+        match game.step(Answer::Act(Action::Cast(c))) {
+            Ok(_) => {
+                if pay(game) {
+                    resolve_stack(game);
+                    did.push(format!("cast {}", game.card(c).name));
+                }
+            }
+            Err(Rejected::Refused { card, refusal }) => {
+                refused.insert(format!("{card}: {refusal}"));
+            }
+            Err(e) => panic!("{e}"),
+        }
+    }
+    did
+}
+
+/// Loam against a goldfish for six of its turns from seed 24, played by
+/// `pilot_main_phase`: lands, then whatever it can cast. Everything the
+/// engine refuses is refused by name.
+#[test]
+fn loam_goldfished_casts_what_it_can() {
+    let mut game = Game::new(vec![loam(), loam()], 24);
+    let mut refused = BTreeSet::new();
+    let mut turns = Vec::new();
+    for _ in 0..6 {
+        my_next_main(&mut game);
+        turns.push(pilot_main_phase(&mut game, &mut refused));
+    }
+    for (t, did) in turns.iter().enumerate() {
+        eprintln!("turn {}: {did:?}", 2 * t + 1);
+    }
+    for r in &refused {
+        eprintln!("refused {r}");
+    }
+    let did: Vec<Vec<&str>> = turns
+        .iter()
+        .map(|t| t.iter().map(String::as_str).collect())
+        .collect();
+    assert_eq!(
+        did,
+        [
+            vec!["Yavimaya, Cradle of Growth"],
+            vec!["Cephalid Coliseum", "cast Trade Routes"],
+            vec!["Scalding Tarn"],
+            vec!["Mountain"],
+            vec!["Command Beacon"],
+            vec![],
+        ]
+    );
+    // Trade Routes' {U} came from Cephalid Coliseum, which dealt me 1
+    // damage (CR 120.3a).
+    assert_eq!(game.player(ME).life(), 39);
+    assert_eq!(game.permanents().len(), 6);
+    assert_eq!(game.player(THEM).lands_played(), 0);
+    assert!(refused
+        .iter()
+        .any(|r| r.starts_with("Borborygmos and Fblthp")));
+}
+
+/// How many of Loam's distinct cards this engine plays (a land) or casts
+/// and resolves whole, each in a game of its own: a land from a hand of
+/// it, any other card as the commander from the command zone, with Forests,
+/// Islands and Mountains to pay for it, for up to twelve of my turns. The
+/// rest are counted by the node refused. Run with `--nocapture` to read
+/// them.
+#[test]
+fn loam_coverage() {
+    let deck = loam();
+    let mut seen = BTreeSet::new();
+    let cards: Vec<CardText> = deck
+        .commander
+        .iter()
+        .chain(&deck.library)
+        .filter(|c| seen.insert(c.name.clone()))
+        .cloned()
+        .collect();
+    let basics: Vec<CardText> = ["Forest", "Island", "Mountain"]
+        .iter()
+        .flat_map(|n| copies(&CardText::basic(n), 10))
+        .collect();
+    let mut runs = Vec::new();
+    let mut refused: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for c in &cards {
+        let land = c.type_line.split("//").next().unwrap().contains("Land");
+        let mine = if land {
+            DeckCards {
+                commander: vec![],
+                library: copies(c, 10),
+            }
+        } else {
+            DeckCards {
+                commander: vec![c.clone()],
+                library: basics.clone(),
+            }
+        };
+        let mut game = Game::new(vec![mine, forests(30)], 7);
+        let target = if land {
+            game.player(ME).hand()[0]
+        } else {
+            game.command()[0]
+        };
+        if let Some(r) = game.refusal(target) {
+            refused.entry(r.node).or_default().push(c.name.clone());
+            continue;
+        }
+        let mut done = false;
+        for _ in 0..12 {
+            my_next_main(&mut game);
+            if land {
+                act(&mut game, Action::PlayLand(target));
+                done = permanent(&game, target).is_some();
+                break;
+            }
+            let lands: Vec<CardId> = actions(&game)
+                .iter()
+                .filter_map(|a| match a {
+                    Action::PlayLand(l) => Some(*l),
+                    _ => None,
+                })
+                .collect();
+            // A colour I have fewest of.
+            let have = |n: &str| {
+                game.permanents()
+                    .values()
+                    .filter(|p| game.card(p.card).name == n)
+                    .count()
+            };
+            if let Some(l) = lands.iter().min_by_key(|l| have(&game.card(**l).name)) {
+                act(&mut game, Action::PlayLand(*l));
+            }
+            if !actions(&game).contains(&Action::Cast(target)) {
+                continue;
+            }
+            act(&mut game, Action::Cast(target));
+            if pay(&mut game) {
+                resolve_stack(&mut game);
+                done = permanent(&game, target).is_some()
+                    || game.player(ME).graveyard().contains(&target);
+                break;
+            }
+        }
+        assert!(done, "{} ran but wasn't played or cast", c.name);
+        runs.push((c.name.clone(), game.dormant(target).to_vec()));
+    }
+    let whole: Vec<&str> = runs
+        .iter()
+        .filter(|(_, d)| d.is_empty())
+        .map(|(n, _)| n.as_str())
+        .collect();
+    eprintln!(
+        "{} of Loam's {} distinct cards are played or cast and resolved; {} with every ability running",
+        runs.len(),
+        cards.len(),
+        whole.len()
+    );
+    eprintln!("  whole: {}", whole.join(", "));
+    for (name, dormant) in runs.iter().filter(|(_, d)| !d.is_empty()) {
+        eprintln!(
+            "  {name}, carrying {} not activatable yet",
+            dormant.join(", ")
+        );
+    }
+    let mut top: Vec<_> = refused.into_iter().collect();
+    top.sort_by_key(|(_, names)| std::cmp::Reverse(names.len()));
+    for (node, names) in &top {
+        eprintln!("{:>4}  {node}: {}", names.len(), names.join(", "));
+    }
+    assert_eq!(cards.len(), 90);
+    // The README's number: a change that moves it updates it there.
+    assert_eq!((runs.len(), whole.len()), (31, 8));
 }

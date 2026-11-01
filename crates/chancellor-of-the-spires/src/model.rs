@@ -92,6 +92,10 @@ pub enum Keyword {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Ability {
     Keyword(Keyword),
+    /// The mana ability a basic land type gives a land (CR 305.6). The
+    /// layers grant it after layer 4 settles the land's types, so a land
+    /// that loses all abilities in layer 6 loses it too.
+    Intrinsic(BasicLandType),
     Static(StaticId),
     /// A triggered or activated ability: the layers carry it, so an effect
     /// can remove it, but don't read it. The index is its place among the

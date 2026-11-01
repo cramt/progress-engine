@@ -565,6 +565,26 @@ fn fixed(p: &IPt) -> Option<Pt> {
     }
 }
 
+/// "a legendary green creature" in "unless you control …": a filter over
+/// the battlefield read once, as the condition is checked. Nothing is the
+/// condition's source, so "other" and "this" are refused.
+pub fn condition_objects(o: &Objects) -> Result<Filter, String> {
+    if o.quant != Quant::One {
+        return Err(format!("a condition on {}", short(&o.quant)));
+    }
+    let f = objects(&Objects {
+        quant: Quant::All,
+        filter: o.filter.clone(),
+    })?;
+    if f.0
+        .iter()
+        .any(|p| matches!(p, Pred::Other | Pred::Itself | Pred::AttachedTo))
+    {
+        return Err("a condition relative to its source".into());
+    }
+    Ok(f)
+}
+
 /// "All creatures", "nontoken artifacts you control": a filter over the
 /// battlefield, re-read as the layers go. Targets aren't a static's.
 fn objects(o: &Objects) -> Result<Filter, String> {

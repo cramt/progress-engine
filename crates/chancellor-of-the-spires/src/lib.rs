@@ -10,6 +10,7 @@ pub mod deck;
 pub mod game;
 pub mod layers;
 pub mod lower;
+pub mod mana;
 pub mod model;
 
 pub use layers::characteristics;
