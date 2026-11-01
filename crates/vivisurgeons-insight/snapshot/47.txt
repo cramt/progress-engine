@@ -469,7 +469,7 @@ cost: {U}{U}
 > At the beginning of your upkeep, you may put a treasure counter on this enchantment.
 > Sacrifice this enchantment: Gain control of target creature with power less than or equal to the number of treasure counters on this enchantment. (This effect lasts indefinitely.)
 = Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "treasure", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
-= BROKE at "on" after: sacrifice this enchantment : gain control of target creature with power less than or equal to the number of treasure counters
+= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("treasure"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) })], or: None } }, dur: Permanent }], limits: [] }
 
 ## Lignify
 face: Lignify

@@ -15,7 +15,7 @@ type: Enchantment — Aura Curse
 > At the beginning of enchanted player's upkeep, that player loses 1 life and you gain 1 life.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(You), Targets(Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= Triggered { trigger: At(Upkeep(EnchantedPlayers)), effect: [LoseLife { who: That, n: N(1) }, GainLife { who: You, n: N(1) }], limits: [] }
 
 ## Adamaro, First to Desire
 face: Adamaro, First to Desire

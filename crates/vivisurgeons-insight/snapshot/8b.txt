@@ -226,7 +226,7 @@ cost: {2}{U}
 > Enchant player
 > At the beginning of enchanted player's upkeep, that player mills two cards.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= Triggered { trigger: At(Upkeep(EnchantedPlayers)), effect: [Mill { who: That, n: N(2) }], limits: [] }
 
 ## Dawnhart Mentor
 face: Dawnhart Mentor

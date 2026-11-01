@@ -13,6 +13,7 @@ pub(super) fn whose_step(p: &mut P) -> Option<Whose> {
         |p| { p.words("the first")?; (p.peek_word() == Some("upkeep")).then_some(Whose::First) },
         |p| p.words("each opponent 's").map(|_| Whose::EachOpponent),
         |p| p.words("each other player 's").map(|_| Whose::EachOther),
+        |p| p.one_of(&["enchanted player 's", "enchanted opponent 's"]).map(|_| Whose::EnchantedPlayers),
         |p| p.words("each player 's").map(|_| Whose::Each),
         |p| p.word("each").map(|_| Whose::Each),
         |p| p.words("that player 's").map(|_| Whose::ThatPlayers),

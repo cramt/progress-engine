@@ -202,7 +202,7 @@ cost: {2}{B}
 > Daybound (If a player casts no spells during their own turn, it becomes night next turn.)
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
 = Static([AsTransforms { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Attach { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: One, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } } }] }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= Triggered { trigger: At(Upkeep(EnchantedPlayers)), effect: [LoseLife { who: That, n: N(1) }, GainLife { who: You, n: N(1) }], limits: [] }
 = Keywords([Keyword { name: "daybound", param: None }])
 
 ## Curse of Leeches // Leeching Lurker

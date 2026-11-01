@@ -282,7 +282,7 @@ cost: {4}{U}
 > Enchant player
 > At the beginning of enchanted player's upkeep, any number of target players other than that player each draw cards equal to the number of Curses attached to that player.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= BROKE at "that" after: at the beginning of enchanted player 's upkeep , any number of target players other than
 
 ## Dawnglade Regent
 face: Dawnglade Regent

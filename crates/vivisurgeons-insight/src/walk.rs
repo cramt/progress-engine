@@ -1419,6 +1419,12 @@ impl Walk for Effect {
                 }
                 Walk::walk(dur, v);
             }
+            Effect::PaysRather { what, cost } => {
+                Walk::walk(what, v);
+                for x0 in (cost).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Effect::IsNow {
                 what,
                 types,

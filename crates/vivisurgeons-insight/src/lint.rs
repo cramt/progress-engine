@@ -216,9 +216,12 @@ fn scope(a: Ability, cx: Context, out: &mut Vec<Kind>) {
             }
             // "At the beginning of each player's upkeep, that player …":
             // the step's player, whom no `Player` names.
-            if trigger_step(trigger)
-                .is_some_and(|w| matches!(w, Whose::Each | Whose::EachOpponent | Whose::EachOther))
-                || trigger_event(trigger).is_some_and(event_names_player)
+            if trigger_step(trigger).is_some_and(|w| {
+                matches!(
+                    w,
+                    Whose::Each | Whose::EachOpponent | Whose::EachOther | Whose::EnchantedPlayers
+                )
+            }) || trigger_event(trigger).is_some_and(event_names_player)
             {
                 v.players += 1;
             }

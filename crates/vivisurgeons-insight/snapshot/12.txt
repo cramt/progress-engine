@@ -328,7 +328,7 @@ cost: {3}
 > {T}: Add one mana of any color. Put an omen counter on this creature.
 > At the beginning of your end step, if there are three or more omen counters on this creature, untap it, then transform it.
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None }), PutCounters { n: N(1), kind: "omen", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "on" after: at the beginning of your end step , if there are three or more omen counters
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("omen"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }), effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Foreboding Statue // Forsaken Thresher
 face: Forsaken Thresher

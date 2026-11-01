@@ -2165,6 +2165,15 @@ pub enum Effect {
         uses: Vec<SpendUse>,
         dur: Duration,
     },
+    /// "If you cast a spell this way, pay life equal to its mana value
+    /// rather than pay its mana cost": an alternative cost (CR 118.9) of the
+    /// spells a lasting permission lets you cast, the effect's form of
+    /// `Static::PaysRather`.
+    PaysRather {
+        what: Objects,
+        /// What is paid instead.
+        cost: Vec<Cost>,
+    },
     /// "It's an enchantment.": what a permanent an effect returns is as it
     /// enters, where "becomes" would apply only after (CR 611.2e).
     IsNow {
@@ -3545,6 +3554,10 @@ pub enum Whose {
     /// "the first upkeep": the game's, the starting player's.
     First,
     EachOther,
+    /// "at the beginning of enchanted player's upkeep": the player a Curse
+    /// enchants, whom a later "that player" names. "Enchanted opponent's"
+    /// is the same player ([enchanted-opponent]).
+    EnchantedPlayers,
 
     /// "at the beginning of that combat": the one an earlier effect made.
     That,

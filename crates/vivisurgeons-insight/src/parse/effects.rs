@@ -646,6 +646,18 @@ fn effect_first(p: &mut P) -> Option<Effect> {
 
 fn effect_main(p: &mut P) -> Option<Effect> {
     alt!(p;
+        // "If you cast a spell this way, pay life equal to its mana value
+        // rather than pay its mana cost" after a lasting permission (Inside
+        // Information): an alternative cost of the spells it lets you cast
+        // (CR 118.9), as the static's `PaysRather` is.
+        |p| {
+            if !p.ahead("rather than") { return None; }
+            let cost = costs(p)?;
+            p.words("rather than")?;
+            p.one_of(&["pay", "paying"])?;
+            p.words("its mana cost")?;
+            Some(Effect::PaysRather { what: antecedent(), cost })
+        },
         // draw
         // "draws X cards plus an additional card for each time they've cast
         // a commander from the command zone this game" (Commander's Insight).

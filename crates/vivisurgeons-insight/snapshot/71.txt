@@ -173,7 +173,7 @@ cost: {1}{R}
 > Enchant player
 > At the beginning of enchanted player's upkeep, this Aura deals 1 damage to that player or a planeswalker that player controls.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= Triggered { trigger: At(Upkeep(EnchantedPlayers)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Or([Player(That), Objects(Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(That)], or: None } })])] }], limits: [] }
 
 ## Damping Engine
 face: Damping Engine

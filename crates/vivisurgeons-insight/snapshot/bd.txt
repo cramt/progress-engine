@@ -958,7 +958,7 @@ cost: {1}{W}
 > At the beginning of enchanted opponent's end step, you and that player each draw a card.
 > When you attack enchanted opponent or a planeswalker they control or when they attack you or a planeswalker you control, sacrifice this Aura.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } })) }])
-= BROKE at "step" after: at the beginning of enchanted opponent 's end
+= Triggered { trigger: At(EndStep(EnchantedPlayers)), effect: [Draw { who: EachOf([You, That]), n: N(1) }], limits: [] }
 = BROKE at "planeswalker" after: when you attack enchanted opponent or a
 
 ## The Archimandrite

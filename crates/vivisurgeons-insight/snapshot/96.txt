@@ -241,7 +241,7 @@ cost: {4}{B}
 > Enchant player
 > At the beginning of enchanted player's upkeep, this Aura deals damage to that player equal to the number of Curses attached to them.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= BROKE at "them" after: at the beginning of enchanted player 's upkeep , this aura deals damage to that player equal to the number of curses attached to
 
 ## Daxos the Returned
 face: Daxos the Returned

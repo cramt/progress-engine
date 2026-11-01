@@ -237,7 +237,7 @@ cost: {4}{B}{R}{G}
 > At the beginning of your upkeep, if this card is exiled with an egg counter on it, remove an egg counter from it. Then if this card has no egg counters on it, return it to the battlefield.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
 = BROKE at "," after: if darigaaz would die
-= BROKE at "on" after: at the beginning of your upkeep , if this card is exiled with an egg counter
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [ExiledWith(Objects { quant: One, filter: Filter { alts: [], kind: Some(Counter(Some("egg"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })], or: None } }), effect: [RemoveCounters { n: N(1), kind: "egg", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Leading, cond: Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("egg") }), then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Dawnfeather Eagle
 face: Dawnfeather Eagle

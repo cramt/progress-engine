@@ -353,7 +353,22 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
     // "an artifact, enchantment, or token": a list of types whose last
     // alternative is a kind of object instead.
     let mut or_kind = None;
-    if let Some(g) = p.attempt(group) {
+    // "four or more chorus counters on ~" (Malcolm): a word that is also a
+    // subtype (Chorus is a sorcery's) names the counter's kind before
+    // "counters", not a type of it.
+    let start = p.i;
+    let counter_kind_next = |p: &P| {
+        p.i == start + 1
+            && matches!(p.t.get(p.i), Some(Tok::Word(w)) if w == "counters" || w == "counter")
+    };
+    if let Some(g) = p
+        .attempt(group)
+        .filter(|_| !counter_kind_next(p))
+        .or_else(|| {
+            p.i = start;
+            None
+        })
+    {
         groups.push(g);
         // A comma list of types ends in "or" or "and"; without one the comma
         // ends the object: "a Mountain, creatures you control have haste".
@@ -806,6 +821,13 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // "a creature you own but don't control" (Coveted Falcon): the
         // controller said after the owner is you.
         |p| p.words("but don't control").map(|_| Post::NotControlledBy(Player::You)),
+        // "other nonland permanents you own and control" (Yorion): the
+        // controller said after the owner is you too.
+        |p| {
+            let w = |s: &str| Tok::Word(s.into());
+            if p.i < 2 || p.t[p.i - 2..p.i] != [w("you"), w("own")] { return None; }
+            p.words("and control").map(|_| Post::Controller(Player::You))
+        },
         // "a spell they don't own" (Gonti, Night Minister).
         |p| { let pl = player_simple(p)?; if pl == Player::You { return None; } p.one_of(&["doesn't own", "don't own"])?; Some(Post::NotOwnedBy(pl)) },
         |p| { let pl = player_simple(p)?; p.one_of(&["controls", "control"])?; Some(Post::Controller(pl)) },

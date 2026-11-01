@@ -1236,6 +1236,29 @@ mod syn {
         );
     }
 
+    /// Named rewrite [rather-than-paying]: "rather than paying its mana
+    /// cost" (Nashi, Moon Sage's Scion) is "rather than pay its mana cost"
+    /// (Inside Information): the same alternative cost (CR 118.9).
+    pub fn rather_than_paying(o: &mut Out) {
+        any_of(
+            o,
+            &[
+                "rather than pay its mana cost",
+                "rather than paying its mana cost",
+            ],
+        );
+    }
+
+    /// Named rewrite [enchanted-opponent]: "at the beginning of enchanted
+    /// opponent's end step" (Tenuous Truce) is the enchanted player's: an
+    /// Aura with "Enchant opponent" can enchant no other player (CR 702.5a).
+    pub fn enchanted_players(o: &mut Out) {
+        alt(
+            o,
+            vec![of("enchanted player's"), of("enchanted opponent's")],
+        );
+    }
+
     /// Named rewrite [that-opponent]: "if that opponent has more life than
     /// another of your opponents" (Breena, the Demagogue) is "that player",
     /// the opponent the trigger saw attacked.
@@ -5023,6 +5046,15 @@ fn posts_said(o: &mut Out, ps: &[Post], n: Num) {
         {
             post(o, &ps[i], n);
             o.w("but don't control");
+            i += 2;
+            continue;
+        }
+        // "nonland permanents you own and control".
+        if let (Post::Owner(Player::You), Some(Post::Controller(Player::You))) =
+            (&ps[i], ps.get(i + 1))
+        {
+            post(o, &ps[i], n);
+            o.w("and control");
             i += 2;
             continue;
         }
@@ -9285,6 +9317,10 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
             syn::any_type_spent(o);
             spend_uses(o, uses);
         }
+        Effect::PaysRather { cost: c, .. } => {
+            costs(o, c);
+            syn::rather_than_paying(o);
+        }
         Effect::IsNow {
             what,
             types,
@@ -10828,6 +10864,15 @@ fn step(o: &mut Out, s: &Step) {
         }
         return;
     }
+    if *w == Whose::EnchantedPlayers {
+        syn::enchanted_players(o);
+        if matches!(s, Step::PrecombatMain(_)) {
+            syn::precombat_main(o);
+        } else {
+            o.w(name);
+        }
+        return;
+    }
     o.w(match w {
         Whose::Yours => "your",
         Whose::Each => "each",
@@ -10840,6 +10885,7 @@ fn step(o: &mut Out, s: &Step) {
         Whose::YourFirst => "your first",
         Whose::First => "the first",
         Whose::EachOther => "each other player's",
+        Whose::EnchantedPlayers => unreachable!("said above"),
 
         Whose::That => "that",
     });

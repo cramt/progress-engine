@@ -437,7 +437,7 @@ cost: {G}
 > At the beginning of your upkeep, if there are 100 or more tower counters on this enchantment, you win the game.
 = Keywords([Keyword { name: "shroud", param: None }])
 = Activated { cost: [Mana(Mana(["X"]))], effect: [PutCounters { n: X, kind: "tower", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "on" after: at the beginning of your upkeep , if there are 100 or more tower counters
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("tower"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(100) }), effect: [WinGame(You)], limits: [] }
 
 ## Helpful Hunter
 face: Helpful Hunter
