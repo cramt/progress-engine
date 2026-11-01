@@ -1728,6 +1728,13 @@ mod syn {
         alt(o, vec![is, remains]);
     }
 
+    /// [exiled-with-counter]: "this card is exiled with an egg counter on
+    /// it" (Darigaaz Reincarnated) is "this card remains exiled and this
+    /// card has an egg counter on it": in exile, with the counter.
+    pub fn exiled_with_counter(o: &mut Out, with: Out, full: Out) {
+        alt(o, vec![with, full]);
+    }
+
     /// "creatures get an additional -2/-2": the bonus adds to the earlier
     /// one, as any later bonus does (as with "also").
     pub fn additional(o: &mut Out) {
@@ -4426,7 +4433,8 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         | Quant::ThisAbility
         | Quant::SourceOf(_)
         | Quant::Unresolved(Hint::Linked)
-        | Quant::Unresolved(Hint::OriginalAndCopies) => objects_plain(
+        | Quant::Unresolved(Hint::OriginalAndCopies)
+        | Quant::Unresolved(Hint::Pile) => objects_plain(
             o,
             &Objects {
                 quant: Quant::Unresolved(Hint::Antecedent),
@@ -11815,6 +11823,34 @@ fn condition_said(o: &mut Out, c: &Condition) {
         }
         Condition::Not(c) => not_condition(o, c),
         Condition::And(v) => {
+            // "this card is exiled with an egg counter on it" (Darigaaz
+            // Reincarnated): in exile, with the counter ([exiled-with-counter]).
+            if let [c @ Condition::In {
+                what: a,
+                zone: Zone::Exile,
+            }, Condition::HasCounter {
+                what: b,
+                kind: Some(k),
+            }] = &v[..]
+            {
+                if a == b {
+                    let with = out(|o| {
+                        objects(o, a);
+                        o.verb("are exiled", obj_num(a));
+                        o.w("with a");
+                        counter_kind(o, k);
+                        o.w("counter on");
+                        syn::it(o);
+                    });
+                    let full = out(|o| {
+                        condition(o, c);
+                        o.w("and");
+                        condition(o, &v[1]);
+                    });
+                    syn::exiled_with_counter(o, with, full);
+                    return;
+                }
+            }
             if v.iter().all(|c| matches!(c, Condition::YouControl(_))) {
                 o.w("you control");
                 for (i, c) in v.iter().enumerate() {

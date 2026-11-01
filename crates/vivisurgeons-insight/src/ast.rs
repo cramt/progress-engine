@@ -954,6 +954,10 @@ pub enum Hint {
     Pool,
     /// "the rest": what the nearest choice left.
     Rest,
+    /// "the exiled cards", "the revealed cards" after cards were exiled or
+    /// revealed until one was found: every card the dig moved, not the
+    /// one it found ([dig-pile]). Otherwise as `Antecedent`.
+    Pile,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]

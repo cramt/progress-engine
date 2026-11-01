@@ -269,7 +269,7 @@ face: Essence Backlash
 type: Instant
 cost: {2}{U}{R}
 > Counter target creature spell. Essence Backlash deals damage equal to that spell's power to its controller.
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }], ability: Spell([Counter { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: None }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), to: [Player(ControllerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }]) }
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }], ability: Spell([Counter { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: None }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), to: [Player(ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }]) }
 
 ## Etali, Primal Storm
 face: Etali, Primal Storm

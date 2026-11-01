@@ -645,8 +645,17 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 // "if this card is exiled" (Senu): in exile ([is-exiled]).
                 |p| {
                     p.one_of(&["is exiled", "are exiled"])?;
-                    if p.peek_word() == Some("with") { return None; }
-                    Some(Condition::In { what: what.clone(), zone: Zone::Exile })
+                    let exiled = Condition::In { what: what.clone(), zone: Zone::Exile };
+                    if p.peek_word() != Some("with") { return Some(exiled); }
+                    // Darigaaz Reincarnated's "if this card is exiled with an
+                    // egg counter on it": in exile, and the counter on it
+                    // ([exiled-with-counter]).
+                    p.word("with")?;
+                    p.one_of(&["a", "an"])?;
+                    let kind = counter_kind(p)?;
+                    p.words("counter on")?;
+                    pronoun(p)?;
+                    Some(Condition::And(vec![exiled, Condition::HasCounter { what: what.clone(), kind: Some(kind) }]))
                 },
                 // "this enchantment has seven or more quest counters on it".
                 |p| {

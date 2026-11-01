@@ -1645,6 +1645,17 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
                     f.posts.insert(0, Post::CreatedWith(Box::new(self_ref())));
                     return Some(Objects { quant: Quant::Unresolved(Hint::Linked), filter: f });
                 }
+                // Chaos Wand's "exiles cards … until they exile an instant or
+                // sorcery card. … Then put the exiled cards that weren't cast
+                // this way on the bottom": every card exiled, not the one
+                // found ([dig-pile]).
+                Some(m @ (Marked::Exiled | Marked::Revealed))
+                    if plural_noun(&p.t[start..p.i])
+                        && p.t[..start].iter().any(|t| matches!(t, Tok::Word(w) if w == "until")) =>
+                {
+                    f.posts.insert(0, Post::Marked(m));
+                    return Some(Objects { quant: Quant::Unresolved(Hint::Pile), filter: f });
+                }
                 Some(m) => f.posts.insert(0, Post::Marked(m)),
                 // Balustrade Spy's "reveals cards … until they reveal a land
                 // card, then puts those cards into their graveyard": every
@@ -1680,6 +1691,16 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             })
         },
     )
+}
+
+/// Whether a noun phrase's noun is "cards" rather than "card".
+fn plural_noun(np: &[Tok]) -> bool {
+    np.iter()
+        .find_map(|t| match t {
+            Tok::Word(w) if w == "card" || w == "cards" => Some(w == "cards"),
+            _ => None,
+        })
+        .unwrap_or(false)
 }
 
 /// Whether the words of an ability before a phrase exile something, so
