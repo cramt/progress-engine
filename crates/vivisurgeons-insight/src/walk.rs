@@ -167,6 +167,9 @@ impl Walk for Adj {
             Adj::OtherThan(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Adj::OtherThanPlayer(f0) => {
+                Walk::walk(f0, v);
+            }
             _ => {}
         }
     }

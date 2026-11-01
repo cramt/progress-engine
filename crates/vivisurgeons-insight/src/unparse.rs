@@ -4722,7 +4722,7 @@ fn adj(o: &mut Out, a: &Adj, noun: Option<Num>) {
         Adj::Ability(AbilityKind::Mana) => "mana".into(),
         Adj::Ability(AbilityKind::Equip) => "equip".into(),
         Adj::Ability(AbilityKind::Ninjutsu) => "ninjutsu".into(),
-        Adj::OtherThan(_) => "other".into(),
+        Adj::OtherThan(_) | Adj::OtherThanPlayer(_) => "other".into(),
     };
     match noun {
         Some(n) => o.noun(&word, n),

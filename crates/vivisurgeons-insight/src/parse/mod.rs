@@ -1343,14 +1343,15 @@ pub(super) fn after_clause(clause: &Effect, cond: &mut Condition) {
 /// its controller controls another creature": "another" of the clause
 /// object's kind in its trailing condition is other than that object, the
 /// one bound or each in turn ([other-than-subject]): `Quant::One` with
-/// `OtherThan`. `Quant::Another` alone is other than the card itself.
+/// `OtherThan`, and "no other creatures" of its kind `OtherThan` it
+/// (Skulking Killer). `Quant::Another` alone is other than the card itself.
 fn others_than_clause_object(cond: &mut Condition, to: &Quant, of: &Objects) {
     struct Others<'a>(Objects, Vec<&'a Adj>);
     impl Visitor for Others<'_> {
         fn enter(&mut self, o: &mut Objects) -> bool {
-            if o.quant == Quant::Another {
-                other_than(o, &self.0, Some(&self.1));
-            }
+            // "if that opponent controls no other creatures" (Skulking
+            // Killer): "other" is other than the target too.
+            other_than(o, &self.0, Some(&self.1));
             true
         }
     }
@@ -1994,6 +1995,7 @@ fn other_than(o: &mut Objects, than: &Objects, like: Option<&[&Adj]>) -> bool {
 /// control": "other" said of the event's own kind in a triggered ability is
 /// other than the object that triggered it, as Valakut's is (its ruling).
 fn other_than_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [Effect]) {
+    other_than_that_player(e, effect);
     let Some(object) = trigger_object(e) else {
         return;
     };
@@ -2051,6 +2053,61 @@ fn other_than_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut 
     }
     for x in effect {
         x.walk(&mut v);
+    }
+}
+
+/// Whether an event deals damage to a player it names, other than you.
+fn damages_a_player(e: &Event) -> bool {
+    let named = |r: &Recipient| matches!(r, Recipient::Player(p) if *p != Player::You);
+    match e {
+        Event::DealsCombatDamageTo { to, .. } => named(to),
+        Event::DealsDamageTo { to, .. } => to.iter().any(named),
+        _ => false,
+    }
+}
+
+/// Grenzo's Ruffians: "Whenever this creature deals combat damage to an
+/// opponent, it deals that much damage to each other opponent": "other"
+/// said of a player in an ability triggered by damage to a player is other
+/// than that player, `OtherThanPlayer(That)`, not other than you
+/// ([other-than-named-before]). A delayed trigger's own event counts too
+/// (Human Torch).
+fn other_than_that_player(e: &Event, effect: &mut [Effect]) {
+    struct Players;
+    impl Visitor for Players {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if matches!(o.filter.kind, Some(Noun::Player | Noun::Opponent)) {
+                for a in o.filter.alts.iter_mut().flatten() {
+                    if *a == Adj::State(State::Other) {
+                        *a = Adj::OtherThanPlayer(Player::That);
+                    }
+                }
+            }
+            true
+        }
+    }
+    struct Delayed;
+    impl Visitor for Delayed {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            true
+        }
+        fn effect(&mut self, e: &mut Effect) {
+            if let Effect::DelayedWhen { event, then } | Effect::DelayedWhenever { event, then } = e
+            {
+                if damages_a_player(event) {
+                    for t in then.iter_mut() {
+                        t.walk(&mut Players);
+                    }
+                }
+            }
+        }
+    }
+    for x in effect.iter_mut() {
+        if damages_a_player(e) {
+            x.walk(&mut Players);
+        } else {
+            x.walk(&mut Delayed);
+        }
     }
 }
 

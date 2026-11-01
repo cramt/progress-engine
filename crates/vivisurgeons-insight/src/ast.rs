@@ -988,6 +988,12 @@ pub enum Adj {
     /// "five other Mountains" are other than the one that entered.
     /// `State::Other` is other than the card.
     OtherThan(Box<Objects>),
+    /// "other" said of a player other than one the event named: Grenzo's
+    /// Ruffians' "deals combat damage to an opponent, it deals that much
+    /// damage to each other opponent" is each opponent but the damaged one,
+    /// `Player::That` ([other-than-named-before]). `State::Other` on a
+    /// player is other than you.
+    OtherThanPlayer(Player),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

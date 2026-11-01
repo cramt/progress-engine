@@ -404,7 +404,7 @@ cost: {2}{R}{R}
 > Melee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)
 > Whenever this creature deals combat damage to an opponent, it deals that much damage to each other opponent.
 = Keywords([Keyword { name: "melee", param: None }])
-= Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Player(AnOpponent) }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[State(Other)]], kind: Some(Opponent), posts: [], or: None } })] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Player(AnOpponent) }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[OtherThanPlayer(That)]], kind: Some(Opponent), posts: [], or: None } })] }], limits: [] }
 
 ## HYDRA Disintegrator
 face: HYDRA Disintegrator
