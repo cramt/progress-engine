@@ -2,10 +2,10 @@
 
 A rules engine for Magic. It answers **what is each object on the
 battlefield right now**, through the layer system (CR 613), with counters,
-and it plays the first slices of a game of Commander: turns, priority,
-land drops, mana abilities, and casting and resolving permanent spells,
-the commander among them, as a state machine that stops at every
-decision ([ADR-0043](../../docs/adr/0043-chancellor-plays-a-game-as-a-state-machine-that-stops-at-every-decision.md)).
+and it plays the first slices of a game, Commander or two-player
+constructed: mulligans, turns, priority, land drops, mana abilities, and
+casting and resolving permanent spells, the commander among them, as a
+state machine that stops at every decision ([ADR-0043](../../docs/adr/0043-chancellor-plays-a-game-as-a-state-machine-that-stops-at-every-decision.md)).
 No spell's effect runs yet.
 
 [docs/research/rules-engine.md](../../docs/research/rules-engine.md) is the
@@ -33,7 +33,20 @@ the seam:
 
 `game::Game::new(decks, seed)` sets up Commander (CR 903.6–903.7): each
 commander in the command zone, the rest shuffled by the seed into the
-library, 40 life, seven cards, everyone keeping. `deck::read` makes a
+library, 40 life, seven cards, everyone keeping. `Game::start(Setup)` also
+sets up a constructed game (20 life, CR 103.4, and no commander) and asks
+for mulligans: `Mulligan { player }`, answered `Mulligan(bool)`, in turn
+order, then `Bottom { player, count, hand }` for each player who took one,
+as the London mulligan has it (CR 103.5, 103.5c).
+
+A card can be **hidden**: in a library or a hand, with no one having said
+what it is, as a replayed log's draws are (below). Its text, cost and
+what the engine runs of it exist only on a known card, so a hidden card
+can't be played, cast or discarded or have a characteristic read, and
+`Game::card` is `None` for it. `Game::reveal` names it once, which is
+sound because nothing in the game could have told the difference before.
+A deck's `hidden` count is how many it brings; a deck file's cards are all
+known, so a goldfish never has one. `deck::read` makes a
 player's cards from a `.deck.toml` and the card index (`decks/index.jsonl`),
 `deck::card` one card by name. The engine then runs until a player has to
 choose and returns a `Decision`, and `game.step(Answer)` takes an answer
@@ -107,7 +120,7 @@ Loam against a goldfish for six turns, casting what it can.
 Not yet: any spell's effect, activated abilities other than mana
 abilities, triggers, declaring attackers (the declare blockers and combat
 damage steps aren't in `Step` until something can attack, CR 508.8),
-mulligans, a land's back face (CR 712), and shock lands' choice as they
+a land's back face (CR 712), and shock lands' choice as they
 enter. State-based actions that give a choice run one after the other
 rather than at once (CR 704.3), which nothing can tell apart without
 triggers.
@@ -168,8 +181,7 @@ The engine's acceptance test will be real games replayed
 ([ADR-0043](../../docs/adr/0043-chancellor-plays-a-game-as-a-state-machine-that-stops-at-every-decision.md)):
 Magic Online's own logs of matches PDBot watched, from
 logs.pennydreadfulmagic.com, each line a play the client already judged
-legal. Replaying them is the next slice; so far the corpus is fetched and
-read.
+legal.
 
 - `cargo run --release -p chancellor-of-the-spires --bin chancellor-logs -- fetch --max 3000`
   crawls the Freeform listing (all of it, about 1,660 matches), then Penny
@@ -200,6 +212,54 @@ most games are Fervent Champion (340), River of Tears (319), Kytheon (251),
 Kellan, Planar Trailblazer (237) and Thran Portal (221); 19 names aren't in
 the bulk file, mostly tokens the log doesn't call tokens (Ragavan, Marit
 Lage), dungeons, and digital-only cards.
+
+### Replay
+
+`chancellor-logs replay [--top N] [--game ID]` plays the cached games
+through the engine with `replay::replay`: a two-player constructed game,
+20 life, the starting player from "chooses to play first" (or a skipped
+first draw, or turn 1's player), the London mulligans the log shows, and
+each library **60 hidden cards** (the log never says the deck size; 60 is
+constructed's minimum, CR 100.2a). A card is named as it first shows up in
+a hand: played, cast or discarded. Then each line becomes answers: priority
+passed until the turn and step the line can happen in (the engine's turn
+has to be the log's, counting each player's turns), a land played, a spell
+cast with its payment found by searching the mana abilities the engine
+offers (fewest first, the least flexible sources tapped first, and an
+earlier payment chosen again if a later spell can't be paid), the draw
+step's draw on the logs that print it, and the cleanup discard. A spell on
+the stack resolves before the next line unless that line targets it. Chat,
+spectators and the client's notices are the only lines passed over.
+
+The first line the engine won't follow ends the game's replay with a
+typed `Stop`: a card refused by the node of its text the engine can't run,
+an answer it calls illegal, a state that disagrees with the log (a play it
+never offers that turn, a spell it can't pay for, a turn out of step), or
+a kind of line not followed yet (an activated ability, a trigger, an
+attack). `--game ID` prints one game line by line with what the engine
+did; the report ranks stops by games, with an example line, players
+renamed P1 and P2.
+
+**Of 1,061 games replayed, 10 replay to the end** (7 to the log's winner
+line), all of them games that end in the first turn, measured 2026-11-01. They are the 1,299
+games that parse whole and that Insight reads whole, less 238 with no turn
+in them (empty logs, concessions during the mulligans). 869 stop in the
+first turn, 103 in the second, 5 in the third, and 74 at the setup (21 logs
+name one player, 6 begin mid-game, 3 aren't London mulligans, 2 disagree
+on who started). The stops, by games: a triggered ability (192, Champion
+of the Parish and Goblin Lackey first), an activated ability (185,
+fetchlands first), a shock land's "as this enters" (158), a fast land's
+"unless you control two or fewer other lands" (95), a spell's effect (92,
+Duress first), a Leyline from the opening hand (35), a conditional static
+("if", 19), Prairie Stream's "unless you control two or more basic lands"
+(16), a check land's filter with alternatives (15), a
+discard the engine doesn't ask for (15, cycling's cost). Only one stop is
+the engine disagreeing with Magic Online rather than refusing: Gaea's
+Cradle's "Add {G} for each creature" isn't read as a mana ability (CR
+605.1a), so Survival of the Fittest can't be paid for.
+`tests/replay.rs` replays hand-written logs, a short game to its end and
+the plays that must stop it: a second land, a spell no land pays for, a
+land in the opponent's turn.
 
 ## Speed
 

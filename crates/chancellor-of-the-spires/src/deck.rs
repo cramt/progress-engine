@@ -2,7 +2,7 @@
 //! Oracle facts from the card index, the commander apart from the library.
 
 use chip_decklist::deck::{CardRef, Deck, DeckError};
-use chip_scryfall::index::{IndexError, IndexFile};
+use chip_scryfall::index::{Card, IndexError, IndexFile};
 use thiserror::Error;
 
 use crate::lower;
@@ -75,11 +75,13 @@ impl CardText {
 }
 
 /// What a player brings: the commander (CR 903.3) and the rest, which
-/// becomes the library (CR 903.6).
+/// becomes the library (CR 903.6), of which `hidden` cards no one has
+/// named yet (`game`'s "Hidden cards").
 #[derive(Clone, Debug, Default)]
 pub struct DeckCards {
     pub commander: Vec<CardText>,
     pub library: Vec<CardText>,
+    pub hidden: usize,
 }
 
 #[derive(Debug, Error)]
@@ -122,9 +124,14 @@ pub fn card(name: &str, index: &IndexFile) -> Result<CardText, LoadError> {
     let card = index
         .get(name)?
         .ok_or_else(|| LoadError::Unknown(name.to_string()))?;
+    Ok(text(&card))
+}
+
+/// A card of the index, or of an index built from Scryfall's bulk file.
+pub fn text(card: &Card) -> CardText {
     let face = card.faces.first();
     let number = |v: &Option<String>| v.as_deref().and_then(|s| s.parse::<i32>().ok());
-    Ok(CardText {
+    CardText {
         name: card.name.clone(),
         type_line: card.type_line.clone(),
         mana_cost: card.mana_cost.clone(),
@@ -137,7 +144,7 @@ pub fn card(name: &str, index: &IndexFile) -> Result<CardText, LoadError> {
         colors: card.colors.iter().filter_map(|c| color(c)).collect(),
         pt: face.and_then(|f| Some(pt(number(&f.power)?, number(&f.toughness)?))),
         identity: card.ci.iter().filter_map(|c| color(c)).collect(),
-    })
+    }
 }
 
 fn color(letter: &str) -> Option<Color> {

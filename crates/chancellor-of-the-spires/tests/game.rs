@@ -45,6 +45,7 @@ fn copies(c: &CardText, n: usize) -> Vec<CardText> {
 
 fn forests(n: usize) -> DeckCards {
     DeckCards {
+        hidden: 0,
         commander: Vec::new(),
         library: (0..n).map(|_| CardText::basic("Forest")).collect(),
     }
@@ -124,7 +125,7 @@ fn loam_goldfished_for_three_turns_plays_a_land_and_taps_for_mana() {
         .command()
         .iter()
         .filter(|c| game.owner(**c) == ME)
-        .map(|c| game.card(*c).name.as_str())
+        .map(|c| game.card(*c).unwrap().name.as_str())
         .collect();
     assert_eq!(commanders, ["Borborygmos and Fblthp"]);
 
@@ -144,7 +145,7 @@ fn loam_goldfished_for_three_turns_plays_a_land_and_taps_for_mana() {
                 _ => None,
             })
             .collect();
-        lands.sort_by_key(|c| !game.card(*c).type_line.starts_with("Basic"));
+        lands.sort_by_key(|c| !game.card(*c).unwrap().type_line.starts_with("Basic"));
         let land = lands
             .into_iter()
             .find(|c| match game.step(Answer::Act(Action::PlayLand(*c))) {
@@ -156,7 +157,7 @@ fn loam_goldfished_for_three_turns_plays_a_land_and_taps_for_mana() {
                 Err(e) => panic!("{e}"),
             })
             .expect("a land to play");
-        played.push(game.card(land).name.clone());
+        played.push(game.card(land).unwrap().name.clone());
         assert_eq!(game.player(ME).lands_played(), 1);
         while let Some(tap) = priority(&game.decision())
             .1
@@ -343,7 +344,7 @@ fn in_hand(game: &Game, p: PlayerId, name: &str) -> Option<CardId> {
         .hand()
         .iter()
         .copied()
-        .find(|c| game.card(*c).name == name)
+        .find(|c| game.card(*c).unwrap().name == name)
 }
 
 /// The permanent this card is, if it is one.
@@ -428,7 +429,7 @@ fn resolve_stack(game: &mut Game) {
 fn cast(game: &mut Game, c: CardId) {
     let d = act(game, Action::Cast(c));
     assert!(matches!(d, Decision::Pay { .. }), "{d:?}");
-    assert!(pay(game), "couldn't pay for {}", game.card(c).name);
+    assert!(pay(game), "couldn't pay for {}", game.card(c).unwrap().name);
 }
 
 /// CR 601.2, 117.1a, 302.1, 608.3a, 117.3b, 302.6: Birds of Paradise, from
@@ -443,6 +444,7 @@ fn a_creature_cast_at_sorcery_speed_resolves_onto_the_battlefield() {
     let mut game = Game::new(
         vec![
             DeckCards {
+                hidden: 0,
                 commander: vec![],
                 library,
             },
@@ -522,6 +524,7 @@ fn a_creature_cant_be_cast_at_instant_speed() {
     let mut game = Game::new(
         vec![
             DeckCards {
+                hidden: 0,
                 commander: vec![],
                 library,
             },
@@ -569,6 +572,7 @@ fn a_tapped_land_enters_tapped() {
         let mut game = Game::new(
             vec![
                 DeckCards {
+                    hidden: 0,
                     commander: vec![],
                     library: copies(&card(name), 20),
                 },
@@ -603,6 +607,7 @@ fn nonbasic_lands_mana_abilities() {
     .flat_map(|c| copies(c, 10))
     .collect();
     let deck = DeckCards {
+        hidden: 0,
         commander: vec![card("Borborygmos and Fblthp")],
         library,
     };
@@ -617,7 +622,7 @@ fn nonbasic_lands_mana_abilities() {
             .expect("a land not played yet");
         act(&mut game, Action::PlayLand(land));
         played.insert(
-            game.card(land).name.clone(),
+            game.card(land).unwrap().name.clone(),
             permanent(&game, land).unwrap(),
         );
     }
@@ -681,6 +686,7 @@ fn a_land_that_loses_all_abilities_has_no_mana_ability() {
 fn the_commander_is_cast_again_with_tax() {
     let night = card("Night of Souls' Betrayal");
     let deck = || DeckCards {
+        hidden: 0,
         commander: vec![card("Rograkh, Son of Rohgahh")],
         library: [copies(&CardText::basic("Swamp"), 25), copies(&night, 5)].concat(),
     };
@@ -694,7 +700,7 @@ fn the_commander_is_cast_again_with_tax() {
                     .player(ME)
                     .hand()
                     .iter()
-                    .filter(|c| game.card(**c).name == "Swamp")
+                    .filter(|c| game.card(**c).unwrap().name == "Swamp")
                     .count()
                     >= 3
         })
@@ -764,7 +770,7 @@ fn the_commander_is_cast_again_with_tax() {
     let untapped_swamps = game
         .permanents()
         .values()
-        .filter(|p| !p.tapped && game.card(p.card).name == "Swamp")
+        .filter(|p| !p.tapped && game.card(p.card).unwrap().name == "Swamp")
         .count();
     assert_eq!(untapped_swamps, 3);
 }
@@ -782,11 +788,11 @@ fn pilot_main_phase(game: &mut Game, refused: &mut BTreeSet<String>) -> Vec<Stri
             _ => None,
         })
         .collect();
-    lands.sort_by_key(|c| game.card(*c).type_line.starts_with("Basic"));
+    lands.sort_by_key(|c| game.card(*c).unwrap().type_line.starts_with("Basic"));
     for land in lands {
         match game.step(Answer::Act(Action::PlayLand(land))) {
             Ok(_) => {
-                did.push(game.card(land).name.clone());
+                did.push(game.card(land).unwrap().name.clone());
                 break;
             }
             Err(Rejected::Refused { card, refusal }) => {
@@ -805,7 +811,7 @@ fn pilot_main_phase(game: &mut Game, refused: &mut BTreeSet<String>) -> Vec<Stri
             Ok(_) => {
                 if pay(game) {
                     resolve_stack(game);
-                    did.push(format!("cast {}", game.card(c).name));
+                    did.push(format!("cast {}", game.card(c).unwrap().name));
                 }
             }
             Err(Rejected::Refused { card, refusal }) => {
@@ -887,11 +893,13 @@ fn loam_coverage() {
         let land = c.type_line.split("//").next().unwrap().contains("Land");
         let mine = if land {
             DeckCards {
+                hidden: 0,
                 commander: vec![],
                 library: copies(c, 10),
             }
         } else {
             DeckCards {
+                hidden: 0,
                 commander: vec![c.clone()],
                 library: basics.clone(),
             }
@@ -925,10 +933,13 @@ fn loam_coverage() {
             let have = |n: &str| {
                 game.permanents()
                     .values()
-                    .filter(|p| game.card(p.card).name == n)
+                    .filter(|p| game.card(p.card).unwrap().name == n)
                     .count()
             };
-            if let Some(l) = lands.iter().min_by_key(|l| have(&game.card(**l).name)) {
+            if let Some(l) = lands
+                .iter()
+                .min_by_key(|l| have(&game.card(**l).unwrap().name))
+            {
                 act(&mut game, Action::PlayLand(*l));
             }
             if !actions(&game).contains(&Action::Cast(target)) {
@@ -971,4 +982,102 @@ fn loam_coverage() {
     assert_eq!(cards.len(), 90);
     // The README's number: a change that moves it updates it there.
     assert_eq!((runs.len(), whole.len()), (31, 8));
+}
+
+fn hidden(n: usize) -> DeckCards {
+    DeckCards {
+        hidden: n,
+        ..DeckCards::default()
+    }
+}
+
+fn constructed(decks: Vec<DeckCards>, mulligans: bool) -> Game {
+    Game::start(Setup {
+        format: Format::Constructed,
+        decks,
+        mulligans,
+        seed: 1,
+    })
+    .unwrap()
+}
+
+/// A hidden card has no text to read, so it can't be played or cast and
+/// isn't offered; named, it is an ordinary card, and it is named once.
+/// CR 103.4: a constructed game starts at 20 life.
+#[test]
+fn a_hidden_card_is_offered_only_once_it_is_named() {
+    let mut game = constructed(vec![hidden(20), hidden(20)], false);
+    assert_eq!(game.player(ME).life(), 20);
+    let d = pass_until(&mut game, ME, Step::PrecombatMain);
+    assert_eq!(priority(&d).1, [Action::Pass]);
+    let c = game.player(ME).hand()[0];
+    assert!(game.card(c).is_none());
+    assert_eq!(game.refusal(c).unwrap().node, "a hidden card");
+    game.reveal(c, CardText::basic("Forest")).unwrap();
+    assert_eq!(
+        game.reveal(c, CardText::basic("Island")),
+        Err(AlreadyKnown("Forest".into()))
+    );
+    assert!(actions(&game).contains(&Action::PlayLand(c)));
+    act(&mut game, Action::PlayLand(c));
+    assert_eq!(game.permanents().len(), 1);
+}
+
+/// Only Commander has commanders (CR 903.3).
+#[test]
+fn a_constructed_game_has_no_commander() {
+    let deck = DeckCards {
+        commander: vec![card("Forest")],
+        ..DeckCards::default()
+    };
+    let setup = Setup {
+        format: Format::Constructed,
+        decks: vec![deck, forests(20)],
+        mulligans: false,
+        seed: 1,
+    };
+    assert_eq!(
+        Game::start(setup).err(),
+        Some(SetupError::CommanderOutsideCommander)
+    );
+}
+
+/// CR 103.5: the starting player declares first, then the other; those
+/// taking a mulligan draw seven anew and put one card on the bottom for
+/// each mulligan taken, and declare again until everyone keeps. Then the
+/// first turn begins.
+#[test]
+fn the_london_mulligan() {
+    let mut game = constructed(vec![forests(20), forests(20)], true);
+    assert_eq!(game.decision(), Decision::Mulligan { player: ME });
+    game.step(Answer::Mulligan(true)).unwrap();
+    assert_eq!(game.decision(), Decision::Mulligan { player: THEM });
+    game.step(Answer::Mulligan(false)).unwrap();
+    let Decision::Bottom {
+        player,
+        count,
+        hand,
+    } = game.decision()
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((player, count, hand.len()), (ME, 1, 7));
+    // Two cards for one mulligan is not an answer.
+    assert!(game.step(Answer::Bottom(hand[..2].to_vec())).is_err());
+    game.step(Answer::Bottom(vec![hand[0]])).unwrap();
+    assert_eq!(game.player(ME).library().back(), Some(&hand[0]));
+    // Only the player who hasn't kept declares again.
+    assert_eq!(game.decision(), Decision::Mulligan { player: ME });
+    game.step(Answer::Mulligan(true)).unwrap();
+    let Decision::Bottom { count, hand, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(count, 2);
+    game.step(Answer::Bottom(hand[..2].to_vec())).unwrap();
+    game.step(Answer::Mulligan(false)).unwrap();
+    assert_eq!(game.turn(), 1);
+    assert_eq!(game.player(ME).hand().len(), 5);
+    assert_eq!(game.player(ME).mulligans(), 2);
+    assert_eq!(game.player(THEM).hand().len(), 7);
+    assert_eq!(game.player(ME).library().len(), 15);
 }

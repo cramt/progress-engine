@@ -3,7 +3,9 @@
 //! `fetch` downloads PDBot's Magic Online logs from
 //! logs.pennydreadfulmagic.com into `~/.cache/chancellor/pdlogs/<id>.txt`,
 //! and `coverage` reads every cached log with `chancellor_of_the_spires::log`
-//! and says how many games parse whole and how many Insight reads whole.
+//! and says how many games parse whole and how many Insight reads whole,
+//! and `replay` plays those games through the engine and ranks what stops
+//! them (`chancellor_of_the_spires::replay`).
 //!
 //! Native only: a browser build has no network or cache to fetch into.
 
@@ -24,7 +26,11 @@ mod native {
     use std::time::{Duration, Instant};
 
     use anyhow::{bail, Context, Result};
+    use chancellor_of_the_spires::deck::{self, CardText};
     use chancellor_of_the_spires::log;
+    use chancellor_of_the_spires::replay::{self as r, End};
+    use chip_scryfall::bulk::BulkCard;
+    use chip_scryfall::index::Index;
     use vivisurgeons_insight::corpus;
 
     const SITE: &str = "https://logs.pennydreadfulmagic.com";
@@ -37,13 +43,14 @@ mod native {
     /// The margin keeps it under that whatever the clock does.
     const GAP: Duration = Duration::from_millis(1050);
 
-    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N]";
+    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID]";
 
     pub fn main() -> Result<()> {
         let args: Vec<String> = std::env::args().skip(1).collect();
         match args.first().map(String::as_str) {
             Some("fetch") => fetch(&args[1..]),
             Some("coverage") => coverage(&args[1..]),
+            Some("replay") => replay(&args[1..]),
             _ => bail!("{USAGE}"),
         }
     }
@@ -286,6 +293,245 @@ mod native {
         Missing,
     }
 
+    /// The bulk file's cards by the names the logs use, and what Insight
+    /// makes of each.
+    struct Names {
+        printed: Vec<corpus::Printed>,
+        by_name: HashMap<String, usize>,
+        read: HashMap<String, (String, Read)>,
+    }
+
+    impl Names {
+        fn load(bulk: &str) -> Result<Names> {
+            // Every card of the bulk file by its name and each face's: the
+            // log names a double-faced card by the face it shows.
+            let (printed, _) = corpus::read(bulk, &HashSet::new(), None)?;
+            let mut by_name: HashMap<String, usize> = HashMap::new();
+            for (i, p) in printed.iter().enumerate() {
+                by_name.insert(p.name.clone(), i);
+                for f in &p.faces {
+                    by_name.entry(f.face.clone()).or_insert(i);
+                }
+            }
+            Ok(Names {
+                printed,
+                by_name,
+                read: HashMap::new(),
+            })
+        }
+
+        /// The bulk file's name for the card the log names, and what
+        /// Insight makes of it.
+        fn read(&mut self, name: &str) -> (String, Read) {
+            if let Some(r) = self.read.get(name) {
+                return r.clone();
+            }
+            // Magic Online writes a split or double-faced card's two names
+            // as "A/B" or "A && B" where Scryfall has "A // B".
+            let found = self.by_name.get(name).or_else(|| {
+                let joined = if name.contains(" && ") {
+                    name.replace(" && ", " // ")
+                } else if !name.contains(" // ") {
+                    name.replace('/', " // ")
+                } else {
+                    name.to_string()
+                };
+                self.by_name.get(&joined)
+            });
+            let r = match found {
+                None => (name.to_string(), Read::Missing),
+                Some(&i) => {
+                    let whole = self.printed[i]
+                        .faces
+                        .iter()
+                        .all(|f| f.lines().iter().all(|l| l.parsed.is_ok()));
+                    let r = if whole { Read::Whole } else { Read::Broken };
+                    (self.printed[i].name.clone(), r)
+                }
+            };
+            self.read.insert(name.to_string(), r.clone());
+            r
+        }
+
+        /// Whether the game parsed into events whole and Insight reads
+        /// every card it names, tokens aside: the games `coverage` counts
+        /// as both, and the ones `replay` plays.
+        fn whole(&mut self, g: &log::Game) -> bool {
+            g.unrecognised().next().is_none()
+                && g.entries
+                    .iter()
+                    .flat_map(|e| e.event.cards())
+                    .filter(|c| !c.is_token())
+                    .all(|c| self.read(c.name()).1 == Read::Whole)
+        }
+    }
+
+    /// Every card of the bulk file as the engine reads it, by its name.
+    fn card_texts(bulk: &str) -> Result<HashMap<String, CardText>> {
+        let text = fs::read_to_string(bulk).with_context(|| format!("reading {bulk}"))?;
+        let records = text
+            .lines()
+            .filter_map(|l| facet_json::from_str::<BulkCard>(l).ok());
+        let (index, _) = Index::build(records, None);
+        Ok(index
+            .cards
+            .values()
+            .map(|c| (c.name.clone(), deck::text(c)))
+            .collect())
+    }
+
+    /// The log's turn number at entry `i`: each player's own count, as
+    /// the log numbers them, and 0 before the first turn.
+    fn turn_at(g: &log::Game, i: usize) -> u32 {
+        g.entries
+            .get(i)
+            .or(g.entries.last())
+            .and_then(|e| e.turn)
+            .map_or(0, |t| t.number)
+    }
+
+    fn replay(args: &[String]) -> Result<()> {
+        let mut bulk = corpus::cache("oracle-cards.jsonl");
+        let mut top = 12;
+        let mut only: Option<u64> = None;
+        let mut it = args.iter();
+        while let Some(a) = it.next() {
+            match a.as_str() {
+                "--bulk" => bulk = it.next().context("--bulk needs a path")?.clone(),
+                "--top" => top = it.next().context("--top needs a number")?.parse()?,
+                "--game" => only = Some(it.next().context("--game needs an id")?.parse()?),
+                other => bail!("unknown argument {other}\n{USAGE}"),
+            }
+        }
+        let mut names = Names::load(&bulk)?;
+        let texts = card_texts(&bulk)?;
+        let dir = cache_dir();
+
+        let mut games = 0;
+        let mut eligible = 0;
+        let mut turnless = 0;
+        let mut finished = 0;
+        let mut winner_line = 0;
+        // Reason (or card) -> games, and the first game and line it stopped.
+        let mut reasons: HashMap<String, (usize, String)> = HashMap::new();
+        let mut by_card: HashMap<String, usize> = HashMap::new();
+        let mut reached: std::collections::BTreeMap<u32, (usize, usize)> = Default::default();
+        for id in cached(&dir)? {
+            let text = fs::read(dir.join(format!("{id}.txt")))?;
+            let Ok(m) = log::parse(&String::from_utf8_lossy(&text)) else {
+                continue;
+            };
+            for g in &m.games {
+                games += 1;
+                if only.is_some_and(|o| o != g.id) || !names.whole(g) {
+                    continue;
+                }
+                // An empty log, or a concession during the mulligans, is
+                // nothing to replay.
+                if !g
+                    .entries
+                    .iter()
+                    .any(|e| matches!(e.event, log::Event::TurnBegins(_)))
+                {
+                    turnless += 1;
+                    continue;
+                }
+                eligible += 1;
+                let mut cards = |name: &str| texts.get(&names.read(name).0).cloned();
+                let replayed = r::replay(&m, g, &mut cards);
+                if only.is_some() {
+                    print_game(&m, g, &replayed);
+                }
+                let (stop_at, turn) = match &replayed.end {
+                    End::Finished => (None, turn_at(g, g.entries.len())),
+                    End::Stopped { entry, .. } => (Some(*entry), turn_at(g, *entry)),
+                };
+                let row = reached.entry(turn).or_default();
+                match (&replayed.end, stop_at) {
+                    (End::Stopped { stop, .. }, Some(at)) => {
+                        row.1 += 1;
+                        let line = g
+                            .entries
+                            .get(at)
+                            .map_or(String::new(), |e| anonymise(&e.text, &m.players));
+                        let r = reasons
+                            .entry(stop.kind())
+                            .or_insert_with(|| (0, format!("game {} line: {line}", g.id)));
+                        r.0 += 1;
+                        if let Some(c) = stop.card() {
+                            *by_card.entry(format!("{}: {c}", stop.kind())).or_default() += 1;
+                        }
+                    }
+                    _ => {
+                        row.0 += 1;
+                        finished += 1;
+                        winner_line += g.winner.is_some() as usize;
+                    }
+                }
+            }
+        }
+        if only.is_some() {
+            return Ok(());
+        }
+        println!(
+            "{eligible} of {games} games replayed: those that parse into events whole, whose every card Insight reads whole, and that reach a first turn ({turnless} more don't: empty logs and concessions during the mulligans)"
+        );
+        println!(
+            "replayed to the end: {finished} ({}), {winner_line} of them to the log's winner line",
+            pct(finished, eligible)
+        );
+        let mut reasons: Vec<_> = reasons.into_iter().collect();
+        reasons.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(&b.0)));
+        println!("\nstop reasons by games:");
+        for (kind, (n, example)) in reasons.iter().take(top) {
+            println!("{n:>6}  {kind}\n        e.g. {example}");
+        }
+        let mut cards: Vec<_> = by_card.into_iter().collect();
+        cards.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        println!("\nstops by card:");
+        for (card, n) in cards.iter().take(top) {
+            println!("{n:>6}  {card}");
+        }
+        println!(
+            "\nturn reached (each player's own count, as the log numbers turns; 0 is the setup):"
+        );
+        println!("  turn  finished  stopped");
+        for (turn, (f, s)) in &reached {
+            println!("  {turn:>4}  {f:>8}  {s:>7}");
+        }
+        Ok(())
+    }
+
+    /// One game's replay, line by line, with what the engine did.
+    fn print_game(m: &log::Match, g: &log::Game, replayed: &r::Replay) {
+        println!("game {} (game {} of the match)", g.id, g.number);
+        let last = match &replayed.end {
+            End::Stopped { entry, .. } => *entry,
+            End::Finished => g.entries.len(),
+        };
+        for t in replayed
+            .trace
+            .iter()
+            .filter(|t| t.entry == 0 && t.did.starts_with("set up"))
+        {
+            println!("  {}", anonymise(&t.did, &m.players));
+        }
+        for (i, e) in g.entries.iter().enumerate().take(last + 1) {
+            println!("{i:>4} {}", anonymise(&e.text, &m.players));
+            for t in replayed
+                .trace
+                .iter()
+                .filter(|t| t.entry == i && !t.did.starts_with("set up"))
+            {
+                println!("       -> {}", t.did);
+            }
+        }
+        match &replayed.end {
+            End::Finished => println!("replayed to the end"),
+            End::Stopped { entry, stop } => println!("stopped at line {entry}: {stop}"),
+        }
+    }
+
     fn coverage(args: &[String]) -> Result<()> {
         let mut bulk = corpus::cache("oracle-cards.jsonl");
         let mut top = 25;
@@ -300,49 +546,8 @@ mod native {
         let dir = cache_dir();
         let ids = cached(&dir)?;
 
-        // Every card of the bulk file by its name and each face's: the log
-        // names a double-faced card by the face it shows.
-        let (printed, _) = corpus::read(&bulk, &HashSet::new(), None)?;
-        let mut by_name: HashMap<String, usize> = HashMap::new();
-        for (i, p) in printed.iter().enumerate() {
-            by_name.insert(p.name.clone(), i);
-            for f in &p.faces {
-                by_name.entry(f.face.clone()).or_insert(i);
-            }
-        }
-        // Each name the logs use, as the bulk file's card name and what
-        // Insight makes of it.
-        let mut read: HashMap<String, (String, Read)> = HashMap::new();
-        let mut read_card = |name: &str| -> (String, Read) {
-            if let Some(r) = read.get(name) {
-                return r.clone();
-            }
-            // Magic Online writes a split or double-faced card's two names
-            // as "A/B" or "A && B" where Scryfall has "A // B".
-            let found = by_name.get(name).or_else(|| {
-                let joined = if name.contains(" && ") {
-                    name.replace(" && ", " // ")
-                } else if !name.contains(" // ") {
-                    name.replace('/', " // ")
-                } else {
-                    name.to_string()
-                };
-                by_name.get(&joined)
-            });
-            let r = match found {
-                None => (name.to_string(), Read::Missing),
-                Some(&i) => {
-                    let whole = printed[i]
-                        .faces
-                        .iter()
-                        .all(|f| f.lines().iter().all(|l| l.parsed.is_ok()));
-                    let r = if whole { Read::Whole } else { Read::Broken };
-                    (printed[i].name.clone(), r)
-                }
-            };
-            read.insert(name.to_string(), r.clone());
-            r
-        };
+        let mut names = Names::load(&bulk)?;
+        let mut read_card = |name: &str| names.read(name);
 
         let mut matches = 0;
         let mut malformed = 0;

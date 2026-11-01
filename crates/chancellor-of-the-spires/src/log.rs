@@ -69,6 +69,8 @@ pub struct Entry {
     /// mulligans, who plays first).
     pub turn: Option<Turn>,
     pub event: Event,
+    /// The line as the log has it, after the timestamp.
+    pub text: String,
 }
 
 /// `[HH:MM:SS]`, the watcher's wall clock.
@@ -1038,6 +1040,7 @@ pub fn parse(text: &str) -> Result<Match, Malformed> {
                 time: Some(time),
                 turn,
                 event,
+                text: body,
             });
             continue;
         }
@@ -1108,6 +1111,7 @@ pub fn parse(text: &str) -> Result<Match, Malformed> {
                 time: None,
                 turn,
                 event,
+                text: body.to_string(),
             });
             continue;
         }
@@ -1125,6 +1129,7 @@ pub fn parse(text: &str) -> Result<Match, Malformed> {
             time: None,
             turn,
             event: Event::Unrecognised(body.to_string()),
+            text: body.to_string(),
         });
     }
     Ok(m)
@@ -2714,7 +2719,8 @@ mod tests {
                     player: BOB,
                     hand: 6,
                     bottomed: 1
-                }
+                },
+                text: "bob puts a card on the bottom of their library and begins the game with six cards in hand.".into(),
             }
         );
         assert_eq!(

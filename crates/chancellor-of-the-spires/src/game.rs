@@ -1,15 +1,29 @@
-//! A game of Commander as a state machine that stops at every decision
-//! (ADR-0043). The engine runs the turn-based and state-based actions
+//! A game of Magic, Commander or constructed, as a state machine that
+//! stops at every decision (ADR-0043). The engine runs the turn-based and state-based actions
 //! itself and stops when a player has to choose, returning a [`Decision`]
 //! with the legal answers; [`Game::step`] takes one of them and runs on to
 //! the next. A game replays from its seed and its answers.
 //!
-//! So far: the turn's steps with priority, playing lands, casting spells
-//! and paying their mana, mana abilities, the stack and resolving permanent
-//! spells, commander tax, drawing, discarding to hand size, and the
-//! state-based actions for life, an empty library, toughness and a
-//! commander's return. No spell's effect runs yet, no trigger, and no
+//! So far: mulligans, the turn's steps with priority, playing lands,
+//! casting spells and paying their mana, mana abilities, the stack and
+//! resolving permanent spells, commander tax, drawing, discarding to hand
+//! size, and the state-based actions for life, an empty library, toughness
+//! and a commander's return. No spell's effect runs yet, no trigger, and no
 //! creature attacks.
+//!
+//! # Hidden cards
+//!
+//! A card can be hidden: the game holds it, in a library or a hand, but
+//! no one has said what it is. A replayed log (`crate::replay`) is where
+//! this comes from: the log shows a player's draw only when the card is
+//! played, cast, discarded or revealed, so a library is that many hidden
+//! cards. A hidden card is a [`CardEntry`] whose [`Face`] is `Hidden`, and
+//! its text, its cost and what the engine runs of it live only in the
+//! `Known` face, so a hidden card can't be played, cast, discarded or have
+//! a characteristic read: there is nothing to read. [`Game::reveal`] names
+//! it, once, which is sound because nothing in the game could have told
+//! the difference before; the cards a deck file builds are known from the
+//! start, so a goldfish never has one.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -28,8 +42,10 @@ use crate::model::{
     Supertype,
 };
 
-/// CR 903.7.
-pub const STARTING_LIFE: i32 = 40;
+/// CR 103.4.
+pub const STARTING_LIFE: i32 = 20;
+/// CR 103.4c, 903.7.
+pub const COMMANDER_LIFE: i32 = 40;
 /// CR 103.5, 402.2.
 pub const HAND_SIZE: usize = 7;
 /// CR 903.8.
@@ -42,13 +58,40 @@ pub const COMMANDER_TAX: u32 = 2;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CardId(pub u32);
 
+#[derive(Clone)]
 struct CardEntry {
-    text: CardText,
     owner: PlayerId,
     /// A commander (CR 903.3): a designation of the card, not of an object.
     commander: bool,
+    face: Face,
+}
+
+/// What the game knows a card to be (the module's "Hidden cards").
+#[derive(Clone)]
+enum Face {
+    Hidden,
+    Known(Arc<Known>),
+}
+
+/// A card whose identity is known: its text, and what the engine makes of
+/// it.
+struct Known {
+    text: CardText,
     runs: Result<Runnable, Unrunnable>,
     cost: Result<Option<ManaCost>, Unrunnable>,
+}
+
+impl Known {
+    fn read(text: CardText) -> Known {
+        let runs = text
+            .as_card()
+            .map_err(|why| Unrunnable::new("a multi-faced card", why))
+            .and_then(|c| lower::card(&c).map_err(unlowered))
+            .and_then(runnable);
+        let cost =
+            ManaCost::parse(&text.mana_cost).map_err(|why| Unrunnable::new(why.clone(), why));
+        Known { text, runs, cost }
+    }
 }
 
 /// What the game can run of a card: its lowered characteristics and, of
@@ -152,6 +195,10 @@ pub struct Player {
     /// Their commanders' colour identity (CR 903.4), or `None` with no
     /// commander (CR 903.4f).
     identity: Option<Vec<Color>>,
+    /// Mulligans taken (CR 103.5).
+    mulligans: u32,
+    /// Declared they keep, so takes no more mulligans (CR 103.5).
+    kept: bool,
     left: bool,
 }
 
@@ -173,6 +220,9 @@ impl Player {
     }
     pub fn lands_played(&self) -> u32 {
         self.lands_played
+    }
+    pub fn mulligans(&self) -> u32 {
+        self.mulligans
     }
     /// Lost, and so left the game (CR 104.3, 800.4a).
     pub fn has_left(&self) -> bool {
@@ -210,6 +260,20 @@ pub enum Outcome {
 /// What the game is waiting on.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Waiting {
+    /// CR 103.5: `player` declares whether they take a mulligan; `taking`
+    /// are those who declared one earlier this round.
+    Mulligan {
+        player: PlayerId,
+        taking: Vec<PlayerId>,
+    },
+    /// CR 103.5: `player` took a mulligan and puts `count` cards of their
+    /// new hand on the bottom; `then` are the others who took one this
+    /// round, still to do so.
+    Bottom {
+        player: PlayerId,
+        count: usize,
+        then: Vec<PlayerId>,
+    },
     /// `passes` players have passed in succession before this one (CR 117.4).
     Priority {
         player: PlayerId,
@@ -248,6 +312,17 @@ enum Waiting {
 /// Who has to choose, and the legal answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Decision {
+    /// CR 103.5: take a mulligan (`Answer::Mulligan(true)`) or keep.
+    Mulligan {
+        player: PlayerId,
+    },
+    /// CR 103.5: put exactly `count` distinct cards of `hand` on the bottom
+    /// of the library, in the order given (`Answer::Bottom`).
+    Bottom {
+        player: PlayerId,
+        count: usize,
+        hand: Vec<CardId>,
+    },
     Priority {
         player: PlayerId,
         actions: Vec<Action>,
@@ -325,6 +400,10 @@ pub enum Payment {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Answer {
+    /// CR 103.5: `true` takes a mulligan, `false` keeps.
+    Mulligan(bool),
+    /// CR 103.5: these cards go on the bottom, the first one first.
+    Bottom(Vec<CardId>),
     Act(Action),
     Pay(Payment),
     Discard(Vec<CardId>),
@@ -390,7 +469,7 @@ impl Rng {
 /// the battlefield are persistent, and the cards' text is shared.
 #[derive(Clone)]
 pub struct Game {
-    cards: Arc<Vec<CardEntry>>,
+    cards: Vector<CardEntry>,
     players: Vec<Player>,
     /// The battlefield as the layers read it (ADR-0037).
     battlefield: State,
@@ -412,26 +491,86 @@ pub struct Game {
     active: PlayerId,
     step: Step,
     waiting: Waiting,
-    /// Where the setup's shuffles left it, for the shuffles during a game
-    /// (mulligans, searches), which are later slices.
-    #[expect(dead_code, reason = "nothing shuffles after setup yet")]
+    /// Where the setup's shuffles left it, for mulligans and, later,
+    /// searches.
     rng: Rng,
 }
 
+/// Which rules set up the game.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Format {
+    /// CR 903: commanders in the command zone, 40 life.
+    Commander,
+    /// A two-player constructed game: 20 life (CR 103.4), no command zone.
+    Constructed,
+}
+
+/// How a game starts.
+#[derive(Clone, Debug)]
+pub struct Setup {
+    pub format: Format,
+    /// In turn order, the starting player first (who starts is agreed
+    /// outside the game, CR 103.1).
+    pub decks: Vec<DeckCards>,
+    /// Whether players are asked to mulligan (CR 103.5). Without, everyone
+    /// keeps their seven, as a scripted test wants.
+    pub mulligans: bool,
+    /// The shuffles' seed: a game replays from its seed and its answers.
+    pub seed: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SetupError {
+    NoPlayers,
+    /// Only Commander has commanders (CR 903.3).
+    CommanderOutsideCommander,
+}
+
+impl fmt::Display for SetupError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SetupError::NoPlayers => f.write_str("a game has at least one player"),
+            SetupError::CommanderOutsideCommander => {
+                f.write_str("a deck has a commander outside a Commander game")
+            }
+        }
+    }
+}
+
+/// Naming a card that isn't hidden.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AlreadyKnown(pub String);
+
 impl Game {
-    /// A game of Commander between these decks, in this turn order, the
-    /// first player starting (who starts is agreed outside the game,
-    /// CR 103.1). Each player puts their commander in the command zone and
-    /// shuffles the rest into their library (CR 903.6), then sets their
-    /// life to 40 and draws seven (CR 903.7). Every player keeps: mulligans
-    /// are a later slice. Then the first turn begins.
+    /// A game of Commander between these decks, the first starting, every
+    /// player keeping their seven.
     pub fn new(decks: Vec<DeckCards>, seed: u64) -> Game {
-        assert!(!decks.is_empty(), "a game has at least one player");
-        let mut cards = Vec::new();
+        Game::start(Setup {
+            format: Format::Commander,
+            decks,
+            mulligans: false,
+            seed,
+        })
+        .unwrap_or_else(|e| panic!("{e}"))
+    }
+
+    /// Each player puts their commander in the command zone (CR 903.6),
+    /// shuffles the rest into their library (CR 103.3), sets their life (CR
+    /// 103.4, 903.7) and draws seven (CR 103.5). Then the mulligans, if
+    /// asked, and the first turn begins.
+    pub fn start(setup: Setup) -> Result<Game, SetupError> {
+        if setup.decks.is_empty() {
+            return Err(SetupError::NoPlayers);
+        }
+        let commander = setup.format == Format::Commander;
+        if !commander && setup.decks.iter().any(|d| !d.commander.is_empty()) {
+            return Err(SetupError::CommanderOutsideCommander);
+        }
+        let mut cards = Vector::new();
         let mut players = Vec::new();
         let mut command = Vector::new();
-        let mut rng = Rng(seed);
-        for (p, deck) in decks.into_iter().enumerate() {
+        let mut rng = Rng(setup.seed);
+        for (p, deck) in setup.decks.into_iter().enumerate() {
             let owner = PlayerId(p as u8);
             let identity = (!deck.commander.is_empty()).then(|| {
                 let colors: BTreeSet<Color> = deck
@@ -441,31 +580,33 @@ impl Game {
                     .collect();
                 colors.into_iter().collect()
             });
-            let mut add = |text: CardText, commander: bool| {
-                let runs = text
-                    .as_card()
-                    .map_err(|why| Unrunnable::new("a multi-faced card", why))
-                    .and_then(|c| lower::card(&c).map_err(unlowered))
-                    .and_then(runnable);
-                let cost = ManaCost::parse(&text.mana_cost)
-                    .map_err(|why| Unrunnable::new(why.clone(), why));
-                cards.push(CardEntry {
-                    text,
+            let mut add = |face: Face, commander: bool| {
+                cards.push_back(CardEntry {
                     owner,
                     commander,
-                    runs,
-                    cost,
+                    face,
                 });
                 CardId(cards.len() as u32 - 1)
             };
+            let known = |text| Face::Known(Arc::new(Known::read(text)));
             for c in deck.commander {
-                command.push_back(add(c, true));
+                command.push_back(add(known(c), true));
             }
-            let mut library: Vector<CardId> =
-                deck.library.into_iter().map(|c| add(c, false)).collect();
+            let mut library: Vector<CardId> = deck
+                .library
+                .into_iter()
+                .map(|c| add(known(c), false))
+                .collect();
+            for _ in 0..deck.hidden {
+                library.push_back(add(Face::Hidden, false));
+            }
             rng.shuffle(&mut library);
             players.push(Player {
-                life: STARTING_LIFE,
+                life: if commander {
+                    COMMANDER_LIFE
+                } else {
+                    STARTING_LIFE
+                },
                 library,
                 hand: Vector::new(),
                 graveyard: Vector::new(),
@@ -474,11 +615,13 @@ impl Game {
                 drew_from_empty: false,
                 turn_began: None,
                 identity,
+                mulligans: 0,
+                kept: !setup.mulligans,
                 left: false,
             });
         }
         let mut game = Game {
-            cards: Arc::new(cards),
+            cards,
             players,
             battlefield: State::default(),
             permanents: OrdMap::new(),
@@ -499,8 +642,63 @@ impl Game {
                 game.draw(PlayerId(p as u8));
             }
         }
-        game.begin_turn(PlayerId(0));
-        game
+        game.declare_from(0, Vec::new());
+        Ok(game)
+    }
+
+    /// CR 103.5: the next player from `from` in turn order who hasn't kept
+    /// declares; once all have, those taking a mulligan take it at once,
+    /// and with no one taking one the first turn begins.
+    fn declare_from(&mut self, from: usize, taking: Vec<PlayerId>) {
+        if let Some(p) = (from..self.players.len()).find(|p| !self.players[*p].kept) {
+            self.waiting = Waiting::Mulligan {
+                player: PlayerId(p as u8),
+                taking,
+            };
+            return;
+        }
+        if taking.is_empty() {
+            return self.begin_turn(PlayerId(0));
+        }
+        for p in &taking {
+            let player = &mut self.players[p.0 as usize];
+            let hand = std::mem::take(&mut player.hand);
+            player.library.append(hand);
+            player.mulligans += 1;
+            let mut library = std::mem::take(&mut player.library);
+            self.rng.shuffle(&mut library);
+            self.players[p.0 as usize].library = library;
+            for _ in 0..HAND_SIZE {
+                self.draw(*p);
+            }
+        }
+        self.bottom_next(taking);
+    }
+
+    /// CR 103.5, 103.5c: each player who took a mulligan puts one card on
+    /// the bottom for each they have taken, the first free in a
+    /// multiplayer game. A player whose opening hand would be no cards
+    /// takes no more.
+    fn bottom_next(&mut self, mut rest: Vec<PlayerId>) {
+        while !rest.is_empty() {
+            let p = rest.remove(0);
+            let free = u32::from(self.players.len() > 2);
+            let player = &mut self.players[p.0 as usize];
+            let count = player.mulligans.saturating_sub(free) as usize;
+            if count >= HAND_SIZE {
+                player.kept = true;
+            }
+            let count = count.min(player.hand.len());
+            if count > 0 {
+                self.waiting = Waiting::Bottom {
+                    player: p,
+                    count,
+                    then: rest,
+                };
+                return;
+            }
+        }
+        self.declare_from(0, Vec::new());
     }
 
     pub fn turn(&self) -> u32 {
@@ -518,8 +716,24 @@ impl Game {
     pub fn player(&self, p: PlayerId) -> &Player {
         &self.players[p.0 as usize]
     }
-    pub fn card(&self, c: CardId) -> &CardText {
-        &self.cards[c.0 as usize].text
+    /// The card's text, or `None` while it is hidden.
+    pub fn card(&self, c: CardId) -> Option<&CardText> {
+        self.known(c).map(|k| &k.text)
+    }
+    fn known(&self, c: CardId) -> Option<&Known> {
+        match &self.cards[c.0 as usize].face {
+            Face::Known(k) => Some(k),
+            Face::Hidden => None,
+        }
+    }
+    /// Name a hidden card (the module's "Hidden cards"). A card already
+    /// known keeps what it is.
+    pub fn reveal(&mut self, c: CardId, text: CardText) -> Result<(), AlreadyKnown> {
+        if let Some(k) = self.known(c) {
+            return Err(AlreadyKnown(k.text.name.clone()));
+        }
+        self.cards[c.0 as usize].face = Face::Known(Arc::new(Known::read(text)));
+        Ok(())
     }
     pub fn owner(&self, c: CardId) -> PlayerId {
         self.cards[c.0 as usize].owner
@@ -549,11 +763,16 @@ impl Game {
     /// land is checked as it would be played, any other card as it would
     /// be cast.
     pub fn refusal(&self, c: CardId) -> Option<Unrunnable> {
-        let entry = &self.cards[c.0 as usize];
-        match &entry.runs {
+        let Some(known) = self.known(c) else {
+            return Some(Unrunnable::new(
+                "a hidden card",
+                "no one has said what it is",
+            ));
+        };
+        match &known.runs {
             Err(r) => Some(r.clone()),
-            Ok(_) if is_land(&entry.text.type_line) => None,
-            Ok(runs) => self.cast_refusal(entry, runs).err(),
+            Ok(_) if is_land(&known.text.type_line) => None,
+            Ok(runs) => self.cast_refusal(known, runs).err(),
         }
     }
 
@@ -561,9 +780,9 @@ impl Game {
     /// to activate yet: its non-mana activated abilities and those that
     /// work from a hand.
     pub fn dormant(&self, c: CardId) -> &[String] {
-        match &self.cards[c.0 as usize].runs {
-            Ok(r) => &r.dormant,
-            Err(_) => &[],
+        match self.known(c).map(|k| &k.runs) {
+            Some(Ok(r)) => &r.dormant,
+            _ => &[],
         }
     }
 
@@ -571,6 +790,12 @@ impl Game {
     pub fn decision(&self) -> Decision {
         match &self.waiting {
             Waiting::Over(o) => Decision::Over(*o),
+            Waiting::Mulligan { player, .. } => Decision::Mulligan { player: *player },
+            Waiting::Bottom { player, count, .. } => Decision::Bottom {
+                player: *player,
+                count: *count,
+                hand: self.player(*player).hand.iter().copied().collect(),
+            },
             Waiting::Discard { player, count } => Decision::Discard {
                 player: *player,
                 count: *count,
@@ -606,6 +831,27 @@ impl Game {
     /// legal leaves the game as it was.
     pub fn step(&mut self, answer: Answer) -> Result<Decision, Rejected> {
         match (self.waiting.clone(), &answer) {
+            (Waiting::Mulligan { player, mut taking }, Answer::Mulligan(take)) => {
+                if *take {
+                    taking.push(player);
+                } else {
+                    self.players[player.0 as usize].kept = true;
+                }
+                self.declare_from(player.0 as usize + 1, taking);
+            }
+            (
+                Waiting::Bottom {
+                    player,
+                    count,
+                    then,
+                },
+                Answer::Bottom(cards),
+            ) if self.chosen_from_hand(player, count, cards) => {
+                let p = &mut self.players[player.0 as usize];
+                p.hand.retain(|c| !cards.contains(c));
+                p.library.extend(cards.iter().copied());
+                self.bottom_next(then);
+            }
             (Waiting::Priority { player, passes }, Answer::Act(action))
                 if self.actions(player).contains(action) =>
             {
@@ -695,7 +941,7 @@ impl Game {
                 player
                     .hand
                     .iter()
-                    .filter(|c| is_land(&self.card(**c).type_line))
+                    .filter(|c| self.card(**c).is_some_and(|t| is_land(&t.type_line)))
                     .map(|c| Action::PlayLand(*c)),
             );
         }
@@ -704,13 +950,16 @@ impl Game {
             .iter()
             .filter(|c| self.owner(**c) == p && self.cards[c.0 as usize].commander);
         for c in player.hand.iter().chain(from_command) {
-            let entry = &self.cards[c.0 as usize];
+            // A hidden card can't be cast: nothing says what it is.
+            let Some(known) = self.known(*c) else {
+                continue;
+            };
             // CR 305.9; a card with no mana cost can't be paid for, and
             // alternative costs aren't modelled (CR 118.6).
-            if is_land(&entry.text.type_line) || matches!(entry.cost, Ok(None)) {
+            if is_land(&known.text.type_line) || matches!(known.cost, Ok(None)) {
                 continue;
             }
-            if sorcery_speed || self.instant_speed(entry) {
+            if sorcery_speed || self.instant_speed(known) {
                 actions.push(Action::Cast(*c));
             }
         }
@@ -719,7 +968,7 @@ impl Game {
     }
 
     /// CR 117.1a, 304.1, 702.8a: an instant, or a card with flash.
-    fn instant_speed(&self, entry: &CardEntry) -> bool {
+    fn instant_speed(&self, entry: &Known) -> bool {
         match &entry.runs {
             Ok(r) => r.flash || r.lowered.chars.is(CardType::Instant),
             Err(_) => type_words(&entry.text.type_line).any(|w| w == "Instant"),
@@ -742,7 +991,7 @@ impl Game {
             let sick = chars.is(CardType::Creature)
                 && !chars.abilities.contains(&Ability::Keyword(Keyword::Haste))
                 && began.is_none_or(|t| perm.since >= t);
-            let runs = self.cards[perm.card.0 as usize].runs.as_ref().ok();
+            let runs = self.known(perm.card).and_then(|k| k.runs.as_ref().ok());
             for ability in &chars.abilities {
                 let (tap, life, options) = match ability {
                     // CR 305.6.
@@ -821,16 +1070,17 @@ impl Game {
         Ok(())
     }
 
+    /// Only a known card is ever offered to play or cast.
     fn runs(&self, card: CardId) -> Result<&Runnable, Rejected> {
-        let entry = &self.cards[card.0 as usize];
-        entry.runs.as_ref().map_err(|r| Rejected::Refused {
-            card: entry.text.name.clone(),
+        let known = self.known(card).expect("only a known card is offered");
+        known.runs.as_ref().map_err(|r| Rejected::Refused {
+            card: known.text.name.clone(),
             refusal: r.clone(),
         })
     }
 
     /// What this engine can't cast yet, beyond the card's abilities.
-    fn cast_refusal(&self, entry: &CardEntry, runs: &Runnable) -> Result<ManaCost, Unrunnable> {
+    fn cast_refusal(&self, entry: &Known, runs: &Runnable) -> Result<ManaCost, Unrunnable> {
         let cost = entry.cost.clone()?.ok_or_else(|| {
             Unrunnable::new("no mana cost", "it has no mana cost to pay (CR 118.6)")
         })?;
@@ -860,7 +1110,7 @@ impl Game {
     /// or additional costs to announce, since one that has any is refused
     /// when read.
     fn cast(&mut self, p: PlayerId, card: CardId) -> Result<(), Rejected> {
-        let entry = &self.cards[card.0 as usize];
+        let entry = self.known(card).expect("only a known card is offered");
         let runs = self.runs(card)?;
         let cost = self
             .cast_refusal(entry, runs)
@@ -902,7 +1152,7 @@ impl Game {
         let (tap, life, damage) = match a.ability {
             Ability::Intrinsic(_) => (true, 0, 0),
             Ability::Unread(n) => {
-                let runs = self.cards[perm.card.0 as usize].runs.as_ref().ok();
+                let runs = self.known(perm.card).and_then(|k| k.runs.as_ref().ok());
                 let def = &runs.expect("a listed ability runs").mana[&n];
                 (def.tap, def.life, def.damage_to_you)
             }
@@ -932,10 +1182,10 @@ impl Game {
     /// priority (CR 117.3b).
     fn resolve_top(&mut self) {
         if let Some(StackObject::Spell { card, controller }) = self.stack.pop_back() {
-            let permanent = self.cards[card.0 as usize]
-                .runs
-                .as_ref()
-                .is_ok_and(|r| is_permanent(&r.lowered.chars));
+            let permanent = self
+                .known(card)
+                .and_then(|k| k.runs.as_ref().ok())
+                .is_some_and(|r| is_permanent(&r.lowered.chars));
             if permanent {
                 // CR 608.3a.
                 self.enter(card, controller);
@@ -953,10 +1203,11 @@ impl Game {
     /// off the permanent as it would exist on the battlefield (CR 614.12),
     /// so a land that enters having lost its abilities enters untapped.
     fn enter(&mut self, card: CardId, controller: PlayerId) {
-        let runs = self.cards[card.0 as usize]
-            .runs
-            .as_ref()
-            .expect("only a card that runs enters");
+        let known = match &self.cards[card.0 as usize].face {
+            Face::Known(k) => Arc::clone(k),
+            Face::Hidden => unreachable!("only a known card enters"),
+        };
+        let runs = known.runs.as_ref().expect("only a card that runs enters");
         let mut chars = runs.lowered.chars.clone();
         chars.controller = controller;
         let id = self.battlefield.enter(chars, runs.lowered.statics.clone());
@@ -993,10 +1244,17 @@ impl Game {
         }
     }
 
-    fn can_discard(&self, p: PlayerId, count: usize, cards: &[CardId]) -> bool {
+    /// Exactly `count` distinct cards of `p`'s hand.
+    fn chosen_from_hand(&self, p: PlayerId, count: usize, cards: &[CardId]) -> bool {
         let hand = &self.player(p).hand;
         let distinct: BTreeSet<CardId> = cards.iter().copied().collect();
         distinct.len() == count && cards.len() == count && cards.iter().all(|c| hand.contains(c))
+    }
+
+    /// A discarded card goes to a public zone, the graveyard (CR 400.2),
+    /// so it is one whose name is known.
+    fn can_discard(&self, p: PlayerId, count: usize, cards: &[CardId]) -> bool {
+        self.chosen_from_hand(p, count, cards) && cards.iter().all(|c| self.known(*c).is_some())
     }
 
     fn discard(&mut self, p: PlayerId, cards: &[CardId]) {
@@ -1224,7 +1482,10 @@ impl Game {
         let mut named: BTreeMap<(PlayerId, &str), Vec<ObjectId>> = BTreeMap::new();
         for (id, c) in self.characteristics() {
             if c.supertypes.contains(&Supertype::Legendary) {
-                let name = self.card(self.permanents[&id].card).name.as_str();
+                let Some(text) = self.card(self.permanents[&id].card) else {
+                    continue;
+                };
+                let name = text.name.as_str();
                 named.entry((c.controller, name)).or_default().push(id);
             }
         }
@@ -1252,7 +1513,7 @@ impl Game {
     /// CR 800.4a: everything the player owns leaves the game. Nothing
     /// changes control yet, so that is everything they control too.
     fn leave(&mut self, p: PlayerId) {
-        let cards = Arc::clone(&self.cards);
+        let cards = self.cards.clone();
         let owned = |c: &CardId| cards[c.0 as usize].owner == p;
         let player = &mut self.players[p.0 as usize];
         player.left = true;
@@ -1462,6 +1723,7 @@ mod tests {
 
     fn forests(n: usize) -> DeckCards {
         DeckCards {
+            hidden: 0,
             commander: Vec::new(),
             library: (0..n).map(|_| CardText::basic("Forest")).collect(),
         }

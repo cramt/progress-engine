@@ -28,4 +28,5 @@ ascent = { workspace = true, features = ["par"] }
 # Only `chancellor-logs` uses these: it fetches PDBot's logs and reads the
 # Scryfall bulk file, neither of which a browser build does.
 anyhow.workspace = true
+facet-json.workspace = true
 ureq.workspace = true
