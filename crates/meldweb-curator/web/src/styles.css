@@ -633,6 +633,53 @@ label {
   color: var(--steel-hi);
 }
 
+.site-nav .place-short {
+  display: none;
+}
+
+.site-nav svg {
+  width: 17px;
+  height: 17px;
+}
+
+/*
+ * A phone fits all five places only with short names and a gear; scrolled,
+ * the last of them sat past the edge with nothing to say they were there.
+ */
+@media (max-width: 640px) {
+  .toolbar-site {
+    gap: 12px;
+  }
+
+  .site-nav {
+    gap: 0;
+  }
+
+  .site-nav a {
+    padding: 0 8px;
+  }
+
+  .site-nav .place-long {
+    display: none;
+  }
+
+  .site-nav .place-short {
+    display: contents;
+  }
+}
+
+/* The narrowest phones, 320px wide, take the last few pixels from the gaps. */
+@media (max-width: 380px) {
+  .toolbar-site {
+    gap: 6px;
+  }
+
+  .site-nav a {
+    padding: 0 5px;
+    font-size: 13px;
+  }
+}
+
 /* More: one button, and the page's less used actions in a list under it. */
 .more {
   position: relative;

@@ -6,6 +6,7 @@ import {
   BrandMark,
   ChevronIcon,
   CloseIcon,
+  GearIcon,
   RedoIcon,
   UndoIcon,
 } from "../ui/icons";
@@ -19,6 +20,8 @@ import { ClashPicks, picked, settleOf } from "./ClashPicks";
 const PLACES: readonly {
   to: "/" | "/collection" | "/wanted" | "/cards" | "/settings";
   label: string;
+  /** What a phone shows instead of the label, so all five fit its width. */
+  short?: ReactNode;
   title: string;
   here: (path: string) => boolean;
 }[] = [
@@ -43,12 +46,14 @@ const PLACES: readonly {
   {
     to: "/cards",
     label: "Custom cards",
+    short: "Cards",
     title: "Cards of your own making, drawn and printed by Mirage Mockery",
     here: (p) => p.startsWith("/cards"),
   },
   {
     to: "/settings",
     label: "Settings",
+    short: <GearIcon />,
     title: "Which printing of a card is offered first",
     here: (p) => p.startsWith("/settings"),
   },
@@ -63,9 +68,17 @@ function SiteNav() {
           key={place.to}
           to={place.to}
           title={place.title}
+          aria-label={place.short ? place.label : undefined}
           aria-current={place.here(path) ? "page" : undefined}
         >
-          {place.label}
+          {place.short ? (
+            <>
+              <span className="place-long">{place.label}</span>
+              <span className="place-short">{place.short}</span>
+            </>
+          ) : (
+            place.label
+          )}
         </Link>
       ))}
     </nav>
