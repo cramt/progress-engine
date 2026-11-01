@@ -6,6 +6,12 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+# `chancellor-logs` fetches and measures the corpus of real games (README,
+# "Real games"); the library itself never touches the network.
+[[bin]]
+name = "chancellor-logs"
+path = "src/bin/chancellor-logs.rs"
+
 [dependencies]
 ascent = { workspace = true }
 vivisurgeons-insight = { workspace = true }
@@ -19,3 +25,7 @@ thiserror.workspace = true
 # build. Natively it gets `ascent_par!` for search.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ascent = { workspace = true, features = ["par"] }
+# Only `chancellor-logs` uses these: it fetches PDBot's logs and reads the
+# Scryfall bulk file, neither of which a browser build does.
+anyhow.workspace = true
+ureq.workspace = true

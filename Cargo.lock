@@ -342,11 +342,13 @@ dependencies = [
 name = "chancellor-of-the-spires"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "ascent",
  "chip-decklist",
  "chip-scryfall",
  "imbl",
  "thiserror",
+ "ureq",
  "vivisurgeons-insight",
 ]
 

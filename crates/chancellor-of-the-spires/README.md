@@ -162,6 +162,45 @@ characteristic-defining abilities (`SetPt`) and copy effects. Karn
 Liberated and two others don't parse: they are cards with a rule of their
 own, which Insight's headline leaves out.
 
+## Real games
+
+The engine's acceptance test will be real games replayed
+([ADR-0043](../../docs/adr/0043-chancellor-plays-a-game-as-a-state-machine-that-stops-at-every-decision.md)):
+Magic Online's own logs of matches PDBot watched, from
+logs.pennydreadfulmagic.com, each line a play the client already judged
+legal. Replaying them is the next slice; so far the corpus is fetched and
+read.
+
+- `cargo run --release -p chancellor-of-the-spires --bin chancellor-logs -- fetch --max 3000`
+  crawls the Freeform listing (all of it, about 1,660 matches), then Penny
+  Dreadful's newest first, and saves each match's export as
+  `~/.cache/chancellor/pdlogs/<id>.txt` until the cache holds `--max`
+  matches. It skips what is cached, so it resumes, and makes at most one
+  request a second. The logs carry players' names and are the site's, so
+  they are never committed.
+- `log::parse` reads an export into typed events: the header, each game's
+  entries with their turn (`Turn 3: alice`) and an actor that is always one
+  of the match's players, cards, hidden permanents ("face-down creature
+  #1"), targets with their mode or divided damage, and how a spell was
+  cast. It is pure text in, so it builds for wasm. A line it can't read is
+  `Event::Unrecognised`, never dropped.
+- `chancellor-logs coverage` parses the cache and reports the numbers
+  below, the unrecognised line kinds by count, and the worklist: the cards
+  that keep Insight from reading a game whole, ranked by how many games,
+  read from the Scryfall bulk file `scryfall sync` keeps.
+
+**Of 6,934 games in 3,000 matches, 6,562 (94.6%) parse into events whole,
+and in 1,336 (19.3%) Insight reads every card the log names** (tokens
+aside; 23.0% of Freeform's 3,893 games, 14.5% of Penny Dreadful's 3,041),
+measured 2026-11-01. 2,203 of the Freeform games say Modern in their
+comment or Gatherling event. The 587 unread lines fall into 247 kinds, none
+more than 27 lines: a retarget with "no other legal targets", Timesifter,
+proliferate, votes, two events printed on one line. The cards blocking the
+most games are Fervent Champion (340), River of Tears (319), Kytheon (251),
+Kellan, Planar Trailblazer (237) and Thran Portal (221); 19 names aren't in
+the bulk file, mostly tokens the log doesn't call tokens (Ragavan, Marit
+Lage), dungeons, and digital-only cards.
+
 ## Speed
 
 On the research's game-scale board (300 objects; two layer 4 effects, 14
