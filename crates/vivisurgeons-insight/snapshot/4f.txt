@@ -13,7 +13,7 @@ cost: {3}{G}
 > Nitro-9 — Whenever Ace attacks, you may sacrifice an artifact. When you do, put a +1/+1 counter on Ace, then it fights up to one target creature defending player controls.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Labelled { label: "nitro-9", ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }] }, WhenYouDo([PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Fight { a: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, b: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(DefendingPlayer)], or: None } } }])], limits: [] } }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Alex Wilder, Runaway
 face: Alex Wilder, Runaway

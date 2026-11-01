@@ -471,7 +471,7 @@ cost: {2}{G}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Keywords([Keyword { name: "trample", param: None }])
 = Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[State(Historic)]], kind: Some(Spell), posts: [], or: None } }], ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Where { then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), gains: [], dur: UntilEndOfTurn }], x: ManaValueOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] } }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Jeweled Spirit
 face: Jeweled Spirit

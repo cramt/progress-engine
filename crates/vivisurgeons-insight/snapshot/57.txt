@@ -352,7 +352,7 @@ cost: {2}{U}{B}
 > Gríma can't be blocked.
 > Whenever Gríma deals combat damage to a player, that player exiles cards from the top of their library until they exile an instant or sorcery card. You may cast that card without paying its mana cost. Then that player puts the exiled cards that weren't cast this way on the bottom of their library in a random order.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [With { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } }], then: [UntilFound { who: That, verb: Exile, zone: TopOfLibrary(That), until: Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }, Performed { by: That, effect: Move { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled), Not(Marked(Cast))], or: None } }, from: None, to: BottomOfLibrary(That), tapped: false, transformed: false, under: None, order: Some(Random) } }] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [With { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } }, /* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [UntilFound { who: That, verb: Exile, zone: TopOfLibrary(That), until: Objects { quant: Introduced(1) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(1) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }, Performed { by: That, effect: Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled), Not(Marked(Cast))], or: None } }, from: None, to: BottomOfLibrary(That), tapped: false, transformed: false, under: None, order: Some(Random) } }] }], limits: [] }
 
 ## Harmonic Convergence
 face: Harmonic Convergence
@@ -713,7 +713,7 @@ cost: {2}{W}{W}
 > If an opponent controls a Mountain and you control a Plains, you may cast this spell without paying its mana cost.
 > Prevent all damage that would be dealt this turn to creatures you control.
 = Static([If { order: Leading, cond: And([PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } })]), then: [CastWithoutPaying] }])
-= BROKE at "to" after: prevent all damage that would be dealt this turn
+= Spell([Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })]), by: None, dur: ThisTurn }])
 
 ## Skeleton Crew
 face: Skeleton Crew

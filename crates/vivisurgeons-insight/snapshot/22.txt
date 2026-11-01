@@ -134,7 +134,7 @@ cost: {6}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "," after: impossible girl — if ~ is your commander
 = Static([AdditionalTrigger { of: Objects { quant: One, filter: Filter { alts: [[Subtype("doctor")]], kind: None, posts: [Controller(You)], or: None } }, cause: None }])
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Conscripted Infantry
 face: Conscripted Infantry
@@ -228,7 +228,7 @@ face: Erratic Explosion
 type: Sorcery
 cost: {2}{R}
 > Choose any target. Reveal cards from the top of your library until you reveal a nonland card. Erratic Explosion deals damage equal to that card's mana value to that permanent or player. Put the revealed cards on the bottom of your library in any order.
-= Spell([Choose(Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })), With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }], then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), to: [Objects(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [], kind: Some(Player), posts: [], or: None }) } })] }, Move { what: Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }] }])
+= Spell([Choose(Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })), With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }, /* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: Introduced(1) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Bound(1) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), to: [Objects(Objects { quant: Bound(1) /* revealed */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [], kind: Some(Player), posts: [], or: None }) } })] }, Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }] }])
 
 ## Exit Specialist
 face: Exit Specialist
@@ -881,7 +881,7 @@ face: Tanglesap
 type: Instant
 cost: {1}{G}
 > Prevent all combat damage that would be dealt this turn by creatures without trample.
-= BROKE at "by" after: prevent all combat damage that would be dealt this turn
+= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithoutKeyword("trample")], or: None } }), dur: ThisTurn }])
 
 ## Tezzeret's Betrayal
 face: Tezzeret's Betrayal

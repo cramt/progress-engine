@@ -282,7 +282,7 @@ cost: {4}{U}
 > Enchant player
 > At the beginning of enchanted player's upkeep, any number of target players other than that player each draw cards equal to the number of Curses attached to that player.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= BROKE at "that" after: at the beginning of enchanted player 's upkeep , any number of target players other than
 
 ## Dawnglade Regent
 face: Dawnglade Regent
@@ -291,7 +291,7 @@ cost: {5}{G}{G}
 > When this creature enters, you become the monarch.
 > As long as you're the monarch, permanents you control have hexproof.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "," after: as long as you're the monarch
+= Static([AsLongAs { order: Leading, cond: IsMonarch(You), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 
 ## Demonic Hordes
 face: Demonic Hordes
@@ -1207,7 +1207,7 @@ face: Trade Route Envoy
 type: Creature — Dog Soldier
 cost: {3}{G}
 > When this creature enters, draw a card if you control a creature with a counter on it. If you don't draw a card this way, put a +1/+1 counter on this creature.
-= BROKE at "draw" after: when this creature enters , draw a card if you control a creature with a counter on it . if you don't
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(None)], or: None } }), then: [Draw { who: You, n: N(1) }] }, If { order: Leading, cond: Not(ThisWay(Draws(You))), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Unstable Shapeshifter
 face: Unstable Shapeshifter

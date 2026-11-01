@@ -1122,5 +1122,5 @@ face: Zhang Liao, Hero of Hefei
 type: Legendary Creature — Human Soldier
 cost: {4}{B}{B}
 > Whenever Zhang Liao deals damage to an opponent, that opponent discards a card.
-= BROKE at "a" after: whenever ~ deals damage to an opponent , that opponent discards
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
 

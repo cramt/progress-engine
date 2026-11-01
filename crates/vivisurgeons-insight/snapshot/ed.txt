@@ -96,7 +96,7 @@ cost: {G}
 > Cast this spell only before the combat damage step.
 > Target creature gains trample and gets +X/+0 until end of turn, where X is its power. At the beginning of the next end step, destroy that creature if it attacked this turn.
 = BROKE at "damage" after: cast this spell only before the combat
-= BROKE at "this" after: target creature gains trample and gets <pt> until end of turn , where x is its power . at the beginning of the next end step , destroy that creature if it attacked
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Where { then: [Modify { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: N(0), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], x: PowerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }, Delayed { step: EndStep(Next), then: [If { order: Trailing, cond: Attacked { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: false }, then: [Destroy { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }] }]) }
 
 ## Bladecoil Serpent
 face: Bladecoil Serpent
@@ -634,7 +634,7 @@ face: Moonmist
 type: Instant
 cost: {1}{G}
 > Transform all Humans. Prevent all combat damage that would be dealt this turn by creatures other than Werewolves and Wolves. (Only double-faced cards can be transformed.)
-= BROKE at "by" after: transform all humans . prevent all combat damage that would be dealt this turn
+= BROKE at "werewolves" after: transform all humans . prevent all combat damage that would be dealt this turn by creatures other than
 
 ## Nacatl Savage
 face: Nacatl Savage
@@ -945,8 +945,8 @@ cost: {4}
 > As long as equipped creature is untapped, untapped creatures you control get +0/+2.
 > {3}: You may tap or untap equipped creature.
 > Equip {3}
-= BROKE at "get" after: as long as equipped creature is tapped , tapped creatures you control
-= BROKE at "get" after: as long as equipped creature is untapped , untapped creatures you control
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }] }])
 = BROKE at "untap" after: {3} : you may tap or
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["3"]))])) }])
 

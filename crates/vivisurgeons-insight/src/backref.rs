@@ -636,8 +636,8 @@ impl Visitor for Collect {
     fn amount_done(&mut self, _a: &mut Amount) {
         self.pop_frame();
     }
-    fn statik(&mut self, _s: &mut Static) {
-        self.push_frame(Fk::Static, String::new());
+    fn statik(&mut self, s: &mut Static) {
+        self.push_frame(Fk::Static, format!("@static:{}", head(s)));
     }
     fn statik_done(&mut self, s: &mut Static) {
         let id = self.pop_frame();
@@ -790,10 +790,19 @@ fn compat(r: &Objects, e: &Ev) -> bool {
         }
     }
     // The pile a dig revealed is said "the revealed cards", "the rest",
-    // never a bare "it" or "that card" (which is the card found).
+    // never a bare "it" or "that card" (which is the card found); a dig
+    // that exiles says it "the exiled cards" ([dig-pile]: Chaos Wand).
     if e.role == Role::Made
         && e.verb.starts_with("UntilFound")
         && marked_how(rf) != Some(Marked::Revealed)
+        // A bare reference ("it", "the exiled card") is resolved as the
+        // found card; a plural one as the pile, and a pointer to the pile
+        // is checked against the words that made it one.
+        && !(marked_how(rf) == Some(Marked::Exiled)
+            && matches!(
+                r.quant,
+                Quant::Unresolved(Hint::Pile) | Quant::BackRef { .. } | Quant::Bound(_)
+            ))
     {
         return false;
     }
@@ -812,7 +821,13 @@ fn compat(r: &Objects, e: &Ev) -> bool {
                     ek,
                     Some(Noun::Spell | Noun::Card | Noun::SpellOrAbility | Noun::Copy)
                 )
-                || e.verb.contains("Cast");
+                || e.verb.contains("Cast")
+                // "look at the top card …, exile it face down. … mana of
+                // any type can be spent to cast that spell" (Dream-Thief's
+                // Bandana, Gonti): a card looked at or exiled from among
+                // them, said with no noun, is a card, and cast it is the
+                // spell.
+                || ek.is_none() && (e.role == Role::Made || e.verb.contains("Exile"));
             if !ok {
                 return false;
             }
@@ -1080,13 +1095,21 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
         }
         for (si, scope) in ld.scopes.iter().enumerate() {
             let mut intros: Vec<(usize, usize)> = if si == 0 { prior.clone() } else { Vec::new() };
-            let mut self_at: Option<usize> = if si == 0 && prior_self { Some(0) } else { None };
+            let mut self_at: Option<f64> = if si == 0 && prior_self {
+                Some(-0.5)
+            } else {
+                None
+            };
             // References said so far, at their position, with their pick.
-            let mut earlier: Vec<(usize, Vec<Target>)> = Vec::new();
+            let mut earlier: Vec<(f64, Vec<Target>)> = Vec::new();
             // Every object said so far as what it settled on.
             let mut mentions: Vec<((usize, usize), Target)> = Vec::new();
             for &ei in scope {
                 let e = &ld.c.evs[ei];
+                // Between two introducers, the later of two mentions is the
+                // nearer: Hostage Taker's "that card" after "this creature
+                // leaves", Tellah's "sacrifice ~ and it" after "that spell".
+                let at = intros.len() as f64 - 0.5 + ei as f64 * 1e-6;
                 if counts_as_intro(e) {
                     intros.push((li, ei));
                     mentions.push(((li, ei), Target::Intro(li, ei)));
@@ -1094,12 +1117,11 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                 }
                 match &e.role {
                     Role::SelfMention => {
-                        self_at = Some(intros.len());
+                        self_at = Some(at);
                         mentions.push(((li, ei), Target::SelfCard));
                     }
                     Role::Ref(k) => {
                         let r = e.obj.clone().expect("a reference is an object");
-                        let pos = intros.len();
                         let (pick, class, cands, note) = resolve_one(
                             lds,
                             li,
@@ -1121,7 +1143,7 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                         if *k != Kind::Text(Hint::Pool) {
                             // Only what it settled on chains on: "its owner"
                             // after "the exiled card" is that card.
-                            earlier.push((pos, pick.iter().cloned().collect()));
+                            earlier.push((at, pick.iter().cloned().collect()));
                             if let Some(p) = &pick {
                                 mentions.push(((li, ei), p.clone()));
                             }
@@ -1196,8 +1218,8 @@ fn resolve_one(
     r: &Objects,
     scope: &[usize],
     intros: &[(usize, usize)],
-    self_at: Option<usize>,
-    earlier: &[(usize, Vec<Target>)],
+    self_at: Option<f64>,
+    earlier: &[(f64, Vec<Target>)],
     mentions: &[((usize, usize), Target)],
     intros_per_line: &[Vec<usize>],
     type_line: &str,
@@ -1424,7 +1446,10 @@ fn resolve_one(
         Kind::Text(Hint::Rest) => {
             let choice = intros.iter().rev().find(|&&(l, i)| {
                 let x = get((l, i));
-                x.role == Role::Made && x.verb != TOKEN
+                // A dig's pile is the pool its found card was chosen from,
+                // not a choice (Curse of Unbinding's "the rest of the
+                // revealed cards" is what the found card left).
+                x.role == Role::Made && x.verb != TOKEN && !x.verb.starts_with("UntilFound")
                     || x.obj.as_ref().is_some_and(|o| {
                         o.filter
                             .posts
@@ -1447,7 +1472,16 @@ fn resolve_one(
         // Antecedent, OriginalAndCopies: any earlier object that fits.
         _ => {
             let copies = k == Kind::Text(Hint::OriginalAndCopies);
-            push_pool(&mut cands, &|x| !copies || x.verb.contains("Copy"));
+            // "the exiled cards" after a dig: the pile it moved, before the
+            // card it found ([dig-pile]).
+            let pile = |x: &Ev| x.role == Role::Made && x.verb.starts_with("UntilFound");
+            let piles = k == Kind::Text(Hint::Pile);
+            if piles {
+                push_pool(&mut cands, &pile);
+            }
+            if cands.is_empty() {
+                push_pool(&mut cands, &|x| !copies || x.verb.contains("Copy"));
+            }
             if self_at.is_some() && self_compat(r, type_line) {
                 cands.push(Target::SelfCard);
             }
@@ -1491,7 +1525,7 @@ fn resolve_one(
     // where nothing fit, so no reference that had a referent moves.
     if cands.is_empty() {
         match k {
-            Kind::Text(Hint::Antecedent | Hint::ClauseObject | Hint::Linked)
+            Kind::Text(Hint::Antecedent | Hint::Pile | Hint::ClauseObject | Hint::Linked)
                 if marked_how(&r.filter).is_some() =>
             {
                 for &(l, i) in intros.iter().rev() {
@@ -1523,7 +1557,12 @@ fn resolve_one(
     // with mana value … the number of cards in its controller's
     // graveyard": a reference inside the filter of the set it describes,
     // with nothing before it, is each one of that set in turn.
-    if cands.is_empty() && matches!(k, Kind::Text(Hint::Antecedent | Hint::ClauseObject)) {
+    if cands.is_empty()
+        && matches!(
+            k,
+            Kind::Text(Hint::Antecedent | Hint::Pile | Hint::ClauseObject)
+        )
+    {
         if let Some(&anc) = e
             .anc
             .iter()
@@ -1536,6 +1575,32 @@ fn resolve_one(
     }
     let mut seen = BTreeSet::new();
     cands.retain(|t| seen.insert(t.clone()));
+    // "Creatures can't attack you or planeswalkers you control unless their
+    // controller pays {1} for each of those creatures": a reference inside a
+    // restriction means the restricted subject, said first, before any
+    // object of its rule ([restricted-subject]).
+    if cands.len() > 1 {
+        if let Some(&rf) = e.frames.iter().rev().find(|&&f| {
+            matches!(
+                ld.c.frames[f].verb.as_str(),
+                "Restrict" | "@static:Restrict"
+            )
+        }) {
+            let subject = cands
+                .iter()
+                .filter_map(|t| match t {
+                    Target::Intro(l, i) if *l == li && ld.c.evs[*i].frames.contains(&rf) => {
+                        Some(*i)
+                    }
+                    _ => None,
+                })
+                .min();
+            if let Some(i) = subject {
+                cands.retain(|t| *t == Target::Intro(li, i));
+                note = "the restricted subject".into();
+            }
+        }
+    }
     let class = match cands.len() {
         0 => Class::None,
         1 => Class::Determined,
@@ -1551,14 +1616,22 @@ fn resolve_one(
                 let chained = earlier
                     .iter()
                     .filter(|(_, ts)| ts.contains(t))
-                    .map(|(p, _)| *p as f64 - 0.5)
+                    .map(|(p, _)| *p)
                     .fold(f64::MIN, f64::max);
+                // Another line's object, said again here, as it always did:
+                // ahead of the card at the same place (Oblivion Ring's "its
+                // owner" after "the exiled card").
+                let chained = if matches!(t, Target::Linked(..)) {
+                    chained + 1e-3
+                } else {
+                    chained
+                };
                 let own = match t {
                     Target::Intro(l, i) => intros
                         .iter()
                         .position(|x| *x == (*l, *i))
                         .map_or(f64::MIN, |p| p as f64),
-                    Target::SelfCard => self_at.map_or(f64::MIN, |s| s as f64 - 0.5),
+                    Target::SelfCard => self_at.unwrap_or(f64::MIN),
                     _ => -1e9,
                 };
                 own.max(chained)

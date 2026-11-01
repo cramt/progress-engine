@@ -714,7 +714,7 @@ type: Enchantment
 cost: {2}{W}
 > Whenever one or more creatures an opponent controls deal combat damage to you, that opponent gets a poison counter.
 > Whenever a player attacks, if one or more players being attacked are poisoned, the attacking player draws a card.
-= BROKE at "a" after: whenever one or more creatures an opponent controls deal combat damage to you , that opponent gets
+= Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, to: Player(You) }), effect: [GetCounters { who: That, n: N(1), kind: "poison" }], limits: [] }
 = BROKE at "being" after: whenever a player attacks , if one or more players
 
 ## Nova Flame
@@ -822,7 +822,7 @@ face: Reins of Power
 type: Instant
 cost: {2}{U}{U}
 > Untap all creatures you control and all creatures target opponent controls. You and that opponent each gain control of all creatures the other controls until end of turn. Those creatures gain haste until end of turn.
-= BROKE at "gain" after: untap all creatures you control and all creatures target opponent controls . you and that opponent each
+= BROKE at "other" after: untap all creatures you control and all creatures target opponent controls . you and that opponent each gain control of all creatures the
 
 ## Relic Vial
 face: Relic Vial

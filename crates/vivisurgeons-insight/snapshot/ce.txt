@@ -64,7 +64,7 @@ cost: {1}{W}{W}{W}
 > As long as this creature is untapped, creatures can't attack you or planeswalkers you control unless their controller pays {1} for each of those creatures.
 > As long as this creature is attacking, creatures can't block unless their controller pays {1} for each of those creatures.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "attack" after: as long as this creature is untapped , creatures can't
+= Let { bind: [/* it */ Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Restrict { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackAnyOf([Player(You), Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })]), who: ControllerOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["1"]))], per: Some(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) } }] }]) }
 = BROKE at "block" after: as long as this creature is attacking , creatures can't
 
 ## Armored Ascension
@@ -743,7 +743,7 @@ face: Songstitcher
 type: Creature — Human Cleric
 cost: {W}
 > {1}{W}: Prevent all combat damage that would be dealt this turn by target attacking creature with flying.
-= BROKE at "by" after: {1} {W} : prevent all combat damage that would be dealt this turn
+= Activated { cost: [Mana(Mana(["1", "W"]))], effect: [Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }), dur: ThisTurn }], limits: [] }
 
 ## Spider-Man, Web-Slinger
 face: Spider-Man, Web-Slinger

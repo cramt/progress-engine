@@ -502,7 +502,7 @@ cost: {3}{U}{U}
 > When this creature enters, you become the monarch.
 > At the beginning of your upkeep, if you're the monarch, creatures you control can't be blocked this turn.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of your upkeep , if you're the
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), IsMonarch(You)), effect: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
 
 ## Kitesail Freebooter
 face: Kitesail Freebooter

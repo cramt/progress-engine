@@ -58,7 +58,7 @@ cost: {3}{R}
 > Whenever you cast an instant or sorcery spell that targets only Bill Potts or activate an ability that targets only Bill Potts, copy that spell or ability. You may choose new targets for the copy. This ability triggers only once each turn.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "~" after: whenever you cast an instant or sorcery spell that targets only
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Blighted Woodland
 face: Blighted Woodland

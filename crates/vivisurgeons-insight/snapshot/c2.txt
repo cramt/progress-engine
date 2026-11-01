@@ -172,7 +172,7 @@ cost: {2}{B}{B}
 > When this enchantment enters, you become the monarch.
 > At the beginning of your upkeep, each opponent loses 3 life unless they discard a card. If you're the monarch, instead each opponent loses 6 life unless they discard two cards.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of your upkeep , each opponent loses 3 life unless they discard a card . if you're the
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Unless { effect: LoseLife { who: EachOpponent, n: N(3) }, who: That, cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }, Instead { cond: IsMonarch(You), then: [Unless { effect: LoseLife { who: EachOpponent, n: N(6) }, who: That, cost: [Discard(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }] }], limits: [] }
 
 ## Cram Session
 face: Cram Session
@@ -272,7 +272,7 @@ cost: {4}{G}
 > When this creature enters, you become the monarch.
 > This creature can block an additional creature each combat as long as you're the monarch.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: this creature can block an additional creature each combat as long as you're the
+= Static([AsLongAs { order: Trailing, cond: IsMonarch(You), then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CanBlockAdditional(N(1)) }] }])
 
 ## Errand of Duty
 face: Errand of Duty

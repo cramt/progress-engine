@@ -120,7 +120,7 @@ cost: {3}{R}
 > Cackling Flames deals 3 damage to any target.
 > Hellbent — Cackling Flames deals 5 damage instead if you have no cards in hand.
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
-= BROKE at "no" after: hellbent — ~ deals 5 damage instead if you have
+= Labelled { label: "hellbent", ability: Spell([Instead { cond: CardsInHandAtMost(0), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Same] }] }]) }
 
 ## Cacophony Scamp
 face: Cacophony Scamp
@@ -232,7 +232,7 @@ cost: {2}{U}
 > Changeling (This card is every creature type.)
 > Creatures target player controls get -2/-0 and lose all creature types until end of turn.
 = Keywords([Keyword { name: "changeling", param: None }])
-= BROKE at "until" after: creatures target player controls get <pt> and lose all creature types
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }, Loses { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, lost: [All { other: false, of: CreatureTypes }], dur: UntilEndOfTurn }])
 
 ## Ephara, God of the Polis
 face: Ephara, God of the Polis

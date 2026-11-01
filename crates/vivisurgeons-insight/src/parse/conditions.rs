@@ -135,6 +135,9 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::ManaSpent { mana, what })
         },
         |p| p.words("you have the city 's blessing").map(|_| Condition::CitysBlessing(Player::You)),
+        |p| p.words("you're the monarch").map(|_| Condition::IsMonarch(Player::You)),
+        |p| p.words("there is no monarch").map(|_| Condition::NoMonarch),
+        |p| { let who = player(p)?; p.words("is the monarch")?; Some(Condition::IsMonarch(who)) },
         |p| p.words("you have max speed").map(|_| Condition::MaxSpeed(Player::You)),
         // "this is the fourth time this ability has resolved this turn", and
         // after the first, "it's the second time".
@@ -267,6 +270,8 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("this turn")?;
             Some(Condition::DidThisTurn(Box::new(e)))
         },
+        // Hellbent: "you have no cards in hand" is at most zero.
+        |p| p.words("you have no cards in hand").map(|_| Condition::CardsInHandAtMost(0)),
         |p| { p.words("you have")?; let n = number(p)?; p.words("or fewer cards in hand")?; Some(Condition::CardsInHandAtMost(n)) },        // "an opponent has 10 or less life": "you have" reads as its own.
         |p| {
             let who = player_simple(p)?;
@@ -378,6 +383,12 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.attempt(|p| p.words("this way"));
             Some(Condition::Not(Box::new(Condition::ThisWay(Box::new(Event::Casts { who: Player::You, what })))))
         },
+        // "draw a card if you control …. If you don't draw a card this way"
+        // (Trade Route Envoy): the draw didn't happen ([didnt-put]).
+        |p| {
+            p.words("you don't draw a card this way")?;
+            Some(Condition::Not(Box::new(Condition::ThisWay(Box::new(Event::Draws(Player::You))))))
+        },
         // "you didn't create a token this way": the event, not done.
         |p| {
             let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
@@ -472,6 +483,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::AmountIs { n: Amount::CardsDrawnThisTurn(Player::You), op: Op::Ge, value: Amount::N(value) })
         },
         |p| { p.words("you control no")?; objects(p).map(Condition::YouDontControl) },
+        |p| { let who = player_simple(p)?; p.words("controls no")?; let o = objects(p)?; Some(Condition::ControlsNone(who, o)) },
         |p| {
             let w = whose(p)?;
             p.words("library has no cards in it")?;
@@ -546,6 +558,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::FirstCombatPhase { your_turn })
         },
         |p| p.words("it's not your turn").map(|_| Condition::NotYourTurn),
+        // "if it isn't that player's turn" (Tataru Taru), "if it's not their
+        // turn": not the turn of the player the trigger names.
+        |p| {
+            p.one_of(&["it's not", "it isn't"])?;
+            p.one_of(&["their", "that player 's"])?;
+            p.word("turn")?;
+            Some(Condition::Not(Box::new(Condition::TheirTurn)))
+        },
         |p| p.words("it's an opponent 's turn").map(|_| Condition::OpponentsTurn),
         |p| { p.words("you have")?; let n = number(p)?; p.words("or more life")?; Some(Condition::LifeAtLeast(n)) },
         |p| {
@@ -625,8 +645,17 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 // "if this card is exiled" (Senu): in exile ([is-exiled]).
                 |p| {
                     p.one_of(&["is exiled", "are exiled"])?;
-                    if p.peek_word() == Some("with") { return None; }
-                    Some(Condition::In { what: what.clone(), zone: Zone::Exile })
+                    let exiled = Condition::In { what: what.clone(), zone: Zone::Exile };
+                    if p.peek_word() != Some("with") { return Some(exiled); }
+                    // Darigaaz Reincarnated's "if this card is exiled with an
+                    // egg counter on it": in exile, and the counter on it
+                    // ([exiled-with-counter]).
+                    p.word("with")?;
+                    p.one_of(&["a", "an"])?;
+                    let kind = counter_kind(p)?;
+                    p.words("counter on")?;
+                    pronoun(p)?;
+                    Some(Condition::And(vec![exiled, Condition::HasCounter { what: what.clone(), kind: Some(kind) }]))
                 },
                 // "this enchantment has seven or more quest counters on it".
                 |p| {
@@ -677,11 +706,17 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| { p.words("was cast from")?; let zone = zone(p)?; Some(Condition::CastFrom { what: what.clone(), zone }) },
                 |p| { p.words("wasn't cast from")?; let zone = zone(p)?; Some(Condition::Not(Box::new(Condition::CastFrom { what: what.clone(), zone }))) },
                 |p| p.words("wasn't cast").map(|_| Condition::Not(Box::new(Condition::WasCast(what.clone())))),
+                |p| p.word("escaped").map(|_| Condition::Escaped(what.clone())),
                 |p| p.words("wasn't cycled").map(|_| Condition::Not(Box::new(Condition::WasCycled(what.clone())))),
                 |p| {
                     p.words("attacked or blocked")?;
                     let this_combat = p.one_of(&["this combat", "this turn"])? == "this combat";
                     Some(Condition::AttackedOrBlocked { what: what.clone(), this_combat })
+                },
+                |p| {
+                    p.word("attacked")?;
+                    let this_combat = p.one_of(&["this combat", "this turn"])? == "this combat";
+                    Some(Condition::Attacked { what: what.clone(), this_combat })
                 },
                 |p| { p.one_of(&["is", "are"])?; p.words("face down")?; Some(Condition::FaceDown(what.clone())) },
                 // "a card is exiled with this land".

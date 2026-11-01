@@ -43,7 +43,7 @@ type: Creature — Human Advisor
 cost: {2}{U}
 > When your commander deals combat damage to a player, if there is no monarch, you become the monarch.
 > At the beginning of the monarch's end step, that player draws a card.
-= BROKE at "monarch" after: when your commander deals combat damage to a player , if there is no
+= Triggered { trigger: InterveningIf(When(DealsCombatDamageToPlayer(Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } })), NoMonarch), effect: [Designation("monarch")], limits: [] }
 = BROKE at "step" after: at the beginning of the monarch 's end
 
 ## Armored Warhorse
@@ -622,7 +622,7 @@ cost: {2}{U}
 > As this enchantment enters, choose Khans or Dragons.
 > • Khans — At the beginning of your draw step, draw an additional card, then discard a card.
 > • Dragons — Spells your opponents cast that target you or a permanent you control cost {2} more to cast.
-= BROKE at "spells" after: as this enchantment enters , choose khans or dragons . • khans — at the beginning of your draw step , draw an additional card , then discard a card . • dragons —
+= Anchored { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, options: [AnchoredAbility { word: "khans", ability: Triggered { trigger: At(DrawStep(Yours)), effect: [Draw { who: You, n: Additional(N(1)) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] } }, AnchoredAbility { word: "dragons", ability: Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(EachOpponent), TargetsRecipient(Or([Player(You), Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } })]))], or: None } }, by: Mana(["2"]), less: false, per: None }]) }] }
 
 ## Mox Jasper
 face: Mox Jasper

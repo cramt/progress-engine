@@ -561,7 +561,7 @@ cost: {4}
 > Imprint — When this artifact enters, you may exile target card from a graveyard.
 > {2}, {T}: Prevent all damage that would be dealt this turn by a source of your choice that shares a color with the exiled card.
 = Labelled { label: "imprint", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } })] }], limits: [] } }
-= BROKE at "by" after: {2} , {T} : prevent all damage that would be dealt this turn
+= BROKE at "color" after: {2} , {T} : prevent all damage that would be dealt this turn by a source of your choice that shares a
 
 ## Muse Drake
 face: Muse Drake

@@ -183,7 +183,7 @@ face: Chaos Wand
 type: Artifact
 cost: {3}
 > {4}, {T}: Target opponent exiles cards from the top of their library until they exile an instant or sorcery card. You may cast that card without paying its mana cost. Then put the exiled cards that weren't cast this way on the bottom of that library in a random order.
-= BROKE at "in" after: {4} , {T} : target opponent exiles cards from the top of their library until they exile an instant or sorcery card . you may cast that card without paying its mana cost . then put the exiled cards that weren't cast this way on the bottom of that library
+= Activated { cost: [Mana(Mana(["4"])), Tap], effect: [With { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } }, /* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [UntilFound { who: TargetOpponent, verb: Exile, zone: TopOfLibrary(That), until: Objects { quant: Introduced(1) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(1) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }, Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled), Not(Marked(Cast))], or: None } }, from: None, to: BottomOfLibrary(That), tapped: false, transformed: false, under: None, order: Some(Random) }] }], limits: [] }
 
 ## Chatter of the Squirrel
 face: Chatter of the Squirrel
@@ -996,7 +996,7 @@ cost: {2}{B}{B}
 > Whenever a creature you control dies, each opponent chooses a creature they control and exiles it.
 > At the beginning of your end step, if a player controls no creatures, sacrifice Sothera, then put a creature card exiled with it onto the battlefield under your control with two additional +1/+1 counters on it.
 = Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }], then: [Performed { by: EachOpponent, effect: Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }, Performed { by: EachOpponent, effect: Exile(Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }], limits: [] }
-= BROKE at "creatures" after: at the beginning of your end step , if a player controls no
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), ControlsNone(APlayer, Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, EntersWith { effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, n: Additional(N(2)), kind: "+1/+1" }], limits: [] }
 
 ## Sound the Trumpets
 face: Sound the Trumpets

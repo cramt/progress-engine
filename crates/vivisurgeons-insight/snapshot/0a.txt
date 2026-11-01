@@ -378,7 +378,7 @@ face: Fog of War
 type: Instant
 cost: {2}{G}
 > You gain 1 life for each creature on the battlefield. Prevent all combat damage that would be dealt this turn by creatures with power 3 or less.
-= BROKE at "by" after: you gain 1 life for each creature on the battlefield . prevent all combat damage that would be dealt this turn
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }, then: [GainLife { who: You, n: N(1) }] }, Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(3) })], or: None } }), dur: ThisTurn }])
 
 ## Foggy Bottom Swamp
 face: Foggy Bottom Swamp
@@ -402,7 +402,7 @@ face: Garrulous Sycophant
 type: Creature — Human Advisor
 cost: {2}{B}
 > At the beginning of your end step, if you're the monarch, each opponent loses 1 life and you gain 1 life.
-= BROKE at "monarch" after: at the beginning of your end step , if you're the
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), IsMonarch(You)), effect: [LoseLife { who: EachOpponent, n: N(1) }, GainLife { who: You, n: N(1) }], limits: [] }
 
 ## Giant Inheritance
 face: Giant Inheritance

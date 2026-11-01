@@ -503,7 +503,7 @@ cost: {1}{B}
 > Choose one —
 > • Destroy target creature with no counters on it.
 > • Remove up to three counters from target creature.
-= BROKE at "." after: choose one — • destroy target creature with no counters on it
+= Spell([Modal { choose: One, modes: [[Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Not(WithCounter(None))], or: None } }, no_regen: false }], [RemoveAnyCounters { n: UpTo(N(3)), from: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }]] }])
 
 ## Heartwood Crafter // Soul Tether
 face: Heartwood Crafter
@@ -1112,7 +1112,7 @@ type: Enchantment
 cost: {3}{R}{R}
 > If a cycling ability of another nonland card would cause you to draw a card, instead exile cards from the top of your library until you exile a card that shares a card type with the cycled card. You may cast that card without paying its mana cost. Then put the exiled cards that weren't cast this way on the bottom of your library in a random order.
 > Cycling {2} ({2}, Discard this card: Draw a card.)
-= Let { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [SharesType { card_type: "card", with: Some(Objects { quant: Itself, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Cycled)], or: None } }) }], or: None } }], ability: Static([Replacement { event: DrawsByCycling { who: You, of: Objects { quant: Another, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } } }, instead: [UntilFound { who: You, verb: Exile, zone: TopOfLibrary(You), until: Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }, Move { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled), Not(Marked(Cast))], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }] }]) }
+= Let { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [SharesType { card_type: "card", with: Some(Objects { quant: Itself, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Cycled)], or: None } }) }], or: None } }, /* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], ability: Static([Replacement { event: DrawsByCycling { who: You, of: Objects { quant: Another, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } } }, instead: [UntilFound { who: You, verb: Exile, zone: TopOfLibrary(You), until: Objects { quant: Introduced(1) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(1) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }, Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled), Not(Marked(Cast))], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }] }]) }
 = Keywords([Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Urza's Guilt

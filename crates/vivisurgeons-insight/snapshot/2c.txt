@@ -262,7 +262,7 @@ cost: {2}{U}{B}{R}
 > Whenever a creature you control but don't own dies, return it to the battlefield under its owner's control and you draw a card.
 = Keywords([Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
 = Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }], ability: Triggered { trigger: At(Combat(Yours)), effect: [GainControl { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }, Untap(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Modify { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] } }
-= BROKE at "own" after: whenever a creature you control but don't
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }], ability: Triggered { trigger: When(Dies(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, Draw { who: You, n: N(1) }], limits: [] } }
 
 ## Eel Umbra
 face: Eel Umbra

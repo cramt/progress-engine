@@ -907,5 +907,5 @@ cost: {3}{W/U}{W/U}
 > When Yorion enters, exile any number of other nonland permanents you own and control. Return those cards to the battlefield at the beginning of the next end step.
 = BROKE at "cards" after: companion — your starting deck contains at least twenty
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "." after: when ~ enters , exile any number of other nonland permanents you own and control
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [With { bind: [/* exiled */ Objects { quant: AnyNumber, filter: Filter { alts: [[State(Other), Non("land")]], kind: Some(Permanent), posts: [Owner(You), Controller(You)], or: None } }], then: [Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Delayed { step: EndStep(Next), then: [Move { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }], limits: [] }
 

@@ -150,7 +150,7 @@ face: Cutthroat il-Dal
 type: Creature — Human Rogue
 cost: {3}{B}
 > Hellbent — This creature has shadow as long as you have no cards in hand. (It can block or be blocked by only creatures with shadow.)
-= BROKE at "no" after: hellbent — this creature has shadow as long as you have
+= Labelled { label: "hellbent", ability: Static([AsLongAs { order: Trailing, cond: CardsInHandAtMost(0), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "shadow", param: None }], per: None }] }]) }
 
 ## D'Avenant Healer
 face: D'Avenant Healer

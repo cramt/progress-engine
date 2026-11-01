@@ -579,7 +579,7 @@ face: Mogg Assassin
 type: Creature — Goblin Assassin
 cost: {2}{R}
 > {T}: You choose target creature an opponent controls, and that opponent chooses target creature. Flip a coin. If you win the flip, destroy the creature you chose. If you lose the flip, destroy the creature your opponent chose.
-= BROKE at "chooses" after: {T} : you choose target creature an opponent controls , and that opponent
+= BROKE at "chose" after: {T} : you choose target creature an opponent controls , and that opponent chooses target creature . flip a coin . if you win the flip , destroy the creature you
 
 ## Monkey Cage
 face: Monkey Cage
@@ -602,7 +602,7 @@ cost: {2}{G}{G}
 > Trample
 > This creature gets +1/+1 for each creature you control and each creature card in your graveyard.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "." after: this creature gets <pt> for each creature you control and each creature card in your graveyard
+= Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }, Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })) }])
 
 ## Morcant's Loyalist
 face: Morcant's Loyalist
@@ -983,7 +983,7 @@ cost: {4}
 > • Put a +1/+1 counter on Vision.
 > • Vision phases out. (Treat him and anything attached to him as though they don't exist until your next turn.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "'s" after: whenever a player casts a spell , if it isn't that player
+= Triggered { trigger: InterveningIf(When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), Not(TheirTurn)), effect: [Modal { choose: One, modes: [[PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], [PhaseOut(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]] }], limits: [] }
 
 ## Vodalian Wave-Knight
 face: Vodalian Wave-Knight

@@ -644,7 +644,7 @@ face: Metamorphose
 type: Instant
 cost: {1}{U}
 > Put target permanent an opponent controls on top of its owner's library. That opponent may put an artifact, creature, enchantment, or land card from their hand onto the battlefield.
-= BROKE at "may" after: put target permanent an opponent controls on top of its owner 's library . that opponent
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None }, May { who: That, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("enchantment")], [Type("land")]], kind: Some(Card), posts: [In(Hand(That))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }])
 
 ## Minor Misstep
 face: Minor Misstep
@@ -886,7 +886,7 @@ cost: {6}{R}
 > At the beginning of your end step, if this creature attacked this turn, return it to its owner's hand. If you do, create a number of 1/1 white Human Soldier creature tokens equal to its toughness.
 = Keywords([Keyword { name: "affinity", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } })) }])
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "this" after: at the beginning of your end step , if this creature attacked
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), Attacked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: false }), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, IfYouDo([Create { who: You, n: ToughnessOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }])], limits: [] }
 
 ## Runadi, Behemoth Caller
 face: Runadi, Behemoth Caller

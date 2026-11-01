@@ -450,8 +450,8 @@ type: Legendary Creature — Aetherborn Rogue
 cost: {2}{B}{B}
 > Whenever a player casts a spell they don't own, that player creates a Treasure token.
 > Whenever a creature deals combat damage to one of your opponents, its controller looks at the top card of that opponent's library and exiles it face down. They may play that card for as long as it remains exiled. Mana of any type can be spent to cast a spell this way.
-= BROKE at "own" after: whenever a player casts a spell they don't
-= BROKE at "library" after: whenever a creature deals combat damage to one of your opponents , its controller looks at the top card of that opponent 's
+= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [NotOwnedBy(That)], or: None } } }), effect: [Create { who: That, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [] }
+= BROKE at "this" after: whenever a creature deals combat damage to one of your opponents , its controller looks at the top card of that opponent 's library and exiles it face down . they may play that card for as long as it remains exiled . mana of any type can be spent to cast a spell
 
 ## Grand Melee
 face: Grand Melee

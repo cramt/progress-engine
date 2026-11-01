@@ -182,7 +182,7 @@ cost: {2}{W}{W}
 > When this enchantment enters, you become the monarch.
 > At the beginning of your upkeep, create a 1/1 white Spirit creature token with flying. If you're the monarch, create a 4/4 white Angel creature token with flying instead.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of your upkeep , create a <pt> white spirit creature token with flying . if you're the
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["spirit", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }, Instead { cond: IsMonarch(You), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [White], types: ["angel", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }] }], limits: [] }
 
 ## Crashing Wave
 face: Crashing Wave
@@ -519,7 +519,7 @@ cost: {3}{W}{W}
 > Cast this spell only after combat.
 > Gain control of target nonartifact, nonblack creature that attacked you this turn and put a -1/-0 counter on it.
 = BROKE at "." after: cast this spell only after combat
-= BROKE at "attacked" after: gain control of target nonartifact , nonblack creature that
+= BROKE at "you" after: gain control of target nonartifact , nonblack creature that attacked
 
 ## Jetfire, Ingenious Scientist // Jetfire, Air Guardian
 face: Jetfire, Ingenious Scientist
@@ -659,7 +659,7 @@ face: Mass Polymorph
 type: Sorcery
 cost: {5}{U}
 > Exile all creatures you control, then reveal cards from the top of your library until you reveal that many creature cards. Put all creature cards revealed this way onto the battlefield, then shuffle the rest of the revealed cards into your library.
-= Spell([Exile(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: N(ThatMany), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } } }, Move { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, ShuffleInto { who: You, what: Objects { quant: Rest { of: 0 } /* made */, filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } })], or: None } } }] }])
+= Spell([Exile(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), With { bind: [/* revealed */ Objects { quant: N(ThatMany), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, /* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: Introduced(1) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, ShuffleInto { who: You, what: Objects { quant: Rest { of: 1 } /* revealed */, filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } })], or: None } } }] }])
 
 ## Meria's Outrider
 face: Meria's Outrider

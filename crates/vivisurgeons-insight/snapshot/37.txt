@@ -157,7 +157,7 @@ cost: {3}{R}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Keywords([Keyword { name: "soulbond", param: None }])
 = BROKE at "with" after: whenever ~ or a creature it's paired
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Drag the Canal
 face: Drag the Canal

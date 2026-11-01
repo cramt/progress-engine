@@ -171,8 +171,8 @@ cost: {4}{R}
 > At the beginning of enchanted player's draw step, that player draws two additional cards.
 > At the beginning of enchanted player's end step, that player discards their hand.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "step" after: at the beginning of enchanted player 's draw
-= BROKE at "step" after: at the beginning of enchanted player 's end
+= Triggered { trigger: At(DrawStep(EnchantedPlayers)), effect: [Draw { who: That, n: Additional(N(2)) }], limits: [] }
+= Triggered { trigger: At(EndStep(EnchantedPlayers)), effect: [DiscardHand(That)], limits: [] }
 
 ## Dalkovan Encampment
 face: Dalkovan Encampment

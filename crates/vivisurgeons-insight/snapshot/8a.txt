@@ -319,7 +319,7 @@ cost: {6}{B}
 > When this creature leaves the battlefield, each player gains control of each land they own that you control.
 = Keywords([Keyword { name: "flying", param: None }])
 = BROKE at "control" after: cumulative upkeep — gain control of a land you don't
-= BROKE at "but" after: this creature gets <pt> for each land you control
+= Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } })) }])
 = BROKE at "you" after: when this creature leaves the battlefield , each player gains control of each land they own that
 
 ## Hermit Druid

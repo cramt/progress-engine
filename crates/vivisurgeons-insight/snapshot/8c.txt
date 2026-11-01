@@ -234,7 +234,7 @@ cost: {1}{R}
 > Noncreature, non-Equipment artifacts you control are Equipment in addition to their other types and have "Equipped creature gets +1/+0" and equip {1}.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "{1}" after: noncreature , non-equipment artifacts you control are equipment in addition to their other types and have " equipped creature gets <pt> " and equip
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Darkmoss Bridge
 face: Darkmoss Bridge

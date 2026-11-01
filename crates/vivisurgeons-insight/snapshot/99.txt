@@ -148,7 +148,7 @@ face: Brink of Madness
 type: Enchantment
 cost: {2}{B}{B}
 > At the beginning of your upkeep, if you have no cards in hand, sacrifice this enchantment and target opponent discards their hand.
-= BROKE at "no" after: at the beginning of your upkeep , if you have
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), CardsInHandAtMost(0)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, DiscardHand(TargetOpponent)], limits: [] }
 
 ## Brought Back
 face: Brought Back
@@ -798,7 +798,7 @@ cost: {3}{U}
 > You may cast the first creature spell you cast each turn as though it had flash.
 > Whenever a nontoken creature you control enters during combat, draw a card.
 = Static([CastAsThoughFlash(Objects { quant: NthEachTurn { n: 1, of: You }, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } })])
-= BROKE at "combat" after: whenever a nontoken creature you control enters during
+= Triggered { trigger: When(While { event: Enters { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, cond: DuringCombat }), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Thunder Strike
 face: Thunder Strike

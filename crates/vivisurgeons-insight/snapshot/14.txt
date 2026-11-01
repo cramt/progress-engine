@@ -805,7 +805,7 @@ cost: {3}{B}
 > Enchant player
 > At the beginning of enchanted player's upkeep, that player loses 3 life unless they sacrifice a nonland permanent of their choice or discard a card.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= Triggered { trigger: At(Upkeep(EnchantedPlayers)), effect: [Unless { effect: LoseLife { who: That, n: N(3) }, who: That, cost: [OneOf([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [ChosenBy(That)], or: None } }), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])] }], limits: [] }
 
 ## Unable to Scream
 face: Unable to Scream

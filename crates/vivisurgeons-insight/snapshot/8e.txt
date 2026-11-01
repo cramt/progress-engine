@@ -621,7 +621,7 @@ cost: {X}{G}{G}
 > Kurbis enters with a number of +1/+1 counters on it equal to the amount of mana spent to cast it.
 > Remove a +1/+1 counter from Kurbis: Prevent all damage that would be dealt this turn to another target creature with a +1/+1 counter on it.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: ManaSpentToCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), kind: "+1/+1" }])
-= BROKE at "to" after: remove a <pt> counter from ~ : prevent all damage that would be dealt this turn
+= Activated { cost: [RemoveCounters { n: N(1), kind: "+1/+1", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(Some("+1/+1"))], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
 
 ## Leveler
 face: Leveler

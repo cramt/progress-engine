@@ -174,7 +174,7 @@ cost: {6}{U}
 > Enchant player
 > At the beginning of enchanted player's upkeep, that player reveals cards from the top of their library until they reveal a creature card. Put that card onto the battlefield under your control. That player puts the rest of the revealed cards into their graveyard.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= Triggered { trigger: At(Upkeep(EnchantedPlayers)), effect: [With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, /* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [UntilFound { who: That, verb: Reveal, zone: TopOfLibrary(That), until: Objects { quant: Introduced(1) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Bound(1) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, Performed { by: That, effect: Move { what: Objects { quant: Rest { of: 1 } /* revealed */, filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } })], or: None } }, from: None, to: Graveyard(That), tapped: false, transformed: false, under: None, order: None } }] }], limits: [] }
 
 ## Daru Mender
 face: Daru Mender

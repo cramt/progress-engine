@@ -554,6 +554,19 @@ mod syn {
         any_of(o, &["you spend this mana", "that mana is spent"]);
     }
 
+    /// [each-and-each]: "gets +1/+1 for each land you control and +1/+1 for
+    /// each land card in your graveyard", which Oracle says "… and each land
+    /// card in your graveyard" (Multani, Yavimaya's Avatar): two bonuses.
+    pub fn each_and_each(o: &mut Out, spelled: Out, oracle: Out) {
+        alt(o, vec![spelled, oracle]);
+    }
+
+    /// "a permanent that isn't historic" and "that's not historic"
+    /// (Desynchronization): one contraction or the other, the same words.
+    pub fn that_isnt(o: &mut Out) {
+        any_of(o, &["that isn't", "that's not"]);
+    }
+
     /// "it isn't a creature" and "it's not a creature".
     pub fn its_not(o: &mut Out, isnt: Out, its_not: Out) {
         alt(o, vec![isnt, its_not]);
@@ -1223,6 +1236,29 @@ mod syn {
         );
     }
 
+    /// Named rewrite [rather-than-paying]: "rather than paying its mana
+    /// cost" (Nashi, Moon Sage's Scion) is "rather than pay its mana cost"
+    /// (Inside Information): the same alternative cost (CR 118.9).
+    pub fn rather_than_paying(o: &mut Out) {
+        any_of(
+            o,
+            &[
+                "rather than pay its mana cost",
+                "rather than paying its mana cost",
+            ],
+        );
+    }
+
+    /// Named rewrite [enchanted-opponent]: "at the beginning of enchanted
+    /// opponent's end step" (Tenuous Truce) is the enchanted player's: an
+    /// Aura with "Enchant opponent" can enchant no other player (CR 702.5a).
+    pub fn enchanted_players(o: &mut Out) {
+        alt(
+            o,
+            vec![of("enchanted player's"), of("enchanted opponent's")],
+        );
+    }
+
     /// Named rewrite [that-opponent]: "if that opponent has more life than
     /// another of your opponents" (Breena, the Demagogue) is "that player",
     /// the opponent the trigger saw attacked.
@@ -1391,11 +1427,39 @@ mod syn {
     /// "that player", "they", "the player"; "their", "that player's": the
     /// player an earlier clause named. The verb agrees with the form.
     pub fn that_player(o: &mut Out) {
-        any_of(o, &["that player", "they", "the player", "those players"]);
+        any_of(
+            o,
+            &[
+                "that player",
+                "they",
+                "the player",
+                "those players",
+                "that opponent",
+            ],
+        );
+    }
+
+    /// Named rewrite [that-library]: "put the rest on the bottom of that
+    /// library in a random order" (Gonti, Lord of Luxury) is the library
+    /// the sentence named, "target opponent's", whose owner a later "their"
+    /// names: `Player::That`.
+    pub fn that_library(o: &mut Out) {
+        alt(
+            o,
+            vec![
+                of("their library"),
+                of("that player's library"),
+                of("that opponent's library"),
+                of("that library"),
+            ],
+        );
     }
 
     pub fn their(o: &mut Out) {
-        alt(o, vec![of("their"), of("that player's")]);
+        alt(
+            o,
+            vec![of("their"), of("that player's"), of("that opponent's")],
+        );
     }
 
     /// "they've cast this turn", "that player has cast this turn": the
@@ -1664,6 +1728,13 @@ mod syn {
         alt(o, vec![is, remains]);
     }
 
+    /// [exiled-with-counter]: "this card is exiled with an egg counter on
+    /// it" (Darigaaz Reincarnated) is "this card remains exiled and this
+    /// card has an egg counter on it": in exile, with the counter.
+    pub fn exiled_with_counter(o: &mut Out, with: Out, full: Out) {
+        alt(o, vec![with, full]);
+    }
+
     /// "creatures get an additional -2/-2": the bonus adds to the earlier
     /// one, as any later bonus does (as with "also").
     pub fn additional(o: &mut Out) {
@@ -1883,6 +1954,14 @@ mod syn {
     /// revealed before it (Mirko Vosk's ruling).
     pub fn revealed_until(o: &mut Out, spelled: Out) {
         alt(o, vec![spelled, of("those cards")]);
+    }
+
+    /// Named rewrite [prevent-duration-first]: "prevent all combat damage
+    /// that would be dealt this turn to Dogs you control" (Pack Leader,
+    /// Divine Light, Obscuring Haze) says the duration before the recipient or source; the same
+    /// shield as "dealt to Dogs you control this turn" (CR 615.1).
+    pub fn prevent_duration_first(o: &mut Out, spelled: Out, first: Out) {
+        alt(o, vec![spelled, first]);
     }
 
     /// Named rewrite [chosen-counter]: after "choose a counter on target
@@ -3566,6 +3645,7 @@ fn moves_from_a_zone(e: &Effect) -> bool {
         Effect::Exile(_)
             | Effect::ExileFaceDown(_)
             | Effect::ExileUntilLeaves { .. }
+            | Effect::ExileUntil { .. }
             | Effect::ExileWithCounters { .. }
             | Effect::Move { .. }
             | Effect::ShuffleInto { .. }
@@ -3834,6 +3914,17 @@ fn genitive(o: &mut Out, noun: &str, x: &Objects) {
 }
 
 /// A player as a possessive: "your", "their", "target player's".
+/// "their library"; "that library" too, the library named before
+/// ([that-library]).
+fn library_of(o: &mut Out, w: &Player) {
+    if *w == Player::That {
+        syn::that_library(o);
+    } else {
+        whose(o, w);
+        o.w("library");
+    }
+}
+
 fn whose(o: &mut Out, p: &Player) {
     match p {
         Player::You => o.w("your"),
@@ -4342,7 +4433,8 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         | Quant::ThisAbility
         | Quant::SourceOf(_)
         | Quant::Unresolved(Hint::Linked)
-        | Quant::Unresolved(Hint::OriginalAndCopies) => objects_plain(
+        | Quant::Unresolved(Hint::OriginalAndCopies)
+        | Quant::Unresolved(Hint::Pile) => objects_plain(
             o,
             &Objects {
                 quant: Quant::Unresolved(Hint::Antecedent),
@@ -4691,7 +4783,7 @@ fn adj(o: &mut Out, a: &Adj, noun: Option<Num>) {
         Adj::Ability(AbilityKind::Mana) => "mana".into(),
         Adj::Ability(AbilityKind::Equip) => "equip".into(),
         Adj::Ability(AbilityKind::Ninjutsu) => "ninjutsu".into(),
-        Adj::OtherThan(_) => "other".into(),
+        Adj::OtherThan(_) | Adj::OtherThanPlayer(_) => "other".into(),
     };
     match noun {
         Some(n) => o.noun(&word, n),
@@ -4986,6 +5078,35 @@ fn posts(o: &mut Out, ps: &[Post], n: Num) {
 fn posts_said(o: &mut Out, ps: &[Post], n: Num) {
     let mut i = 0;
     while i < ps.len() {
+        // "a creature you own but don't control".
+        if let (Post::Owner(Player::You), Some(Post::NotControlledBy(Player::You))) =
+            (&ps[i], ps.get(i + 1))
+        {
+            post(o, &ps[i], n);
+            o.w("but don't control");
+            i += 2;
+            continue;
+        }
+        // "nonland permanents you own and control".
+        if let (Post::Owner(Player::You), Some(Post::Controller(Player::You))) =
+            (&ps[i], ps.get(i + 1))
+        {
+            post(o, &ps[i], n);
+            o.w("and control");
+            i += 2;
+            continue;
+        }
+        // "creatures you control but don't own", "spells you cast but don't own".
+        if let (
+            Post::Controller(Player::You) | Post::Cast(Player::You),
+            Some(Post::NotOwnedBy(Player::You)),
+        ) = (&ps[i], ps.get(i + 1))
+        {
+            post(o, &ps[i], n);
+            o.w("but don't own");
+            i += 2;
+            continue;
+        }
         // "that each have a different mana value 3 or less": the bound
         // follows the post that says the values differ.
         if let (Post::DifferentValues(s), Some(Post::With(c))) = (&ps[i], ps.get(i + 1)) {
@@ -5108,6 +5229,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.verb("target", n);
             objects(o, x);
         }
+        Post::TargetsRecipient(r) => {
+            o.w("that");
+            o.verb("target", n);
+            recipient(o, r);
+        }
         // "that's a land card", "that are black or red": the verb agrees
         // with the objects.
         Post::ThatIs(f) if n == Num::Pl => {
@@ -5169,11 +5295,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             }
         }
         Post::Not(q) if matches!(&**q, Post::ThatIs(_)) => {
-            o.w(if n == Num::Sg {
-                "that isn't"
+            if n == Num::Sg {
+                syn::that_isnt(o);
             } else {
-                "that aren't"
-            });
+                o.w("that aren't");
+            }
             if let Post::ThatIs(f) = &**q {
                 // "that isn't a Dragon", "that aren't enchanted".
                 let state = f.alts.iter().flatten().all(|a| matches!(a, Adj::State(_)));
@@ -5208,6 +5334,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         Post::OnlyColorChosenBy(w) => {
             that_is(o, n);
             only_color_chosen_by(o, w);
+        }
+        // "with no counters on it".
+        Post::Not(q) if matches!(&**q, Post::WithCounter(None)) => {
+            o.w("with no counters on");
+            syn::it(o);
         }
         // "without a fate counter on it".
         Post::Not(q) if matches!(&**q, Post::WithCounter(Some(_))) => {
@@ -5429,6 +5560,14 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 Holding::CardsInHand => "cards in their hand",
                 Holding::CardsInGraveyard => "cards in their graveyard",
                 Holding::Opponents => "opponents",
+            });
+        }
+        Post::Attacked { this_combat } => {
+            o.w("that attacked");
+            o.w(if *this_combat {
+                "this combat"
+            } else {
+                "this turn"
             });
         }
         Post::AttackedThisTurn(v) => {
@@ -5691,13 +5830,11 @@ fn zone(o: &mut Out, z: &Zone) {
         }
         Zone::TopOfLibrary(w) => {
             o.w("the top of");
-            whose(o, w);
-            o.w("library");
+            library_of(o, w);
         }
         Zone::BottomOfLibrary(w) => {
             o.w("the bottom of");
-            whose(o, w);
-            o.w("library");
+            library_of(o, w);
         }
         Zone::OwnersHand | Zone::OwnersGraveyard => {
             syn::its(o);
@@ -5780,8 +5917,7 @@ fn put_to(o: &mut Out, z: &Zone, tapped: bool, transformed: bool, under: &Option
         Zone::TopOfLibrary(w) => {
             syn::back(o);
             o.w("on top of");
-            whose(o, w);
-            o.w("library");
+            library_of(o, w);
         }
         Zone::TopOrBottomOfLibrary(_) => {
             o.w("on");
@@ -5789,8 +5925,7 @@ fn put_to(o: &mut Out, z: &Zone, tapped: bool, transformed: bool, under: &Option
         }
         Zone::BottomOfLibrary(w) => {
             o.w("on the bottom of");
-            whose(o, w);
-            o.w("library");
+            library_of(o, w);
         }
         Zone::OwnersLibraryTop | Zone::OwnersLibraryBottom => {
             o.w(if *z == Zone::OwnersLibraryTop {
@@ -6323,6 +6458,34 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
             i += taken;
             continue;
         }
+        // "another target creature gets +2/+2 and loses all abilities until
+        // end of turn" (Invasion of Muraganda): one subject, one duration.
+        if let (
+            Effect::Modify {
+                what,
+                pt: Some(pt),
+                gains,
+                dur: d,
+            },
+            Some(Effect::Loses {
+                what: w2,
+                lost,
+                dur: d2,
+            }),
+        ) = (e, es.get(i + 1))
+        {
+            if same_subject(what, w2) && d == d2 && gains.is_empty() && *d != Duration::Permanent {
+                obj_subj(o, what, "get");
+                o.tok(Tok::Pt(*pt));
+                o.w("and");
+                o.verb("lose", obj_num(what));
+                lost_words(o, lost);
+                dur(o, d);
+                last = Out(o.0[start..].to_vec());
+                i += 2;
+                continue;
+            }
+        }
         // "creatures target player controls lose all abilities and have base
         // power and toughness 0/2": one subject, one duration.
         if let (
@@ -6679,7 +6842,14 @@ fn only_color_chosen_by(o: &mut Out, w: &Player) {
 fn same_subject(a: &Objects, b: &Objects) -> bool {
     a == b
         || b.quant == Quant::Unresolved(Hint::Antecedent)
-            && matches!(a.quant, Quant::Target { .. })
+            && matches!(
+                a.quant,
+                Quant::Target { .. }
+                    | Quant::AnotherTarget
+                    | Quant::OtherTarget { .. }
+                    | Quant::AnyNumberOfTarget
+                    | Quant::AnyNumberOfOtherTarget
+            )
             && a.filter == b.filter
 }
 
@@ -7836,6 +8006,12 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w(",");
             clauses(o, then, cx);
         }
+        Effect::ExileUntil { what, until } => {
+            o.w("exile");
+            objects(o, what);
+            o.w("until");
+            event(o, until);
+        }
         Effect::ExileUntilLeaves { what, until } => {
             o.w("exile");
             objects(o, what);
@@ -7894,14 +8070,30 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                     objects(o, &both(t, b).unwrap_or_else(|| b.clone()));
                 }
                 _ => {
-                    if let Some(t) = to {
-                        o.w("to");
-                        recipients(o, t);
+                    let tail = out(|o| {
+                        if let Some(t) = to {
+                            o.w("to");
+                            recipients(o, t);
+                        }
+                        if let Some(b) = by {
+                            o.w("by");
+                            objects(o, b);
+                        }
+                    });
+                    let spelled = out(|o| {
+                        o.add(tail.clone());
+                        dur(o, d);
+                    });
+                    if (to.is_some() || by.is_some()) && *d != Duration::Permanent {
+                        let first = out(|o| {
+                            dur(o, d);
+                            o.add(tail.clone());
+                        });
+                        syn::prevent_duration_first(o, spelled, first);
+                    } else {
+                        o.add(spelled);
                     }
-                    if let Some(b) = by {
-                        o.w("by");
-                        objects(o, b);
-                    }
+                    return;
                 }
             }
             dur(o, d);
@@ -9158,6 +9350,10 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
         Effect::SpendAsAnyType { uses, .. } => {
             syn::any_type_spent(o);
             spend_uses(o, uses);
+        }
+        Effect::PaysRather { cost: c, .. } => {
+            costs(o, c);
+            syn::rather_than_paying(o);
         }
         Effect::IsNow {
             what,
@@ -10702,6 +10898,15 @@ fn step(o: &mut Out, s: &Step) {
         }
         return;
     }
+    if *w == Whose::EnchantedPlayers {
+        syn::enchanted_players(o);
+        if matches!(s, Step::PrecombatMain(_)) {
+            syn::precombat_main(o);
+        } else {
+            o.w(name);
+        }
+        return;
+    }
     o.w(match w {
         Whose::Yours => "your",
         Whose::Each => "each",
@@ -10714,6 +10919,7 @@ fn step(o: &mut Out, s: &Step) {
         Whose::YourFirst => "your first",
         Whose::First => "the first",
         Whose::EachOther => "each other player's",
+        Whose::EnchantedPlayers => unreachable!("said above"),
 
         Whose::That => "that",
     });
@@ -10755,6 +10961,11 @@ fn event(o: &mut Out, e: &Event) {
         Event::Performs { who, action } => {
             player(o, who);
             o.verb(action, player_num(who));
+        }
+        Event::BecomesMonarch(who) => {
+            player(o, who);
+            o.verb("become", player_num(who));
+            o.w("the monarch");
         }
         Event::Exerts { who, what } => {
             player(o, who);
@@ -10973,6 +11184,7 @@ fn event(o: &mut Out, e: &Event) {
                 Condition::ItsYourTurn => o.w("during your turn"),
                 Condition::OpponentsTurn => o.w("during an opponent's turn"),
                 Condition::TheirTurn => o.w("during their turn"),
+                Condition::DuringCombat => o.w("during combat"),
                 // "attacks while saddled": the attacker, said once.
                 Condition::Is { what, filter: f }
                     if matches!(&**e, Event::Attacks(x) if x == what)
@@ -11192,7 +11404,8 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
             by: Some(Actor::Player(who)),
             ..
         } => Subject::Player(who),
-        Event::GainsLife(p)
+        Event::BecomesMonarch(p)
+        | Event::GainsLife(p)
         | Event::RollsDice { who: p, .. }
         | Event::LosesLife(p)
         | Event::Draws(p)
@@ -11512,6 +11725,7 @@ fn condition_said(o: &mut Out, c: &Condition) {
             syn::number(o, *n);
             o.w("or less life");
         }
+        Condition::CardsInHandAtMost(0) => o.w("you have no cards in hand"),
         Condition::CardsInHandAtMost(n) => {
             o.w("you have");
             syn::number(o, *n);
@@ -11550,6 +11764,18 @@ fn condition_said(o: &mut Out, c: &Condition) {
             o.w("you have");
             syn::number(o, *n);
             o.w("or more opponents");
+        }
+        Condition::ControlsNone(p, x) => {
+            player(o, p);
+            o.verb("control", player_num(p));
+            o.w("no");
+            objects(
+                o,
+                &Objects {
+                    quant: Quant::Plural,
+                    ..x.clone()
+                },
+            );
         }
         Condition::PlayerControls(p, x) => {
             player(o, p);
@@ -11597,6 +11823,34 @@ fn condition_said(o: &mut Out, c: &Condition) {
         }
         Condition::Not(c) => not_condition(o, c),
         Condition::And(v) => {
+            // "this card is exiled with an egg counter on it" (Darigaaz
+            // Reincarnated): in exile, with the counter ([exiled-with-counter]).
+            if let [c @ Condition::In {
+                what: a,
+                zone: Zone::Exile,
+            }, Condition::HasCounter {
+                what: b,
+                kind: Some(k),
+            }] = &v[..]
+            {
+                if a == b {
+                    let with = out(|o| {
+                        objects(o, a);
+                        o.verb("are exiled", obj_num(a));
+                        o.w("with a");
+                        counter_kind(o, k);
+                        o.w("counter on");
+                        syn::it(o);
+                    });
+                    let full = out(|o| {
+                        condition(o, c);
+                        o.w("and");
+                        condition(o, &v[1]);
+                    });
+                    syn::exiled_with_counter(o, with, full);
+                    return;
+                }
+            }
             if v.iter().all(|c| matches!(c, Condition::YouControl(_))) {
                 o.w("you control");
                 for (i, c) in v.iter().enumerate() {
@@ -11879,6 +12133,7 @@ fn condition_said(o: &mut Out, c: &Condition) {
             o.w("as you cast this spell");
         }
         Condition::ThisWay(e) => match &**e {
+            Event::Draws(Player::You) => o.w("you draw a card this way"),
             Event::WasCast(x) => {
                 objects(o, x);
                 o.w("was cast this way");
@@ -11971,6 +12226,7 @@ fn condition_said(o: &mut Out, c: &Condition) {
             }
             o.w("turn of the game");
         }
+        Condition::DuringCombat => o.w("it's the combat phase"),
         Condition::InStep(s) => {
             o.w("it's");
             step(o, s);
@@ -12054,6 +12310,13 @@ fn condition_said(o: &mut Out, c: &Condition) {
             o.w("was spent to cast");
             objects(o, what);
         }
+        Condition::IsMonarch(Player::You) => o.w("you're the monarch"),
+        Condition::IsMonarch(p) => {
+            player(o, p);
+            o.verb("is", player_num(p));
+            o.w("the monarch");
+        }
+        Condition::NoMonarch => o.w("there is no monarch"),
         Condition::CitysBlessing(p) => {
             player(o, p);
             o.verb("have", player_num(p));
@@ -12186,6 +12449,19 @@ fn condition_said(o: &mut Out, c: &Condition) {
         Condition::WasCycled(x) => {
             objects(o, x);
             o.w("was cycled");
+        }
+        Condition::Escaped(x) => {
+            objects(o, x);
+            o.w("escaped");
+        }
+        Condition::Attacked { what, this_combat } => {
+            objects(o, what);
+            o.w("attacked");
+            o.w(if *this_combat {
+                "this combat"
+            } else {
+                "this turn"
+            });
         }
         Condition::AttackedOrBlocked { what, this_combat } => {
             objects(o, what);
@@ -12364,6 +12640,21 @@ fn past(o: &mut Out, c: &Condition) {
 
 fn not_condition(o: &mut Out, c: &Condition) {
     match c {
+        Condition::TheirTurn => {
+            let turn = |o: &mut Out| {
+                syn::their(o);
+                o.w("turn");
+            };
+            let isnt = out(|o| {
+                o.w("it isn't");
+                turn(o);
+            });
+            let its_not = out(|o| {
+                o.w("it's not");
+                turn(o);
+            });
+            syn::its_not(o, isnt, its_not);
+        }
         // "none of those creatures attacked you" (Firemane Commando).
         Condition::Is { what, filter }
             if what.quant == Quant::AtLeast(Amount::N(1))
@@ -12403,6 +12694,7 @@ fn not_condition(o: &mut Out, c: &Condition) {
             syn::there_are_on(o, has, there);
         }
         Condition::ThisWay(e) => match &**e {
+            Event::Draws(Player::You) => o.w("you don't draw a card this way"),
             Event::WasCast(x) => {
                 objects(o, x);
                 o.w("wasn't cast this way");
@@ -12840,6 +13132,40 @@ fn statics(o: &mut Out, ss: &[Static]) {
                 o.w("other types");
                 j += 2;
                 continue;
+            }
+            // "+1/+1 for each land you control and +1/+1 for each land card
+            // in your graveyard", which Oracle says "… and each land card in
+            // your graveyard" ([each-and-each]).
+            if let (
+                Static::Modify {
+                    pt: Some(p1),
+                    per: Some(Amount::CountOf(_)),
+                    has: h1,
+                    ..
+                },
+                Static::Modify {
+                    pt: Some(p2),
+                    per: Some(Amount::CountOf(b)),
+                    has: h2,
+                    ..
+                },
+            ) = (&ss[j - 1], next)
+            {
+                if p1 == p2 && h1.is_empty() && h2.is_empty() {
+                    let spelled = out(|o| {
+                        o.tok(Tok::Pt(*p2));
+                        o.w("for each");
+                        each_objects(o, b);
+                    });
+                    let oracle = out(|o| {
+                        o.w("each");
+                        each_objects(o, b);
+                    });
+                    o.w("and");
+                    syn::each_and_each(o, spelled, oracle);
+                    j += 1;
+                    continue;
+                }
             }
             let pred = out(|o| static_predicate(o, next));
             let after_is = matches!(ss[j - 1], Static::Is { .. })
@@ -13556,9 +13882,7 @@ fn static_other(o: &mut Out, s: &Static) {
                 CastVerb::Play => "play",
                 CastVerb::Cast => "cast",
             });
-            objects(o, what);
-            o.w("from");
-            zone(o, z);
+            play_what_from(o, what, z);
         }
         Static::CastPaying {
             what,
@@ -14039,12 +14363,35 @@ fn play_from_run(o: &mut Out, ss: &[Static], i: usize) -> Option<usize> {
                 o.add(word);
             }
             last_verb = Some(*verb);
+            if j - i == 1 {
+                play_what_from(o, what, z);
+                return Some(j);
+            }
             objects(o, what);
         }
     }
     o.w("from");
     zone(o, z);
     Some(j)
+}
+
+/// "play the top card of your library" (The Lunar Whale): one card from the
+/// top, said with its zone as the parser read it before taking the zone out.
+fn play_what_from(o: &mut Out, what: &Objects, z: &Zone) {
+    if what.quant == Quant::N(Amount::N(1))
+        && what.filter.kind == Some(Noun::Card)
+        && what.filter.alts.is_empty()
+        && what.filter.posts.is_empty()
+        && matches!(z, Zone::TopOfLibrary(_))
+    {
+        let mut w = what.clone();
+        w.filter.posts.push(Post::In(z.clone()));
+        objects(o, &w);
+        return;
+    }
+    objects(o, what);
+    o.w("from");
+    zone(o, z);
 }
 
 fn statics_joined(o: &mut Out, ss: &[Static]) {

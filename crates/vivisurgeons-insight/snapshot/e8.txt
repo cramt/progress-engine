@@ -79,7 +79,7 @@ cost: {6}{W}{W}
 > When this creature enters, prevent the next 5 damage that would be dealt this turn to any number of targets, divided as you choose.
 = BROKE at ";" after: flash
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "to" after: when this creature enters , prevent the next 5 damage that would be dealt this turn
+= BROKE at "," after: when this creature enters , prevent the next 5 damage that would be dealt this turn to any number of targets
 
 ## Aphetto Runecaster
 face: Aphetto Runecaster
@@ -246,7 +246,7 @@ cost: {3}{B}
 > Enchant player
 > At the beginning of enchanted player's upkeep, that player exiles two cards from their graveyard.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= Triggered { trigger: At(Upkeep(EnchantedPlayers)), effect: [Performed { by: That, effect: Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(That))], or: None } }) }], limits: [] }
 
 ## Daretti, Ingenious Iconoclast
 face: Daretti, Ingenious Iconoclast
@@ -1210,7 +1210,7 @@ cost: {3}{R}
 > {T}: Exile the top card of your library. Until your next end step, you may play it.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "end" after: {T} : exile the top card of your library . until your next
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## You Find Some Prisoners
 face: You Find Some Prisoners

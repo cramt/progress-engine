@@ -306,6 +306,7 @@ fn run(lines: &mut [crate::Line], type_line: &str, said: bool) {
                 .filter_map(|(i, b)| b.decl.map(|d| (d, i)))
                 .collect(),
             lifted: BTreeMap::new(),
+            performers: Vec::new(),
         };
         a.walk(&mut lift);
         let lifted = lift.lifted;
@@ -407,6 +408,51 @@ struct Lift<'a> {
     binders: &'a [Binder],
     by_decl: BTreeMap<usize, usize>,
     lifted: BTreeMap<usize, Objects>,
+    /// For each effect the walk is in, the players a `Performed` over
+    /// each of them names.
+    performers: Vec<Option<Player>>,
+}
+
+/// The players a `Performed` over each of them names.
+fn performer(e: &Effect) -> Option<Player> {
+    match e {
+        Effect::Performed {
+            by: by @ (Player::Each | Player::EachOpponent),
+            ..
+        } => Some(by.clone()),
+        _ => None,
+    }
+}
+
+/// `distribute` undone, where the object is said inside the players' turns.
+fn undistribute(o: &mut Objects, each: &Player) {
+    let Quant::NFromEach(n) = &o.quant else {
+        return;
+    };
+    let Some(z) = o.filter.posts.iter_mut().find_map(|p| match p {
+        Post::In(Zone::TopOfLibrary(w)) if w == each => Some(w),
+        _ => None,
+    }) else {
+        return;
+    };
+    *z = Player::That;
+    o.quant = Quant::N(n.clone());
+}
+
+/// "Each opponent exiles the top card of their library" said once for
+/// them all, as a binder outside the players' turns at it: one card from
+/// each opponent's library ([n-from-each]), as "the top card of each
+/// opponent's library" is (Xander's Pact).
+fn distribute(o: &mut Objects, each: &Player) {
+    let Quant::N(n) = &o.quant else { return };
+    let Some(z) = o.filter.posts.iter_mut().find_map(|p| match p {
+        Post::In(Zone::TopOfLibrary(w)) if *w == Player::That => Some(w),
+        _ => None,
+    }) else {
+        return;
+    };
+    *z = each.clone();
+    o.quant = Quant::NFromEach(n.clone());
 }
 
 impl Visitor for Lift<'_> {
@@ -429,9 +475,18 @@ impl Visitor for Lift<'_> {
                 filter: Filter::default(),
             },
         );
+        if let [.., Some(each), _] = &self.performers[..] {
+            distribute(&mut lifted, each);
+        }
         mark(&mut lifted, id);
         self.lifted.insert(id, lifted);
         false
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        self.performers.push(performer(e));
+    }
+    fn effect_done(&mut self, _: &mut Effect) {
+        self.performers.pop();
     }
     fn ability(&mut self, _: &mut Ability) -> bool {
         true
@@ -798,7 +853,11 @@ pub fn inline(a: &Ability) -> Ability {
         })
         .collect();
     let mut a = a.clone();
-    a.walk(&mut Subst { decl: 0, subst });
+    a.walk(&mut Subst {
+        decl: 0,
+        subst,
+        performers: Vec::new(),
+    });
     a.walk(&mut Unwrap);
     a
 }
@@ -825,13 +884,18 @@ fn has_binders(a: &Ability) -> bool {
 struct Subst {
     decl: usize,
     subst: BTreeMap<usize, Objects>,
+    performers: Vec<Option<Player>>,
 }
 
 impl Visitor for Subst {
     fn enter(&mut self, o: &mut Objects) -> bool {
         let d = self.decl;
         self.decl += 1;
-        if let Some(w) = self.subst.remove(&d) {
+        if let Some(mut w) = self.subst.remove(&d) {
+            // Said again by each of the players, of their own library.
+            if let [.., Some(each), _] = &self.performers[..] {
+                undistribute(&mut w, each);
+            }
             *o = w;
             return false;
         }
@@ -839,6 +903,12 @@ impl Visitor for Subst {
     }
     fn ability(&mut self, _: &mut Ability) -> bool {
         true
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        self.performers.push(performer(e));
+    }
+    fn effect_done(&mut self, _: &mut Effect) {
+        self.performers.pop();
     }
 }
 

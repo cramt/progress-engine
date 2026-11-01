@@ -98,7 +98,7 @@ cost: {2}{W}{W}
 > When this enchantment enters, you become the monarch.
 > At the beginning of your upkeep, return target permanent card with mana value 3 or less from your graveyard to your hand. If you're the monarch, return that permanent card to the battlefield instead.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of your upkeep , return target permanent card with mana value 3 or less from your graveyard to your hand . if you're the
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Graveyard(You))], or: None } }], ability: Triggered { trigger: At(Upkeep(Yours)), effect: [Move { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Instead { cond: IsMonarch(You), then: [Move { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], limits: [] } }
 
 ## Cromat
 face: Cromat

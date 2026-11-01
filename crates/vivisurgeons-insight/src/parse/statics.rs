@@ -1166,6 +1166,16 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             // "get +1/+1 for each creature you control and +1/+1 for each Aura
             // you control" (Eidolon of Countless Battles): a bonus for each.
             if has_per {
+                // "+1/+1 for each land you control and each land card in your
+                // graveyard" (Multani, Cid): the same bonus for each of
+                // either, said once ([each-and-each]).
+                while let Some(of) = p.attempt(|p| {
+                    if !matches!(v.last(), Some(Static::Modify { per: Some(Amount::CountOf(_)), has, .. }) if has.is_empty()) { return None; }
+                    p.words("and each")?;
+                    objects(p)
+                }) {
+                    v.push(Static::Modify { what: what.clone(), pt: Some(pt), has: vec![], per: Some(Amount::CountOf(Box::new(of))) });
+                }
                 while let Some((pt, of)) = p.attempt(|p| {
                     p.word("and")?;
                     let pt = pt_signed(p)?;

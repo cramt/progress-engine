@@ -419,7 +419,7 @@ cost: {1}{W}{U}
 > Whenever a legendary creature you control with mana value 4 or greater enters, you become the monarch.
 > At the beginning of your end step, if you're the monarch, create two 1/1 white Human Soldier creature tokens.
 = Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of your end step , if you're the
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), IsMonarch(You)), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Fiend Artisan
 face: Fiend Artisan

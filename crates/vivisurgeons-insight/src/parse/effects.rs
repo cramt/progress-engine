@@ -646,6 +646,18 @@ fn effect_first(p: &mut P) -> Option<Effect> {
 
 fn effect_main(p: &mut P) -> Option<Effect> {
     alt!(p;
+        // "If you cast a spell this way, pay life equal to its mana value
+        // rather than pay its mana cost" after a lasting permission (Inside
+        // Information): an alternative cost of the spells it lets you cast
+        // (CR 118.9), as the static's `PaysRather` is.
+        |p| {
+            if !p.ahead("rather than") { return None; }
+            let cost = costs(p)?;
+            p.words("rather than")?;
+            p.one_of(&["pay", "paying"])?;
+            p.words("its mana cost")?;
+            Some(Effect::PaysRather { what: antecedent(), cost })
+        },
         // draw
         // "draws X cards plus an additional card for each time they've cast
         // a commander from the command zone this game" (Commander's Insight).
@@ -731,6 +743,17 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let until = objects(p)?;
             p.words("leaves the battlefield")?;
             Some(Effect::ExileUntilLeaves { what, until })
+        },
+        // "exile target creature an opponent controls until an opponent
+        // becomes the monarch" (Palace Jailer, CR 610.3).
+        |p| {
+            p.word("exile")?;
+            let what = objects(p)?;
+            p.word("until")?;
+            let who = player(p)?;
+            p.verb("become")?;
+            p.words("the monarch")?;
+            Some(Effect::ExileUntil { what, until: Event::BecomesMonarch(who) })
         },
         |p| {
             p.word("exile")?;
@@ -2677,6 +2700,9 @@ pub(super) fn prevent(p: &mut P) -> Option<Effect> {
             dur,
         });
     }
+    // "that would be dealt this turn to Dogs you control": the duration
+    // said before the recipient ([prevent-duration-first]).
+    let lead = p.attempt(duration);
     let to = p.attempt(|p| {
         p.word("to")?;
         recipients(p)
@@ -2685,7 +2711,9 @@ pub(super) fn prevent(p: &mut P) -> Option<Effect> {
         p.word("by")?;
         objects(p)
     });
-    let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+    let dur = lead
+        .or_else(|| p.attempt(duration))
+        .unwrap_or(Duration::Permanent);
     Some(Effect::Prevent {
         combat_only,
         n,

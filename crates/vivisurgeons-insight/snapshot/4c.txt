@@ -320,7 +320,7 @@ cost: {2}{U}
 > Enchanted creature doesn't untap during its controller's untap step unless that player is the monarch.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Tap(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: enchanted creature doesn't untap during its controller 's untap step unless that player is the
+= Let { bind: [/* enchanted */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([Restrict { what: Objects { quant: Introduced(0) /* enchanted */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: Unless(DoesntUntap(ControllerOf(Objects { quant: Bound(0) /* enchanted */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), IsMonarch(That)) }]) }
 
 ## Fall of the Hammer
 face: Fall of the Hammer
@@ -535,7 +535,7 @@ cost: {1}{R}
 > Enchant creature
 > Enchanted creature has "At the beginning of your end step, sacrifice this creature unless it attacked this turn."
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "this" after: enchanted creature has " at the beginning of your end step , sacrifice this creature unless it attacked
+= Static([HasAbility { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: At(EndStep(Yours)), effect: [If { order: Trailing, cond: Not(Attacked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: false }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] } }])
 
 ## Liliana's Scorn
 face: Liliana's Scorn
@@ -774,7 +774,7 @@ face: Samite Alchemist
 type: Creature — Human Cleric
 cost: {3}{W}
 > {W}{W}, {T}: Prevent the next 4 damage that would be dealt this turn to target creature you control. Tap that creature. It doesn't untap during your next untap step.
-= BROKE at "to" after: {W} {W} , {T} : prevent the next 4 damage that would be dealt this turn
+= BROKE at "next" after: {W} {W} , {T} : prevent the next 4 damage that would be dealt this turn to target creature you control . tap that creature . it doesn't untap during your
 
 ## Sandbar Crocodile
 face: Sandbar Crocodile

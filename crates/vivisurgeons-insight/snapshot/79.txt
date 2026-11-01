@@ -659,7 +659,7 @@ cost: {2}{U}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Labelled { label: "woman who walked the earth", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Action { by: None, name: "investigate", n: None }], limits: [] } }
 = BROKE at "up" after: whenever you sacrifice a clue , ~ and
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Master Chef
 face: Master Chef

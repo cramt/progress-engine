@@ -13,6 +13,7 @@ pub(super) fn whose_step(p: &mut P) -> Option<Whose> {
         |p| { p.words("the first")?; (p.peek_word() == Some("upkeep")).then_some(Whose::First) },
         |p| p.words("each opponent 's").map(|_| Whose::EachOpponent),
         |p| p.words("each other player 's").map(|_| Whose::EachOther),
+        |p| p.one_of(&["enchanted player 's", "enchanted opponent 's"]).map(|_| Whose::EnchantedPlayers),
         |p| p.words("each player 's").map(|_| Whose::Each),
         |p| p.word("each").map(|_| Whose::Each),
         |p| p.words("that player 's").map(|_| Whose::ThatPlayers),
@@ -149,6 +150,7 @@ fn player_predicate(p: &mut P, who: &Player) -> Option<Event> {
         },
         |p| { p.verb("exile")?; let what = objects(p)?; Some(Event::Exiles { who: who.clone(), what }) },
         |p| { p.verb("exert")?; let what = objects(p)?; Some(Event::Exerts { who: who.clone(), what }) },
+        |p| { p.verb("become")?; p.words("the monarch")?; Some(Event::BecomesMonarch(who.clone())) },
         // "Whenever you scry or surveil": a keyword action with no object.
         |p| {
             let action = ["scry", "surveil"].into_iter().find(|a| p.verb(a).is_some())?;
@@ -190,7 +192,7 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
             }
             v.extend(items.into_iter().map(|(_, _, e)| e));
             // A lone verb the rules below read is theirs to read.
-            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlayerAttacks { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. } | Event::Performs { .. } | Event::Exerts { .. }) {
+            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlayerAttacks { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. } | Event::Performs { .. } | Event::Exerts { .. } | Event::BecomesMonarch(_)) {
                 return None;
             }
             Some(if v.len() == 1 { v.remove(0) } else { Event::Or(v) })
@@ -412,6 +414,7 @@ pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
                 |p| p.words("during your turn").map(|_| Condition::ItsYourTurn),
                 |p| p.words("during an opponent 's turn").map(|_| Condition::OpponentsTurn),
                 |p| p.words("during their turn").map(|_| Condition::TheirTurn),
+                |p| p.words("during combat").map(|_| Condition::DuringCombat),
                 // "Whenever this creature attacks while saddled": the
                 // attacker is saddled (CR 702.171b).
                 |p| {

@@ -654,7 +654,7 @@ cost: {U}{B}{R}
 > You may spend mana as though it were mana of any color to cast spells you don't own or to activate abilities of permanents you control but don't own.
 > Whenever Nathan Drake attacks, exile the top card of each player's library. You may cast a spell from among those cards.
 = Keywords([Keyword { name: "first strike", param: None }])
-= BROKE at "but" after: you may spend mana as though it were mana of any color to cast spells you don't own or to activate abilities of permanents you control
+= Static([SpendAsAnyColor([Cast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [NotOwnedBy(You)], or: None } }), ActivateAbilityOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You), NotOwnedBy(You)], or: None } })])])
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [With { bind: [/* exiled */ Objects { quant: NFromEach(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(Each))], or: None } }], then: [Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [FromAmong(Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, payment: ManaCost, dur: Permanent }] }] }], limits: [] }
 
 ## Noble Stand

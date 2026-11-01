@@ -484,7 +484,7 @@ type: Land
 > {2}, {T}: Target creature that attacked this turn becomes prepared. Activate only as a sorcery. (Only creatures with prepare spells can become prepared.)
 > {4}, {T}: Target creature becomes prepared.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= BROKE at "attacked" after: {2} , {T} : target creature that
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [BecomesPrepared(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Attacked { this_combat: false }], or: None } })], limits: [SorcerySpeed] }
 = Activated { cost: [Mana(Mana(["4"])), Tap], effect: [BecomesPrepared(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Hide // Seek
@@ -553,7 +553,7 @@ face: Inside Information
 type: Sorcery
 cost: {X}{B}{B}
 > Exile the top X cards of target opponent's library. You may play those cards this turn. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost.
-= BROKE at "rather" after: exile the top x cards of target opponent 's library . you may play those cards this turn . if you cast a spell this way , pay life equal to its mana value
+= Spell([With { bind: [/* exiled */ Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(TargetOpponent))], or: None } }], then: [Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], then: [PermissionRules { permission: May { who: You, then: [Cast { verb: Play, what: Objects { quant: Bound(1) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ThisTurn }] }, spell: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rules: [PaysRather { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cost: [PayLife(ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }] }] }] }])
 
 ## Insight
 face: Insight

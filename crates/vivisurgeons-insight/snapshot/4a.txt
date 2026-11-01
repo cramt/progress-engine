@@ -10,7 +10,7 @@ type: Enchantment — Saga
 cost: {1}{U}{U}
 > (As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)
 > I, II, III — Reveal cards from the top of your library until you reveal a Doctor card, a card with doctor's companion, or a Vehicle card. Put that card into your hand and the rest on the bottom of your library in a random order.
-= BROKE at "'s" after: i , ii , iii — reveal cards from the top of your library until you reveal a doctor card , a card with doctor
+= BROKE at "." after: i , ii , iii — reveal cards from the top of your library until you reveal a doctor card , a card with doctor 's companion , or a vehicle card
 
 ## Animar, Soul of Elements
 face: Animar, Soul of Elements
@@ -852,7 +852,7 @@ face: Repel the Abominable
 type: Instant
 cost: {1}{W}
 > Prevent all damage that would be dealt this turn by non-Human sources.
-= BROKE at "by" after: prevent all damage that would be dealt this turn
+= Spell([Prevent { combat_only: false, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Non("human")]], kind: Some(Source), posts: [], or: None } }), dur: ThisTurn }])
 
 ## Restless Vents
 face: Restless Vents
@@ -1102,7 +1102,7 @@ face: Transmogrify
 type: Sorcery
 cost: {3}{R}
 > Exile target creature. That creature's controller reveals cards from the top of their library until they reveal a creature card. That player puts that card onto the battlefield, then shuffles the rest into their library.
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Exile(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, /* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [UntilFound { who: ControllerOf(Objects { quant: Bound(2) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), verb: Reveal, zone: TopOfLibrary(That), until: Objects { quant: Introduced(1) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Performed { by: That, effect: Move { what: Objects { quant: Bound(1) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }, ShuffleInto { who: That, what: Objects { quant: Rest { of: 0 } /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }]) }
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Exile(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }], then: [UntilFound { who: ControllerOf(Objects { quant: Bound(1) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), verb: Reveal, zone: TopOfLibrary(That), until: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Performed { by: That, effect: Move { what: Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }, ShuffleInto { who: That, what: Objects { quant: Rest { of: 0 } /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }]) }
 
 ## Troll Negotiations
 face: Troll Negotiations

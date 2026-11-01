@@ -465,7 +465,7 @@ cost: {B}{R}
 > When Kroxa enters, sacrifice it unless it escaped.
 > Whenever Kroxa enters or attacks, each opponent discards a card, then each opponent who didn't discard a nonland card this way loses 3 life.
 > Escape—{B}{B}{R}{R}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)
-= BROKE at "escaped" after: when ~ enters , sacrifice it unless it
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: Not(Escaped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = BROKE at "didn't" after: whenever ~ enters or attacks , each opponent discards a card , then each opponent who
 = Keywords([Keyword { name: "escape", param: Some(Cost([Mana(Mana(["B", "B", "R", "R"])), Exile(Objects { quant: N(N(5)), filter: Filter { alts: [[State(Other)]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })])) }])
 
@@ -1021,7 +1021,7 @@ cost: {1}{G}
 > Prevent all combat damage that would be dealt this turn.
 > Ferocious — If you control a creature with power 4 or greater, instead prevent all combat damage that would be dealt this turn by creatures your opponents control.
 = Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
-= BROKE at "by" after: ferocious — if you control a creature with power 4 or greater , instead prevent all combat damage that would be dealt this turn
+= Labelled { label: "ferocious", ability: Spell([Instead { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }), dur: ThisTurn }] }]) }
 
 ## Wolverine, Best There Is
 face: Wolverine, Best There Is

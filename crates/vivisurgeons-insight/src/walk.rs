@@ -167,6 +167,9 @@ impl Walk for Adj {
             Adj::OtherThan(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Adj::OtherThanPlayer(f0) => {
+                Walk::walk(f0, v);
+            }
             _ => {}
         }
     }
@@ -394,6 +397,10 @@ impl Walk for Condition {
             Condition::YouDontControl(f0) => {
                 Walk::walk(f0, v);
             }
+            Condition::ControlsNone(f0, f1) => {
+                Walk::walk(f0, v);
+                Walk::walk(f1, v);
+            }
             Condition::Is { what, filter } => {
                 Walk::walk(what, v);
                 Walk::walk(filter, v);
@@ -509,6 +516,9 @@ impl Walk for Condition {
             Condition::CitysBlessing(f0) => {
                 Walk::walk(f0, v);
             }
+            Condition::IsMonarch(f0) => {
+                Walk::walk(f0, v);
+            }
             Condition::ZoneHasCards { zone, .. } => {
                 Walk::walk(zone, v);
             }
@@ -550,11 +560,17 @@ impl Walk for Condition {
             Condition::AttackedOrBlocked { what, .. } => {
                 Walk::walk(what, v);
             }
+            Condition::Attacked { what, .. } => {
+                Walk::walk(what, v);
+            }
             Condition::Protects { who, what } => {
                 Walk::walk(who, v);
                 Walk::walk(what, v);
             }
             Condition::WasCycled(f0) => {
+                Walk::walk(f0, v);
+            }
+            Condition::Escaped(f0) => {
                 Walk::walk(f0, v);
             }
             Condition::ThereAre(f0) => {
@@ -934,6 +950,10 @@ impl Walk for Effect {
                 }
             }
             Effect::ExileUntilLeaves { what, until } => {
+                Walk::walk(what, v);
+                Walk::walk(until, v);
+            }
+            Effect::ExileUntil { what, until } => {
                 Walk::walk(what, v);
                 Walk::walk(until, v);
             }
@@ -1398,6 +1418,12 @@ impl Walk for Effect {
                     Walk::walk(x0, v);
                 }
                 Walk::walk(dur, v);
+            }
+            Effect::PaysRather { what, cost } => {
+                Walk::walk(what, v);
+                for x0 in (cost).iter_mut() {
+                    Walk::walk(x0, v);
+                }
             }
             Effect::IsNow {
                 what,
@@ -1868,6 +1894,9 @@ impl Walk for Event {
                 Walk::walk(who, v);
                 Walk::walk(what, v);
             }
+            Event::BecomesMonarch(f0) => {
+                Walk::walk(f0, v);
+            }
             Event::Performs { who, .. } => {
                 Walk::walk(who, v);
             }
@@ -2248,6 +2277,9 @@ impl Walk for Post {
                 Walk::walk(&mut **f0, v);
             }
             Post::Targets(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
+            Post::TargetsRecipient(f0) => {
                 Walk::walk(&mut **f0, v);
             }
             Post::ThatIs(f0) => {

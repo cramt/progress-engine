@@ -557,9 +557,9 @@ cost: {U}
 > Negative — As long as K-9 is untapped, other legendary creatures you control have ward {1}.
 > Affirmative — {1}{U}, {T}: Target legendary creature can't be blocked this turn.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
-= BROKE at "have" after: negative — as long as ~ is untapped , other legendary creatures you control
+= Labelled { label: "negative", ability: Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["1"]))])) }], per: None }] }]) }
 = Labelled { label: "affirmative", ability: Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] } }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Kang Dynasty
 face: Kang Dynasty
@@ -649,7 +649,7 @@ face: Madcap Experiment
 type: Sorcery
 cost: {3}{R}
 > Reveal cards from the top of your library until you reveal an artifact card. Put that card onto the battlefield and the rest on the bottom of your library in a random order. Madcap Experiment deals damage to you equal to the number of cards revealed this way.
-= Spell([With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } }, /* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: Introduced(1) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Bound(1) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest { of: 0 } /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }), to: [Player(You)] }] }])
+= Spell([With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } }], then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest { of: 0 } /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }), to: [Player(You)] }] }])
 
 ## Magar of the Magic Strings
 face: Magar of the Magic Strings
@@ -1241,7 +1241,7 @@ type: Sorcery
 cost: {3}{R/W}{R/W}
 > Untap all creatures that attacked this turn. After this main phase, there is an additional combat phase followed by an additional main phase.
 > Retrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)
-= BROKE at "." after: untap all creatures that attacked this turn
+= Spell([Untap(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Attacked { this_combat: false }], or: None } }), AdditionalPhases { after: Some(Main), phases: [Combat, Main] }])
 = Keywords([Keyword { name: "retrace", param: None }])
 
 ## Wily Bandar
@@ -1256,7 +1256,7 @@ face: Wind Shear
 type: Instant
 cost: {2}{G}
 > Attacking creatures with flying get -2/-2 and lose flying until end of turn.
-= BROKE at "until" after: attacking creatures with flying get <pt> and lose flying
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }, Loses { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, lost: [Keywords([Keyword { name: "flying", param: None }])], dur: UntilEndOfTurn }])
 
 ## Withering Wisps
 face: Withering Wisps

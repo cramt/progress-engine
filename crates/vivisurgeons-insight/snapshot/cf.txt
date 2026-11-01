@@ -529,7 +529,7 @@ cost: {1}{U}
 > Whenever Malcolm deals combat damage to a player, put a chorus counter on it. Draw a card, then discard a card. If there are four or more chorus counters on Malcolm, you may cast the discarded card without paying its mana cost.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "on" after: whenever ~ deals combat damage to a player , put a chorus counter on it . draw a card , then discard a card . if there are four or more chorus counters
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "chorus", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(1) }, With { bind: [/* discarded */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Discard { who: You, what: Objects { quant: Introduced(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, random: false }, If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("chorus"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(4) }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(0) /* discarded */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, payment: Free, dur: Permanent }] }] }] }], limits: [] }
 
 ## March from the Tomb
 face: March from the Tomb

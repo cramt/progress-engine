@@ -387,7 +387,7 @@ face: Gideon's Triumph
 type: Instant
 cost: {1}{W}
 > Target opponent sacrifices a creature of their choice that attacked or blocked this turn. If you control a Gideon planeswalker, that player sacrifices two of those creatures of their choice instead.
-= BROKE at "attacked" after: target opponent sacrifices a creature of their choice that
+= BROKE at "or" after: target opponent sacrifices a creature of their choice that attacked
 
 ## Goblin Kites
 face: Goblin Kites
@@ -734,7 +734,7 @@ face: Price of Glory
 type: Enchantment
 cost: {2}{R}
 > Whenever a player taps a land for mana, if it's not that player's turn, destroy that land.
-= BROKE at "player" after: whenever a player taps a land for mana , if it's not that
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: InterveningIf(When(TapsForMana { who: APlayer, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), Not(TheirTurn)), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] } }
 
 ## Qarsi Deceiver
 face: Qarsi Deceiver

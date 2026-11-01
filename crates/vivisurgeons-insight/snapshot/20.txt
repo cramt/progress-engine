@@ -449,7 +449,7 @@ face: Lightshield Array
 type: Enchantment
 > At the beginning of your end step, put a +1/+1 counter on each creature that attacked this turn.
 > Sacrifice this enchantment: Creatures you control gain hexproof and indestructible until end of turn.
-= BROKE at "attacked" after: at the beginning of your end step , put a <pt> counter on each creature that
+= Triggered { trigger: At(EndStep(Yours)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Attacked { this_combat: false }], or: None } } }], limits: [] }
 = Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "hexproof", param: None }, Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Karakyk Guardian

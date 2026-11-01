@@ -380,7 +380,7 @@ cost: {4}{B}{G}{U}
 > Trample
 > Whenever this creature deals damage to an opponent, you draw a card and that opponent discards a card.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "a" after: whenever this creature deals damage to an opponent , you draw a card and that opponent discards
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Draw { who: You, n: N(1) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
 
 ## Giant-Sized Flying Ant
 face: Giant-Sized Flying Ant
@@ -828,7 +828,7 @@ face: Scytheclaw Raptor
 type: Creature — Dinosaur
 cost: {2}{R}
 > Whenever a player casts a spell, if it's not their turn, this creature deals 4 damage to them.
-= BROKE at "turn" after: whenever a player casts a spell , if it's not their
+= Triggered { trigger: InterveningIf(When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), Not(TheirTurn)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Player(That)] }], limits: [] }
 
 ## Simic Cluestone
 face: Simic Cluestone

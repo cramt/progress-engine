@@ -87,7 +87,7 @@ face: Blood Scrivener
 type: Creature — Zombie Wizard
 cost: {1}{B}
 > If you would draw a card while you have no cards in hand, instead you draw two cards and you lose 1 life.
-= BROKE at "no" after: if you would draw a card while you have
+= Static([Replacement { event: While { event: Draws(You), cond: CardsInHandAtMost(0) }, instead: [Draw { who: You, n: N(2) }, LoseLife { who: You, n: N(1) }] }])
 
 ## Blur
 face: Blur

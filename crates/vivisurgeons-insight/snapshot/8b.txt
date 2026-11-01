@@ -226,7 +226,7 @@ cost: {2}{U}
 > Enchant player
 > At the beginning of enchanted player's upkeep, that player mills two cards.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "," after: at the beginning of enchanted player 's upkeep
+= Triggered { trigger: At(Upkeep(EnchantedPlayers)), effect: [Mill { who: That, n: N(2) }], limits: [] }
 
 ## Dawnhart Mentor
 face: Dawnhart Mentor
@@ -1110,7 +1110,7 @@ cost: {2}{R}
 > Chaos — Whenever Vincent deals combat damage to an opponent, it deals that much damage to each other opponent if Vincent's power is 7 or greater.
 = Keywords([Keyword { name: "menace", param: None }])
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Labelled { label: "chaos", ability: Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Player(AnOpponent) }), effect: [If { order: Trailing, cond: AmountIs { n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Ge, value: N(7) }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[State(Other)]], kind: Some(Opponent), posts: [], or: None } })] }] }], limits: [] } }
+= Labelled { label: "chaos", ability: Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Player(AnOpponent) }), effect: [If { order: Trailing, cond: AmountIs { n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Ge, value: N(7) }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[OtherThanPlayer(That)]], kind: Some(Opponent), posts: [], or: None } })] }] }], limits: [] } }
 
 ## Vulshok Battlemaster
 face: Vulshok Battlemaster

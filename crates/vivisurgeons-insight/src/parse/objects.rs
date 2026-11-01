@@ -103,6 +103,7 @@ fn player_read(p: &mut P) -> Option<Player> {
         |p| p.words("that attacking player").map(|_| Player::AttackingPlayer),
         |p| p.words("that player").map(|_| Player::That),
         |p| p.words("those players").map(|_| Player::That),
+        that_opponent,
         |p| p.words("the chosen player").map(|_| Player::Chosen),
         |p| p.words("defending player").map(|_| Player::DefendingPlayer),
         |p| p.words("the active player").map(|_| Player::Active),
@@ -353,7 +354,22 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
     // "an artifact, enchantment, or token": a list of types whose last
     // alternative is a kind of object instead.
     let mut or_kind = None;
-    if let Some(g) = p.attempt(group) {
+    // "four or more chorus counters on ~" (Malcolm): a word that is also a
+    // subtype (Chorus is a sorcery's) names the counter's kind before
+    // "counters", not a type of it.
+    let start = p.i;
+    let counter_kind_next = |p: &P| {
+        p.i == start + 1
+            && matches!(p.t.get(p.i), Some(Tok::Word(w)) if w == "counters" || w == "counter")
+    };
+    if let Some(g) = p
+        .attempt(group)
+        .filter(|_| !counter_kind_next(p))
+        .or_else(|| {
+            p.i = start;
+            None
+        })
+    {
         groups.push(g);
         // A comma list of types ends in "or" or "and"; without one the comma
         // ends the object: "a Mountain, creatures you control have haste".
@@ -406,7 +422,13 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
             }
             None if or_kind.is_some() => {}
             // "noncreature, nonland permanent": words before any type are an and.
-            None if !groups[0].iter().any(is_typed) => {
+            // A lone state never starts such a run: "is untapped, creatures
+            // you control have …" ends the condition at the comma.
+            None if !groups[0].iter().any(is_typed)
+                && !groups[0]
+                    .iter()
+                    .all(|a| matches!(a, Adj::State(State::Tapped | State::Untapped))) =>
+            {
                 for c in commas {
                     groups[0].extend(c);
                 }
@@ -794,6 +816,21 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // Not "your opponents own": in Two-Headed Giant a teammate owns cards
         // too (CR 810.1).
         |p| p.words("you don't own").map(|_| Post::NotOwnedBy(Player::You)),
+        // "creatures you control but don't own", "spells you cast but don't
+        // own": the owner said after the controller or caster is you.
+        |p| p.words("but don't own").map(|_| Post::NotOwnedBy(Player::You)),
+        // "a creature you own but don't control" (Coveted Falcon): the
+        // controller said after the owner is you.
+        |p| p.words("but don't control").map(|_| Post::NotControlledBy(Player::You)),
+        // "other nonland permanents you own and control" (Yorion): the
+        // controller said after the owner is you too.
+        |p| {
+            let w = |s: &str| Tok::Word(s.into());
+            if p.i < 2 || p.t[p.i - 2..p.i] != [w("you"), w("own")] { return None; }
+            p.words("and control").map(|_| Post::Controller(Player::You))
+        },
+        // "a spell they don't own" (Gonti, Night Minister).
+        |p| { let pl = player_simple(p)?; if pl == Player::You { return None; } p.one_of(&["doesn't own", "don't own"])?; Some(Post::NotOwnedBy(pl)) },
         |p| { let pl = player_simple(p)?; p.one_of(&["controls", "control"])?; Some(Post::Controller(pl)) },
         |p| { let pl = player_simple(p)?; p.one_of(&["doesn't control", "don't control"])?; Some(Post::NotControlledBy(pl)) },
         |p| { p.words("with total")?; compare(p).map(Post::Total) },
@@ -823,6 +860,13 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.word("counters")?;
             p.words("on them")?;
             Some(Post::WithCounter(Some(k)))
+        },
+        // "target creature with no counters on it" (Heartless Act): none of
+        // any kind.
+        |p| {
+            p.words("with no counters")?;
+            p.one_of(&["on it", "on them"])?;
+            Some(Post::Not(Box::new(Post::WithCounter(None))))
         },
         // "with a counter on it", "with counters on them": of any kind.
         |p| {
@@ -899,8 +943,8 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         // "creatures that aren't enchanted": not in that state.
         |p| {
-            p.one_of(&["that aren't", "that isn't"])?;
-            let s = p.peek_word().and_then(state_word).filter(|s| matches!(s, State::Enchanted | State::Equipped | State::Tapped | State::Untapped))?;
+            p.one_of(&["that aren't", "that isn't", "that's not"])?;
+            let s = p.peek_word().and_then(state_word).filter(|s| matches!(s, State::Enchanted | State::Equipped | State::Tapped | State::Untapped | State::Historic))?;
             p.bump();
             let f = Filter { alts: vec![vec![Adj::State(s)]], ..Filter::default() };
             Some(Post::Not(Box::new(Post::ThatIs(f))))
@@ -1025,6 +1069,17 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| { p.word("named")?; p.tok(&Tok::SelfRef)?; Some(Post::Named(PrintedName(p.name.to_string()))) },
         // "a creature named Hanweir Garrison": another card, by its name.
         |p| { p.word("named")?; super::effects::named_card(p).map(Post::NamedCard) },
+        // "that targets you or a creature you control": a player among what
+        // it may target (Siren Stormtamer).
+        |p| {
+            p.one_of(&["that target", "that targets"])?;
+            p.word("you")?;
+            let r = match p.attempt(|p| { p.word("or")?; objects(p) }) {
+                Some(o) => Recipient::Or(vec![Recipient::Player(Player::You), Recipient::Objects(o)]),
+                None => Recipient::Player(Player::You),
+            };
+            Some(Post::TargetsRecipient(Box::new(r)))
+        },
         |p| { p.one_of(&["that target", "that targets"])?; objects(p).map(|o| Post::Targets(Box::new(o))) },
         // "a spell that's exactly two colors", "that isn't exactly two colors".
         |p| {
@@ -1126,6 +1181,11 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             Some(Post::ControllerIs(Box::new(of)))
         },
         |p| p.words("that were cast this turn").map(|_| Post::WasCastThisTurn),
+        |p| {
+            p.words("that attacked")?;
+            let this_combat = p.one_of(&["this combat", "this turn"])? == "this combat";
+            Some(Post::Attacked { this_combat })
+        },
         |p| p.words("who lost life this turn").map(|_| Post::LostLifeThisTurn),
         // "who attacked you or a planeswalker you control this turn".
         |p| {
@@ -1384,6 +1444,27 @@ pub(super) fn did(p: &mut P, who: Player) -> Option<Event> {
     )
 }
 
+/// "That opponent may put …" (Metamorphose), "the top card of that
+/// opponent's library" (Gonti, Night Minister): the opponent an earlier
+/// clause named, said by what it is ([that-player]). Not after "for each
+/// opponent," in the sentence: a target there is one per opponent (Omega,
+/// Heartless Evolution), which a later reference back would bind once.
+fn that_opponent(p: &mut P) -> Option<Player> {
+    let w = |s: &str| Tok::Word(s.into());
+    let said: Vec<&Tok> = p.t[..p.i.min(p.t.len())]
+        .iter()
+        .rev()
+        .take_while(|t| **t != Tok::Period)
+        .collect();
+    if said
+        .windows(3)
+        .any(|x| *x[0] == Tok::Comma && *x[1] == w("opponent") && *x[2] == w("each"))
+    {
+        return None;
+    }
+    p.words("that opponent").map(|_| Player::That)
+}
+
 /// Players that can stand before "controls" without eating an object noun.
 pub(super) fn player_simple(p: &mut P) -> Option<Player> {
     alt!(p;
@@ -1393,6 +1474,7 @@ pub(super) fn player_simple(p: &mut P) -> Option<Player> {
         |p| p.words("your opponents").map(|_| Player::EachOpponent),
         |p| p.words("that attacking player").map(|_| Player::AttackingPlayer),
         |p| p.words("that player").map(|_| Player::That),
+        that_opponent,
         |p| p.words("defending player").map(|_| Player::DefendingPlayer),
         |p| p.words("enchanted player").map(|_| Player::Enchanted),
         |p| p.words("the chosen player").map(|_| Player::Chosen),
@@ -1563,6 +1645,17 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
                     f.posts.insert(0, Post::CreatedWith(Box::new(self_ref())));
                     return Some(Objects { quant: Quant::Unresolved(Hint::Linked), filter: f });
                 }
+                // Chaos Wand's "exiles cards … until they exile an instant or
+                // sorcery card. … Then put the exiled cards that weren't cast
+                // this way on the bottom": every card exiled, not the one
+                // found ([dig-pile]).
+                Some(m @ (Marked::Exiled | Marked::Revealed))
+                    if plural_noun(&p.t[start..p.i])
+                        && p.t[..start].iter().any(|t| matches!(t, Tok::Word(w) if w == "until")) =>
+                {
+                    f.posts.insert(0, Post::Marked(m));
+                    return Some(Objects { quant: Quant::Unresolved(Hint::Pile), filter: f });
+                }
                 Some(m) => f.posts.insert(0, Post::Marked(m)),
                 // Balustrade Spy's "reveals cards … until they reveal a land
                 // card, then puts those cards into their graveyard": every
@@ -1598,6 +1691,16 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             })
         },
     )
+}
+
+/// Whether a noun phrase's noun is "cards" rather than "card".
+fn plural_noun(np: &[Tok]) -> bool {
+    np.iter()
+        .find_map(|t| match t {
+            Tok::Word(w) if w == "card" || w == "cards" => Some(w == "cards"),
+            _ => None,
+        })
+        .unwrap_or(false)
 }
 
 /// Whether the words of an ability before a phrase exile something, so

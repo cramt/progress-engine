@@ -910,7 +910,7 @@ type: Legendary Creature — Human Bard Performer
 cost: {3}{R}
 > This spell costs {1} less to cast for each creature that attacked this turn.
 > Menace (This creature can't be blocked except by two or more creatures.)
-= BROKE at "attacked" after: this spell costs {1} less to cast for each creature that
+= Static([CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Attacked { this_combat: false }], or: None } }) }])
 = Keywords([Keyword { name: "menace", param: None }])
 
 ## Thornling

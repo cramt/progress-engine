@@ -162,7 +162,7 @@ cost: {1}{W/P}
 > Defender
 > When this creature dies during combat, it deals 6 damage to each creature it blocked this combat.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "," after: when this creature dies during combat
+= BROKE at "blocked" after: when this creature dies during combat , it deals 6 damage to each creature it
 
 ## Celestial Convergence
 face: Celestial Convergence
@@ -376,7 +376,7 @@ face: Goblin Machinist
 type: Creature — Goblin
 cost: {4}{R}
 > {2}{R}: Reveal cards from the top of your library until you reveal a nonland card. This creature gets +X/+0 until end of turn, where X is that card's mana value. Put the revealed cards on the bottom of your library in any order.
-= Activated { cost: [Mana(Mana(["2", "R"]))], effect: [With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }], then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Where { then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], x: ManaValueOf(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }) }, Move { what: Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "R"]))], effect: [With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }, /* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: Introduced(1) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Where { then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], x: ManaValueOf(Objects { quant: Bound(1) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }) }, Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }] }], limits: [] }
 
 ## Goblin Picker
 face: Goblin Picker
@@ -487,7 +487,7 @@ cost: {3}{R}
 > At the beginning of combat on your turn, if you've cast a noncreature spell this turn, Human Torch gains flying, double strike, and haste until end of turn.
 > Whenever Human Torch attacks, you may pay {R}{G}{W}{U}. If you do, until end of turn, whenever he deals combat damage to an opponent, he deals that much damage to each other opponent.
 = Triggered { trigger: InterveningIf(At(Combat(Yours)), DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } })), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }, Keyword { name: "double strike", param: None }, Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] }
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["R", "G", "W", "U"]))] }] }, IfYouDo([During { dur: UntilEndOfTurn, then: [DelayedWhenever { event: DealsCombatDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Player(AnOpponent) }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[State(Other)]], kind: Some(Opponent), posts: [], or: None } })] }] }] }])], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["R", "G", "W", "U"]))] }] }, IfYouDo([During { dur: UntilEndOfTurn, then: [DelayedWhenever { event: DealsCombatDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Player(AnOpponent) }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[OtherThanPlayer(That)]], kind: Some(Opponent), posts: [], or: None } })] }] }] }])], limits: [] }
 
 ## Ilharg, the Raze-Boar
 face: Ilharg, the Raze-Boar
@@ -980,7 +980,7 @@ cost: {2}{W}{U}
 > Instant, sorcery, and Dragon spells you control can't be countered.
 > Whenever you cast an instant or sorcery spell from your hand, if Taigam attacked this turn, that spell gains rebound. (Exile the spell as it resolves. At the beginning of your next upkeep, you may cast that card from exile without paying its mana cost.)
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")], [Subtype("dragon")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, rule: CantBeCountered }])
-= BROKE at "this" after: whenever you cast an instant or sorcery spell from your hand , if ~ attacked
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } }], ability: Triggered { trigger: InterveningIf(When(Casts { who: You, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), Attacked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: false }), effect: [Modify { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, pt: None, gains: [Keyword { name: "rebound", param: None }], dur: Permanent }], limits: [] } }
 
 ## Tergrid, God of Fright // Tergrid's Lantern
 face: Tergrid, God of Fright
@@ -1028,7 +1028,7 @@ face: Throne Warden
 type: Creature — Human Soldier
 cost: {1}{W}
 > At the beginning of your end step, if you're the monarch, put a +1/+1 counter on this creature.
-= BROKE at "monarch" after: at the beginning of your end step , if you're the
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), IsMonarch(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Town Sentry
 face: Town Sentry

@@ -329,7 +329,7 @@ cost: {G}{U}{R}
 > You may play an additional land on each of your turns.
 > Whenever you play a land or cast a spell, draw a card if you have no cards in hand. Otherwise, discard a card.
 = Static([ExtraLand(N(1))])
-= BROKE at "no" after: whenever you play a land or cast a spell , draw a card if you have
+= Triggered { trigger: When(Or([PlaysLand(You), Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }])), effect: [If { order: Trailing, cond: CardsInHandAtMost(0), then: [Draw { who: You, n: N(1) }] }, Otherwise([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
 
 ## Genesis Storm
 face: Genesis Storm
@@ -520,8 +520,8 @@ type: Legendary Creature — Human Noble Warrior
 cost: {1}{G}{G}
 > At the beginning of your end step, if there is no monarch, target opponent becomes the monarch.
 > Whenever a creature attacks one of your opponents, if that player is the monarch, that creature gets +1/+1 and gains trample until end of turn.
-= BROKE at "monarch" after: at the beginning of your end step , if there is no
-= BROKE at "monarch" after: whenever a creature attacks one of your opponents , if that player is the
+= BROKE at "the" after: at the beginning of your end step , if there is no monarch , target opponent becomes
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: InterveningIf(When(AttacksAnyOf { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), IsMonarch(That)), effect: [Modify { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Maestros Ascendancy
 face: Maestros Ascendancy
@@ -1038,7 +1038,7 @@ face: Wild Magic Surge
 type: Instant
 cost: {R}{R}
 > Destroy target permanent an opponent controls. Its controller reveals cards from the top of their library until they reveal a permanent card that shares a card type with that permanent. They put that card onto the battlefield and the rest on the bottom of their library in a random order.
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } }], ability: Spell([Destroy { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }, With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [SharesType { card_type: "card", with: Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }) }], or: None } }, /* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [UntilFound { who: ControllerOf(Objects { quant: Bound(2) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), verb: Reveal, zone: TopOfLibrary(That), until: Objects { quant: Introduced(1) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Performed { by: That, effect: Move { what: Objects { quant: Bound(1) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }, Move { what: Objects { quant: Rest { of: 0 } /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(That), tapped: false, transformed: false, under: None, order: Some(Random) }] }]) }
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } }], ability: Spell([Destroy { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }, With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [SharesType { card_type: "card", with: Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }) }], or: None } }], then: [UntilFound { who: ControllerOf(Objects { quant: Bound(1) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), verb: Reveal, zone: TopOfLibrary(That), until: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Performed { by: That, effect: Move { what: Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }, Move { what: Objects { quant: Rest { of: 0 } /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(That), tapped: false, transformed: false, under: None, order: Some(Random) }] }]) }
 
 ## Wild Mammoth
 face: Wild Mammoth

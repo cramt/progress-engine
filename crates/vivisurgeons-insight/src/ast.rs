@@ -954,6 +954,10 @@ pub enum Hint {
     Pool,
     /// "the rest": what the nearest choice left.
     Rest,
+    /// "the exiled cards", "the revealed cards" after cards were exiled or
+    /// revealed until one was found: every card the dig moved, not the
+    /// one it found ([dig-pile]). Otherwise as `Antecedent`.
+    Pile,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -988,6 +992,12 @@ pub enum Adj {
     /// "five other Mountains" are other than the one that entered.
     /// `State::Other` is other than the card.
     OtherThan(Box<Objects>),
+    /// "other" said of a player other than one the event named: Grenzo's
+    /// Ruffians' "deals combat damage to an opponent, it deals that much
+    /// damage to each other opponent" is each opponent but the damaged one,
+    /// `Player::That` ([other-than-named-before]). `State::Other` on a
+    /// player is other than you.
+    OtherThanPlayer(Player),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1121,6 +1131,10 @@ pub enum Post {
     Named(PrintedName),
     /// "spells your opponents cast that target this creature".
     Targets(Box<Objects>),
+    /// "a spell or ability that targets you or a creature you control"
+    /// (Siren Stormtamer), "a spell that targets you": what it targets may
+    /// be a player.
+    TargetsRecipient(Box<Recipient>),
     /// "each spell you cast that's red or green".
     ThatIs(Filter),
     Attacking,
@@ -1298,6 +1312,12 @@ pub enum Post {
     /// "who attacked you or a planeswalker you control this turn": the
     /// player attacked one of these this turn (CR 508.1a).
     AttackedThisTurn(Vec<Recipient>),
+    /// "each creature that attacked this turn", "… this combat": said of a
+    /// permanent declared as an attacker then (CR 508.1a).
+    Attacked {
+        /// This combat rather than any combat this turn.
+        this_combat: bool,
+    },
     /// "permanents that were cast this turn": by any player.
     WasCastThisTurn,
     /// "each opponent who lost life this turn".
@@ -1669,6 +1689,14 @@ pub enum Effect {
     ExileUntilLeaves {
         what: Objects,
         until: Objects,
+    },
+    /// "exile target creature an opponent controls until an opponent becomes
+    /// the monarch" (Palace Jailer): it returns once the event happens (CR
+    /// 610.3).
+    ExileUntil {
+        /// What is exiled.
+        what: Objects,
+        until: Event,
     },
     Prevent {
         combat_only: bool,
@@ -2140,6 +2168,15 @@ pub enum Effect {
     SpendAsAnyType {
         uses: Vec<SpendUse>,
         dur: Duration,
+    },
+    /// "If you cast a spell this way, pay life equal to its mana value
+    /// rather than pay its mana cost": an alternative cost (CR 118.9) of the
+    /// spells a lasting permission lets you cast, the effect's form of
+    /// `Static::PaysRather`.
+    PaysRather {
+        what: Objects,
+        /// What is paid instead.
+        cost: Vec<Cost>,
     },
     /// "It's an enchantment.": what a permanent an effect returns is as it
     /// enters, where "becomes" would apply only after (CR 611.2e).
@@ -3471,6 +3508,9 @@ pub enum Event {
         who: Player,
         what: Objects,
     },
+    /// "Whenever an opponent becomes the monarch", "until an opponent becomes
+    /// the monarch": the player takes the designation (CR 725.1).
+    BecomesMonarch(Player),
     /// "you scry", "you surveil": a keyword action the player performs.
     Performs {
         who: Player,
@@ -3518,6 +3558,10 @@ pub enum Whose {
     /// "the first upkeep": the game's, the starting player's.
     First,
     EachOther,
+    /// "at the beginning of enchanted player's upkeep": the player a Curse
+    /// enchants, whom a later "that player" names. "Enchanted opponent's"
+    /// is the same player ([enchanted-opponent]).
+    EnchantedPlayers,
 
     /// "at the beginning of that combat": the one an earlier effect made.
     That,
@@ -4002,6 +4046,9 @@ pub enum Condition {
     /// contains {X}" (Unbound Flourishing).
     CostHasX(Objects),
     YouDontControl(Objects),
+    /// "an opponent controls no basic lands", "defending player controls no
+    /// Walls": that player controls none of them.
+    ControlsNone(Player, Objects),
     ItsYourTurn,
     /// "if it's the first combat phase of the turn": no combat phase came
     /// before this one this turn, where extra combat phases follow it (CR
@@ -4116,6 +4163,9 @@ pub enum Condition {
     YourNthTurn(Vec<u32>),
     /// "it's your main phase".
     InStep(Step),
+    /// "When this creature dies during combat": it's the combat phase, any
+    /// of its steps (CR 506.1).
+    DuringCombat,
     /// "no mana was spent to cast it".
     NoManaSpentToCast(Objects),
     /// "mana from a Treasure was spent to cast it": any of the mana paid
@@ -4156,6 +4206,10 @@ pub enum Condition {
     },
     /// "you have the city's blessing".
     CitysBlessing(Player),
+    /// "you're the monarch", "an opponent is the monarch" (CR 725.1).
+    IsMonarch(Player),
+    /// "there is no monarch": no player has the designation (CR 725.1).
+    NoMonarch,
     /// "a graveyard has twenty or more cards in it": some one zone of that
     /// kind, not all of them together.
     ZoneHasCards {
@@ -4209,6 +4263,12 @@ pub enum Condition {
         what: Objects,
         this_combat: bool,
     },
+    /// "if this creature attacked this turn", "~ attacked this combat": it was
+    /// declared as an attacker this turn, or in this combat (CR 508.1a).
+    Attacked {
+        what: Objects,
+        this_combat: bool,
+    },
     /// "an opponent protects it" (Portent Tracker): the player is the
     /// battle's protector (CR 310.9).
     Protects {
@@ -4218,6 +4278,9 @@ pub enum Condition {
     /// "it wasn't cycled" (Abandoned Sarcophagus): it is not being
     /// discarded to pay a cycling cost (CR 702.29a).
     WasCycled(Objects),
+    /// "unless it escaped" (Uro): it, or the spell that became it, was cast
+    /// with an escape ability (CR 702.138b).
+    Escaped(Objects),
     /// "there is an instant card and a sorcery card in your graveyard".
     ThereAre(Vec<Objects>),
     /// "If a creature card was exiled this way", "if an artifact is

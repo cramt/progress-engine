@@ -624,7 +624,7 @@ face: Regal Sliver
 type: Creature — Sliver
 cost: {3}{W}
 > Sliver creatures you control have "When this creature enters, Slivers you control get +1/+1 until end of turn if you're the monarch. Otherwise, you become the monarch."
-= BROKE at "monarch" after: sliver creatures you control have " when this creature enters , slivers you control get <pt> until end of turn if you're the
+= Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("sliver"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [If { order: Trailing, cond: IsMonarch(You), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("sliver")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }, Otherwise([Designation("monarch")])], limits: [] } }])
 
 ## Rimescale Dragon
 face: Rimescale Dragon

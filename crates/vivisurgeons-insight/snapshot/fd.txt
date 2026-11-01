@@ -457,7 +457,7 @@ face: Guardian Beast
 type: Creature — Beast
 cost: {3}{B}
 > As long as this creature is untapped, noncreature artifacts you control can't be enchanted, they have indestructible, and other players can't gain control of them. This effect doesn't remove Auras already attached to those artifacts.
-= BROKE at "can't" after: as long as this creature is untapped , noncreature artifacts you control
+= BROKE at "enchanted" after: as long as this creature is untapped , noncreature artifacts you control can't be
 
 ## Gudul Lurker
 face: Gudul Lurker
@@ -799,7 +799,7 @@ type: Instant
 cost: {1}{U}
 > Counter target instant or sorcery spell that targets you.
 > Spell mastery — If there are two or more instant and/or sorcery cards in your graveyard, you may copy the spell countered this way. You may choose new targets for the copy.
-= BROKE at "." after: counter target instant or sorcery spell that targets you
+= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [TargetsRecipient(Player(You))], or: None } }, unless: None }])
 = BROKE at "countered" after: spell mastery — if there are two or more instant and/or sorcery cards in your graveyard , you may copy the spell
 
 ## Rat King, Pale Piper

@@ -855,7 +855,7 @@ face: Spectral Bears
 type: Creature — Bear Spirit
 cost: {1}{G}
 > Whenever this creature attacks, if defending player controls no black nontoken permanents, it doesn't untap during your next untap step.
-= BROKE at "black" after: whenever this creature attacks , if defending player controls no
+= BROKE at "next" after: whenever this creature attacks , if defending player controls no black nontoken permanents , it doesn't untap during your
 
 ## Stalking Drone
 face: Stalking Drone

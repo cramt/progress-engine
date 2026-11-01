@@ -7,7 +7,7 @@ cost: {1}{U}
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = Activated { cost: [Mana(Mana(["2", "U"])), Tap], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Activated)], [Ability(Triggered)]], kind: Some(Ability), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }], limits: [] }
 = Labelled { label: "ultimate sacrifice", ability: Activated { cost: [Mana(Mana(["1", "U"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Activated)], [Ability(Triggered)]], kind: Some(Ability), posts: [], or: None } }, unless: None }], limits: [] } }
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Ancient Hydra
 face: Ancient Hydra
@@ -879,7 +879,7 @@ cost: {4}{W}
 > Equipped creature gets +2/+2 and has vigilance.
 > Whenever equipped creature attacks the monarch, destroy target tapped nonland permanent that player controls.
 > Equip {2}
-= BROKE at "monarch" after: when ~ enters , if there is no
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), NoMonarch), effect: [Designation("monarch")], limits: [] }
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }])
 = BROKE at "," after: whenever equipped creature attacks the monarch
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
@@ -901,7 +901,7 @@ cost: {5}{B}{B}
 > At the beginning of each opponent's upkeep, you manifest the top card of that player's library. (Put it onto the battlefield face down as a 2/2 creature. Turn it face up any time for its mana cost if it's a creature card.)
 > Whenever a creature you control but don't own dies, its owner loses 2 life and you gain 2 life.
 = Triggered { trigger: At(Upkeep(EachOpponent)), effect: [ActionOn { who: You, name: "manifest", what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(That))], or: None } } }], limits: [] }
-= BROKE at "own" after: whenever a creature you control but don't
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }], ability: Triggered { trigger: When(Dies(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: OwnerOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2) }, GainLife { who: You, n: N(2) }], limits: [] } }
 
 ## Thriving Bluff
 face: Thriving Bluff
@@ -1046,6 +1046,6 @@ type: Legendary Creature — Devil
 cost: {2}{R}
 > Whenever an opponent draws their first card each turn, if it's not their turn, you create a 1/1 red Devil creature token with "When this token dies, it deals 1 damage to any target."
 > Whenever one or more Devils you control attack one or more players, you and those players each draw a card, then discard a card at random.
-= BROKE at "turn" after: whenever an opponent draws their first card each turn , if it's not their
+= Triggered { trigger: InterveningIf(When(DrawsNth { who: AnOpponent, n: 1 }), Not(TheirTurn)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["devil", "creature"], keywords: [], abilities: [Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }], named: None, attacking: None } }], limits: [] }
 = BROKE at "draw" after: whenever one or more devils you control attack one or more players , you and those players each
 

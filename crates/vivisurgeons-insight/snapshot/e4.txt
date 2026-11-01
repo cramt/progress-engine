@@ -818,7 +818,7 @@ cost: {3}{R}{R}
 > Freerunning {2}{R} (You may cast this spell for its freerunning cost if you dealt combat damage to a player this turn with an Assassin or commander.)
 > Untap all creatures you control that attacked this turn. If it's your main phase, there is an additional combat phase after this phase, followed by an additional main phase.
 = Keywords([Keyword { name: "freerunning", param: Some(Cost([Mana(Mana(["2", "R"]))])) }])
-= BROKE at "this" after: untap all creatures you control that attacked
+= BROKE at "by" after: untap all creatures you control that attacked this turn . if it's your main phase , there is an additional combat phase after this phase , followed
 
 ## Oxidda Finisher
 face: Oxidda Finisher

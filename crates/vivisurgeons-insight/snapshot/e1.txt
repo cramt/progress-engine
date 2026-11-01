@@ -378,7 +378,7 @@ face: Juniper Order Advocate
 type: Creature — Human Knight
 cost: {2}{W}
 > As long as this creature is untapped, green creatures you control get +1/+1.
-= BROKE at "get" after: as long as this creature is untapped , green creatures you control
+= Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Karador, Ghost Chieftain
 face: Karador, Ghost Chieftain

@@ -794,7 +794,7 @@ cost: {5}{R}{R}
 > At the beginning of your upkeep, if you're the monarch, create a 5/5 red Dragon creature token with flying.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of your upkeep , if you're the
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), IsMonarch(You)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), colors: [Red], types: ["dragon", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Snort
 face: Snort
@@ -1026,7 +1026,7 @@ cost: {4}{B}{B}
 > Casualty 2 (As you cast this spell, you may sacrifice a creature with power 2 or greater. When you do, copy this spell.)
 > Each opponent exiles the top card of their library. You may cast spells from among those cards this turn. If you cast a spell this way, pay life equal to that spell's mana value rather than pay its mana cost.
 = Keywords([Keyword { name: "casualty", param: Some(N(N(2))) }])
-= BROKE at "rather" after: each opponent exiles the top card of their library . you may cast spells from among those cards this turn . if you cast a spell this way , pay life equal to that spell 's mana value
+= Spell([With { bind: [/* exiled */ Objects { quant: NFromEach(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(EachOpponent))], or: None } }], then: [Performed { by: EachOpponent, effect: Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], then: [PermissionRules { permission: May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [FromAmong(Objects { quant: Bound(1) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, payment: ManaCost, dur: ThisTurn }] }, spell: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rules: [PaysRather { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cost: [PayLife(ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }))] }] }] }] }])
 
 ## Zurgo Bellstriker
 face: Zurgo Bellstriker

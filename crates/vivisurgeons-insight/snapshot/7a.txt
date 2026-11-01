@@ -203,7 +203,7 @@ cost: {5}{W}
 > When this creature enters, you become the monarch.
 > At the beginning of combat on each opponent's turn, if you're the monarch, that opponent may pay {X}, where X is the number of cards in their hand. If they don't, they can't attack you this combat.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
-= BROKE at "monarch" after: at the beginning of combat on each opponent 's turn , if you're the
+= BROKE at "combat" after: at the beginning of combat on each opponent 's turn , if you're the monarch , that opponent may pay {X} , where x is the number of cards in their hand . if they don't , they can't attack you this
 
 ## Chandler
 face: Chandler
@@ -219,7 +219,7 @@ cost: {2}{W}{U}
 > Artifact creatures and Heroes you control get +1/+1 for each Artificer you control and each Artificer card in your graveyard.
 > A deck can have any number of cards named Cid, Timeless Artificer.
 > Cycling {W}{U} ({W}{U}, Discard this card: Draw a card.)
-= BROKE at "." after: artifact creatures and heroes you control get <pt> for each artificer you control and each artificer card in your graveyard
+= Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact"), Type("creature")], [Subtype("hero")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("artificer")]], kind: None, posts: [Controller(You)], or: None } })) }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact"), Type("creature")], [Subtype("hero")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("artificer")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })) }])
 = Static([DeckCanHave(None)])
 = Keywords([Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["W", "U"]))])) }])
 
@@ -802,7 +802,7 @@ cost: {2}{R}
 > Whenever Ryan attacks, exile cards from the top of your library until you exile a nonland card. You may cast the exiled card without paying its mana cost if it's a spell with mana value less than or equal to Ryan's power. Put the exiled cards not cast this way on the bottom of your library in a random order.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
 = BROKE at "," after: whenever ryan attacks
-= BROKE at "<end>" after: doctor 's companion
+= Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Sarinth Greatwurm
 face: Sarinth Greatwurm

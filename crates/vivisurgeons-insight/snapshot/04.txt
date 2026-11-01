@@ -337,7 +337,7 @@ face: Goblin Lyre
 type: Artifact
 cost: {3}
 > Sacrifice this artifact: Flip a coin. If you win the flip, this artifact deals damage to target opponent or planeswalker equal to the number of creatures you control. If you lose the flip, this artifact deals damage to you equal to the number of creatures that opponent or that planeswalker's controller controls.
-= BROKE at "opponent" after: sacrifice this artifact : flip a coin . if you win the flip , this artifact deals damage to target opponent or planeswalker equal to the number of creatures you control . if you lose the flip , this artifact deals damage to you equal to the number of creatures that
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [FlipCoin, If { order: Leading, cond: WonFlip(true), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), to: [Or([Player(TargetOpponent), Objects(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })])] }] }, If { order: Leading, cond: WonFlip(false), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(OneOf([That, ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })]))], or: None } }), to: [Player(You)] }] }], limits: [] } }
 
 ## Goblin Trenches
 face: Goblin Trenches
@@ -870,7 +870,7 @@ face: Spikeshell Harrier
 type: Artifact Creature — Robot Turtle
 cost: {4}{U}
 > When this creature enters, return target creature or Vehicle an opponent controls to its owner's hand. If that opponent's speed is greater than each other player's speed, reduce that opponent's speed by 1. This effect can't reduce their speed below 1.
-= BROKE at "speed" after: when this creature enters , return target creature or vehicle an opponent controls to its owner 's hand . if that opponent 's
+= BROKE at "that" after: when this creature enters , return target creature or vehicle an opponent controls to its owner 's hand . if that opponent 's speed is greater than each other player 's speed , reduce
 
 ## Strax, Sontaran Nurse
 face: Strax, Sontaran Nurse
