@@ -218,6 +218,7 @@ pub fn replay(
         matched: BTreeSet::new(),
         consumed: BTreeSet::new(),
         bottomed: (0, 0),
+        created: (0, 0),
         entries: g.entries.clone(),
     };
     let end = r.run(m, g);
@@ -253,6 +254,7 @@ struct Knew {
     matched: BTreeSet<u32>,
     consumed: BTreeSet<usize>,
     bottomed: (u32, u32),
+    created: (u32, u32),
 }
 
 #[derive(Clone)]
@@ -288,6 +290,8 @@ struct Driver<'a> {
     /// The turn, and how many cards the log has shown going to the bottom
     /// of a library by an instruction in it.
     bottomed: (u32, u32),
+    /// The turn, and how many tokens the log has shown created in it.
+    created: (u32, u32),
     /// The game's lines, for the choices a later line shows (a trigger's
     /// targets, the order triggers go on the stack).
     entries: Vec<Entry>,
@@ -306,6 +310,7 @@ impl Driver<'_> {
             matched: self.matched.clone(),
             consumed: self.consumed.clone(),
             bottomed: self.bottomed,
+            created: self.created,
         }
     }
 
@@ -373,6 +378,7 @@ impl Driver<'_> {
                             self.matched = knew.matched;
                             self.consumed = knew.consumed;
                             self.bottomed = knew.bottomed;
+                            self.created = knew.created;
                             let did = match other {
                                 Retry::Pay(payment) => pay_with(&mut game, &payment)
                                     .map(|()| format!("paid again, {}", describe(&payment))),
@@ -1019,6 +1025,25 @@ impl Driver<'_> {
                     i,
                     format!("{name} left the stack, its targets illegal (CR 608.2b)"),
                 );
+            }
+            // Tokens a resolving instruction created, which the engine
+            // must have created this turn.
+            Creates { count, what, .. } => {
+                self.until_choice()?;
+                let turn = self.game().turn();
+                let seen = if self.created.0 == turn {
+                    self.created.1
+                } else {
+                    0
+                } + count;
+                if seen > self.game().created() {
+                    return Err(Stop::Unfollowed {
+                        event: "Creates".into(),
+                        card: Some(what.clone()),
+                    });
+                }
+                self.created = (turn, seen);
+                self.did(i, format!("{count} {what} created (CR 111.1)"));
             }
             TriggerFailed(c) => {
                 self.did(

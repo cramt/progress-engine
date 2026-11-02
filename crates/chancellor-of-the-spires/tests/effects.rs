@@ -1269,3 +1269,38 @@ fn path_to_exile_lets_the_creature_s_controller_search_for_a_basic_land() {
         3
     );
 }
+
+/// CR 111.1–111.4, 111.7, 704.5d: Khalni Garden's "create a 0/1 green
+/// Plant creature token" makes a token its controller owns, named Plant
+/// Token; Bolted, it is put into the graveyard and ceases to exist there.
+#[test]
+fn khalni_garden_makes_a_plant_token_that_ceases_to_exist_off_the_battlefield() {
+    let mut game = deal_both(
+        &[("Khalni Garden", 30), ("Forest", 30)],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[("Khalni Garden", 1)],
+        &[("Mountain", 1), ("Lightning Bolt", 1)],
+    );
+    play(&mut game, "Khalni Garden");
+    resolve(&mut game);
+    let plant = creature(&game, "Plant Token").expect("a Plant token");
+    let chars = &game.characteristics()[&plant];
+    assert_eq!(chars.pt, Some(pt(0, 1)));
+    assert!(chars
+        .colors
+        .contains(&chancellor_of_the_spires::model::Color::Green));
+    assert_eq!(chars.controller, ME);
+    let graveyard = game.player(ME).graveyard().len();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(plant)]),
+    );
+    resolve(&mut game);
+    assert!(creature(&game, "Plant Token").is_none());
+    assert_eq!(game.player(ME).graveyard().len(), graveyard);
+    assert_eq!(game.created(), 0, "a new turn");
+}

@@ -163,7 +163,9 @@ library for a card a filter matches, bound for what follows (CR 701.23a,
 onto the battlefield, then put onto the battlefield (tapped, under the
 searcher's control), into a hand or on top, and a shuffle of any
 player's library (CR 701.24a), a "may" being anyone's (Path to Exile's
-is its target's controller's), gain and lose life, damage to any target, a player, a player or
+is its target's controller's), creating a token whose text the
+instruction gives, its creator its owner and controller, named for its
+subtypes (CR 111.1–111.4), a card refused if a token it makes can't run, gain and lose life, damage to any target, a player, a player or
 planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
 lifelink, CR 702.15b), scry and +1/+1 or named counters; their targets
@@ -201,7 +203,9 @@ land itself, and a shock land's life or tapped, all read off the
 permanent as it would enter (CR 614.12); mana pools emptying as each step ends (CR 500.5);
 a player with hexproof (Leyline of Sanctity's "You have hexproof") never
 a legal target of an opponent's spell or ability (CR 702.11c, 115.4);
-state-based actions whenever a player would get priority (CR 704.3) for 0
+state-based actions whenever a player would get priority (CR 704.3) for a
+token in a zone other than the battlefield ceasing to exist (CR 704.5d,
+111.7), 0
 life, drawing from an empty library, toughness 0 or less and the legend
 rule (CR 704.5a–b, 704.5f, 704.5j), and a commander's return to the
 command zone (CR 903.9a); a loser leaving the game with what they own and
@@ -238,8 +242,8 @@ more than a card, `Effect::Move` from a graveyard and modifying by an
 amount (3 each). `tests/game.rs` scripts the rules above, and plays
 Loam against a goldfish for six turns, casting what it can.
 
-Not yet: most instructions (create a token, modal spells, "if", a
-search inside a "may"), X,
+Not yet: most instructions (modal spells, "if", a predefined token or
+one with abilities beyond keywords), X,
 activated abilities with targets, mana costs, limits or effects other
 than a search for a card, triggers on any other event (leaving the battlefield other than dying), "intervening if" (CR 603.4), a card that triggers from a
 graveyard, attacking a planeswalker or battle, requirements and
@@ -404,7 +408,8 @@ those looked at as the one chosen, a hidden card in the hand until a line
 plays it, and puts the rest back in the order they were; its place is
 the engine's, so the library's order stays honest though its names are
 unknown. A "put a card on the bottom of the library" line must match a
-card the engine put on the bottom that turn.
+card the engine put on the bottom that turn, and a "creates three
+Goblin Tokens" line as many tokens the engine created.
 A "may" is answered by its own line when the log prints one ("chooses
 to use", "chooses not to use" or "declines to use [X]'s ability") from
 the line being followed to the end of the turn; with none, the replay
@@ -448,8 +453,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 20 replay to the end** (17 to the log's winner
-line), 6 of them past the first turn, and **20.84% of their lines are
-followed** (16,293 of 78,183: the lines before each game's stop, all of a
+line), 6 of them past the first turn, and **20.96% of their lines are
+followed** (16,391 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the

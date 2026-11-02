@@ -67,6 +67,9 @@ struct CardEntry {
     owner: PlayerId,
     /// A commander (CR 903.3): a designation of the card, not of an object.
     commander: bool,
+    /// A token's text, not a card (CR 111.6): it exists only while on the
+    /// battlefield (CR 111.7).
+    token: bool,
     face: Face,
 }
 
@@ -101,7 +104,17 @@ impl Known {
             Ok(l) => Some(l.chars.clone()),
             Err(_) => lower::printed(&text).ok(),
         };
-        let runs = lowered.and_then(runnable);
+        let runs = lowered.and_then(runnable).and_then(|r| {
+            // A token it creates must run too, or it couldn't enter.
+            let refused = r.tokens().find_map(|t| Known::read(t.clone()).runs.err());
+            match refused {
+                Some(why) => Err(Unrunnable::new(
+                    format!("a token: {}", why.node),
+                    format!("a token it creates: {why}"),
+                )),
+                None => Ok(r),
+            }
+        });
         let cost =
             ManaCost::parse(&text.mana_cost).map_err(|why| Unrunnable::new(why.clone(), why));
         Known {
@@ -152,6 +165,33 @@ struct Runnable {
     hexproof: BTreeSet<u16>,
     /// The abilities it carries that nothing offers to activate yet.
     dormant: Vec<String>,
+}
+
+impl Runnable {
+    /// The tokens its instructions create, as their text.
+    fn tokens(&self) -> impl Iterator<Item = &CardText> {
+        fn walk<'a>(effects: &'a [Effect], out: &mut Vec<&'a CardText>) {
+            for e in effects {
+                if let Effect::Create { token, .. } = e {
+                    out.push(token);
+                }
+                if let Some(inner) = e.inner() {
+                    walk(inner, out);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        if let Some(p) = &self.spell {
+            walk(&p.effects, &mut out);
+        }
+        for t in self.triggered.values() {
+            walk(&t.program.effects, &mut out);
+        }
+        for a in self.activated.values().flatten() {
+            walk(&a.effects, &mut out);
+        }
+        out.into_iter()
+    }
 }
 
 /// A replacement effect on how its own permanent enters (CR 614.1c–d).
@@ -1003,6 +1043,8 @@ pub struct Game {
     until_end_of_turn: Vec<Timestamp>,
     /// Cards an instruction put on the bottom of a library this turn.
     bottomed: u32,
+    /// Tokens created this turn.
+    created: u32,
     /// The counters each permanent that left had as it last existed, for
     /// an ability of its that counts them (CR 608.2h, 113.7a).
     last_known: OrdMap<ObjectId, LastKnown>,
@@ -1114,6 +1156,7 @@ impl Game {
                 cards.push_back(CardEntry {
                     owner,
                     commander,
+                    token: false,
                     face,
                 });
                 CardId(cards.len() as u32 - 1)
@@ -1163,6 +1206,7 @@ impl Game {
             until_end_of_turn: Vec::new(),
             last_known: OrdMap::new(),
             bottomed: 0,
+            created: 0,
             exile: Vector::new(),
             command,
             commander_casts: OrdMap::new(),
@@ -1346,6 +1390,11 @@ impl Game {
             .and_then(|k| k.runs.as_ref().ok())
             .and_then(|r| r.spell.as_ref())
             .is_some_and(|p| p.targets.iter().any(|t| matches!(t, TargetSpec::Spell(_))))
+    }
+
+    /// How many tokens have been created this turn.
+    pub fn created(&self) -> u32 {
+        self.created
     }
 
     /// How many cards an instruction has put on the bottom of a library
@@ -2694,6 +2743,20 @@ impl Game {
                         }
                     }
                 }
+                // CR 111.2: its creator owns and controls it.
+                Effect::Create { n, token, tapped } => {
+                    for _ in 0..n {
+                        self.cards.push_back(CardEntry {
+                            owner: p,
+                            commander: false,
+                            token: true,
+                            face: Face::Known(Arc::new(Known::read((*token).clone()))),
+                        });
+                        let card = CardId(self.cards.len() as u32 - 1);
+                        self.arrive(card, p, tapped);
+                        self.created += 1;
+                    }
+                }
                 // CR 701.6a.
                 Effect::Counter(slot) => {
                     if let Some(Target::Spell(c)) = at.targets[slot] {
@@ -3745,7 +3808,11 @@ impl Game {
         let mut chars = runs.lowered.chars.clone();
         chars.controller = controller;
         let statics = runs.lowered.statics.clone();
-        let id = self.battlefield.enter(chars, statics);
+        let id = if self.cards[card.0 as usize].token {
+            self.battlefield.create_token(chars, statics)
+        } else {
+            self.battlefield.enter(chars, statics)
+        };
         self.permanents.insert(
             id,
             Permanent {
@@ -3804,6 +3871,7 @@ impl Game {
         self.turn += 1;
         self.battlefield.active = Some(p);
         self.bottomed = 0;
+        self.created = 0;
         self.active = p;
         self.players[p.0 as usize].turn_began = Some(self.turn);
         for player in &mut self.players {
@@ -4040,6 +4108,26 @@ impl Game {
     fn state_based_actions(&mut self) -> Checked {
         let mut checked = Checked::Nothing;
         loop {
+            // CR 704.5d, 111.7: a token in a zone other than the
+            // battlefield ceases to exist.
+            let cards = self.cards.clone();
+            let token = |c: &CardId| cards[c.0 as usize].token;
+            let elsewhere = self.players.iter().any(|p| {
+                p.hand
+                    .iter()
+                    .chain(&p.graveyard)
+                    .chain(&p.library)
+                    .any(token)
+            }) || self.exile.iter().any(token);
+            if elsewhere {
+                for p in &mut self.players {
+                    p.hand.retain(|c| !token(c));
+                    p.graveyard.retain(|c| !token(c));
+                    p.library.retain(|c| !token(c));
+                }
+                self.exile.retain(|c| !token(c));
+                checked = Checked::Performed;
+            }
             let losers: Vec<PlayerId> = (0..self.players.len())
                 .map(|p| PlayerId(p as u8))
                 .filter(|p| {

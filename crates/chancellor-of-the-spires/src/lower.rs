@@ -864,6 +864,13 @@ pub enum Effect {
     Sacrifice(Obj),
     /// "Counter target spell" (CR 701.6a): the spell in this target slot.
     Counter(usize),
+    /// "Create a 0/1 green Plant creature token": `n` tokens with this
+    /// text, its controller's (CR 111.1–111.3).
+    Create {
+        n: u32,
+        token: Box<crate::deck::CardText>,
+        tapped: bool,
+    },
     /// "~ deals 3 damage to any target": the source is the spell or the
     /// ability's source (CR 120.1).
     Damage {
@@ -1503,6 +1510,15 @@ impl<'a> Scope<'a> {
                     k => Amount::N(n(k)?),
                 },
             },
+            i::Effect::Create {
+                who: i::Player::You,
+                n: k,
+                token,
+            } => Effect::Create {
+                n: n(k)?,
+                token: Box::new(token_text(token)?),
+                tapped: token.tapped,
+            },
             i::Effect::Destroy { what, .. } => Effect::Destroy(self.obj(what)?),
             i::Effect::Exile(what) => Effect::Exile(self.obj(what)?),
             i::Effect::Sacrifice {
@@ -1910,6 +1926,64 @@ fn target_filter(o: &Objects) -> Result<Filter, String> {
         return Err("a target relative to its source".into());
     }
     Ok(f)
+}
+
+/// A token's text, as a card's (CR 111.3): its name its subtypes and
+/// "Token" (CR 111.4), its keywords its rules text. A predefined token, or
+/// one with abilities other than keywords, isn't read yet.
+fn token_text(t: &i::Token) -> Result<crate::deck::CardText, String> {
+    if t.named.is_some() || !t.abilities.is_empty() || t.attacking.is_some() {
+        return Err("a token with abilities, a name or attacking".into());
+    }
+    let mut types = Vec::new();
+    let mut supertypes = Vec::new();
+    let mut subtypes = Vec::new();
+    for w in &t.types {
+        if card_type(w).is_some() {
+            types.push(capitalised(w));
+        } else if supertype(w).is_some() {
+            supertypes.push(capitalised(w));
+        } else {
+            subtypes.push(capitalised(w));
+        }
+    }
+    let mut keywords = Vec::new();
+    for k in &t.keywords {
+        if k.param.is_some() {
+            return Err(format!("a token with keyword {}", k.name));
+        }
+        keywords.push(k.name.clone());
+    }
+    let rules = keywords.join(", ");
+    let mut c = rules.chars();
+    let rules = c
+        .next()
+        .map(|f| f.to_uppercase().chain(c).collect())
+        .unwrap_or_default();
+    let pt = match &t.pt {
+        None => None,
+        Some(p) => Some(fixed(p).filter(|_| !p.signed).ok_or("a token's power")?),
+    };
+    let colors = t
+        .colors
+        .iter()
+        .map(|c| color(c).ok_or_else(|| short(c)))
+        .collect::<Result<Vec<_>, _>>()?;
+    let front: Vec<String> = supertypes.into_iter().chain(types).collect();
+    Ok(crate::deck::CardText {
+        name: format!("{} Token", subtypes.join(" ")),
+        type_line: if subtypes.is_empty() {
+            front.join(" ")
+        } else {
+            format!("{} — {}", front.join(" "), subtypes.join(" "))
+        },
+        mana_cost: String::new(),
+        oracle: crate::deck::Oracle::OneFace(rules),
+        mana_value: 0,
+        identity: colors.clone(),
+        colors,
+        pt,
+    })
 }
 
 /// "target spell with mana value 2", "target noncreature spell": by the
