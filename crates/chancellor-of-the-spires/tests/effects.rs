@@ -1482,3 +1482,83 @@ fn goblin_piledriver_grows_for_each_other_attacking_goblin() {
     my_next_main(&mut game);
     assert_eq!(pt_of(&game, driver), pt(1, 2), "until end of turn");
 }
+
+/// My first activated ability `source` offers, activated.
+fn activate(game: &mut Game, source: chancellor_of_the_spires::model::ObjectId) -> Decision {
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let a = actions
+        .iter()
+        .find(|a| matches!(a, Action::Activate(x) if x.source == source))
+        .copied()
+        .expect("offered");
+    step(game, Answer::Act(a))
+}
+
+/// CR 602.2b, 601.2c, 701.21a: Mogg Fanatic's "Sacrifice this creature:
+/// It deals 1 damage to any target" chooses its target as it is
+/// activated, and deals the damage as it last existed.
+#[test]
+fn mogg_fanatic_sacrifices_itself_to_deal_one_damage_to_a_target() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Mogg Fanatic", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 1), ("Mogg Fanatic", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Mogg Fanatic", None);
+    resolve(&mut game);
+    let fanatic = creature(&game, "Mogg Fanatic").unwrap();
+    let Decision::Targets { slots, .. } = activate(&mut game, fanatic) else {
+        panic!("a target")
+    };
+    assert!(slots[0].contains(&Target::Player(THEM)));
+    step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    assert!(
+        !game.permanents().contains_key(&fanatic),
+        "sacrificed as a cost"
+    );
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 19);
+}
+
+/// CR 602.2b, 601.2g–h, 701.26a: Rishadan Port's "{1}, {T}: Tap target
+/// land" has its target chosen, then its {1} paid from another land.
+#[test]
+fn rishadan_port_pays_one_to_tap_a_land() {
+    let mut game = deal_both(
+        &[("Rishadan Port", 20), ("Mountain", 40)],
+        &[("Forest", 60)],
+        &[("Rishadan Port", 1), ("Mountain", 1)],
+        &[("Forest", 1)],
+    );
+    play(&mut game, "Rishadan Port");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Mountain");
+    let port = creature(&game, "Rishadan Port").unwrap();
+    let forest = creature(&game, "Forest").unwrap();
+    let Decision::Targets { slots, .. } = activate(&mut game, port) else {
+        panic!("a target")
+    };
+    assert!(slots[0].contains(&Target::Object(forest)));
+    let mut d = step(&mut game, Answer::Targets(vec![Target::Object(forest)]));
+    let Decision::Pay { owed, .. } = &d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(owed.to_string(), "{1}");
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .unwrap();
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    assert!(game.permanents()[&port].tapped);
+    resolve(&mut game);
+    assert!(game.permanents()[&forest].tapped);
+}

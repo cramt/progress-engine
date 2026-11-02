@@ -191,7 +191,7 @@ impl Runnable {
             walk(&t.program.effects, &mut out);
         }
         for a in self.activated.values().flatten() {
-            walk(&a.effects, &mut out);
+            walk(&a.program.effects, &mut out);
         }
         out.into_iter()
     }
@@ -396,6 +396,8 @@ pub enum StackObject {
         object: ObjectId,
         ability: u16,
         controller: PlayerId,
+        /// Chosen as it was activated (CR 602.2b, 601.2c), by slot.
+        targets: Vec<Target>,
     },
 }
 
@@ -499,6 +501,12 @@ type Assigned = Vec<(ObjectId, Target, u32)>;
 enum Choosing {
     /// The spell on top of the stack, then its cost is paid.
     Spell { owed: ManaCost, from_command: bool },
+    /// The activated ability on top of the stack, from `object`, then its
+    /// mana cost, if it has one, is paid (CR 602.2b).
+    Ability {
+        object: ObjectId,
+        owed: Option<ManaCost>,
+    },
     /// A triggered ability being put on the stack, then `then` gets
     /// priority.
     Trigger { pending: Pending, then: PlayerId },
@@ -568,6 +576,9 @@ enum Waiting {
         player: PlayerId,
         spell: CardId,
         owed: ManaCost,
+        /// A spell, from the command zone or not, or an activated
+        /// ability of `spell`'s (CR 602.2b).
+        ability: bool,
         from_command: bool,
     },
     /// CR 514.1, or an instruction (CR 701.9a), which `then` goes on with.
@@ -1492,6 +1503,7 @@ impl Game {
             } => {
                 let (controller, object) = match choosing {
                     Choosing::Spell { .. } => (*player, None),
+                    Choosing::Ability { object, .. } => (*player, Some(*object)),
                     Choosing::Trigger { pending, .. } => (pending.controller, Some(pending.object)),
                 };
                 let source = self.source_chars(*card, object);
@@ -1718,11 +1730,20 @@ impl Game {
                     player,
                     spell,
                     owed,
+                    ability,
                     from_command,
                 },
                 Answer::Pay(pay),
             ) if self.payments(player, &owed).contains(pay) => match *pay {
                 Payment::Mana(a) => self.activate(player, a),
+                // CR 602.2b: an ability activated, its activator gets
+                // priority again (CR 117.3c).
+                Payment::Spend(spent) if ability => {
+                    let pool = &mut self.players[player.0 as usize].pool;
+                    *pool = pool.minus(&spent);
+                    self.before_cast = None;
+                    self.give_priority(player, 0);
+                }
                 Payment::Spend(spent) => {
                     let pool = &mut self.players[player.0 as usize].pool;
                     *pool = pool.minus(&spent);
@@ -1772,6 +1793,7 @@ impl Game {
             ) => {
                 let (controller, object) = match &choosing {
                     Choosing::Spell { .. } => (player, None),
+                    Choosing::Ability { object, .. } => (player, Some(*object)),
                     Choosing::Trigger { pending, .. } => (pending.controller, Some(pending.object)),
                 };
                 let source = self.source_chars(card, object);
@@ -1784,6 +1806,16 @@ impl Game {
                     return Err(Rejected::Illegal(answer));
                 }
                 match choosing {
+                    Choosing::Ability { owed, .. } => {
+                        if let Some(StackObject::Ability {
+                            targets, source, ..
+                        }) = self.stack.back_mut()
+                        {
+                            *targets = chosen.clone();
+                            let spell = *source;
+                            self.pay_ability(player, spell, owed);
+                        }
+                    }
                     Choosing::Spell { owed, from_command } => {
                         if let Some(StackObject::Spell { targets, .. }) = self.stack.back_mut() {
                             *targets = chosen.clone();
@@ -1796,6 +1828,7 @@ impl Game {
                                 _ => unreachable!("the spell is on top"),
                             },
                             owed,
+                            ability: false,
                             from_command,
                         };
                     }
@@ -2175,6 +2208,16 @@ impl Game {
                 {
                     continue;
                 }
+                // CR 602.2b, 601.2c: a target slot nothing can fill.
+                let source = Some(&chars);
+                if def
+                    .program
+                    .targets
+                    .iter()
+                    .any(|t| self.legal_targets(t, p, source).is_empty())
+                {
+                    continue;
+                }
                 out.push(Activation {
                     source: id,
                     ability: *ability,
@@ -2337,13 +2380,16 @@ impl Game {
                     unreachable!("only an ability that runs is offered")
                 };
                 let cost = def.cost.clone();
-                // CR 602.2a: on the stack first, then its costs paid (CR
-                // 602.2b, 601.2h), which need no choice.
+                let slots = def.program.targets.clone();
+                self.before_cast = Some(Box::new(self.clone()));
+                // CR 602.2a: on the stack first, then its targets chosen
+                // and its costs paid (CR 602.2b, 601.2c, 601.2h).
                 self.stack.push_back(StackObject::Ability {
                     source: card,
                     object: a.source,
                     ability: n,
                     controller: p,
+                    targets: Vec::new(),
                 });
                 if cost.tap {
                     if let Some(perm) = self.permanents.get_mut(&a.source) {
@@ -2356,11 +2402,43 @@ impl Game {
                     // CR 701.21a.
                     self.put_in_graveyard(a.source);
                 }
-                // CR 117.3c.
-                self.give_priority(p, 0);
+                if slots.is_empty() {
+                    self.pay_ability(p, card, cost.mana);
+                } else {
+                    self.waiting = Waiting::Targets {
+                        player: p,
+                        card,
+                        slots,
+                        choosing: Choosing::Ability {
+                            object: a.source,
+                            owed: cost.mana,
+                        },
+                    };
+                }
             }
         }
         Ok(())
+    }
+
+    /// An activated ability's mana cost paid, if it has one (CR 602.2b,
+    /// 601.2g–h), or the ability is activated and its activator gets
+    /// priority (CR 117.3c).
+    fn pay_ability(&mut self, p: PlayerId, card: CardId, owed: Option<ManaCost>) {
+        match owed {
+            Some(owed) => {
+                self.waiting = Waiting::Paying {
+                    player: p,
+                    spell: card,
+                    owed,
+                    ability: true,
+                    from_command: false,
+                }
+            }
+            None => {
+                self.before_cast = None;
+                self.give_priority(p, 0);
+            }
+        }
     }
 
     /// Only a known card is ever offered to play or cast.
@@ -2442,6 +2520,7 @@ impl Game {
                 player: p,
                 spell: card,
                 owed,
+                ability: false,
                 from_command,
             },
         };
@@ -2553,16 +2632,13 @@ impl Game {
                 object,
                 ability,
                 controller,
-            }) => self.follow(Resuming {
-                what: Instructions::Activated(source, ability),
+                targets,
+            }) => self.begin_resolving(
+                Instructions::Activated(source, ability),
                 controller,
-                object: Some(object),
-                targets: Vec::new(),
-                triggering: None,
-                amount: None,
-                next: vec![0],
-                found: OrdMap::new(),
-            }),
+                (Some(object), None, None),
+                targets,
+            ),
             Some(StackObject::Trigger {
                 source,
                 object,
@@ -2628,7 +2704,10 @@ impl Game {
         match what {
             Instructions::Spell(c) => self.runs_of(c).spell.as_ref().unwrap_or(&NONE),
             Instructions::Triggered(c, n) => &self.runs_of(c).triggered[&n].program,
-            Instructions::Activated(..) => &NONE,
+            Instructions::Activated(c, n) => match self.runs_of(c).activated.get(&n) {
+                Some(Ok(def)) => &def.program,
+                _ => &NONE,
+            },
         }
     }
 
@@ -2650,19 +2729,7 @@ impl Game {
     /// Follow a resolving spell's or ability's instructions in order from
     /// `at.next` (CR 608.2c), stopping at one that asks for a choice.
     fn follow(&mut self, mut at: Resuming) {
-        let program = match at.what {
-            Instructions::Activated(source, ability) => {
-                let Some(Ok(def)) = self
-                    .known(source)
-                    .and_then(|k| k.runs.as_ref().ok())
-                    .and_then(|r| r.activated.get(&ability))
-                else {
-                    unreachable!("only an ability that runs is activated")
-                };
-                def.effects.clone()
-            }
-            what => self.program(what).effects.clone(),
-        };
+        let program = self.program(at.what).effects.clone();
         let p = at.controller;
         loop {
             // The list the cursor is in: the program's, or a "may"'s
@@ -2790,6 +2857,16 @@ impl Game {
                 Effect::Exile(o) => {
                     if let Some(o) = self.object(&at, o) {
                         self.leave_battlefield(o, Zone::Exile);
+                    }
+                }
+                // CR 701.26a.
+                Effect::Tap(o) | Effect::Untap(o) => {
+                    let tapped = matches!(e, Effect::Tap(_));
+                    if let Some(perm) = self
+                        .object(&at, o)
+                        .and_then(|o| self.permanents.get_mut(&o))
+                    {
+                        perm.tapped = tapped;
                     }
                 }
                 Effect::ToOwnersHand(o) => {
@@ -4415,26 +4492,14 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         }
         let bound = !bind.is_empty();
         match a {
-            // With a target it isn't a mana ability (CR 605.5a), and
-            // targets aren't chosen yet (CR 601.2c, 602.2b).
-            i::Ability::Activated { .. } if bound => {
-                runs.dormant
-                    .push("an activated ability with a target".into());
-                runs.activated.insert(
-                    n,
-                    Err(Unrunnable::new(
-                        "a target",
-                        "the game can't choose an activated ability's targets yet",
-                    )),
-                );
-            }
+            // With a target it isn't a mana ability (CR 605.5a).
             i::Ability::Activated {
                 cost,
                 effect,
                 limits,
-            } => match m::mana_ability(a) {
+            } => match m::mana_ability(a).filter(|_| !bound) {
                 None => {
-                    let def = lower::activated(cost, effect, limits).map_err(|node| {
+                    let def = lower::activated(bind, cost, effect, limits).map_err(|node| {
                         Unrunnable::new(
                             node.clone(),
                             format!("the game can't run its activated ability: {node}"),

@@ -744,35 +744,8 @@ impl Driver<'_> {
                     .any(|a| self.targeted_on_stack(&a.target));
                 let c = self.offered(p, card.name(), Kind::Cast, on_stack, answers)?;
                 self.act(Answer::Act(Action::Cast(c)))?;
-                // CR 601.2c: the targets the log shows, before the cost.
-                if let Decision::Targets { slots, .. } = self.game().decision() {
-                    let chosen = self.aim(&cast.targets, &slots, card.name())?;
-                    self.act(Answer::Targets(chosen))?;
-                } else if !cast.targets.is_empty() {
-                    return Err(Stop::Diverged(Divergence::Targets {
-                        card: card.name().to_string(),
-                    }));
-                }
-                let payments = self.payments()?;
-                let Some((first, rest)) = payments.split_first() else {
-                    return Err(Stop::Diverged(Divergence::Unpayable {
-                        card: card.name().to_string(),
-                    }));
-                };
-                if !rest.is_empty() {
-                    let game = self.game().clone();
-                    self.checkpoints.push(Checkpoint {
-                        game,
-                        entry: i,
-                        trace: self.trace.len(),
-                        resume: i + 1,
-                        others: rest.iter().cloned().map(Retry::Pay).collect(),
-                        knew: self.knew(),
-                        any_stop: false,
-                    });
-                }
-                pay_with(self.game(), first)?;
-                self.did(i, format!("cast {}, {}", card.name(), describe(first)));
+                let paid = self.aim_and_pay(i, &cast.targets, card.name())?;
+                self.did(i, format!("cast {}, {paid}", card.name()));
             }
             Discards { player, cards } => {
                 let p = self.seat(*player);
@@ -815,14 +788,18 @@ impl Driver<'_> {
                 let on_stack = a.targets.iter().any(|t| self.targets_stack(&t.target));
                 let activation = self.activation(p, card.name(), on_stack)?;
                 self.act(Answer::Act(Action::Activate(activation)))?;
-                // Nothing the engine activates yet has a target: one that
-                // has is never offered.
-                if !a.targets.is_empty() {
-                    return Err(Stop::Diverged(Divergence::Targets {
-                        card: card.name().to_string(),
-                    }));
-                }
-                self.did(i, format!("activated {}'s ability", card.name()));
+                let paid = match self.game().decision() {
+                    Decision::Targets { .. } | Decision::Pay { .. } => {
+                        format!(", {}", self.aim_and_pay(i, &a.targets, card.name())?)
+                    }
+                    _ if !a.targets.is_empty() => {
+                        return Err(Stop::Diverged(Divergence::Targets {
+                            card: card.name().to_string(),
+                        }))
+                    }
+                    _ => String::new(),
+                };
+                self.did(i, format!("activated {}'s ability{paid}", card.name()));
             }
             // CR 701.23b: the search the ability on the stack makes finds
             // nothing.
@@ -1491,6 +1468,44 @@ impl Driver<'_> {
             out.push(t);
         }
         Ok(out)
+    }
+
+    /// A spell being cast or an ability activated: the targets the log
+    /// shows, chosen before the cost (CR 601.2c, 602.2b), then its mana
+    /// paid by the first payment the solver finds, the others kept to go
+    /// back to. What paid it, said.
+    fn aim_and_pay(&mut self, i: usize, targets: &[log::Aim], name: &str) -> Result<String, Stop> {
+        if let Decision::Targets { slots, .. } = self.game().decision() {
+            let chosen = self.aim(targets, &slots, name)?;
+            self.act(Answer::Targets(chosen))?;
+        } else if !targets.is_empty() {
+            return Err(Stop::Diverged(Divergence::Targets {
+                card: name.to_string(),
+            }));
+        }
+        if !matches!(self.game().decision(), Decision::Pay { .. }) {
+            return Ok("no mana to pay".into());
+        }
+        let payments = self.payments()?;
+        let Some((first, rest)) = payments.split_first() else {
+            return Err(Stop::Diverged(Divergence::Unpayable {
+                card: name.to_string(),
+            }));
+        };
+        if !rest.is_empty() {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: i,
+                trace: self.trace.len(),
+                resume: i + 1,
+                others: rest.iter().cloned().map(Retry::Pay).collect(),
+                knew: self.knew(),
+                any_stop: false,
+            });
+        }
+        pay_with(self.game(), first)?;
+        Ok(describe(first))
     }
 
     /// Pass priority while something on the stack resolves this turn, and

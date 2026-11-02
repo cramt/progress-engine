@@ -147,8 +147,10 @@ mana, a choice of it, any colour, a colour of the commander's identity
 activated (Gaea's Cradle, CR 608.2h), without the stack (CR 605.3b), a
 creature's only once it has been yours since your turn began (CR 302.6)
 or has haste; other activated abilities any time you have priority (CR
-117.1b), costing a tap, life and sacrificing their source (CR 602.2,
-701.21a), on the stack and resolving independently of their source (CR
+117.1b), costing a tap, life, sacrificing their source and mana, paid
+as a spell's is (CR 602.2, 602.2b, 701.21a), their targets chosen as
+they are activated (Mogg Fanatic, Wasteland, Rishadan Port's "Tap target
+land", CR 701.26a), on the stack and resolving independently of their source (CR
 113.7a), with the instructions a spell's are lowered into, among them
 the fetchlands' effects, and Aether Vial's, which counts its
 charge counters as it resolves, as the Vial last existed if it has left
@@ -234,16 +236,18 @@ menace, first and double strike, defender, haste, vigilance, trample,
 deathtouch, lifelink, and protection from a colour, from multicolored or
 from everything); cycling, transmute and flashback are carried, never
 offered. A non-mana activated ability
-the engine can't run (a target, a mana cost, a limit, another effect) is
+the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**36 of Loam's 90 distinct cards are played or cast and resolved, 16 of
+**36 of Loam's 90 distinct cards are played or cast and resolved, 18 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
 Foothills, the shock lands Breeding Pool, Steam Vents and Stomping
-Ground, and Nature's Lore, the one more since a search is an instruction
-like any other), measured 2026-11-02, Deep Analysis played too since it
+Ground, Nature's Lore, since a search is an instruction like any other,
+and Fiery Islet and Waterlogged Grove, the two more since an activated
+ability can cost mana: "{1}, {T}, Sacrifice this land: Draw a card"),
+measured 2026-11-03, Deep Analysis played too since it
 draws two, its flashback carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
@@ -255,8 +259,8 @@ Loam against a goldfish for six turns, casting what it can.
 
 Not yet: most instructions (modal spells, "if", a predefined token or
 one with abilities beyond keywords), X,
-activated abilities with targets, mana costs, limits or effects other
-than a search for a card, triggers on any other event (leaving the battlefield other than dying), "intervening if" (CR 603.4), a card that triggers from a
+activated abilities with limits or costs beyond a tap, life, mana and
+sacrificing their source, triggers on any other event (leaving the battlefield other than dying), "intervening if" (CR 603.4), a card that triggers from a
 graveyard, attacking a planeswalker or battle, requirements and
 restrictions on attacking and blocking beyond flying, reach, menace and
 defender, a creature blocking two, and a land's back face (CR 712). State-based actions run one creature after the other rather than at

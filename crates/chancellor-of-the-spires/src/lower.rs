@@ -891,6 +891,9 @@ pub enum Effect {
     Exile(Obj),
     /// "Return target permanent to its owner's hand".
     ToOwnersHand(Obj),
+    /// "Tap target land", "untap it" (CR 701.26a).
+    Tap(Obj),
+    Untap(Obj),
     /// "Sacrifice this creature" (CR 701.21a): only a permanent its
     /// controller controls.
     Sacrifice(Obj),
@@ -1558,6 +1561,8 @@ impl<'a> Scope<'a> {
                 tapped: token.tapped,
             },
             i::Effect::Destroy { what, .. } => Effect::Destroy(self.obj(what)?),
+            i::Effect::Tap(what) => Effect::Tap(self.obj(what)?),
+            i::Effect::Untap(what) => Effect::Untap(self.obj(what)?),
             i::Effect::Exile(what) => Effect::Exile(self.obj(what)?),
             i::Effect::Sacrifice {
                 who: i::Player::You,
@@ -2114,18 +2119,24 @@ pub struct ActivationCost {
     pub tap: bool,
     pub life: u32,
     pub sacrifice: bool,
+    /// "{1}, {T}: …": mana paid as the ability is activated (CR 602.2b,
+    /// 601.2g–h).
+    pub mana: Option<crate::mana::ManaCost>,
 }
 
-/// An activated ability that isn't a mana ability (CR 602), lowered.
+/// An activated ability that isn't a mana ability (CR 602), lowered: its
+/// cost, and its instructions with the targets they name, chosen as it is
+/// activated (CR 602.2b, 601.2c).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Activated {
     pub cost: ActivationCost,
-    pub effects: Vec<Effect>,
+    pub program: Program,
 }
 
-/// An activated ability's cost and effect, or the node with no lowering
-/// yet. A target binds it under a `Let`, which never gets here.
+/// An activated ability's cost and effect, with the `Let` that binds its
+/// targets, or the node with no lowering yet.
 pub fn activated(
+    bind: &[Objects],
     cost: &[i::Cost],
     effect: &[i::Effect],
     limits: &[i::Limit],
@@ -2139,17 +2150,18 @@ pub fn activated(
             i::Cost::Tap => paid.tap = true,
             i::Cost::PayLife(i::Amount::N(n)) => paid.life += n,
             i::Cost::Sacrifice(o) if itself(o) => paid.sacrifice = true,
+            i::Cost::Mana(m) if paid.mana.is_none() => {
+                paid.mana = Some(crate::mana::ManaCost::from_symbols(m)?)
+            }
             other => return Err(format!("an activation cost of {}", short(other))),
         }
     }
-    let mut scope = Scope::new(&[]);
+    let mut scope = Scope::new(bind);
     let effects = scope.effects(effect)?;
-    if !scope.program.targets.is_empty() {
-        return Err("an activated ability with a target".into());
-    }
+    scope.program.effects = effects;
     Ok(Activated {
         cost: paid,
-        effects,
+        program: scope.program,
     })
 }
 
