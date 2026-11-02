@@ -133,7 +133,12 @@ first draw in a two-player game and no one in a larger one (CR 103.8a,
 stack empty (CR 305.1–305.2); casting (CR 601.2) at sorcery speed, or any
 time you have priority for an instant or a card with flash (CR 117.1a);
 mana costs of generic, coloured, colourless and hybrid symbols (CR 107.4,
-202.1a); commander tax (CR 903.8); a permanent spell entering under its
+202.1a); commander tax (CR 903.8); a static's generic cost change for
+spells a filter matches, cast by anyone, its controller or their
+opponents (Thalia's "Noncreature spells cost {1} more", Goblin
+Warchief's "Goblin spells you cast cost {1} less"), increases added and
+reductions taken from the generic component alone, never below {0} (CR
+601.2f, 118.7a); a permanent spell entering under its
 caster's control (CR 608.3a) and an instant or sorcery going to the
 graveyard (CR 608.2n); mana abilities that tap, pay life (CR 119.4) and
 deal their controller damage, as painlands do (CR 120.3a), adding fixed
@@ -518,8 +523,8 @@ Scorch Spitter's attack trigger and Jackal Pup's damage trigger;
 Cloudpost, Goblin Lackey's "may" taken and declined, Aether Vial, Dark
 Confidant, Goblin Guide, Impulse, Leyline of Sanctity's hexproof, Wild
 Nacatl, Swords to Plowshares, Counterspell, Festering Goblin's dies
-trigger, Path to Exile, Khalni Garden's token and Silver Knight's
-protection from red.
+trigger, Path to Exile, Khalni Garden's token, Silver Knight's
+protection from red, and Goblin Warchief's and Thalia's cost changes.
 
 ### The milestone
 

@@ -1383,3 +1383,60 @@ fn protection_from_red_stops_targets_blocks_and_damage() {
     assert_eq!(game.permanents()[&knight].damage, 0, "prevented");
     assert_eq!(game.permanents()[&giant].damage, 2, "first strike");
 }
+
+/// What casting this card would cost now, the cast taken back (CR 733.1).
+fn owed_for(game: &mut Game, p: PlayerId, name: &str) -> String {
+    let c = in_hand(game, p, name).expect("in hand");
+    let mut d = step(game, Answer::Act(Action::Cast(c)));
+    if let Decision::Targets { slots, .. } = &d {
+        let t = slots.iter().map(|s| s[0]).collect();
+        d = step(game, Answer::Targets(t));
+    }
+    let Decision::Pay { owed, .. } = d else {
+        panic!("{d:?}")
+    };
+    step(game, Answer::Pay(Payment::Cancel));
+    owed.to_string()
+}
+
+/// CR 601.2f, 118.7a: Goblin Warchief's "Goblin spells you cast cost {1}
+/// less" takes from the generic component only, and Thalia's
+/// "Noncreature spells cost {1} more" taxes my spells as hers.
+#[test]
+fn cost_changes_add_and_take_generic_mana() {
+    let mut game = deal_both(
+        &[
+            ("Mountain", 30),
+            ("Goblin Warchief", 10),
+            ("Goblin Piker", 10),
+            ("Lightning Bolt", 10),
+        ],
+        &[("Plains", 40), ("Thalia, Guardian of Thraben", 20)],
+        &[
+            ("Mountain", 3),
+            ("Goblin Warchief", 2),
+            ("Goblin Piker", 1),
+            ("Lightning Bolt", 1),
+        ],
+        &[("Plains", 2), ("Thalia, Guardian of Thraben", 1)],
+    );
+    assert_eq!(owed_for(&mut game, ME, "Lightning Bolt"), "{R}");
+    play(&mut game, "Mountain");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Plains");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Mountain");
+    assert_eq!(owed_for(&mut game, ME, "Goblin Piker"), "{1}{R}");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Plains");
+    cast_as(&mut game, THEM, "Thalia, Guardian of Thraben", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    assert_eq!(owed_for(&mut game, ME, "Lightning Bolt"), "{1}{R}");
+    cast(&mut game, "Goblin Warchief", None);
+    resolve(&mut game);
+    assert_eq!(owed_for(&mut game, ME, "Goblin Piker"), "{R}");
+    assert_eq!(owed_for(&mut game, ME, "Goblin Warchief"), "{R}{R}");
+    assert_eq!(owed_for(&mut game, ME, "Lightning Bolt"), "{1}{R}");
+}

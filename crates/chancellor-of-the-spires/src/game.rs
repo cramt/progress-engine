@@ -163,6 +163,9 @@ struct Runnable {
     /// "You have hexproof" (CR 702.11c), by the ability's index, so it
     /// works only while the permanent has it.
     hexproof: BTreeSet<u16>,
+    /// Statics that change what spells cost (CR 601.2f), by index, so
+    /// each works only while the permanent has it.
+    cost_changes: BTreeMap<u16, lower::CostChange>,
     /// The abilities it carries that nothing offers to activate yet.
     dormant: Vec<String>,
 }
@@ -2423,6 +2426,7 @@ impl Game {
         } else {
             cost
         };
+        let owed = self.total_cost(p, card, owed);
         self.before_cast = Some(Box::new(before));
         self.waiting = match slots.filter(|s| !s.is_empty()) {
             // CR 601.2c: targets are chosen before the cost is determined
@@ -2441,6 +2445,46 @@ impl Game {
             },
         };
         Ok(())
+    }
+
+    /// CR 601.2f: the spell's cost with every cost change on the
+    /// battlefield that applies to it, increases added and reductions
+    /// taken from the generic component, never below {0} (CR 118.7a).
+    fn total_cost(&self, p: PlayerId, card: CardId, cost: ManaCost) -> ManaCost {
+        let Some(spell) = self.known(card).and_then(|k| k.printed.as_ref()) else {
+            return cost;
+        };
+        let (mut more, mut less) = (0, 0);
+        for (id, chars) in self.characteristics() {
+            let Some(runs) = self
+                .known(self.permanents[&id].card)
+                .and_then(|k| k.runs.as_ref().ok())
+            else {
+                continue;
+            };
+            for a in &chars.abilities {
+                let Ability::Unread(n) = a else { continue };
+                let Some(change) = runs.cost_changes.get(n) else {
+                    continue;
+                };
+                let caster = match change.cast_by {
+                    lower::CastBy::Anyone => true,
+                    lower::CastBy::You => p == chars.controller,
+                    lower::CastBy::Opponents => p != chars.controller,
+                };
+                if caster && change.spells.matches(spell) {
+                    if change.less {
+                        less += change.generic;
+                    } else {
+                        more += change.generic;
+                    }
+                }
+            }
+        }
+        ManaCost {
+            generic: (cost.generic + more).saturating_sub(less),
+            shards: cost.shards,
+        }
     }
 
     /// Pay a mana ability's cost and resolve it at once (CR 605.3b).
@@ -4323,6 +4367,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         flash: false,
         begins: false,
         hexproof: BTreeSet::new(),
+        cost_changes: BTreeMap::new(),
         dormant: Vec::new(),
         lowered,
     };
@@ -4406,6 +4451,17 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     if matches!(ks.as_slice(), [k] if k.param.is_none() && k.name.eq_ignore_ascii_case("hexproof"))) =>
             {
                 runs.hexproof.insert(n);
+            }
+            i::Ability::Static(parts) if lower::cost_change(parts).is_some() => {
+                let change = lower::cost_change(parts)
+                    .expect("a cost change")
+                    .map_err(|node| {
+                        Unrunnable::new(
+                            node.clone(),
+                            format!("the game can't run its cost change: {node}"),
+                        )
+                    })?;
+                runs.cost_changes.insert(n, change);
             }
             i::Ability::OpeningHandAction(i::OpeningHandAction::BeginOnBattlefield {
                 not_starting_player: false,

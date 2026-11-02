@@ -2210,3 +2210,75 @@ fn card_filter(o: &Objects) -> Result<CardFilter, String> {
     }
     Ok(CardFilter(alts))
 }
+
+/// "Goblin spells you cast cost {1} less to cast", "Noncreature spells
+/// cost {1} more to cast": a static that changes the total cost of the
+/// spells the filter matches (CR 601.2f), by their card's
+/// characteristics, cast by whom `cast_by` says, relative to the static's
+/// controller.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CostChange {
+    pub spells: CardFilter,
+    pub cast_by: CastBy,
+    /// Generic mana: a reduction takes only from the generic component
+    /// (CR 118.7a).
+    pub generic: u32,
+    pub less: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CastBy {
+    Anyone,
+    You,
+    Opponents,
+}
+
+/// A static that is one cost change, lowered, or `None` if it isn't one.
+pub fn cost_change(parts: &[i::Static]) -> Option<Result<CostChange, String>> {
+    let [i::Static::CostChange {
+        what,
+        by,
+        less,
+        per,
+    }] = parts
+    else {
+        return None;
+    };
+    Some((|| {
+        if per.is_some() {
+            return Err("a cost change for each".into());
+        }
+        if what.filter.kind != Some(i::Noun::Spell) || what.filter.or.is_some() {
+            return Err("a cost change of other than spells".into());
+        }
+        let mut cast_by = CastBy::Anyone;
+        let mut posts = Vec::new();
+        for post in &what.filter.posts {
+            match post {
+                Post::Cast(i::Player::You) => cast_by = CastBy::You,
+                Post::Cast(i::Player::EachOpponent | i::Player::AnOpponent) => {
+                    cast_by = CastBy::Opponents
+                }
+                other => posts.push(other.clone()),
+            }
+        }
+        let spells = spell_filter(&Objects {
+            quant: Quant::One,
+            filter: i::Filter {
+                posts,
+                ..what.filter.clone()
+            },
+        })?;
+        let generic =
+            by.0.iter()
+                .map(|s| s.parse::<u32>().ok())
+                .sum::<Option<u32>>()
+                .ok_or("a cost change of coloured mana")?;
+        Ok(CostChange {
+            spells,
+            cast_by,
+            generic,
+            less: *less,
+        })
+    })())
+}
