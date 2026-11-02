@@ -1216,3 +1216,56 @@ fn festering_goblin_triggers_as_it_dies() {
     resolve(&mut game);
     assert!(creature(&game, "Festering Goblin").is_none());
 }
+
+/// CR 608.2d, 701.23a, 701.24a: Path to Exile exiles its target, and its
+/// controller, not the caster, may search their library for a basic land
+/// card, put it onto the battlefield tapped, and shuffle.
+#[test]
+fn path_to_exile_lets_the_creature_s_controller_search_for_a_basic_land() {
+    let mut game = deal_both(
+        &[("Plains", 40), ("Path to Exile", 20)],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Plains", 1), ("Path to Exile", 1)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Plains");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    cast(
+        &mut game,
+        "Path to Exile",
+        Some(vec![Target::Object(bears)]),
+    );
+    let Decision::May { player, .. } = resolve(&mut game) else {
+        panic!("their may")
+    };
+    assert_eq!(player, THEM);
+    assert_eq!(named(&game, game.exile(), "Grizzly Bears"), 1);
+    let Decision::Search { player, known, .. } = step(&mut game, Answer::May(true)) else {
+        panic!("their search")
+    };
+    assert_eq!(player, THEM);
+    let lands = game.permanents().len();
+    step(&mut game, Answer::Find(Found::Card(known[0])));
+    assert_eq!(game.permanents().len(), lands + 1);
+    let (_, forest) = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| p.card == known[0])
+        .unwrap();
+    assert!(forest.tapped);
+    assert_eq!(
+        game.characteristics()
+            .values()
+            .filter(|c| c.controller == THEM)
+            .count(),
+        3
+    );
+}

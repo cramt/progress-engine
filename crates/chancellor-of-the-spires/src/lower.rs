@@ -809,15 +809,24 @@ impl CardFilter {
 /// was put on the stack (CR 601.2c, 603.3d).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Effect {
-    /// "Search your library for a Mountain or Forest card, put it onto the
-    /// battlefield (tapped)": the controller searches their own library
-    /// and may find a card the filter matches (CR 701.23a–b).
-    SearchToBattlefield {
+    /// "Search your library for a Mountain or Forest card": `who`
+    /// searches their library and may find a card the filter matches (CR
+    /// 701.23a–b), bound to `into`. `enters` if an instruction after puts
+    /// it onto the battlefield, so only a card the engine runs is found.
+    Search {
+        who: Who,
         filter: CardFilter,
-        tapped: bool,
+        into: Slot,
+        enters: bool,
     },
-    /// "then shuffle": the controller's library (CR 701.24a).
-    Shuffle,
+    /// "Put it onto the battlefield (tapped)", under `who`'s control.
+    ToBattlefield {
+        cards: Cards,
+        tapped: bool,
+        who: Who,
+    },
+    /// "Then shuffle": a player's library (CR 701.24a).
+    Shuffle(Who),
     /// "Draw two cards" (CR 121.2).
     Draw {
         who: Who,
@@ -879,7 +888,7 @@ pub enum Effect {
     /// "You may …": the controller chooses, as the instruction is
     /// reached, whether to follow these (CR 608.2d; a triggered ability's
     /// "may" is chosen as it resolves, CR 603.5).
-    May(Vec<Effect>),
+    May(Who, Vec<Effect>),
     /// "Put a Goblin permanent card from your hand onto the battlefield":
     /// the controller chooses one the filter matches, if they have one.
     PutFromHand {
@@ -936,7 +945,7 @@ impl Effect {
     /// The instructions this one holds, which a resolution may enter.
     pub fn inner(&self) -> Option<&[Effect]> {
         match self {
-            Effect::May(then) | Effect::IfCard { then, .. } => Some(then),
+            Effect::May(_, then) | Effect::IfCard { then, .. } => Some(then),
             _ => None,
         }
     }
@@ -1239,6 +1248,9 @@ struct Scope<'a> {
     /// among cards chose from.
     whose: BTreeMap<Slot, Who>,
     among: BTreeMap<Slot, Slot>,
+    /// What a search looks for, by the slot of the card it finds, and
+    /// whether that card is put onto the battlefield.
+    described: BTreeMap<Slot, (Objects, bool)>,
 }
 
 impl<'a> Scope<'a> {
@@ -1254,6 +1266,7 @@ impl<'a> Scope<'a> {
             made: None,
             whose: BTreeMap::new(),
             among: BTreeMap::new(),
+            described: BTreeMap::new(),
         }
     }
 
@@ -1549,60 +1562,51 @@ impl<'a> Scope<'a> {
                 Effect::UntilEndOfTurn { on, ops: r.ops }
             }
             i::Effect::RevealHand(_) => return Err(format!("{} alone", node())),
-            i::Effect::Shuffle(i::Player::You) => Effect::Shuffle,
-            // "Search your library for a Mountain or Forest card, put it
-            // onto the battlefield, then shuffle": the card found is
-            // introduced by the `With` and put onto the battlefield by the
-            // reference to it.
-            i::Effect::With { bind, then } => {
-                let blank =
-                    |o: &Objects, q: Quant| o.quant == q && o.filter == i::Filter::default();
-                let (
-                    [card],
-                    [i::Effect::Search {
-                        who: i::Player::You,
-                        zones,
-                        what,
-                        and,
-                    }, i::Effect::Move {
-                        what: moved,
-                        from: None,
-                        to: i::Zone::Battlefield,
-                        tapped,
-                        transformed: false,
-                        under: None,
-                        order: None,
-                    }, rest @ ..],
-                ) = (bind.as_slice(), then.as_slice())
-                else {
-                    return self.with(bind, then);
-                };
-                if !(matches!(zones.as_slice(), [i::Zone::Library(i::Player::You)])
-                    && and.is_empty()
-                    && blank(what, Quant::Introduced(0))
-                    && blank(moved, Quant::Bound(0)))
-                {
+            i::Effect::With { bind, then } => return self.with(bind, then),
+            i::Effect::Search {
+                who,
+                zones,
+                what,
+                and,
+            } if and.is_empty() => {
+                let Cards::Bound(into) = self.cards(what)? else {
                     return Err(node());
+                };
+                let (described, enters) = self
+                    .described
+                    .get(&into)
+                    .cloned()
+                    .ok_or("a search for what no binder describes")?;
+                let who = self.who(who)?;
+                // Their own library: "your library", or "their library"
+                // of the player searching.
+                match (zones.as_slice(), who) {
+                    ([i::Zone::Library(i::Player::You)], Who::You)
+                    | ([i::Zone::Library(i::Player::That)], Who::ControllerOf(_)) => {}
+                    _ => return Err(format!("{} of another library", node())),
                 }
-                let mut out = vec![Effect::SearchToBattlefield {
-                    filter: card_filter(card)?,
-                    tapped: *tapped,
-                }];
-                // The card chosen or found is bound for the rest, and
-                // nothing the engine runs refers to it.
-                self.withs.push(None);
-                let rest = rest
-                    .iter()
-                    .map(|r| self.effect(r))
-                    .collect::<Result<Vec<_>, _>>();
-                self.withs.pop();
-                out.extend(rest?.into_iter().flatten());
-                return Ok(out);
+                self.whose.insert(into, who);
+                Effect::Search {
+                    who,
+                    filter: card_filter(&described)?,
+                    into,
+                    enters,
+                }
             }
-            i::Effect::May {
-                who: i::Player::You,
-                then,
-            } => Effect::May(self.effects(then)?),
+            // A card found is named as it is found, so revealing it shows
+            // no one anything the engine doesn't know.
+            i::Effect::Reveal { what, .. } if self.cards(what).is_ok() => return Ok(vec![]),
+            i::Effect::Shuffle(p) => Effect::Shuffle(match p {
+                i::Player::ControllerOf(o) => match self.cards(o) {
+                    Ok(Cards::Bound(slot)) => *self.whose.get(&slot).ok_or_else(node)?,
+                    _ => self.who(p)?,
+                },
+                p => self.who(p)?,
+            }),
+            i::Effect::May { who, then } => {
+                let who = self.who(who)?;
+                Effect::May(who, self.effects(then)?)
+            }
             i::Effect::RevealTop { who, whose, n: k } => {
                 let whose = self.library_of(who, whose)?;
                 let into = self.made();
@@ -1630,16 +1634,15 @@ impl<'a> Scope<'a> {
                 what,
                 from: None,
                 to,
-                tapped: false,
+                tapped,
                 transformed: false,
                 under: None,
                 order,
-            } if matches!(
-                what.quant,
-                Quant::Bound(_) | Quant::Introduced(_) | Quant::Rest { .. }
-            ) =>
-            {
+            } if self.cards(what).is_ok() => {
                 let cards = self.cards(what)?;
+                if *tapped && *to != i::Zone::Battlefield {
+                    return Err(node());
+                }
                 match (to, order) {
                     (i::Zone::Hand(p), None) => Effect::ToHand {
                         cards,
@@ -1651,9 +1654,19 @@ impl<'a> Scope<'a> {
                             _ => return Err(node()),
                         },
                     },
-                    (i::Zone::OwnersLibraryTop, Some(i::Order::Any)) => {
+                    (i::Zone::OwnersLibraryTop, Some(i::Order::Any) | None) => {
                         Effect::ToLibrary { cards, top: true }
                     }
+                    (i::Zone::Battlefield, None) => Effect::ToBattlefield {
+                        cards,
+                        tapped: *tapped,
+                        who: match cards {
+                            Cards::Bound(slot) => {
+                                self.whose.get(&slot).copied().unwrap_or(Who::You)
+                            }
+                            Cards::Rest { .. } => Who::You,
+                        },
+                    },
                     (i::Zone::BottomOfLibrary(i::Player::You), Some(i::Order::Any)) => {
                         Effect::ToLibrary { cards, top: false }
                     }
@@ -1733,6 +1746,14 @@ impl<'a> Scope<'a> {
             [o] if o.quant == Quant::Made && o.filter == i::Filter::default() => {
                 let s = self.new_slot();
                 self.made = Some(s);
+                s
+            }
+            // "Search your library for a basic land card": the card the
+            // search finds, which it describes.
+            [o] if o.quant == Quant::One && o.filter.kind == Some(i::Noun::Card) => {
+                let s = self.new_slot();
+                self.described
+                    .insert(s, (o.clone(), enters_battlefield(then)));
                 s
             }
             [o] if o.quant == Quant::N(i::Amount::N(1)) => {
@@ -1996,6 +2017,20 @@ pub fn activated(
 
 fn itself(o: &Objects) -> bool {
     o.quant == Quant::SelfRef && o.filter == i::Filter::default()
+}
+
+/// Whether an instruction in these, or a "may" in them, puts the card the
+/// innermost binder names onto the battlefield.
+fn enters_battlefield(effects: &[i::Effect]) -> bool {
+    effects.iter().any(|e| match e {
+        i::Effect::Move {
+            what,
+            to: i::Zone::Battlefield,
+            ..
+        } => what.quant == Quant::Bound(0),
+        i::Effect::May { then, .. } => enters_battlefield(then),
+        _ => false,
+    })
 }
 
 /// "a Goblin permanent card from your hand": one card of your hand, by its

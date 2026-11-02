@@ -145,9 +145,7 @@ or has haste; other activated abilities any time you have priority (CR
 117.1b), costing a tap, life and sacrificing their source (CR 602.2,
 701.21a), on the stack and resolving independently of their source (CR
 113.7a), with the instructions a spell's are lowered into, among them
-the fetchlands' effects: searching your library for a card a filter
-matches, putting it onto the battlefield, tapped if the text says, and
-shuffling (CR 701.23, 701.24a), and Aether Vial's, which counts its
+the fetchlands' effects, and Aether Vial's, which counts its
 charge counters as it resolves, as the Vial last existed if it has left
 (CR 608.2h); instants' and sorceries'
 instructions in order (CR 608.2c), going to the graveyard after (CR
@@ -159,7 +157,13 @@ any order, "if it's a land card" and "its mana value", destroy (CR
 701.8a), exile (CR 701.13a), return to its owner's hand, sacrifice
 (CR 701.21a), counter target spell (CR 701.6a; a spell is never its own
 target, CR 115.5), and "its controller" and "its power" of a permanent
-gone, as it last existed (CR 608.2h), gain and lose life, damage to any target, a player, a player or
+gone, as it last existed (CR 608.2h), a search of the searching player's own
+library for a card a filter matches, bound for what follows (CR 701.23a,
+701.23b: it may find nothing), only a card the engine runs if it is put
+onto the battlefield, then put onto the battlefield (tapped, under the
+searcher's control), into a hand or on top, and a shuffle of any
+player's library (CR 701.24a), a "may" being anyone's (Path to Exile's
+is its target's controller's), gain and lose life, damage to any target, a player, a player or
 planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
 lifelink, CR 702.15b), scry and +1/+1 or named counters; their targets
@@ -218,18 +222,20 @@ carried, never offered. A non-mana activated ability
 the engine can't run (a target, a mana cost, a limit, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**35 of Loam's 90 distinct cards are played or cast and resolved, 15 of
+**36 of Loam's 90 distinct cards are played or cast and resolved, 16 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
-Mystic, Command Tower, Karplusan Forest, Yavimaya, the fetchlands Misty
-Rainforest, Prismatic Vista, Scalding Tarn and Wooded Foothills, and the
-shock lands Breeding Pool, Steam Vents and Stomping Ground), measured
-2026-11-02, Deep Analysis the one more since it draws two, its flashback
-carried:
+Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
+fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
+Foothills, the shock lands Breeding Pool, Steam Vents and Stomping
+Ground, and Nature's Lore, the one more since a search is an instruction
+like any other), measured 2026-11-02, Deep Analysis played too since it
+draws two, its flashback carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
-node refused. The most refused: `Effect::Move` and
-`Trigger::When(Event::Discards)` (4 each), `Effect::Search` (3), then
-destroy, mill, modal spells, additional costs and loyalty (2 each). `tests/game.rs` scripts the rules above, and plays
+node refused. The most refused: `Trigger::When(Event::Discards)` and
+`With` (4 each: Cultivate's two lands to two places), then discarding
+more than a card, `Effect::Move` from a graveyard and modifying by an
+amount (3 each). `tests/game.rs` scripts the rules above, and plays
 Loam against a goldfish for six turns, casting what it can.
 
 Not yet: most instructions (create a token, modal spells, "if", a
@@ -367,7 +373,8 @@ which a basic land rarely shows again. So unless the log says the search
 failed, the replay answers it with a hidden card of the library named as
 it is found, choosing as it chooses a payment: each basic land, the colours
 the player's spells this game need most first, then each land the log
-shows the player playing anywhere in the match (their deck has it), the
+shows the player playing anywhere in the match (their deck has it), then each card it shows them casting or
+playing later in the game (a tutor's find shows up again), the
 engine refusing any that doesn't match what was searched for; and if a
 later spell can't be paid for, it goes back and finds the next. A shock
 land's life is the same: no line says it was paid and life totals aren't
@@ -438,8 +445,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 20 replay to the end** (17 to the log's winner
-line), 6 of them past the first turn, and **20.72% of their lines are
-followed** (16,202 of 78,183: the lines before each game's stop, all of a
+line), 6 of them past the first turn, and **20.81% of their lines are
+followed** (16,270 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the

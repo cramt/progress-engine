@@ -112,12 +112,16 @@ impl Known {
         }
     }
 
-    /// Whether a search for `filter` finds this card: Ok if it matches and
-    /// the engine can put it onto the battlefield, the refusal if it
-    /// matches and the engine can't, and `Ok(false)` if it doesn't match.
-    fn found_by(&self, filter: &CardFilter) -> Result<bool, Unrunnable> {
+    /// Whether a search for `filter` finds this card: Ok if it matches and,
+    /// when it `enters` the battlefield, the engine can put it there; the
+    /// refusal if it matches and the engine can't, and `Ok(false)` if it
+    /// doesn't match.
+    fn found_by(&self, filter: &CardFilter, enters: bool) -> Result<bool, Unrunnable> {
         if !self.printed.as_ref().is_some_and(|c| filter.matches(c)) {
             return Ok(false);
+        }
+        if !enters {
+            return Ok(true);
         }
         self.runs.as_ref().map(|_| true).map_err(Clone::clone)
     }
@@ -639,11 +643,14 @@ enum Waiting {
         then: Then,
     },
     /// A resolving ability has `player` search their library (CR 701.23a)
-    /// for a card `filter` matches, to put onto the battlefield.
+    /// for a card `filter` matches, bound to `into`.
     Search {
         player: PlayerId,
         filter: CardFilter,
-        tapped: bool,
+        /// Whether what it finds is put onto the battlefield, so must be
+        /// a card the engine runs.
+        enters: bool,
+        into: Slot,
         resume: Resuming,
     },
     Over(Outcome),
@@ -1497,7 +1504,7 @@ impl Game {
                         .iter()
                         .filter(|c| match self.known(**c) {
                             None => true,
-                            Some(k) => k.found_by(filter).is_err(),
+                            Some(k) => k.found_by(filter, true).is_err(),
                         })
                         .count(),
                     hand,
@@ -1565,7 +1572,12 @@ impl Game {
                 card: *card,
                 life: *life,
             },
-            Waiting::Search { player, filter, .. } => {
+            Waiting::Search {
+                player,
+                filter,
+                enters,
+                ..
+            } => {
                 let library = &self.player(*player).library;
                 Decision::Search {
                     player: *player,
@@ -1573,7 +1585,10 @@ impl Game {
                     known: library
                         .iter()
                         .copied()
-                        .filter(|c| self.finds(*c, filter))
+                        .filter(|c| {
+                            self.known(*c)
+                                .is_some_and(|k| k.found_by(filter, *enters) == Ok(true))
+                        })
                         .collect(),
                     hidden: library.iter().filter(|c| self.known(**c).is_none()).count(),
                 }
@@ -1585,7 +1600,7 @@ impl Game {
     /// engine can put onto the battlefield.
     fn finds(&self, c: CardId, filter: &CardFilter) -> bool {
         self.known(c)
-            .is_some_and(|k| k.found_by(filter) == Ok(true))
+            .is_some_and(|k| k.found_by(filter, true) == Ok(true))
     }
 
     /// Answer the decision and run on to the next one. An answer that isn't
@@ -1959,8 +1974,9 @@ impl Game {
                 Waiting::Search {
                     player,
                     filter,
-                    tapped,
-                    resume,
+                    enters,
+                    into,
+                    mut resume,
                 },
                 Answer::Find(found),
             ) => {
@@ -1988,7 +2004,7 @@ impl Game {
                                     Face::Known(k) => Arc::clone(k),
                                     Face::Hidden => unreachable!("checked known"),
                                 });
-                        match known.found_by(&filter) {
+                        match known.found_by(&filter, enters) {
                             Ok(true) => {}
                             Ok(false) => return Err(Rejected::Illegal(answer)),
                             Err(refusal) => {
@@ -2004,14 +2020,9 @@ impl Game {
                         Some(c)
                     }
                 };
-                let then = Then::Resume(resume);
-                match card {
-                    Some(c) => {
-                        self.players[player.0 as usize].library.retain(|x| *x != c);
-                        self.enter(c, player, tapped, then);
-                    }
-                    None => self.proceed(then),
-                }
+                // Found, it stays where it is until an instruction moves it.
+                resume.found.insert(into, card.into_iter().collect());
+                self.follow(resume);
             }
             _ => return Err(Rejected::Illegal(answer)),
         }
@@ -2580,20 +2591,43 @@ impl Game {
                 Who::ControllerOf(o) => self.now_or_last(&at, o).map(|c| c.controller),
             };
             match e {
-                Effect::SearchToBattlefield { filter, tapped } => {
+                Effect::Search {
+                    who: w,
+                    filter,
+                    into,
+                    enters,
+                } => {
+                    let Some(q) = who(w) else { continue };
                     self.waiting = Waiting::Search {
-                        player: p,
+                        player: q,
                         filter,
-                        tapped,
+                        enters,
+                        into,
                         resume,
                     };
                     return;
                 }
+                // One card at a time, each entering as it would alone;
+                // what has moved is no longer in the library.
+                Effect::ToBattlefield {
+                    cards,
+                    tapped,
+                    who: w,
+                } => {
+                    let Some(q) = who(w) else { continue };
+                    if let Some(c) = self.still_in_library(&at, cards).first().copied() {
+                        let owner = self.owner(c);
+                        self.players[owner.0 as usize].library.retain(|x| *x != c);
+                        self.enter(c, q, tapped, Then::Resume(here));
+                        return;
+                    }
+                }
                 // CR 701.24a.
-                Effect::Shuffle => {
-                    let mut library = std::mem::take(&mut self.players[p.0 as usize].library);
+                Effect::Shuffle(w) => {
+                    let Some(q) = who(w) else { continue };
+                    let mut library = std::mem::take(&mut self.players[q.0 as usize].library);
                     self.rng.shuffle(&mut library);
-                    self.players[p.0 as usize].library = library;
+                    self.players[q.0 as usize].library = library;
                 }
                 Effect::Draw { who: w, n } => {
                     if let Some(q) = who(w) {
@@ -2718,9 +2752,10 @@ impl Game {
                         self.until_end_of_turn.push(t);
                     }
                 }
-                Effect::May(_) => {
+                Effect::May(w, _) => {
+                    let Some(q) = who(w) else { continue };
                     self.waiting = Waiting::May {
-                        player: p,
+                        player: q,
                         at: here,
                     };
                     return;

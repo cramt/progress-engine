@@ -1830,7 +1830,8 @@ impl Driver<'_> {
     /// candidates are the library's known cards, then a hidden card named
     /// as each basic land, the colours the player's spells this game need
     /// most first, then each land the log shows the player playing in the
-    /// match. The engine checks each matches what was searched for.
+    /// match, then each card it shows them casting or playing later this
+    /// game. The engine checks each matches what was searched for.
     fn search(&mut self, p: PlayerId, known: Vec<CardId>, hidden: usize) -> Followed {
         let mut tries: Vec<(Answer, String)> = Vec::new();
         for c in known {
@@ -1856,12 +1857,36 @@ impl Driver<'_> {
                     .enumerate()
                     .collect();
             basics.sort_by_key(|(k, _)| std::cmp::Reverse(demand[*k]));
-            let names: Vec<String> = basics
+            // Then what the player casts or plays later this game, which
+            // came from their library if a tutor found it.
+            let later: Vec<String> = self
+                .entries
+                .iter()
+                .skip(self.at)
+                .filter_map(|e| match &e.event {
+                    Event::Casts(c) if self.seat(c.player) == p => match &c.card {
+                        Object::Card(c) => Some(c.name().to_string()),
+                        _ => None,
+                    },
+                    Event::PlaysLand {
+                        player,
+                        card: Object::Card(c),
+                    } if self.seat(*player) == p => Some(c.name().to_string()),
+                    _ => None,
+                })
+                .collect();
+            let mut names: Vec<String> = Vec::new();
+            for n in basics
                 .into_iter()
                 .map(|(_, n)| n.to_string())
                 .chain(std::iter::once("Wastes".to_string()))
                 .chain(self.lands[p.0 as usize].clone())
-                .collect();
+                .chain(later)
+            {
+                if !names.contains(&n) {
+                    names.push(n);
+                }
+            }
             for n in names {
                 let Ok(text) = self.text(&n) else { continue };
                 tries.push((
