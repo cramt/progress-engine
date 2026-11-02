@@ -723,3 +723,34 @@ fn an_attack_trigger_damages_the_player_attacked() {
     through_combat(&mut game);
     assert_eq!(game.player(THEM).life(), 18);
 }
+
+/// CR 603.2, 120.3e, 113.7a: Jackal Pup's "Whenever this creature is dealt
+/// damage, it deals that much damage to you": Lightning Bolt kills it,
+/// and its trigger, triggered as the damage was dealt, still deals its
+/// controller 3, the amount of the event.
+#[test]
+fn jackal_pup_deals_its_controller_the_damage_it_is_dealt() {
+    let mut game = deal(
+        &[("Mountain", 30), ("Jackal Pup", 15), ("Lightning Bolt", 15)],
+        &[("Forest", 60)],
+        &[("Mountain", 2), ("Jackal Pup", 1), ("Lightning Bolt", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Jackal Pup", None);
+    resolve(&mut game);
+    let pup = creature(&game, "Jackal Pup").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Lightning Bolt", Some(vec![Target::Object(pup)]));
+    resolve(&mut game);
+    assert!(!game.permanents().contains_key(&pup));
+    assert!(matches!(
+        game.stack().back(),
+        Some(StackObject::Trigger {
+            amount: Some(3),
+            ..
+        })
+    ));
+    resolve(&mut game);
+    assert_eq!(game.player(ME).life(), 17);
+}

@@ -144,8 +144,10 @@ the stack the next time a player would receive priority, the active
 player's first, each player's in the order they choose (CR 603.3b),
 with their targets, removed if a target slot has no legal choice (CR
 603.3d), and resolving independently of their source (CR 113.7a), on a
-permanent entering, a creature attacking (CR 508.3a) and its
-controller casting a spell (CR 601.2i), with exalted and prowess written
+permanent entering, a creature attacking (CR 508.3a), its controller
+casting a spell (CR 601.2i) and a permanent being dealt damage, with the
+amount for "that much" (CR 120.3; combat damage dealt at once is one
+event, CR 510.2), with exalted and prowess written
 out as the triggers they are (CR 702.83a, 702.108a) and "until end of
 turn" effects ending in cleanup (CR 514.2); combat: attackers tapping
 unless they have vigilance (CR 508.1f), blockers, the declare blockers
@@ -200,13 +202,13 @@ Loam against a goldfish for six turns, casting what it can.
 Not yet: most instructions (destroy, exile, return, create a token,
 counter a spell, modal spells, "may", "if"), X, targeting a spell,
 activated abilities with targets, mana costs, limits or effects other
-than a search for a card, triggers on any event but entering, attacking
-and casting, "intervening if" (CR 603.4), a card that triggers from a
+than a search for a card, triggers on any other event (dealing damage,
+an upkeep, dying), "intervening if" (CR 603.4), a card that triggers from a
 graveyard, attacking a planeswalker or battle, requirements and
 restrictions on attacking and blocking beyond flying, reach, menace and
 defender, a creature blocking two, and a land's back face (CR 712). State-based actions that give a choice run one after the other
-rather than at once (CR 704.3), which nothing can tell apart without
-triggers.
+rather than at once (CR 704.3), which only a trigger on what they do
+could tell apart, and none of those (dying, leaving) runs yet.
 
 ## What the layers cover
 
@@ -374,8 +376,8 @@ renamed P1 and P2.
 line), 6 of them past the first turn, measured 2026-11-02; it was 15
 before spells' effects, triggers and combat ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 559 stop
-in the first turn, 345 in the second, 54 in the third, 10 later, and 74 at
+no turn in them (empty logs, concessions during the mulligans). 542 stop
+in the first turn, 356 in the second, 58 in the third, 12 later, and 74 at
 the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started). Lands stop few games now:
 fetchlands, shock, fast, battle and check lands all run, and the most a
@@ -392,9 +394,10 @@ attack (23 each), then `Trigger::When(Event::DealsDamageTo)` (26),
 "on the battlefield" (39), an upkeep trigger (38: Aether Vial, Dark
 Confidant, Mirri's Guile), an exile line not followed, a card with two
 faces, a discard the engine doesn't ask for and a Leyline from the
-opening hand (35 or 36 each), Goblin Lackey's "deals damage to a player"
-trigger (33), `Effect::LookAtTop` (30: Portent), Jackal Pup's "is dealt
-damage" (25) and Goblin Guide's `Effect::RevealTop` (24). None is the engine disagreeing with Magic Online; those that
+opening hand (35 to 37 each), Goblin Lackey's "deals damage to a player"
+trigger (33), `Effect::LookAtTop` (31: Portent), a mana ability with a
+mana cost (26: the filter lands), Goblin Guide's `Effect::RevealTop` (24)
+and Eidolon of the Great Revel's `Trigger::When(Event::Casts)` (23).  None is the engine disagreeing with Magic Online; those that
 were are fixed: Gaea's Cradle's "Add {G} for each creature" not read as a
 mana ability (CR 605.1a), and Champion of the Parish's "another Human"
 missing a Human, since a creature type said with no card type was read
@@ -411,8 +414,8 @@ Parish's trigger, which must each match the engine's; and an attack and
 a block. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
 player, at a creature, and at one already gone), Preordain, Champion of
 the Parish, Temple of Deceit, and combat: an unblocked attacker,
-flying against a block, a trade, first strike, exalted, prowess and
-Scorch Spitter's attack trigger.
+flying against a block, a trade, first strike, exalted, prowess,
+Scorch Spitter's attack trigger and Jackal Pup's damage trigger.
 
 ## Speed
 

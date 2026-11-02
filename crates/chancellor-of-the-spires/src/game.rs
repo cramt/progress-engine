@@ -327,6 +327,8 @@ pub enum StackObject {
         targets: Vec<Target>,
         /// The object its event names, exalted's attacking creature.
         triggering: Option<ObjectId>,
+        /// The amount its event names.
+        amount: Option<u32>,
         seq: u32,
     },
     /// An activated ability (CR 602.2a): the card whose ability it is, by
@@ -362,6 +364,8 @@ struct Resuming {
     targets: Vec<Option<Target>>,
     /// The object the trigger event named.
     triggering: Option<ObjectId>,
+    /// The amount the trigger event named, "that much".
+    amount: Option<u32>,
     next: usize,
 }
 
@@ -375,6 +379,8 @@ pub struct Pending {
     pub controller: PlayerId,
     /// The object its event names, exalted's attacking creature.
     pub triggering: Option<ObjectId>,
+    /// The amount its event names, the damage dealt.
+    pub amount: Option<u32>,
     /// Its controller has put it in order among their others (CR 603.3b).
     ordered: bool,
 }
@@ -387,6 +393,8 @@ enum Event {
     Attacked(Vec<ObjectId>),
     /// A player cast this spell (CR 601.2i).
     Cast { card: CardId, controller: PlayerId },
+    /// These permanents were dealt this much damage, at once.
+    Damaged(BTreeMap<ObjectId, u32>),
 }
 
 /// The combat phase's state (CR 506): who attacks whom, who blocks what.
@@ -2070,7 +2078,7 @@ impl Game {
                     self.begin_resolving(
                         Instructions::Spell(card),
                         controller,
-                        (None, None),
+                        (None, None, None),
                         targets,
                     );
                 }
@@ -2085,6 +2093,7 @@ impl Game {
                 object: None,
                 targets: Vec::new(),
                 triggering: None,
+                amount: None,
                 next: 0,
             }),
             Some(StackObject::Trigger {
@@ -2094,11 +2103,12 @@ impl Game {
                 controller,
                 targets,
                 triggering,
+                amount,
                 ..
             }) => self.begin_resolving(
                 Instructions::Triggered(source, ability),
                 controller,
-                (Some(object), triggering),
+                (Some(object), triggering, amount),
                 targets,
             ),
             None => self.proceed(then),
@@ -2112,7 +2122,7 @@ impl Game {
         &mut self,
         what: Instructions,
         controller: PlayerId,
-        (object, triggering): (Option<ObjectId>, Option<ObjectId>),
+        (object, triggering, amount): (Option<ObjectId>, Option<ObjectId>, Option<u32>),
         targets: Vec<Target>,
     ) {
         let slots = self.program(what).targets.clone();
@@ -2127,6 +2137,7 @@ impl Game {
             object,
             targets: checked,
             triggering,
+            amount,
             next: 0,
         };
         if !targets.is_empty() && at.targets.iter().all(Option::is_none) {
@@ -2259,9 +2270,16 @@ impl Game {
                             .and_then(|o| self.combat.as_ref()?.attackers.get(&o).copied())
                             .map(Target::Player),
                     };
+                    let n = match n {
+                        lower::Amount::N(n) => n,
+                        lower::Amount::ThatMuch => at.amount.unwrap_or(0),
+                    };
                     if let Some(to) = to {
                         let source = self.source_of(&at);
-                        self.deal(source.as_ref(), at.controller, &[(to, n)]);
+                        let hit = self.deal(source.as_ref(), at.controller, &[(to, n)]);
+                        if !hit.is_empty() {
+                            self.trigger_on(Event::Damaged(hit));
+                        }
                     }
                 }
                 Effect::Scry(n) => {
@@ -2331,9 +2349,17 @@ impl Game {
     /// that much life, a creature has it marked; lifelink gains the
     /// source's controller the total (CR 702.15b), and deathtouch makes it
     /// lethal (CR 702.2b).
-    fn deal(&mut self, source: Option<&Chars>, controller: PlayerId, hits: &[(Target, u32)]) {
+    /// The permanents dealt damage, and how much, are returned for what
+    /// waits for it to trigger.
+    fn deal(
+        &mut self,
+        source: Option<&Chars>,
+        controller: PlayerId,
+        hits: &[(Target, u32)],
+    ) -> BTreeMap<ObjectId, u32> {
         let has = |k: Keyword| source.is_some_and(|c| c.abilities.contains(&Ability::Keyword(k)));
         let mut total = 0;
+        let mut dealt = BTreeMap::new();
         for (to, n) in hits {
             if *n == 0 {
                 continue;
@@ -2347,6 +2373,7 @@ impl Game {
                     if let Some(perm) = self.permanents.get_mut(o) {
                         perm.damage += n;
                         perm.deathtouched |= has(Keyword::Deathtouch);
+                        *dealt.entry(*o).or_insert(0) += n;
                     }
                 }
             }
@@ -2355,6 +2382,7 @@ impl Game {
             let controller = source.map_or(controller, |c| c.controller);
             self.players[controller.0 as usize].life += total as i32;
         }
+        dealt
     }
 
     /// Every legal choice for a target slot of a spell or ability `p`
@@ -2475,6 +2503,7 @@ impl Game {
             controller: t.controller,
             targets,
             triggering: t.triggering,
+            amount: t.amount,
             seq: self.triggers,
         });
     }
@@ -2547,35 +2576,43 @@ impl Game {
                 if !chars.abilities.contains(&Ability::Unread(*n)) {
                     continue;
                 }
-                let objects: Vec<Option<ObjectId>> = match (&t.event, &event) {
-                    (TriggerEvent::Enters(f), Event::Entered(id)) => {
-                        f.matches(&seen(*id)).then_some(None).into_iter().collect()
-                    }
+                let objects: Vec<(Option<ObjectId>, Option<u32>)> = match (&t.event, &event) {
+                    (TriggerEvent::DealtDamage(f), Event::Damaged(hit)) => hit
+                        .iter()
+                        .filter(|(id, _)| all.contains_key(*id) && f.matches(&seen(**id)))
+                        .map(|(id, n)| (Some(*id), Some(*n)))
+                        .collect(),
+                    (TriggerEvent::Enters(f), Event::Entered(id)) => f
+                        .matches(&seen(*id))
+                        .then_some((None, None))
+                        .into_iter()
+                        .collect(),
                     (TriggerEvent::Attacks(f), Event::Attacked(ids)) => ids
                         .iter()
                         .filter(|id| f.matches(&seen(**id)))
-                        .map(|id| Some(*id))
+                        .map(|id| (Some(*id), None))
                         .collect(),
                     (TriggerEvent::AttacksAlone(f), Event::Attacked(ids)) => match ids.as_slice() {
-                        [id] if f.matches(&seen(*id)) => vec![Some(*id)],
+                        [id] if f.matches(&seen(*id)) => vec![(Some(*id), None)],
                         _ => vec![],
                     },
                     (TriggerEvent::YouCast(f), Event::Cast { card, controller }) => {
                         let printed = self.known(*card).and_then(|k| k.printed.as_ref());
                         (*controller == chars.controller && printed.is_some_and(|c| f.matches(c)))
-                            .then_some(None)
+                            .then_some((None, None))
                             .into_iter()
                             .collect()
                     }
                     _ => vec![],
                 };
-                for triggering in objects {
+                for (triggering, amount) in objects {
                     triggered.push(Pending {
                         source: card,
                         object: *src,
                         ability: *n,
                         controller: chars.controller,
                         triggering,
+                        amount,
                         ordered: false,
                     });
                 }
@@ -2817,6 +2854,7 @@ impl Game {
         // CR 510.2: dealt simultaneously, each source's at once.
         let chars = self.characteristics();
         let sources: BTreeSet<ObjectId> = assigned.iter().map(|(s, _, _)| *s).collect();
+        let mut dealt: BTreeMap<ObjectId, u32> = BTreeMap::new();
         for s in &sources {
             let hits: Vec<(Target, u32)> = assigned
                 .iter()
@@ -2825,7 +2863,14 @@ impl Game {
                 .collect();
             let source = chars.get(s).cloned();
             let controller = source.as_ref().map_or(self.active, |c| c.controller);
-            self.deal(source.as_ref(), controller, &hits);
+            for (o, n) in self.deal(source.as_ref(), controller, &hits) {
+                *dealt.entry(o).or_insert(0) += n;
+            }
+        }
+        // One event for all of it: a creature dealt damage by two at once
+        // is dealt it once (CR 510.2).
+        if !dealt.is_empty() {
+            self.trigger_on(Event::Damaged(dealt));
         }
         if first {
             if let Some(c) = self.combat.as_mut() {

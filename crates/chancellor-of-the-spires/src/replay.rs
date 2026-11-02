@@ -965,6 +965,11 @@ impl Driver<'_> {
                 }
                 self.act(Answer::Order(order))
             }
+            // An empty hand revealed is nothing to choose from, and the
+            // log prints nothing for it.
+            Decision::ChooseFromHand { hand, .. } if hand.is_empty() => {
+                self.act(Answer::Pick(None))
+            }
             Decision::ChooseFromHand { .. } => Err(Stop::Diverged(Divergence::Unlogged {
                 what: "a card chosen from a revealed hand".into(),
             })),
@@ -1196,10 +1201,18 @@ impl Driver<'_> {
                 return Ok(());
             }
             match game.decision() {
-                Decision::Priority { .. } if !game.stack().is_empty() && game.turn() == turn => {
+                // What is on the stack resolves, or the turn goes on to
+                // what triggers it, combat damage.
+                Decision::Priority { .. } if game.turn() == turn => self.pass()?,
+                Decision::Targets { .. }
+                | Decision::Order { .. }
+                | Decision::Attackers { .. }
+                | Decision::Blockers { .. }
+                | Decision::Assign { .. }
+                    if game.turn() == turn =>
+                {
                     self.pass()?
                 }
-                Decision::Targets { .. } | Decision::Order { .. } => self.pass()?,
                 _ => {
                     // A card whose text the engine can't run never
                     // triggers: Bloodghast in a graveyard.

@@ -846,7 +846,7 @@ pub enum Effect {
     /// ability's source (CR 120.1).
     Damage {
         to: DamageTo,
-        n: u32,
+        n: Amount,
     },
     /// The controller scries (CR 701.22a).
     Scry(u32),
@@ -881,6 +881,15 @@ pub enum Obj {
     Target(usize),
     /// The object the trigger event names: exalted's "that creature".
     Triggering,
+}
+
+/// How much: a number, or "that much", the amount of the event that
+/// triggered the ability (Jackal Pup's "it deals that much damage to
+/// you").
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Amount {
+    N(u32),
+    ThatMuch,
 }
 
 /// What damage is dealt to.
@@ -932,6 +941,9 @@ pub enum TriggerEvent {
     /// Prowess's "Whenever you cast a noncreature spell": its controller
     /// casts a spell the filter matches (CR 601.2i, 702.108a).
     YouCast(CardFilter),
+    /// "Whenever this creature is dealt damage": a permanent the filter
+    /// matches is dealt damage, the amount the event's (CR 120.3).
+    DealtDamage(Filter),
 }
 
 /// A triggered ability, lowered.
@@ -969,12 +981,19 @@ pub fn triggered(
                 state: None,
             } => TriggerEvent::Enters(entering(what)?),
             i::Event::Attacks(what) => TriggerEvent::Attacks(entering(what)?),
+            i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
             _ => return Err(trigger_node(trigger)),
         },
         _ => return Err(trigger_node(trigger)),
     };
-    let program = spell(bind, effect)?;
-    Ok(Triggered { event, program })
+    let mut scope = Scope::new(bind);
+    scope.amount = matches!(event, TriggerEvent::DealtDamage(_));
+    let lowered = scope.effects(effect)?;
+    scope.program.effects = lowered;
+    Ok(Triggered {
+        event,
+        program: scope.program,
+    })
 }
 
 /// The keywords that are triggered abilities and that the engine runs,
@@ -1042,6 +1061,8 @@ struct Scope<'a> {
     /// The one target player the ability names: "target player … that
     /// player".
     player: Option<usize>,
+    /// Whether the trigger event has an amount "that much" names.
+    amount: bool,
     program: Program,
 }
 
@@ -1051,6 +1072,7 @@ impl<'a> Scope<'a> {
             bind,
             bound: vec![None; bind.len()],
             player: None,
+            amount: false,
             program: Program::default(),
         }
     }
@@ -1230,7 +1252,10 @@ impl<'a> Scope<'a> {
             } if source.quant == Quant::SelfRef && source.filter == i::Filter::default() => {
                 Effect::Damage {
                     to: self.damage_to(to, depth)?,
-                    n: n(k)?,
+                    n: match k {
+                        i::Amount::ThatMany if self.amount => Amount::ThatMuch,
+                        k => Amount::N(n(k)?),
+                    },
                 }
             }
             i::Effect::Scry(k) => Effect::Scry(n(k)?),
