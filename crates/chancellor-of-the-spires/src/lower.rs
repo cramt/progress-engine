@@ -341,6 +341,38 @@ pub fn resolution(effect: &i::Effect) -> Result<Resolution, Refusal> {
     }
 }
 
+/// The node an effect needs, for a refusal: "Effect::Draw", and through
+/// `With` and `May` the first effect they hold, "Effect::May(Move)".
+pub fn effect_node(e: &i::Effect) -> String {
+    fn inner(e: &i::Effect) -> String {
+        match e {
+            i::Effect::With { then, .. } => then.first().map_or("With".into(), inner),
+            i::Effect::May { then, .. } => {
+                format!("May({})", then.first().map_or(String::new(), inner))
+            }
+            other => short(other),
+        }
+    }
+    format!("Effect::{}", inner(e))
+}
+
+/// The node a trigger needs: "Trigger::When(Event::Enters)",
+/// "Trigger::At(Step::Upkeep)".
+pub fn trigger_node(t: &i::Trigger) -> String {
+    match t {
+        i::Trigger::When(e) => format!("Trigger::When(Event::{})", short(e)),
+        i::Trigger::At(s) => format!("Trigger::At(Step::{})", short(s)),
+        i::Trigger::InterveningIf(t, _) => format!("{} if", trigger_node(t)),
+        i::Trigger::WhenAndAt(e, s) => {
+            format!(
+                "Trigger::WhenAndAt(Event::{}, Step::{})",
+                short(e),
+                short(s)
+            )
+        }
+    }
+}
+
 fn short(node: &dyn fmt::Debug) -> String {
     let s = format!("{node:?}");
     let end = s.find(['(', '{', ' ']).unwrap_or(s.len());

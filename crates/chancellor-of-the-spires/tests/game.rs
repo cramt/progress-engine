@@ -556,7 +556,7 @@ fn a_creature_cant_be_cast_at_instant_speed() {
         Err(Rejected::Refused { card, refusal }) => {
             assert_eq!(
                 (card.as_str(), refusal.node.as_str()),
-                ("Beast Within", "Spell")
+                ("Beast Within", "Effect::Destroy")
             )
         }
         other => panic!("{other:?}"),

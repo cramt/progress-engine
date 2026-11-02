@@ -2113,17 +2113,19 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
             // A spell's instructions (CR 113.3a), which run as it resolves:
             // lowering them into actions is the next slice.
             i::Ability::Spell(effects) if effects.is_empty() => {}
-            i::Ability::Spell(_) => {
+            i::Ability::Spell(effects) => {
+                let node = lower::effect_node(&effects[0]);
                 return Err(Unrunnable::new(
-                    "Spell",
-                    "the game can't run a spell's effects yet",
-                ))
+                    node.clone(),
+                    format!("the game can't run a spell's {node} yet"),
+                ));
             }
-            i::Ability::Triggered { .. } => {
+            i::Ability::Triggered { trigger, .. } => {
+                let node = lower::trigger_node(trigger);
                 return Err(Unrunnable::new(
-                    "Triggered",
-                    "the game can't run its triggered ability yet",
-                ))
+                    node.clone(),
+                    format!("the game can't run its triggered ability {node} yet"),
+                ));
             }
             other => {
                 let node = short(other);
