@@ -1025,3 +1025,50 @@ fn impulse_takes_one_of_four_and_bottoms_the_rest_in_order() {
     assert_eq!(bottom, vec![four[3], four[0], four[1]]);
     assert_eq!(game.bottomed(), 3);
 }
+
+/// CR 103.6, 103.6a, 702.11c, 115.4: after the mulligans, Leyline of
+/// Sanctity in my opening hand may begin the game on the battlefield;
+/// then I have hexproof, and their Duress can't target me.
+#[test]
+fn leyline_of_sanctity_begins_on_the_battlefield_and_gives_its_player_hexproof() {
+    let mut found = None;
+    for seed in 0..200 {
+        let game = Game::start(Setup {
+            format: Format::Constructed,
+            decks: vec![
+                deck(&[("Leyline of Sanctity", 20), ("Plains", 40)]),
+                deck(&[("Swamp", 40), ("Duress", 20)]),
+            ],
+            mulligans: false,
+            seed,
+        })
+        .unwrap();
+        if named(&game, game.player(THEM).hand(), "Duress") > 0 {
+            found = Some(game);
+            break;
+        }
+    }
+    let mut game = found.expect("a seed");
+    let Decision::OpeningHand { player, cards } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(player, ME);
+    assert!(!cards.is_empty());
+    assert!(game
+        .clone()
+        .step(Answer::Begin(vec![cards[0], cards[0]]))
+        .is_err());
+    step(&mut game, Answer::Begin(vec![cards[0]]));
+    assert_eq!(game.turn(), 1);
+    assert!(creature(&game, "Leyline of Sanctity").is_some());
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Swamp");
+    let duress = in_hand(&game, THEM, "Duress").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("priority")
+    };
+    assert!(
+        !actions.contains(&Action::Cast(duress)),
+        "Duress's only legal target is themselves, and it targets an opponent"
+    );
+}

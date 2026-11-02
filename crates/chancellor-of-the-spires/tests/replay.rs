@@ -40,6 +40,7 @@ const INDEXED: &[&str] = &[
     "Elite Vanguard",
     "Goblin Lackey",
     "Aether Vial",
+    "Leyline of Sanctity",
 ];
 
 fn index() -> &'static IndexFile {
@@ -591,4 +592,31 @@ fn aether_vial_s_upkeep_trigger_counts_up_or_is_declined() {
         .unwrap();
     let charge = chancellor_of_the_spires::model::Counter::Named("charge".into());
     assert_eq!(game.counters_on(*id, &charge), 1);
+}
+
+/// CR 103.6a: the Leyline the log puts onto the battlefield before the
+/// first turn is named in the opening hand as it is kept, and begins the
+/// game there.
+#[test]
+fn a_leyline_begins_the_game_on_the_battlefield() {
+    let lines = "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        bob puts [Leyline of Sanctity] onto the battlefield.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Plains].
+        alice has conceded from the game.
+    ";
+    let (_, r) = run(lines);
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.unwrap();
+    assert!(game.permanents().values().any(|p| game
+        .card(p.card)
+        .is_some_and(|t| t.name == "Leyline of Sanctity")));
+    assert_eq!(game.player(BOB).hand().len(), 6);
 }

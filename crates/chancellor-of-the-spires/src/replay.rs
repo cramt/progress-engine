@@ -325,7 +325,11 @@ impl Driver<'_> {
 
     fn run(&mut self, m: &log::Match, g: &log::Game) -> End {
         if let Err(stop) = self.set_up(m, g) {
-            return End::Stopped { entry: 0, stop };
+            // At the line it couldn't follow: 0, or an opening hand's card.
+            return End::Stopped {
+                entry: self.at,
+                stop,
+            };
         }
         let mut backtracks = 0;
         // The failure that got furthest, which is the one reported if no
@@ -511,6 +515,7 @@ impl Driver<'_> {
         })
         .expect("two constructed decks set up");
         let mut asked = [0u32; 2];
+        let mut begun: [Vec<CardId>; 2] = [Vec::new(), Vec::new()];
         loop {
             let answer = match game.decision() {
                 Decision::Mulligan { player } => {
@@ -521,9 +526,36 @@ impl Driver<'_> {
                     }
                     let take = asked[p] < taken[p];
                     asked[p] += take as u32;
+                    // The hand kept is the opening hand: what the log
+                    // puts onto the battlefield from it is named now
+                    // (CR 103.6a).
+                    if !take {
+                        begun[p] = self.name_begun(g, &mut game, player)?;
+                    }
                     Answer::Mulligan(take)
                 }
-                Decision::Bottom { count, hand, .. } => Answer::Bottom(hand[..count].to_vec()),
+                // The cards named stay in the hand.
+                Decision::Bottom {
+                    player,
+                    count,
+                    hand,
+                } => Answer::Bottom(
+                    hand.iter()
+                        .copied()
+                        .filter(|c| !begun[player.0 as usize].contains(c))
+                        .take(count)
+                        .collect(),
+                ),
+                Decision::OpeningHand { player, .. } => {
+                    let named: Vec<CardId> = game
+                        .player(player)
+                        .hand()
+                        .iter()
+                        .copied()
+                        .filter(|c| begun[player.0 as usize].contains(c))
+                        .collect();
+                    Answer::Begin(named)
+                }
                 _ => break,
             };
             game.step(answer)
@@ -538,6 +570,59 @@ impl Driver<'_> {
         });
         self.game = Some(game);
         Ok(())
+    }
+
+    /// The cards the log puts onto the battlefield from `p`'s opening hand
+    /// before the first turn (CR 103.6a), named from its hidden cards; one
+    /// the engine can't run is refused.
+    fn name_begun(
+        &mut self,
+        g: &log::Game,
+        game: &mut Game,
+        p: PlayerId,
+    ) -> Result<Vec<CardId>, Stop> {
+        let names: Vec<(usize, String)> = g
+            .entries
+            .iter()
+            .enumerate()
+            .take_while(|(_, e)| e.turn.is_none())
+            .filter_map(|(k, e)| match &e.event {
+                Event::PutsOntoBattlefield {
+                    player,
+                    card,
+                    attacking: None,
+                } if self.seat(*player) == p => Some((k, card.name().to_string())),
+                _ => None,
+            })
+            .collect();
+        let mut chosen = Vec::new();
+        for (k, n) in names {
+            self.at = k;
+            let text = self.text(&n)?;
+            let hand = game.player(p).hand().clone();
+            let c = match hand.iter().find(|c| {
+                !chosen.contains(*c) && game.card(**c).is_some_and(|t| t.name == text.name)
+            }) {
+                Some(c) => *c,
+                None => {
+                    let Some(c) = hand.iter().find(|c| game.card(**c).is_none()) else {
+                        return Err(Stop::Diverged(Divergence::NotInHand { card: n }));
+                    };
+                    game.reveal(*c, text).expect("a hidden card");
+                    *c
+                }
+            };
+            if let Some(r) = game.refusal(c) {
+                return Err(Stop::Refused {
+                    card: n,
+                    node: r.node,
+                    why: r.why,
+                });
+            }
+            chosen.push(c);
+        }
+        self.at = 0;
+        Ok(chosen)
     }
 
     fn did(&mut self, entry: usize, did: impl Into<String>) {
@@ -565,6 +650,10 @@ impl Driver<'_> {
             PlaysFirst { .. } | Mulligan { .. } | Keeps { .. } => {
                 self.did(i, "followed in the setup")
             }
+            PutsOntoBattlefield { .. } if entry.turn.is_none() => self.did(
+                i,
+                "begun on the battlefield from the opening hand (CR 103.6a)",
+            ),
             TurnBegins(t) => {
                 if t.extra {
                     return Err(unfollowed(None));
@@ -1160,7 +1249,10 @@ impl Driver<'_> {
             Decision::Arrange { cards, .. } => self.act(Answer::Arrange(cards)),
             Decision::PutFromHand { player, .. } => self.put_from_hand(player),
             Decision::PayOrEnterTapped { card, life, .. } => self.pay_or_tap(card, life),
-            d @ (Decision::Pay { .. } | Decision::Mulligan { .. } | Decision::Bottom { .. }) => {
+            d @ (Decision::Pay { .. }
+            | Decision::Mulligan { .. }
+            | Decision::Bottom { .. }
+            | Decision::OpeningHand { .. }) => {
                 unreachable!("the replay answers {d:?} where it arises")
             }
         }

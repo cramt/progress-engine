@@ -140,6 +140,12 @@ struct Runnable {
     /// in order.
     spell: Option<Program>,
     flash: bool,
+    /// "If this card is in your opening hand, you may begin the game with
+    /// it on the battlefield" (CR 103.6a).
+    begins: bool,
+    /// "You have hexproof" (CR 702.11c), by the ability's index, so it
+    /// works only while the permanent has it.
+    hexproof: BTreeSet<u16>,
     /// The abilities it carries that nothing offers to activate yet.
     dormant: Vec<String>,
 }
@@ -495,6 +501,11 @@ enum Waiting {
         count: usize,
         then: Vec<PlayerId>,
     },
+    /// CR 103.6: `player` takes the actions their opening hand's cards
+    /// allow, the starting player first.
+    OpeningHand {
+        player: PlayerId,
+    },
     /// `passes` players have passed in succession before this one (CR 117.4).
     Priority {
         player: PlayerId,
@@ -647,6 +658,14 @@ pub enum Decision {
         player: PlayerId,
         count: usize,
         hand: Vec<CardId>,
+    },
+    /// CR 103.6, 103.6a: put any of `cards`, of `player`'s opening hand,
+    /// onto the battlefield, answered `Answer::Begin`. Asked only of a
+    /// player with such a card: a hidden one has to be named first, as
+    /// the hand is kept.
+    OpeningHand {
+        player: PlayerId,
+        cards: Vec<CardId>,
     },
     Priority {
         player: PlayerId,
@@ -875,6 +894,8 @@ pub enum Answer {
     Pick(Option<CardId>),
     /// CR 608.2d: follow the "may" instruction, or not.
     May(bool),
+    /// CR 103.6a: the cards of the opening hand put onto the battlefield.
+    Begin(Vec<CardId>),
     /// What each hidden card revealed is, in the decision's order.
     Reveal(Vec<CardText>),
     /// The cards chosen.
@@ -1163,7 +1184,7 @@ impl Game {
             return;
         }
         if taking.is_empty() {
-            return self.begin_turn(PlayerId(0));
+            return self.opening_hand_from(0);
         }
         for p in &taking {
             let player = &mut self.players[p.0 as usize];
@@ -1178,6 +1199,51 @@ impl Game {
             }
         }
         self.bottom_next(taking);
+    }
+
+    /// CR 103.6: once the mulligans are done, each player from `from` in
+    /// turn order, the starting player first, who may take an action
+    /// with a card of their opening hand is asked; then the first turn
+    /// begins.
+    fn opening_hand_from(&mut self, from: usize) {
+        for p in from..self.players.len() {
+            let Decision::OpeningHand { cards, .. } = ({
+                self.waiting = Waiting::OpeningHand {
+                    player: PlayerId(p as u8),
+                };
+                self.decision()
+            }) else {
+                unreachable!("asking for the opening hand")
+            };
+            if !cards.is_empty() {
+                return;
+            }
+        }
+        self.begin_turn(PlayerId(0))
+    }
+
+    /// Whether a card begins the game on the battlefield if its owner
+    /// says so (CR 103.6a): known, and run by the engine.
+    fn begins(&self, c: CardId) -> bool {
+        self.known(c)
+            .and_then(|k| k.runs.as_ref().ok())
+            .is_some_and(|r| r.begins)
+    }
+
+    /// Whether a player has hexproof (CR 702.11c): a permanent they
+    /// control says so and has that ability now.
+    fn has_hexproof(&self, q: PlayerId) -> bool {
+        self.characteristics().iter().any(|(id, c)| {
+            c.controller == q
+                && self
+                    .known(self.permanents[id].card)
+                    .and_then(|k| k.runs.as_ref().ok())
+                    .is_some_and(|r| {
+                        r.hexproof
+                            .iter()
+                            .any(|n| c.abilities.contains(&Ability::Unread(*n)))
+                    })
+        })
     }
 
     /// CR 103.5, 103.5c: each player who took a mulligan puts one card on
@@ -1318,6 +1384,13 @@ impl Game {
         match &self.waiting {
             Waiting::Over(o) => Decision::Over(*o),
             Waiting::Mulligan { player, .. } => Decision::Mulligan { player: *player },
+            Waiting::OpeningHand { player } => {
+                let hand = &self.player(*player).hand;
+                Decision::OpeningHand {
+                    player: *player,
+                    cards: hand.iter().copied().filter(|c| self.begins(*c)).collect(),
+                }
+            }
             Waiting::Bottom { player, count, .. } => Decision::Bottom {
                 player: *player,
                 count: *count,
@@ -1507,6 +1580,21 @@ impl Game {
     /// legal leaves the game as it was.
     pub fn step(&mut self, answer: Answer) -> Result<Decision, Rejected> {
         match (self.waiting.clone(), &answer) {
+            (Waiting::OpeningHand { player }, Answer::Begin(cards)) => {
+                let distinct: BTreeSet<&CardId> = cards.iter().collect();
+                if distinct.len() != cards.len()
+                    || !cards
+                        .iter()
+                        .all(|c| self.begins(*c) && self.player(player).hand.contains(c))
+                {
+                    return Err(Rejected::Illegal(answer));
+                }
+                for c in cards {
+                    self.players[player.0 as usize].hand.retain(|x| x != c);
+                    self.arrive(*c, player, false);
+                }
+                self.opening_hand_from(player.0 as usize + 1);
+            }
             (Waiting::Mulligan { player, mut taking }, Answer::Mulligan(take)) => {
                 if *take {
                     taking.push(player);
@@ -2849,10 +2937,12 @@ impl Game {
     /// permanents. Nothing on the engine's battlefield has hexproof, shroud
     /// or protection, which are refused as they are read.
     fn legal_targets(&self, spec: &TargetSpec, p: PlayerId) -> Vec<Target> {
+        // CR 115.4, 702.11c: a player with hexproof can't be the target
+        // of an opponent's spell or ability.
         let players = || {
             (0..self.players.len())
                 .map(|q| PlayerId(q as u8))
-                .filter(|q| !self.player(*q).left)
+                .filter(|q| !self.player(*q).left && (*q == p || !self.has_hexproof(*q)))
         };
         let permanents = |f: &dyn Fn(&Chars) -> bool| -> Vec<Target> {
             self.characteristics()
@@ -3467,6 +3557,13 @@ impl Game {
 
     /// The card is put onto the battlefield, a new object (CR 400.7).
     fn place(&mut self, card: CardId, controller: PlayerId, tapped: bool, then: Then) {
+        self.arrive(card, controller, tapped);
+        self.proceed(then);
+    }
+
+    /// The card arrives on the battlefield, and what waits for that
+    /// triggers.
+    fn arrive(&mut self, card: CardId, controller: PlayerId, tapped: bool) {
         let runs = self.runs_of(card);
         let mut chars = runs.lowered.chars.clone();
         chars.controller = controller;
@@ -3483,7 +3580,6 @@ impl Game {
             },
         );
         self.trigger_on(Event::Entered(id));
-        self.proceed(then);
     }
 
     /// Exactly `count` distinct cards of `p`'s hand.
@@ -3936,6 +4032,8 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         triggered: BTreeMap::new(),
         spell: None,
         flash: false,
+        begins: false,
+        hexproof: BTreeSet::new(),
         dormant: Vec::new(),
         lowered,
     };
@@ -4014,6 +4112,17 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     }
                 }
             }
+            i::Ability::Static(parts)
+                if matches!(parts.as_slice(), [i::Static::YouHave(ks)]
+                    if matches!(ks.as_slice(), [k] if k.param.is_none() && k.name.eq_ignore_ascii_case("hexproof"))) =>
+            {
+                runs.hexproof.insert(n);
+            }
+            i::Ability::OpeningHandAction(i::OpeningHandAction::BeginOnBattlefield {
+                not_starting_player: false,
+                counters: None,
+                if_you_do,
+            }) if if_you_do.is_empty() => runs.begins = true,
             i::Ability::Static(parts) => {
                 let e = enters(parts).map_err(|node| {
                     Unrunnable::new(

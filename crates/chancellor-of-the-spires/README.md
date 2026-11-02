@@ -53,6 +53,10 @@ choose and returns a `Decision`, and `game.step(Answer)` takes an answer
 among the legal ones, refuses any other with the game unchanged, and runs
 on. Turn-based and state-based actions are never decisions.
 
+- `OpeningHand { player, cards }`: once the mulligans are done, the
+  starting player first, a player whose opening hand has a card that
+  lets them "begin the game with it on the battlefield" puts any of
+  those there (CR 103.6, 103.6a), answered `Begin`.
 - `Priority { player, actions }`: pass, play a land, `Cast(card)` from
   hand or a commander from the command zone, activate a mana ability
   (`Mana(ManaActivation { source, ability, adds })`, one action for each
@@ -185,6 +189,8 @@ a filter, or any of its alternatives, matches ("two or fewer other lands",
 "two or more basic lands", "a Mountain or a Plains"), not counting the
 land itself, and a shock land's life or tapped, all read off the
 permanent as it would enter (CR 614.12); mana pools emptying as each step ends (CR 500.5);
+a player with hexproof (Leyline of Sanctity's "You have hexproof") never
+a legal target of an opponent's spell or ability (CR 702.11c, 115.4);
 state-based actions whenever a player would get priority (CR 704.3) for 0
 life, drawing from an empty library, toughness 0 or less and the legend
 rule (CR 704.5a–b, 704.5f, 704.5j), and a commander's return to the
@@ -356,6 +362,10 @@ leaves a later spell unpaid for, when it goes back and pays. Life is paid
 only when something that follows needs the land untapped. The game it
 replays is one consistent with the log, not necessarily the one played.
 
+The cards the log puts onto the battlefield before the first turn
+("puts [Leyline of Sanctity] onto the battlefield") are named in the
+hand each player keeps, as they keep it, and begin the game there (CR
+103.6a); a mulligan's bottomed cards are others.
 A spell's targets are the log's: a player by their seat, a card by a
 permanent of that name among the legal targets, the first when two share
 the name, since nothing the log says tells them apart. A hand revealed to
@@ -414,8 +424,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 20 replay to the end** (17 to the log's winner
-line), 6 of them past the first turn, and **20.43% of their lines are
-followed** (15,971 of 78,183: the lines before each game's stop, all of a
+line), 6 of them past the first turn, and **20.55% of their lines are
+followed** (16,068 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the
