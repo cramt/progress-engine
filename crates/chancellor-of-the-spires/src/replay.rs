@@ -1209,7 +1209,7 @@ impl Driver<'_> {
                     .iter()
                     .zip(&to)
                     .map(|(l, t)| match t {
-                        Target::Player(_) => 0,
+                        Target::Player(_) | Target::Spell(_) => 0,
                         Target::Object(_) => {
                             let n = (*l).min(left);
                             left -= n;
@@ -1371,6 +1371,7 @@ impl Driver<'_> {
                             Target::Object(o) => game
                                 .card(game.permanents()[o].card)
                                 .is_some_and(|t| t.name == name),
+                            Target::Spell(c) => game.card(*c).is_some_and(|t| t.name == name),
                             Target::Player(_) => false,
                         })
                         .ok_or_else(wrong)?
@@ -1685,11 +1686,12 @@ impl Driver<'_> {
     ) -> Result<CardId, Stop> {
         self.text(name)?;
         let turn = self.game().turn();
-        // Nothing the engine runs targets a spell, so a card it runs that
-        // names one on the stack names the permanent it becomes.
+        // A card the engine runs that names a card on the stack targets
+        // that spell if it can target spells, and otherwise names the
+        // permanent the spell becomes.
         let respond = respond
             && match self.in_hand(p, name)? {
-                Some(c) => self.game().refusal(c).is_some(),
+                Some(c) => self.game().refusal(c).is_some() || self.game().targets_spells(c),
                 None => true,
             };
         if !respond {

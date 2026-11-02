@@ -1092,3 +1092,127 @@ fn wild_nacatl_grows_while_its_controller_controls_a_mountain() {
     play(&mut game, "Mountain");
     assert_eq!(pt_of(&game, cat), pt(2, 2));
 }
+
+/// CR 701.13a, 608.2h: Swords to Plowshares exiles its target, and "its
+/// controller gains life equal to its power" reads the creature as it
+/// last existed.
+#[test]
+fn swords_to_plowshares_exiles_and_its_controller_gains_its_power() {
+    let mut game = deal_both(
+        &[("Plains", 40), ("Swords to Plowshares", 20)],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Plains", 1), ("Swords to Plowshares", 1)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Plains");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    cast(
+        &mut game,
+        "Swords to Plowshares",
+        Some(vec![Target::Object(bears)]),
+    );
+    resolve(&mut game);
+    assert!(creature(&game, "Grizzly Bears").is_none());
+    assert_eq!(named(&game, game.exile(), "Grizzly Bears"), 1);
+    assert_eq!(game.player(THEM).life(), 22);
+}
+
+/// CR 701.6a, 115.5: Counterspell targets a spell on the stack, never
+/// itself, and the spell countered goes to its owner's graveyard unresolved.
+#[test]
+fn counterspell_counters_a_spell_on_the_stack() {
+    let mut game = deal_both(
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Island", 40), ("Counterspell", 20)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+        &[("Island", 2), ("Counterspell", 1)],
+    );
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Island");
+    my_next_main(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    let before = named(&game, game.player(ME).graveyard(), "Grizzly Bears");
+    cast(&mut game, "Grizzly Bears", None);
+    let bears = game.stack().iter().find_map(|o| match o {
+        StackObject::Spell { card, .. } => Some(*card),
+        _ => None,
+    });
+    step(&mut game, Answer::Act(Action::Pass));
+    let counter = in_hand(&game, THEM, "Counterspell").unwrap();
+    let Decision::Targets { slots, .. } = step(&mut game, Answer::Act(Action::Cast(counter)))
+    else {
+        panic!("Counterspell's target")
+    };
+    assert_eq!(slots, vec![vec![Target::Spell(bears.unwrap())]]);
+    let mut d = step(
+        &mut game,
+        Answer::Targets(vec![Target::Spell(bears.unwrap())]),
+    );
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .unwrap();
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    assert!(game.stack().is_empty());
+    assert!(creature(&game, "Grizzly Bears").is_none());
+    assert_eq!(
+        named(&game, game.player(ME).graveyard(), "Grizzly Bears"),
+        before + 1
+    );
+}
+
+/// CR 700.4, 603.6c, 603.10a: Festering Goblin's "When this creature
+/// dies, target creature gets -1/-1 until end of turn" triggers though it
+/// is gone, looking back at it as it last existed: Bolted, it shrinks my
+/// other Festering Goblin, which dies too.
+#[test]
+fn festering_goblin_triggers_as_it_dies() {
+    let mut game = deal_both(
+        &[("Swamp", 40), ("Festering Goblin", 20)],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[("Swamp", 2), ("Festering Goblin", 2)],
+        &[("Mountain", 1), ("Lightning Bolt", 1)],
+    );
+    play(&mut game, "Swamp");
+    cast(&mut game, "Festering Goblin", None);
+    resolve(&mut game);
+    let first = creature(&game, "Festering Goblin").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(&mut game, "Festering Goblin", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(first)]),
+    );
+    let Decision::Targets { player, slots, .. } = resolve(&mut game) else {
+        panic!("the dies trigger's target")
+    };
+    assert_eq!(player, ME);
+    let second = creature(&game, "Festering Goblin").unwrap();
+    assert_eq!(slots, vec![vec![Target::Object(second)]]);
+    step(&mut game, Answer::Targets(vec![Target::Object(second)]));
+    resolve(&mut game);
+    assert!(creature(&game, "Festering Goblin").is_none());
+}

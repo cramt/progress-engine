@@ -155,7 +155,11 @@ instructions in order (CR 608.2c), going to the graveyard after (CR
 discard, the top cards of a library revealed or looked at and bound for
 the instructions after them (Insight's `With`, a slot per binder): put
 into a hand, one chosen among them, put back on top or the bottom in
-any order, "if it's a land card" and "its mana value", gain and lose life, damage to any target, a player, a player or
+any order, "if it's a land card" and "its mana value", destroy (CR
+701.8a), exile (CR 701.13a), return to its owner's hand, sacrifice
+(CR 701.21a), counter target spell (CR 701.6a; a spell is never its own
+target, CR 115.5), and "its controller" and "its power" of a permanent
+gone, as it last existed (CR 608.2h), gain and lose life, damage to any target, a player, a player or
 planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
 lifelink, CR 702.15b), scry and +1/+1 or named counters; their targets
@@ -171,7 +175,9 @@ permanent entering, a creature attacking (CR 508.3a), its controller
 casting a spell (CR 601.2i), a permanent being dealt damage, with the
 amount for "that much" (CR 120.3; combat damage dealt at once is one
 event, CR 510.2), a permanent dealing damage, or combat damage, to a
-player, and the beginning of an upkeep, draw step or end step, yours,
+player, a creature dying, its own "when this creature dies" looking back
+at it as it last existed (CR 700.4, 603.6c, 603.10a), and the beginning
+of an upkeep, draw step or end step, yours,
 each or an opponent's (CR 503.1a, 504.2, 513.1a), with exalted and prowess written
 out as the triggers they are (CR 702.83a, 702.108a) and "until end of
 turn" effects ending in cleanup (CR 514.2); combat: attackers tapping
@@ -226,15 +232,16 @@ node refused. The most refused: `Effect::Move` and
 destroy, mill, modal spells, additional costs and loyalty (2 each). `tests/game.rs` scripts the rules above, and plays
 Loam against a goldfish for six turns, casting what it can.
 
-Not yet: most instructions (destroy, exile, return, create a token,
-counter a spell, modal spells, "if"), X, targeting a spell,
+Not yet: most instructions (create a token, modal spells, "if", a
+search inside a "may"), X,
 activated abilities with targets, mana costs, limits or effects other
-than a search for a card, triggers on any other event (dying, leaving), "intervening if" (CR 603.4), a card that triggers from a
+than a search for a card, triggers on any other event (leaving the battlefield other than dying), "intervening if" (CR 603.4), a card that triggers from a
 graveyard, attacking a planeswalker or battle, requirements and
 restrictions on attacking and blocking beyond flying, reach, menace and
-defender, a creature blocking two, and a land's back face (CR 712). State-based actions that give a choice run one after the other
-rather than at once (CR 704.3), which only a trigger on what they do
-could tell apart, and none of those (dying, leaving) runs yet.
+defender, a creature blocking two, and a land's back face (CR 712). State-based actions run one creature after the other rather than at
+once (CR 704.3), so of two creatures dying together, the one put into
+the graveyard second sees the first die but not the other way round (CR
+603.10a).
 
 ## What the layers cover
 
@@ -431,8 +438,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 20 replay to the end** (17 to the log's winner
-line), 6 of them past the first turn, and **20.62% of their lines are
-followed** (16,122 of 78,183: the lines before each game's stop, all of a
+line), 6 of them past the first turn, and **20.72% of their lines are
+followed** (16,202 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the

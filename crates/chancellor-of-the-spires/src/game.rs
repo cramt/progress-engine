@@ -306,6 +306,8 @@ pub struct Permanent {
 pub enum Target {
     Player(PlayerId),
     Object(ObjectId),
+    /// A spell on the stack, by its card.
+    Spell(CardId),
 }
 
 /// What can be on the stack (CR 405.1): spells, activated abilities other
@@ -423,6 +425,8 @@ enum Event {
     DamagedPlayer { source: ObjectId, combat: bool },
     /// A step of the active player's turn began.
     Begins(TurnStep),
+    /// This creature died: it is gone, as it last existed (CR 700.4).
+    Died(ObjectId),
 }
 
 /// The combat phase's state (CR 506): who attacks whom, who blocks what.
@@ -994,7 +998,7 @@ pub struct Game {
     bottomed: u32,
     /// The counters each permanent that left had as it last existed, for
     /// an ability of its that counts them (CR 608.2h, 113.7a).
-    last_known: OrdMap<ObjectId, OrdMap<Counter, u32>>,
+    last_known: OrdMap<ObjectId, LastKnown>,
     exile: Vector<CardId>,
     command: Vector<CardId>,
     /// How many times each commander has been cast from the command zone
@@ -1329,6 +1333,14 @@ impl Game {
     pub fn commander_casts(&self, c: CardId) -> u32 {
         self.commander_casts.get(&c).copied().unwrap_or(0)
     }
+    /// Whether a known card's spell has a target slot a spell fills.
+    pub fn targets_spells(&self, c: CardId) -> bool {
+        self.known(c)
+            .and_then(|k| k.runs.as_ref().ok())
+            .and_then(|r| r.spell.as_ref())
+            .is_some_and(|p| p.targets.iter().any(|t| matches!(t, TargetSpec::Spell(_))))
+    }
+
     /// How many cards an instruction has put on the bottom of a library
     /// this turn.
     pub fn bottomed(&self) -> u32 {
@@ -1342,7 +1354,7 @@ impl Game {
             .objects
             .get(&id)
             .map(|o| &o.counters)
-            .or_else(|| self.last_known.get(&id))
+            .or_else(|| self.last_known.get(&id).map(|l| &l.counters))
             .and_then(|c| c.get(kind).copied())
             .unwrap_or(0)
     }
@@ -2565,6 +2577,7 @@ impl Game {
                     _ => None,
                 },
                 Who::Defending => defending,
+                Who::ControllerOf(o) => self.now_or_last(&at, o).map(|c| c.controller),
             };
             match e {
                 Effect::SearchToBattlefield { filter, tapped } => {
@@ -2619,8 +2632,45 @@ impl Game {
                     }
                 }
                 Effect::GainLife { who: w, n } => {
+                    let n = self.amount(&at, n);
                     if let Some(q) = who(w) {
                         self.players[q.0 as usize].life += n as i32;
+                    }
+                }
+                Effect::Destroy(o) => {
+                    if let Some(o) = self.object(&at, o) {
+                        self.put_in_graveyard(o);
+                    }
+                }
+                Effect::Exile(o) => {
+                    if let Some(o) = self.object(&at, o) {
+                        self.leave_battlefield(o, Zone::Exile);
+                    }
+                }
+                Effect::ToOwnersHand(o) => {
+                    if let Some(o) = self.object(&at, o) {
+                        self.leave_battlefield(o, Zone::Hand);
+                    }
+                }
+                // CR 701.21a: only a permanent its controller controls.
+                Effect::Sacrifice(o) => {
+                    if let Some(o) = self.object(&at, o) {
+                        if self.characteristics()[&o].controller == p {
+                            self.put_in_graveyard(o);
+                        }
+                    }
+                }
+                // CR 701.6a.
+                Effect::Counter(slot) => {
+                    if let Some(Target::Spell(c)) = at.targets[slot] {
+                        let on_stack = self.stack.iter().position(
+                            |x| matches!(x, StackObject::Spell { card, .. } if *card == c),
+                        );
+                        if let Some(k) = on_stack {
+                            self.stack.remove(k);
+                            let owner = self.owner(c);
+                            self.players[owner.0 as usize].graveyard.push_back(c);
+                        }
                     }
                 }
                 Effect::Damage { to, n } => {
@@ -2836,6 +2886,10 @@ impl Game {
         match n {
             lower::Amount::N(n) => n,
             lower::Amount::ThatMuch => at.amount.unwrap_or(0),
+            lower::Amount::PowerOf(o) => self
+                .now_or_last(at, o)
+                .and_then(|c| c.pt)
+                .map_or(0, |p| p.power.max(0) as u32),
             lower::Amount::ManaValueOf(s) => match at.found.get(&s).map(Vec::as_slice) {
                 Some([c]) => self
                     .known(*c)
@@ -2850,15 +2904,29 @@ impl Game {
     /// battlefield: one that left is a new object, and the instruction
     /// does nothing to it (CR 400.7).
     fn object(&self, at: &Resuming, on: Obj) -> Option<ObjectId> {
-        let o = match on {
+        self.named(at, on)
+            .filter(|o| self.permanents.contains_key(o))
+    }
+
+    /// The object an instruction names, whether or not it is still there.
+    fn named(&self, at: &Resuming, on: Obj) -> Option<ObjectId> {
+        match on {
             Obj::Itself => at.object,
             Obj::Triggering => at.triggering,
             Obj::Target(s) => match at.targets[s] {
                 Some(Target::Object(o)) => Some(o),
                 _ => None,
             },
-        };
-        o.filter(|o| self.permanents.contains_key(o))
+        }
+    }
+
+    /// What an object an instruction names is, or was as it last existed
+    /// (CR 608.2h).
+    fn now_or_last(&self, at: &Resuming, on: Obj) -> Option<Chars> {
+        let o = self.named(at, on)?;
+        self.characteristics()
+            .remove(&o)
+            .or_else(|| self.last_known.get(&o).map(|l| l.chars.clone()))
     }
 
     /// What the resolving spell or ability's source is now, or as it last
@@ -2910,6 +2978,8 @@ impl Game {
                         *dealt.objects.entry(*o).or_insert(0) += n;
                     }
                 }
+                // No instruction deals damage to a spell.
+                Target::Spell(_) => {}
             }
         }
         if has(Keyword::Lifelink) {
@@ -2974,6 +3044,33 @@ impl Game {
                 .map(Target::Player)
                 .chain(permanents(&|c| c.is(CardType::Planeswalker)))
                 .collect(),
+            // CR 115.5: a spell can't target itself, and the one whose
+            // targets are being chosen is on top of the stack.
+            TargetSpec::Spell(filter) => {
+                let casting = match &self.waiting {
+                    Waiting::Targets {
+                        card,
+                        choosing: Choosing::Spell { .. },
+                        ..
+                    } => Some(*card),
+                    _ => None,
+                };
+                self.stack
+                    .iter()
+                    .filter_map(|o| match o {
+                        StackObject::Spell { card, .. }
+                            if Some(*card) != casting
+                                && self
+                                    .known(*card)
+                                    .and_then(|k| k.printed.as_ref())
+                                    .is_some_and(|c| filter.matches(c)) =>
+                        {
+                            Some(Target::Spell(*card))
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            }
         }
     }
 
@@ -3140,6 +3237,20 @@ impl Game {
                         .then_some((None, None))
                         .into_iter()
                         .collect(),
+                    (TriggerEvent::Dies(f), Event::Died(id)) => {
+                        let l = &self.last_known[id];
+                        f.matches(&Seen {
+                            id: *id,
+                            chars: &l.chars,
+                            source: *src,
+                            source_chars: chars,
+                            source_attached_to: self.battlefield.objects[src].attached_to,
+                            token: l.token,
+                        })
+                        .then_some((None, None))
+                        .into_iter()
+                        .collect()
+                    }
                     (TriggerEvent::Begins { step, whose }, Event::Begins(s)) => {
                         let mine = chars.controller == self.active;
                         let holds = match whose {
@@ -3185,6 +3296,37 @@ impl Game {
                         amount,
                         ordered: false,
                     });
+                }
+            }
+        }
+        // CR 603.10a: a creature's own "when this creature dies" looks
+        // back at it as it last existed.
+        if let Event::Died(id) = &event {
+            let l = self.last_known[id].clone();
+            if let Some(runs) = self.known(l.card).and_then(|k| k.runs.as_ref().ok()) {
+                for (n, t) in &runs.triggered {
+                    let TriggerEvent::Dies(f) = &t.event else {
+                        continue;
+                    };
+                    let seen = Seen {
+                        id: *id,
+                        chars: &l.chars,
+                        source: *id,
+                        source_chars: &l.chars,
+                        source_attached_to: None,
+                        token: l.token,
+                    };
+                    if l.chars.abilities.contains(&Ability::Unread(*n)) && f.matches(&seen) {
+                        triggered.push(Pending {
+                            source: l.card,
+                            object: *id,
+                            ability: *n,
+                            controller: l.chars.controller,
+                            triggering: None,
+                            amount: None,
+                            ordered: false,
+                        });
+                    }
                 }
             }
         }
@@ -3941,19 +4083,44 @@ impl Game {
 
     /// A permanent is put into its owner's graveyard.
     fn put_in_graveyard(&mut self, id: ObjectId) {
+        self.leave_battlefield(id, Zone::Graveyard);
+    }
+
+    /// A permanent leaves the battlefield for a zone of its owner's, kept
+    /// as it last existed (CR 608.2h); a creature put into a graveyard
+    /// dies (CR 700.4), which what waits for that triggers, looking back
+    /// at the battlefield as it was (CR 603.10a).
+    fn leave_battlefield(&mut self, id: ObjectId, to: Zone) {
+        let Some(chars) = self.characteristics().remove(&id) else {
+            return;
+        };
         let Some(perm) = self.permanents.remove(&id) else {
             return;
         };
-        if let Some(o) = self.battlefield.objects.get(&id) {
-            self.last_known.insert(id, o.counters.clone());
-        }
+        let object = self.battlefield.objects.get(&id).cloned();
+        let token = object.as_ref().is_some_and(|o| o.token);
+        self.last_known.insert(
+            id,
+            LastKnown {
+                chars: chars.clone(),
+                counters: object.map(|o| o.counters).unwrap_or_default(),
+                card: perm.card,
+                token,
+            },
+        );
         self.battlefield.leave(id);
         let owner = self.owner(perm.card);
-        self.players[owner.0 as usize]
-            .graveyard
-            .push_back(perm.card);
-        if self.cards[perm.card.0 as usize].commander {
+        let player = &mut self.players[owner.0 as usize];
+        match to {
+            Zone::Graveyard => player.graveyard.push_back(perm.card),
+            Zone::Hand => player.hand.push_back(perm.card),
+            Zone::Exile => self.exile.push_back(perm.card),
+        }
+        if to != Zone::Hand && self.cards[perm.card.0 as usize].commander {
             self.commanders_moved.push_back(perm.card);
+        }
+        if to == Zone::Graveyard && chars.is(CardType::Creature) {
+            self.trigger_on(Event::Died(id));
         }
     }
 
@@ -4205,6 +4372,23 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
         [one] => Err(short(one)),
         _ => Err("a static ability of several parts".into()),
     }
+}
+
+/// A zone a permanent can leave the battlefield for, its owner's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Zone {
+    Graveyard,
+    Exile,
+    Hand,
+}
+
+/// A permanent as it last existed on the battlefield (CR 608.2h, 113.7a).
+#[derive(Clone, Debug)]
+struct LastKnown {
+    chars: Chars,
+    counters: OrdMap<Counter, u32>,
+    card: CardId,
+    token: bool,
 }
 
 /// Damage one source dealt at once (CR 120.3): to each permanent, how

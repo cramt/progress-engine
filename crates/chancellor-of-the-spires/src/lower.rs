@@ -842,8 +842,19 @@ pub enum Effect {
     },
     GainLife {
         who: Who,
-        n: u32,
+        n: Amount,
     },
+    /// "Destroy target creature" (CR 701.8a): to its owner's graveyard.
+    Destroy(Obj),
+    /// "Exile target creature" (CR 701.13a).
+    Exile(Obj),
+    /// "Return target permanent to its owner's hand".
+    ToOwnersHand(Obj),
+    /// "Sacrifice this creature" (CR 701.21a): only a permanent its
+    /// controller controls.
+    Sacrifice(Obj),
+    /// "Counter target spell" (CR 701.6a): the spell in this target slot.
+    Counter(usize),
     /// "~ deals 3 damage to any target": the source is the spell or the
     /// ability's source (CR 120.1).
     Damage {
@@ -954,6 +965,9 @@ pub enum Who {
     Target(usize),
     /// "defending player": the player the ability's source is attacking.
     Defending,
+    /// "Its controller": of the object, or as it last existed (CR
+    /// 608.2h).
+    ControllerOf(Obj),
 }
 
 /// An object an instruction names: the ability's own source ("this
@@ -975,6 +989,9 @@ pub enum Amount {
     ThatMuch,
     /// "Its mana value": of the card bound there.
     ManaValueOf(Slot),
+    /// "Equal to its power": of the object, or as it last existed (CR
+    /// 608.2h).
+    PowerOf(Obj),
 }
 
 /// What damage is dealt to.
@@ -1000,6 +1017,10 @@ pub enum TargetSpec {
     Any,
     /// "target player or planeswalker".
     PlayerOrPlaneswalker,
+    /// "target spell with mana value 2": a spell on the stack the filter
+    /// matches, by its card's characteristics, other than itself (CR
+    /// 115.5).
+    Spell(CardFilter),
 }
 
 /// A spell's or ability's instructions and the targets they name, by slot.
@@ -1038,6 +1059,10 @@ pub enum TriggerEvent {
     /// active player `whose` names, relative to the ability's controller
     /// (CR 503.1a, 504.2, 513.1a).
     Begins { step: TurnStep, whose: Whose },
+    /// "When this creature dies", "Whenever another creature you control
+    /// dies": a creature the filter matches, as it last existed, is put
+    /// into a graveyard from the battlefield (CR 700.4, 603.6c, 603.10a).
+    Dies(Filter),
 }
 
 /// The steps a triggered ability can wait for the beginning of.
@@ -1092,6 +1117,7 @@ pub fn triggered(
             } => TriggerEvent::Enters(entering(what)?),
             i::Event::Attacks(what) => TriggerEvent::Attacks(entering(what)?),
             i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
+            i::Event::Dies(what) => TriggerEvent::Dies(entering(what)?),
             i::Event::DealsDamageTo { what, to }
                 if matches!(to.as_slice(), [i::Recipient::Player(i::Player::APlayer)]) =>
             {
@@ -1344,6 +1370,7 @@ impl<'a> Scope<'a> {
                     .map(Who::Target)
                     .ok_or_else(|| "Player::That".into())
             }
+            i::Player::ControllerOf(o) => return Ok(Who::ControllerOf(self.obj(o)?)),
             other => return Err(format!("Player::{}", short(other))),
         };
         match self.player {
@@ -1387,7 +1414,9 @@ impl<'a> Scope<'a> {
             [i::Recipient::Player(p)] => match self.who(p)? {
                 Who::Target(s) => Ok(DamageTo::Target(s)),
                 Who::You => Ok(DamageTo::You),
-                Who::Defending => Err("damage to the defending player".into()),
+                Who::Defending | Who::ControllerOf(_) => {
+                    Err("damage to the defending player or a controller".into())
+                }
             },
             [i::Recipient::Or(alts)] => match alts.as_slice() {
                 [i::Recipient::Player(i::Player::Target), i::Recipient::Objects(o)]
@@ -1456,8 +1485,38 @@ impl<'a> Scope<'a> {
             },
             i::Effect::GainLife { who, n: k } => Effect::GainLife {
                 who: self.who(who)?,
-                n: n(k)?,
+                n: match k {
+                    i::Amount::PowerOf(o) => Amount::PowerOf(self.obj(o)?),
+                    k => Amount::N(n(k)?),
+                },
             },
+            i::Effect::Destroy { what, .. } => Effect::Destroy(self.obj(what)?),
+            i::Effect::Exile(what) => Effect::Exile(self.obj(what)?),
+            i::Effect::Sacrifice {
+                who: i::Player::You,
+                what,
+            } if what.quant == Quant::SelfRef => Effect::Sacrifice(self.obj(what)?),
+            i::Effect::Move {
+                what,
+                from: None,
+                to: i::Zone::OwnersHand,
+                tapped: false,
+                transformed: false,
+                under: None,
+                order: None,
+            } if !matches!(what.quant, Quant::Rest { .. }) && what.filter.kind.is_none() => {
+                Effect::ToOwnersHand(self.obj(what)?)
+            }
+            i::Effect::Counter { what, unless: None }
+                if what.quant
+                    == (Quant::Target {
+                        n: i::Amount::N(1),
+                        up_to: false,
+                    })
+                    && what.filter.kind == Some(i::Noun::Spell) =>
+            {
+                Effect::Counter(self.slot(TargetSpec::Spell(spell_filter(what)?)))
+            }
             i::Effect::Damage {
                 source: Some(source),
                 n: k,
@@ -1805,18 +1864,72 @@ impl<'a> Scope<'a> {
 /// control"; anything relative to a source is refused, since a spell's
 /// has none on the battlefield.
 fn target_filter(o: &Objects) -> Result<Filter, String> {
-    if o.filter.kind.is_some() {
-        return Err("a target of a kind of object".into());
-    }
+    // "target permanent": any of them, by whatever else the filter says.
+    let filter = match o.filter.kind {
+        None => o.filter.clone(),
+        Some(i::Noun::Permanent) => i::Filter {
+            kind: None,
+            alts: if o.filter.alts.is_empty() {
+                vec![vec![]]
+            } else {
+                o.filter.alts.clone()
+            },
+            ..o.filter.clone()
+        },
+        _ => return Err("a target of a kind of object".into()),
+    };
     let f = objects(&Objects {
         quant: Quant::All,
-        filter: o.filter.clone(),
+        filter,
     })?;
     if f.0
         .iter()
         .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_) | Pred::YouControl))
     {
         return Err("a target relative to its source".into());
+    }
+    Ok(f)
+}
+
+/// "target spell with mana value 2", "target noncreature spell": by the
+/// card's types and mana value.
+fn spell_filter(o: &Objects) -> Result<CardFilter, String> {
+    let mut mana_value = None;
+    for post in &o.filter.posts {
+        match post {
+            Post::With(i::Compare {
+                stat: i::Stat::ManaValue,
+                op,
+                value: i::Amount::N(v),
+            }) => {
+                let cmp = match op {
+                    i::Op::Eq => Cmp::Eq,
+                    i::Op::Le => Cmp::AtMost,
+                    i::Op::Ge => Cmp::AtLeast,
+                    i::Op::Lt => Cmp::Below,
+                    i::Op::Gt => Cmp::Above,
+                };
+                mana_value = Some(Pred::ManaValue(cmp, *v));
+            }
+            other => return Err(format!("a target spell {}", short(other))),
+        }
+    }
+    let mut f = if o.filter.alts.is_empty() {
+        CardFilter(vec![Filter::default()])
+    } else {
+        card_filter(&Objects {
+            quant: Quant::One,
+            filter: i::Filter {
+                kind: Some(i::Noun::Card),
+                posts: Vec::new(),
+                ..o.filter.clone()
+            },
+        })?
+    };
+    if let Some(p) = mana_value {
+        for alt in &mut f.0 {
+            alt.0.push(p.clone());
+        }
     }
     Ok(f)
 }
