@@ -698,7 +698,7 @@ impl Driver<'_> {
                 card: Object::Card(card),
             } => {
                 let p = self.seat(*player);
-                let c = self.offered(p, card.name(), Kind::Land, false)?;
+                let c = self.offered(p, card.name(), Kind::Land, false, false)?;
                 self.act(Answer::Act(Action::PlayLand(c)))?;
                 self.did(i, format!("played {}", card.name()));
             }
@@ -715,8 +715,15 @@ impl Driver<'_> {
                     });
                 }
                 let p = self.seat(cast.player);
+                // A spell targeting a spell on the stack, or a permanent a
+                // spell on the stack targets, answers it: it is cast
+                // before what it answers resolves.
                 let on_stack = cast.targets.iter().any(|a| self.targets_stack(&a.target));
-                let c = self.offered(p, card.name(), Kind::Cast, on_stack)?;
+                let answers = cast
+                    .targets
+                    .iter()
+                    .any(|a| self.targeted_on_stack(&a.target));
+                let c = self.offered(p, card.name(), Kind::Cast, on_stack, answers)?;
                 self.act(Answer::Act(Action::Cast(c)))?;
                 // CR 601.2c: the targets the log shows, before the cost.
                 if let Decision::Targets { slots, .. } = self.game().decision() {
@@ -976,6 +983,43 @@ impl Driver<'_> {
                 }
                 self.did(i, "the counters are on it");
             }
+            // CR 608.2b: a spell whose targets are all illegal doesn't
+            // resolve; the engine's leaves the stack as it would resolve.
+            RemovedForNoTargets { spell, .. } => {
+                let name = match spell {
+                    log::Source::Card(c) => c.name().to_string(),
+                    log::Source::Named(n) => n.clone(),
+                };
+                let turn = self.game().turn();
+                loop {
+                    let game = self.game();
+                    let there = game.stack().iter().any(|o| match o {
+                        StackObject::Spell { card, .. }
+                        | StackObject::Trigger { source: card, .. } => {
+                            game.card(*card).is_some_and(|t| t.name == name)
+                        }
+                        StackObject::Ability { .. } => false,
+                    });
+                    if !there {
+                        break;
+                    }
+                    if game.turn() != turn {
+                        return Err(unfollowed(Some(&name)));
+                    }
+                    self.pass()?;
+                }
+                if self
+                    .game()
+                    .last_resolved()
+                    .is_none_or(|c| self.name_of(c) != name)
+                {
+                    return Err(unfollowed(Some(&name)));
+                }
+                self.did(
+                    i,
+                    format!("{name} left the stack, its targets illegal (CR 608.2b)"),
+                );
+            }
             TriggerFailed(c) => {
                 self.did(
                     i,
@@ -1081,6 +1125,31 @@ impl Driver<'_> {
             }
             self.pass()?;
         }
+    }
+
+    /// Whether the log's target is a permanent a spell or ability on the
+    /// stack targets.
+    fn targeted_on_stack(&self, t: &log::Target) -> bool {
+        let log::Target::Object(Object::Card(c)) = t else {
+            return false;
+        };
+        let game = self.game.as_ref().expect("set up");
+        game.stack().iter().any(|o| {
+            let targets = match o {
+                StackObject::Spell { targets, .. } | StackObject::Trigger { targets, .. } => {
+                    targets
+                }
+                StackObject::Ability { .. } => return false,
+            };
+            targets.iter().any(|t| match t {
+                Target::Object(id) => game
+                    .permanents()
+                    .get(id)
+                    .and_then(|p| game.card(p.card))
+                    .is_some_and(|t| t.name == c.name()),
+                _ => false,
+            })
+        })
     }
 
     /// Whether the log's target is a spell on the stack.
@@ -1683,17 +1752,19 @@ impl Driver<'_> {
         name: &str,
         kind: Kind,
         respond: bool,
+        answers: bool,
     ) -> Result<CardId, Stop> {
         self.text(name)?;
         let turn = self.game().turn();
         // A card the engine runs that names a card on the stack targets
         // that spell if it can target spells, and otherwise names the
         // permanent the spell becomes.
-        let respond = respond
-            && match self.in_hand(p, name)? {
-                Some(c) => self.game().refusal(c).is_some() || self.game().targets_spells(c),
-                None => true,
-            };
+        let respond = answers
+            || respond
+                && match self.in_hand(p, name)? {
+                    Some(c) => self.game().refusal(c).is_some() || self.game().targets_spells(c),
+                    None => true,
+                };
         if !respond {
             while !self.game().stack().is_empty() && !self.resolves_later() {
                 self.pass()?;

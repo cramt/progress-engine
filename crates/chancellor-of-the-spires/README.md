@@ -433,7 +433,10 @@ last, or past them to the player with trample. The log doesn't say when
 a spell resolved either: the stack resolves before a line's play,
 down to what a later line shows resolving ("reveals their hand to
 [Duress]"), so a fetchland activated in response to Duress is activated
-with Duress on the stack.
+with Duress on the stack. A spell that targets a permanent a spell on the
+stack targets is cast in response to it too, and a "removed from the
+stack because it has no legal targets" line must match the engine's
+spell leaving the stack unresolved (CR 608.2b).
 
 The first line the engine won't follow ends the game's replay with a
 typed `Stop`: a card refused by the node of its text the engine can't run,
@@ -445,8 +448,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 20 replay to the end** (17 to the log's winner
-line), 6 of them past the first turn, and **20.81% of their lines are
-followed** (16,270 of 78,183: the lines before each game's stop, all of a
+line), 6 of them past the first turn, and **20.84% of their lines are
+followed** (16,293 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the

@@ -41,6 +41,8 @@ const INDEXED: &[&str] = &[
     "Goblin Lackey",
     "Aether Vial",
     "Leyline of Sanctity",
+    "Lightning Bolt",
+    "Swords to Plowshares",
 ];
 
 fn index() -> &'static IndexFile {
@@ -210,11 +212,11 @@ fn refusals_and_unfollowed_lines_are_named() {
         alice chooses to play first.
         Turn 1: alice
         alice plays [Forest].
-        alice casts [Lightning Bolt] targeting bob.
+        alice casts [Chain Lightning] targeting bob.
     ");
     assert_eq!(
         r.end.stop(),
-        Some(&Stop::UnknownCard("Lightning Bolt".into()))
+        Some(&Stop::UnknownCard("Chain Lightning".into()))
     );
     let (_, r) = run("
         alice chooses to play first.
@@ -619,4 +621,41 @@ fn a_leyline_begins_the_game_on_the_battlefield() {
         .card(p.card)
         .is_some_and(|t| t.name == "Leyline of Sanctity")));
     assert_eq!(game.player(BOB).hand().len(), 6);
+}
+
+/// A spell that targets what a spell on the stack targets is cast in
+/// response to it, before it resolves: Swords to Plowshares saves its
+/// target from Lightning Bolt, which then leaves the stack with its only
+/// target illegal (CR 608.2b), as the log's line says.
+#[test]
+fn a_response_to_a_spell_targets_the_same_permanent() {
+    let lines = "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Plains].
+        bob casts [Elite Vanguard].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Plains].
+        Turn 3: alice
+        alice draws a card.
+        alice casts [Lightning Bolt] targeting [Elite Vanguard].
+        bob casts [Swords to Plowshares] targeting [Elite Vanguard].
+        alice's [Lightning Bolt] is removed from the stack because it has no legal targets.
+        bob has conceded from the game.
+    ";
+    let (_, r) = run(lines);
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.unwrap();
+    assert_eq!(game.player(BOB).life(), 22);
+    assert_eq!(game.exile().len(), 1);
 }
