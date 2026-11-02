@@ -136,6 +136,8 @@ enum Enters {
     /// "This land enters tapped unless you control a legendary green
     /// creature", "… two or fewer other lands", "… a Mountain or a Plains".
     TappedUnless(lower::YouControl),
+    /// "If you control two or more other lands, this land enters tapped."
+    TappedIf(lower::YouControl),
     /// "As this land enters, you may pay 2 life. If you don't, it enters
     /// tapped."
     TappedUnlessPaysLife(u32),
@@ -1655,6 +1657,7 @@ impl Game {
             match e {
                 Enters::Tapped => tapped = true,
                 Enters::TappedUnless(cond) => tapped |= !holds(cond),
+                Enters::TappedIf(cond) => tapped |= holds(cond),
                 Enters::TappedUnlessPaysLife(life) => pays = Some(*life),
             }
         }
@@ -2142,15 +2145,13 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
         [i::Static::EntersTappedUnless {
             what,
             unless: i::Condition::YouControl(objects),
-        }] if itself(what) => {
-            let c = lower::you_control(objects)?;
-            if c.count != lower::Count::AtLeast(1) {
-                return Err(format!("a condition on {}", short(&objects.quant)));
-            }
-            if c.any_of.len() > 1 {
-                return Err("a filter with alternatives".into());
-            }
-            Ok(Enters::TappedUnless(c))
+        }] if itself(what) => Ok(Enters::TappedUnless(lower::you_control(objects)?)),
+        [i::Static::If {
+            cond: i::Condition::YouControl(objects),
+            then,
+            ..
+        }] if matches!(then.as_slice(), [i::Static::EntersTapped(what)] if itself(what)) => {
+            Ok(Enters::TappedIf(lower::you_control(objects)?))
         }
         [i::Static::AsEnters { what, then }] if itself(what) => lower::pays_life_or_tapped(then)
             .map(Enters::TappedUnlessPaysLife)

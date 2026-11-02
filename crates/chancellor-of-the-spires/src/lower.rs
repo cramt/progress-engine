@@ -201,6 +201,9 @@ fn not_characteristics(s: &i::Static) -> bool {
         AsEnters { what, then } => {
             what.quant == Quant::SelfRef && pays_life_or_tapped(then).is_some()
         }
+        // "If you control two or more other lands, this land enters
+        // tapped."
+        If { then, .. } => !then.is_empty() && then.iter().all(not_characteristics),
         _ => listed_not_characteristics(s),
     }
 }

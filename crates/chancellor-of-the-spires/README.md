@@ -107,8 +107,11 @@ text says, and shuffling (CR 701.23, 701.24a); a basic land
 type's intrinsic mana ability (CR 305.6), which the layers grant after
 layer 4, so Yavimaya's Forests tap for {G}, Blood Moon's Mountains for {R}
 alone (CR 305.7), and a land that loses all abilities for nothing; "enters
-tapped", "unless you control" a filter, and a shock land's life or tapped,
-read off the permanent as it would enter (CR 614.12); mana pools emptying as each step ends (CR 500.5);
+tapped", "unless you control" or "if you control" a number of permanents
+a filter, or any of its alternatives, matches ("two or fewer other lands",
+"two or more basic lands", "a Mountain or a Plains"), not counting the
+land itself, and a shock land's life or tapped, all read off the
+permanent as it would enter (CR 614.12); mana pools emptying as each step ends (CR 500.5);
 state-based actions whenever a player would get priority (CR 704.3) for 0
 life, drawing from an empty library, toughness 0 or less and the legend
 rule (CR 704.5a–b, 704.5f, 704.5j), and a commander's return to the
@@ -186,14 +189,15 @@ bound for the state machine. Any other node is
 refused by name, never dropped. `insight card <name>` shows what a card
 reads as.
 
-**514 of the 574 cards in the Modern metagame lower whole** (540 of 600
+**522 of the 574 cards in the Modern metagame lower whole** (548 of 600
 faces), measured 2026-11-02 against the Scryfall bulk file:
 `cargo test --release -p chancellor-of-the-spires --test coverage -- --ignored --nocapture`
 prints the number and the refusals by node. It was 495 until a shock
-land's "As this land enters, you may pay 2 life" was carried as the choice
-it is, which changes no characteristic: 19 cards. The most refused are "as
-long as" (16) and "if" (8), conditions not modelled yet; then modifying
-by an amount, "as this enters" (6, other choices, or a copiable effect if
+land's "As this land enters, you may pay 2 life" (19 cards) and a static
+"if" over rules alone ("If you control two or more other lands, this land
+enters tapped", 8) were carried, since neither changes a characteristic.
+The most refused are "as long as" (16), a condition not modelled yet;
+then modifying by an amount, "as this enters" (6, other choices, or a copiable effect if
 it sets a size, CR 613.2a), 7a's characteristic-defining abilities
 (`SetPt`) and copy effects. Karn Liberated and two others don't parse:
 they are cards with a rule of their
@@ -279,23 +283,25 @@ a kind of line not followed yet (a trigger, an attack). `--game ID` prints one g
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 11 replay to the end** (8 to the log's winner
-line), all of them games that end in the first turn, measured 2026-11-02.
-They are the 1,299 games that parse whole and that Insight reads whole,
-less 238 with no turn in them (empty logs, concessions during the
-mulligans). 824 stop in the first turn, 142 in the second, 9 in the third,
-1 in the fourth, and 74 at the setup (21 logs name one player, 6 begin
-mid-game, 3 aren't London mulligans, 2 disagree on who started). The
-stops, by games: a triggered ability (245, Goblin Lackey, Jackal Pup and
-Champion of the Parish first), a spell's effect (200, Inquisition of
-Kozilek and Duress first), a fast land's "unless you control two or fewer
-other lands" (107), a Leyline from the opening hand (35), Cloudpost's "for
-each Locus on the battlefield" (33), exalted (30), a conditional static
-("if", 25), an exile line not followed (25), a check land's filter with
-alternatives (22) and "as long as" (21). None is the engine disagreeing
-with Magic Online; the one that was, Gaea's Cradle's "Add {G} for each
-creature" not read as a mana ability (CR 605.1a), now pays for Survival of
-the Fittest.
+**Of 1,061 games replayed, 15 replay to the end** (12 to the log's winner
+line), 4 of them past the first turn, measured 2026-11-02. They are the
+1,299 games that parse whole and that Insight reads whole, less 238 with
+no turn in them (empty logs, concessions during the mulligans). 772 stop
+in the first turn, 186 in the second, 12 in the third, 2 in the fourth,
+and 74 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't
+London mulligans, 2 disagree on who started). Lands stop few games now:
+fetchlands, shock, fast, battle and check lands all run, and the most a
+land stops is Cloudpost (33) and Fabled Passage's "then if you control
+four or more lands, untap that land" (6). The stops, by games: a
+triggered ability (289, Champion of the Parish, Goblin Lackey and Jackal
+Pup first), a spell's effect (237, Inquisition of Kozilek, Duress and
+Thoughtseize first), a Leyline from the opening hand (35), a count "on
+the battlefield" (34, Cloudpost's Locus 33), exalted (33), "as long as"
+(31), an exile line not followed (29), a card with two faces (28), a
+discard the engine doesn't ask for (24, cycling's cost), prowess and an
+attack (23 each). None is the engine disagreeing with Magic Online; the
+one that was, Gaea's Cradle's "Add {G} for each creature" not read as a
+mana ability (CR 605.1a), now pays for Survival of the Fittest.
 `tests/replay.rs` replays hand-written logs, a short game to its end and
 the plays that must stop it: a second land, a spell no land pays for, a
 land in the opponent's turn; a fetchland whose search the replay answers

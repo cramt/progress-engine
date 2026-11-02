@@ -1301,3 +1301,62 @@ fn a_shock_land_found_by_a_fetchland_asks_as_it_enters() {
     assert_eq!(game.player(ME).life(), 17);
     assert!(!tapped(&game, permanent(&game, c).unwrap()));
 }
+/// CR 614.1d, 614.12: Blackcleave Cliffs enters tapped unless I control
+/// two or fewer other lands, counted as it enters, not counting itself.
+#[test]
+fn a_fast_land_enters_tapped_after_three_other_lands() {
+    let mut game = constructed(vec![hidden(30), forests(30)], false);
+    let first = play_named(&mut game, "Blackcleave Cliffs");
+    assert!(!tapped(&game, first), "no other land");
+    play_named(&mut game, "Swamp");
+    let third = play_named(&mut game, "Blackcleave Cliffs");
+    assert!(!tapped(&game, third), "two other lands");
+    let fourth = play_named(&mut game, "Blackcleave Cliffs");
+    assert!(tapped(&game, fourth), "three other lands");
+}
+
+/// CR 614.1d, 614.12: Prairie Stream enters tapped unless I control two or
+/// more basic lands; a nonbasic land doesn't count.
+#[test]
+fn a_battle_land_enters_tapped_until_two_basics() {
+    let mut game = constructed(vec![hidden(30), forests(30)], false);
+    play_named(&mut game, "Plains");
+    let one = play_named(&mut game, "Prairie Stream");
+    assert!(tapped(&game, one), "one basic land");
+    play_named(&mut game, "Island");
+    let two = play_named(&mut game, "Prairie Stream");
+    assert!(!tapped(&game, two), "two basic lands");
+}
+
+/// CR 614.1d, 614.12: Clifftop Retreat enters tapped unless I control a
+/// Mountain or a Plains: either alternative will do, a land with the type
+/// counting whatever its name.
+#[test]
+fn a_check_land_enters_untapped_with_either_land_type() {
+    for other in ["Mountain", "Plains", "Stomping Ground", "Island"] {
+        let mut game = constructed(vec![hidden(30), forests(30)], false);
+        let alone = play_named(&mut game, "Clifftop Retreat");
+        assert!(tapped(&game, alone), "nothing else");
+        my_next_main(&mut game);
+        let c = name_in_hand(&mut game, ME, other);
+        act(&mut game, Action::PlayLand(c));
+        if let Decision::PayOrEnterTapped { .. } = game.decision() {
+            game.step(Answer::PayLife(false)).unwrap();
+        }
+        let retreat = play_named(&mut game, "Clifftop Retreat");
+        assert_eq!(tapped(&game, retreat), other == "Island", "{other}");
+    }
+}
+
+/// CR 614.1d, 614.12: Cave of the Frost Dragon enters tapped if I control
+/// two or more other lands.
+#[test]
+fn a_land_enters_tapped_if_a_condition_holds() {
+    let mut game = constructed(vec![hidden(30), forests(30)], false);
+    let first = play_named(&mut game, "Cave of the Frost Dragon");
+    assert!(!tapped(&game, first));
+    let second = play_named(&mut game, "Cave of the Frost Dragon");
+    assert!(!tapped(&game, second), "one other land");
+    let third = play_named(&mut game, "Cave of the Frost Dragon");
+    assert!(tapped(&game, third), "two other lands");
+}
