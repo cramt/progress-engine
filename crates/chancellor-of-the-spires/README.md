@@ -203,6 +203,10 @@ land itself, and a shock land's life or tapped, all read off the
 permanent as it would enter (CR 614.12); mana pools emptying as each step ends (CR 500.5);
 a player with hexproof (Leyline of Sanctity's "You have hexproof") never
 a legal target of an opponent's spell or ability (CR 702.11c, 115.4);
+protection from a colour, from multicolored or from everything: never a
+legal target of a spell or ability from a source with the quality, never
+blocked by a creature with it, and its damage prevented (CR 702.16b,
+702.16e–f, 702.16j), an Aura or Equipment never attaching yet;
 state-based actions whenever a player would get priority (CR 704.3) for a
 token in a zone other than the battlefield ceasing to exist (CR 704.5d,
 111.7), 0
@@ -220,9 +224,11 @@ resolve to a target or its source, a static that isn't
 "enters tapped", a mana ability with a cost or effect beyond those above,
 `{X}`, Phyrexian or snow mana, a planeswalker or battle (their counters),
 an Aura (its target), and a keyword other than flash, cycling, transmute,
-flashback, partner, exalted, prowess and combat's (reach, menace, first
-and double strike, defender); cycling, transmute and flashback are
-carried, never offered. A non-mana activated ability
+flashback, partner, exalted, prowess and the layers' own (flying, reach,
+menace, first and double strike, defender, haste, vigilance, trample,
+deathtouch, lifelink, and protection from a colour, from multicolored or
+from everything); cycling, transmute and flashback are carried, never
+offered. A non-mana activated ability
 the engine can't run (a target, a mana cost, a limit, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
@@ -299,15 +305,17 @@ bound for the state machine. Any other node is
 refused by name, never dropped. `insight card <name>` shows what a card
 reads as.
 
-**523 of the 574 cards in the Modern metagame lower whole** (549 of 600
+**524 of the 574 cards in the Modern metagame lower whole** (550 of 600
 faces), measured 2026-11-02 against the Scryfall bulk file:
 `cargo test --release -p chancellor-of-the-spires --test coverage -- --ignored --nocapture`
-prints the number and the refusals by node. It was 522 until "as long as you control …" and "as long as it's your
+prints the number and the refusals by node. It was 523 until the layers
+named first and double strike, menace, reach, defender and protection, so
+a static granting one lowers, and 522 until "as long as you control …" and "as long as it's your
 turn" lowered with a static over its own object, and 495 until a shock
 land's "As this land enters, you may pay 2 life" (19 cards) and a static
 "if" over rules alone ("If you control two or more other lands, this land
 enters tapped", 8) were carried, since neither changes a characteristic.
-The most refused are modifying by an amount (9), "as this enters" (6, other choices, or a copiable effect if
+The most refused are modifying by an amount (8), "as this enters" (6, other choices, or a copiable effect if
 it sets a size, CR 613.2a), 7a's characteristic-defining abilities
 (`SetPt`), copy effects, and "as long as" over an amount or whose turn
 (4 each, Dromoka's a rule, not a characteristic). Karn Liberated and two others don't parse:
@@ -510,7 +518,8 @@ Scorch Spitter's attack trigger and Jackal Pup's damage trigger;
 Cloudpost, Goblin Lackey's "may" taken and declined, Aether Vial, Dark
 Confidant, Goblin Guide, Impulse, Leyline of Sanctity's hexproof, Wild
 Nacatl, Swords to Plowshares, Counterspell, Festering Goblin's dies
-trigger, Path to Exile and Khalni Garden's token.
+trigger, Path to Exile, Khalni Garden's token and Silver Knight's
+protection from red.
 
 ### The milestone
 

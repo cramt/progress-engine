@@ -1487,16 +1487,17 @@ impl Game {
                 slots,
                 choosing,
             } => {
-                let controller = match choosing {
-                    Choosing::Spell { .. } => *player,
-                    Choosing::Trigger { pending, .. } => pending.controller,
+                let (controller, object) = match choosing {
+                    Choosing::Spell { .. } => (*player, None),
+                    Choosing::Trigger { pending, .. } => (pending.controller, Some(pending.object)),
                 };
+                let source = self.source_chars(*card, object);
                 Decision::Targets {
                     player: *player,
                     card: *card,
                     slots: slots
                         .iter()
-                        .map(|s| self.legal_targets(s, controller))
+                        .map(|s| self.legal_targets(s, controller, source.as_ref()))
                         .collect(),
                 }
             }
@@ -1760,21 +1761,22 @@ impl Game {
             (
                 Waiting::Targets {
                     player,
+                    card,
                     slots,
                     choosing,
-                    ..
                 },
                 Answer::Targets(chosen),
             ) => {
-                let controller = match &choosing {
-                    Choosing::Spell { .. } => player,
-                    Choosing::Trigger { pending, .. } => pending.controller,
+                let (controller, object) = match &choosing {
+                    Choosing::Spell { .. } => (player, None),
+                    Choosing::Trigger { pending, .. } => (pending.controller, Some(pending.object)),
                 };
+                let source = self.source_chars(card, object);
                 let legal = chosen.len() == slots.len()
-                    && slots
-                        .iter()
-                        .zip(chosen)
-                        .all(|(s, t)| self.legal_targets(s, controller).contains(t));
+                    && slots.iter().zip(chosen).all(|(s, t)| {
+                        self.legal_targets(s, controller, source.as_ref())
+                            .contains(t)
+                    });
                 if !legal {
                     return Err(Rejected::Illegal(answer));
                 }
@@ -2129,7 +2131,7 @@ impl Game {
                 }) => program
                     .targets
                     .iter()
-                    .all(|t| !self.legal_targets(t, p).is_empty()),
+                    .all(|t| !self.legal_targets(t, p, known.printed.as_ref()).is_empty()),
                 _ => true,
             };
             if (sorcery_speed || self.instant_speed(known)) && targetable {
@@ -2546,10 +2548,15 @@ impl Game {
         targets: Vec<Target>,
     ) {
         let slots = self.program(what).targets.clone();
+        let source = self.source_chars(what.card(), object);
         let checked: Vec<Option<Target>> = targets
             .iter()
             .zip(&slots)
-            .map(|(t, s)| self.legal_targets(s, controller).contains(t).then_some(*t))
+            .map(|(t, s)| {
+                self.legal_targets(s, controller, source.as_ref())
+                    .contains(t)
+                    .then_some(*t)
+            })
             .collect();
         let at = Resuming {
             what,
@@ -3042,14 +3049,21 @@ impl Game {
     fn source_of(&self, at: &Resuming) -> Option<Chars> {
         at.object
             .and_then(|o| self.characteristics().remove(&o))
-            .or_else(|| {
-                let card = match at.what {
-                    Instructions::Spell(c)
-                    | Instructions::Activated(c, _)
-                    | Instructions::Triggered(c, _) => c,
-                };
-                self.known(card).and_then(|k| k.printed.clone())
+            .or_else(|| self.known(at.what.card()).and_then(|k| k.printed.clone()))
+    }
+
+    /// A spell's or ability's source, for what its quality is (CR
+    /// 702.16b): the permanent, as it is now or last existed (CR 113.7a),
+    /// or the card itself, a spell on the stack having its card's
+    /// characteristics.
+    fn source_chars(&self, card: CardId, object: Option<ObjectId>) -> Option<Chars> {
+        object
+            .and_then(|o| {
+                self.characteristics()
+                    .remove(&o)
+                    .or_else(|| self.last_known.get(&o).map(|l| l.chars.clone()))
             })
+            .or_else(|| self.known(card).and_then(|k| k.printed.clone()))
     }
 
     /// Damage from one source, dealt at once (CR 120.3): a player loses
@@ -3064,11 +3078,18 @@ impl Game {
         controller: PlayerId,
         hits: &[(Target, u32)],
     ) -> Dealt {
-        let has = |k: Keyword| source.is_some_and(|c| c.abilities.contains(&Ability::Keyword(k)));
+        let has = |k: Keyword| source.is_some_and(|c| c.has(k));
+        let now = self.characteristics();
         let mut total = 0;
         let mut dealt = Dealt::default();
         for (to, n) in hits {
-            if *n == 0 {
+            // CR 702.16e: damage from a source with the quality is
+            // prevented.
+            let prevented = match (to, source) {
+                (Target::Object(o), Some(s)) => now.get(o).is_some_and(|c| c.protected_from(s)),
+                _ => false,
+            };
+            if *n == 0 || prevented {
                 continue;
             }
             total += n;
@@ -3114,7 +3135,7 @@ impl Game {
     /// controls (CR 115.1, 115.4): players still in the game, and
     /// permanents. Nothing on the engine's battlefield has hexproof, shroud
     /// or protection, which are refused as they are read.
-    fn legal_targets(&self, spec: &TargetSpec, p: PlayerId) -> Vec<Target> {
+    fn legal_targets(&self, spec: &TargetSpec, p: PlayerId, source: Option<&Chars>) -> Vec<Target> {
         // CR 115.4, 702.11c: a player with hexproof can't be the target
         // of an opponent's spell or ability.
         let players = || {
@@ -3122,10 +3143,11 @@ impl Game {
                 .map(|q| PlayerId(q as u8))
                 .filter(|q| !self.player(*q).left && (*q == p || !self.has_hexproof(*q)))
         };
+        // CR 702.16b: not a permanent with protection from the source.
         let permanents = |f: &dyn Fn(&Chars) -> bool| -> Vec<Target> {
             self.characteristics()
                 .into_iter()
-                .filter(|(_, c)| f(c))
+                .filter(|(_, c)| f(c) && !source.is_some_and(|s| c.protected_from(s)))
                 .map(|(o, _)| Target::Object(o))
                 .collect()
         };
@@ -3227,10 +3249,11 @@ impl Game {
                 }
                 // CR 603.3d: one with a target slot nothing can fill is
                 // removed from the stack.
-                if slots
-                    .iter()
-                    .any(|s| self.legal_targets(s, first.controller).is_empty())
-                {
+                let source = self.source_chars(first.source, Some(first.object));
+                if slots.iter().any(|s| {
+                    self.legal_targets(s, first.controller, source.as_ref())
+                        .is_empty()
+                }) {
                     continue;
                 }
                 self.waiting = Waiting::Targets {
@@ -3441,37 +3464,6 @@ impl Game {
         self.pending.extend(triggered);
     }
 
-    /// Whether a creature has a keyword: one the layers name, or one its
-    /// card carries unread (first strike, reach, menace, defender).
-    fn has_keyword(&self, id: ObjectId, chars: &Chars, name: &str) -> bool {
-        let named = match name {
-            "flying" => Some(Keyword::Flying),
-            "trample" => Some(Keyword::Trample),
-            "vigilance" => Some(Keyword::Vigilance),
-            "haste" => Some(Keyword::Haste),
-            "deathtouch" => Some(Keyword::Deathtouch),
-            "lifelink" => Some(Keyword::Lifelink),
-            _ => None,
-        };
-        if let Some(k) = named {
-            return chars.abilities.contains(&Ability::Keyword(k));
-        }
-        let Some(runs) = self
-            .known(self.permanents[&id].card)
-            .and_then(|k| k.runs.as_ref().ok())
-        else {
-            return false;
-        };
-        chars.abilities.iter().any(|a| match a {
-            Ability::Unread(n) => matches!(
-                runs.lowered.unread.get(*n as usize),
-                Some(i::Ability::Keywords(ks))
-                    if ks.iter().any(|k| k.param.is_none() && k.name.eq_ignore_ascii_case(name))
-            ),
-            _ => false,
-        })
-    }
-
     /// CR 508.1a, 302.6, 702.3b: untapped creatures `p` controls that have
     /// been theirs since their turn began, or have haste, and lack
     /// defender.
@@ -3484,8 +3476,8 @@ impl Game {
                 c.controller == p
                     && c.is(CardType::Creature)
                     && !perm.tapped
-                    && (began.is_some_and(|t| perm.since < t) || self.has_keyword(**id, c, "haste"))
-                    && !self.has_keyword(**id, c, "defender")
+                    && (began.is_some_and(|t| perm.since < t) || c.has(Keyword::Haste))
+                    && !c.has(Keyword::Defender)
             })
             .map(|(id, _)| *id)
             .collect()
@@ -3505,7 +3497,8 @@ impl Game {
     /// CR 509.1a–c: each blocker one of `p`'s untapped creatures, blocking
     /// one creature attacking `p`; a creature with flying blocked only by
     /// creatures with flying or reach (CR 702.9b), one with menace by two
-    /// or more (CR 702.111b).
+    /// or more (CR 702.111b), and one with protection by none with its
+    /// quality (CR 702.16f).
     fn legal_blocks(&self, p: PlayerId, declared: &[(ObjectId, ObjectId)]) -> bool {
         let Decision::Blockers { can, attackers, .. } = self.decision() else {
             return false;
@@ -3522,14 +3515,15 @@ impl Game {
                     .filter(|(_, x)| x == a)
                     .map(|(b, _)| *b)
                     .collect();
-                let flying = self.has_keyword(*a, &chars[a], "flying");
-                let menace = self.has_keyword(*a, &chars[a], "menace");
+                let flying = chars[a].has(Keyword::Flying);
+                let menace = chars[a].has(Keyword::Menace);
+                // CR 702.16f.
                 (!menace || by.is_empty() || by.len() >= 2)
+                    && by.iter().all(|b| !chars[a].protected_from(&chars[b]))
                     && (!flying
-                        || by.iter().all(|b| {
-                            self.has_keyword(*b, &chars[b], "flying")
-                                || self.has_keyword(*b, &chars[b], "reach")
-                        }))
+                        || by
+                            .iter()
+                            .all(|b| chars[b].has(Keyword::Flying) || chars[b].has(Keyword::Reach)))
             })
     }
 
@@ -3541,7 +3535,7 @@ impl Game {
         let mut combat = Combat::default();
         for (a, d) in declared {
             combat.attackers.insert(*a, *d);
-            if !self.has_keyword(*a, &chars[a], "vigilance") {
+            if !chars[a].has(Keyword::Vigilance) {
                 if let Some(perm) = self.permanents.get_mut(a) {
                     perm.tapped = true;
                 }
@@ -3584,7 +3578,7 @@ impl Game {
         let chars = self.characteristics();
         if chars
             .get(&source)
-            .is_some_and(|c| self.has_keyword(source, c, "deathtouch"))
+            .is_some_and(|c| c.has(Keyword::Deathtouch))
         {
             return 1;
         }
@@ -3602,8 +3596,8 @@ impl Game {
         let chars = self.characteristics();
         let strikes = |id: &ObjectId| {
             let c = &chars[id];
-            let fs = self.has_keyword(*id, c, "first strike");
-            let ds = self.has_keyword(*id, c, "double strike");
+            let fs = c.has(Keyword::FirstStrike);
+            let ds = c.has(Keyword::DoubleStrike);
             if first {
                 fs || ds
             } else {
@@ -3638,7 +3632,7 @@ impl Game {
                     .map(|(b, _)| *b)
                     .collect();
                 let chars = self.characteristics();
-                let trample = self.has_keyword(id, &chars[&id], "trample");
+                let trample = chars[&id].has(Keyword::Trample);
                 let player = Target::Player(*defender);
                 match blockers.as_slice() {
                     // CR 510.1b.
@@ -4057,8 +4051,7 @@ impl Game {
             Step::FirstStrikeDamage => {
                 let chars = self.characteristics();
                 !live.iter().any(|id| {
-                    self.has_keyword(**id, &chars[*id], "first strike")
-                        || self.has_keyword(**id, &chars[*id], "double strike")
+                    chars[*id].has(Keyword::FirstStrike) || chars[*id].has(Keyword::DoubleStrike)
                 })
             }
             _ => false,
@@ -4302,15 +4295,10 @@ fn unlowered(r: Refusal) -> Unrunnable {
     Unrunnable::new(node, r.to_string())
 }
 
-/// Keywords that only matter once creatures attack and block, which
-/// nothing does yet (CR 702.3b, 702.4a, 702.7a, 702.17a, 702.111a), and
-/// partner, which works before the game (CR 702.124a).
-fn combat_keyword(k: &i::Keyword) -> bool {
-    let name = k.name.to_lowercase();
-    matches!(
-        name.as_str(),
-        "reach" | "menace" | "first strike" | "double strike" | "defender"
-    ) || name == "partner" && k.param.is_none()
+/// Partner, which works before the game (CR 702.124a); the keywords
+/// the engine runs are the layers' (`model::Keyword`).
+fn before_the_game(k: &i::Keyword) -> bool {
+    k.name.eq_ignore_ascii_case("partner") && k.param.is_none()
 }
 
 /// Abilities that work only from a hand or a graveyard, which nothing
@@ -4405,7 +4393,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                         runs.triggered.insert(n, t);
                     } else if hand_keyword(k) {
                         runs.dormant.push(k.name.to_lowercase());
-                    } else if !combat_keyword(k) {
+                    } else if !before_the_game(k) {
                         return Err(Unrunnable::new(
                             format!("keyword {}", k.name),
                             format!("the game can't run {} yet", k.name),

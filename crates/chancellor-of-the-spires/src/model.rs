@@ -79,14 +79,45 @@ pub enum Color {
     Green,
 }
 
+/// The keyword abilities the layers grant and remove by name (CR 702).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Keyword {
     Deathtouch,
+    Defender,
+    DoubleStrike,
+    FirstStrike,
     Flying,
     Haste,
     Lifelink,
+    Menace,
+    Reach,
     Trample,
     Vigilance,
+    /// "Protection from blue" (CR 702.16a): one instance per quality, so
+    /// "from black and from red" is two (CR 702.16g).
+    Protection(Quality),
+}
+
+/// What a protection ability protects from (CR 702.16a).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Quality {
+    Color(Color),
+    /// "Protection from multicolored": an object of two or more colours
+    /// (CR 105.2b).
+    Multicolored,
+    /// "Protection from everything" (CR 702.16j).
+    Everything,
+}
+
+impl Quality {
+    /// Whether a source with these characteristics has the quality.
+    pub fn of(self, source: &Chars) -> bool {
+        match self {
+            Quality::Color(c) => source.colors.contains(&c),
+            Quality::Multicolored => source.colors.len() >= 2,
+            Quality::Everything => true,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -133,6 +164,19 @@ pub struct Chars {
 impl Chars {
     pub fn is(&self, t: CardType) -> bool {
         self.types.contains(&t)
+    }
+
+    pub fn has(&self, k: Keyword) -> bool {
+        self.abilities.contains(&Ability::Keyword(k))
+    }
+
+    /// Whether it has protection from a source with these characteristics
+    /// (CR 702.16a).
+    pub fn protected_from(&self, source: &Chars) -> bool {
+        self.abilities.iter().any(|a| match a {
+            Ability::Keyword(Keyword::Protection(q)) => q.of(source),
+            _ => false,
+        })
     }
 }
 

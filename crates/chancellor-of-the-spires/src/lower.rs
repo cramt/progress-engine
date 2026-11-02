@@ -154,8 +154,10 @@ impl Lowered {
             i::Ability::Keywords(keywords) => {
                 for k in keywords {
                     match keyword(&k) {
-                        Some(k) => {
-                            self.chars.abilities.insert(Ability::Keyword(k));
+                        Some(ks) => {
+                            for k in ks {
+                                self.chars.abilities.insert(Ability::Keyword(k));
+                            }
                         }
                         // Ward, flash, reach: the layers carry what they don't
                         // grant or remove by name.
@@ -350,7 +352,9 @@ pub fn resolution(effect: &i::Effect) -> Result<Resolution, Refusal> {
                 ));
             }
             for k in gains {
-                ops.push(Op::Grant(Ability::Keyword(keyword(k).ok_or_else(refuse)?)));
+                for k in keyword(k).ok_or_else(refuse)? {
+                    ops.push(Op::Grant(Ability::Keyword(k)));
+                }
             }
             Ok(Resolution {
                 ops,
@@ -499,19 +503,46 @@ fn capitalised(word: &str) -> String {
         .unwrap_or_default()
 }
 
-fn keyword(k: &i::Keyword) -> Option<Keyword> {
+/// The keyword abilities a keyword is, by name: one, or several for
+/// "protection from black and from red" (CR 702.16g). `None` for one the
+/// layers don't name, which they carry unread.
+fn keyword(k: &i::Keyword) -> Option<Vec<Keyword>> {
+    let name = k.name.to_lowercase();
+    if name == "protection" {
+        return match k.param.as_ref()? {
+            i::KeywordParam::Colors(cs) => cs
+                .iter()
+                .map(|c| match c {
+                    i::Color::Multicolored => Some(Keyword::Protection(Quality::Multicolored)),
+                    c => color(c).map(|c| Keyword::Protection(Quality::Color(c))),
+                })
+                .collect(),
+            // "Protection from everything" (CR 702.16j).
+            i::KeywordParam::Objects(o)
+                if o.quant == Quant::All && o.filter == i::Filter::default() =>
+            {
+                Some(vec![Keyword::Protection(Quality::Everything)])
+            }
+            _ => None,
+        };
+    }
     if k.param.is_some() {
         return None;
     }
-    Some(match k.name.as_str() {
+    Some(vec![match name.as_str() {
         "deathtouch" => Keyword::Deathtouch,
+        "defender" => Keyword::Defender,
+        "double strike" => Keyword::DoubleStrike,
+        "first strike" => Keyword::FirstStrike,
         "flying" => Keyword::Flying,
         "haste" => Keyword::Haste,
         "lifelink" => Keyword::Lifelink,
+        "menace" => Keyword::Menace,
+        "reach" => Keyword::Reach,
         "trample" => Keyword::Trample,
         "vigilance" => Keyword::Vigilance,
         _ => return None,
-    })
+    }])
 }
 
 /// A static ability is one ability however many sentences it has: each
@@ -578,9 +609,9 @@ fn static_part<'a>(
                 ));
             }
             for k in has {
-                ops.push(Op::Grant(Ability::Keyword(
-                    keyword(k).ok_or_else(unlowered)?,
-                )));
+                for k in keyword(k).ok_or_else(unlowered)? {
+                    ops.push(Op::Grant(Ability::Keyword(k)));
+                }
             }
             (what, ops)
         }

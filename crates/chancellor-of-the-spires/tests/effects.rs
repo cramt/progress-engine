@@ -1304,3 +1304,82 @@ fn khalni_garden_makes_a_plant_token_that_ceases_to_exist_off_the_battlefield() 
     assert_eq!(game.player(ME).graveyard().len(), graveyard);
     assert_eq!(game.created(), 0, "a new turn");
 }
+
+/// CR 702.16b, 702.16e, 702.16f: Silver Knight's protection from red. A
+/// red spell can't target it, a red creature can't block it, and the
+/// damage a red creature it blocks would deal it is prevented.
+#[test]
+fn protection_from_red_stops_targets_blocks_and_damage() {
+    let mut game = deal_both(
+        &[("Plains", 40), ("Silver Knight", 20)],
+        &[("Mountain", 40), ("Hill Giant", 10), ("Lightning Bolt", 10)],
+        &[("Plains", 2), ("Silver Knight", 1)],
+        &[("Mountain", 4), ("Hill Giant", 1), ("Lightning Bolt", 1)],
+    );
+    play(&mut game, "Plains");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Silver Knight", None);
+    resolve(&mut game);
+    let knight = creature(&game, "Silver Knight").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    let bolt = in_hand(&game, THEM, "Lightning Bolt").unwrap();
+    let Decision::Targets { slots, .. } = step(&mut game, Answer::Act(Action::Cast(bolt))) else {
+        panic!("Bolt targets")
+    };
+    assert!(!slots[0].contains(&Target::Object(knight)));
+    assert!(slots[0].contains(&Target::Player(ME)));
+    let mut d = step(&mut game, Answer::Targets(vec![Target::Player(ME)]));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .unwrap();
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    assert_eq!(game.player(ME).life(), 17);
+    for _ in 0..2 {
+        pass_until(&mut game, THEM, Step::Upkeep);
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, "Mountain");
+    }
+    cast_as(&mut game, THEM, "Hill Giant", None);
+    resolve(&mut game);
+    let giant = creature(&game, "Hill Giant").unwrap();
+    my_next_main(&mut game);
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(knight, THEM)]));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert!(game.step(Answer::Block(vec![(giant, knight)])).is_err());
+    step(&mut game, Answer::Block(vec![]));
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+    // Until it untaps in my untap step.
+    my_next_main(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(giant, ME)]));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    step(&mut game, Answer::Block(vec![(knight, giant)]));
+    while game.step_now() < Step::EndOfCombat {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert_eq!(game.permanents()[&knight].damage, 0, "prevented");
+    assert_eq!(game.permanents()[&giant].damage, 2, "first strike");
+}

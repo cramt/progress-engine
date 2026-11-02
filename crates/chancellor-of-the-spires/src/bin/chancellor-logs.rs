@@ -44,7 +44,7 @@ mod native {
     /// The margin keeps it under that whatever the clock does.
     const GAP: Duration = Duration::from_millis(1050);
 
-    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID] | chancellor-logs milestone [--bulk F] [--games N]";
+    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID] | chancellor-logs milestone [--bulk F] [--games N] | chancellor-logs card NAME...";
 
     pub fn main() -> Result<()> {
         let args: Vec<String> = std::env::args().skip(1).collect();
@@ -53,6 +53,7 @@ mod native {
             Some("coverage") => coverage(&args[1..]),
             Some("replay") => replay(&args[1..]),
             Some("milestone") => milestone(&args[1..]),
+            Some("card") => card(&args[1..]),
             _ => bail!("{USAGE}"),
         }
     }
@@ -578,6 +579,27 @@ mod native {
             pool.len(),
             path.display()
         );
+        Ok(())
+    }
+
+    /// `card NAME...`: what the engine makes of each card before any
+    /// game, its refusal and the abilities it carries unoffered.
+    fn card(args: &[String]) -> Result<()> {
+        let texts = card_texts(&corpus::cache("oracle-cards.jsonl"))?;
+        for name in args {
+            let Some(text) = texts.get(name) else {
+                println!("{name}: not in the bulk file");
+                continue;
+            };
+            let (refused, dormant) = Game::reads(text);
+            match refused {
+                Some(r) => println!("{name}: refused at {}: {}", r.node, r.why),
+                None => println!("{name}: runs"),
+            }
+            for d in dormant {
+                println!("  carried, never offered: {d}");
+            }
+        }
         Ok(())
     }
 
