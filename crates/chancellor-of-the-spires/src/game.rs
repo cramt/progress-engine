@@ -1473,6 +1473,14 @@ impl Game {
         }
     }
 
+    /// The Oracle line a card's unread ability `n` was read from.
+    pub fn ability_text(&self, c: CardId, n: u16) -> Option<&str> {
+        match &self.known(c)?.runs {
+            Ok(r) => r.lowered.unread_text.get(n as usize).map(String::as_str),
+            Err(_) => None,
+        }
+    }
+
     /// What the game is waiting on, with the legal answers.
     pub fn decision(&self) -> Decision {
         match &self.waiting {

@@ -1562,3 +1562,53 @@ fn rishadan_port_pays_one_to_tap_a_land() {
     resolve(&mut game);
     assert!(game.permanents()[&forest].tapped);
 }
+
+/// CR 205.1b, 613.4b, 514.2: Mishra's Factory becomes a 2/2 Assembly-
+/// Worker artifact creature until end of turn, still a land.
+#[test]
+fn mishras_factory_becomes_a_creature_that_is_still_a_land_until_end_of_turn() {
+    use chancellor_of_the_spires::model::CardType;
+    let mut game = deal(
+        &[("Mishra's Factory", 20), ("Mountain", 40)],
+        &[("Forest", 60)],
+        &[("Mishra's Factory", 1), ("Mountain", 1)],
+    );
+    play(&mut game, "Mishra's Factory");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    let factory = creature(&game, "Mishra's Factory").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!()
+    };
+    let becomes = actions
+        .iter()
+        .find(|a| matches!(a, Action::Activate(x) if x.source == factory))
+        .copied()
+        .expect("{1}: becomes a creature");
+    let mut d = step(&mut game, Answer::Act(becomes));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| {
+                actions
+                    .iter()
+                    .find(|a| matches!(a, Payment::Mana(m) if m.source != factory))
+            })
+            .copied()
+            .unwrap();
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    let now = &game.characteristics()[&factory];
+    assert!(now.is(CardType::Land) && now.is(CardType::Artifact) && now.is(CardType::Creature));
+    assert_eq!(now.pt, Some(pt(2, 2)));
+    let (can, _) = to_attackers(&mut game);
+    assert!(can.contains(&factory), "a land since my turn began");
+    step(&mut game, Answer::Attack(vec![(factory, THEM)]));
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+    pass_until(&mut game, THEM, Step::Upkeep);
+    let now = &game.characteristics()[&factory];
+    assert!(!now.is(CardType::Creature) && now.pt.is_none());
+}

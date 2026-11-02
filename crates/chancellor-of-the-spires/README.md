@@ -150,7 +150,9 @@ or has haste; other activated abilities any time you have priority (CR
 117.1b), costing a tap, life, sacrificing their source and mana, paid
 as a spell's is (CR 602.2, 602.2b, 701.21a), their targets chosen as
 they are activated (Mogg Fanatic, Wasteland, Rishadan Port's "Tap target
-land", CR 701.26a), on the stack and resolving independently of their source (CR
+land", CR 701.26a), "becomes a 2/2 Assembly-Worker artifact creature
+until end of turn. It's still a land", which keeps every type it had (CR
+205.1b), on the stack and resolving independently of their source (CR
 113.7a), with the instructions a spell's are lowered into, among them
 the fetchlands' effects, and Aether Vial's, which counts its
 charge counters as it resolves, as the Vial last existed if it has left
@@ -408,7 +410,12 @@ The cards the log puts onto the battlefield before the first turn
 ("puts [Leyline of Sanctity] onto the battlefield") are named in the
 hand each player keeps, as they keep it, and begin the game there (CR
 103.6a); a mulligan's bottomed cards are others.
-A spell's targets are the log's: a player by their seat, a card by a
+An activation line names the card, not which of its abilities: the
+replay takes the one whose Oracle text shares the most words with the
+text the line prints of it (Mishra's Factory's "becomes a 2/2" or its
+"+1/+1"), and stops if two tie. A play never offered goes back to an
+earlier payment as a spell no land pays for does, since a permanent
+tapped for mana can't then block or tap again. A spell's targets are the log's: a player by their seat, a card by a
 permanent of that name among the legal targets, the first when two share
 the name, since nothing the log says tells them apart. A hand revealed to
 Duress or Thoughtseize names its hidden cards: the log prints the hand,

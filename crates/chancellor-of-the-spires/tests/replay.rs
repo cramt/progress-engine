@@ -43,6 +43,7 @@ const INDEXED: &[&str] = &[
     "Leyline of Sanctity",
     "Lightning Bolt",
     "Swords to Plowshares",
+    "Mishra's Factory",
 ];
 
 fn index() -> &'static IndexFile {
@@ -658,4 +659,36 @@ fn a_response_to_a_spell_targets_the_same_permanent() {
     let game = r.game.unwrap();
     assert_eq!(game.player(BOB).life(), 22);
     assert_eq!(game.exile().len(), 1);
+}
+
+/// CR 602.2: of Mishra's Factory's abilities, the one the log's line
+/// prints the text of, though the parser reads that text as its target's
+/// note; and its "{1}: becomes a 2/2" paid from another land, so the
+/// Factory is untapped to block.
+#[test]
+fn an_activation_line_names_which_of_a_cards_abilities_by_its_text() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        alice casts [Raging Goblin].
+        Turn 1: bob
+        bob plays [Mishra's Factory].
+        Turn 2: alice
+        alice plays [Mountain].
+        Turn 2: bob
+        bob plays [Island].
+        Turn 3: alice
+        bob activates an ability of [Mishra's Factory] ( Mishra's Factory becomes a 2/2 Assembly-Worker artifact creature until end of turn. It's still a ...).
+        bob is being attacked by [Raging Goblin]
+        [Mishra's Factory] blocks [Raging Goblin].
+        bob activates an ability of [Mishra's Factory] targeting [Mishra's Factory] ( Target Assembly-Worker creature gets +1/+1 until end of turn.).
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
 }

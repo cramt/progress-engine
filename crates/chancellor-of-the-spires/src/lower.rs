@@ -33,6 +33,9 @@ pub struct Lowered {
     /// The abilities the layers carry but don't read, in the order of
     /// `Ability::Unread`'s index, for the state machine to run.
     pub unread: Vec<i::Ability>,
+    /// The Oracle line each unread ability was read from, by the same
+    /// index, so a log line's ability text can say which it is.
+    pub unread_text: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -97,6 +100,7 @@ pub fn card(card: &Card) -> Result<Lowered, Refusal> {
         },
         statics: Vec::new(),
         unread: Vec::new(),
+        unread_text: Vec::new(),
     };
     let face = Face {
         name: card.name,
@@ -114,6 +118,8 @@ pub fn card(card: &Card) -> Result<Lowered, Refusal> {
                 line: line.text.clone(),
                 node,
             })?;
+        let read = lowered.unread.len();
+        lowered.unread_text.resize(read, line.text.clone());
     }
     Ok(lowered)
 }
@@ -355,6 +361,67 @@ pub fn resolution(effect: &i::Effect) -> Result<Resolution, Refusal> {
                 for k in keyword(k).ok_or_else(refuse)? {
                     ops.push(Op::Grant(Ability::Keyword(k)));
                 }
+            }
+            Ok(Resolution {
+                ops,
+                counters: vec![],
+            })
+        }
+        // "This land becomes a 2/2 Assembly-Worker artifact creature
+        // until end of turn. It's still a land.": it keeps every prior
+        // card type and subtype (CR 205.1b), and a colour it is given
+        // replaces its others (CR 105.3).
+        i::Effect::Becomes {
+            pt: p,
+            types: adjs,
+            gains,
+            keeps: i::Keeps::OtherTypes,
+            ..
+        }
+        | i::Effect::Becomes {
+            pt: p,
+            types: adjs,
+            gains,
+            keeps: i::Keeps::Listed(_),
+            ..
+        } => {
+            let mut types = BTreeSet::new();
+            let mut colors = BTreeSet::new();
+            for adj in adjs {
+                match adj {
+                    Adj::Type(t) => {
+                        types.insert(card_type(t).ok_or_else(refuse)?);
+                    }
+                    Adj::Color(c) => {
+                        colors.insert(color(c).ok_or_else(refuse)?);
+                    }
+                    Adj::Subtype(_) => {}
+                    _ => return Err(refuse()),
+                }
+            }
+            let subtypes: BTreeSet<Subtype> = adjs
+                .iter()
+                .filter_map(|a| match a {
+                    Adj::Subtype(t) => Some(subtype(t, &types)),
+                    _ => None,
+                })
+                .collect();
+            let mut ops = vec![Op::AddTypes(types)];
+            if !subtypes.is_empty() {
+                ops.push(Op::AddSubtypes(subtypes));
+            }
+            if !colors.is_empty() {
+                ops.push(Op::SetColors(colors));
+            }
+            for k in gains {
+                for k in keyword(k).ok_or_else(refuse)? {
+                    ops.push(Op::Grant(Ability::Keyword(k)));
+                }
+            }
+            if let Some(p) = p {
+                ops.push(Op::SetBasePt(PtValue::Fixed(
+                    fixed(p).filter(|_| !p.signed).ok_or_else(refuse)?,
+                )));
             }
             Ok(Resolution {
                 ops,
@@ -1609,6 +1676,11 @@ impl<'a> Scope<'a> {
                 n: n(k)?,
             },
             i::Effect::Modify {
+                what,
+                dur: i::Duration::UntilEndOfTurn,
+                ..
+            }
+            | i::Effect::Becomes {
                 what,
                 dur: i::Duration::UntilEndOfTurn,
                 ..

@@ -28,7 +28,7 @@ use crate::game::{
 };
 use crate::log::{self, Entry, Event, Object};
 use crate::mana::short;
-use crate::model::{Counter, ObjectId, PlayerId};
+use crate::model::{Ability, Counter, ObjectId, PlayerId};
 
 /// The deck size assumed: the log never says, and every format these
 /// games are played in (constructed, Penny Dreadful) has a 60-card
@@ -361,16 +361,23 @@ impl Driver<'_> {
                     if std::env::var_os("CHANCELLOR_DEBUG").is_some() {
                         eprintln!("line {i}: {stop}");
                     }
+                    // A permanent tapped to pay can't then attack, block or
+                    // be tapped again: a play never offered is reason to
+                    // go back too.
                     let unpayable = matches!(
                         stop,
-                        Stop::Diverged(Divergence::Unpayable { .. } | Divergence::EngineOver)
+                        Stop::Diverged(
+                            Divergence::Unpayable { .. }
+                                | Divergence::EngineOver
+                                | Divergence::NeverOffered { .. }
+                        )
                     );
                     if furthest.as_ref().is_none_or(|f| i > f.0) {
                         furthest = Some((i, stop.clone(), self.trace.clone()));
                     }
                     // Only a choice made earlier can make a later payment
-                    // impossible, or lose the game early, so only then is
-                    // it worth going back.
+                    // or play impossible, or lose the game early, so only
+                    // then is it worth going back.
                     let retry = backtracks < BACKTRACKS;
                     match self
                         .checkpoints
@@ -786,7 +793,13 @@ impl Driver<'_> {
                 };
                 let p = self.seat(a.player);
                 let on_stack = a.targets.iter().any(|t| self.targets_stack(&t.target));
-                let activation = self.activation(p, card.name(), on_stack)?;
+                // The ability's text, which the log may print after its
+                // last target, where it reads as that target's note.
+                let said = std::iter::once(a.ability.as_str())
+                    .chain(a.targets.iter().filter_map(|t| t.note.as_deref()))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let activation = self.activation(p, card.name(), &said, on_stack)?;
                 self.act(Answer::Act(Action::Activate(activation)))?;
                 let paid = match self.game().decision() {
                     Decision::Targets { .. } | Decision::Pay { .. } => {
@@ -1892,7 +1905,13 @@ impl Driver<'_> {
     /// `name` they control, within this turn, as `offered` does for a
     /// play. Which of its abilities is the one the engine offers: a card
     /// whose abilities it offers more than one of isn't followed yet.
-    fn activation(&mut self, p: PlayerId, name: &str, respond: bool) -> Result<Activation, Stop> {
+    fn activation(
+        &mut self,
+        p: PlayerId,
+        name: &str,
+        said: &str,
+        respond: bool,
+    ) -> Result<Activation, Stop> {
         let text = self.text(name)?;
         let turn = self.game().turn();
         if !respond {
@@ -1942,13 +1961,29 @@ impl Driver<'_> {
                         })
                         .collect();
                     if let Some(first) = offered.first() {
-                        if offered.iter().any(|a| a.ability != first.ability) {
+                        if offered.iter().all(|a| a.ability == first.ability) {
+                            return Ok(*first);
+                        }
+                        // Which of its abilities: the one whose text has
+                        // the most of the words the log prints of it.
+                        let score = |a: &Activation| {
+                            let Ability::Unread(n) = a.ability else {
+                                return 0;
+                            };
+                            let card = game.permanents()[&a.source].card;
+                            game.ability_text(card, n)
+                                .map_or(0, |t| shared_words(said, t))
+                        };
+                        let best = offered.iter().map(score).max().unwrap_or(0);
+                        let top: Vec<&Activation> =
+                            offered.iter().filter(|a| score(a) == best).collect();
+                        if best == 0 || top.iter().any(|a| a.ability != top[0].ability) {
                             return Err(Stop::Unfollowed {
                                 event: "Activates one of several abilities".into(),
                                 card: Some(name.to_string()),
                             });
                         }
-                        return Ok(*first);
+                        return Ok(*top[0]);
                     }
                 }
             }
@@ -2450,6 +2485,23 @@ fn pay_with(game: &mut Game, payment: &[ManaActivation]) -> Followed {
     game.step(Answer::Pay(spend))
         .map_err(|_| illegal(Answer::Pay(spend)))?;
     Ok(())
+}
+
+/// How many of the words a log prints of an ability, cut off at "...",
+/// its Oracle text has after its cost.
+fn shared_words(said: &str, oracle: &str) -> usize {
+    let words = |t: &str| -> Vec<String> {
+        t.split(|c: char| c.is_whitespace() || matches!(c, '.' | ',' | '(' | ')'))
+            .filter(|w| !w.is_empty())
+            .map(str::to_lowercase)
+            .collect()
+    };
+    let effect = oracle.split_once(": ").map_or(oracle, |(_, e)| e);
+    let theirs = words(effect);
+    words(said.trim_end_matches("..."))
+        .iter()
+        .filter(|w| theirs.contains(w))
+        .count()
 }
 
 fn describe(payment: &[ManaActivation]) -> String {
