@@ -43,7 +43,7 @@ mod native {
     /// The margin keeps it under that whatever the clock does.
     const GAP: Duration = Duration::from_millis(1050);
 
-    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID]";
+    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID] | chancellor-logs milestone [--bulk F] [--games N]";
 
     pub fn main() -> Result<()> {
         let args: Vec<String> = std::env::args().skip(1).collect();
@@ -51,6 +51,7 @@ mod native {
             Some("fetch") => fetch(&args[1..]),
             Some("coverage") => coverage(&args[1..]),
             Some("replay") => replay(&args[1..]),
+            Some("milestone") => milestone(&args[1..]),
             _ => bail!("{USAGE}"),
         }
     }
@@ -390,37 +391,20 @@ mod native {
             .map_or(0, |t| t.number)
     }
 
-    fn replay(args: &[String]) -> Result<()> {
-        let mut bulk = corpus::cache("oracle-cards.jsonl");
-        let mut top = 12;
-        let mut only: Option<u64> = None;
-        let mut it = args.iter();
-        while let Some(a) = it.next() {
-            match a.as_str() {
-                "--bulk" => bulk = it.next().context("--bulk needs a path")?.clone(),
-                "--top" => top = it.next().context("--top needs a number")?.parse()?,
-                "--game" => only = Some(it.next().context("--game needs an id")?.parse()?),
-                other => bail!("unknown argument {other}\n{USAGE}"),
-            }
-        }
-        let mut names = Names::load(&bulk)?;
-        let texts = card_texts(&bulk)?;
+    /// Every cached game the replay plays: it parses into events whole,
+    /// Insight reads every card it names whole, and it reaches a first
+    /// turn. `f` gets each replayed; `turnless` counts the games that
+    /// pass the first two and not the third, and the return is how many
+    /// games were read at all.
+    fn each_replayed(
+        names: &mut Names,
+        texts: &HashMap<String, CardText>,
+        only: Option<u64>,
+        turnless: &mut usize,
+        mut f: impl FnMut(&log::Match, &log::Game, &r::Replay, &mut Names),
+    ) -> Result<usize> {
         let dir = cache_dir();
-
         let mut games = 0;
-        let mut eligible = 0;
-        let mut turnless = 0;
-        let mut finished = 0;
-        let mut winner_line = 0;
-        // Lines before each game's stop (all of a finished game's), and all
-        // lines: a smoother measure than games to the end, which moves only
-        // when a game's last stop goes.
-        let mut followed = 0;
-        let mut lines = 0;
-        // Reason (or card) -> games, and the first game and line it stopped.
-        let mut reasons: HashMap<String, (usize, String)> = HashMap::new();
-        let mut by_card: HashMap<String, usize> = HashMap::new();
-        let mut reached: std::collections::BTreeMap<u32, (usize, usize)> = Default::default();
         for id in cached(&dir)? {
             let text = fs::read(dir.join(format!("{id}.txt")))?;
             let Ok(m) = log::parse(&String::from_utf8_lossy(&text)) else {
@@ -438,32 +422,247 @@ mod native {
                     .iter()
                     .any(|e| matches!(e.event, log::Event::TurnBegins(_)))
                 {
-                    turnless += 1;
+                    *turnless += 1;
                     continue;
                 }
+                let replayed = {
+                    let mut cards = |name: &str| texts.get(&names.read(name).0).cloned();
+                    r::replay(&m, g, &mut cards)
+                };
+                f(&m, g, &replayed, names);
+            }
+        }
+        Ok(games)
+    }
+
+    /// The cards a game's log names, tokens aside, by the bulk file's
+    /// names.
+    fn game_cards(g: &log::Game, names: &mut Names) -> BTreeSet<String> {
+        g.entries
+            .iter()
+            .flat_map(|e| e.event.cards())
+            .filter(|c| !c.is_token())
+            .map(|c| names.read(c.name()).0)
+            .collect()
+    }
+
+    /// Where the committed milestones live: `milestones/replay-<N>.txt` in
+    /// the crate.
+    fn milestones_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("milestones")
+    }
+
+    /// A fixed set of games and the cards they use, worked until every
+    /// game replays to the end (README, "The milestone"). The file holds
+    /// Magic Online's numeric game ids and card names, nothing of the logs
+    /// themselves.
+    struct Milestone {
+        name: String,
+        games: BTreeSet<u64>,
+        cards: BTreeSet<String>,
+    }
+
+    fn read_milestones() -> Result<Vec<Milestone>> {
+        let dir = milestones_dir();
+        let mut out = Vec::new();
+        if !dir.exists() {
+            return Ok(out);
+        }
+        let mut paths: Vec<PathBuf> = fs::read_dir(&dir)?
+            .map(|e| e.map(|e| e.path()))
+            .collect::<std::io::Result<_>>()?;
+        paths.sort();
+        for path in paths {
+            let Some(name) = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .and_then(|n| n.strip_suffix(".txt"))
+            else {
+                continue;
+            };
+            let text = fs::read_to_string(&path)?;
+            let mut m = Milestone {
+                name: name.to_string(),
+                games: BTreeSet::new(),
+                cards: BTreeSet::new(),
+            };
+            for line in text.lines() {
+                if let Some(id) = line.strip_prefix("game ") {
+                    m.games.insert(
+                        id.parse()
+                            .with_context(|| format!("{}: {line}", path.display()))?,
+                    );
+                } else if let Some(card) = line.strip_prefix("card ") {
+                    m.cards.insert(card.to_string());
+                }
+            }
+            out.push(m);
+        }
+        Ok(out)
+    }
+
+    /// `milestone [--games N]`: choose N of the replayed games greedily
+    /// by shared cards, the game needing the fewest cards not yet in the
+    /// pool each time, and write them with their pool to
+    /// `milestones/replay-<N>.txt`. A game that stops at the setup is left
+    /// out: those are the log's shape (one player named, a game begun
+    /// late), which no work on the engine changes.
+    fn milestone(args: &[String]) -> Result<()> {
+        let mut bulk = corpus::cache("oracle-cards.jsonl");
+        let mut want = 500;
+        let mut it = args.iter();
+        while let Some(a) = it.next() {
+            match a.as_str() {
+                "--bulk" => bulk = it.next().context("--bulk needs a path")?.clone(),
+                "--games" => want = it.next().context("--games needs a number")?.parse()?,
+                other => bail!("unknown argument {other}\n{USAGE}"),
+            }
+        }
+        let mut names = Names::load(&bulk)?;
+        let texts = card_texts(&bulk)?;
+        let mut candidates: Vec<(u64, BTreeSet<String>)> = Vec::new();
+        let mut setup = 0;
+        let mut turnless = 0;
+        each_replayed(
+            &mut names,
+            &texts,
+            None,
+            &mut turnless,
+            |_, g, replayed, names| {
+                if matches!(replayed.end.stop(), Some(r::Stop::Setup(_))) {
+                    setup += 1;
+                } else {
+                    candidates.push((g.id, game_cards(g, names)));
+                }
+            },
+        )?;
+        candidates.sort_by_key(|c| c.0);
+        candidates.dedup_by_key(|c| c.0);
+        let mut pool: BTreeSet<String> = BTreeSet::new();
+        let mut chosen: Vec<u64> = Vec::new();
+        while chosen.len() < want && !candidates.is_empty() {
+            // Fewest new cards, then the lowest id, so the choice is the
+            // same on every run over the same cache.
+            let (k, _) = candidates
+                .iter()
+                .enumerate()
+                .min_by_key(|(_, (id, cards))| (cards.difference(&pool).count(), *id))
+                .expect("not empty");
+            let (id, cards) = candidates.swap_remove(k);
+            pool.extend(cards);
+            chosen.push(id);
+        }
+        chosen.sort();
+        let dir = milestones_dir();
+        fs::create_dir_all(&dir)?;
+        let path = dir.join(format!("replay-{want}.txt"));
+        let mut out = format!(
+            "# Chancellor's replay milestone (README, \"The milestone\"): {} games and the {} cards\n\
+             # they use, chosen greedily from the cached games the replay plays, each time the game\n\
+             # needing the fewest cards not yet in the pool. Written by\n\
+             # `chancellor-logs milestone --games {want}`; only Magic Online's game ids, nothing of the logs.\n",
+            chosen.len(),
+            pool.len()
+        );
+        for id in &chosen {
+            out.push_str(&format!("game {id}\n"));
+        }
+        for card in &pool {
+            out.push_str(&format!("card {card}\n"));
+        }
+        fs::write(&path, out)?;
+        println!(
+            "{} games, {} cards, written to {} ({setup} games stopping at the setup left out)",
+            chosen.len(),
+            pool.len(),
+            path.display()
+        );
+        Ok(())
+    }
+
+    fn replay(args: &[String]) -> Result<()> {
+        let mut bulk = corpus::cache("oracle-cards.jsonl");
+        let mut top = 12;
+        let mut only: Option<u64> = None;
+        let mut it = args.iter();
+        while let Some(a) = it.next() {
+            match a.as_str() {
+                "--bulk" => bulk = it.next().context("--bulk needs a path")?.clone(),
+                "--top" => top = it.next().context("--top needs a number")?.parse()?,
+                "--game" => only = Some(it.next().context("--game needs an id")?.parse()?),
+                other => bail!("unknown argument {other}\n{USAGE}"),
+            }
+        }
+        let mut names = Names::load(&bulk)?;
+        let texts = card_texts(&bulk)?;
+        let milestones = read_milestones()?;
+
+        let mut eligible = 0;
+        let mut turnless = 0;
+        let mut finished = 0;
+        let mut winner_line = 0;
+        // Lines before each game's stop (all of a finished game's), and all
+        // lines: a smoother measure than games to the end, which moves only
+        // when a game's last stop goes.
+        let mut followed = 0;
+        let mut lines = 0;
+        // Reason (or card) -> games, and the first game and line it stopped.
+        let mut reasons: HashMap<String, (usize, String)> = HashMap::new();
+        let mut by_card: HashMap<String, usize> = HashMap::new();
+        let mut reached: std::collections::BTreeMap<u32, (usize, usize)> = Default::default();
+        // Per milestone: games seen, finished, lines followed, lines, and
+        // its stops by card and node.
+        let mut within: Vec<MilestoneRun> = milestones.iter().map(|_| Default::default()).collect();
+        let games = each_replayed(
+            &mut names,
+            &texts,
+            only,
+            &mut turnless,
+            |m, g, replayed, _| {
                 eligible += 1;
-                let mut cards = |name: &str| texts.get(&names.read(name).0).cloned();
-                let replayed = r::replay(&m, g, &mut cards);
                 if only.is_some() {
-                    print_game(&m, g, &replayed);
+                    print_game(m, g, replayed);
                 }
                 let (stop_at, turn) = match &replayed.end {
                     End::Finished => (None, turn_at(g, g.entries.len())),
                     End::Stopped { entry, .. } => (Some(*entry), turn_at(g, *entry)),
                 };
+                let these = stop_at.unwrap_or(g.entries.len());
                 lines += g.entries.len();
-                followed += stop_at.unwrap_or(g.entries.len());
+                followed += these;
+                let example = |at: usize| {
+                    let line = g
+                        .entries
+                        .get(at)
+                        .map_or(String::new(), |e| anonymise(&e.text, &m.players));
+                    format!("game {} line: {line}", g.id)
+                };
+                for (ms, run) in milestones.iter().zip(&mut within) {
+                    if !ms.games.contains(&g.id) {
+                        continue;
+                    }
+                    run.seen += 1;
+                    run.lines += g.entries.len();
+                    run.followed += these;
+                    match (&replayed.end, stop_at) {
+                        (End::Stopped { stop, .. }, Some(at)) => {
+                            let key = match stop.card() {
+                                Some(c) => format!("{c}: {}", stop.kind()),
+                                None => stop.kind(),
+                            };
+                            let s = run.stops.entry(key).or_insert_with(|| (0, example(at)));
+                            s.0 += 1;
+                        }
+                        _ => run.finished += 1,
+                    }
+                }
                 let row = reached.entry(turn).or_default();
                 match (&replayed.end, stop_at) {
                     (End::Stopped { stop, .. }, Some(at)) => {
                         row.1 += 1;
-                        let line = g
-                            .entries
-                            .get(at)
-                            .map_or(String::new(), |e| anonymise(&e.text, &m.players));
                         let r = reasons
                             .entry(stop.kind())
-                            .or_insert_with(|| (0, format!("game {} line: {line}", g.id)));
+                            .or_insert_with(|| (0, example(at)));
                         r.0 += 1;
                         if let Some(c) = stop.card() {
                             *by_card.entry(format!("{}: {c}", stop.kind())).or_default() += 1;
@@ -475,8 +674,8 @@ mod native {
                         winner_line += g.winner.is_some() as usize;
                     }
                 }
-            }
-        }
+            },
+        )?;
         if only.is_some() {
             return Ok(());
         }
@@ -491,6 +690,32 @@ mod native {
             "lines followed: {followed} of {lines} ({:.2}%), the lines before each game's stop",
             100.0 * followed as f64 / lines.max(1) as f64
         );
+        for (ms, run) in milestones.iter().zip(&within) {
+            println!(
+                "\nmilestone {}: {} games, {} cards; {} of the games replayed here",
+                ms.name,
+                ms.games.len(),
+                ms.cards.len(),
+                run.seen
+            );
+            println!(
+                "  replayed to the end: {} ({})",
+                run.finished,
+                pct(run.finished, ms.games.len())
+            );
+            println!(
+                "  lines followed: {} of {} ({:.2}%)",
+                run.followed,
+                run.lines,
+                100.0 * run.followed as f64 / run.lines.max(1) as f64
+            );
+            let mut stops: Vec<_> = run.stops.iter().collect();
+            stops.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(b.0)));
+            println!("  worklist: its stops by games, the card and the node");
+            for (key, (n, example)) in stops.iter().take(top) {
+                println!("{n:>6}  {key}\n        e.g. {example}");
+            }
+        }
         let mut reasons: Vec<_> = reasons.into_iter().collect();
         reasons.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(&b.0)));
         println!("\nstop reasons by games:");
@@ -511,6 +736,15 @@ mod native {
             println!("  {turn:>4}  {f:>8}  {s:>7}");
         }
         Ok(())
+    }
+
+    #[derive(Default)]
+    struct MilestoneRun {
+        seen: usize,
+        finished: usize,
+        followed: usize,
+        lines: usize,
+        stops: HashMap<String, (usize, String)>,
     }
 
     /// One game's replay, line by line, with what the engine did.

@@ -512,6 +512,31 @@ Confidant, Goblin Guide, Impulse, Leyline of Sanctity's hexproof, Wild
 Nacatl, Swords to Plowshares, Counterspell, Festering Goblin's dies
 trigger, Path to Exile and Khalni Garden's token.
 
+### The milestone
+
+General features barely move games to the end: the 6,648 games use 4,008
+distinct cards, a median of 19 a game and 630 seen once, and a game
+finishes only when all of its cards work. Insight's lesson holds here too:
+open-ended coverage plateaus, a fixed card pool is doable. So the replay
+has a milestone, worked card by card as Insight's round 9 was.
+
+`chancellor-logs milestone --games 500` takes the games the replay plays,
+less those that stop at the setup (the log's shape, one player named or a
+game begun late, which no work on the engine changes), and chooses 500
+greedily: each time the game needing the fewest cards not yet in the
+pool, the lowest id on a tie. It writes
+[`milestones/replay-500.txt`](milestones/replay-500.txt), Magic Online's
+numeric game ids and the sorted card pool, nothing of the logs. `replay`
+then reports each milestone apart: its games to the end, its lines
+followed, and its stops ranked by games, each naming the card and node.
+
+**replay-500 is 500 games and 804 cards.** At its writing
+(2026-11-02) **20 of them replayed to the end and 24.53% of their lines
+were followed** (7,766 of 31,659); the top of its worklist was Mox
+Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
+mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
+each), and Cabal Therapy's named card (13).
+
 ## Speed
 
 On the research's game-scale board (300 objects; two layer 4 effects, 14

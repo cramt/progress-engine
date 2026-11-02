@@ -1,0 +1,1308 @@
+# Chancellor's replay milestone (README, "The milestone"): 500 games and the 804 cards
+# they use, chosen greedily from the cached games the replay plays, each time the game
+# needing the fewest cards not yet in the pool. Written by
+# `chancellor-logs milestone --games 500`; only Magic Online's game ids, nothing of the logs.
+game 880374486
+game 880579482
+game 881660378
+game 882020132
+game 882020736
+game 882251086
+game 882253384
+game 882255858
+game 882256080
+game 882262338
+game 882262406
+game 882262530
+game 882276770
+game 883127884
+game 883136794
+game 890839070
+game 890839318
+game 891439120
+game 892025326
+game 892025952
+game 892037640
+game 892038364
+game 892043956
+game 892056918
+game 892060758
+game 893373796
+game 893374348
+game 893666328
+game 893719462
+game 893939420
+game 894039196
+game 895532866
+game 895537004
+game 895538280
+game 895538322
+game 895538512
+game 895539608
+game 895544622
+game 895551732
+game 895553016
+game 896054020
+game 897353638
+game 897965174
+game 898054424
+game 898218624
+game 898219252
+game 898219370
+game 898220196
+game 898222750
+game 898223860
+game 898226658
+game 898227426
+game 898228174
+game 898232624
+game 898233272
+game 898237032
+game 898237118
+game 898237198
+game 898237208
+game 898238084
+game 898238314
+game 898240318
+game 898242694
+game 898244896
+game 898244950
+game 898244962
+game 898244980
+game 898245132
+game 898245294
+game 898245708
+game 898246082
+game 898246596
+game 898248648
+game 898249136
+game 898250022
+game 898369768
+game 898627464
+game 898674086
+game 898674764
+game 898745598
+game 898901480
+game 898905100
+game 899006802
+game 899272658
+game 899312332
+game 899354864
+game 899355320
+game 899355766
+game 899427464
+game 899427960
+game 899590400
+game 900106812
+game 900274072
+game 901041024
+game 901136626
+game 901137052
+game 901137428
+game 901171812
+game 901605696
+game 901612028
+game 901615582
+game 901624902
+game 902452698
+game 902453100
+game 902453508
+game 902527870
+game 902538380
+game 902547046
+game 902769416
+game 902770348
+game 904278336
+game 904544768
+game 904941952
+game 905225214
+game 905231756
+game 905320706
+game 905967218
+game 905971384
+game 906322620
+game 906324298
+game 906487814
+game 906826506
+game 907434100
+game 907711248
+game 907718384
+game 907731494
+game 907731910
+game 907732060
+game 907733572
+game 907734124
+game 907736682
+game 907737738
+game 907738504
+game 907742164
+game 907742200
+game 907742280
+game 907742690
+game 907744740
+game 907746020
+game 907747966
+game 907748236
+game 907748908
+game 907750526
+game 907753792
+game 907758748
+game 907759014
+game 907759770
+game 907760276
+game 907761800
+game 907975026
+game 907976236
+game 908265824
+game 908636464
+game 909156188
+game 910298754
+game 910299200
+game 910339992
+game 910340284
+game 910342476
+game 910346126
+game 910347166
+game 910347914
+game 910351164
+game 910352386
+game 910366340
+game 910367796
+game 910369970
+game 910929944
+game 911058536
+game 911123722
+game 911514948
+game 911515604
+game 912020648
+game 912560974
+game 912979640
+game 913274536
+game 913275512
+game 913276126
+game 913891990
+game 913954258
+game 913955124
+game 913955408
+game 913955488
+game 913961050
+game 913963574
+game 913965812
+game 913967152
+game 914373742
+game 914384930
+game 915292224
+game 915490554
+game 915912318
+game 916549708
+game 916550396
+game 916551202
+game 917083804
+game 918196374
+game 918196578
+game 918240002
+game 918724440
+game 919310732
+game 919311144
+game 919336446
+game 919791018
+game 920399704
+game 920431676
+game 920432244
+game 920432460
+game 920433276
+game 920438688
+game 920438738
+game 920439174
+game 920439524
+game 920443812
+game 920880470
+game 921879196
+game 922034742
+game 922041046
+game 923102432
+game 923162598
+game 923313312
+game 923313676
+game 923401606
+game 923418604
+game 923769494
+game 924024766
+game 924056888
+game 924177982
+game 924320202
+game 924320874
+game 924642300
+game 924648468
+game 925050870
+game 925051224
+game 925356662
+game 925356988
+game 925357300
+game 925776968
+game 925917760
+game 927531310
+game 927627266
+game 927628442
+game 928838818
+game 928839598
+game 929401316
+game 929401748
+game 929406842
+game 929483914
+game 929861304
+game 930036098
+game 931142316
+game 931789000
+game 931795474
+game 931797830
+game 931865512
+game 933209986
+game 933379066
+game 933380242
+game 933506798
+game 934295968
+game 934642914
+game 935214900
+game 935310378
+game 935574506
+game 935581746
+game 935584384
+game 935584898
+game 936004410
+game 941124198
+game 941141244
+game 941141742
+game 944584518
+game 944585154
+game 944591328
+game 947782138
+game 948821868
+game 949254448
+game 949318400
+game 949319540
+game 949321070
+game 949519460
+game 949596394
+game 949771938
+game 949999958
+game 950631412
+game 950635148
+game 951968316
+game 953340712
+game 955962428
+game 961044676
+game 961152948
+game 961212926
+game 961213880
+game 961214154
+game 961215602
+game 961231258
+game 961238128
+game 961241044
+game 961241498
+game 961244020
+game 961256524
+game 961265980
+game 961276862
+game 961277508
+game 961287824
+game 961295226
+game 961300844
+game 961300876
+game 961304334
+game 961304826
+game 961323946
+game 961350614
+game 961357154
+game 961409942
+game 961418786
+game 961424658
+game 961425382
+game 961428392
+game 961467540
+game 961498866
+game 961506630
+game 961515492
+game 961537038
+game 961539392
+game 961544864
+game 961574326
+game 961574576
+game 961575350
+game 961597670
+game 961638518
+game 961641916
+game 961663474
+game 961664244
+game 961667058
+game 961672882
+game 961682270
+game 961690286
+game 961710164
+game 961712370
+game 961735160
+game 961756974
+game 961757276
+game 961757858
+game 961758270
+game 961758990
+game 961760048
+game 961767606
+game 961768594
+game 961769056
+game 961770254
+game 961781292
+game 961794294
+game 961808320
+game 961808796
+game 961812158
+game 961814588
+game 961825724
+game 961825928
+game 961827482
+game 961828294
+game 961831392
+game 961834830
+game 961845398
+game 961854860
+game 961859976
+game 961862888
+game 961908986
+game 961909572
+game 961909780
+game 961913200
+game 961916214
+game 961917278
+game 961917632
+game 961920922
+game 961921196
+game 961924972
+game 961928210
+game 961928946
+game 961935816
+game 961936438
+game 961938070
+game 961939214
+game 961940818
+game 961941002
+game 961944220
+game 961946396
+game 961946848
+game 961975566
+game 961981612
+game 961981826
+game 961987366
+game 961990692
+game 961993100
+game 961993776
+game 962007640
+game 962009156
+game 962014572
+game 962016976
+game 962018182
+game 962024322
+game 962032410
+game 962032434
+game 962032922
+game 962034522
+game 962038908
+game 962072656
+game 962080156
+game 962081176
+game 962109056
+game 962146472
+game 962147630
+game 962149152
+game 962150532
+game 962162866
+game 962166010
+game 962166326
+game 962167018
+game 962189614
+game 962192240
+game 962203266
+game 962206256
+game 962228954
+game 962230696
+game 962234272
+game 962241360
+game 962253040
+game 962253466
+game 962260560
+game 962279480
+game 962279570
+game 962282656
+game 962283422
+game 962283550
+game 962286444
+game 962289480
+game 962297500
+game 962326960
+game 962327606
+game 962327840
+game 962330422
+game 962335872
+game 962338032
+game 962338976
+game 962355390
+game 962364058
+game 962364218
+game 962366342
+game 962399630
+game 962399644
+game 962406642
+game 962415280
+game 962422538
+game 962424124
+game 962425036
+game 962425462
+game 962428908
+game 962428966
+game 962430540
+game 962432336
+game 962432886
+game 962434860
+game 962435488
+game 962438792
+game 962444734
+game 962457926
+game 962465172
+game 962514824
+game 962515616
+game 962519928
+game 962520718
+game 962521152
+game 962533268
+game 962545340
+game 962553136
+game 962572686
+game 962572908
+game 962573126
+game 962595100
+game 962604548
+game 962608994
+game 962615782
+game 962616190
+game 962616522
+game 962616820
+game 962630238
+game 962631666
+game 962634042
+game 962634316
+game 962638408
+game 962638536
+game 962638906
+game 962641702
+game 962642352
+game 962657068
+game 962671656
+game 962679378
+game 962734616
+game 962747954
+game 962757396
+game 962759238
+card Aang's Iceberg
+card Abrupt Decay
+card Absolute Law
+card Absorb
+card Abundant Growth
+card Academy Ruins
+card Accumulated Knowledge
+card Adarkar Wastes
+card Adeline, Resplendent Cathar
+card Akroan Jailer
+card Alseid of Life's Bounty
+card Altar of Dementia
+card Anarchy
+card Ancestral Vision
+card Ancient Stirrings
+card Ancient Tomb
+card Anger
+card Animate Dead
+card Annex
+card Annul
+card Anticausal Vestige
+card Anticipate
+card Anurid Brushhopper
+card Arahbo, the First Fang
+card Arcane Denial
+card Arch of Orazca
+card Archdruid's Charm
+card Archenemy's Charm
+card Archfiend of Ifnir
+card Architects of Will
+card Argothian Enchantress
+card Aria of Flame
+card Arid Mesa
+card Armadillo Cloak
+card Armageddon
+card Arrogant Wurm
+card Ash Zealot
+card Ashling, Rekindled // Ashling, Rimebound
+card Assassin's Trophy
+card Atarka's Command
+card Auntie's Sentence
+card Aura of Silence
+card Authority of the Consuls
+card Avatar's Wrath
+card Ayara, First of Locthwain
+card Azorius Charm
+card Ball Lightning
+card Barbarian Ring
+card Barkhide Troll
+card Barren Moor
+card Basking Rootwalla
+card Basri, Tomorrow's Champion
+card Batterskull
+card Battle Screech
+card Battlefield Forge
+card Benevolent Bodyguard
+card Biorhythm
+card Birchlore Rangers
+card Birds of Paradise
+card Bitterblossom
+card Blackcleave Cliffs
+card Blast Zone
+card Blazing Shoal
+card Blinkmoth Nexus
+card Blood Crypt
+card Blood Fountain
+card Blood Knight
+card Bloodsoaked Champion
+card Bloodstained Mire
+card Bloodthirsty Conqueror
+card Blue Elemental Blast
+card Bofur, Reliable Guardian // Concerted Care
+card Bomat Courier
+card Bone Saw
+card Bone Shredder
+card Bonecrusher Giant // Stomp
+card Boomerang
+card Boromir, Warden of the Tower
+card Boros Charm
+card Boros Reckoner
+card Botanical Sanctum
+card Bottomless Pit
+card Brain Freeze
+card Brain Maggot
+card Bramble Familiar // Fetch Quest
+card Brave the Elements
+card Breeding Pool
+card Breya's Apprentice
+card Brightclimb Pathway // Grimclimb Pathway
+card Brineborn Cutthroat
+card Brushland
+card Brutal Cathar // Moonrage Brute
+card Buried Alive
+card Burst Lightning
+card Cabal Ritual
+card Cabal Therapy
+card Call of the Herd
+card Canyon Slough
+card Capashen Unicorn
+card Careful Study
+card Cascade Bluffs
+card Cascading Cataracts
+card Castle Ardenvale
+card Castle Embereth
+card Cathar Commando
+card Cave of the Frost Dragon
+card Cavern of Souls
+card Caves of Koilos
+card Celestial Colonnade
+card Cephalid Coliseum
+card Chain of Smog
+card Chain of Vapor
+card Chainsaw
+card Champion of the Parish
+card Champion of the Perished
+card Chancellor of the Forge
+card Chill
+card Choking Sands
+card Choking Tethers
+card Chromatic Sphere
+card Chromatic Star
+card Chrome Dome
+card Chrome Host Seedshark
+card Chthonian Nightmare
+card Cinder Glade
+card Circle of Protection: Red
+card Circular Logic
+card City of Brass
+card Clifftop Retreat
+card Clockwork Percussionist
+card Cloudpost
+card Coastal Tower
+card Codex Shredder
+card Combustible Gearhulk
+card Commit // Memory
+card Commune with Dinosaurs
+card Concealing Curtains // Revealing Eye
+card Condemn
+card Confusticate and Bebother
+card Copperline Gorge
+card Counterspell
+card Courser of Kruphix
+card Cragcrown Pathway // Timbercrown Pathway
+card Crashing Footfalls
+card Crawling Barrens
+card Creeping Tar Pit
+card Cremate
+card Crop Rotation
+card Cruelclaw's Heist
+card Cryptbreaker
+card Crystal Vein
+card Cultivate
+card Cunning Nightbonder
+card Cunning Wish
+card Curator of Mysteries
+card Cursecatcher
+card Damn
+card Darigaaz's Caldera
+card Dark Confidant
+card Dark Ritual
+card Dark Salvation
+card Darkslick Shores
+card Darksteel Citadel
+card Daru Spiritualist
+card Day of Judgment
+card Daze
+card Decree of Justice
+card Deduce
+card Deep Analysis
+card Defiant Falcon
+card Deftblade Elite
+card Delighted Halfling
+card Deranged Hermit
+card Desolate Lighthouse
+card Devastating Onslaught
+card Diabolic Edict
+card Dig Through Time
+card Diregraf Colossus
+card Disenchant
+card Disfigure
+card Dismantling Blow
+card Dismiss
+card Distress
+card Doom Blade
+card Dragon's Claw
+card Dragon's Hoard
+card Dragonskull Summit
+card Dread Presence
+card Dread Wanderer
+card Dreadbore
+card Dreamcaller Siren
+card Drinker of Sorrow
+card Drowned Catacomb
+card Druid Lyrist
+card Duress
+card Dust Bowl
+card Dwalin, Weaponmaster
+card Earthquake
+card Eidolon of the Great Revel
+card Eiganjo Castle
+card Electrodominance
+card Elephant Grass
+card Elite Spellbinder
+card Elite Vanguard
+card Elspeth, Sun's Champion
+card Enchantress's Presence
+card Enduring Curiosity
+card Engineered Plague
+card Enlightened Tutor
+card Erebos's Intervention
+card Escape to the Wilds
+card Eternal Dragon
+card Ethereal Armor
+card Exalted Angel
+card Exploration
+card Extirpate
+card Fabled Passage
+card Fabrication Foundry
+card Fact or Fiction
+card Faerie Conclave
+card Fanatic of Mogis
+card Fanatic of Rhonas
+card Fateful Absence
+card Fauna Shaman
+card Favored Hoplite
+card Feldon, Ronom Excavator
+card Fellwar Stone
+card Fetid Heath
+card Fetid Pools
+card Field of the Dead
+card Fire // Ice
+card Fire-Lit Thicket
+card Fireblast
+card Fires of Yavimaya
+card Flametongue Kavu
+card Flare of Cultivation
+card Flare of Fortitude
+card Flare of Malice
+card Flash of Insight
+card Flinthoof Boar
+card Flooded Grove
+card Flooded Strand
+card Flowering of the White Tree
+card Fomori Vault
+card Forbid
+card Forbidden Orchard
+card Force Spike
+card Force of Virtue
+card Forest
+card Forgotten Cave
+card Fortified Village
+card Frantic Search
+card Frostboil Snarl
+card Fury of the Horde
+card Fyndhorn Elves
+card Gaea's Blessing
+card Gaea's Cradle
+card Galvanic Discharge
+card Gamekeeper
+card Garruk's Uprising
+card Gatekeeper of Malakir
+card Gather the Townsfolk
+card Geist of Saint Traft
+card Gempalm Incinerator
+card Gemstone Mine
+card Genemorph Imago
+card Genesis
+card Geralf's Messenger
+card Gerrard's Verdict
+card Ghastly Demise
+card Ghost Quarter
+card Giant Killer // Chop Down
+card Giant's Amulet
+card Gitaxian Probe
+card Glacial Fortress
+card Glass Casket
+card Glasspool Mimic // Glasspool Shore
+card Glen Elendra Guardian
+card Glimmerpost
+card Gloom
+card Glorious Anthem
+card Glorybringer
+card Go for the Throat
+card Goblin Cadets
+card Goblin Engineer
+card Goblin Guide
+card Goblin King
+card Goblin Lackey
+card Goblin Matron
+card Goblin Patrol
+card Goblin Piledriver
+card Goblin Rabblemaster
+card Goblin Ringleader
+card Goblin Sharpshooter
+card Goblin Sledder
+card Goblin Tinkerer
+card Goblin Warchief
+card Godless Shrine
+card Golos, Tireless Pilgrim
+card Grand Abolisher
+card Grave Titan
+card Graveborn Muse
+card Gravecrawler
+card Graven Cairns
+card Greater Gargadon
+card Grim Haruspex
+card Grim Lavamancer
+card Gruul Signet
+card Gush
+card Hagra Mauling // Hagra Broodpit
+card Hallowed Fountain
+card Hangarback Walker
+card Hardened Scales
+card Harmonic Prodigy
+card Hateful Eidolon
+card Haven of the Spirit Dragon
+card Headhunter
+card Headless Rider
+card Healer's Hawk
+card Heartless Act
+card Heartless Summoning
+card Hermit Druid
+card Hidden Gibbons
+card Hinterland Harbor
+card Hired Claw
+card Hive of the Eye Tyrant
+card Honor of the Pure
+card Hope of Ghirapur
+card Hopeful Initiate
+card Horned Loch-Whale // Lagoon Breach
+card Horror of the Broken Lands
+card Hour of Promise
+card Humility
+card Hunting Pack
+card Huntmaster of the Fells // Ravager of the Fells
+card Hydroblast
+card Hypnotic Specter
+card Ilharg, the Raze-Boar
+card Ill-Timed Explosion
+card Implement of Improvement
+card Imposing Vantasaur
+card Impulse
+card Incinerate
+card Inquisition of Kozilek
+card Invasion of Ixalan // Belligerent Regisaur
+card Invasion of Tarkir // Defiant Thundermaw
+card Invert Polarity
+card Iridescent Vinelasher
+card Isamaru, Hound of Konda
+card Island
+card Isolated Chapel
+card Izzet Charm
+card Jackal Pup
+card Jadar, Ghoulcaller of Nephalia
+card Jadzi, Steward of Fate // Oracle's Gift
+card Jirina, Dauntless General
+card Kaheera, the Orphanguard
+card Kaleidostone
+card Kalitas, Traitor of Ghet
+card Kamahl, Fist of Krosa
+card Karplusan Forest
+card Katilda, Dawnhart Martyr // Katilda's Rising Dawn
+card Kaya's Guile
+card Kellan, Daring Traveler // Journey On
+card Kellan, Inquisitive Prodigy // Tail the Suspect
+card Kinscaer Sentry
+card Kirtar's Desire
+card Kitchen Finks
+card Kitsune's Technique
+card Kolaghan's Command
+card Kor Duelist
+card Kor Haven
+card Kor Spiritdancer
+card Kozilek, Butcher of Truth
+card Kozilek, the Great Distortion
+card Krosan Cloudscraper
+card Kunoros, Hound of Athreos
+card Laboratory Maniac
+card Lake of the Dead
+card Lamplight Phoenix
+card Last Breath
+card Lava Dart
+card Lava Spike
+card Lavaborn Muse
+card Leyline Axe
+card Leyline of Hope
+card Leyline of Sanctity
+card Library
+card Lightning Bolt
+card Lightning Helix
+card Lightning Strike
+card Lin Sivvi, Defiant Hero
+card Lion's Eye Diamond
+card Living Wish
+card Lizard Blades
+card Llanowar Elves
+card Llanowar Wastes
+card Locust Spray
+card Lonely Sandbar
+card Lord of Atlantis
+card Lord of the Undead
+card Lotus Bloom
+card Lotus Cobra
+card Lotus Petal
+card Luminarch Aspirant
+card Lurching Rotbeast
+card Lurrus of the Dream-Den
+card Magma Spray
+card Magmatic Hellkite
+card Malcolm, Alluring Scoundrel
+card Mana Leak
+card Marrow Shards
+card Massacre Wurm
+card Masticore
+card Memory Lapse
+card Mental Note
+card Merchant Scroll
+card Michelangelo's Technique
+card Midgar, City of Mako // Reactor Raid
+card Mind Stone
+card Mirrex
+card Mirri's Guile
+card Mirrodin's Core
+card Misdirection
+card Mishra's Factory
+card Mishra's Helix
+card Mobilization
+card Mogg Conscripts
+card Mogg Fanatic
+card Mogg Salvage
+card Monastery Swiftspear
+card Monstrous Carabid
+card Moria Marauder
+card Mossfire Valley
+card Mother of Runes
+card Mountain
+card Mox Diamond
+card Multani's Acolyte
+card Mystic Enforcer
+card Mystic Gate
+card Nantuko Shade
+card Nantuko Vigilante
+card Naturalize
+card Nature's Lore
+card Nevinyrral's Disk
+card Nick Fury, Agent of S.H.I.E.L.D.
+card Nightwind Glider
+card Nihil Spellbomb
+card Nimble Mongoose
+card Noble Hierarch
+card Nulldrifter
+card Oath of Nissa
+card Ob Nixilis Reignited
+card Oblivion Stone
+card Okina, Temple to the Grandfathers
+card Omen of the Sea
+card Opalescence
+card Opposition
+card Opt
+card Orb of Dragonkind
+card Outcaster Trailblazer
+card Overgrown Farmland
+card Overgrown Tomb
+card Overload
+card Ozolith, the Shattered Spire
+card Pearl Medallion
+card Pentad Prism
+card Pernicious Deed
+card Phantasmal Image
+card Phyrexian Arena
+card Phyrexian Dreadnought
+card Phyrexian Metamorph
+card Phyrexian Negator
+card Phyrexian Obliterator
+card Phyrexian Rager
+card Phyrexian Tower
+card Pillar of Flame
+card Pithing Needle
+card Plague Belcher
+card Plague Engineer
+card Plague Spitter
+card Plains
+card Plasma Bolt
+card Plunder the Trollshaws
+card Polluted Delta
+card Port Town
+card Portent
+card Portent of Calamity
+card Powder Keg
+card Prairie Stream
+card Precinct Captain
+card Preordain
+card Price of Progress
+card Priest of Gix
+card Priest of Titania
+card Prismatic Omen
+card Profane Tutor
+card Professional Face-Breaker
+card Progenitus
+card Providence
+card Psychatog
+card Psychosis Crawler
+card Putrid Imp
+card Pyroblast
+card Pyroclasm
+card Pyrokinesis
+card Qarsi Revenant
+card Quest for Pure Flame
+card Quicksand
+card Quicksilver, Brash Blur
+card Quirion Dryad
+card Quirion Ranger
+card Raging Ravine
+card Rainbow Efreet
+card Ramosian Lieutenant
+card Ramosian Sergeant
+card Rampant Growth
+card Ratchet Bomb
+card Raubahn, Bull of Ala Mhigo
+card Raven Eagle
+card Ravenous Baloth
+card Ravenous Rats
+card Ray of Revelation
+card Razorkin Needlehead
+card Razorverge Thicket
+card Reality Ripple
+card Realm of Koh
+card Reanimate
+card Reaper King
+card Reckless Abandon
+card Reckoner Bankbuster
+card Recurring Nightmare
+card Red Elemental Blast
+card Reflecting Pool
+card Regal Caracal
+card Relentless Dead
+card Remand
+card Renegade Map
+card Repeal
+card Replenish
+card Restless Anchorage
+card Restless Bivouac
+card Restless Cottage
+card Restless Reef
+card Restless Spire
+card Restless Vents
+card Reverent Mantra
+card Rewind
+card Rift Bolt
+card Righteous Valkyrie
+card Rishadan Port
+card Rith's Grove
+card Roar of the Wurm
+card Rockfall Vale
+card Rootbound Crag
+card Rugged Prairie
+card Rust Harvester
+card Sacred Foundry
+card Sanctifier en-Vec
+card Sanctum Weaver
+card Sanctum of Ugin
+card Sapphire Medallion
+card Savage Lands
+card Savannah Lions
+card Scalding Tarn
+card Scalding Viper // Steam Clean
+card Scattered Groves
+card Scavenger Grounds
+card Scavenging Ooze
+card Scent of Jasmine
+card Scheming Silvertongue // Sign in Blood
+card Scorch Spitter
+card Scrapshooter
+card Scrawling Crawler
+card Sea-Dasher Octopus
+card Seachrome Coast
+card Seal of Cleansing
+card Seal of Fire
+card Search for Azcanta // Azcanta, the Sunken Ruin
+card Search for Tomorrow
+card Searing Blaze
+card Searing Spear
+card Secluded Courtyard
+card Secluded Starforge
+card Secluded Steppe
+card Secret Tunnel
+card See Beyond
+card Seismic Assault
+card Senu, Keen-Eyed Protector
+card Serra Ascendant
+card Serra's Sanctum
+card Serum Visions
+card Setessan Champion
+card Setessan Training
+card Settle the Wreckage
+card Shadows' Verdict
+card Shambling Vent
+card Shard Phoenix
+card Shard Volley
+card Shardless Agent
+card Shardmage's Rescue
+card Shark Typhoon
+card Shattered Sanctum
+card Sheltered Thicket
+card Sheltered by Ghosts
+card Shifting Woodland
+card Shinka, the Bloodsoaked Keep
+card Shivan Reef
+card Shock
+card Show and Tell
+card Shriekmaw
+card Sickening Shoal
+card Siege Veteran
+card Siege-Gang Commander
+card Sigil of the Empty Throne
+card Sign in Blood
+card Silver Knight
+card Skeletal Scrying
+card Skirk Prospector
+card Skittering Skirge
+card Skrelv, Defector Mite
+card Skullcrack
+card Sky Diamond
+card Sky Tether
+card Skycloud Expanse
+card Skycoach Conductor // All Aboard
+card Skyknight Squire
+card Skyshroud Poacher
+card Sleight of Hand
+card Smash to Smithereens
+card Smother
+card Smuggler's Copter
+card Snow-Covered Forest
+card Snow-Covered Island
+card Snuff Out
+card Sokenzan, Crucible of Defiance
+card Sol Ring
+card Soldier of the Pantheon
+card Solemn Simulacrum
+card Solitary Confinement
+card Soltari Champion
+card Soltari Foot Soldier
+card Soltari Priest
+card Soltari Visionary
+card Speaker of the Heavens
+card Spectacular Pileup
+card Spell Queller
+card Sphere of Resistance
+card Spider Umbra
+card Spike Feeder
+card Spine of Ish Sah
+card Spinner of Souls
+card Spiteful Visions
+card Spymaster's Vault
+card Squee, Goblin Nabob
+card Sram, Senior Edificer
+card Stampeding Wildebeests
+card Sterling Grove
+card Stifle
+card Stomping Ground
+card Stoneforge Mystic
+card Stony Silence
+card Stormcarved Coast
+card Strategic Planning
+card Stroke of Genius
+card Stromkirk Noble
+card Student of Warfare
+card Studious First-Year // Rampant Growth
+card Sulfur Falls
+card Sulfurous Springs
+card Sunbillow Verge
+card Sundown Pass
+card Sungold Sentinel
+card Sunpetal Grove
+card Survival of the Fittest
+card Swamp
+card Sweltering Suns
+card Swift Response
+card Sword of Fire and Ice
+card Sword of Light and Shadow
+card Swords to Plowshares
+card Sylvan Caryatid
+card Sylvan Library
+card Sylvan Safekeeper
+card Symbiotic Wurm
+card Syncopate
+card Syr Ginger, the Meal Ender
+card Sythis, Harvest's Hand
+card Tainted Field
+card Tangle
+card Tarmogoyf
+card Tempest of Light
+card Temple Garden
+card Temple of Abandon
+card Temple of Deceit
+card Temple of Enlightenment
+card Temple of Epiphany
+card Temple of Malice
+card Temple of Mystery
+card Tempting Wurm
+card Temur Battlecrier
+card Terminate
+card Terrarion
+card Terravore
+card Terror of the Peaks
+card Thalia's Lieutenant
+card Thalia, Guardian of Thraben
+card The Filigree Sylex
+card Thermal Glider
+card Thermokarst
+card Thespian's Stage
+card Thieves' Guild Enforcer
+card Thing in the Ice // Awoken Horror
+card Thorn of Amethyst
+card Thornscape Battlemage
+card Thornspire Verge
+card Thoughtseize
+card Thran Dynamo
+card Through the Breach
+card Thrull Retainer
+card Tin-Wing Chimera
+card Titania's Command
+card Topiary Stomper
+card Tormod's Crypt
+card Trading Post
+card Tranquil Domain
+card Tranquil Thicket
+card Treetop Village
+card Treva's Ruins
+card Triskelion
+card Tropical Island
+card True Believer
+card Tune the Narrative
+card Twilight Mire
+card Twisted Abomination
+card Tyrite Sanctum
+card Ugin, the Spirit Dragon
+card Uktabi Orangutan
+card Ulvenwald Tracker
+card Underground Mortuary
+card Underground River
+card Underworld Breach
+card Underworld Dreams
+card Unmask
+card Unmoored Ego
+card Urza's Mine
+card Valakut, the Molten Pinnacle
+card Valley Flamecaller
+card Valley Rotcaller
+card Vastlands Scavenger // Bind to Life
+card Vault of Whispers
+card Vaultborn Tyrant
+card Vendetta
+card Vendilion Clique
+card Verdant Catacombs
+card Vesuva
+card Veteran Survivor
+card Vindicate
+card Vine Trellis
+card Viridian Emissary
+card Vitality Charm
+card Volcanic Hammer
+card Volcanic Salvo
+card Wall of Blossoms
+card Wall of Hope
+card Wall of Roots
+card Warmth
+card Warren Soultrader
+card Wasteland
+card Wasteland Strangler
+card Wastewood Verge
+card Waterfront Bouncer
+card Watery Grave
+card Wavesifter
+card Wayward Guide-Beast
+card Weapon Surge
+card Weathered Wayfarer
+card Wellwisher
+card Whipcorder
+card Wight of the Reliquary
+card Wild Growth
+card Wild Nacatl
+card Willowrush Verge
+card Windswept Heath
+card Winter's Grasp
+card Wirewood Symbiote
+card Wishclaw Talisman
+card Withered Wretch
+card Wonder
+card Wooded Bastion
+card Wooded Foothills
+card Woodland Cemetery
+card Wrath of God
+card Xantid Swarm
+card Yarok's Fenlurker
+card Yavimaya Coast
+card Yavimaya Elder
+card Yavimaya Granger
+card Yavimaya, Cradle of Growth
+card Zagoth Triome
+card Zahur, Glory's Past
+card Zombie Infestation
+card Zul Ashur, Lich Lord
+card Zuran Orb
