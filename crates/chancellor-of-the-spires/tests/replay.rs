@@ -38,6 +38,7 @@ const INDEXED: &[&str] = &[
     "Duress",
     "Champion of the Parish",
     "Elite Vanguard",
+    "Goblin Lackey",
 ];
 
 fn index() -> &'static IndexFile {
@@ -497,4 +498,51 @@ fn an_attack_and_a_block_replay() {
         r.end.stop(),
         Some(Stop::Diverged(Divergence::NeverOffered { .. }))
     ));
+}
+
+/// Goblin Lackey's "may" (CR 603.5, 608.2d): no line says the first was
+/// followed, or which card it put onto the battlefield, so the replay
+/// follows it and names the card from the next line that shows one of
+/// alice's on the battlefield that no line cast, Raging Goblin attacking;
+/// the second is declined by its own line.
+#[test]
+fn goblin_lackey_s_may_is_read_from_the_lines_after_it() {
+    let lackey = "alice puts triggered ability from [Goblin Lackey] onto the stack (Whenever this creature deals damage to a player, you may put a Goblin permanent card from your hand onto the battlefield.).";
+    let lines = format!(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        alice casts [Goblin Lackey].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        bob is being attacked by [Goblin Lackey]
+        {lackey}
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 3: alice
+        alice draws a card.
+        bob is being attacked by [Goblin Lackey] and [Raging Goblin]
+        {lackey}
+        alice chooses not to use [Goblin Lackey]'s ability.
+        bob has conceded from the game.
+    "
+    );
+    let (_, r) = run(&lines);
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.unwrap();
+    let on: Vec<String> = game
+        .permanents()
+        .values()
+        .filter_map(|p| game.card(p.card).map(|t| t.name.clone()))
+        .collect();
+    assert_eq!(on.iter().filter(|n| *n == "Raging Goblin").count(), 1);
+    assert_eq!(game.player(BOB).life(), 17);
 }

@@ -75,6 +75,12 @@ on. Turn-based and state-based actions are never decisions.
   no card can match, none hidden and none the engine can't read
   (CR 701.20a).
 - `Scry { player, cards }`: answered `Scry { top, bottom }` (CR 701.22a).
+- `May { player, card }`: an instruction that says "you may", asked as
+  it is reached (CR 608.2d; a triggered ability's as it resolves, CR
+  603.5), answered `May(bool)`.
+- `PutFromHand { player, hand, legal, unsure }`: Goblin Lackey's "put a
+  Goblin permanent card from your hand onto the battlefield", answered
+  `Pick`, `None` only when no card can match.
 - `Search { player, filter, known, hidden }`: a resolving ability searches
   the player's library (CR 701.23a), answered `Find(Found)`: `Nothing`
   (CR 701.23b), a known card, or `Hidden(card, text)`, a hidden card of
@@ -145,9 +151,10 @@ player's first, each player's in the order they choose (CR 603.3b),
 with their targets, removed if a target slot has no legal choice (CR
 603.3d), and resolving independently of their source (CR 113.7a), on a
 permanent entering, a creature attacking (CR 508.3a), its controller
-casting a spell (CR 601.2i) and a permanent being dealt damage, with the
+casting a spell (CR 601.2i), a permanent being dealt damage, with the
 amount for "that much" (CR 120.3; combat damage dealt at once is one
-event, CR 510.2), with exalted and prowess written
+event, CR 510.2), and a permanent dealing damage, or combat damage, to a
+player, with exalted and prowess written
 out as the triggers they are (CR 702.83a, 702.108a) and "until end of
 turn" effects ending in cleanup (CR 514.2); combat: attackers tapping
 unless they have vigilance (CR 508.1f), blockers, the declare blockers
@@ -200,10 +207,9 @@ destroy, mill, modal spells, additional costs and loyalty (2 each). `tests/game.
 Loam against a goldfish for six turns, casting what it can.
 
 Not yet: most instructions (destroy, exile, return, create a token,
-counter a spell, modal spells, "may", "if"), X, targeting a spell,
+counter a spell, modal spells, "if"), X, targeting a spell,
 activated abilities with targets, mana costs, limits or effects other
-than a search for a card, triggers on any other event (dealing damage,
-an upkeep, dying), "intervening if" (CR 603.4), a card that triggers from a
+than a search for a card, triggers on any other event (an upkeep, dying), "intervening if" (CR 603.4), a card that triggers from a
 graveyard, attacking a planeswalker or battle, requirements and
 restrictions on attacking and blocking beyond flying, reach, menace and
 defender, a creature blocking two, and a land's back face (CR 712). State-based actions that give a choice run one after the other
@@ -344,6 +350,17 @@ after the discard in older logs and all of it in newer ones, and the card
 discarded, and the engine's hand must have as many cards or the replay
 stops (`HandSize`). The cards a scry looks at are hidden alike, so the
 first as many as the log says go back on top and the rest to the bottom.
+A "may" is answered by its own line when the log prints one ("chooses
+to use", "chooses not to use" or "declines to use [X]'s ability") from
+the line being followed to the end of the turn; with none, the replay
+follows it and keeps a checkpoint to go back and decline it if any later
+line can't then be followed, since the log either shows what the
+instruction did or nothing at all. Goblin Lackey's is the second: the card
+it puts onto the battlefield is never named as it happens, so the replay
+names the first card of the player's a later line shows on the
+battlefield (a trigger's source, an ability activated, an attacker) that
+no line cast or played first and that they have no permanent of already;
+with none, it declines.
 A triggered ability goes on the stack because the rules put it there,
 never because a line says so, and each "puts triggered ability from [X]
 onto the stack" line is matched to one of the engine's: a trigger the
@@ -373,8 +390,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 19 replay to the end** (16 to the log's winner
-line), 6 of them past the first turn, and **19.40% of their lines are
-followed** (15,166 of 78,183: the lines before each game's stop, all of a
+line), 6 of them past the first turn, and **19.67% of their lines are
+followed** (15,375 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the

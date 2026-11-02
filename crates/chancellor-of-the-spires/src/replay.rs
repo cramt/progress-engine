@@ -216,6 +216,7 @@ pub fn replay(
         lands: Vec::new(),
         demand: Vec::new(),
         matched: BTreeSet::new(),
+        consumed: BTreeSet::new(),
         entries: g.entries.clone(),
     };
     let end = r.run(m, g);
@@ -235,6 +236,21 @@ struct Checkpoint {
     trace: usize,
     resume: usize,
     others: Vec<Retry>,
+    /// What the replay knew of the log there.
+    knew: Knew,
+    /// Whether any line that can't be followed is reason to go back, not
+    /// only a spell that can't be paid for: a "may" the log shows no
+    /// answer to, whose answer is known only from what follows.
+    any_stop: bool,
+}
+
+/// The replay's own record of the lines it has matched, put back with the
+/// game when it goes back to a checkpoint.
+#[derive(Clone)]
+struct Knew {
+    drawn: u32,
+    matched: BTreeSet<u32>,
+    consumed: BTreeSet<usize>,
 }
 
 #[derive(Clone)]
@@ -264,6 +280,9 @@ struct Driver<'a> {
     /// The triggered abilities on the stack a log line has shown, by their
     /// `seq`.
     matched: BTreeSet<u32>,
+    /// The "chooses to use" and "declines to use" lines a "may" was
+    /// answered from before the replay reached them.
+    consumed: BTreeSet<usize>,
     /// The game's lines, for the choices a later line shows (a trigger's
     /// targets, the order triggers go on the stack).
     entries: Vec<Entry>,
@@ -274,6 +293,14 @@ type Followed = Result<(), Stop>;
 impl Driver<'_> {
     fn game(&mut self) -> &mut Game {
         self.game.as_mut().expect("set up")
+    }
+
+    fn knew(&self) -> Knew {
+        Knew {
+            drawn: self.drawn,
+            matched: self.matched.clone(),
+            consumed: self.consumed.clone(),
+        }
     }
 
     fn seat(&self, p: log::Player) -> PlayerId {
@@ -316,17 +343,25 @@ impl Driver<'_> {
                     // Only a choice made earlier can make a later payment
                     // impossible, or lose the game early, so only then is
                     // it worth going back.
-                    let retry = unpayable && backtracks < BACKTRACKS;
-                    match self.checkpoints.last_mut().filter(|_| retry) {
+                    let retry = backtracks < BACKTRACKS;
+                    match self
+                        .checkpoints
+                        .last_mut()
+                        .filter(|cp| retry && (unpayable || cp.any_stop))
+                    {
                         Some(cp) => {
                             backtracks += 1;
                             let other = cp.others.remove(0);
+                            let knew = cp.knew.clone();
                             let mut game = cp.game.clone();
                             let (entry, len, resume) = (cp.entry, cp.trace, cp.resume);
                             if cp.others.is_empty() {
                                 self.checkpoints.pop();
                             }
                             self.trace.truncate(len);
+                            self.drawn = knew.drawn;
+                            self.matched = knew.matched;
+                            self.consumed = knew.consumed;
                             let did = match other {
                                 Retry::Pay(payment) => pay_with(&mut game, &payment)
                                     .map(|()| format!("paid again, {}", describe(&payment))),
@@ -610,6 +645,8 @@ impl Driver<'_> {
                         trace: self.trace.len(),
                         resume: i + 1,
                         others: rest.iter().cloned().map(Retry::Pay).collect(),
+                        knew: self.knew(),
+                        any_stop: false,
                     });
                 }
                 pay_with(self.game(), first)?;
@@ -763,6 +800,29 @@ impl Driver<'_> {
                     }));
                 }
                 self.did(i, format!("{bn} blocks {an}"));
+            }
+            UsesAbility { card, .. } => {
+                // The "may" it answers is answered as the engine asks
+                // (`may`), which reads this line ahead.
+                let turn = self.game().turn();
+                while !self.consumed.contains(&i) {
+                    let game = self.game();
+                    let passing = game.turn() == turn
+                        && match game.decision() {
+                            Decision::Priority { .. } => !game.stack().is_empty(),
+                            Decision::May { .. }
+                            | Decision::Targets { .. }
+                            | Decision::Order { .. }
+                            | Decision::Search { .. }
+                            | Decision::PayOrEnterTapped { .. } => true,
+                            _ => false,
+                        };
+                    if !passing {
+                        return Err(unfollowed(Some(card.name())));
+                    }
+                    self.pass()?;
+                }
+                self.did(i, format!("answered {}'s \"may\" (CR 608.2d)", card.name()));
             }
             TriggerFailed(c) => {
                 self.did(
@@ -1029,6 +1089,8 @@ impl Driver<'_> {
                 hidden,
                 ..
             } => self.search(player, known, hidden),
+            Decision::May { card, .. } => self.may(card),
+            Decision::PutFromHand { player, .. } => self.put_from_hand(player),
             Decision::PayOrEnterTapped { card, life, .. } => self.pay_or_tap(card, life),
             d @ (Decision::Pay { .. } | Decision::Mulligan { .. } | Decision::Bottom { .. }) => {
                 unreachable!("the replay answers {d:?} where it arises")
@@ -1173,7 +1235,10 @@ impl Driver<'_> {
                 Decision::Priority { .. } if !game.stack().is_empty() && game.turn() == turn => {
                     self.pass()?
                 }
-                Decision::Search { .. } | Decision::PayOrEnterTapped { .. } => self.pass()?,
+                Decision::Search { .. }
+                | Decision::PayOrEnterTapped { .. }
+                | Decision::May { .. }
+                | Decision::PutFromHand { .. } => self.pass()?,
                 d => return Ok(d),
             }
         }
@@ -1669,6 +1734,8 @@ impl Driver<'_> {
                     .iter()
                     .map(|(a, d)| Retry::Answer(a.clone(), d.clone()))
                     .collect(),
+                knew: self.knew(),
+                any_stop: false,
             });
         }
         self.act(first.clone())?;
@@ -1698,11 +1765,151 @@ impl Driver<'_> {
                 Answer::PayLife(true),
                 format!("paid {life} life for {name} to enter untapped"),
             )],
+            knew: self.knew(),
+            any_stop: false,
         });
         self.act(Answer::PayLife(false))?;
         let at = self.at;
         self.did(at, format!("{name} enters tapped, no life paid"));
         Ok(())
+    }
+
+    /// A "may" of `card`'s (CR 608.2d, 603.5). A "chooses to use" or
+    /// "declines to use" line for it, from the line being followed to the
+    /// end of the turn, says which; with none, the replay follows it and
+    /// goes back to decline it if a later line can't then be followed, as
+    /// it does for a payment: the log shows what the instruction did, or
+    /// nothing at all (Goblin Lackey's).
+    fn may(&mut self, card: CardId) -> Followed {
+        let name = self.name_of(card);
+        let said = self
+            .entries
+            .iter()
+            .enumerate()
+            .skip(self.at)
+            .take_while(|(k, e)| *k == self.at || !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|(k, e)| match &e.event {
+                Event::UsesAbility { card: c, uses, .. }
+                    if c.name() == name && !self.consumed.contains(&k) =>
+                {
+                    Some((k, *uses))
+                }
+                _ => None,
+            });
+        if let Some((k, uses)) = said {
+            self.consumed.insert(k);
+            return self.act(Answer::May(uses));
+        }
+        let game = self.game().clone();
+        self.checkpoints.push(Checkpoint {
+            game,
+            entry: self.at,
+            trace: self.trace.len(),
+            resume: self.at,
+            others: vec![Retry::Answer(
+                Answer::May(false),
+                format!("declined {name}'s \"may\""),
+            )],
+            knew: self.knew(),
+            any_stop: true,
+        });
+        self.act(Answer::May(true))?;
+        let at = self.at;
+        self.did(
+            at,
+            format!("followed {name}'s \"may\", which no line declines"),
+        );
+        Ok(())
+    }
+
+    /// A card `p` puts onto the battlefield from their hand, which the log
+    /// never names as it happens: the first card of theirs a later line
+    /// shows on the battlefield (a trigger's source, an ability activated,
+    /// an attacker or blocker) that no line casts or plays first and that
+    /// they have no permanent of already. None is an error, so a "may"
+    /// that put it goes back and declines.
+    fn put_from_hand(&mut self, p: PlayerId) -> Followed {
+        let mut explained: BTreeSet<String> = BTreeSet::new();
+        let mut candidates: Vec<String> = Vec::new();
+        for e in self.entries.iter().skip(self.at) {
+            let mine = |q: &log::Player| self.seat(*q) == p;
+            let named: Vec<String> = match &e.event {
+                Event::Casts(c) if mine(&c.player) => {
+                    if let Object::Card(c) = &c.card {
+                        explained.insert(c.name().to_string());
+                    }
+                    continue;
+                }
+                Event::PlaysLand {
+                    player,
+                    card: Object::Card(c),
+                } if mine(player) => {
+                    explained.insert(c.name().to_string());
+                    continue;
+                }
+                Event::Trigger(t) if mine(&t.player) => {
+                    source_name(t).map(str::to_string).into_iter().collect()
+                }
+                Event::Activates(a) if mine(&a.player) => match &a.card {
+                    Object::Card(c) => vec![c.name().to_string()],
+                    _ => vec![],
+                },
+                Event::Attacked {
+                    defender: log::Defender::Player(d),
+                    attackers: log::Attackers::Seen(xs),
+                } if !mine(d) => xs
+                    .iter()
+                    .filter_map(|x| match x {
+                        Object::Card(c) => Some(c.name().to_string()),
+                        _ => None,
+                    })
+                    .collect(),
+                _ => vec![],
+            };
+            for n in named {
+                if !explained.contains(&n) && !candidates.contains(&n) {
+                    candidates.push(n);
+                }
+            }
+        }
+        let game = self.game.as_ref().expect("set up");
+        let chars = game.characteristics();
+        let on_battlefield = |n: &str| {
+            game.permanents().iter().any(|(id, perm)| {
+                chars[id].controller == p && game.card(perm.card).is_some_and(|t| t.name == n)
+            })
+        };
+        let candidates: Vec<String> = candidates
+            .into_iter()
+            .filter(|n| !on_battlefield(n))
+            .collect();
+        for n in candidates {
+            let Ok(text) = self.text(&n) else { continue };
+            let mut tried = self.game().clone();
+            let hand = tried.player(p).hand().clone();
+            let c = match hand
+                .iter()
+                .find(|c| tried.card(**c).is_some_and(|t| t.name == text.name))
+            {
+                Some(c) => *c,
+                None => {
+                    let Some(c) = hand.iter().find(|c| tried.card(**c).is_none()) else {
+                        continue;
+                    };
+                    tried.reveal(*c, text).expect("a hidden card");
+                    *c
+                }
+            };
+            if tried.step(Answer::Pick(Some(c))).is_ok() {
+                *self.game() = tried;
+                let at = self.at;
+                self.did(at, format!("put {n} onto the battlefield from the hand"));
+                return Ok(());
+            }
+        }
+        Err(Stop::Diverged(Divergence::Unlogged {
+            what: "a card put onto the battlefield from a hand".into(),
+        }))
     }
 
     /// The payments the solver finds for the spell being cast, best first.

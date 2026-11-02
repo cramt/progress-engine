@@ -350,6 +350,17 @@ enum Instructions {
     Triggered(CardId, u16),
 }
 
+impl Instructions {
+    /// The card whose spell or ability it is.
+    fn card(self) -> CardId {
+        match self {
+            Instructions::Spell(c)
+            | Instructions::Activated(c, _)
+            | Instructions::Triggered(c, _) => c,
+        }
+    }
+}
+
 /// Where a spell's or ability's resolution stands when it stops for a
 /// choice: whose instructions, its targets, and the instruction after the
 /// one being followed (CR 608.2c).
@@ -366,7 +377,9 @@ struct Resuming {
     triggering: Option<ObjectId>,
     /// The amount the trigger event named, "that much".
     amount: Option<u32>,
-    next: usize,
+    /// The instruction to follow next: its index in the program's list,
+    /// then in the list of each "may" being followed inside it.
+    next: Vec<usize>,
 }
 
 /// A triggered ability that has triggered and waits to be put on the stack
@@ -395,6 +408,8 @@ enum Event {
     Cast { card: CardId, controller: PlayerId },
     /// These permanents were dealt this much damage, at once.
     Damaged(BTreeMap<ObjectId, u32>),
+    /// This permanent dealt damage to a player, combat damage or not.
+    DamagedPlayer { source: ObjectId, combat: bool },
 }
 
 /// The combat phase's state (CR 506): who attacks whom, who blocks what.
@@ -518,6 +533,20 @@ enum Waiting {
     Scry {
         player: PlayerId,
         cards: Vec<CardId>,
+        resume: Resuming,
+    },
+    /// CR 608.2d, 603.5: `player` chooses whether to follow the "may"
+    /// instruction `at` points to.
+    May {
+        player: PlayerId,
+        at: Resuming,
+    },
+    /// `player` chooses a card of their hand `filter` matches to put onto
+    /// the battlefield.
+    PutFromHand {
+        player: PlayerId,
+        filter: CardFilter,
+        tapped: bool,
         resume: Resuming,
     },
     /// CR 508.1: the active player declares attackers.
@@ -658,6 +687,22 @@ pub enum Decision {
         legal: Vec<CardId>,
         unsure: usize,
     },
+    /// CR 608.2d, 603.5: follow an instruction of `card`'s that says "you
+    /// may", or not, answered with `Answer::May`.
+    May {
+        player: PlayerId,
+        card: CardId,
+    },
+    /// "Put a Goblin permanent card from your hand onto the battlefield":
+    /// `player` chooses a card of their `hand` that `legal` lists,
+    /// answered with `Answer::Pick`; `None` is legal only when no card can
+    /// match: none listed, none hidden and none the engine can't read.
+    PutFromHand {
+        player: PlayerId,
+        hand: Vec<CardId>,
+        legal: Vec<CardId>,
+        unsure: usize,
+    },
     /// CR 701.22a: look at `cards`, the top of the library, and put any
     /// number on the bottom and the rest on top in any order, answered
     /// with `Answer::Scry`.
@@ -773,8 +818,11 @@ pub enum Answer {
     Targets(Vec<Target>),
     /// CR 603.3b.
     Order(Vec<usize>),
-    /// CR 701.20a: the card chosen from a revealed hand, if any can be.
+    /// CR 701.20a: the card chosen from a revealed hand, if any can be;
+    /// or from a hand to put onto the battlefield.
     Pick(Option<CardId>),
+    /// CR 608.2d: follow the "may" instruction, or not.
+    May(bool),
     /// CR 701.22a: the cards put back on top, the first on top, and those
     /// put on the bottom, the first nearest the top.
     Scry {
@@ -1246,6 +1294,29 @@ impl Game {
                 player: *player,
                 cards: cards.clone(),
             },
+            Waiting::May { player, at } => Decision::May {
+                player: *player,
+                card: at.what.card(),
+            },
+            Waiting::PutFromHand { player, filter, .. } => {
+                let hand: Vec<CardId> = self.player(*player).hand.iter().copied().collect();
+                Decision::PutFromHand {
+                    player: *player,
+                    legal: hand
+                        .iter()
+                        .copied()
+                        .filter(|c| self.finds(*c, filter))
+                        .collect(),
+                    unsure: hand
+                        .iter()
+                        .filter(|c| match self.known(**c) {
+                            None => true,
+                            Some(k) => k.found_by(filter).is_err(),
+                        })
+                        .count(),
+                    hand,
+                }
+            }
             Waiting::Attackers { player } => Decision::Attackers {
                 player: *player,
                 can: self.can_attack(*player),
@@ -1478,6 +1549,36 @@ impl Game {
                     _ => return Err(Rejected::Illegal(answer)),
                 }
                 self.follow(resume);
+            }
+            (Waiting::May { at, .. }, Answer::May(yes)) => {
+                let mut at = at;
+                if *yes {
+                    at.next.push(0);
+                } else {
+                    *at.next.last_mut().expect("a cursor") += 1;
+                }
+                self.follow(at);
+            }
+            (
+                Waiting::PutFromHand {
+                    player,
+                    tapped,
+                    resume,
+                    ..
+                },
+                Answer::Pick(pick),
+            ) => {
+                let Decision::PutFromHand { legal, unsure, .. } = self.decision() else {
+                    unreachable!("waiting on a card from a hand")
+                };
+                match pick {
+                    Some(c) if legal.contains(c) => {
+                        self.players[player.0 as usize].hand.retain(|x| x != c);
+                        self.enter(*c, player, tapped, Then::Resume(resume));
+                    }
+                    None if legal.is_empty() && unsure == 0 => self.follow(resume),
+                    _ => return Err(Rejected::Illegal(answer)),
+                }
             }
             (Waiting::Attackers { player }, Answer::Attack(declared)) => {
                 let Decision::Attackers { can, defenders, .. } = self.decision() else {
@@ -2094,7 +2195,7 @@ impl Game {
                 targets: Vec::new(),
                 triggering: None,
                 amount: None,
-                next: 0,
+                next: vec![0],
             }),
             Some(StackObject::Trigger {
                 source,
@@ -2138,7 +2239,7 @@ impl Game {
             targets: checked,
             triggering,
             amount,
-            next: 0,
+            next: vec![0],
         };
         if !targets.is_empty() && at.targets.iter().all(Option::is_none) {
             return self.done(&at);
@@ -2176,8 +2277,8 @@ impl Game {
 
     /// Follow a resolving spell's or ability's instructions in order from
     /// `at.next` (CR 608.2c), stopping at one that asks for a choice.
-    fn follow(&mut self, at: Resuming) {
-        let effects = match at.what {
+    fn follow(&mut self, mut at: Resuming) {
+        let program = match at.what {
             Instructions::Activated(source, ability) => {
                 let Some(Ok(def)) = self
                     .known(source)
@@ -2191,11 +2292,30 @@ impl Game {
             what => self.program(what).effects.clone(),
         };
         let p = at.controller;
-        for (k, e) in effects.into_iter().enumerate().skip(at.next) {
-            let resume = Resuming {
-                next: k + 1,
-                ..at.clone()
+        loop {
+            // The list the cursor is in: the program's, or a "may"'s
+            // inside it.
+            let (k, outer) = at.next.split_last().expect("a cursor");
+            let mut list = &program;
+            for j in outer {
+                match &list[*j] {
+                    Effect::May(inner) => list = inner,
+                    _ => unreachable!("a cursor enters only a may"),
+                }
+            }
+            let Some(e) = list.get(*k).cloned() else {
+                // The end of a "may" goes on after it; of the program,
+                // the spell or ability is done.
+                if at.next.len() == 1 {
+                    break;
+                }
+                at.next.pop();
+                *at.next.last_mut().expect("a cursor") += 1;
+                continue;
             };
+            let here = at.clone();
+            *at.next.last_mut().expect("a cursor") += 1;
+            let resume = at.clone();
             // CR 608.2b: an instruction naming an illegal target does
             // nothing to it.
             let who = |w: Who| match w {
@@ -2277,9 +2397,8 @@ impl Game {
                     if let Some(to) = to {
                         let source = self.source_of(&at);
                         let hit = self.deal(source.as_ref(), at.controller, &[(to, n)]);
-                        if !hit.is_empty() {
-                            self.trigger_on(Event::Damaged(hit));
-                        }
+                        let by = at.object.filter(|o| self.permanents.contains_key(o));
+                        self.damage_triggers(hit, by, false);
                     }
                 }
                 Effect::Scry(n) => {
@@ -2309,6 +2428,22 @@ impl Game {
                         let t = self.battlefield.resolve([o], ops);
                         self.until_end_of_turn.push(t);
                     }
+                }
+                Effect::May(_) => {
+                    self.waiting = Waiting::May {
+                        player: p,
+                        at: here,
+                    };
+                    return;
+                }
+                Effect::PutFromHand { filter, tapped } => {
+                    self.waiting = Waiting::PutFromHand {
+                        player: p,
+                        filter,
+                        tapped,
+                        resume,
+                    };
+                    return;
                 }
             }
         }
@@ -2356,10 +2491,10 @@ impl Game {
         source: Option<&Chars>,
         controller: PlayerId,
         hits: &[(Target, u32)],
-    ) -> BTreeMap<ObjectId, u32> {
+    ) -> Dealt {
         let has = |k: Keyword| source.is_some_and(|c| c.abilities.contains(&Ability::Keyword(k)));
         let mut total = 0;
-        let mut dealt = BTreeMap::new();
+        let mut dealt = Dealt::default();
         for (to, n) in hits {
             if *n == 0 {
                 continue;
@@ -2367,13 +2502,16 @@ impl Game {
             total += n;
             match to {
                 // CR 120.3a.
-                Target::Player(q) => self.players[q.0 as usize].life -= *n as i32,
+                Target::Player(q) => {
+                    self.players[q.0 as usize].life -= *n as i32;
+                    dealt.players.insert(*q);
+                }
                 // CR 120.3e.
                 Target::Object(o) => {
                     if let Some(perm) = self.permanents.get_mut(o) {
                         perm.damage += n;
                         perm.deathtouched |= has(Keyword::Deathtouch);
-                        *dealt.entry(*o).or_insert(0) += n;
+                        *dealt.objects.entry(*o).or_insert(0) += n;
                     }
                 }
             }
@@ -2383,6 +2521,19 @@ impl Game {
             self.players[controller.0 as usize].life += total as i32;
         }
         dealt
+    }
+
+    /// What waits for damage dealt at once triggers: a permanent dealt
+    /// some, and the permanent `by` that dealt it to each player.
+    fn damage_triggers(&mut self, hit: Dealt, by: Option<ObjectId>, combat: bool) {
+        if !hit.objects.is_empty() {
+            self.trigger_on(Event::Damaged(hit.objects));
+        }
+        if let Some(source) = by {
+            for _ in hit.players {
+                self.trigger_on(Event::DamagedPlayer { source, combat });
+            }
+        }
     }
 
     /// Every legal choice for a target slot of a spell or ability `p`
@@ -2515,14 +2666,12 @@ impl Game {
             Waiting::Discard { then: Some(at), .. }
             | Waiting::ChooseFromHand { resume: at, .. }
             | Waiting::Scry { resume: at, .. }
-            | Waiting::Search { resume: at, .. } => at,
+            | Waiting::Search { resume: at, .. }
+            | Waiting::May { at, .. }
+            | Waiting::PutFromHand { resume: at, .. } => at,
             _ => return None,
         };
-        Some(match at.what {
-            Instructions::Spell(c)
-            | Instructions::Activated(c, _)
-            | Instructions::Triggered(c, _) => c,
-        })
+        Some(at.what.card())
     }
 
     /// The creatures attacking, and whom (CR 506.3).
@@ -2581,6 +2730,14 @@ impl Game {
                         .iter()
                         .filter(|(id, _)| all.contains_key(*id) && f.matches(&seen(**id)))
                         .map(|(id, n)| (Some(*id), Some(*n)))
+                        .collect(),
+                    (
+                        TriggerEvent::DealsDamageToPlayer { what, combat },
+                        Event::DamagedPlayer { source, combat: c },
+                    ) if all.contains_key(source) && (*c || !combat) => what
+                        .matches(&seen(*source))
+                        .then_some((None, None))
+                        .into_iter()
                         .collect(),
                     (TriggerEvent::Enters(f), Event::Entered(id)) => f
                         .matches(&seen(*id))
@@ -2855,6 +3012,7 @@ impl Game {
         let chars = self.characteristics();
         let sources: BTreeSet<ObjectId> = assigned.iter().map(|(s, _, _)| *s).collect();
         let mut dealt: BTreeMap<ObjectId, u32> = BTreeMap::new();
+        let mut hit_players: Vec<ObjectId> = Vec::new();
         for s in &sources {
             let hits: Vec<(Target, u32)> = assigned
                 .iter()
@@ -2863,14 +3021,29 @@ impl Game {
                 .collect();
             let source = chars.get(s).cloned();
             let controller = source.as_ref().map_or(self.active, |c| c.controller);
-            for (o, n) in self.deal(source.as_ref(), controller, &hits) {
+            let hit = self.deal(source.as_ref(), controller, &hits);
+            for (o, n) in hit.objects {
                 *dealt.entry(o).or_insert(0) += n;
+            }
+            for _ in hit.players {
+                hit_players.push(*s);
             }
         }
         // One event for all of it: a creature dealt damage by two at once
         // is dealt it once (CR 510.2).
-        if !dealt.is_empty() {
-            self.trigger_on(Event::Damaged(dealt));
+        self.damage_triggers(
+            Dealt {
+                objects: dealt,
+                players: BTreeSet::new(),
+            },
+            None,
+            true,
+        );
+        for s in hit_players {
+            self.trigger_on(Event::DamagedPlayer {
+                source: s,
+                combat: true,
+            });
         }
         if first {
             if let Some(c) = self.combat.as_mut() {
@@ -3585,6 +3758,14 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
     }
 }
 
+/// Damage one source dealt at once (CR 120.3): to each permanent, how
+/// much, and the players dealt any.
+#[derive(Default)]
+struct Dealt {
+    objects: BTreeMap<ObjectId, u32>,
+    players: BTreeSet<PlayerId>,
+}
+
 /// What putting triggered abilities on the stack did.
 enum Put {
     Nothing,
@@ -3618,16 +3799,7 @@ fn is_land(type_line: &str) -> bool {
 
 /// CR 110.4b; a kindred card is the other type it has (CR 308.1).
 fn is_permanent(chars: &Chars) -> bool {
-    [
-        CardType::Artifact,
-        CardType::Battle,
-        CardType::Creature,
-        CardType::Enchantment,
-        CardType::Land,
-        CardType::Planeswalker,
-    ]
-    .iter()
-    .any(|t| chars.is(*t))
+    lower::PERMANENT_TYPES.iter().any(|t| chars.is(*t))
 }
 
 #[cfg(test)]

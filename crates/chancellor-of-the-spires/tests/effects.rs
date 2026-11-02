@@ -782,3 +782,78 @@ fn cloudpost_taps_for_each_locus_on_the_battlefield() {
     let two = ManaPool::of([Mana::Colorless, Mana::Colorless]);
     assert_eq!(adds, vec![two, two], "each Cloudpost adds {{C}}{{C}}");
 }
+
+/// Goblin Lackey attacks unblocked and deals damage to a player, so its
+/// trigger resolves: until the combat damage step's priority, passing.
+fn lackey_connects(game: &mut Game) -> CardId {
+    play(game, "Mountain");
+    cast(game, "Goblin Lackey", None);
+    resolve(game);
+    my_next_main(game);
+    let lackey = creature(game, "Goblin Lackey").unwrap();
+    to_attackers(game);
+    step(game, Answer::Attack(vec![(lackey, THEM)]));
+    for _ in 0..20 {
+        if let Decision::May { card, .. } = game.decision() {
+            return card;
+        }
+        match game.decision() {
+            Decision::Blockers { .. } => step(game, Answer::Block(vec![])),
+            _ => step(game, Answer::Act(Action::Pass)),
+        };
+    }
+    panic!("Goblin Lackey's trigger never asked")
+}
+
+/// CR 120.3, 510.2, 603.2, 603.5, 608.2d: Goblin Lackey's "Whenever this
+/// creature deals damage to a player, you may put a Goblin permanent card
+/// from your hand onto the battlefield" triggers on its combat damage; as
+/// it resolves I choose to, and choose a Goblin, never a land.
+#[test]
+fn goblin_lackey_may_put_a_goblin_from_hand_onto_the_battlefield() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Goblin Lackey", 15),
+            ("Mogg Fanatic", 15),
+        ],
+        &[("Forest", 60)],
+        &[("Mountain", 1), ("Goblin Lackey", 1), ("Mogg Fanatic", 1)],
+    );
+    let lackey = lackey_connects(&mut game);
+    assert_eq!(game.card(lackey).unwrap().name, "Goblin Lackey");
+    assert_eq!(game.player(THEM).life(), 19);
+    let fanatic = in_hand(&game, ME, "Mogg Fanatic").unwrap();
+    let Decision::PutFromHand { legal, unsure, .. } = step(&mut game, Answer::May(true)) else {
+        panic!("a card to choose")
+    };
+    assert_eq!(unsure, 0);
+    assert!(legal.contains(&fanatic));
+    let mountain = in_hand(&game, ME, "Mountain");
+    if let Some(m) = mountain {
+        assert!(!legal.contains(&m), "a land isn't a Goblin");
+        assert!(game.clone().step(Answer::Pick(Some(m))).is_err());
+    }
+    assert!(game.clone().step(Answer::Pick(None)).is_err());
+    step(&mut game, Answer::Pick(Some(fanatic)));
+    assert!(creature(&game, "Mogg Fanatic").is_some());
+    assert!(in_hand(&game, ME, "Mogg Fanatic") != Some(fanatic));
+}
+
+/// CR 603.5: declining the "may", nothing is put onto the battlefield.
+#[test]
+fn goblin_lackey_may_be_declined() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Goblin Lackey", 15),
+            ("Mogg Fanatic", 15),
+        ],
+        &[("Forest", 60)],
+        &[("Mountain", 1), ("Goblin Lackey", 1), ("Mogg Fanatic", 1)],
+    );
+    lackey_connects(&mut game);
+    step(&mut game, Answer::May(false));
+    assert!(creature(&game, "Mogg Fanatic").is_none());
+    assert!(matches!(game.decision(), Decision::Priority { .. }));
+}

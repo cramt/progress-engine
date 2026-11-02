@@ -871,6 +871,16 @@ pub enum Effect {
         on: Obj,
         ops: Vec<Op>,
     },
+    /// "You may …": the controller chooses, as the instruction is
+    /// reached, whether to follow these (CR 608.2d; a triggered ability's
+    /// "may" is chosen as it resolves, CR 603.5).
+    May(Vec<Effect>),
+    /// "Put a Goblin permanent card from your hand onto the battlefield":
+    /// the controller chooses one the filter matches, if they have one.
+    PutFromHand {
+        filter: CardFilter,
+        tapped: bool,
+    },
 }
 
 /// A player an instruction names: its controller ("you", CR 109.5) or a
@@ -952,6 +962,11 @@ pub enum TriggerEvent {
     /// "Whenever this creature is dealt damage": a permanent the filter
     /// matches is dealt damage, the amount the event's (CR 120.3).
     DealtDamage(Filter),
+    /// "Whenever this creature deals damage to a player", "… deals combat
+    /// damage to a player": a permanent the filter matches deals damage to
+    /// a player, once for each player dealt damage at once (CR 120.3,
+    /// 510.2), only combat damage if `combat`.
+    DealsDamageToPlayer { what: Filter, combat: bool },
 }
 
 /// A triggered ability, lowered.
@@ -965,7 +980,7 @@ pub struct Triggered {
 /// `Let` that binds its targets, if any.
 pub fn spell(bind: &[Objects], effects: &[i::Effect]) -> Result<Program, String> {
     let mut scope = Scope::new(bind);
-    let lowered = scope.effects(effects)?;
+    let lowered = scope.effects(effects, 0)?;
     scope.program.effects = lowered;
     Ok(scope.program)
 }
@@ -990,13 +1005,25 @@ pub fn triggered(
             } => TriggerEvent::Enters(entering(what)?),
             i::Event::Attacks(what) => TriggerEvent::Attacks(entering(what)?),
             i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
+            i::Event::DealsDamageTo { what, to }
+                if matches!(to.as_slice(), [i::Recipient::Player(i::Player::APlayer)]) =>
+            {
+                TriggerEvent::DealsDamageToPlayer {
+                    what: entering(what)?,
+                    combat: false,
+                }
+            }
+            i::Event::DealsCombatDamageToPlayer(what) => TriggerEvent::DealsDamageToPlayer {
+                what: entering(what)?,
+                combat: true,
+            },
             _ => return Err(trigger_node(trigger)),
         },
         _ => return Err(trigger_node(trigger)),
     };
     let mut scope = Scope::new(bind);
     scope.amount = matches!(event, TriggerEvent::DealtDamage(_));
-    let lowered = scope.effects(effect)?;
+    let lowered = scope.effects(effect, 0)?;
     scope.program.effects = lowered;
     Ok(Triggered {
         event,
@@ -1286,6 +1313,24 @@ impl<'a> Scope<'a> {
             }
             i::Effect::RevealHand(_) => return Err(format!("{} alone", node())),
             i::Effect::Shuffle(i::Player::You) => Effect::Shuffle,
+            i::Effect::May {
+                who: i::Player::You,
+                then,
+            } => Effect::May(self.effects(then, depth)?),
+            i::Effect::Move {
+                what,
+                from: None,
+                to: i::Zone::Battlefield,
+                tapped,
+                transformed: false,
+                under: None,
+                order: None,
+            } if what.filter.posts == [Post::In(i::Zone::Hand(i::Player::You))] => {
+                Effect::PutFromHand {
+                    filter: hand_card(what)?,
+                    tapped: *tapped,
+                }
+            }
             _ => return Err(node()),
         }])
     }
@@ -1294,7 +1339,7 @@ impl<'a> Scope<'a> {
     /// reveals their hand. You choose a nonland card from it. That player
     /// discards that card." is one instruction: the `With` binds the card
     /// chosen, and the discard names it.
-    fn effects(&mut self, effects: &[i::Effect]) -> Result<Vec<Effect>, String> {
+    fn effects(&mut self, effects: &[i::Effect], depth: usize) -> Result<Vec<Effect>, String> {
         let mut out = Vec::new();
         let mut k = 0;
         while k < effects.len() {
@@ -1327,12 +1372,12 @@ impl<'a> Scope<'a> {
                     filter: self.card_in_hand(card, who)?,
                 });
                 for r in rest {
-                    out.extend(self.effect(r, 1)?);
+                    out.extend(self.effect(r, depth + 1)?);
                 }
                 k += 2;
                 continue;
             }
-            out.extend(self.effect(&effects[k], 0)?);
+            out.extend(self.effect(&effects[k], depth)?);
             k += 1;
         }
         Ok(out)
@@ -1509,6 +1554,47 @@ fn resolving(e: &i::Effect) -> Result<Vec<Effect>, String> {
         other => Err(short(other)),
     }
 }
+
+/// "a Goblin permanent card from your hand": one card of your hand, by its
+/// types and colours, a permanent card one of a permanent's types (CR
+/// 110.4b).
+fn hand_card(o: &Objects) -> Result<CardFilter, String> {
+    let kind = o.filter.kind.clone();
+    let card = card_filter(&Objects {
+        quant: o.quant.clone(),
+        filter: i::Filter {
+            kind: Some(i::Noun::Card),
+            posts: Vec::new(),
+            ..o.filter.clone()
+        },
+    })?;
+    match kind {
+        Some(i::Noun::Card) => Ok(card),
+        Some(i::Noun::PermanentCard) => Ok(CardFilter(
+            card.0
+                .iter()
+                .flat_map(|alt| {
+                    PERMANENT_TYPES.iter().map(move |t| {
+                        let mut f = alt.clone();
+                        f.0.push(Pred::Is(Prop::Type(*t)));
+                        f
+                    })
+                })
+                .collect(),
+        )),
+        other => Err(format!("a card from a hand of kind {other:?}")),
+    }
+}
+
+/// CR 110.4b.
+pub const PERMANENT_TYPES: [CardType; 6] = [
+    CardType::Artifact,
+    CardType::Battle,
+    CardType::Creature,
+    CardType::Enchantment,
+    CardType::Land,
+    CardType::Planeswalker,
+];
 
 /// "a Mountain or Forest card": one card, by its types and colours alone.
 fn card_filter(o: &Objects) -> Result<CardFilter, String> {
