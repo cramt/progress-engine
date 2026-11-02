@@ -28,7 +28,7 @@ use crate::game::{
 };
 use crate::log::{self, Entry, Event, Object};
 use crate::mana::short;
-use crate::model::{ObjectId, PlayerId};
+use crate::model::{Counter, ObjectId, PlayerId};
 
 /// The deck size assumed: the log never says, and every format these
 /// games are played in (constructed, Penny Dreadful) has a 60-card
@@ -823,6 +823,36 @@ impl Driver<'_> {
                     self.pass()?;
                 }
                 self.did(i, format!("answered {}'s \"may\" (CR 608.2d)", card.name()));
+            }
+            // What a resolving spell or ability did: checked once what is
+            // on the stack this turn resolves, against the permanent of
+            // that name with the most of those counters.
+            PutsCounters { counters, .. } => {
+                self.until_choice()?;
+                for counted in counters {
+                    let log::Target::Object(Object::Card(c)) = &counted.on else {
+                        return Err(unfollowed(None));
+                    };
+                    let name = self.text(c.name())?.name;
+                    let kind = match counted.kind.as_str() {
+                        "+1/+1" => Counter::PlusOne,
+                        "-1/-1" => Counter::MinusOne,
+                        k => Counter::Named(k.to_string()),
+                    };
+                    let game = self.game();
+                    let most = game
+                        .permanents()
+                        .iter()
+                        .filter(|(_, p)| game.card(p.card).is_some_and(|t| t.name == name))
+                        .map(|(id, _)| game.counters_on(*id, &kind))
+                        .max();
+                    if most.is_none_or(|n| n < counted.count) {
+                        return Err(Stop::Diverged(Divergence::NeverOffered {
+                            what: format!("{} {} counters on {name}", counted.count, counted.kind),
+                        }));
+                    }
+                }
+                self.did(i, "the counters are on it");
             }
             TriggerFailed(c) => {
                 self.did(

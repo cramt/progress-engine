@@ -133,9 +133,12 @@ creature's only once it has been yours since your turn began (CR 302.6)
 or has haste; other activated abilities any time you have priority (CR
 117.1b), costing a tap, life and sacrificing their source (CR 602.2,
 701.21a), on the stack and resolving independently of their source (CR
-113.7a), so far with the fetchlands' effects: searching your library for
-a card a filter matches, putting it onto the battlefield, tapped if the
-text says, and shuffling (CR 701.23, 701.24a); instants' and sorceries'
+113.7a), with the instructions a spell's are lowered into, among them
+the fetchlands' effects: searching your library for a card a filter
+matches, putting it onto the battlefield, tapped if the text says, and
+shuffling (CR 701.23, 701.24a), and Aether Vial's, which counts its
+charge counters as it resolves, as the Vial last existed if it has left
+(CR 608.2h); instants' and sorceries'
 instructions in order (CR 608.2c), going to the graveyard after (CR
 608.2n): draw, discard, a hand revealed and a card chosen from it to
 discard, gain and lose life, damage to any target, a player, a player or
@@ -153,8 +156,9 @@ with their targets, removed if a target slot has no legal choice (CR
 permanent entering, a creature attacking (CR 508.3a), its controller
 casting a spell (CR 601.2i), a permanent being dealt damage, with the
 amount for "that much" (CR 120.3; combat damage dealt at once is one
-event, CR 510.2), and a permanent dealing damage, or combat damage, to a
-player, with exalted and prowess written
+event, CR 510.2), a permanent dealing damage, or combat damage, to a
+player, and the beginning of an upkeep, draw step or end step, yours,
+each or an opponent's (CR 503.1a, 504.2, 513.1a), with exalted and prowess written
 out as the triggers they are (CR 702.83a, 702.108a) and "until end of
 turn" effects ending in cleanup (CR 514.2); combat: attackers tapping
 unless they have vigilance (CR 508.1f), blockers, the declare blockers
@@ -209,7 +213,7 @@ Loam against a goldfish for six turns, casting what it can.
 Not yet: most instructions (destroy, exile, return, create a token,
 counter a spell, modal spells, "if"), X, targeting a spell,
 activated abilities with targets, mana costs, limits or effects other
-than a search for a card, triggers on any other event (an upkeep, dying), "intervening if" (CR 603.4), a card that triggers from a
+than a search for a card, triggers on any other event (dying, leaving), "intervening if" (CR 603.4), a card that triggers from a
 graveyard, attacking a planeswalker or battle, requirements and
 restrictions on attacking and blocking beyond flying, reach, menace and
 defender, a creature blocking two, and a land's back face (CR 712). State-based actions that give a choice run one after the other
@@ -390,8 +394,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 19 replay to the end** (16 to the log's winner
-line), 6 of them past the first turn, and **19.67% of their lines are
-followed** (15,375 of 78,183: the lines before each game's stop, all of a
+line), 6 of them past the first turn, and **19.83% of their lines are
+followed** (15,505 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the

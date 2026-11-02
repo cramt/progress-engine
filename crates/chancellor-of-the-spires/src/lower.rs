@@ -880,6 +880,10 @@ pub enum Effect {
     PutFromHand {
         filter: CardFilter,
         tapped: bool,
+        /// Aether Vial's "with mana value equal to the number of charge
+        /// counters on this artifact": counted from its source as the
+        /// instruction is followed (CR 608.2h).
+        mana_value: Option<Counter>,
     },
 }
 
@@ -967,6 +971,26 @@ pub enum TriggerEvent {
     /// a player, once for each player dealt damage at once (CR 120.3,
     /// 510.2), only combat damage if `combat`.
     DealsDamageToPlayer { what: Filter, combat: bool },
+    /// "At the beginning of your upkeep": a step begins in a turn whose
+    /// active player `whose` names, relative to the ability's controller
+    /// (CR 503.1a, 504.2, 513.1a).
+    Begins { step: TurnStep, whose: Whose },
+}
+
+/// The steps a triggered ability can wait for the beginning of.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TurnStep {
+    Upkeep,
+    Draw,
+    End,
+}
+
+/// Whose turn a step is in, for "at the beginning of your upkeep".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Whose {
+    Yours,
+    Each,
+    Opponents,
 }
 
 /// A triggered ability, lowered.
@@ -1019,6 +1043,21 @@ pub fn triggered(
             },
             _ => return Err(trigger_node(trigger)),
         },
+        i::Trigger::At(step) => {
+            let (step, whose) = match step {
+                i::Step::Upkeep(w) => (TurnStep::Upkeep, w),
+                i::Step::DrawStep(w) => (TurnStep::Draw, w),
+                i::Step::EndStep(w) => (TurnStep::End, w),
+                _ => return Err(trigger_node(trigger)),
+            };
+            let whose = match whose {
+                i::Whose::Yours => Whose::Yours,
+                i::Whose::Each => Whose::Each,
+                i::Whose::EachOpponent => Whose::Opponents,
+                _ => return Err(trigger_node(trigger)),
+            };
+            TriggerEvent::Begins { step, whose }
+        }
         _ => return Err(trigger_node(trigger)),
     };
     let mut scope = Scope::new(bind);
@@ -1313,6 +1352,49 @@ impl<'a> Scope<'a> {
             }
             i::Effect::RevealHand(_) => return Err(format!("{} alone", node())),
             i::Effect::Shuffle(i::Player::You) => Effect::Shuffle,
+            // "Search your library for a Mountain or Forest card, put it
+            // onto the battlefield, then shuffle": the card found is
+            // introduced by the `With` and put onto the battlefield by the
+            // reference to it.
+            i::Effect::With { bind, then } => {
+                let blank =
+                    |o: &Objects, q: Quant| o.quant == q && o.filter == i::Filter::default();
+                let (
+                    [card],
+                    [i::Effect::Search {
+                        who: i::Player::You,
+                        zones,
+                        what,
+                        and,
+                    }, i::Effect::Move {
+                        what: moved,
+                        from: None,
+                        to: i::Zone::Battlefield,
+                        tapped,
+                        transformed: false,
+                        under: None,
+                        order: None,
+                    }, rest @ ..],
+                ) = (bind.as_slice(), then.as_slice())
+                else {
+                    return Err(node());
+                };
+                if !(matches!(zones.as_slice(), [i::Zone::Library(i::Player::You)])
+                    && and.is_empty()
+                    && blank(what, Quant::Introduced(0))
+                    && blank(moved, Quant::Bound(0)))
+                {
+                    return Err(node());
+                }
+                let mut out = vec![Effect::SearchToBattlefield {
+                    filter: card_filter(card)?,
+                    tapped: *tapped,
+                }];
+                for r in rest {
+                    out.extend(self.effect(r, depth + 1)?);
+                }
+                return Ok(out);
+            }
             i::Effect::May {
                 who: i::Player::You,
                 then,
@@ -1325,10 +1407,39 @@ impl<'a> Scope<'a> {
                 transformed: false,
                 under: None,
                 order: None,
-            } if what.filter.posts == [Post::In(i::Zone::Hand(i::Player::You))] => {
+            } if what.filter.posts.last() == Some(&Post::In(i::Zone::Hand(i::Player::You))) => {
+                let (_, posts) = what.filter.posts.split_last().expect("a hand");
+                let mana_value = match posts {
+                    [] => None,
+                    [Post::With(i::Compare {
+                        stat: i::Stat::ManaValue,
+                        op: i::Op::Eq,
+                        value: i::Amount::CountOf(counted),
+                    })] => match (&counted.quant, &counted.filter) {
+                        (
+                            Quant::Plural,
+                            i::Filter {
+                                kind: Some(i::Noun::Counter(Some(kind))),
+                                posts: on,
+                                ..
+                            },
+                        ) if matches!(on.as_slice(), [Post::On(o)] if itself(o)) => {
+                            Some(counter(kind).ok_or_else(node)?)
+                        }
+                        _ => return Err(format!("{} with a mana value counted", node())),
+                    },
+                    _ => return Err(format!("{} with a mana value", node())),
+                };
                 Effect::PutFromHand {
-                    filter: hand_card(what)?,
+                    filter: hand_card(&Objects {
+                        quant: what.quant.clone(),
+                        filter: i::Filter {
+                            posts: Vec::new(),
+                            ..what.filter.clone()
+                        },
+                    })?,
                     tapped: *tapped,
+                    mana_value,
                 }
             }
             _ => return Err(node()),
@@ -1496,9 +1607,10 @@ pub fn activated(
             other => return Err(format!("an activation cost of {}", short(other))),
         }
     }
-    let mut effects = Vec::new();
-    for e in effect {
-        effects.extend(resolving(e)?);
+    let mut scope = Scope::new(&[]);
+    let effects = scope.effects(effect, 0)?;
+    if !scope.program.targets.is_empty() {
+        return Err("an activated ability with a target".into());
     }
     Ok(Activated {
         cost: paid,
@@ -1508,51 +1620,6 @@ pub fn activated(
 
 fn itself(o: &Objects) -> bool {
     o.quant == Quant::SelfRef && o.filter == i::Filter::default()
-}
-
-/// One of an ability's effects.
-fn resolving(e: &i::Effect) -> Result<Vec<Effect>, String> {
-    let blank = |o: &Objects, q: Quant| o.quant == q && o.filter == i::Filter::default();
-    match e {
-        // "Search your library for a Mountain or Forest card, put it onto
-        // the battlefield, then shuffle": the card found is introduced by
-        // the `With` and put onto the battlefield by the reference to it.
-        i::Effect::With { bind, then } => match (bind.as_slice(), then.as_slice()) {
-            (
-                [card],
-                [i::Effect::Search {
-                    who: i::Player::You,
-                    zones,
-                    what,
-                    and,
-                }, i::Effect::Move {
-                    what: moved,
-                    from: None,
-                    to: i::Zone::Battlefield,
-                    tapped,
-                    transformed: false,
-                    under: None,
-                    order: None,
-                }, rest @ ..],
-            ) if matches!(zones.as_slice(), [i::Zone::Library(i::Player::You)])
-                && and.is_empty()
-                && blank(what, Quant::Introduced(0))
-                && blank(moved, Quant::Bound(0)) =>
-            {
-                let mut out = vec![Effect::SearchToBattlefield {
-                    filter: card_filter(card)?,
-                    tapped: *tapped,
-                }];
-                for r in rest {
-                    out.extend(resolving(r)?);
-                }
-                Ok(out)
-            }
-            _ => Err("With".into()),
-        },
-        i::Effect::Shuffle(i::Player::You) => Ok(vec![Effect::Shuffle]),
-        other => Err(short(other)),
-    }
 }
 
 /// "a Goblin permanent card from your hand": one card of your hand, by its

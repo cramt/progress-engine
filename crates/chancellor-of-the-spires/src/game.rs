@@ -37,13 +37,13 @@ use crate::deck::{CardText, DeckCards};
 use crate::layers::characteristics;
 use crate::lower::{
     self, Activated, CardFilter, DamageTo, Effect, Lowered, Obj, Program, Refusal, TargetSpec,
-    TriggerEvent, Triggered, Who,
+    TriggerEvent, Triggered, TurnStep, Who,
 };
 use crate::mana::{self as m, short};
 pub use crate::mana::{Mana, ManaCost, ManaPool, Shard};
 use crate::model::{
-    Ability, CardType, Chars, Color, Filter, Keyword, ObjectId, PlayerId, Pred, Seen, State,
-    Subtype, Supertype, Timestamp,
+    Ability, CardType, Chars, Cmp, Color, Counter, Filter, Keyword, ObjectId, PlayerId, Pred, Seen,
+    State, Subtype, Supertype, Timestamp,
 };
 
 /// CR 103.4.
@@ -337,6 +337,8 @@ pub enum StackObject {
     /// sacrificed to pay for it changes nothing.
     Ability {
         source: CardId,
+        /// The permanent it was activated from, "this artifact".
+        object: ObjectId,
         ability: u16,
         controller: PlayerId,
     },
@@ -410,6 +412,8 @@ enum Event {
     Damaged(BTreeMap<ObjectId, u32>),
     /// This permanent dealt damage to a player, combat damage or not.
     DamagedPlayer { source: ObjectId, combat: bool },
+    /// A step of the active player's turn began.
+    Begins(TurnStep),
 }
 
 /// The combat phase's state (CR 506): who attacks whom, who blocks what.
@@ -911,6 +915,9 @@ pub struct Game {
     combat: Option<Combat>,
     /// The "until end of turn" effects to end in cleanup (CR 514.2).
     until_end_of_turn: Vec<Timestamp>,
+    /// The counters each permanent that left had as it last existed, for
+    /// an ability of its that counts them (CR 608.2h, 113.7a).
+    last_known: OrdMap<ObjectId, OrdMap<Counter, u32>>,
     exile: Vector<CardId>,
     command: Vector<CardId>,
     /// How many times each commander has been cast from the command zone
@@ -1066,6 +1073,7 @@ impl Game {
             last_resolved: None,
             combat: None,
             until_end_of_turn: Vec::new(),
+            last_known: OrdMap::new(),
             exile: Vector::new(),
             command,
             commander_casts: OrdMap::new(),
@@ -1198,6 +1206,18 @@ impl Game {
     pub fn commander_casts(&self, c: CardId) -> u32 {
         self.commander_casts.get(&c).copied().unwrap_or(0)
     }
+    /// How many counters of this kind are on the permanent, or were as it
+    /// last existed (CR 608.2h).
+    pub fn counters_on(&self, id: ObjectId, kind: &Counter) -> u32 {
+        self.battlefield
+            .objects
+            .get(&id)
+            .map(|o| &o.counters)
+            .or_else(|| self.last_known.get(&id))
+            .and_then(|c| c.get(kind).copied())
+            .unwrap_or(0)
+    }
+
     /// What each permanent is now, through the layers (CR 613).
     pub fn characteristics(&self) -> BTreeMap<ObjectId, Chars> {
         characteristics(&self.battlefield)
@@ -2017,6 +2037,7 @@ impl Game {
                 // 602.2b, 601.2h), which need no choice.
                 self.stack.push_back(StackObject::Ability {
                     source: card,
+                    object: a.source,
                     ability: n,
                     controller: p,
                 });
@@ -2186,12 +2207,13 @@ impl Game {
             }
             Some(StackObject::Ability {
                 source,
+                object,
                 ability,
                 controller,
             }) => self.follow(Resuming {
                 what: Instructions::Activated(source, ability),
                 controller,
-                object: None,
+                object: Some(object),
                 targets: Vec::new(),
                 triggering: None,
                 amount: None,
@@ -2436,7 +2458,29 @@ impl Game {
                     };
                     return;
                 }
-                Effect::PutFromHand { filter, tapped } => {
+                Effect::PutFromHand {
+                    filter,
+                    tapped,
+                    mana_value,
+                } => {
+                    let filter = match mana_value {
+                        None => filter,
+                        // CR 608.2h: counted now, from the source as it
+                        // last existed if it has left.
+                        Some(kind) => {
+                            let n = at.object.map_or(0, |o| self.counters_on(o, &kind));
+                            CardFilter(
+                                filter
+                                    .0
+                                    .into_iter()
+                                    .map(|mut f| {
+                                        f.0.push(Pred::ManaValue(Cmp::Eq, n));
+                                        f
+                                    })
+                                    .collect(),
+                            )
+                        }
+                    };
                     self.waiting = Waiting::PutFromHand {
                         player: p,
                         filter,
@@ -2739,6 +2783,18 @@ impl Game {
                         .then_some((None, None))
                         .into_iter()
                         .collect(),
+                    (TriggerEvent::Begins { step, whose }, Event::Begins(s)) => {
+                        let mine = chars.controller == self.active;
+                        let holds = match whose {
+                            lower::Whose::Yours => mine,
+                            lower::Whose::Each => true,
+                            lower::Whose::Opponents => !mine,
+                        };
+                        (step == s && holds)
+                            .then_some((None, None))
+                            .into_iter()
+                            .collect()
+                    }
                     (TriggerEvent::Enters(f), Event::Entered(id)) => f
                         .matches(&seen(*id))
                         .then_some((None, None))
@@ -3234,8 +3290,20 @@ impl Game {
                     }
                 }
                 Step::Draw => {
-                    // CR 504.1.
+                    // CR 504.1, then what waits for the step triggers (CR
+                    // 504.2).
                     self.draw(self.active);
+                    self.trigger_on(Event::Begins(TurnStep::Draw));
+                    return self.give_priority(self.active, 0);
+                }
+                // CR 503.1a, 513.1a.
+                Step::Upkeep | Step::End => {
+                    let s = if step == Step::Upkeep {
+                        TurnStep::Upkeep
+                    } else {
+                        TurnStep::End
+                    };
+                    self.trigger_on(Event::Begins(s));
                     return self.give_priority(self.active, 0);
                 }
                 // CR 508.1: declaring no attackers is no choice when no
@@ -3511,6 +3579,9 @@ impl Game {
         let Some(perm) = self.permanents.remove(&id) else {
             return;
         };
+        if let Some(o) = self.battlefield.objects.get(&id) {
+            self.last_known.insert(id, o.counters.clone());
+        }
         self.battlefield.leave(id);
         let owner = self.owner(perm.card);
         self.players[owner.0 as usize]

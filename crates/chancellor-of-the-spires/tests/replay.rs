@@ -39,6 +39,7 @@ const INDEXED: &[&str] = &[
     "Champion of the Parish",
     "Elite Vanguard",
     "Goblin Lackey",
+    "Aether Vial",
 ];
 
 fn index() -> &'static IndexFile {
@@ -545,4 +546,49 @@ fn goblin_lackey_s_may_is_read_from_the_lines_after_it() {
         .collect();
     assert_eq!(on.iter().filter(|n| *n == "Raging Goblin").count(), 1);
     assert_eq!(game.player(BOB).life(), 17);
+}
+
+/// Aether Vial's upkeep trigger (CR 503.1a): its "may" followed, the
+/// counter line checked against the Vial's counters, then declined by its
+/// own line the next upkeep.
+#[test]
+fn aether_vial_s_upkeep_trigger_counts_up_or_is_declined() {
+    let vial = "alice puts triggered ability from [Aether Vial] onto the stack (At the beginning of your upkeep, you may put a charge counter on Aether Vial.).";
+    let lines = format!(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        alice casts [Aether Vial].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        {vial}
+        alice puts a charge counter on [Aether Vial].
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 3: alice
+        {vial}
+        alice chooses not to use [Aether Vial]'s ability.
+        alice draws a card.
+        bob has conceded from the game.
+    "
+    );
+    let (_, r) = run(&lines);
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.unwrap();
+    let (id, _) = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| game.card(p.card).is_some_and(|t| t.name == "Aether Vial"))
+        .unwrap();
+    let charge = chancellor_of_the_spires::model::Counter::Named("charge".into());
+    assert_eq!(game.counters_on(*id, &charge), 1);
 }

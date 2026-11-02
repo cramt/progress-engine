@@ -857,3 +857,83 @@ fn goblin_lackey_may_be_declined() {
     assert!(creature(&game, "Mogg Fanatic").is_none());
     assert!(matches!(game.decision(), Decision::Priority { .. }));
 }
+
+/// Pass until a "may" is asked, and say whose card's.
+fn to_may(game: &mut Game) -> CardId {
+    for _ in 0..200 {
+        match game.decision() {
+            Decision::May { card, .. } => return card,
+            Decision::Discard { count, hand, .. } => {
+                step(game, Answer::Discard(hand[..count].to_vec()));
+            }
+            Decision::Attackers { .. } => {
+                step(game, Answer::Attack(vec![]));
+            }
+            _ => {
+                step(game, Answer::Act(Action::Pass));
+            }
+        }
+    }
+    panic!("no may")
+}
+
+/// CR 503.1a, 603.5, 608.2h: Aether Vial's "At the beginning of your
+/// upkeep, you may put a charge counter on this artifact" triggers in my
+/// upkeep and not theirs; with one counter, its "{T}: You may put a
+/// creature card with mana value equal to the number of charge counters
+/// on this artifact from your hand onto the battlefield" offers Goblin
+/// Lackey, mana value 1, and not Grizzly Bears, 2.
+#[test]
+fn aether_vial_counts_up_in_my_upkeep_and_puts_a_creature_of_that_mana_value() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Aether Vial", 10),
+            ("Goblin Lackey", 10),
+            ("Grizzly Bears", 10),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 1),
+            ("Aether Vial", 1),
+            ("Goblin Lackey", 1),
+            ("Grizzly Bears", 1),
+        ],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Aether Vial", None);
+    resolve(&mut game);
+    let vial_card = to_may(&mut game);
+    assert_eq!(game.card(vial_card).unwrap().name, "Aether Vial");
+    assert_eq!((game.active(), game.step_now()), (ME, Step::Upkeep));
+    step(&mut game, Answer::May(true));
+    let vial = creature(&game, "Aether Vial").unwrap();
+    let charge = chancellor_of_the_spires::model::Counter::Named("charge".into());
+    assert_eq!(game.counters_on(vial, &charge), 1);
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("priority")
+    };
+    let activate = actions
+        .iter()
+        .find_map(|a| match a {
+            Action::Activate(x) if x.source == vial => Some(*x),
+            _ => None,
+        })
+        .expect("Vial's ability is offered");
+    step(&mut game, Answer::Act(Action::Activate(activate)));
+    step(&mut game, Answer::Act(Action::Pass));
+    assert!(matches!(
+        step(&mut game, Answer::Act(Action::Pass)),
+        Decision::May { .. }
+    ));
+    let Decision::PutFromHand { legal, .. } = step(&mut game, Answer::May(true)) else {
+        panic!("a card to choose")
+    };
+    let lackey = in_hand(&game, ME, "Goblin Lackey").unwrap();
+    assert!(legal.contains(&lackey));
+    let bears = in_hand(&game, ME, "Grizzly Bears").unwrap();
+    assert!(!legal.contains(&bears));
+    step(&mut game, Answer::Pick(Some(lackey)));
+    assert!(creature(&game, "Goblin Lackey").is_some());
+}
