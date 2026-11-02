@@ -937,3 +937,91 @@ fn aether_vial_counts_up_in_my_upkeep_and_puts_a_creature_of_that_mana_value() {
     step(&mut game, Answer::Pick(Some(lackey)));
     assert!(creature(&game, "Goblin Lackey").is_some());
 }
+
+/// CR 503.1a, 701.20a, 119.3: Dark Confidant's "At the beginning of your
+/// upkeep, reveal the top card of your library and put that card into your
+/// hand. You lose life equal to its mana value." A deck file's cards are
+/// known, so nothing is asked to name the card revealed.
+#[test]
+fn dark_confidant_reveals_the_top_card_into_hand_and_costs_its_mana_value() {
+    let mut game = deal(
+        &[("Swamp", 30), ("Dark Confidant", 30)],
+        &[("Forest", 60)],
+        &[("Swamp", 2), ("Dark Confidant", 1)],
+    );
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(&mut game, "Dark Confidant", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::Upkeep);
+    pass_until(&mut game, ME, Step::Upkeep);
+    let top = game.player(ME).library()[0];
+    let mv = if game.card(top).unwrap().name == "Dark Confidant" {
+        2
+    } else {
+        0
+    };
+    let hand = game.player(ME).hand().len();
+    resolve(&mut game);
+    assert_eq!(game.player(ME).hand().len(), hand + 1);
+    assert!(game.player(ME).hand().contains(&top));
+    assert_eq!(game.player(ME).life(), 20 - mv);
+}
+
+/// CR 508.1m, 701.20a: Goblin Guide's "Whenever this creature attacks,
+/// defending player reveals the top card of their library. If it's a land
+/// card, that player puts it into their hand."
+#[test]
+fn goblin_guide_shows_the_defender_s_top_card_and_a_land_goes_to_hand() {
+    for (theirs, to_hand) in [("Forest", true), ("Grizzly Bears", false)] {
+        let mut game = deal(
+            &[("Mountain", 30), ("Goblin Guide", 30)],
+            &[(theirs, 60)],
+            &[("Mountain", 1), ("Goblin Guide", 1)],
+        );
+        play(&mut game, "Mountain");
+        cast(&mut game, "Goblin Guide", None);
+        resolve(&mut game);
+        let guide = creature(&game, "Goblin Guide").unwrap();
+        to_attackers(&mut game);
+        let top = game.player(THEM).library()[0];
+        let hand = game.player(THEM).hand().len();
+        step(&mut game, Answer::Attack(vec![(guide, THEM)]));
+        resolve(&mut game);
+        assert_eq!(game.player(THEM).hand().contains(&top), to_hand, "{theirs}");
+        assert_eq!(game.player(THEM).hand().len(), hand + usize::from(to_hand));
+    }
+}
+
+/// CR 401.4: Impulse looks at the top four, puts the one chosen into my
+/// hand and the other three on the bottom in the order I give.
+#[test]
+fn impulse_takes_one_of_four_and_bottoms_the_rest_in_order() {
+    let mut game = deal(
+        &[("Island", 30), ("Impulse", 30)],
+        &[("Forest", 60)],
+        &[("Island", 2), ("Impulse", 1)],
+    );
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    cast(&mut game, "Impulse", None);
+    let four: Vec<CardId> = game.player(ME).library().iter().take(4).copied().collect();
+    let Decision::ChooseAmong { cards, n, .. } = resolve(&mut game) else {
+        panic!("a choice of one")
+    };
+    assert_eq!((cards.clone(), n), (four.clone(), 1));
+    assert!(game.clone().step(Answer::Choose(vec![])).is_err());
+    let Decision::Arrange { cards, top, .. } = step(&mut game, Answer::Choose(vec![four[2]]))
+    else {
+        panic!("an order for the rest")
+    };
+    assert_eq!((cards, top), (vec![four[0], four[1], four[3]], false));
+    step(&mut game, Answer::Arrange(vec![four[3], four[0], four[1]]));
+    assert!(game.player(ME).hand().contains(&four[2]));
+    let library = game.player(ME).library();
+    let bottom: Vec<CardId> = library.iter().skip(library.len() - 3).copied().collect();
+    assert_eq!(bottom, vec![four[3], four[0], four[1]]);
+    assert_eq!(game.bottomed(), 3);
+}

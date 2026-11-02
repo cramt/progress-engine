@@ -6,7 +6,7 @@
 //! abilities) is still an ability the object has, which Humility can take
 //! away, so it is kept, unread.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use vivisurgeons_insight::ast::{
@@ -844,7 +844,7 @@ pub enum Effect {
     /// CR 119.3.
     LoseLife {
         who: Who,
-        n: u32,
+        n: Amount,
     },
     GainLife {
         who: Who,
@@ -885,6 +885,71 @@ pub enum Effect {
         /// instruction is followed (CR 608.2h).
         mana_value: Option<Counter>,
     },
+    /// "Reveal the top card of your library": the top `n` cards of
+    /// `whose` library are revealed (CR 701.20a), and bound to `into`.
+    RevealTop {
+        whose: Who,
+        n: u32,
+        into: Slot,
+    },
+    /// "Look at the top four cards of your library": bound to `into`,
+    /// seen by the controller alone, so to everyone else they stay
+    /// hidden (CR 400.2).
+    LookAtTop {
+        whose: Who,
+        n: u32,
+        into: Slot,
+    },
+    /// "Put one of them into your hand": the controller chooses `n` of
+    /// the cards bound to `from`, bound to `into`.
+    ChooseAmong {
+        from: Slot,
+        n: u32,
+        into: Slot,
+    },
+    /// "Put that card into your hand": into `who`'s hand.
+    ToHand {
+        cards: Cards,
+        who: Who,
+    },
+    /// "Put them back in any order", "the rest on the bottom of your
+    /// library in any order": the controller orders them (CR 401.4).
+    ToLibrary {
+        cards: Cards,
+        top: bool,
+    },
+    /// "If it's a land card, …": these instructions, only if the card
+    /// bound to `card` matches.
+    IfCard {
+        card: Slot,
+        filter: CardFilter,
+        then: Vec<Effect>,
+    },
+}
+
+impl Effect {
+    /// The instructions this one holds, which a resolution may enter.
+    pub fn inner(&self) -> Option<&[Effect]> {
+        match self {
+            Effect::May(then) | Effect::IfCard { then, .. } => Some(then),
+            _ => None,
+        }
+    }
+}
+
+/// A card an instruction found as it resolves, bound for those after it
+/// (`Effect::With` in Insight's [binders]): its place in the resolution's
+/// record of what it found, one per binder.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Slot(pub usize);
+
+/// Cards a resolution found, as an instruction names them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Cards {
+    /// "that card", "them".
+    Bound(Slot),
+    /// "the rest": those bound to `from` that aren't bound to `of`.
+    Rest { of: Slot, from: Slot },
 }
 
 /// A player an instruction names: its controller ("you", CR 109.5) or a
@@ -893,6 +958,8 @@ pub enum Effect {
 pub enum Who {
     You,
     Target(usize),
+    /// "defending player": the player the ability's source is attacking.
+    Defending,
 }
 
 /// An object an instruction names: the ability's own source ("this
@@ -912,6 +979,8 @@ pub enum Obj {
 pub enum Amount {
     N(u32),
     ThatMuch,
+    /// "Its mana value": of the card bound there.
+    ManaValueOf(Slot),
 }
 
 /// What damage is dealt to.
@@ -1004,7 +1073,7 @@ pub struct Triggered {
 /// `Let` that binds its targets, if any.
 pub fn spell(bind: &[Objects], effects: &[i::Effect]) -> Result<Program, String> {
     let mut scope = Scope::new(bind);
-    let lowered = scope.effects(effects, 0)?;
+    let lowered = scope.effects(effects)?;
     scope.program.effects = lowered;
     Ok(scope.program)
 }
@@ -1062,7 +1131,7 @@ pub fn triggered(
     };
     let mut scope = Scope::new(bind);
     scope.amount = matches!(event, TriggerEvent::DealtDamage(_));
-    let lowered = scope.effects(effect, 0)?;
+    let lowered = scope.effects(effect)?;
     scope.program.effects = lowered;
     Ok(Triggered {
         event,
@@ -1138,6 +1207,18 @@ struct Scope<'a> {
     /// Whether the trigger event has an amount "that much" names.
     amount: bool,
     program: Program,
+    /// The `With` binders in scope, outermost first: the slot each binds,
+    /// or `None` for one nothing the engine runs reads.
+    withs: Vec<Option<Slot>>,
+    /// Slots made so far.
+    slots: usize,
+    /// The slot a `Made` binder waits for its introducing instruction to
+    /// fill.
+    made: Option<Slot>,
+    /// Whose library each slot's cards came from, and the slot a choice
+    /// among cards chose from.
+    whose: BTreeMap<Slot, Who>,
+    among: BTreeMap<Slot, Slot>,
 }
 
 impl<'a> Scope<'a> {
@@ -1148,6 +1229,65 @@ impl<'a> Scope<'a> {
             player: None,
             amount: false,
             program: Program::default(),
+            withs: Vec::new(),
+            slots: 0,
+            made: None,
+            whose: BTreeMap::new(),
+            among: BTreeMap::new(),
+        }
+    }
+
+    fn new_slot(&mut self) -> Slot {
+        self.slots += 1;
+        Slot(self.slots - 1)
+    }
+
+    /// The slot an introducing instruction fills: the `Made` binder
+    /// waiting for it, or one nothing reads.
+    fn made(&mut self) -> Slot {
+        match self.made.take() {
+            Some(s) => s,
+            None => self.new_slot(),
+        }
+    }
+
+    /// The `With` binder a reference names, if it names one.
+    fn found(&self, i: u32) -> Option<Result<Slot, String>> {
+        let i = i as usize;
+        (i < self.withs.len()).then(|| {
+            self.withs[self.withs.len() - 1 - i]
+                .ok_or_else(|| "a reference to an object the engine doesn't bind".into())
+        })
+    }
+
+    /// "That card", "them", "the rest": cards found as the ability
+    /// resolves.
+    fn cards(&self, o: &Objects) -> Result<Cards, String> {
+        match o.quant {
+            Quant::Bound(i) | Quant::Introduced(i) => match self.found(i.into()) {
+                Some(slot) => Ok(Cards::Bound(slot?)),
+                None => Err("a card bound as the ability was put on the stack".into()),
+            },
+            Quant::Rest { of } => {
+                let of = self.found(of.into()).ok_or("the rest of nothing found")??;
+                let from = *self.among.get(&of).ok_or("the rest of no choice")?;
+                Ok(Cards::Rest { of, from })
+            }
+            ref q => Err(format!("cards {}", short(q))),
+        }
+    }
+
+    /// The player whose library a revealing or looking instruction reads.
+    fn library_of(&mut self, who: &i::Player, whose: &i::Player) -> Result<Who, String> {
+        match (who, whose) {
+            (i::Player::You, i::Player::You) => Ok(Who::You),
+            (i::Player::You, p @ i::Player::Target) => self.who(p),
+            (i::Player::DefendingPlayer, i::Player::That) => Ok(Who::Defending),
+            _ => Err(format!(
+                "a library of {} looked at by {}",
+                short(whose),
+                short(who)
+            )),
         }
     }
 
@@ -1156,11 +1296,11 @@ impl<'a> Scope<'a> {
         self.program.targets.len() - 1
     }
 
-    /// A target binder's slot, made the first time it is named. `depth`
+    /// A target binder's slot, made the first time it is named. The
     /// is how many `With` binders are in scope inside the `Let`'s.
-    fn binder(&mut self, i: u32, depth: usize) -> Result<usize, String> {
+    fn binder(&mut self, i: u32) -> Result<usize, String> {
         let i = (i as usize)
-            .checked_sub(depth)
+            .checked_sub(self.withs.len())
             .ok_or("a reference to an object found as it resolves")?;
         let b = self
             .bind
@@ -1183,12 +1323,10 @@ impl<'a> Scope<'a> {
         Ok(s)
     }
 
-    fn obj(&mut self, o: &Objects, depth: usize) -> Result<Obj, String> {
+    fn obj(&mut self, o: &Objects) -> Result<Obj, String> {
         match o.quant {
             Quant::SelfRef if o.filter == i::Filter::default() => Ok(Obj::Itself),
-            Quant::Introduced(i) | Quant::Bound(i) => {
-                Ok(Obj::Target(self.binder(i.into(), depth)?))
-            }
+            Quant::Introduced(i) | Quant::Bound(i) => Ok(Obj::Target(self.binder(i.into())?)),
             Quant::Target {
                 n: i::Amount::N(1),
                 up_to: false,
@@ -1227,7 +1365,7 @@ impl<'a> Scope<'a> {
         }
     }
 
-    fn damage_to(&mut self, to: &[i::Recipient], depth: usize) -> Result<DamageTo, String> {
+    fn damage_to(&mut self, to: &[i::Recipient]) -> Result<DamageTo, String> {
         let one_target = |o: &Objects, types: &[&str]| {
             o.filter.kind.is_none()
                 && o.filter.posts.is_empty()
@@ -1255,6 +1393,7 @@ impl<'a> Scope<'a> {
             [i::Recipient::Player(p)] => match self.who(p)? {
                 Who::Target(s) => Ok(DamageTo::Target(s)),
                 Who::You => Ok(DamageTo::You),
+                Who::Defending => Err("damage to the defending player".into()),
             },
             [i::Recipient::Or(alts)] => match alts.as_slice() {
                 [i::Recipient::Player(i::Player::Target), i::Recipient::Objects(o)]
@@ -1271,7 +1410,7 @@ impl<'a> Scope<'a> {
                 }
                 _ => Err("damage to one of several kinds of target".into()),
             },
-            [i::Recipient::Objects(o)] => match self.obj(o, depth)? {
+            [i::Recipient::Objects(o)] => match self.obj(o)? {
                 Obj::Target(s) => Ok(DamageTo::Target(s)),
                 Obj::Itself | Obj::Triggering => Err("damage to its own source".into()),
             },
@@ -1280,7 +1419,7 @@ impl<'a> Scope<'a> {
     }
 
     /// One effect, or the node it can't lower.
-    fn effect(&mut self, e: &i::Effect, depth: usize) -> Result<Vec<Effect>, String> {
+    fn effect(&mut self, e: &i::Effect) -> Result<Vec<Effect>, String> {
         let n = |a: &i::Amount| match a {
             i::Amount::N(n) => Ok(*n),
             other => Err(format!("an amount of {}", short(other))),
@@ -1313,7 +1452,13 @@ impl<'a> Scope<'a> {
             }
             i::Effect::LoseLife { who, n: k } => Effect::LoseLife {
                 who: self.who(who)?,
-                n: n(k)?,
+                n: match k {
+                    i::Amount::ManaValueOf(o) => match self.cards(o)? {
+                        Cards::Bound(slot) => Amount::ManaValueOf(slot),
+                        Cards::Rest { .. } => return Err("the mana value of the rest".into()),
+                    },
+                    k => Amount::N(n(k)?),
+                },
             },
             i::Effect::GainLife { who, n: k } => Effect::GainLife {
                 who: self.who(who)?,
@@ -1325,7 +1470,7 @@ impl<'a> Scope<'a> {
                 to,
             } if source.quant == Quant::SelfRef && source.filter == i::Filter::default() => {
                 Effect::Damage {
-                    to: self.damage_to(to, depth)?,
+                    to: self.damage_to(to)?,
                     n: match k {
                         i::Amount::ThatMany if self.amount => Amount::ThatMuch,
                         k => Amount::N(n(k)?),
@@ -1334,7 +1479,7 @@ impl<'a> Scope<'a> {
             }
             i::Effect::Scry(k) => Effect::Scry(n(k)?),
             i::Effect::PutCounters { n: k, kind, on } => Effect::PutCounters {
-                on: self.obj(on, depth)?,
+                on: self.obj(on)?,
                 counter: counter(kind).ok_or_else(node)?,
                 n: n(k)?,
             },
@@ -1343,7 +1488,7 @@ impl<'a> Scope<'a> {
                 dur: i::Duration::UntilEndOfTurn,
                 ..
             } => {
-                let on = self.obj(what, depth)?;
+                let on = self.obj(what)?;
                 let r = resolution(e).map_err(|_| node())?;
                 if !r.counters.is_empty() {
                     return Err(node());
@@ -1377,7 +1522,7 @@ impl<'a> Scope<'a> {
                     }, rest @ ..],
                 ) = (bind.as_slice(), then.as_slice())
                 else {
-                    return Err(node());
+                    return self.with(bind, then);
                 };
                 if !(matches!(zones.as_slice(), [i::Zone::Library(i::Player::You)])
                     && and.is_empty()
@@ -1390,15 +1535,95 @@ impl<'a> Scope<'a> {
                     filter: card_filter(card)?,
                     tapped: *tapped,
                 }];
-                for r in rest {
-                    out.extend(self.effect(r, depth + 1)?);
-                }
+                // The card chosen or found is bound for the rest, and
+                // nothing the engine runs refers to it.
+                self.withs.push(None);
+                let rest = rest
+                    .iter()
+                    .map(|r| self.effect(r))
+                    .collect::<Result<Vec<_>, _>>();
+                self.withs.pop();
+                out.extend(rest?.into_iter().flatten());
                 return Ok(out);
             }
             i::Effect::May {
                 who: i::Player::You,
                 then,
-            } => Effect::May(self.effects(then, depth)?),
+            } => Effect::May(self.effects(then)?),
+            i::Effect::RevealTop { who, whose, n: k } => {
+                let whose = self.library_of(who, whose)?;
+                let into = self.made();
+                self.whose.insert(into, whose);
+                Effect::RevealTop {
+                    whose,
+                    n: n(k)?,
+                    into,
+                }
+            }
+            i::Effect::LookAtTop { who, whose, n: k } => {
+                let whose = self.library_of(who, whose)?;
+                let into = self.made();
+                self.whose.insert(into, whose);
+                Effect::LookAtTop {
+                    whose,
+                    n: n(k)?,
+                    into,
+                }
+            }
+            // "that player puts it into their hand": the instruction is
+            // theirs to follow, and no choice is in it.
+            i::Effect::Performed { effect, .. } => return self.effect(effect),
+            i::Effect::Move {
+                what,
+                from: None,
+                to,
+                tapped: false,
+                transformed: false,
+                under: None,
+                order,
+            } if matches!(
+                what.quant,
+                Quant::Bound(_) | Quant::Introduced(_) | Quant::Rest { .. }
+            ) =>
+            {
+                let cards = self.cards(what)?;
+                match (to, order) {
+                    (i::Zone::Hand(p), None) => Effect::ToHand {
+                        cards,
+                        who: match (p, cards) {
+                            (i::Player::You, _) => Who::You,
+                            (i::Player::That, Cards::Bound(slot)) => {
+                                *self.whose.get(&slot).ok_or_else(node)?
+                            }
+                            _ => return Err(node()),
+                        },
+                    },
+                    (i::Zone::OwnersLibraryTop, Some(i::Order::Any)) => {
+                        Effect::ToLibrary { cards, top: true }
+                    }
+                    (i::Zone::BottomOfLibrary(i::Player::You), Some(i::Order::Any)) => {
+                        Effect::ToLibrary { cards, top: false }
+                    }
+                    _ => return Err(format!("{} of found cards", node())),
+                }
+            }
+            i::Effect::If {
+                cond: i::Condition::Is { what, filter },
+                then,
+                ..
+            } => {
+                let Cards::Bound(card) = self.cards(what)? else {
+                    return Err(node());
+                };
+                Effect::IfCard {
+                    card,
+                    filter: card_filter(&Objects {
+                        quant: Quant::One,
+                        filter: filter.clone(),
+                    })?,
+                    then: self.effects(then)?,
+                }
+            }
             i::Effect::Move {
                 what,
                 from: None,
@@ -1446,11 +1671,49 @@ impl<'a> Scope<'a> {
         }])
     }
 
+    /// `With`: the cards an instruction makes or finds, bound for the
+    /// rest of the list (`then`), "what the first instruction makes"
+    /// (`Made`) or "one of them" (`N(1)` from among a binder's cards).
+    fn with(&mut self, bind: &[Objects], then: &[i::Effect]) -> Result<Vec<Effect>, String> {
+        let mut out = Vec::new();
+        let slot = match bind {
+            [o] if o.quant == Quant::Made && o.filter == i::Filter::default() => {
+                let s = self.new_slot();
+                self.made = Some(s);
+                s
+            }
+            [o] if o.quant == Quant::N(i::Amount::N(1)) => {
+                let from = match o.filter.posts.as_slice() {
+                    [Post::FromAmong(among)] if o.filter.alts.is_empty() => {
+                        match self.cards(among)? {
+                            Cards::Bound(s) => s,
+                            Cards::Rest { .. } => return Err("one from among the rest".into()),
+                        }
+                    }
+                    _ => return Err("With one of some cards".into()),
+                };
+                let into = self.new_slot();
+                self.among.insert(into, from);
+                out.push(Effect::ChooseAmong { from, n: 1, into });
+                into
+            }
+            _ => return Err("With".into()),
+        };
+        self.withs.push(Some(slot));
+        let lowered = self.effects(then);
+        self.withs.pop();
+        out.extend(lowered?);
+        if self.made == Some(slot) {
+            return Err("With a card no instruction makes".into());
+        }
+        Ok(out)
+    }
+
     /// The effects of a spell or ability in order, where "Target player
     /// reveals their hand. You choose a nonland card from it. That player
     /// discards that card." is one instruction: the `With` binds the card
     /// chosen, and the discard names it.
-    fn effects(&mut self, effects: &[i::Effect], depth: usize) -> Result<Vec<Effect>, String> {
+    fn effects(&mut self, effects: &[i::Effect]) -> Result<Vec<Effect>, String> {
         let mut out = Vec::new();
         let mut k = 0;
         while k < effects.len() {
@@ -1482,13 +1745,19 @@ impl<'a> Scope<'a> {
                     who,
                     filter: self.card_in_hand(card, who)?,
                 });
-                for r in rest {
-                    out.extend(self.effect(r, depth + 1)?);
-                }
+                // The card chosen or found is bound for the rest, and
+                // nothing the engine runs refers to it.
+                self.withs.push(None);
+                let rest = rest
+                    .iter()
+                    .map(|r| self.effect(r))
+                    .collect::<Result<Vec<_>, _>>();
+                self.withs.pop();
+                out.extend(rest?.into_iter().flatten());
                 k += 2;
                 continue;
             }
-            out.extend(self.effect(&effects[k], depth)?);
+            out.extend(self.effect(&effects[k])?);
             k += 1;
         }
         Ok(out)
@@ -1608,7 +1877,7 @@ pub fn activated(
         }
     }
     let mut scope = Scope::new(&[]);
-    let effects = scope.effects(effect, 0)?;
+    let effects = scope.effects(effect)?;
     if !scope.program.targets.is_empty() {
         return Err("an activated ability with a target".into());
     }

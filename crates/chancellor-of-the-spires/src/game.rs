@@ -36,8 +36,8 @@ use vivisurgeons_insight::ast as i;
 use crate::deck::{CardText, DeckCards};
 use crate::layers::characteristics;
 use crate::lower::{
-    self, Activated, CardFilter, DamageTo, Effect, Lowered, Obj, Program, Refusal, TargetSpec,
-    TriggerEvent, Triggered, TurnStep, Who,
+    self, Activated, CardFilter, Cards, DamageTo, Effect, Lowered, Obj, Program, Refusal, Slot,
+    TargetSpec, TriggerEvent, Triggered, TurnStep, Who,
 };
 use crate::mana::{self as m, short};
 pub use crate::mana::{Mana, ManaCost, ManaPool, Shard};
@@ -382,6 +382,9 @@ struct Resuming {
     /// The instruction to follow next: its index in the program's list,
     /// then in the list of each "may" being followed inside it.
     next: Vec<usize>,
+    /// The cards its instructions have found, by the slot each binds
+    /// (`lower::Slot`).
+    found: OrdMap<Slot, Vec<CardId>>,
 }
 
 /// A triggered ability that has triggered and waits to be put on the stack
@@ -545,6 +548,28 @@ enum Waiting {
         player: PlayerId,
         at: Resuming,
     },
+    /// Cards revealed from a library that no one had named: the game
+    /// names them now (the module's "Hidden cards").
+    Reveal {
+        player: PlayerId,
+        cards: Vec<CardId>,
+        resume: Resuming,
+    },
+    /// `player` chooses `n` of `cards`, bound to `into`.
+    ChooseAmong {
+        player: PlayerId,
+        cards: Vec<CardId>,
+        n: usize,
+        into: Slot,
+        resume: Resuming,
+    },
+    /// `player` orders `cards` to put on top or bottom of a library.
+    Arrange {
+        player: PlayerId,
+        cards: Vec<CardId>,
+        top: bool,
+        resume: Resuming,
+    },
     /// `player` chooses a card of their hand `filter` matches to put onto
     /// the battlefield.
     PutFromHand {
@@ -697,6 +722,29 @@ pub enum Decision {
         player: PlayerId,
         card: CardId,
     },
+    /// Hidden cards of `player`'s library are revealed (CR 701.20a), and
+    /// what each is has to be said now, answered `Answer::Reveal` with a
+    /// card for each, in order. A deck file's cards are all known, so
+    /// only a replay is asked this (the module's "Hidden cards").
+    Reveal {
+        player: PlayerId,
+        cards: Vec<CardId>,
+    },
+    /// "Put one of them into your hand": choose exactly `n` of `cards`,
+    /// answered `Answer::Choose`.
+    ChooseAmong {
+        player: PlayerId,
+        cards: Vec<CardId>,
+        n: usize,
+    },
+    /// "Put them back in any order" (CR 401.4): `cards` go on top of
+    /// their library, or the bottom, in the order `Answer::Arrange` gives,
+    /// the first topmost.
+    Arrange {
+        player: PlayerId,
+        cards: Vec<CardId>,
+        top: bool,
+    },
     /// "Put a Goblin permanent card from your hand onto the battlefield":
     /// `player` chooses a card of their `hand` that `legal` lists,
     /// answered with `Answer::Pick`; `None` is legal only when no card can
@@ -827,6 +875,12 @@ pub enum Answer {
     Pick(Option<CardId>),
     /// CR 608.2d: follow the "may" instruction, or not.
     May(bool),
+    /// What each hidden card revealed is, in the decision's order.
+    Reveal(Vec<CardText>),
+    /// The cards chosen.
+    Choose(Vec<CardId>),
+    /// The cards in the order they go, the first topmost.
+    Arrange(Vec<CardId>),
     /// CR 701.22a: the cards put back on top, the first on top, and those
     /// put on the bottom, the first nearest the top.
     Scry {
@@ -915,6 +969,8 @@ pub struct Game {
     combat: Option<Combat>,
     /// The "until end of turn" effects to end in cleanup (CR 514.2).
     until_end_of_turn: Vec<Timestamp>,
+    /// Cards an instruction put on the bottom of a library this turn.
+    bottomed: u32,
     /// The counters each permanent that left had as it last existed, for
     /// an ability of its that counts them (CR 608.2h, 113.7a).
     last_known: OrdMap<ObjectId, OrdMap<Counter, u32>>,
@@ -1074,6 +1130,7 @@ impl Game {
             combat: None,
             until_end_of_turn: Vec::new(),
             last_known: OrdMap::new(),
+            bottomed: 0,
             exile: Vector::new(),
             command,
             commander_casts: OrdMap::new(),
@@ -1206,6 +1263,12 @@ impl Game {
     pub fn commander_casts(&self, c: CardId) -> u32 {
         self.commander_casts.get(&c).copied().unwrap_or(0)
     }
+    /// How many cards an instruction has put on the bottom of a library
+    /// this turn.
+    pub fn bottomed(&self) -> u32 {
+        self.bottomed
+    }
+
     /// How many counters of this kind are on the permanent, or were as it
     /// last existed (CR 608.2h).
     pub fn counters_on(&self, id: ObjectId, kind: &Counter) -> u32 {
@@ -1313,6 +1376,24 @@ impl Game {
             Waiting::Scry { player, cards, .. } => Decision::Scry {
                 player: *player,
                 cards: cards.clone(),
+            },
+            Waiting::Reveal { player, cards, .. } => Decision::Reveal {
+                player: *player,
+                cards: cards.clone(),
+            },
+            Waiting::ChooseAmong {
+                player, cards, n, ..
+            } => Decision::ChooseAmong {
+                player: *player,
+                cards: cards.clone(),
+                n: *n,
+            },
+            Waiting::Arrange {
+                player, cards, top, ..
+            } => Decision::Arrange {
+                player: *player,
+                cards: cards.clone(),
+                top: *top,
             },
             Waiting::May { player, at } => Decision::May {
                 player: *player,
@@ -1568,6 +1649,51 @@ impl Game {
                     None if legal.is_empty() && unsure == 0 => {}
                     _ => return Err(Rejected::Illegal(answer)),
                 }
+                self.follow(resume);
+            }
+            (Waiting::Reveal { cards, resume, .. }, Answer::Reveal(named))
+                if named.len() == cards.len() =>
+            {
+                for (c, text) in cards.iter().zip(named) {
+                    self.cards[c.0 as usize].face =
+                        Face::Known(Arc::new(Known::read(text.clone())));
+                }
+                self.follow(resume);
+            }
+            (
+                Waiting::ChooseAmong {
+                    cards,
+                    n,
+                    into,
+                    mut resume,
+                    ..
+                },
+                Answer::Choose(chosen),
+            ) => {
+                let distinct: BTreeSet<&CardId> = chosen.iter().collect();
+                if chosen.len() != n
+                    || distinct.len() != n
+                    || !chosen.iter().all(|c| cards.contains(c))
+                {
+                    return Err(Rejected::Illegal(answer));
+                }
+                resume.found.insert(into, chosen.clone());
+                self.follow(resume);
+            }
+            (
+                Waiting::Arrange {
+                    cards, top, resume, ..
+                },
+                Answer::Arrange(order),
+            ) => {
+                let mut given = order.clone();
+                given.sort_unstable();
+                let mut looked = cards.clone();
+                looked.sort_unstable();
+                if given != looked {
+                    return Err(Rejected::Illegal(answer));
+                }
+                self.put_in_library(order, top);
                 self.follow(resume);
             }
             (Waiting::May { at, .. }, Answer::May(yes)) => {
@@ -2218,6 +2344,7 @@ impl Game {
                 triggering: None,
                 amount: None,
                 next: vec![0],
+                found: OrdMap::new(),
             }),
             Some(StackObject::Trigger {
                 source,
@@ -2262,6 +2389,7 @@ impl Game {
             triggering,
             amount,
             next: vec![0],
+            found: OrdMap::new(),
         };
         if !targets.is_empty() && at.targets.iter().all(Option::is_none) {
             return self.done(&at);
@@ -2318,12 +2446,11 @@ impl Game {
             // The list the cursor is in: the program's, or a "may"'s
             // inside it.
             let (k, outer) = at.next.split_last().expect("a cursor");
-            let mut list = &program;
+            let mut list: &[Effect] = &program;
             for j in outer {
-                match &list[*j] {
-                    Effect::May(inner) => list = inner,
-                    _ => unreachable!("a cursor enters only a may"),
-                }
+                list = list[*j]
+                    .inner()
+                    .expect("a cursor enters only what holds instructions");
             }
             let Some(e) = list.get(*k).cloned() else {
                 // The end of a "may" goes on after it; of the program,
@@ -2340,12 +2467,16 @@ impl Game {
             let resume = at.clone();
             // CR 608.2b: an instruction naming an illegal target does
             // nothing to it.
+            let defending = at
+                .object
+                .and_then(|o| self.combat.as_ref()?.attackers.get(&o).copied());
             let who = |w: Who| match w {
                 Who::You => Some(p),
                 Who::Target(s) => match at.targets[s] {
                     Some(Target::Player(q)) => Some(q),
                     _ => None,
                 },
+                Who::Defending => defending,
             };
             match e {
                 Effect::SearchToBattlefield { filter, tapped } => {
@@ -2394,6 +2525,7 @@ impl Game {
                 }
                 // CR 119.3.
                 Effect::LoseLife { who: w, n } => {
+                    let n = self.amount(&at, n);
                     if let Some(q) = who(w) {
                         self.players[q.0 as usize].life -= n as i32;
                     }
@@ -2412,10 +2544,7 @@ impl Game {
                             .and_then(|o| self.combat.as_ref()?.attackers.get(&o).copied())
                             .map(Target::Player),
                     };
-                    let n = match n {
-                        lower::Amount::N(n) => n,
-                        lower::Amount::ThatMuch => at.amount.unwrap_or(0),
-                    };
+                    let n = self.amount(&at, n);
                     if let Some(to) = to {
                         let source = self.source_of(&at);
                         let hit = self.deal(source.as_ref(), at.controller, &[(to, n)]);
@@ -2489,9 +2618,144 @@ impl Game {
                     };
                     return;
                 }
+                Effect::RevealTop { whose, n, into } | Effect::LookAtTop { whose, n, into } => {
+                    let revealed = matches!(e, Effect::RevealTop { .. });
+                    let Some(q) = who(whose) else { continue };
+                    let cards: Vec<CardId> = self
+                        .player(q)
+                        .library
+                        .iter()
+                        .take(n as usize)
+                        .copied()
+                        .collect();
+                    at.found.insert(into, cards.clone());
+                    let hidden: Vec<CardId> = cards
+                        .into_iter()
+                        .filter(|c| self.known(*c).is_none())
+                        .collect();
+                    // A card revealed is seen by all (CR 701.20a), so a
+                    // hidden one is named; one looked at stays hidden.
+                    if revealed && !hidden.is_empty() {
+                        self.waiting = Waiting::Reveal {
+                            player: q,
+                            cards: hidden,
+                            resume: at,
+                        };
+                        return;
+                    }
+                }
+                Effect::ChooseAmong { from, n, into } => {
+                    let cards = self.still_in_library(&at, Cards::Bound(from));
+                    if cards.len() <= n as usize {
+                        at.found.insert(into, cards);
+                    } else {
+                        self.waiting = Waiting::ChooseAmong {
+                            player: p,
+                            cards,
+                            n: n as usize,
+                            into,
+                            resume: at,
+                        };
+                        return;
+                    }
+                }
+                Effect::ToHand { cards, who: w } => {
+                    let Some(q) = who(w) else { continue };
+                    for c in self.still_in_library(&at, cards) {
+                        let owner = self.owner(c);
+                        self.players[owner.0 as usize].library.retain(|x| *x != c);
+                        self.players[q.0 as usize].hand.push_back(c);
+                    }
+                }
+                Effect::ToLibrary { cards, top } => {
+                    let cards = self.still_in_library(&at, cards);
+                    match cards.len() {
+                        0 => {}
+                        1 => self.put_in_library(&cards, top),
+                        _ => {
+                            self.waiting = Waiting::Arrange {
+                                player: p,
+                                cards,
+                                top,
+                                resume: at,
+                            };
+                            return;
+                        }
+                    }
+                }
+                Effect::IfCard { card, filter, .. } => {
+                    let holds = match at.found.get(&card).map(Vec::as_slice) {
+                        Some([c]) => self
+                            .known(*c)
+                            .and_then(|k| k.printed.as_ref())
+                            .is_some_and(|ch| filter.matches(ch)),
+                        _ => false,
+                    };
+                    if holds {
+                        at = here;
+                        at.next.push(0);
+                    }
+                }
             }
         }
         self.done(&at)
+    }
+
+    /// The cards an instruction names that are still in a library, where
+    /// the instruction found them: one moved since is a new object (CR
+    /// 400.7).
+    fn still_in_library(&self, at: &Resuming, cards: Cards) -> Vec<CardId> {
+        let bound = |s: Slot| at.found.get(&s).cloned().unwrap_or_default();
+        let named = match cards {
+            Cards::Bound(s) => bound(s),
+            Cards::Rest { of, from } => {
+                let of = bound(of);
+                bound(from)
+                    .into_iter()
+                    .filter(|c| !of.contains(c))
+                    .collect()
+            }
+        };
+        named
+            .into_iter()
+            .filter(|c| self.player(self.owner(*c)).library.contains(c))
+            .collect()
+    }
+
+    /// Put these cards of a library on its top or bottom, the first
+    /// topmost (CR 401.4).
+    fn put_in_library(&mut self, cards: &[CardId], top: bool) {
+        for c in cards {
+            let owner = self.owner(*c);
+            self.players[owner.0 as usize].library.retain(|x| x != c);
+        }
+        if top {
+            for c in cards.iter().rev() {
+                let owner = self.owner(*c);
+                self.players[owner.0 as usize].library.push_front(*c);
+            }
+        } else {
+            for c in cards {
+                let owner = self.owner(*c);
+                self.players[owner.0 as usize].library.push_back(*c);
+                self.bottomed += 1;
+            }
+        }
+    }
+
+    /// How much an amount is as the instruction is followed.
+    fn amount(&self, at: &Resuming, n: lower::Amount) -> u32 {
+        match n {
+            lower::Amount::N(n) => n,
+            lower::Amount::ThatMuch => at.amount.unwrap_or(0),
+            lower::Amount::ManaValueOf(s) => match at.found.get(&s).map(Vec::as_slice) {
+                Some([c]) => self
+                    .known(*c)
+                    .and_then(|k| k.printed.as_ref())
+                    .map_or(0, |ch| ch.mana_value),
+                _ => 0,
+            },
+        }
     }
 
     /// The permanent an instruction names, if it is still on the
@@ -2712,6 +2976,9 @@ impl Game {
             | Waiting::Scry { resume: at, .. }
             | Waiting::Search { resume: at, .. }
             | Waiting::May { at, .. }
+            | Waiting::Reveal { resume: at, .. }
+            | Waiting::ChooseAmong { resume: at, .. }
+            | Waiting::Arrange { resume: at, .. }
             | Waiting::PutFromHand { resume: at, .. } => at,
             _ => return None,
         };
@@ -3262,6 +3529,7 @@ impl Game {
 
     fn begin_turn(&mut self, p: PlayerId) {
         self.turn += 1;
+        self.bottomed = 0;
         self.active = p;
         self.players[p.0 as usize].turn_began = Some(self.turn);
         for player in &mut self.players {

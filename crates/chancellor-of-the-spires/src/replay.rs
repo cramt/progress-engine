@@ -217,6 +217,7 @@ pub fn replay(
         demand: Vec::new(),
         matched: BTreeSet::new(),
         consumed: BTreeSet::new(),
+        bottomed: (0, 0),
         entries: g.entries.clone(),
     };
     let end = r.run(m, g);
@@ -251,6 +252,7 @@ struct Knew {
     drawn: u32,
     matched: BTreeSet<u32>,
     consumed: BTreeSet<usize>,
+    bottomed: (u32, u32),
 }
 
 #[derive(Clone)]
@@ -280,9 +282,12 @@ struct Driver<'a> {
     /// The triggered abilities on the stack a log line has shown, by their
     /// `seq`.
     matched: BTreeSet<u32>,
-    /// The "chooses to use" and "declines to use" lines a "may" was
-    /// answered from before the replay reached them.
+    /// The lines a choice was answered from before the replay reached
+    /// them: "chooses to use", "declines to use", a card revealed.
     consumed: BTreeSet<usize>,
+    /// The turn, and how many cards the log has shown going to the bottom
+    /// of a library by an instruction in it.
+    bottomed: (u32, u32),
     /// The game's lines, for the choices a later line shows (a trigger's
     /// targets, the order triggers go on the stack).
     entries: Vec<Entry>,
@@ -300,6 +305,7 @@ impl Driver<'_> {
             drawn: self.drawn,
             matched: self.matched.clone(),
             consumed: self.consumed.clone(),
+            bottomed: self.bottomed,
         }
     }
 
@@ -362,6 +368,7 @@ impl Driver<'_> {
                             self.drawn = knew.drawn;
                             self.matched = knew.matched;
                             self.consumed = knew.consumed;
+                            self.bottomed = knew.bottomed;
                             let did = match other {
                                 Retry::Pay(payment) => pay_with(&mut game, &payment)
                                     .map(|()| format!("paid again, {}", describe(&payment))),
@@ -804,25 +811,51 @@ impl Driver<'_> {
             UsesAbility { card, .. } => {
                 // The "may" it answers is answered as the engine asks
                 // (`may`), which reads this line ahead.
-                let turn = self.game().turn();
-                while !self.consumed.contains(&i) {
-                    let game = self.game();
-                    let passing = game.turn() == turn
-                        && match game.decision() {
-                            Decision::Priority { .. } => !game.stack().is_empty(),
-                            Decision::May { .. }
-                            | Decision::Targets { .. }
-                            | Decision::Order { .. }
-                            | Decision::Search { .. }
-                            | Decision::PayOrEnterTapped { .. } => true,
-                            _ => false,
-                        };
-                    if !passing {
-                        return Err(unfollowed(Some(card.name())));
-                    }
-                    self.pass()?;
+                if !self.until_consumed(i)? {
+                    return Err(unfollowed(Some(card.name())));
                 }
                 self.did(i, format!("answered {}'s \"may\" (CR 608.2d)", card.name()));
+            }
+            // A card revealed from a library by a resolving instruction,
+            // named as the engine asks (`reveal`), which reads this line
+            // ahead.
+            Reveals {
+                how: log::Reveal::With(log::Source::Card(by)),
+                cards,
+                ..
+            } => {
+                if !self.until_consumed(i)? {
+                    let card = cards.first().map(|c| c.name().to_string());
+                    return Err(Stop::Unfollowed {
+                        event: format!("Reveals with {}", by.name()),
+                        card,
+                    });
+                }
+                self.did(i, "the card revealed (CR 701.20a)");
+            }
+            // Cards an instruction put on the bottom, which the engine
+            // must have put there this turn.
+            PutsInLibrary {
+                cards: log::Moved::Unseen(n),
+                end: log::End::Bottom,
+                by: None,
+                ..
+            } => {
+                self.until_choice()?;
+                let turn = self.game().turn();
+                let seen = if self.bottomed.0 == turn {
+                    self.bottomed.1
+                } else {
+                    0
+                } + n;
+                if seen > self.game().bottomed() {
+                    return Err(unfollowed(None));
+                }
+                self.bottomed = (turn, seen);
+                self.did(
+                    i,
+                    format!("{n} put on the bottom by the instruction (CR 401.4)"),
+                );
             }
             // What a resolving spell or ability did: checked once what is
             // on the stack this turn resolves, against the permanent of
@@ -1120,6 +1153,11 @@ impl Driver<'_> {
                 ..
             } => self.search(player, known, hidden),
             Decision::May { card, .. } => self.may(card),
+            Decision::Reveal { player, cards } => self.reveal(player, cards.len()),
+            // Cards looked at are hidden alike to the log: which is chosen,
+            // and the order they go back in, is nothing it can tell.
+            Decision::ChooseAmong { cards, n, .. } => self.act(Answer::Choose(cards[..n].to_vec())),
+            Decision::Arrange { cards, .. } => self.act(Answer::Arrange(cards)),
             Decision::PutFromHand { player, .. } => self.put_from_hand(player),
             Decision::PayOrEnterTapped { card, life, .. } => self.pay_or_tap(card, life),
             d @ (Decision::Pay { .. } | Decision::Mulligan { .. } | Decision::Bottom { .. }) => {
@@ -1268,6 +1306,9 @@ impl Driver<'_> {
                 Decision::Search { .. }
                 | Decision::PayOrEnterTapped { .. }
                 | Decision::May { .. }
+                | Decision::Reveal { .. }
+                | Decision::ChooseAmong { .. }
+                | Decision::Arrange { .. }
                 | Decision::PutFromHand { .. } => self.pass()?,
                 d => return Ok(d),
             }
@@ -1850,6 +1891,72 @@ impl Driver<'_> {
             format!("followed {name}'s \"may\", which no line declines"),
         );
         Ok(())
+    }
+
+    /// Pass, answering what `pass` answers, until line `i` has been read
+    /// ahead for a choice, within the turn: whether it was.
+    fn until_consumed(&mut self, i: usize) -> Result<bool, Stop> {
+        let turn = self.game().turn();
+        while !self.consumed.contains(&i) {
+            let game = self.game();
+            let passing = game.turn() == turn
+                && match game.decision() {
+                    Decision::Priority { .. } => !game.stack().is_empty(),
+                    Decision::May { .. }
+                    | Decision::Reveal { .. }
+                    | Decision::ChooseAmong { .. }
+                    | Decision::Arrange { .. }
+                    | Decision::Targets { .. }
+                    | Decision::Order { .. }
+                    | Decision::Search { .. }
+                    | Decision::PayOrEnterTapped { .. } => true,
+                    _ => false,
+                };
+            if !passing {
+                return Ok(false);
+            }
+            self.pass()?;
+        }
+        Ok(true)
+    }
+
+    /// Cards of `p`'s library a resolving instruction reveals, which no
+    /// one had named: the log's "reveals [X] with [Dark Confidant]'s
+    /// ability" lines, from the line being followed to the end of the
+    /// turn, name them in order.
+    fn reveal(&mut self, p: PlayerId, count: usize) -> Followed {
+        let game = self.game.as_ref().expect("set up");
+        let by = game
+            .resolving()
+            .map(|c| self.name_of(c))
+            .unwrap_or_default();
+        let mut names = Vec::new();
+        for (k, e) in self.entries.iter().enumerate().skip(self.at) {
+            if names.len() == count || k > self.at && matches!(e.event, Event::TurnBegins(_)) {
+                break;
+            }
+            if let Event::Reveals {
+                player,
+                cards,
+                how: log::Reveal::With(log::Source::Card(s)),
+            } = &e.event
+            {
+                if self.seat(*player) == p && s.name() == by && !self.consumed.contains(&k) {
+                    self.consumed.insert(k);
+                    names.extend(cards.iter().map(|c| c.name().to_string()));
+                }
+            }
+        }
+        if names.len() != count {
+            return Err(Stop::Diverged(Divergence::Unlogged {
+                what: format!("the cards {by} reveals"),
+            }));
+        }
+        let texts = names
+            .iter()
+            .map(|n| self.text(n))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.act(Answer::Reveal(texts))
     }
 
     /// A card `p` puts onto the battlefield from their hand, which the log

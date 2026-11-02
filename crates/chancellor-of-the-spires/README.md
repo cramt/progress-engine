@@ -78,6 +78,13 @@ on. Turn-based and state-based actions are never decisions.
 - `May { player, card }`: an instruction that says "you may", asked as
   it is reached (CR 608.2d; a triggered ability's as it resolves, CR
   603.5), answered `May(bool)`.
+- `Reveal { player, cards }`: hidden cards of a library are revealed
+  (CR 701.20a), and what each is must be said, answered `Reveal` with a
+  card for each. A deck file's cards are known, so only a replay is asked.
+- `ChooseAmong { player, cards, n }`: Impulse's "put one of them into
+  your hand", answered `Choose`; `Arrange { player, cards, top }`: put
+  cards back on top or bottom in any order (CR 401.4), answered `Arrange`,
+  the first topmost.
 - `PutFromHand { player, hand, legal, unsure }`: Goblin Lackey's "put a
   Goblin permanent card from your hand onto the battlefield", answered
   `Pick`, `None` only when no card can match.
@@ -141,7 +148,10 @@ charge counters as it resolves, as the Vial last existed if it has left
 (CR 608.2h); instants' and sorceries'
 instructions in order (CR 608.2c), going to the graveyard after (CR
 608.2n): draw, discard, a hand revealed and a card chosen from it to
-discard, gain and lose life, damage to any target, a player, a player or
+discard, the top cards of a library revealed or looked at and bound for
+the instructions after them (Insight's `With`, a slot per binder): put
+into a hand, one chosen among them, put back on top or the bottom in
+any order, "if it's a land card" and "its mana value", gain and lose life, damage to any target, a player, a player or
 planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
 lifelink, CR 702.15b), scry and +1/+1 or named counters; their targets
@@ -354,6 +364,16 @@ after the discard in older logs and all of it in newer ones, and the card
 discarded, and the engine's hand must have as many cards or the replay
 stops (`HandSize`). The cards a scry looks at are hidden alike, so the
 first as many as the log says go back on top and the rest to the bottom.
+A card revealed from a library (Dark Confidant, Goblin Guide) is named
+by the log's "reveals [X] with [Y]'s ability" line for it, read ahead
+from the line being followed to the end of the turn, and the replay
+stops if there is none. A card only looked at (Impulse, Mirri's Guile)
+stays hidden: the log never names it, so the replay takes the first of
+those looked at as the one chosen, a hidden card in the hand until a line
+plays it, and puts the rest back in the order they were; its place is
+the engine's, so the library's order stays honest though its names are
+unknown. A "put a card on the bottom of the library" line must match a
+card the engine put on the bottom that turn.
 A "may" is answered by its own line when the log prints one ("chooses
 to use", "chooses not to use" or "declines to use [X]'s ability") from
 the line being followed to the end of the turn; with none, the replay
@@ -393,9 +413,9 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 19 replay to the end** (16 to the log's winner
-line), 6 of them past the first turn, and **19.83% of their lines are
-followed** (15,505 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 20 replay to the end** (17 to the log's winner
+line), 6 of them past the first turn, and **20.43% of their lines are
+followed** (15,971 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the
