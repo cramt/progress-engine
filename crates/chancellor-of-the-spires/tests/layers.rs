@@ -43,6 +43,7 @@ fn of(ops: Vec<Op>, filter: Vec<Pred>) -> StaticAbility {
     StaticAbility {
         filter: Filter(filter),
         ops,
+        condition: None,
     }
 }
 
@@ -282,4 +283,64 @@ fn timing_on_the_research_board() {
         .filter(|c| c.subtypes.contains(&Subtype::Creature("Zombie".into())))
         .count();
     eprintln!("{} objects, one run {each:?}, {zombies} zombies", now.len());
+}
+
+/// CR 611.3a, 613.1d, 613.4c: a static "gets +1/+1 as long as you
+/// control a Mountain" (Wild Nacatl's) exists only while the condition
+/// holds, read as the layers apply: a nonbasic land Blood Moon makes a
+/// Mountain in layer 4 counts by layer 7c.
+#[test]
+fn a_condition_is_read_after_the_layers_before_it() {
+    let mountain = Pred::Is(Prop::Subtype(Subtype::BasicLand(BasicLandType::Mountain)));
+    let nacatl = |s: &mut State| {
+        s.enter(
+            creature(pt(1, 1), 1, Color::Green),
+            vec![StaticAbility {
+                condition: Some(Condition::YouControl(YouControl {
+                    any_of: vec![Filter(vec![mountain.clone()])],
+                    count: Count::AtLeast(1),
+                })),
+                ..of(vec![Op::ModifyPt(pt(1, 1))], vec![Pred::Itself])
+            }],
+        )
+    };
+    let mut desert = chars(&[CardType::Land], 0, None);
+    desert.subtypes.insert(Subtype::OtherLand("Desert".into()));
+    let mut s = State::default();
+    let cat = nacatl(&mut s);
+    s.enter(desert, vec![]);
+    assert_eq!(pt_of(&s, cat), Some(pt(1, 1)), "no Mountain");
+    // Blood Moon: "Nonbasic lands are Mountains."
+    s.enter(
+        enchantment(3),
+        vec![of(
+            vec![Op::SetBasicLandType(BasicLandType::Mountain)],
+            vec![
+                Pred::Is(Prop::Type(CardType::Land)),
+                Pred::IsNot(Prop::Supertype(Supertype::Basic)),
+            ],
+        )],
+    );
+    assert_eq!(
+        pt_of(&s, cat),
+        Some(pt(2, 2)),
+        "the Desert is a Mountain now"
+    );
+}
+
+/// CR 611.3a: "as long as it's your turn" reads whose turn it is.
+#[test]
+fn a_condition_on_whose_turn_it_is() {
+    let mut s = State::default();
+    let me = s.enter(
+        creature(pt(1, 1), 1, Color::Red),
+        vec![StaticAbility {
+            condition: Some(Condition::YourTurn),
+            ..of(vec![Op::ModifyPt(pt(2, 0))], vec![Pred::Itself])
+        }],
+    );
+    s.active = Some(PlayerId(1));
+    assert_eq!(pt_of(&s, me), Some(pt(1, 1)));
+    s.active = Some(YOU);
+    assert_eq!(pt_of(&s, me), Some(pt(3, 1)));
 }

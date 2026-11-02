@@ -1072,3 +1072,23 @@ fn leyline_of_sanctity_begins_on_the_battlefield_and_gives_its_player_hexproof()
         "Duress's only legal target is themselves, and it targets an opponent"
     );
 }
+
+/// CR 611.3a: Wild Nacatl's "This creature gets +1/+1 as long as you
+/// control a Mountain" applies once a Mountain is played, read from its
+/// Oracle text.
+#[test]
+fn wild_nacatl_grows_while_its_controller_controls_a_mountain() {
+    let mut game = deal(
+        &[("Forest", 20), ("Mountain", 20), ("Wild Nacatl", 20)],
+        &[("Forest", 60)],
+        &[("Forest", 1), ("Mountain", 1), ("Wild Nacatl", 1)],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Wild Nacatl", None);
+    resolve(&mut game);
+    let cat = creature(&game, "Wild Nacatl").unwrap();
+    assert_eq!(pt_of(&game, cat), pt(1, 1));
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    assert_eq!(pt_of(&game, cat), pt(2, 2));
+}

@@ -492,12 +492,33 @@ fn crusade_pumps_white_creatures_whoever_controls_them() {
     assert_eq!(now[&green].pt, Some(pt(2, 2)));
 }
 
+/// CR 611.3a: Wild Nacatl's two statics, each existing as long as its
+/// condition holds, read from its text.
+#[test]
+fn wild_nacatl_reads_as_two_conditional_statics() {
+    let nacatl = read(&WILD_NACATL);
+    assert_eq!(nacatl.statics.len(), 2);
+    assert!(nacatl.statics.iter().all(|s| s.condition.is_some()
+        && s.ops == [Op::ModifyPt(pt(1, 1))]
+        && s.filter == Filter(vec![Pred::Itself])));
+}
+
 #[test]
 fn a_line_the_engine_cant_lower_is_refused_by_name() {
-    let refusal = lower::card(&WILD_NACATL)
+    // A characteristic-defining ability, layer 7a, isn't modelled.
+    const TARMOGOYF: Card = card(
+        "Tarmogoyf",
+        "Creature — Lhurgoyf",
+        "Tarmogoyf's power is equal to the number of card types among cards in all graveyards \
+and its toughness is equal to that number plus 1.",
+        2,
+        &[Color::Green],
+        None,
+    );
+    let refusal = lower::card(&TARMOGOYF)
         .err()
-        .expect("\"as long as\" isn't lowered yet");
-    assert!(refusal.to_string().contains("AsLongAs"), "{refusal}");
+        .expect("a characteristic-defining ability isn't lowered yet");
+    assert!(refusal.to_string().contains("no lowering"), "{refusal}");
 }
 
 #[test]

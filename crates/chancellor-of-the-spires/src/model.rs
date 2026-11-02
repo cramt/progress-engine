@@ -361,6 +361,41 @@ impl Op {
 pub struct StaticAbility {
     pub filter: Filter,
     pub ops: Vec<Op>,
+    /// "As long as you control a Mountain": the effect exists only while
+    /// it holds, read as the layers apply (CR 611.3a, 613).
+    pub condition: Option<Condition>,
+}
+
+/// What an "as long as" says, relative to the ability's source.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Condition {
+    YouControl(YouControl),
+    /// "As long as it's your turn": its controller is the active player.
+    YourTurn,
+}
+
+/// "You control a Mountain or a Plains", "you control two or fewer other
+/// lands": how many of the permanents you control match any of the
+/// filters, read from the ability's source.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct YouControl {
+    pub any_of: Vec<Filter>,
+    pub count: Count,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Count {
+    AtLeast(u32),
+    AtMost(u32),
+}
+
+impl Count {
+    pub fn holds(self, n: u32) -> bool {
+        match self {
+            Count::AtLeast(k) => n >= k,
+            Count::AtMost(k) => n <= k,
+        }
+    }
 }
 
 /// A continuous effect from a resolved spell or ability. The set it affects
@@ -393,6 +428,9 @@ pub struct Object {
 /// The battlefield, as the layers need it. Persistent, so search can fork it.
 #[derive(Clone, Debug, Default)]
 pub struct State {
+    /// Whose turn it is (CR 102.1), for "as long as it's your turn"; `None`
+    /// outside a game.
+    pub active: Option<PlayerId>,
     pub objects: OrdMap<ObjectId, Object>,
     pub statics: OrdMap<StaticId, StaticAbility>,
     pub resolved: Vector<Resolved>,

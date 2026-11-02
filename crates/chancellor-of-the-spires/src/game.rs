@@ -43,7 +43,7 @@ use crate::mana::{self as m, short};
 pub use crate::mana::{Mana, ManaCost, ManaPool, Shard};
 use crate::model::{
     Ability, CardType, Chars, Cmp, Color, Counter, Filter, Keyword, ObjectId, PlayerId, Pred, Seen,
-    State, Subtype, Supertype, Timestamp,
+    State, Subtype, Supertype, Timestamp, YouControl,
 };
 
 /// CR 103.4.
@@ -156,9 +156,9 @@ enum Enters {
     Tapped,
     /// "This land enters tapped unless you control a legendary green
     /// creature", "… two or fewer other lands", "… a Mountain or a Plains".
-    TappedUnless(lower::YouControl),
+    TappedUnless(YouControl),
     /// "If you control two or more other lands, this land enters tapped."
-    TappedIf(lower::YouControl),
+    TappedIf(YouControl),
     /// "As this land enters, you may pay 2 life. If you don't, it enters
     /// tapped."
     TappedUnlessPaysLife(u32),
@@ -3512,7 +3512,7 @@ impl Game {
         let id = would.enter(chars, runs.lowered.statics.clone());
         let now = characteristics(&would);
         let me = &now[&id];
-        let holds = |cond: &lower::YouControl| {
+        let holds = |cond: &YouControl| {
             let n = now
                 .iter()
                 .filter(|(o, c)| {
@@ -3625,6 +3625,7 @@ impl Game {
 
     fn begin_turn(&mut self, p: PlayerId) {
         self.turn += 1;
+        self.battlefield.active = Some(p);
         self.bottomed = 0;
         self.active = p;
         self.players[p.0 as usize].turn_began = Some(self.turn);

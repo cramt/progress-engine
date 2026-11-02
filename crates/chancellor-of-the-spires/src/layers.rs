@@ -14,8 +14,8 @@ use ascent::aggregators::min;
 use ascent::ascent_run;
 
 use crate::model::{
-    Ability, CardType, Chars, Counter, Layer, ObjectId, Op, Seen, State, StaticAbility, StaticId,
-    Subtype, Timestamp,
+    Ability, CardType, Chars, Condition, Counter, Layer, ObjectId, Op, Seen, State, StaticAbility,
+    StaticId, Subtype, Timestamp,
 };
 
 /// A continuous effect: a static ability of one object (CR 611.3), or what
@@ -105,12 +105,47 @@ impl Run<'_> {
             .collect()
     }
 
-    /// A static ability's effect exists while its object has the ability.
+    /// A static ability's effect exists while its object has the ability
+    /// and its condition holds, read from what the layers have made of
+    /// the battlefield so far (CR 611.3a, 613).
     fn exists(&self, e: Effect, now: &BTreeMap<ObjectId, Chars>) -> bool {
         match e {
-            Effect::Static(o, s) => now[&o].abilities.contains(&Ability::Static(s)),
+            Effect::Static(o, s) => {
+                now[&o].abilities.contains(&Ability::Static(s))
+                    && self.state.statics[&s]
+                        .condition
+                        .as_ref()
+                        .is_none_or(|c| self.holds(c, o, now))
+            }
             Effect::Resolved(_) => true,
         }
+    }
+
+    /// "As long as you control a Mountain": counted among the permanents
+    /// the source's controller controls.
+    fn holds(&self, cond: &Condition, source: ObjectId, now: &BTreeMap<ObjectId, Chars>) -> bool {
+        let source_chars = &now[&source];
+        let cond = match cond {
+            Condition::YouControl(c) => c,
+            Condition::YourTurn => return self.state.active == Some(source_chars.controller),
+        };
+        let n = now
+            .iter()
+            .filter(|(id, c)| {
+                c.controller == source_chars.controller
+                    && cond.any_of.iter().any(|f| {
+                        f.matches(&Seen {
+                            id: **id,
+                            chars: c,
+                            source,
+                            source_chars,
+                            source_attached_to: self.state.objects[&source].attached_to,
+                            token: self.state.objects[*id].token,
+                        })
+                    })
+            })
+            .count();
+        cond.count.holds(n as u32)
     }
 
     fn matches(
@@ -182,6 +217,13 @@ impl Run<'_> {
             return true;
         }
         let ability = &self.state.statics[&s];
+        if let Some(cond) = &ability.condition {
+            let mut after = self.now.clone();
+            after.insert(o, after_a.clone());
+            if self.holds(cond, source, &self.now) != self.holds(cond, source, &after) {
+                return true;
+            }
+        }
         let source_after = if o == source {
             after_a
         } else {

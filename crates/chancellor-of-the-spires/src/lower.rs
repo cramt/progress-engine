@@ -518,6 +518,19 @@ fn keyword(k: &i::Keyword) -> Option<Keyword> {
 /// part is an `Op` over one filter. Parts over different objects would be
 /// two effects, and nothing needs that yet.
 fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbility, String> {
+    // "This creature gets +1/+1 as long as you control a Mountain": the
+    // effect, and when it exists.
+    if let [i::Static::AsLongAs { cond, then, .. }] = parts {
+        let condition = match cond {
+            i::Condition::YouControl(o) => Condition::YouControl(you_control(o)?),
+            i::Condition::ItsYourTurn => Condition::YourTurn,
+            other => return Err(format!("AsLongAs({})", short(other))),
+        };
+        return Ok(StaticAbility {
+            condition: Some(condition),
+            ..static_ability(then, scope)?
+        });
+    }
     let mut filter: Option<Filter> = None;
     let mut ops = Vec::new();
     let mut carried = false;
@@ -542,6 +555,7 @@ fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbilit
     Ok(StaticAbility {
         filter: filter.ok_or("an empty static ability")?,
         ops,
+        condition: None,
     })
 }
 
@@ -668,30 +682,6 @@ fn fixed(p: &IPt) -> Option<Pt> {
     }
 }
 
-/// "You control a Mountain or a Plains", "you control two or fewer other
-/// lands": how many of the permanents you control match any of the
-/// filters, read once, as the condition is checked.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct YouControl {
-    pub any_of: Vec<Filter>,
-    pub count: Count,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Count {
-    AtLeast(u32),
-    AtMost(u32),
-}
-
-impl Count {
-    pub fn holds(self, n: u32) -> bool {
-        match self {
-            Count::AtLeast(k) => n >= k,
-            Count::AtMost(k) => n <= k,
-        }
-    }
-}
-
 /// "a legendary green creature", "two or more basic lands", "a Mountain
 /// or a Plains" in "unless you control …". Its source is the permanent
 /// the condition is about, so "other" is relative to it; "this" and
@@ -743,6 +733,10 @@ pub fn counted(o: &Objects) -> Result<Filter, String> {
 /// "All creatures", "nontoken artifacts you control": a filter over the
 /// battlefield, re-read as the layers go. Targets aren't a static's.
 fn objects(o: &Objects) -> Result<Filter, String> {
+    // "This creature gets +1/+1": the source alone.
+    if o.quant == Quant::SelfRef && o.filter == i::Filter::default() {
+        return Ok(Filter(vec![Pred::Itself]));
+    }
     // "Enchanted creature", "equipped creature": what the source is
     // attached to, and only while it matches the rest of the filter.
     let mut preds = match o.quant {

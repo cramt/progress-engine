@@ -238,6 +238,11 @@ could tell apart, and none of those (dying, leaving) runs yet.
 
 ## What the layers cover
 
+A static "as long as you control a Mountain" or "as long as it's your
+turn" exists only while its condition holds, read from the battlefield
+as the layers have made it so far (CR 611.3a), so a land Blood Moon makes
+a Mountain in layer 4 grows Wild Nacatl in 7c, and an effect that would
+change whether the condition holds is one it depends on (CR 613.8a).
 Layers 4 (adding types and subtypes, setting a basic land type, CR 305.7),
 5 (colour), 6 (granting, removing, removing all) and 7b–7d (setting,
 modifying, switching), counters in 7c, filters over type, supertype,
@@ -256,7 +261,8 @@ Not yet: layers 1–3 (copy, control, text), 7a (characteristic-defining
 abilities, and so CDAs first, CR 613.3), dependency through "what it does"
 (CR 613.8a), counters' own timestamps (CR 613.7c), abilities granted with a
 later timestamp (CR 613.7a), effects on players and rules (CR 613.10–11),
-and conditional statics ("as long as", "if").
+and conditional statics other than "as long as you control …" and "as
+long as it's your turn" (life totals, cards in hand, "if").
 
 ## Lowering
 
@@ -276,17 +282,18 @@ bound for the state machine. Any other node is
 refused by name, never dropped. `insight card <name>` shows what a card
 reads as.
 
-**522 of the 574 cards in the Modern metagame lower whole** (548 of 600
+**523 of the 574 cards in the Modern metagame lower whole** (549 of 600
 faces), measured 2026-11-02 against the Scryfall bulk file:
 `cargo test --release -p chancellor-of-the-spires --test coverage -- --ignored --nocapture`
-prints the number and the refusals by node. It was 495 until a shock
+prints the number and the refusals by node. It was 522 until "as long as you control …" and "as long as it's your
+turn" lowered with a static over its own object, and 495 until a shock
 land's "As this land enters, you may pay 2 life" (19 cards) and a static
 "if" over rules alone ("If you control two or more other lands, this land
 enters tapped", 8) were carried, since neither changes a characteristic.
-The most refused are "as long as" (16), a condition not modelled yet;
-then modifying by an amount, "as this enters" (6, other choices, or a copiable effect if
+The most refused are modifying by an amount (9), "as this enters" (6, other choices, or a copiable effect if
 it sets a size, CR 613.2a), 7a's characteristic-defining abilities
-(`SetPt`) and copy effects. Karn Liberated and two others don't parse:
+(`SetPt`), copy effects, and "as long as" over an amount or whose turn
+(4 each, Dromoka's a rule, not a characteristic). Karn Liberated and two others don't parse:
 they are cards with a rule of their
 own, which Insight's headline leaves out.
 
@@ -424,8 +431,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 20 replay to the end** (17 to the log's winner
-line), 6 of them past the first turn, and **20.55% of their lines are
-followed** (16,068 of 78,183: the lines before each game's stop, all of a
+line), 6 of them past the first turn, and **20.62% of their lines are
+followed** (16,122 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the
