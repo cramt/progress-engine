@@ -3,7 +3,7 @@
 
 use std::collections::BTreeSet;
 
-use imbl::{OrdMap, Vector};
+use imbl::{OrdMap, OrdSet, Vector};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ObjectId(pub u32);
@@ -215,6 +215,8 @@ pub enum Pred {
     AttachedTo,
     /// "with mana value 3 or less" (CR 202.3).
     ManaValue(Cmp, u32),
+    /// "attacking": an attacking creature (CR 506.4).
+    Attacking,
 }
 
 /// A comparison of a number against a fixed one.
@@ -255,6 +257,8 @@ pub struct Seen<'a> {
     /// Whether the object is a token. Not a characteristic (CR 109.3), so
     /// no layer changes it.
     pub token: bool,
+    /// Whether it is an attacking creature (CR 506.4).
+    pub attacking: bool,
 }
 
 impl Filter {
@@ -280,6 +284,7 @@ impl Filter {
             Pred::AttachedTo => s.source_attached_to == Some(s.id),
             Pred::Nontoken => !s.token,
             Pred::ManaValue(cmp, n) => cmp.holds(s.chars.mana_value, *n),
+            Pred::Attacking => s.attacking,
         })
     }
 }
@@ -475,6 +480,10 @@ pub struct State {
     /// Whose turn it is (CR 102.1), for "as long as it's your turn"; `None`
     /// outside a game.
     pub active: Option<PlayerId>,
+    /// The creatures attacking (CR 506.4): not a characteristic, but what
+    /// "attacking" in a filter reads. The game sets it as attackers are
+    /// declared and clears it as combat ends (CR 511.3).
+    pub attacking: OrdSet<ObjectId>,
     pub objects: OrdMap<ObjectId, Object>,
     pub statics: OrdMap<StaticId, StaticAbility>,
     pub resolved: Vector<Resolved>,

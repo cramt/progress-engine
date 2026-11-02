@@ -318,6 +318,16 @@ impl Driver<'_> {
         self.seats[p.0 as usize]
     }
 
+    /// The name of the permanent a line names: a token's is the one the
+    /// log gives it, "Goblin Token", which the engine names it too (CR
+    /// 111.4), and a card's is its card's.
+    fn permanent_name(&mut self, c: &log::Card) -> Result<String, Stop> {
+        if c.is_token() {
+            return Ok(c.name().to_string());
+        }
+        Ok(self.text(c.name())?.name)
+    }
+
     fn text(&mut self, name: &str) -> Result<CardText, Stop> {
         if !self.named.contains_key(name) {
             let found = (self.cards)(name);
@@ -348,6 +358,9 @@ impl Driver<'_> {
                 Ok(Next::Line(n)) => i = n,
                 Ok(Next::Done) => return End::Finished,
                 Err(stop) => {
+                    if std::env::var_os("CHANCELLOR_DEBUG").is_some() {
+                        eprintln!("line {i}: {stop}");
+                    }
                     let unpayable = matches!(
                         stop,
                         Stop::Diverged(Divergence::Unpayable { .. } | Divergence::EngineOver)
@@ -841,7 +854,7 @@ impl Driver<'_> {
                     let Object::Card(c) = a else {
                         return Err(unfollowed(None));
                     };
-                    names.push(self.text(c.name())?.name);
+                    names.push(self.permanent_name(c)?);
                 }
                 let turn = self.game().turn();
                 let can = loop {
@@ -891,7 +904,7 @@ impl Driver<'_> {
                     }
                     self.pass()?;
                 }
-                let (bn, an) = (self.text(b.name())?.name, self.text(a.name())?.name);
+                let (bn, an) = (self.permanent_name(b)?, self.permanent_name(a)?);
                 let game = self.game();
                 let named = |id: &ObjectId, n: &str| {
                     game.permanents()
@@ -968,7 +981,7 @@ impl Driver<'_> {
                     let log::Target::Object(Object::Card(c)) = &counted.on else {
                         return Err(unfollowed(None));
                     };
-                    let name = self.text(c.name())?.name;
+                    let name = self.permanent_name(c)?;
                     let kind = match counted.kind.as_str() {
                         "+1/+1" => Counter::PlusOne,
                         "-1/-1" => Counter::MinusOne,
@@ -1457,7 +1470,7 @@ impl Driver<'_> {
             let t = match &aim.target {
                 log::Target::Player(p) => Target::Player(self.seat(*p)),
                 log::Target::Object(Object::Card(c)) => {
-                    let name = self.text(c.name())?.name;
+                    let name = self.permanent_name(c)?;
                     let game = self.game.as_ref().expect("set up");
                     *legal
                         .iter()
@@ -1527,11 +1540,20 @@ impl Driver<'_> {
                 // What is on the stack resolves, or the turn goes on to
                 // what triggers it, combat damage.
                 Decision::Priority { .. } if game.turn() == turn => self.pass()?,
+                // And what resolving it asks: Goblin Lackey's "may" puts
+                // the creature whose trigger this is.
                 Decision::Targets { .. }
                 | Decision::Order { .. }
                 | Decision::Attackers { .. }
                 | Decision::Blockers { .. }
                 | Decision::Assign { .. }
+                | Decision::May { .. }
+                | Decision::PutFromHand { .. }
+                | Decision::Search { .. }
+                | Decision::Reveal { .. }
+                | Decision::ChooseAmong { .. }
+                | Decision::Arrange { .. }
+                | Decision::PayOrEnterTapped { .. }
                     if game.turn() == turn =>
                 {
                     self.pass()?

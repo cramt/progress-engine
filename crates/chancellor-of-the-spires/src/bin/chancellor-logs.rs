@@ -690,6 +690,10 @@ mod native {
                                 Some(c) => format!("{c}: {}", stop.kind()),
                                 None => stop.kind(),
                             };
+                            if refused.is_empty() {
+                                run.clean
+                                    .push(format!("{key}\n        e.g. {}", example(at)));
+                            }
                             let s = run.stops.entry(key).or_insert_with(|| (0, example(at)));
                             s.0 += 1;
                         }
@@ -764,6 +768,10 @@ mod native {
                 "  games by how many of their cards the engine refuses before any game: {}",
                 refusing.join(", ")
             );
+            println!("  stops of games with no card refused:");
+            for c in &run.clean {
+                println!("        {c}");
+            }
             let mut refused: Vec<_> = run.refused.iter().collect();
             refused.sort_by(|a, b| {
                 b.1 .1
@@ -805,6 +813,8 @@ mod native {
         followed: usize,
         lines: usize,
         stops: HashMap<String, (usize, String)>,
+        /// The stops of games none of whose cards the engine refuses.
+        clean: Vec<String>,
         /// Games by how many of their cards the engine refuses.
         refusing: std::collections::BTreeMap<usize, usize>,
         /// Each refused card: the games it is in, and those it is the

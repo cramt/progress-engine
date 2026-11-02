@@ -807,6 +807,7 @@ fn objects(o: &Objects) -> Result<Filter, String> {
             Adj::NonColor(c) => Pred::IsNot(Prop::Color(color(c).ok_or(short(c))?)),
             Adj::State(i::State::Nontoken) => Pred::Nontoken,
             Adj::State(i::State::Other) => Pred::Other,
+            Adj::State(i::State::Attacking) => Pred::Attacking,
             other => return Err(short(other)),
         });
     }
@@ -922,6 +923,10 @@ pub enum Effect {
     UntilEndOfTurn {
         on: Obj,
         ops: Vec<Op>,
+        /// "+2/+0 … for each other attacking Goblin": the modification
+        /// once per permanent the filter matches, read from the ability's
+        /// source and counted as it resolves (CR 608.2h).
+        per: Option<Filter>,
     },
     /// "You may …": the controller chooses, as the instruction is
     /// reached, whether to follow these (CR 608.2d; a triggered ability's
@@ -1222,6 +1227,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 effects: vec![Effect::UntilEndOfTurn {
                     on: Obj::Triggering,
                     ops: plus_one,
+                    per: None,
                 }],
             },
         }),
@@ -1234,6 +1240,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 effects: vec![Effect::UntilEndOfTurn {
                     on: Obj::Itself,
                     ops: plus_one,
+                    per: None,
                 }],
             },
         }),
@@ -1606,8 +1613,34 @@ impl<'a> Scope<'a> {
                 if !r.counters.is_empty() {
                     return Err(node());
                 }
-                Effect::UntilEndOfTurn { on, ops: r.ops }
+                Effect::UntilEndOfTurn {
+                    on,
+                    ops: r.ops,
+                    per: None,
+                }
             }
+            // "It gets +2/+0 until end of turn for each other attacking
+            // Goblin": one modification, its size counted (CR 608.2h).
+            i::Effect::ForEach { each, then, .. } => match then.as_slice() {
+                [m @ i::Effect::Modify {
+                    what,
+                    dur: i::Duration::UntilEndOfTurn,
+                    ..
+                }] => {
+                    let on = self.obj(what)?;
+                    let r = resolution(m).map_err(|_| node())?;
+                    if !r.counters.is_empty() || !r.ops.iter().all(|o| matches!(o, Op::ModifyPt(_)))
+                    {
+                        return Err(format!("{} of more than power and toughness", node()));
+                    }
+                    Effect::UntilEndOfTurn {
+                        on,
+                        ops: r.ops,
+                        per: Some(counted(each)?),
+                    }
+                }
+                _ => return Err(node()),
+            },
             i::Effect::RevealHand(_) => return Err(format!("{} alone", node())),
             i::Effect::With { bind, then } => return self.with(bind, then),
             i::Effect::Search {

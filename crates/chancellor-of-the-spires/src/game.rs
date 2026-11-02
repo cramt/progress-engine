@@ -42,8 +42,8 @@ use crate::lower::{
 use crate::mana::{self as m, short};
 pub use crate::mana::{Mana, ManaCost, ManaPool, Shard};
 use crate::model::{
-    Ability, CardType, Chars, Cmp, Color, Counter, Filter, Keyword, ObjectId, PlayerId, Pred, Seen,
-    State, Subtype, Supertype, Timestamp, YouControl,
+    self, Ability, CardType, Chars, Cmp, Color, Counter, Filter, Keyword, ObjectId, PlayerId, Pred,
+    Seen, State, Subtype, Supertype, Timestamp, YouControl,
 };
 
 /// CR 103.4.
@@ -2274,6 +2274,7 @@ impl Game {
                     source_chars,
                     source_attached_to: self.battlefield.objects[&source].attached_to,
                     token: self.battlefield.objects[*o].token,
+                    attacking: self.battlefield.attacking.contains(*o),
                 })
             })
             .count() as u32
@@ -2870,7 +2871,26 @@ impl Game {
                         self.battlefield.put_counters(o, counter, n);
                     }
                 }
-                Effect::UntilEndOfTurn { on, ops } => {
+                Effect::UntilEndOfTurn { on, ops, per } => {
+                    let ops = match per {
+                        None => ops,
+                        Some(f) => {
+                            let all = self.characteristics();
+                            let n = at
+                                .object
+                                .filter(|o| all.contains_key(o))
+                                .map_or(0, |o| self.count(&f, o, &all[&o], &all))
+                                as i32;
+                            ops.into_iter()
+                                .map(|op| match op {
+                                    model::Op::ModifyPt(d) => {
+                                        model::Op::ModifyPt(model::pt(d.power * n, d.toughness * n))
+                                    }
+                                    other => other,
+                                })
+                                .collect()
+                        }
+                    };
                     if let Some(o) = self.object(&at, on) {
                         let t = self.battlefield.resolve([o], ops);
                         self.until_end_of_turn.push(t);
@@ -3393,6 +3413,7 @@ impl Game {
                 source_chars: chars,
                 source_attached_to: self.battlefield.objects[src].attached_to,
                 token: self.battlefield.objects[&id].token,
+                attacking: self.battlefield.attacking.contains(&id),
             };
             for (n, t) in &runs.triggered {
                 if !chars.abilities.contains(&Ability::Unread(*n)) {
@@ -3421,6 +3442,7 @@ impl Game {
                             source_chars: chars,
                             source_attached_to: self.battlefield.objects[src].attached_to,
                             token: l.token,
+                            attacking: false,
                         })
                         .then_some((None, None))
                         .into_iter()
@@ -3490,6 +3512,7 @@ impl Game {
                         source_chars: &l.chars,
                         source_attached_to: None,
                         token: l.token,
+                        attacking: false,
                     };
                     if l.chars.abilities.contains(&Ability::Unread(*n)) && f.matches(&seen) {
                         triggered.push(Pending {
@@ -3585,6 +3608,7 @@ impl Game {
                 }
             }
         }
+        self.battlefield.attacking = combat.attackers.keys().copied().collect();
         self.combat = Some(combat);
         if !declared.is_empty() {
             self.trigger_on(Event::Attacked(declared.iter().map(|(a, _)| *a).collect()));
@@ -3814,6 +3838,7 @@ impl Game {
                                 source_chars: me,
                                 source_attached_to: None,
                                 token: would.objects[*o].token,
+                                attacking: would.attacking.contains(*o),
                             })
                         })
                 })
@@ -4049,6 +4074,7 @@ impl Game {
         // CR 511.3.
         if step == Step::EndOfCombat {
             self.combat = None;
+            self.battlefield.attacking.clear();
         }
         let mut next = step.next();
         while let Some(s) = next.filter(|s| self.skips(*s)) {

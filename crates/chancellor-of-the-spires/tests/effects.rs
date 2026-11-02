@@ -1440,3 +1440,45 @@ fn cost_changes_add_and_take_generic_mana() {
     assert_eq!(owed_for(&mut game, ME, "Goblin Warchief"), "{R}{R}");
     assert_eq!(owed_for(&mut game, ME, "Lightning Bolt"), "{1}{R}");
 }
+
+/// CR 608.2h, 506.4: Goblin Piledriver's attack trigger counts the other
+/// attacking Goblins as it resolves, +2/+0 for each.
+#[test]
+fn goblin_piledriver_grows_for_each_other_attacking_goblin() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Goblin Piledriver", 15),
+            ("Goblin Piker", 15),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 3),
+            ("Goblin Piledriver", 1),
+            ("Goblin Piker", 1),
+        ],
+    );
+    play(&mut game, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Goblin Piledriver", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Goblin Piker", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    let driver = creature(&game, "Goblin Piledriver").unwrap();
+    let piker = creature(&game, "Goblin Piker").unwrap();
+    to_attackers(&mut game);
+    step(
+        &mut game,
+        Answer::Attack(vec![(driver, THEM), (piker, THEM)]),
+    );
+    resolve(&mut game);
+    assert_eq!(pt_of(&game, driver), pt(3, 2));
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 15);
+    my_next_main(&mut game);
+    assert_eq!(pt_of(&game, driver), pt(1, 2), "until end of turn");
+}
