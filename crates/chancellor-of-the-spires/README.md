@@ -453,39 +453,44 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 20 replay to the end** (17 to the log's winner
-line), 6 of them past the first turn, and **20.96% of their lines are
+line), 7 of them past the first turn, and **20.96% of their lines are
 followed** (16,391 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 542 stop
-in the first turn, 356 in the second, 58 in the third, 12 later, and 74 at
-the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
-mulligans, 2 disagree on who started). Lands stop few games now:
-fetchlands, shock, fast, battle and check lands all run, Cloudpost's
-"for each Locus on the battlefield" too, and the most a land stops is
-Fabled Passage's "then if you control
-four or more lands, untap that land" (10). A refused spell or trigger is
-ranked by the node it needs: before they ran, `Effect::RevealHand` (86
-games: Inquisition of Kozilek, Duress, Thoughtseize),
-`Trigger::When(Event::Enters)` (94: Champion of the Parish, Temple of
-Deceit, Wall of Blossoms), `Trigger::When(Event::Attacks)` (54),
-`Effect::Draw` (35), exalted (33), `Effect::Scry` (23), prowess and an
-attack (23 each), then `Trigger::When(Event::DealsDamageTo)` (26),
-`Trigger::At(Step::Upkeep)` and `Trigger::When(Event::IsDealtDamage)`
-(24 each). The stops now, by games: "as long as" (41), Cloudpost's count
-"on the battlefield" (39), an upkeep trigger (38: Aether Vial, Dark
-Confidant, Mirri's Guile), an exile line not followed, a card with two
-faces, a discard the engine doesn't ask for and a Leyline from the
-opening hand (35 to 37 each), Goblin Lackey's "deals damage to a player"
-trigger (33), `Effect::LookAtTop` (31: Portent), a mana ability with a
-mana cost (26: the filter lands), Goblin Guide's `Effect::RevealTop` (24)
-and Eidolon of the Great Revel's `Trigger::When(Event::Casts)` (23).  None is the engine disagreeing with Magic Online; those that
+no turn in them (empty logs, concessions during the mulligans). 447 stop
+in the first turn, 434 in the second, 75 in the third, 22 later, and 63
+at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
+mulligans, 2 disagree on who started, the rest mostly a card begun on
+the battlefield that the engine refuses: Leyline Axe, Leyline of the
+Void, Gemstone Caverns, Quicksilver). Lands stop few games now: fetchlands, shock, fast, battle and
+check lands all run, Cloudpost's "for each Locus on the battlefield" too,
+and the most a land stops is Fabled Passage's "then if you control four
+or more lands, untap that land" (12). A refused spell or trigger is
+ranked by the node it needs. From 19 games and 19.07% of lines on
+2026-11-02 (morning), each step's numbers were: Cloudpost's count 19.40%;
+"may" and Goblin Lackey 19.67%; upkeep, draw and end step triggers with
+Aether Vial 19.83%; revealing and looking at a library's top cards 20
+games, 20.43%; Leylines 20.55%; "as long as" 20.62%; destroy, exile,
+bounce, counter and dying 20.72%; search as an instruction 20.81%;
+responses 20.84%; tokens 20.96%. Games to the end barely move: a game
+that gets past one stop meets the next, most in its first two turns. The
+stops now, by games: an exile line not followed (44: suspend's Rift Bolt,
+Search for Tomorrow and Lotus Bloom), a discard the engine doesn't ask
+for (39: cycling), a card with two faces (36: Delver of Secrets, the
+modal lands), a mana ability with a mana cost (33: the filter lands),
+`Trigger::When(Event::Casts)` (30: Eidolon of the Great Revel), a
+replacement effect (29: Mox Diamond, Leyline of the Void), a mana ability
+limited by "only if" (27), a cost change (25: Thalia),
+`Trigger::When(Event::Or)` (25: Stitcher's Supplier) and entering with
+counters (23: Gemstone Mine). None is the engine disagreeing with Magic Online; those that
 were are fixed: Gaea's Cradle's "Add {G} for each creature" not read as a
 mana ability (CR 605.1a), and Champion of the Parish's "another Human"
 missing a Human, since a creature type said with no card type was read
-as no creature's (CR 205.3m). 10 games stop on a spell no land pays for
+as no creature's (CR 205.3m), and Cloudpost's "Locus", a land type said
+with no card type, read as no land's (CR 205.3i), which counted no Locus
+once "on the battlefield" lowered. 10 games stop on a spell no land pays for
 after a fetchland found what the replay chose, where the land it found
 was one the log never shows played (a Watery Grave from Polluted Delta).
 `tests/replay.rs` replays hand-written logs, a short game to its end and
@@ -494,12 +499,18 @@ land in the opponent's turn; a fetchland whose search the replay answers
 again when the first land it found can't pay for a later spell, and one
 the log says found nothing; a shock land paid for only when a spell
 that turn needs it; and Duress's revealed hand and Champion of the
-Parish's trigger, which must each match the engine's; and an attack and
-a block. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
+Parish's trigger, which must each match the engine's; an attack and
+a block; Goblin Lackey's "may" read from the lines after it, Aether
+Vial's upkeep trigger, a Leyline from the opening hand, and a Swords to
+Plowshares cast in response to a Lightning Bolt at the same creature. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
 player, at a creature, and at one already gone), Preordain, Champion of
 the Parish, Temple of Deceit, and combat: an unblocked attacker,
 flying against a block, a trade, first strike, exalted, prowess,
-Scorch Spitter's attack trigger and Jackal Pup's damage trigger.
+Scorch Spitter's attack trigger and Jackal Pup's damage trigger;
+Cloudpost, Goblin Lackey's "may" taken and declined, Aether Vial, Dark
+Confidant, Goblin Guide, Impulse, Leyline of Sanctity's hexproof, Wild
+Nacatl, Swords to Plowshares, Counterspell, Festering Goblin's dies
+trigger, Path to Exile and Khalni Garden's token.
 
 ## Speed
 
