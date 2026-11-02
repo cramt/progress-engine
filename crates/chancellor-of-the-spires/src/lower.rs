@@ -464,18 +464,23 @@ fn basic_land_type(word: &str) -> Option<BasicLandType> {
 /// kindred (CR 205.3d), and otherwise kept as written.
 fn subtype(word: &str, types: &BTreeSet<CardType>) -> Subtype {
     let word = capitalised(word);
+    let said_alone =
+        |kind: fn(&vivisurgeons_insight::vocab::Vocab) -> &std::collections::HashSet<String>| {
+            types.is_empty()
+                && kind(vivisurgeons_insight::vocab::vocab()).contains(&word.to_lowercase())
+        };
     if let Some(b) = basic_land_type(&word) {
         Subtype::BasicLand(b)
-    } else if types.contains(&CardType::Land) {
+    } else if types.contains(&CardType::Land)
+        // "each Locus": a land type said alone is a land's (CR 205.3i).
+        || said_alone(|v| &v.land_types)
+    {
         Subtype::OtherLand(word)
     } else if types.contains(&CardType::Creature)
         || types.contains(&CardType::Kindred)
         // "another Human you control": a creature type said alone is a
         // creature's (CR 205.3m).
-        || types.is_empty()
-            && vivisurgeons_insight::vocab::vocab()
-                .creature_types
-                .contains(&word.to_lowercase())
+        || said_alone(|v| &v.creature_types)
     {
         Subtype::Creature(word)
     } else {
@@ -783,6 +788,9 @@ fn objects(o: &Objects) -> Result<Filter, String> {
     for post in &f.posts {
         preds.push(match post {
             Post::Controller(i::Player::You) => Pred::YouControl,
+            // "each Locus on the battlefield": a filter over permanents
+            // reads the battlefield already.
+            Post::In(i::Zone::Battlefield) => continue,
             other => return Err(short(other)),
         });
     }

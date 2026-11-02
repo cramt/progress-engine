@@ -373,8 +373,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 19 replay to the end** (16 to the log's winner
-line), 6 of them past the first turn, and **19.07% of their lines are
-followed** (14,910 of 78,183: the lines before each game's stop, all of a
+line), 6 of them past the first turn, and **19.40% of their lines are
+followed** (15,166 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-02; it was 15 games before spells' effects, triggers and
 combat ran. They are the
@@ -383,8 +383,9 @@ no turn in them (empty logs, concessions during the mulligans). 542 stop
 in the first turn, 356 in the second, 58 in the third, 12 later, and 74 at
 the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started). Lands stop few games now:
-fetchlands, shock, fast, battle and check lands all run, and the most a
-land stops is Cloudpost (37) and Fabled Passage's "then if you control
+fetchlands, shock, fast, battle and check lands all run, Cloudpost's
+"for each Locus on the battlefield" too, and the most a land stops is
+Fabled Passage's "then if you control
 four or more lands, untap that land" (10). A refused spell or trigger is
 ranked by the node it needs: before they ran, `Effect::RevealHand` (86
 games: Inquisition of Kozilek, Duress, Thoughtseize),

@@ -754,3 +754,31 @@ fn jackal_pup_deals_its_controller_the_damage_it_is_dealt() {
     resolve(&mut game);
     assert_eq!(game.player(ME).life(), 17);
 }
+
+/// CR 608.2h, 605.3b: Cloudpost's "Add {C} for each Locus on the
+/// battlefield" counts every Locus, "on the battlefield" naming the zone a
+/// permanent filter reads already.
+#[test]
+fn cloudpost_taps_for_each_locus_on_the_battlefield() {
+    let mut game = deal(
+        &[("Cloudpost", 30), ("Forest", 30)],
+        &[("Forest", 60)],
+        &[("Cloudpost", 2)],
+    );
+    play(&mut game, "Cloudpost");
+    my_next_main(&mut game);
+    play(&mut game, "Cloudpost");
+    my_next_main(&mut game);
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("priority")
+    };
+    let adds: Vec<ManaPool> = actions
+        .iter()
+        .filter_map(|a| match a {
+            Action::Mana(m) => Some(m.adds),
+            _ => None,
+        })
+        .collect();
+    let two = ManaPool::of([Mana::Colorless, Mana::Colorless]);
+    assert_eq!(adds, vec![two, two], "each Cloudpost adds {{C}}{{C}}");
+}
