@@ -4,9 +4,9 @@ A rules engine for Magic. It answers **what is each object on the
 battlefield right now**, through the layer system (CR 613), with counters,
 and it plays the first slices of a game, Commander or two-player
 constructed: mulligans, turns, priority, land drops, mana abilities, and
-casting and resolving permanent spells, the commander among them, as a
+casting and resolving spells, the commander among them, the first
+instants' and sorceries' effects and the first triggered abilities, as a
 state machine that stops at every decision ([ADR-0043](../../docs/adr/0043-chancellor-plays-a-game-as-a-state-machine-that-stops-at-every-decision.md)).
-No spell's effect runs yet.
 
 [docs/research/rules-engine.md](../../docs/research/rules-engine.md) is the
 plan, and [ADR-0037](../../docs/adr/0037-chancellor-lowers-insights-trees-into-its-own-effects-and-applies-them-layer-by-layer.md)
@@ -63,6 +63,18 @@ on. Turn-based and state-based actions are never decisions.
   enters, you may pay 2 life. If you don't, it enters tapped", asked
   before it enters (CR 614.1c, 614.12a) and only of a player with the life
   to pay (CR 119.4), answered `PayLife(bool)`.
+- `Targets { player, card, slots }`: each target slot's legal targets,
+  asked as a spell is cast, before its cost (CR 601.2c), and as a
+  triggered ability is put on the stack (CR 603.3d), answered
+  `Targets(Vec<Target>)`, a player or a permanent per slot.
+- `Order { player, triggers }`: a player's triggered abilities that
+  triggered together, put on the stack in the order they choose (CR
+  603.3b), answered `Order` with a permutation.
+- `ChooseFromHand { player, whose, hand, legal, unsure }`: Thoughtseize's
+  "You choose a nonland card from it", answered `Pick`; `None` only when
+  no card can match, none hidden and none the engine can't read
+  (CR 701.20a).
+- `Scry { player, cards }`: answered `Scry { top, bottom }` (CR 701.22a).
 - `Search { player, filter, known, hidden }`: a resolving ability searches
   the player's library (CR 701.23a), answered `Find(Found)`: `Nothing`
   (CR 701.23b), a known card, or `Hidden(card, text)`, a hidden card of
@@ -76,7 +88,8 @@ on. Turn-based and state-based actions are never decisions.
   which symbol changes nothing modelled), and `Payment::Cancel`, which
   puts the game back as it was before the cast, mana abilities included
   (CR 733.1). A cost no pool pays offers only `Cancel`.
-- `Discard { player, count, hand }` in cleanup (CR 514.1),
+- `Discard { player, count, hand }` in cleanup (CR 514.1) or as an
+  instruction says (CR 701.9a),
   `ReturnCommander { player, card }` (CR 903.9a, answered
   `CommandZone(bool)`), `LegendRule { player, among }` (CR 704.5j,
   answered `Keep(id)`), and `Over`.
@@ -103,7 +116,21 @@ or has haste; other activated abilities any time you have priority (CR
 701.21a), on the stack and resolving independently of their source (CR
 113.7a), so far with the fetchlands' effects: searching your library for
 a card a filter matches, putting it onto the battlefield, tapped if the
-text says, and shuffling (CR 701.23, 701.24a); a basic land
+text says, and shuffling (CR 701.23, 701.24a); instants' and sorceries'
+instructions in order (CR 608.2c), going to the graveyard after (CR
+608.2n): draw, discard, a hand revealed and a card chosen from it to
+discard, gain and lose life, damage to any target, a player, a player or
+planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
+state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
+lifelink, CR 702.15b), scry and +1/+1 or named counters; their targets
+chosen as they are cast, and checked again as they resolve, an illegal
+one left alone and a spell with every target illegal not resolving (CR
+608.2b); triggered abilities that trigger when a permanent a filter
+matches enters, itself or "another Human you control" (CR 603.6a), put on
+the stack the next time a player would receive priority, the active
+player's first, each player's in the order they choose (CR 603.3b),
+with their targets, removed if a target slot has no legal choice (CR
+603.3d), and resolving independently of their source (CR 113.7a); a basic land
 type's intrinsic mana ability (CR 305.6), which the layers grant after
 layer 4, so Yavimaya's Forests tap for {G}, Blood Moon's Mountains for {R}
 alone (CR 305.7), and a land that loses all abilities for nothing; "enters
@@ -119,31 +146,39 @@ command zone (CR 903.9a); a loser leaving the game with what they own and
 a multiplayer game going on without them (CR 800.4a).
 
 A card the game can't run is refused by name when played or cast rather
-than run without what it can't do: a spell with effects (lowering them
-into actions is the next slice), a triggered ability, a static that isn't
+than run without what it can't do: an instruction with no lowering, named
+by its node (`Effect::Destroy`, `Effect::May(Move)`), a triggered ability
+on any other event (`Trigger::When(Event::Attacks)`,
+`Trigger::At(Step::Upkeep)`), a reference the ability's binders don't
+resolve to a target or its source, a static that isn't
 "enters tapped", a mana ability with a cost or effect beyond those above,
 `{X}`, Phyrexian or snow mana, a planeswalker or battle (their counters),
 an Aura (its target), and a keyword other than flash, cycling, transmute,
 partner and combat's (reach, menace, first and double strike, defender),
-which do nothing until something attacks. A non-mana activated ability
+which do nothing until something attacks; cycling, transmute and
+flashback are carried, never offered. A non-mana activated ability
 the engine can't run (a target, a mana cost, a limit, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**34 of Loam's 90 distinct cards are played or cast and resolved, 15 of
+**35 of Loam's 90 distinct cards are played or cast and resolved, 15 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, the fetchlands Misty
 Rainforest, Prismatic Vista, Scalding Tarn and Wooded Foothills, and the
 shock lands Breeding Pool, Steam Vents and Stomping Ground), measured
-2026-11-02:
+2026-11-02, Deep Analysis the one more since it draws two, its flashback
+carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
-node refused. The most refused: a spell's effects (20), triggered
-abilities (16, the commander among them), additional costs, loyalty,
-conditional statics and playing lands from a graveyard (2 each). `tests/game.rs` scripts the rules above, and plays
+node refused. The most refused: `Effect::Move` and
+`Trigger::When(Event::Discards)` (4 each), `Effect::Search` (3), then
+destroy, mill, modal spells, additional costs and loyalty (2 each). `tests/game.rs` scripts the rules above, and plays
 Loam against a goldfish for six turns, casting what it can.
 
-Not yet: any spell's effect, activated abilities with targets, mana costs,
-limits or effects other than a search for a card, triggers, declaring
+Not yet: most instructions (destroy, exile, return, create a token,
+counter a spell, modal spells, "may", "if"), X, targeting a spell,
+activated abilities with targets, mana costs, limits or effects other
+than a search for a card, triggers on any event but entering, "intervening
+if" (CR 603.4), a card that triggers from a graveyard, declaring
 attackers (the declare blockers and combat damage steps aren't in `Step`
 until something can attack, CR 508.8), and a land's back face (CR 712). State-based actions that give a choice run one after the other
 rather than at once (CR 704.3), which nothing can tell apart without
@@ -275,39 +310,72 @@ leaves a later spell unpaid for, when it goes back and pays. Life is paid
 only when something that follows needs the land untapped. The game it
 replays is one consistent with the log, not necessarily the one played.
 
+A spell's targets are the log's: a player by their seat, a card by a
+permanent of that name among the legal targets, the first when two share
+the name, since nothing the log says tells them apart. A hand revealed to
+Duress or Thoughtseize names its hidden cards: the log prints the hand,
+after the discard in older logs and all of it in newer ones, and the card
+discarded, and the engine's hand must have as many cards or the replay
+stops (`HandSize`). The cards a scry looks at are hidden alike, so the
+first as many as the log says go back on top and the rest to the bottom.
+A triggered ability goes on the stack because the rules put it there,
+never because a line says so, and each "puts triggered ability from [X]
+onto the stack" line is matched to one of the engine's: a trigger the
+engine puts on the stack that no line shows, or one a line shows that the
+engine never triggered, stops the replay (`UnloggedTrigger`,
+`Untriggered`), and a trigger's targets and the order of several are read
+from the lines that show them. A draw "with" a spell or ability is the
+engine's own as it resolves.
+
 The first line the engine won't follow ends the game's replay with a
 typed `Stop`: a card refused by the node of its text the engine can't run,
 an answer it calls illegal, a state that disagrees with the log (a play it
 never offers that turn, a spell it can't pay for, a turn out of step), or
-a kind of line not followed yet (a trigger, an attack). `--game ID` prints one game line by line with what the engine
+a kind of line not followed yet (an attack, an exile). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 15 replay to the end** (12 to the log's winner
-line), 4 of them past the first turn, measured 2026-11-02. They are the
+**Of 1,061 games replayed, 18 replay to the end** (15 to the log's winner
+line), 5 of them past the first turn, measured 2026-11-02; it was 15
+before spells' effects and enters triggers ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 772 stop
-in the first turn, 186 in the second, 12 in the third, 2 in the fourth,
-and 74 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't
-London mulligans, 2 disagree on who started). Lands stop few games now:
+no turn in them (empty logs, concessions during the mulligans). 627 stop
+in the first turn, 300 in the second, 35 in the third, 7 later, and 74 at
+the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
+mulligans, 2 disagree on who started). Lands stop few games now:
 fetchlands, shock, fast, battle and check lands all run, and the most a
-land stops is Cloudpost (33) and Fabled Passage's "then if you control
-four or more lands, untap that land" (6). The stops, by games: a
-triggered ability (289, Champion of the Parish, Goblin Lackey and Jackal
-Pup first), a spell's effect (237, Inquisition of Kozilek, Duress and
-Thoughtseize first), a Leyline from the opening hand (35), a count "on
-the battlefield" (34, Cloudpost's Locus 33), exalted (33), "as long as"
-(31), an exile line not followed (29), a card with two faces (28), a
-discard the engine doesn't ask for (24, cycling's cost), prowess and an
-attack (23 each). None is the engine disagreeing with Magic Online; the
-one that was, Gaea's Cradle's "Add {G} for each creature" not read as a
-mana ability (CR 605.1a), now pays for Survival of the Fittest.
+land stops is Cloudpost (35) and Fabled Passage's "then if you control
+four or more lands, untap that land" (8). A refused spell or trigger is
+ranked by the node it needs: before they ran, `Effect::RevealHand` (86
+games: Inquisition of Kozilek, Duress, Thoughtseize),
+`Trigger::When(Event::Enters)` (94: Champion of the Parish, Temple of
+Deceit, Wall of Blossoms), `Trigger::When(Event::Attacks)` (54),
+`Effect::Draw` (35), `Effect::Scry` (23), then
+`Trigger::When(Event::DealsDamageTo)` (26), `Trigger::At(Step::Upkeep)`
+and `Trigger::When(Event::IsDealtDamage)` (24 each). The stops now, by
+games: `Trigger::When(Event::Attacks)` (57, Goblin Guide and Scorch
+Spitter first), exalted (40), "as long as" and Cloudpost's count "on the
+battlefield" (37 each), a Leyline from the opening hand (35), an upkeep
+trigger (33), an attack (33), a discard the engine doesn't ask for and an
+exile line not followed (32 each), a card with two faces (30), and the
+damage triggers of Goblin Lackey and Jackal Pup (28, 25), `Effect::LookAtTop`
+(27) and prowess (25). Combat and what it triggers is the biggest of them
+together. None is the engine disagreeing with Magic Online; those that
+were are fixed: Gaea's Cradle's "Add {G} for each creature" not read as a
+mana ability (CR 605.1a), and Champion of the Parish's "another Human"
+missing a Human, since a creature type said with no card type was read
+as no creature's (CR 205.3m). 10 games stop on a spell no land pays for
+after a fetchland found what the replay chose, where the land it found
+was one the log never shows played (a Watery Grave from Polluted Delta).
 `tests/replay.rs` replays hand-written logs, a short game to its end and
 the plays that must stop it: a second land, a spell no land pays for, a
 land in the opponent's turn; a fetchland whose search the replay answers
 again when the first land it found can't pay for a later spell, and one
-the log says found nothing; and a shock land paid for only when a spell
-that turn needs it.
+the log says found nothing; a shock land paid for only when a spell
+that turn needs it; and Duress's revealed hand and Champion of the
+Parish's trigger, which must each match the engine's. `tests/effects.rs`
+runs Thoughtseize, Lightning Bolt (at a player, at a creature, and at one
+already gone), Preordain, Champion of the Parish and Temple of Deceit.
 
 ## Speed
 

@@ -16,6 +16,8 @@ pub struct Vocab {
     pub supertypes: HashSet<String>,
     /// Every subtype of every card type, lowercased, one word or two.
     pub subtypes: HashSet<String>,
+    /// The creature types alone (CR 205.3m), lowercased.
+    pub creature_types: HashSet<String>,
 }
 
 fn lines(s: &str) -> impl Iterator<Item = String> + '_ {
@@ -93,6 +95,7 @@ pub fn vocab() -> &'static Vocab {
             land_types: lines(include_str!("../vocab/land-types.txt")).collect(),
             supertypes: lines(include_str!("../vocab/supertypes.txt")).collect(),
             subtypes,
+            creature_types: lines(include_str!("../vocab/creature-types.txt")).collect(),
         }
     })
 }

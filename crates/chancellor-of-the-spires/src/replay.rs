@@ -18,13 +18,13 @@
 //! read: the first choice that works, gone back on when a later spell
 //! can't be paid for.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 
 use crate::deck::{CardText, DeckCards};
 use crate::game::{
     Action, Activation, Answer, CardId, Decision, Format, Found, Game, ManaActivation, ManaCost,
-    ManaPool, Payment, Rejected, Setup, StackObject, Step, HAND_SIZE,
+    ManaPool, Payment, Rejected, Setup, StackObject, Step, Target, HAND_SIZE,
 };
 use crate::log::{self, Entry, Event, Object};
 use crate::mana::short;
@@ -140,6 +140,15 @@ pub enum Divergence {
     /// A search the log doesn't say failed, with no card the player could
     /// have found.
     Unfound,
+    /// The engine put a triggered ability on the stack that the log never
+    /// shows.
+    UnloggedTrigger { card: String },
+    /// The log shows a triggered ability the engine never triggered.
+    Untriggered { card: String },
+    /// A revealed hand has a different number of cards than the engine's.
+    HandSize { log: usize, engine: usize },
+    /// The log scries a different number of cards than the engine looks at.
+    Scry { log: usize, engine: usize },
 }
 
 impl Stop {
@@ -163,7 +172,9 @@ impl Stop {
             Stop::Diverged(
                 Divergence::NotInHand { card }
                 | Divergence::Unpayable { card }
-                | Divergence::Targets { card },
+                | Divergence::Targets { card }
+                | Divergence::UnloggedTrigger { card }
+                | Divergence::Untriggered { card },
             ) => Some(card),
             _ => None,
         }
@@ -204,6 +215,8 @@ pub fn replay(
         at: 0,
         lands: Vec::new(),
         demand: Vec::new(),
+        matched: BTreeSet::new(),
+        entries: g.entries.clone(),
     };
     let end = r.run(m, g);
     Replay {
@@ -248,6 +261,12 @@ struct Driver<'a> {
     /// For each engine player, how many of each colour's mana symbols the
     /// spells they cast this game have, W U B R G.
     demand: Vec<[u32; 5]>,
+    /// The triggered abilities on the stack a log line has shown, by their
+    /// `seq`.
+    matched: BTreeSet<u32>,
+    /// The game's lines, for the choices a later line shows (a trigger's
+    /// targets, the order triggers go on the stack).
+    entries: Vec<Entry>,
 }
 
 type Followed = Result<(), Stop>;
@@ -568,6 +587,15 @@ impl Driver<'_> {
                 let on_stack = cast.targets.iter().any(|a| self.targets_stack(&a.target));
                 let c = self.offered(p, card.name(), Kind::Cast, on_stack)?;
                 self.act(Answer::Act(Action::Cast(c)))?;
+                // CR 601.2c: the targets the log shows, before the cost.
+                if let Decision::Targets { slots, .. } = self.game().decision() {
+                    let chosen = self.aim(&cast.targets, &slots, card.name())?;
+                    self.act(Answer::Targets(chosen))?;
+                } else if !cast.targets.is_empty() {
+                    return Err(Stop::Diverged(Divergence::Targets {
+                        card: card.name().to_string(),
+                    }));
+                }
                 let payments = self.payments()?;
                 let Some((first, rest)) = payments.split_first() else {
                     return Err(Stop::Diverged(Divergence::Unpayable {
@@ -585,17 +613,21 @@ impl Driver<'_> {
                     });
                 }
                 pay_with(self.game(), first)?;
-                // Nothing the engine casts yet has a target: one that has
-                // is refused as it is read.
-                if !cast.targets.is_empty() {
-                    return Err(Stop::Diverged(Divergence::Targets {
-                        card: card.name().to_string(),
-                    }));
-                }
                 self.did(i, format!("cast {}, {}", card.name(), describe(first)));
             }
             Discards { player, cards } => {
                 let p = self.seat(*player);
+                // A resolving spell or ability's: a card chosen from a
+                // revealed hand, or cards the player chooses.
+                match self.until_choice()? {
+                    Decision::ChooseFromHand { whose, .. } if whose == p => {
+                        return self.hand_choice(g, i, p)
+                    }
+                    Decision::Discard { player, .. } if player == p => {
+                        return self.discard(g, i, p)
+                    }
+                    _ => {}
+                }
                 let game = self.game();
                 // CR 514.1: only the active player with more than seven
                 // cards discards in cleanup; any other discard is a cost
@@ -654,10 +686,78 @@ impl Driver<'_> {
                 self.did(i, "found nothing (CR 701.23b)");
             }
             Trigger(t) => {
-                return Err(match &t.source {
-                    log::Source::Card(c) => unfollowed(Some(c.name())),
-                    log::Source::Named(n) => unfollowed(Some(n)),
-                })
+                let log::Source::Card(c) = &t.source else {
+                    let log::Source::Named(n) = &t.source else {
+                        unreachable!()
+                    };
+                    return Err(unfollowed(Some(n)));
+                };
+                self.trigger(c.name())?;
+                self.did(
+                    i,
+                    format!("put {}'s triggered ability on the stack", c.name()),
+                );
+            }
+            Draws {
+                player,
+                count,
+                with: Some(source),
+            } => {
+                let p = self.seat(*player);
+                let name = match source {
+                    log::Source::Card(c) => c.name().to_string(),
+                    log::Source::Named(n) => n.clone(),
+                };
+                self.drawn_by(p, &name, *count)?;
+                self.did(i, format!("drew {count} with {name}"));
+            }
+            Scry {
+                player,
+                count,
+                top,
+                bottom,
+            } => {
+                let p = self.seat(*player);
+                let Decision::Scry { player: q, cards } = self.until_choice()? else {
+                    return Err(Stop::Diverged(Divergence::NeverOffered {
+                        what: "a scry".into(),
+                    }));
+                };
+                if q != p {
+                    return Err(Stop::Diverged(Divergence::NeverOffered {
+                        what: "a scry".into(),
+                    }));
+                }
+                if cards.len() != *count as usize || top + bottom != *count {
+                    return Err(Stop::Diverged(Divergence::Scry {
+                        log: *count as usize,
+                        engine: cards.len(),
+                    }));
+                }
+                // The cards looked at are hidden alike, so which went
+                // where is all the log has to say.
+                let (t, b) = cards.split_at(*top as usize);
+                self.act(Answer::Scry {
+                    top: t.to_vec(),
+                    bottom: b.to_vec(),
+                })?;
+                self.did(
+                    i,
+                    format!("scried {top} to the top, {bottom} to the bottom"),
+                );
+            }
+            Reveals {
+                player,
+                how: log::Reveal::HandTo(_) | log::Reveal::Many { .. },
+                ..
+            } => {
+                let p = self.seat(*player);
+                match self.until_choice()? {
+                    Decision::ChooseFromHand { whose, .. } if whose == p => {
+                        return self.hand_choice(g, i, p)
+                    }
+                    _ => return Err(unfollowed(None)),
+                }
             }
             other => {
                 let card = other.cards().first().map(|c| c.name().to_string());
@@ -693,7 +793,9 @@ impl Driver<'_> {
         };
         let game = self.game.as_ref().expect("set up");
         game.stack().iter().any(|o| match o {
-            StackObject::Spell { card, .. } | StackObject::Ability { source: card, .. } => {
+            StackObject::Spell { card, .. }
+            | StackObject::Ability { source: card, .. }
+            | StackObject::Trigger { source: card, .. } => {
                 game.card(*card).is_some_and(|t| t.name == c.name())
             }
         })
@@ -733,7 +835,57 @@ impl Driver<'_> {
     /// Answer the decision with a pass, or stop if it isn't priority.
     fn pass(&mut self) -> Followed {
         match self.game().decision() {
-            Decision::Priority { .. } => self.act(Answer::Act(Action::Pass)),
+            Decision::Priority { .. } => {
+                // A triggered ability no line has shown isn't resolved:
+                // the log shows each as it goes on the stack.
+                let top = self.game().stack().back().cloned();
+                if let Some(StackObject::Trigger { source, seq, .. }) = top {
+                    if !self.matched.contains(&seq) {
+                        let card = self.name_of(source);
+                        return Err(Stop::Diverged(Divergence::UnloggedTrigger { card }));
+                    }
+                }
+                self.act(Answer::Act(Action::Pass))
+            }
+            Decision::Targets { card, slots, .. } => {
+                let name = self.name_of(card);
+                let aims = self
+                    .next_trigger_lines()
+                    .into_iter()
+                    .find(|t| source_name(t) == Some(name.as_str()))
+                    .map(|t| t.targets)
+                    .ok_or_else(|| {
+                        Stop::Diverged(Divergence::Unlogged {
+                            what: format!("the targets of {name}'s triggered ability"),
+                        })
+                    })?;
+                let chosen = self.aim(&aims, &slots, &name)?;
+                self.act(Answer::Targets(chosen))
+            }
+            Decision::Order { triggers, .. } => {
+                // The order the log shows them go on the stack.
+                let names: Vec<String> = triggers.iter().map(|c| self.name_of(*c)).collect();
+                let mut order: Vec<usize> = Vec::new();
+                for t in self.next_trigger_lines() {
+                    let Some(n) = source_name(&t) else { continue };
+                    if let Some(k) = (0..names.len()).find(|k| !order.contains(k) && names[*k] == n)
+                    {
+                        order.push(k);
+                    }
+                }
+                if order.len() != names.len() {
+                    return Err(Stop::Diverged(Divergence::Unlogged {
+                        what: "the order triggered abilities go on the stack".into(),
+                    }));
+                }
+                self.act(Answer::Order(order))
+            }
+            Decision::ChooseFromHand { .. } => Err(Stop::Diverged(Divergence::Unlogged {
+                what: "a card chosen from a revealed hand".into(),
+            })),
+            Decision::Scry { .. } => Err(Stop::Diverged(Divergence::Unlogged {
+                what: "a scry".into(),
+            })),
             Decision::Discard { count, .. } => {
                 Err(Stop::Diverged(Divergence::UnloggedDiscard { count }))
             }
@@ -755,6 +907,289 @@ impl Driver<'_> {
                 unreachable!("the replay answers {d:?} where it arises")
             }
         }
+    }
+
+    fn name_of(&self, c: CardId) -> String {
+        let game = self.game.as_ref().expect("set up");
+        game.card(c).map(|t| t.name.clone()).unwrap_or_default()
+    }
+
+    /// The triggered abilities the log shows from the line being followed
+    /// to the end of the turn.
+    fn next_trigger_lines(&self) -> Vec<log::Trigger> {
+        self.entries
+            .iter()
+            .skip(self.at)
+            .take_while(|e| !matches!(e.event, Event::TurnBegins(_)) || e.turn.is_none())
+            .filter_map(|e| match &e.event {
+                Event::Trigger(t) => Some(t.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The log's targets as the engine's, one per slot: a player by their
+    /// seat, a card by a permanent of that name among the slot's legal
+    /// targets. Two permanents of one name are told apart by nothing the
+    /// log says, so the first is taken.
+    fn aim(
+        &mut self,
+        aims: &[log::Aim],
+        slots: &[Vec<Target>],
+        card: &str,
+    ) -> Result<Vec<Target>, Stop> {
+        let wrong = || {
+            Stop::Diverged(Divergence::Targets {
+                card: card.to_string(),
+            })
+        };
+        if aims.len() != slots.len() {
+            return Err(wrong());
+        }
+        let mut out = Vec::new();
+        for (aim, legal) in aims.iter().zip(slots) {
+            let t = match &aim.target {
+                log::Target::Player(p) => Target::Player(self.seat(*p)),
+                log::Target::Object(Object::Card(c)) => {
+                    let name = self.text(c.name())?.name;
+                    let game = self.game.as_ref().expect("set up");
+                    *legal
+                        .iter()
+                        .find(|t| match t {
+                            Target::Object(o) => game
+                                .card(game.permanents()[o].card)
+                                .is_some_and(|t| t.name == name),
+                            Target::Player(_) => false,
+                        })
+                        .ok_or_else(wrong)?
+                }
+                _ => return Err(wrong()),
+            };
+            if !legal.contains(&t) {
+                return Err(wrong());
+            }
+            out.push(t);
+        }
+        Ok(out)
+    }
+
+    /// Pass priority while something on the stack resolves this turn, and
+    /// answer what `pass` answers, until a choice a line has to show.
+    fn until_choice(&mut self) -> Result<Decision, Stop> {
+        let turn = self.game().turn();
+        loop {
+            let game = self.game();
+            match game.decision() {
+                Decision::Priority { .. } if !game.stack().is_empty() && game.turn() == turn => {
+                    self.pass()?
+                }
+                Decision::Search { .. } | Decision::PayOrEnterTapped { .. } => self.pass()?,
+                d => return Ok(d),
+            }
+        }
+    }
+
+    /// The log shows a triggered ability going on the stack: the engine's
+    /// own, from a card of that name, put there as the rules have it,
+    /// resolving what is on the stack first if that is what triggers it.
+    fn trigger(&mut self, name: &str) -> Followed {
+        let text = self.text(name)?;
+        let turn = self.game().turn();
+        loop {
+            let game = self.game.as_ref().expect("set up");
+            let found = game.stack().iter().rev().find_map(|o| match o {
+                StackObject::Trigger { source, seq, .. }
+                    if !self.matched.contains(seq)
+                        && game.card(*source).is_some_and(|t| t.name == text.name) =>
+                {
+                    Some(*seq)
+                }
+                _ => None,
+            });
+            if let Some(seq) = found {
+                self.matched.insert(seq);
+                return Ok(());
+            }
+            match game.decision() {
+                Decision::Priority { .. } if !game.stack().is_empty() && game.turn() == turn => {
+                    self.pass()?
+                }
+                Decision::Targets { .. } | Decision::Order { .. } => self.pass()?,
+                _ => {
+                    // A card whose text the engine can't run never
+                    // triggers: Bloodghast in a graveyard.
+                    let refused = (0..game.card_count())
+                        .map(|c| CardId(c as u32))
+                        .filter(|c| game.card(*c).is_some_and(|t| t.name == text.name))
+                        .find_map(|c| game.refusal(c));
+                    return Err(match refused {
+                        Some(r) => Stop::Refused {
+                            card: name.to_string(),
+                            node: r.node,
+                            why: r.why,
+                        },
+                        None => Stop::Diverged(Divergence::Untriggered {
+                            card: name.to_string(),
+                        }),
+                    });
+                }
+            }
+        }
+    }
+
+    /// The log shows `p` drawing with a spell or ability of `name`'s: the
+    /// engine's resolving it draws, so it resolves, or has already drawn
+    /// and waits on a later instruction's choice.
+    fn drawn_by(&mut self, p: PlayerId, name: &str, count: u32) -> Followed {
+        let text = self.text(name)?;
+        let named = |game: &Game, c: &CardId| game.card(*c).is_some_and(|t| t.name == text.name);
+        let game = self.game();
+        if game.resolving().is_some_and(|c| named(game, &c)) {
+            return Ok(());
+        }
+        let on_stack = |game: &Game| {
+            game.stack().iter().any(|o| match o {
+                StackObject::Spell { card, .. }
+                | StackObject::Ability { source: card, .. }
+                | StackObject::Trigger { source: card, .. } => named(game, card),
+            })
+        };
+        if !on_stack(game) {
+            // It resolved already, drawing as it went: the line is printed
+            // after a choice it asked for first, a scry before the draw.
+            if game.last_resolved().is_some_and(|c| named(game, &c)) {
+                return Ok(());
+            }
+            return Err(Stop::Diverged(Divergence::Draw));
+        }
+        let before = game.player(p).hand().len();
+        while on_stack(self.game()) {
+            if !matches!(self.game().decision(), Decision::Priority { .. }) {
+                break;
+            }
+            self.pass()?;
+        }
+        let game = self.game();
+        let resolving = game.resolving().is_some_and(|c| named(game, &c));
+        let drew = game.player(p).hand().len() >= before + count as usize;
+        if !resolving && !drew {
+            return Err(Stop::Diverged(Divergence::Draw));
+        }
+        Ok(())
+    }
+
+    /// A card chosen from `p`'s revealed hand, and the hand the log shows:
+    /// "discards [X]" and "reveals their hand to [Duress], containing …"
+    /// (the hand after the discard), or "reveals 5 cards with [Duress]: …"
+    /// (all of it), in either order, or the reveal alone when no card
+    /// could be chosen.
+    /// The hand's hidden cards are named from them, and the engine's hand
+    /// must have as many cards as the log's.
+    fn hand_choice(&mut self, g: &log::Game, i: usize, p: PlayerId) -> Result<Next, Stop> {
+        let mut discarded: Option<String> = None;
+        let mut revealed: Option<Vec<String>> = None;
+        // Whether the reveal is the whole hand, the discarded card with it.
+        let mut whole = false;
+        let mut j = i;
+        while j < g.entries.len() {
+            match &g.entries[j].event {
+                Event::Discards { player, cards }
+                    if self.seat(*player) == p && discarded.is_none() =>
+                {
+                    match cards.as_slice() {
+                        [Object::Card(c)] => discarded = Some(c.name().to_string()),
+                        _ => {
+                            return Err(Stop::Unfollowed {
+                                event: "Discards".into(),
+                                card: None,
+                            })
+                        }
+                    }
+                }
+                Event::Reveals {
+                    player,
+                    cards,
+                    how: how @ (log::Reveal::HandTo(_) | log::Reveal::Many { .. }),
+                } if self.seat(*player) == p && revealed.is_none() => {
+                    whole = matches!(how, log::Reveal::Many { .. });
+                    revealed = Some(cards.iter().map(|c| c.name().to_string()).collect())
+                }
+                Event::Chat { .. } | Event::Watching { .. } => {}
+                _ => break,
+            }
+            j += 1;
+            if revealed.is_some() && discarded.is_some() {
+                break;
+            }
+        }
+        let Some(revealed) = revealed else {
+            return Err(Stop::Unfollowed {
+                event: "Discards without the hand revealed".into(),
+                card: discarded,
+            });
+        };
+        // A player who concedes with the choice to make leaves it unmade.
+        let conceded = g.entries[j..]
+            .iter()
+            .find(|e| !matches!(e.event, Event::Chat { .. } | Event::Watching { .. }))
+            .is_some_and(|e| {
+                matches!(
+                    e.event,
+                    Event::Concedes(_) | Event::LosesToInaction(_) | Event::OutOfTime(_)
+                )
+            });
+        let names: Vec<String> = match (&discarded, whole) {
+            (Some(d), true) => {
+                // The discarded card first, so it is the one picked.
+                let Some(at) = revealed.iter().position(|n| n == d) else {
+                    return Err(Stop::Diverged(Divergence::NotInHand { card: d.clone() }));
+                };
+                let mut rest = revealed.clone();
+                rest.remove(at);
+                std::iter::once(d.clone()).chain(rest).collect()
+            }
+            _ => discarded.iter().cloned().chain(revealed).collect(),
+        };
+        let hand = self.game().player(p).hand().clone();
+        if names.len() != hand.len() {
+            return Err(Stop::Diverged(Divergence::HandSize {
+                log: names.len(),
+                engine: hand.len(),
+            }));
+        }
+        let mut named: Vec<CardId> = Vec::new();
+        for n in &names {
+            let text = self.text(n)?;
+            let game = self.game();
+            let known = hand.iter().find(|c| {
+                !named.contains(*c) && game.card(**c).is_some_and(|t| t.name == text.name)
+            });
+            let c = match known {
+                Some(c) => *c,
+                None => {
+                    let Some(c) = hand
+                        .iter()
+                        .find(|c| !named.contains(*c) && game.card(**c).is_none())
+                    else {
+                        return Err(Stop::Diverged(Divergence::NotInHand { card: n.clone() }));
+                    };
+                    game.reveal(*c, text).expect("a hidden card");
+                    *c
+                }
+            };
+            named.push(c);
+        }
+        let pick = discarded.as_ref().map(|_| named[0]);
+        if pick.is_some() || !conceded {
+            self.act(Answer::Pick(pick))?;
+        }
+        for k in i..j {
+            self.did(
+                k,
+                "the hand revealed, and the card chosen from it (CR 701.20a)",
+            );
+        }
+        Ok(Next::Line(j))
     }
 
     /// The card in `p`'s hand that is `name`, naming a hidden one if none
@@ -789,6 +1224,13 @@ impl Driver<'_> {
     ) -> Result<CardId, Stop> {
         self.text(name)?;
         let turn = self.game().turn();
+        // Nothing the engine runs targets a spell, so a card it runs that
+        // names one on the stack names the permanent it becomes.
+        let respond = respond
+            && match self.in_hand(p, name)? {
+                Some(c) => self.game().refusal(c).is_some(),
+                None => true,
+            };
         if !respond {
             while !self.game().stack().is_empty() {
                 self.pass()?;
@@ -1132,6 +1574,13 @@ impl Driver<'_> {
 enum Next {
     Line(usize),
     Done,
+}
+
+fn source_name(t: &log::Trigger) -> Option<&str> {
+    match &t.source {
+        log::Source::Card(c) => Some(c.name()),
+        log::Source::Named(_) => None,
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

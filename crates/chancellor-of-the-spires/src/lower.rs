@@ -60,6 +60,26 @@ impl fmt::Display for Refusal {
     }
 }
 
+/// A card's characteristics outside the battlefield as far as its type
+/// line, mana value and colours say, without its text: what a card in a
+/// hand or library is matched by when its text can't be lowered. A
+/// multi-faced card is its front face (CR 712.8a); a split card's mana
+/// value is its halves' together (CR 709.4).
+pub fn printed(c: &crate::deck::CardText) -> Result<Chars, Refusal> {
+    let front = c.type_line.split("//").next().unwrap_or("").trim();
+    let (types, supertypes, subtypes) = type_line(front)?;
+    Ok(Chars {
+        types,
+        supertypes,
+        subtypes,
+        colors: c.colors.iter().copied().collect(),
+        abilities: BTreeSet::new(),
+        pt: c.pt,
+        mana_value: c.mana_value,
+        controller: PlayerId(0),
+    })
+}
+
 /// One card, printed: its characteristics, the static abilities that
 /// generate its continuous effects, and the rest of its abilities.
 pub fn card(card: &Card) -> Result<Lowered, Refusal> {
@@ -448,7 +468,15 @@ fn subtype(word: &str, types: &BTreeSet<CardType>) -> Subtype {
         Subtype::BasicLand(b)
     } else if types.contains(&CardType::Land) {
         Subtype::OtherLand(word)
-    } else if types.contains(&CardType::Creature) || types.contains(&CardType::Kindred) {
+    } else if types.contains(&CardType::Creature)
+        || types.contains(&CardType::Kindred)
+        // "another Human you control": a creature type said alone is a
+        // creature's (CR 205.3m).
+        || types.is_empty()
+            && vivisurgeons_insight::vocab::vocab()
+                .creature_types
+                .contains(&word.to_lowercase())
+    {
         Subtype::Creature(word)
     } else {
         Subtype::Other(word)
@@ -773,16 +801,510 @@ impl CardFilter {
     }
 }
 
-/// One instruction of an activated ability other than a mana ability, as
-/// it resolves (CR 608.2c).
+/// One instruction of a spell or an ability, as it resolves (CR 608.2c).
+/// Each names what it acts on through the ability's own [`Who`] and
+/// [`Obj`], never a guess: a target by its slot, chosen as the ability
+/// was put on the stack (CR 601.2c, 603.3d).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Effect {
     /// "Search your library for a Mountain or Forest card, put it onto the
     /// battlefield (tapped)": the controller searches their own library
     /// and may find a card the filter matches (CR 701.23a–b).
-    SearchToBattlefield { filter: CardFilter, tapped: bool },
+    SearchToBattlefield {
+        filter: CardFilter,
+        tapped: bool,
+    },
     /// "then shuffle": the controller's library (CR 701.24a).
     Shuffle,
+    /// "Draw two cards" (CR 121.2).
+    Draw {
+        who: Who,
+        n: u32,
+    },
+    /// "Discard two cards": the player chooses which (CR 701.9a).
+    Discard {
+        who: Who,
+        n: u32,
+    },
+    /// "Target player reveals their hand. You choose a nonland card from
+    /// it. That player discards that card." (CR 701.20a, 701.9a): the
+    /// controller chooses a card the filter matches, if there is one.
+    RevealChooseDiscard {
+        who: Who,
+        filter: CardFilter,
+    },
+    /// CR 119.3.
+    LoseLife {
+        who: Who,
+        n: u32,
+    },
+    GainLife {
+        who: Who,
+        n: u32,
+    },
+    /// "~ deals 3 damage to any target": the source is the spell or the
+    /// ability's source (CR 120.1).
+    Damage {
+        to: DamageTo,
+        n: u32,
+    },
+    /// The controller scries (CR 701.22a).
+    Scry(u32),
+    /// CR 122.1, 122.6.
+    PutCounters {
+        on: Obj,
+        counter: Counter,
+        n: u32,
+    },
+}
+
+/// A player an instruction names: its controller ("you", CR 109.5) or a
+/// target player.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Who {
+    You,
+    Target(usize),
+}
+
+/// An object an instruction names: the ability's own source ("this
+/// creature") or a target.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Obj {
+    Itself,
+    Target(usize),
+}
+
+/// What damage is dealt to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DamageTo {
+    /// A target, a player or a permanent as its slot allows.
+    Target(usize),
+    You,
+}
+
+/// What a target slot may be (CR 115.1).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TargetSpec {
+    /// "target player", "target opponent".
+    Player { opponent: bool },
+    /// "target creature": a permanent the filter matches, "you control"
+    /// read from the controller.
+    Permanent(Filter),
+    /// "any target": a creature, player, planeswalker or battle (CR 115.4).
+    Any,
+    /// "target player or planeswalker".
+    PlayerOrPlaneswalker,
+}
+
+/// A spell's or ability's instructions and the targets they name, by slot.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct Program {
+    pub targets: Vec<TargetSpec>,
+    pub effects: Vec<Effect>,
+}
+
+/// What a triggered ability waits for (CR 603.2).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TriggerEvent {
+    /// "When this creature enters", "Whenever another Human you control
+    /// enters": a permanent the filter matches, read from the trigger's
+    /// source, enters the battlefield (CR 603.6a).
+    Enters(Filter),
+}
+
+/// A triggered ability, lowered.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Triggered {
+    pub event: TriggerEvent,
+    pub program: Program,
+}
+
+/// A spell's instructions, its paragraphs in order (CR 608.2c), with the
+/// `Let` that binds its targets, if any.
+pub fn spell(bind: &[Objects], effects: &[i::Effect]) -> Result<Program, String> {
+    let mut scope = Scope::new(bind);
+    let lowered = scope.effects(effects)?;
+    scope.program.effects = lowered;
+    Ok(scope.program)
+}
+
+/// A triggered ability (CR 603), with the `Let` that binds its targets and
+/// its event's objects.
+pub fn triggered(
+    bind: &[Objects],
+    trigger: &i::Trigger,
+    effect: &[i::Effect],
+    limits: &[i::Limit],
+) -> Result<Triggered, String> {
+    if let Some(l) = limits.first() {
+        return Err(format!("a triggered ability limited by {}", short(l)));
+    }
+    let event = match trigger {
+        i::Trigger::When(e) => match &**e {
+            i::Event::Enters {
+                what,
+                under: None,
+                state: None,
+            } => TriggerEvent::Enters(entering(what)?),
+            _ => return Err(trigger_node(trigger)),
+        },
+        _ => return Err(trigger_node(trigger)),
+    };
+    let program = spell(bind, effect)?;
+    Ok(Triggered { event, program })
+}
+
+/// "this creature", "another Human you control", "a creature": what an
+/// enters trigger matches, read from its source.
+fn entering(o: &Objects) -> Result<Filter, String> {
+    let all = |o: &Objects| {
+        objects(&Objects {
+            quant: Quant::All,
+            filter: o.filter.clone(),
+        })
+    };
+    match o.quant {
+        Quant::SelfRef if o.filter == i::Filter::default() => Ok(Filter(vec![Pred::Itself])),
+        Quant::Another => {
+            let mut f = all(o)?;
+            f.0.insert(0, Pred::Other);
+            Ok(f)
+        }
+        Quant::One => all(o),
+        ref q => Err(format!("an enters trigger on {}", short(q))),
+    }
+}
+
+/// The binders and target slots of the ability being lowered.
+struct Scope<'a> {
+    /// The `Let`'s binders, outermost first.
+    bind: &'a [Objects],
+    /// The slot each target binder became, by binder.
+    bound: Vec<Option<usize>>,
+    /// The one target player the ability names: "target player … that
+    /// player".
+    player: Option<usize>,
+    program: Program,
+}
+
+impl<'a> Scope<'a> {
+    fn new(bind: &'a [Objects]) -> Scope<'a> {
+        Scope {
+            bind,
+            bound: vec![None; bind.len()],
+            player: None,
+            program: Program::default(),
+        }
+    }
+
+    fn slot(&mut self, spec: TargetSpec) -> usize {
+        self.program.targets.push(spec);
+        self.program.targets.len() - 1
+    }
+
+    /// A target binder's slot, made the first time it is named. `depth`
+    /// is how many `With` binders are in scope inside the `Let`'s.
+    fn binder(&mut self, i: u32, depth: usize) -> Result<usize, String> {
+        let i = (i as usize)
+            .checked_sub(depth)
+            .ok_or("a reference to an object found as it resolves")?;
+        let b = self
+            .bind
+            .len()
+            .checked_sub(1 + i)
+            .ok_or("a reference out of scope")?;
+        if let Some(s) = self.bound[b] {
+            return Ok(s);
+        }
+        let o = &self.bind[b];
+        let spec = match o.quant {
+            Quant::Target {
+                n: i::Amount::N(1),
+                up_to: false,
+            } => TargetSpec::Permanent(target_filter(o)?),
+            ref q => return Err(format!("a binder of {}", short(q))),
+        };
+        let s = self.slot(spec);
+        self.bound[b] = Some(s);
+        Ok(s)
+    }
+
+    fn obj(&mut self, o: &Objects, depth: usize) -> Result<Obj, String> {
+        match o.quant {
+            Quant::SelfRef if o.filter == i::Filter::default() => Ok(Obj::Itself),
+            Quant::Introduced(i) | Quant::Bound(i) => {
+                Ok(Obj::Target(self.binder(i.into(), depth)?))
+            }
+            Quant::Target {
+                n: i::Amount::N(1),
+                up_to: false,
+            } => Ok(Obj::Target(
+                self.slot(TargetSpec::Permanent(target_filter(o)?)),
+            )),
+            ref q => Err(format!("an object {}", short(q))),
+        }
+    }
+
+    fn who(&mut self, p: &i::Player) -> Result<Who, String> {
+        let opponent = match p {
+            i::Player::You => return Ok(Who::You),
+            i::Player::Target => false,
+            i::Player::TargetOpponent => true,
+            // "That player": the target player, when the ability names
+            // exactly one player beside its controller.
+            i::Player::That => {
+                return self
+                    .player
+                    .map(Who::Target)
+                    .ok_or_else(|| "Player::That".into())
+            }
+            other => return Err(format!("Player::{}", short(other))),
+        };
+        match self.player {
+            Some(s) if self.program.targets[s] == TargetSpec::Player { opponent } => {
+                Ok(Who::Target(s))
+            }
+            Some(_) => Err("two kinds of target player".into()),
+            None => {
+                let s = self.slot(TargetSpec::Player { opponent });
+                self.player = Some(s);
+                Ok(Who::Target(s))
+            }
+        }
+    }
+
+    fn damage_to(&mut self, to: &[i::Recipient], depth: usize) -> Result<DamageTo, String> {
+        let one_target = |o: &Objects, types: &[&str]| {
+            o.filter.kind.is_none()
+                && o.filter.posts.is_empty()
+                && o.filter.or.is_none()
+                && o.filter.alts.len() == types.len()
+                && o.filter
+                    .alts
+                    .iter()
+                    .zip(types)
+                    .all(|(a, t)| matches!(a.as_slice(), [Adj::Type(x)] if x == t))
+        };
+        match to {
+            [i::Recipient::Objects(o)]
+                if o.quant == (Quant::AnyTarget { n: i::Amount::N(1) })
+                    && o.filter == i::Filter::default() =>
+            {
+                Ok(DamageTo::Target(self.slot(TargetSpec::Any)))
+            }
+            [i::Recipient::Player(i::Player::You)] => Ok(DamageTo::You),
+            [i::Recipient::Player(p)] => match self.who(p)? {
+                Who::Target(s) => Ok(DamageTo::Target(s)),
+                Who::You => Ok(DamageTo::You),
+            },
+            [i::Recipient::Or(alts)] => match alts.as_slice() {
+                [i::Recipient::Player(i::Player::Target), i::Recipient::Objects(o)]
+                    if o.quant
+                        == (Quant::Target {
+                            n: i::Amount::N(1),
+                            up_to: false,
+                        })
+                        && one_target(o, &["planeswalker"]) =>
+                {
+                    Ok(DamageTo::Target(
+                        self.slot(TargetSpec::PlayerOrPlaneswalker),
+                    ))
+                }
+                _ => Err("damage to one of several kinds of target".into()),
+            },
+            [i::Recipient::Objects(o)] => match self.obj(o, depth)? {
+                Obj::Target(s) => Ok(DamageTo::Target(s)),
+                Obj::Itself => Err("damage to its own source".into()),
+            },
+            _ => Err("damage to several recipients".into()),
+        }
+    }
+
+    /// One effect, or the node it can't lower.
+    fn effect(&mut self, e: &i::Effect, depth: usize) -> Result<Vec<Effect>, String> {
+        let n = |a: &i::Amount| match a {
+            i::Amount::N(n) => Ok(*n),
+            other => Err(format!("an amount of {}", short(other))),
+        };
+        let node = || effect_node(e);
+        Ok(vec![match e {
+            i::Effect::Draw { who, n: k } => Effect::Draw {
+                who: self.who(who)?,
+                n: n(k)?,
+            },
+            i::Effect::Discard {
+                who,
+                what,
+                random: false,
+            } if what.filter
+                == (i::Filter {
+                    kind: Some(i::Noun::Card),
+                    ..i::Filter::default()
+                }) =>
+            {
+                let k = match &what.quant {
+                    Quant::One => 1,
+                    Quant::N(a) => n(a)?,
+                    q => return Err(format!("discarding {}", short(q))),
+                };
+                Effect::Discard {
+                    who: self.who(who)?,
+                    n: k,
+                }
+            }
+            i::Effect::LoseLife { who, n: k } => Effect::LoseLife {
+                who: self.who(who)?,
+                n: n(k)?,
+            },
+            i::Effect::GainLife { who, n: k } => Effect::GainLife {
+                who: self.who(who)?,
+                n: n(k)?,
+            },
+            i::Effect::Damage {
+                source: Some(source),
+                n: k,
+                to,
+            } if source.quant == Quant::SelfRef && source.filter == i::Filter::default() => {
+                Effect::Damage {
+                    to: self.damage_to(to, depth)?,
+                    n: n(k)?,
+                }
+            }
+            i::Effect::Scry(k) => Effect::Scry(n(k)?),
+            i::Effect::PutCounters { n: k, kind, on } => Effect::PutCounters {
+                on: self.obj(on, depth)?,
+                counter: counter(kind).ok_or_else(node)?,
+                n: n(k)?,
+            },
+            i::Effect::RevealHand(_) => return Err(format!("{} alone", node())),
+            i::Effect::Shuffle(i::Player::You) => Effect::Shuffle,
+            _ => return Err(node()),
+        }])
+    }
+
+    /// The effects of a spell or ability in order, where "Target player
+    /// reveals their hand. You choose a nonland card from it. That player
+    /// discards that card." is one instruction: the `With` binds the card
+    /// chosen, and the discard names it.
+    fn effects(&mut self, effects: &[i::Effect]) -> Result<Vec<Effect>, String> {
+        let mut out = Vec::new();
+        let mut k = 0;
+        while k < effects.len() {
+            if let (i::Effect::RevealHand(p), Some(i::Effect::With { bind, then })) =
+                (&effects[k], effects.get(k + 1))
+            {
+                let who = self.who(p)?;
+                let (
+                    [card],
+                    [i::Effect::Choose(i::Choice::Objects(chosen)), i::Effect::Discard {
+                        who: discarder,
+                        what,
+                        random: false,
+                    }, rest @ ..],
+                ) = (bind.as_slice(), then.as_slice())
+                else {
+                    return Err("Effect::With after RevealHand".into());
+                };
+                let blank = |o: &Objects, q: Quant| o.quant == q && o.filter.alts.is_empty();
+                if !blank(chosen, Quant::Introduced(0)) || !blank(what, Quant::Bound(0)) {
+                    return Err("a hand revealed and chosen from otherwise".into());
+                }
+                // The card comes from the revealed hand and the one who
+                // discards is the one who revealed it.
+                if self.who(discarder)? != who {
+                    return Err("a card discarded by another player".into());
+                }
+                out.push(Effect::RevealChooseDiscard {
+                    who,
+                    filter: self.card_in_hand(card, who)?,
+                });
+                for r in rest {
+                    out.extend(self.effect(r, 1)?);
+                }
+                k += 2;
+                continue;
+            }
+            out.extend(self.effect(&effects[k], 0)?);
+            k += 1;
+        }
+        Ok(out)
+    }
+
+    /// "a nonland card from it with mana value 3 or less", from `who`'s
+    /// hand.
+    fn card_in_hand(&mut self, o: &Objects, who: Who) -> Result<CardFilter, String> {
+        let mut rest = Vec::new();
+        let mut mana_value = None;
+        for post in &o.filter.posts {
+            match post {
+                Post::FromHand(p) if self.who(p)? == who => {}
+                Post::With(i::Compare {
+                    stat: i::Stat::ManaValue,
+                    op,
+                    value: i::Amount::N(v),
+                }) => {
+                    let cmp = match op {
+                        i::Op::Eq => Cmp::Eq,
+                        i::Op::Le => Cmp::AtMost,
+                        i::Op::Ge => Cmp::AtLeast,
+                        i::Op::Lt => Cmp::Below,
+                        i::Op::Gt => Cmp::Above,
+                    };
+                    mana_value = Some(Pred::ManaValue(cmp, *v));
+                }
+                other => rest.push(other.clone()),
+            }
+        }
+        if !rest.is_empty() {
+            return Err(format!("a card from a hand {}", short(&rest[0])));
+        }
+        let mut f = card_filter(&Objects {
+            quant: o.quant.clone(),
+            filter: i::Filter {
+                posts: Vec::new(),
+                ..o.filter.clone()
+            },
+        })?;
+        if let Some(p) = mana_value {
+            for alt in &mut f.0 {
+                alt.0.push(p.clone());
+            }
+        }
+        Ok(f)
+    }
+}
+
+/// "target creature": a permanent by its characteristics, and "you
+/// control"; anything relative to a source is refused, since a spell's
+/// has none on the battlefield.
+fn target_filter(o: &Objects) -> Result<Filter, String> {
+    if o.filter.kind.is_some() {
+        return Err("a target of a kind of object".into());
+    }
+    let f = objects(&Objects {
+        quant: Quant::All,
+        filter: o.filter.clone(),
+    })?;
+    if f.0
+        .iter()
+        .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_) | Pred::YouControl))
+    {
+        return Err("a target relative to its source".into());
+    }
+    Ok(f)
+}
+
+/// "+1/+1", "-1/-1" and named counters.
+fn counter(kind: &i::CounterKind) -> Option<Counter> {
+    match kind {
+        i::CounterKind::Pt(p) if p.signed => match (p.power, p.toughness) {
+            (PtPart::N(1), PtPart::N(1)) => Some(Counter::PlusOne),
+            (PtPart::N(-1), PtPart::N(-1)) => Some(Counter::MinusOne),
+            _ => None,
+        },
+        i::CounterKind::Named(n) => Some(Counter::Named(n.clone())),
+        _ => None,
+    }
 }
 
 /// An activated ability's cost, of the kinds the engine pays (CR 602.2b,
@@ -905,7 +1427,7 @@ fn card_filter(o: &Objects) -> Result<CardFilter, String> {
     if alts
         .iter()
         .flat_map(|f| &f.0)
-        .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_)))
+        .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_) | Pred::ManaValue(..)))
     {
         return Err("a card filter relative to its source".into());
     }

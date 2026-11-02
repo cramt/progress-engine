@@ -379,6 +379,10 @@ fn mana_of(game: &Game, source: ObjectId) -> Vec<ManaActivation> {
 /// ability, one adding a colour the cost still lacks if any, from the
 /// source with the fewest choices. If none is left it cancels (CR 733.1).
 fn pay(game: &mut Game) -> bool {
+    // CR 601.2c: targets first.
+    if let Decision::Targets { .. } = game.decision() {
+        simplest(game);
+    }
     loop {
         let Decision::Pay { owed, actions, .. } = game.decision() else {
             panic!("not paying: {:?}", game.decision());
@@ -422,15 +426,34 @@ fn pay(game: &mut Game) -> bool {
 
 /// Everyone passes until the stack is empty (CR 405.5).
 fn resolve_stack(game: &mut Game) {
-    while !game.stack().is_empty() {
-        match game.decision() {
-            Decision::ReturnCommander { .. } => game.step(Answer::CommandZone(true)).unwrap(),
-            _ => game.step(Answer::Act(Action::Pass)).unwrap(),
-        };
+    while !game.stack().is_empty() || !matches!(game.decision(), Decision::Priority { .. }) {
+        if !simplest(game) {
+            game.step(Answer::Act(Action::Pass)).unwrap();
+        }
     }
-    if let Decision::ReturnCommander { .. } = game.decision() {
-        game.step(Answer::CommandZone(true)).unwrap();
-    }
+}
+
+/// The pilot's simplest legal answer to a choice an effect asks for,
+/// if the game is waiting on one: the first target in each slot, the
+/// order triggers were listed in, the first legal card, every card scried
+/// back on top, the first cards discarded.
+fn simplest(game: &mut Game) -> bool {
+    let answer = match game.decision() {
+        Decision::ReturnCommander { .. } => Answer::CommandZone(true),
+        Decision::Targets { slots, .. } => Answer::Targets(slots.iter().map(|s| s[0]).collect()),
+        Decision::Order { triggers, .. } => Answer::Order((0..triggers.len()).collect()),
+        Decision::ChooseFromHand { legal, .. } => Answer::Pick(legal.first().copied()),
+        Decision::Scry { cards, .. } => Answer::Scry {
+            top: cards,
+            bottom: vec![],
+        },
+        Decision::Discard { count, hand, .. } => Answer::Discard(hand[..count].to_vec()),
+        Decision::Search { .. } => Answer::Find(Found::Nothing),
+        Decision::PayOrEnterTapped { .. } => Answer::PayLife(false),
+        _ => return false,
+    };
+    game.step(answer).unwrap_or_else(|e| panic!("{e}"));
+    true
 }
 
 /// Cast `c` and pay for it, leaving it on the stack.
@@ -493,6 +516,7 @@ fn a_creature_cast_at_sorcery_speed_resolves_onto_the_battlefield() {
     assert_eq!(
         game.stack().iter().collect::<Vec<_>>(),
         [&StackObject::Spell {
+            targets: vec![],
             card: bird,
             controller: ME
         }]
@@ -860,15 +884,17 @@ fn loam_goldfished_casts_what_it_can() {
             vec!["Yavimaya, Cradle of Growth"],
             vec!["Cephalid Coliseum", "cast Trade Routes"],
             vec!["Scalding Tarn"],
-            vec!["Mountain"],
+            // Deep Analysis draws two (CR 121.2); its flashback is
+            // carried, never offered.
+            vec!["Mountain", "cast Deep Analysis"],
             vec!["Command Beacon"],
             // Unpaid, it enters tapped (CR 614.12a).
             vec!["Breeding Pool"],
         ]
     );
-    // Trade Routes' {U} came from Cephalid Coliseum, which dealt me 1
-    // damage (CR 120.3a).
-    assert_eq!(game.player(ME).life(), 39);
+    // Trade Routes' {U} and Deep Analysis's came from Cephalid Coliseum,
+    // which dealt me 1 damage each time (CR 120.3a).
+    assert_eq!(game.player(ME).life(), 38);
     assert_eq!(game.permanents().len(), 7);
     assert_eq!(game.player(THEM).lands_played(), 0);
     assert!(refused
@@ -993,7 +1019,7 @@ fn loam_coverage() {
     }
     assert_eq!(cards.len(), 90);
     // The README's number: a change that moves it updates it there.
-    assert_eq!((runs.len(), whole.len()), (34, 15));
+    assert_eq!((runs.len(), whole.len()), (35, 15));
 }
 
 fn hidden(n: usize) -> DeckCards {

@@ -34,6 +34,10 @@ const INDEXED: &[&str] = &[
     "Wooded Foothills",
     "Raging Goblin",
     "Stomping Ground",
+    "Plains",
+    "Duress",
+    "Champion of the Parish",
+    "Elite Vanguard",
 ];
 
 fn index() -> &'static IndexFile {
@@ -372,4 +376,80 @@ fn a_shock_land_is_paid_for_only_when_what_follows_needs_it() {
         .iter()
         .any(|t| t.did == "Stomping Ground enters tapped, no life paid"));
     assert_eq!(r.game.unwrap().player(ALICE).life(), 20);
+}
+
+/// Duress and Champion of the Parish, as newer logs print them: the
+/// target chosen as Duress is cast (CR 601.2c); bob's whole hand revealed
+/// (CR 701.20a), which names its hidden cards and must be as many as the
+/// engine's; the card alice chose discarded; and Champion's trigger on the
+/// stack when the log shows it (CR 603.3), growing it as it resolves.
+#[test]
+fn a_revealed_hand_and_a_trigger_replay() {
+    let lines = "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Swamp].
+        alice casts [Duress] targeting bob.
+        bob reveals 7 cards with [Duress]: [Plains], [Plains], [Champion of the Parish], [Elite Vanguard], [Duress], [Plains], [Plains].
+        bob discards [Duress].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Plains].
+        bob casts [Champion of the Parish].
+        Turn 2: alice
+        alice draws a card.
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Plains].
+        bob casts [Elite Vanguard].
+        bob puts triggered ability from [Champion of the Parish] onto the stack (Whenever another Human you control enters, put a +1/+1 counter on this creature.).
+        alice has conceded from the game.
+    ";
+    let (_, r) = run(lines);
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.unwrap();
+    let names = |cards: &imbl::Vector<chancellor_of_the_spires::game::CardId>| -> Vec<String> {
+        cards
+            .iter()
+            .filter_map(|c| game.card(*c).map(|t| t.name.clone()))
+            .collect()
+    };
+    assert_eq!(names(game.player(BOB).graveyard()), ["Duress"]);
+    assert_eq!(names(game.player(ALICE).graveyard()), ["Duress"]);
+    let champion = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| {
+            game.card(p.card)
+                .is_some_and(|t| t.name == "Champion of the Parish")
+        })
+        .map(|(id, _)| *id)
+        .unwrap();
+    // On the stack still: alice conceded with it there.
+    assert_eq!(game.stack().len(), 1);
+    assert_eq!(game.characteristics()[&champion].pt, Some(pt(1, 1)));
+
+    // Without the trigger's line, the engine's trigger is one the log
+    // never shows.
+    let unlogged = lines.replace(
+        "bob puts triggered ability from [Champion of the Parish] onto the stack (Whenever another Human you control enters, put a +1/+1 counter on this creature.).",
+        "Turn 3: alice",
+    );
+    let (_, r) = run(&unlogged);
+    assert_eq!(
+        r.end.stop(),
+        Some(&Stop::Diverged(Divergence::UnloggedTrigger {
+            card: "Champion of the Parish".into()
+        }))
+    );
+    // A hand revealed with a card fewer than the engine's diverges.
+    let short = lines.replace("[Duress], [Plains], [Plains].", "[Duress], [Plains].");
+    let (_, r) = run(&short);
+    assert_eq!(
+        r.end.stop(),
+        Some(&Stop::Diverged(Divergence::HandSize { log: 6, engine: 7 }))
+    );
 }

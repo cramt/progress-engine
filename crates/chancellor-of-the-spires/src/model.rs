@@ -169,6 +169,30 @@ pub enum Pred {
     Nontoken,
     /// "enchanted creature", "equipped creature": what the source is attached to.
     AttachedTo,
+    /// "with mana value 3 or less" (CR 202.3).
+    ManaValue(Cmp, u32),
+}
+
+/// A comparison of a number against a fixed one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Cmp {
+    Eq,
+    AtMost,
+    AtLeast,
+    Below,
+    Above,
+}
+
+impl Cmp {
+    pub fn holds(self, n: u32, than: u32) -> bool {
+        match self {
+            Cmp::Eq => n == than,
+            Cmp::AtMost => n <= than,
+            Cmp::AtLeast => n >= than,
+            Cmp::Below => n < than,
+            Cmp::Above => n > than,
+        }
+    }
 }
 
 /// What a static ability applies to, re-read whenever it applies: every
@@ -197,6 +221,7 @@ impl Filter {
         self.0.iter().all(|p| match p {
             Pred::Is(prop) => prop.of(c),
             Pred::IsNot(prop) => !prop.of(c),
+            Pred::ManaValue(cmp, n) => cmp.holds(c.mana_value, *n),
             _ => false,
         })
     }
@@ -210,6 +235,7 @@ impl Filter {
             Pred::YouControl => s.chars.controller == s.source_chars.controller,
             Pred::AttachedTo => s.source_attached_to == Some(s.id),
             Pred::Nontoken => !s.token,
+            Pred::ManaValue(cmp, n) => cmp.holds(s.chars.mana_value, *n),
         })
     }
 }

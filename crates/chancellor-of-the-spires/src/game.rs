@@ -35,12 +35,15 @@ use vivisurgeons_insight::ast as i;
 
 use crate::deck::{CardText, DeckCards};
 use crate::layers::characteristics;
-use crate::lower::{self, Activated, CardFilter, Effect, Lowered, Refusal};
+use crate::lower::{
+    self, Activated, CardFilter, DamageTo, Effect, Lowered, Obj, Program, Refusal, TargetSpec,
+    TriggerEvent, Triggered, Who,
+};
 use crate::mana::{self as m, short};
 pub use crate::mana::{Mana, ManaCost, ManaPool, Shard};
 use crate::model::{
-    Ability, CardType, Chars, Color, Filter, Keyword, ObjectId, PlayerId, Seen, State, Subtype,
-    Supertype,
+    Ability, CardType, Chars, Color, Filter, Keyword, ObjectId, PlayerId, Pred, Seen, State,
+    Subtype, Supertype,
 };
 
 /// CR 103.4.
@@ -91,7 +94,13 @@ impl Known {
             .as_card()
             .map_err(|why| Unrunnable::new("a multi-faced card", why))
             .and_then(|c| lower::card(&c).map_err(unlowered));
-        let printed = lowered.as_ref().ok().map(|l| l.chars.clone());
+        // A card the engine can't run still has a type line, mana value and
+        // colours, which is all a card outside the battlefield is matched
+        // by: a multi-faced card by its front face (CR 712.8a).
+        let printed = match &lowered {
+            Ok(l) => Some(l.chars.clone()),
+            Err(_) => lower::printed(&text).ok(),
+        };
         let runs = lowered.and_then(runnable);
         let cost =
             ManaCost::parse(&text.mana_cost).map_err(|why| Unrunnable::new(why.clone(), why));
@@ -124,6 +133,12 @@ struct Runnable {
     /// and why it can't run the rest, which are never offered.
     activated: BTreeMap<u16, Result<Activated, Unrunnable>>,
     enters: BTreeMap<u16, Enters>,
+    /// Its triggered abilities (CR 603), all of which the engine runs: a
+    /// card with one it can't is refused.
+    triggered: BTreeMap<u16, Triggered>,
+    /// An instant's or sorcery's instructions (CR 113.3a), its paragraphs
+    /// in order.
+    spell: Option<Program>,
     flash: bool,
     /// The abilities it carries that nothing offers to activate yet.
     dormant: Vec<String>,
@@ -266,15 +281,45 @@ pub struct Permanent {
     pub tapped: bool,
     /// The turn it came under its controller's control (CR 302.6).
     pub since: u32,
+    /// Damage marked on it this turn (CR 120.3e), and whether a source
+    /// with deathtouch dealt any (CR 704.5h).
+    pub damage: u32,
+    pub deathtouched: bool,
 }
 
-/// What can be on the stack (CR 405.1): spells, and activated abilities
-/// other than mana abilities. Nothing triggers yet.
+/// What a target is (CR 115.1): a player, or a permanent, which is a new
+/// object each time it enters (CR 400.7).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Target {
+    Player(PlayerId),
+    Object(ObjectId),
+}
+
+/// What can be on the stack (CR 405.1): spells, activated abilities other
+/// than mana abilities, and triggered abilities.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StackObject {
     /// A card on the stack (CR 112.1), controlled by who cast it (CR
-    /// 601.2a).
-    Spell { card: CardId, controller: PlayerId },
+    /// 601.2a), with the targets chosen as it was cast (CR 601.2c), by
+    /// slot.
+    Spell {
+        card: CardId,
+        controller: PlayerId,
+        targets: Vec<Target>,
+    },
+    /// A triggered ability (CR 603.3): the card whose ability it is, by
+    /// its index among that card's unread abilities, the permanent it
+    /// triggered from (CR 113.7a), and the targets chosen as it was put on
+    /// the stack (CR 603.3d). `seq` counts the triggered abilities put on
+    /// the stack this game, so each is told apart.
+    Trigger {
+        source: CardId,
+        object: ObjectId,
+        ability: u16,
+        controller: PlayerId,
+        targets: Vec<Target>,
+        seq: u32,
+    },
     /// An activated ability (CR 602.2a): the card whose ability it is, by
     /// its index among that card's unread abilities, and who activated
     /// it. It exists independently of its source (CR 113.7a), so a source
@@ -286,18 +331,53 @@ pub enum StackObject {
     },
 }
 
-/// Where an ability's resolution stands when it stops for a choice: the
-/// ability, and the instruction after the one being followed (CR 608.2c).
+/// Whose instructions are resolving.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Instructions {
+    Spell(CardId),
+    Activated(CardId, u16),
+    Triggered(CardId, u16),
+}
+
+/// Where a spell's or ability's resolution stands when it stops for a
+/// choice: whose instructions, its targets, and the instruction after the
+/// one being followed (CR 608.2c).
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Resuming {
-    source: CardId,
-    ability: u16,
+    what: Instructions,
     controller: PlayerId,
+    /// The permanent whose ability it is, "this creature".
+    object: Option<ObjectId>,
+    /// Each target slot's target, or `None` if it is illegal now: an
+    /// instruction won't act on an illegal target (CR 608.2b).
+    targets: Vec<Option<Target>>,
     next: usize,
 }
 
-/// What happens once a permanent has entered.
+/// A triggered ability that has triggered and waits to be put on the stack
+/// the next time a player would receive priority (CR 603.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Pending {
+    pub source: CardId,
+    pub object: ObjectId,
+    pub ability: u16,
+    pub controller: PlayerId,
+    /// Its controller has put it in order among their others (CR 603.3b).
+    ordered: bool,
+}
+
+/// What targets are being chosen for (CR 601.2c, 603.3d).
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Choosing {
+    /// The spell on top of the stack, then its cost is paid.
+    Spell { owed: ManaCost, from_command: bool },
+    /// A triggered ability being put on the stack, then `then` gets
+    /// priority.
+    Trigger { pending: Pending, then: PlayerId },
+}
+
+/// What happens once a permanent has entered.
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Then {
     /// This player gets priority (CR 117.3b, 117.3c).
     Priority(PlayerId),
@@ -357,10 +437,39 @@ enum Waiting {
         owed: ManaCost,
         from_command: bool,
     },
-    /// CR 514.1.
+    /// CR 514.1, or an instruction (CR 701.9a), which `then` goes on with.
     Discard {
         player: PlayerId,
         count: usize,
+        then: Option<Resuming>,
+    },
+    /// `player` chooses targets for each of `slots` (CR 601.2c, 603.3d).
+    Targets {
+        player: PlayerId,
+        card: CardId,
+        slots: Vec<TargetSpec>,
+        choosing: Choosing,
+    },
+    /// CR 603.3b: `player` puts these triggered abilities on the stack in
+    /// the order they choose, then `then` gets priority.
+    Order {
+        player: PlayerId,
+        pending: Vec<Pending>,
+        then: PlayerId,
+    },
+    /// A resolving instruction has `chooser` choose a card `filter`
+    /// matches from `whose` revealed hand, to be discarded.
+    ChooseFromHand {
+        chooser: PlayerId,
+        whose: PlayerId,
+        filter: CardFilter,
+        resume: Resuming,
+    },
+    /// CR 701.22a.
+    Scry {
+        player: PlayerId,
+        cards: Vec<CardId>,
+        resume: Resuming,
     },
     /// CR 704.5j, before `then` gets priority.
     LegendRule {
@@ -454,6 +563,38 @@ pub enum Decision {
         card: CardId,
         life: u32,
     },
+    /// CR 601.2c, 603.3d: choose a target for each slot, among its legal
+    /// ones, answered with `Answer::Targets`.
+    Targets {
+        player: PlayerId,
+        card: CardId,
+        slots: Vec<Vec<Target>>,
+    },
+    /// CR 603.3b: put these triggered abilities, of these cards, on the
+    /// stack in an order, answered with `Answer::Order`: a permutation of
+    /// their indices, the first put on the stack first.
+    Order {
+        player: PlayerId,
+        triggers: Vec<CardId>,
+    },
+    /// CR 701.20a: `whose` hand is revealed, and `player` chooses a card of
+    /// it `legal` lists, answered with `Answer::Pick`; `None` is legal
+    /// only when no card can match: none listed, none hidden and none the
+    /// engine can't read.
+    ChooseFromHand {
+        player: PlayerId,
+        whose: PlayerId,
+        hand: Vec<CardId>,
+        legal: Vec<CardId>,
+        unsure: usize,
+    },
+    /// CR 701.22a: look at `cards`, the top of the library, and put any
+    /// number on the bottom and the rest on top in any order, answered
+    /// with `Answer::Scry`.
+    Scry {
+        player: PlayerId,
+        cards: Vec<CardId>,
+    },
     /// CR 701.23a–b: search your library for a card `filter` matches,
     /// answered with `Answer::Find`. `known` are the library's cards whose
     /// names are known that match; any of its `hidden` cards might too.
@@ -532,6 +673,18 @@ pub enum Answer {
     /// CR 614.12a, 119.4: pay the life a permanent's replacement effect
     /// offers as it enters, or not.
     PayLife(bool),
+    /// CR 601.2c: one target per slot.
+    Targets(Vec<Target>),
+    /// CR 603.3b.
+    Order(Vec<usize>),
+    /// CR 701.20a: the card chosen from a revealed hand, if any can be.
+    Pick(Option<CardId>),
+    /// CR 701.22a: the cards put back on top, the first on top, and those
+    /// put on the bottom, the first nearest the top.
+    Scry {
+        top: Vec<CardId>,
+        bottom: Vec<CardId>,
+    },
 }
 
 #[derive(Debug)]
@@ -597,6 +750,12 @@ pub struct Game {
     permanents: OrdMap<ObjectId, Permanent>,
     /// The top is the back (CR 405.2).
     stack: Vector<StackObject>,
+    /// Triggered abilities waiting to be put on the stack (CR 603.3).
+    pending: Vector<Pending>,
+    /// How many triggered abilities have been put on the stack.
+    triggers: u32,
+    /// The card whose spell or ability most recently finished resolving.
+    last_resolved: Option<CardId>,
     exile: Vector<CardId>,
     command: Vector<CardId>,
     /// How many times each commander has been cast from the command zone
@@ -747,6 +906,9 @@ impl Game {
             battlefield: State::default(),
             permanents: OrdMap::new(),
             stack: Vector::new(),
+            pending: Vector::new(),
+            triggers: 0,
+            last_resolved: None,
             exile: Vector::new(),
             command,
             commander_casts: OrdMap::new(),
@@ -856,6 +1018,10 @@ impl Game {
         self.cards[c.0 as usize].face = Face::Known(Arc::new(Known::read(text)));
         Ok(())
     }
+    /// How many cards the game has, every `CardId` below it.
+    pub fn card_count(&self) -> usize {
+        self.cards.len()
+    }
     pub fn owner(&self, c: CardId) -> PlayerId {
         self.cards[c.0 as usize].owner
     }
@@ -917,10 +1083,59 @@ impl Game {
                 count: *count,
                 hand: self.player(*player).hand.iter().copied().collect(),
             },
-            Waiting::Discard { player, count } => Decision::Discard {
+            Waiting::Discard { player, count, .. } => Decision::Discard {
                 player: *player,
                 count: *count,
                 hand: self.player(*player).hand.iter().copied().collect(),
+            },
+            Waiting::Targets {
+                player,
+                card,
+                slots,
+                choosing,
+            } => {
+                let controller = match choosing {
+                    Choosing::Spell { .. } => *player,
+                    Choosing::Trigger { pending, .. } => pending.controller,
+                };
+                Decision::Targets {
+                    player: *player,
+                    card: *card,
+                    slots: slots
+                        .iter()
+                        .map(|s| self.legal_targets(s, controller))
+                        .collect(),
+                }
+            }
+            Waiting::Order {
+                player, pending, ..
+            } => Decision::Order {
+                player: *player,
+                triggers: pending.iter().map(|p| p.source).collect(),
+            },
+            Waiting::ChooseFromHand {
+                chooser,
+                whose,
+                filter,
+                ..
+            } => {
+                let hand: Vec<CardId> = self.player(*whose).hand.iter().copied().collect();
+                let read = |c: &CardId| self.known(*c).and_then(|k| k.printed.as_ref());
+                Decision::ChooseFromHand {
+                    player: *chooser,
+                    whose: *whose,
+                    legal: hand
+                        .iter()
+                        .copied()
+                        .filter(|c| read(c).is_some_and(|ch| filter.matches(ch)))
+                        .collect(),
+                    unsure: hand.iter().filter(|c| read(c).is_none()).count(),
+                    hand,
+                }
+            }
+            Waiting::Scry { player, cards, .. } => Decision::Scry {
+                player: *player,
+                cards: cards.clone(),
             },
             Waiting::Priority { player, .. } => Decision::Priority {
                 player: *player,
@@ -1031,13 +1246,115 @@ impl Game {
                     *self = *before;
                 }
             },
-            (Waiting::Discard { player, count }, Answer::Discard(cards))
-                if self.can_discard(player, count, cards) =>
-            {
+            (
+                Waiting::Discard {
+                    player,
+                    count,
+                    then,
+                },
+                Answer::Discard(cards),
+            ) if self.can_discard(player, count, cards) => {
                 self.discard(player, cards);
-                // The excess is gone, so beginning cleanup again discards
-                // nothing and runs the rest of it (CR 514.2–514.3).
-                self.run_from(Step::Cleanup);
+                match then {
+                    Some(at) => self.follow(at),
+                    // The excess is gone, so beginning cleanup again
+                    // discards nothing and runs the rest of it (CR
+                    // 514.2–514.3).
+                    None => self.run_from(Step::Cleanup),
+                }
+            }
+            (
+                Waiting::Targets {
+                    player,
+                    slots,
+                    choosing,
+                    ..
+                },
+                Answer::Targets(chosen),
+            ) => {
+                let controller = match &choosing {
+                    Choosing::Spell { .. } => player,
+                    Choosing::Trigger { pending, .. } => pending.controller,
+                };
+                let legal = chosen.len() == slots.len()
+                    && slots
+                        .iter()
+                        .zip(chosen)
+                        .all(|(s, t)| self.legal_targets(s, controller).contains(t));
+                if !legal {
+                    return Err(Rejected::Illegal(answer));
+                }
+                match choosing {
+                    Choosing::Spell { owed, from_command } => {
+                        if let Some(StackObject::Spell { targets, .. }) = self.stack.back_mut() {
+                            *targets = chosen.clone();
+                        }
+                        // CR 601.2f–g.
+                        self.waiting = Waiting::Paying {
+                            player,
+                            spell: match self.stack.back() {
+                                Some(StackObject::Spell { card, .. }) => *card,
+                                _ => unreachable!("the spell is on top"),
+                            },
+                            owed,
+                            from_command,
+                        };
+                    }
+                    Choosing::Trigger { pending, then } => {
+                        self.push_trigger(pending, chosen.clone());
+                        self.give_priority(then, 0);
+                    }
+                }
+            }
+            (Waiting::Order { pending, then, .. }, Answer::Order(order)) => {
+                let mut sorted = order.clone();
+                sorted.sort_unstable();
+                if sorted != (0..pending.len()).collect::<Vec<_>>() {
+                    return Err(Rejected::Illegal(answer));
+                }
+                // Back in front of the others, in the order chosen, to be
+                // put on the stack one by one.
+                for k in order.iter().rev() {
+                    self.pending.push_front(Pending {
+                        ordered: true,
+                        ..pending[*k]
+                    });
+                }
+                self.give_priority(then, 0);
+            }
+            (Waiting::ChooseFromHand { whose, resume, .. }, Answer::Pick(pick)) => {
+                let Decision::ChooseFromHand { legal, unsure, .. } = self.decision() else {
+                    unreachable!("waiting on a choice from a hand")
+                };
+                match pick {
+                    Some(c) if legal.contains(c) => self.discard(whose, &[*c]),
+                    None if legal.is_empty() && unsure == 0 => {}
+                    _ => return Err(Rejected::Illegal(answer)),
+                }
+                self.follow(resume);
+            }
+            (
+                Waiting::Scry {
+                    player,
+                    cards,
+                    resume,
+                },
+                Answer::Scry { top, bottom },
+            ) => {
+                let mut given: Vec<CardId> = top.iter().chain(bottom).copied().collect();
+                given.sort_unstable();
+                let mut looked = cards.clone();
+                looked.sort_unstable();
+                if given != looked {
+                    return Err(Rejected::Illegal(answer));
+                }
+                let library = &mut self.players[player.0 as usize].library;
+                library.retain(|c| !cards.contains(c));
+                for c in top.iter().rev() {
+                    library.push_front(*c);
+                }
+                library.extend(bottom.iter().copied());
+                self.follow(resume);
             }
             (
                 Waiting::ReturnCommander {
@@ -1181,7 +1498,19 @@ impl Game {
             if is_land(&known.text.type_line) || matches!(known.cost, Ok(None)) {
                 continue;
             }
-            if sorcery_speed || self.instant_speed(known) {
+            // CR 601.2c: a spell with a target slot nothing can fill can't
+            // be cast.
+            let targetable = match &known.runs {
+                Ok(Runnable {
+                    spell: Some(program),
+                    ..
+                }) => program
+                    .targets
+                    .iter()
+                    .all(|t| !self.legal_targets(t, p).is_empty()),
+                _ => true,
+            };
+            if (sorcery_speed || self.instant_speed(known)) && targetable {
                 actions.push(Action::Cast(*c));
             }
         }
@@ -1460,9 +1789,11 @@ impl Game {
         } else {
             self.players[p.0 as usize].hand.retain(|c| *c != card);
         }
+        let slots = self.runs_of(card).spell.as_ref().map(|s| s.targets.clone());
         self.stack.push_back(StackObject::Spell {
             card,
             controller: p,
+            targets: Vec::new(),
         });
         let owed = if from_command {
             cost.plus_generic(COMMANDER_TAX * self.commander_casts(card))
@@ -1470,11 +1801,21 @@ impl Game {
             cost
         };
         self.before_cast = Some(Box::new(before));
-        self.waiting = Waiting::Paying {
-            player: p,
-            spell: card,
-            owed,
-            from_command,
+        self.waiting = match slots.filter(|s| !s.is_empty()) {
+            // CR 601.2c: targets are chosen before the cost is determined
+            // and paid.
+            Some(slots) => Waiting::Targets {
+                player: p,
+                card,
+                slots,
+                choosing: Choosing::Spell { owed, from_command },
+            },
+            None => Waiting::Paying {
+                player: p,
+                spell: card,
+                owed,
+                from_command,
+            },
         };
         Ok(())
     }
@@ -1518,7 +1859,11 @@ impl Game {
     fn resolve_top(&mut self) {
         let then = Then::Priority(self.active);
         match self.stack.pop_back() {
-            Some(StackObject::Spell { card, controller }) => {
+            Some(StackObject::Spell {
+                card,
+                controller,
+                targets,
+            }) => {
                 let permanent = self
                     .known(card)
                     .and_then(|k| k.runs.as_ref().ok())
@@ -1527,10 +1872,7 @@ impl Game {
                     // CR 608.3a.
                     self.enter(card, controller, false, then);
                 } else {
-                    // CR 608.2n. Only a spell with no instructions gets here.
-                    let owner = self.owner(card);
-                    self.players[owner.0 as usize].graveyard.push_back(card);
-                    self.proceed(then);
+                    self.begin_resolving(Instructions::Spell(card), controller, None, targets);
                 }
             }
             Some(StackObject::Ability {
@@ -1538,36 +1880,124 @@ impl Game {
                 ability,
                 controller,
             }) => self.follow(Resuming {
-                source,
-                ability,
+                what: Instructions::Activated(source, ability),
                 controller,
+                object: None,
+                targets: Vec::new(),
                 next: 0,
             }),
+            Some(StackObject::Trigger {
+                source,
+                object,
+                ability,
+                controller,
+                targets,
+                ..
+            }) => self.begin_resolving(
+                Instructions::Triggered(source, ability),
+                controller,
+                Some(object),
+                targets,
+            ),
             None => self.proceed(then),
         }
     }
 
-    /// Follow a resolving ability's instructions in order from `at.next`
-    /// (CR 608.2c), stopping at one that asks for a choice; then the
-    /// ability is done and the active player gets priority (CR 117.3b).
-    fn follow(&mut self, at: Resuming) {
-        let Some(Ok(def)) = self
-            .known(at.source)
-            .and_then(|k| k.runs.as_ref().ok())
-            .and_then(|r| r.activated.get(&at.ability))
-        else {
-            unreachable!("only an ability that runs is activated")
+    /// CR 608.2b: each target is checked again as the spell or ability
+    /// resolves; one with targets, all of them illegal now, doesn't
+    /// resolve, and otherwise an illegal one is left alone.
+    fn begin_resolving(
+        &mut self,
+        what: Instructions,
+        controller: PlayerId,
+        object: Option<ObjectId>,
+        targets: Vec<Target>,
+    ) {
+        let slots = self.program(what).targets.clone();
+        let checked: Vec<Option<Target>> = targets
+            .iter()
+            .zip(&slots)
+            .map(|(t, s)| self.legal_targets(s, controller).contains(t).then_some(*t))
+            .collect();
+        let at = Resuming {
+            what,
+            controller,
+            object,
+            targets: checked,
+            next: 0,
         };
-        let effects = def.effects.clone();
+        if !targets.is_empty() && at.targets.iter().all(Option::is_none) {
+            return self.done(&at);
+        }
+        self.follow(at)
+    }
+
+    /// The instructions a spell or ability on the stack follows.
+    fn program(&self, what: Instructions) -> &Program {
+        static NONE: Program = Program {
+            targets: Vec::new(),
+            effects: Vec::new(),
+        };
+        match what {
+            Instructions::Spell(c) => self.runs_of(c).spell.as_ref().unwrap_or(&NONE),
+            Instructions::Triggered(c, n) => &self.runs_of(c).triggered[&n].program,
+            Instructions::Activated(..) => &NONE,
+        }
+    }
+
+    /// The spell or ability is done: a spell goes to its owner's graveyard
+    /// (CR 608.2n), and the active player gets priority (CR 117.3b).
+    fn done(&mut self, at: &Resuming) {
+        self.last_resolved = Some(match at.what {
+            Instructions::Spell(c)
+            | Instructions::Activated(c, _)
+            | Instructions::Triggered(c, _) => c,
+        });
+        if let Instructions::Spell(card) = at.what {
+            let owner = self.owner(card);
+            self.players[owner.0 as usize].graveyard.push_back(card);
+        }
+        self.give_priority(self.active, 0);
+    }
+
+    /// Follow a resolving spell's or ability's instructions in order from
+    /// `at.next` (CR 608.2c), stopping at one that asks for a choice.
+    fn follow(&mut self, at: Resuming) {
+        let effects = match at.what {
+            Instructions::Activated(source, ability) => {
+                let Some(Ok(def)) = self
+                    .known(source)
+                    .and_then(|k| k.runs.as_ref().ok())
+                    .and_then(|r| r.activated.get(&ability))
+                else {
+                    unreachable!("only an ability that runs is activated")
+                };
+                def.effects.clone()
+            }
+            what => self.program(what).effects.clone(),
+        };
         let p = at.controller;
         for (k, e) in effects.into_iter().enumerate().skip(at.next) {
+            let resume = Resuming {
+                next: k + 1,
+                ..at.clone()
+            };
+            // CR 608.2b: an instruction naming an illegal target does
+            // nothing to it.
+            let who = |w: Who| match w {
+                Who::You => Some(p),
+                Who::Target(s) => match at.targets[s] {
+                    Some(Target::Player(q)) => Some(q),
+                    _ => None,
+                },
+            };
             match e {
                 Effect::SearchToBattlefield { filter, tapped } => {
                     self.waiting = Waiting::Search {
                         player: p,
                         filter,
                         tapped,
-                        resume: Resuming { next: k + 1, ..at },
+                        resume,
                     };
                     return;
                 }
@@ -1577,9 +2007,318 @@ impl Game {
                     self.rng.shuffle(&mut library);
                     self.players[p.0 as usize].library = library;
                 }
+                Effect::Draw { who: w, n } => {
+                    if let Some(q) = who(w) {
+                        for _ in 0..n {
+                            self.draw(q);
+                        }
+                    }
+                }
+                Effect::Discard { who: w, n } => {
+                    let Some(q) = who(w) else { continue };
+                    let count = (n as usize).min(self.player(q).hand.len());
+                    if count > 0 {
+                        self.waiting = Waiting::Discard {
+                            player: q,
+                            count,
+                            then: Some(resume),
+                        };
+                        return;
+                    }
+                }
+                Effect::RevealChooseDiscard { who: w, filter } => {
+                    let Some(q) = who(w) else { continue };
+                    self.waiting = Waiting::ChooseFromHand {
+                        chooser: p,
+                        whose: q,
+                        filter,
+                        resume,
+                    };
+                    return;
+                }
+                // CR 119.3.
+                Effect::LoseLife { who: w, n } => {
+                    if let Some(q) = who(w) {
+                        self.players[q.0 as usize].life -= n as i32;
+                    }
+                }
+                Effect::GainLife { who: w, n } => {
+                    if let Some(q) = who(w) {
+                        self.players[q.0 as usize].life += n as i32;
+                    }
+                }
+                Effect::Damage { to, n } => {
+                    let to = match to {
+                        DamageTo::You => Some(Target::Player(p)),
+                        DamageTo::Target(s) => at.targets[s],
+                    };
+                    if let Some(to) = to {
+                        self.damage(&at, to, n);
+                    }
+                }
+                Effect::Scry(n) => {
+                    let cards: Vec<CardId> = self
+                        .player(p)
+                        .library
+                        .iter()
+                        .take(n as usize)
+                        .copied()
+                        .collect();
+                    if !cards.is_empty() {
+                        self.waiting = Waiting::Scry {
+                            player: p,
+                            cards,
+                            resume,
+                        };
+                        return;
+                    }
+                }
+                Effect::PutCounters { on, counter, n } => {
+                    let on = match on {
+                        Obj::Itself => at.object,
+                        Obj::Target(s) => match at.targets[s] {
+                            Some(Target::Object(o)) => Some(o),
+                            _ => None,
+                        },
+                    };
+                    // CR 400.7: a permanent that left is gone, and the
+                    // instruction does nothing.
+                    if let Some(o) = on.filter(|o| self.permanents.contains_key(o)) {
+                        self.battlefield.put_counters(o, counter, n);
+                    }
+                }
             }
         }
-        self.give_priority(self.active, 0);
+        self.done(&at)
+    }
+
+    /// `n` damage from the resolving spell or ability's source (CR 120.3):
+    /// a player loses that much life, a creature has it marked; lifelink
+    /// gains its controller that much (CR 702.15b), and deathtouch makes it
+    /// lethal (CR 702.2b). The source is read as it is now, or as it last
+    /// existed (CR 113.7a).
+    fn damage(&mut self, at: &Resuming, to: Target, n: u32) {
+        if n == 0 {
+            return;
+        }
+        let source = at
+            .object
+            .and_then(|o| self.characteristics().remove(&o))
+            .or_else(|| {
+                let card = match at.what {
+                    Instructions::Spell(c)
+                    | Instructions::Activated(c, _)
+                    | Instructions::Triggered(c, _) => c,
+                };
+                self.known(card).and_then(|k| k.printed.clone())
+            });
+        let has = |k: Keyword| {
+            source
+                .as_ref()
+                .is_some_and(|c| c.abilities.contains(&Ability::Keyword(k)))
+        };
+        match to {
+            // CR 120.3a.
+            Target::Player(q) => self.players[q.0 as usize].life -= n as i32,
+            // CR 120.3e.
+            Target::Object(o) => {
+                if let Some(perm) = self.permanents.get_mut(&o) {
+                    perm.damage += n;
+                    perm.deathtouched |= has(Keyword::Deathtouch);
+                }
+            }
+        }
+        if has(Keyword::Lifelink) {
+            let controller = source.map_or(at.controller, |c| c.controller);
+            self.players[controller.0 as usize].life += n as i32;
+        }
+    }
+
+    /// Every legal choice for a target slot of a spell or ability `p`
+    /// controls (CR 115.1, 115.4): players still in the game, and
+    /// permanents. Nothing on the engine's battlefield has hexproof, shroud
+    /// or protection, which are refused as they are read.
+    fn legal_targets(&self, spec: &TargetSpec, p: PlayerId) -> Vec<Target> {
+        let players = || {
+            (0..self.players.len())
+                .map(|q| PlayerId(q as u8))
+                .filter(|q| !self.player(*q).left)
+        };
+        let permanents = |f: &dyn Fn(&Chars) -> bool| -> Vec<Target> {
+            self.characteristics()
+                .into_iter()
+                .filter(|(_, c)| f(c))
+                .map(|(o, _)| Target::Object(o))
+                .collect()
+        };
+        match spec {
+            TargetSpec::Player { opponent } => players()
+                .filter(|q| !opponent || *q != p)
+                .map(Target::Player)
+                .collect(),
+            TargetSpec::Permanent(filter) => permanents(&|c| {
+                filter.0.iter().all(|pred| match pred {
+                    Pred::YouControl => c.controller == p,
+                    other => Filter(vec![other.clone()]).matches_card(c),
+                })
+            }),
+            TargetSpec::Any => players()
+                .map(Target::Player)
+                .chain(permanents(&|c| {
+                    c.is(CardType::Creature)
+                        || c.is(CardType::Planeswalker)
+                        || c.is(CardType::Battle)
+                }))
+                .collect(),
+            TargetSpec::PlayerOrPlaneswalker => players()
+                .map(Target::Player)
+                .chain(permanents(&|c| c.is(CardType::Planeswalker)))
+                .collect(),
+        }
+    }
+
+    /// CR 603.3b: the triggered abilities waiting, the active player's
+    /// first, then each other player's in turn order, each player's in the
+    /// order they choose. Whether any went on the stack, or the game now
+    /// waits on a choice.
+    fn put_triggers(&mut self, then: PlayerId) -> Put {
+        let mut put = Put::Nothing;
+        let n = self.players.len();
+        for k in 0..n {
+            let p = PlayerId(((self.active.0 as usize + k) % n) as u8);
+            loop {
+                let mine: Vec<Pending> = self
+                    .pending
+                    .iter()
+                    .filter(|t| t.controller == p)
+                    .copied()
+                    .collect();
+                let Some(first) = mine.first().copied() else {
+                    break;
+                };
+                if mine.len() > 1 && !first.ordered {
+                    self.pending.retain(|t| t.controller != p);
+                    self.waiting = Waiting::Order {
+                        player: p,
+                        pending: mine,
+                        then,
+                    };
+                    return Put::Waiting;
+                }
+                let at = self
+                    .pending
+                    .iter()
+                    .position(|t| *t == first)
+                    .expect("pending");
+                self.pending.remove(at);
+                let slots = self
+                    .program(Instructions::Triggered(first.source, first.ability))
+                    .targets
+                    .clone();
+                if slots.is_empty() {
+                    self.push_trigger(first, Vec::new());
+                    put = Put::Some;
+                    continue;
+                }
+                // CR 603.3d: one with a target slot nothing can fill is
+                // removed from the stack.
+                if slots
+                    .iter()
+                    .any(|s| self.legal_targets(s, first.controller).is_empty())
+                {
+                    continue;
+                }
+                self.waiting = Waiting::Targets {
+                    player: first.controller,
+                    card: first.source,
+                    slots,
+                    choosing: Choosing::Trigger {
+                        pending: first,
+                        then,
+                    },
+                };
+                return Put::Waiting;
+            }
+        }
+        put
+    }
+
+    fn push_trigger(&mut self, t: Pending, targets: Vec<Target>) {
+        self.triggers += 1;
+        self.stack.push_back(StackObject::Trigger {
+            source: t.source,
+            object: t.object,
+            ability: t.ability,
+            controller: t.controller,
+            targets,
+            seq: self.triggers,
+        });
+    }
+
+    /// The card whose spell or ability is resolving and waits on a choice
+    /// its instructions ask for, if any.
+    pub fn resolving(&self) -> Option<CardId> {
+        let at = match &self.waiting {
+            Waiting::Discard { then: Some(at), .. }
+            | Waiting::ChooseFromHand { resume: at, .. }
+            | Waiting::Scry { resume: at, .. }
+            | Waiting::Search { resume: at, .. } => at,
+            _ => return None,
+        };
+        Some(match at.what {
+            Instructions::Spell(c)
+            | Instructions::Activated(c, _)
+            | Instructions::Triggered(c, _) => c,
+        })
+    }
+
+    /// The card whose spell or ability most recently finished resolving.
+    pub fn last_resolved(&self) -> Option<CardId> {
+        self.last_resolved
+    }
+
+    /// The triggered abilities waiting to be put on the stack.
+    pub fn pending(&self) -> &Vector<Pending> {
+        &self.pending
+    }
+
+    /// A permanent entered: each enters ability whose filter it matches
+    /// triggers (CR 603.2, 603.6a), its own included.
+    fn entered(&mut self, id: ObjectId) {
+        let all = self.characteristics();
+        let me = &all[&id];
+        let token = self.battlefield.objects[&id].token;
+        let mut triggered = Vec::new();
+        for (src, chars) in &all {
+            let card = self.permanents[src].card;
+            let Some(runs) = self.known(card).and_then(|k| k.runs.as_ref().ok()) else {
+                continue;
+            };
+            for (n, t) in &runs.triggered {
+                if !chars.abilities.contains(&Ability::Unread(*n)) {
+                    continue;
+                }
+                let TriggerEvent::Enters(filter) = &t.event;
+                let seen = Seen {
+                    id,
+                    chars: me,
+                    source: *src,
+                    source_chars: chars,
+                    source_attached_to: self.battlefield.objects[src].attached_to,
+                    token,
+                };
+                if filter.matches(&seen) {
+                    triggered.push(Pending {
+                        source: card,
+                        object: *src,
+                        ability: *n,
+                        controller: chars.controller,
+                        ordered: false,
+                    });
+                }
+            }
+        }
+        self.pending.extend(triggered);
     }
 
     fn proceed(&mut self, then: Then) {
@@ -1684,8 +2423,11 @@ impl Game {
                 card,
                 tapped,
                 since: self.turn,
+                damage: 0,
+                deathtouched: false,
             },
         );
+        self.entered(id);
         self.proceed(then);
     }
 
@@ -1771,8 +2513,17 @@ impl Game {
                         self.waiting = Waiting::Discard {
                             player: self.active,
                             count,
+                            then: None,
                         };
                         return;
+                    }
+                    // CR 514.2.
+                    let ids: Vec<ObjectId> = self.permanents.keys().copied().collect();
+                    for id in ids {
+                        if let Some(perm) = self.permanents.get_mut(&id) {
+                            perm.damage = 0;
+                            perm.deathtouched = false;
+                        }
                     }
                     // CR 514.3a: no one gets priority unless state-based
                     // actions were performed.
@@ -1857,6 +2608,13 @@ impl Game {
             }
             Checked::Nothing | Checked::Performed => {}
         }
+        // CR 603.3: then triggered abilities go on the stack, and with one
+        // put there the passes start again.
+        let passes = match self.put_triggers(p) {
+            Put::Waiting => return,
+            Put::Some => 0,
+            Put::Nothing => passes,
+        };
         let p = if self.player(p).left {
             self.next_in_game(p)
         } else {
@@ -1880,11 +2638,19 @@ impl Game {
                     !player.left && (player.life <= 0 || player.drew_from_empty)
                 })
                 .collect();
-            // CR 704.5f.
+            // CR 704.5f, 704.5g, 704.5h.
             let dying: Vec<ObjectId> = self
                 .characteristics()
                 .into_iter()
-                .filter(|(_, c)| c.pt.is_some_and(|p| p.toughness <= 0))
+                .filter(|(id, c)| {
+                    let perm = &self.permanents[id];
+                    c.pt.is_some_and(|p| {
+                        p.toughness <= 0
+                            || c.is(CardType::Creature)
+                                && (perm.damage >= p.toughness as u32 || perm.deathtouched)
+                                && perm.damage > 0
+                    })
+                })
                 .map(|(id, _)| id)
                 .collect();
             if losers.is_empty() && dying.is_empty() {
@@ -1973,8 +2739,11 @@ impl Game {
         // CR 800.4a: their spells and abilities on the stack cease to exist.
         self.stack.retain(|o| match o {
             StackObject::Spell { card, .. } => !owned(card),
-            StackObject::Ability { controller, .. } => *controller != p,
+            StackObject::Ability { controller, .. } | StackObject::Trigger { controller, .. } => {
+                *controller != p
+            }
         });
+        self.pending.retain(|t| t.controller != p);
         let gone: Vec<ObjectId> = self
             .permanents
             .iter()
@@ -2008,11 +2777,11 @@ fn combat_keyword(k: &i::Keyword) -> bool {
     ) || name == "partner" && k.param.is_none()
 }
 
-/// Abilities that work only from a hand, which nothing activates yet (CR
-/// 702.29a, 702.29e, 702.53a).
+/// Abilities that work only from a hand or a graveyard, which nothing
+/// offers yet (CR 702.29a, 702.29e, 702.53a, 702.34a).
 fn hand_keyword(k: &i::Keyword) -> bool {
     let name = k.name.to_lowercase();
-    name.ends_with("cycling") || name == "transmute"
+    name.ends_with("cycling") || name == "transmute" || name == "flashback"
 }
 
 /// What of a card's abilities the game runs, or the first it can't. The
@@ -2025,6 +2794,8 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         mana: BTreeMap::new(),
         activated: BTreeMap::new(),
         enters: BTreeMap::new(),
+        triggered: BTreeMap::new(),
+        spell: None,
         flash: false,
         dormant: Vec::new(),
         lowered,
@@ -2034,17 +2805,18 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         // An ability word adds no rules (CR 207.2c), and a `Let` binds the
         // targets and objects the ability names.
         let mut a = a;
-        let mut bound = false;
+        let mut bind: &[i::Objects] = &[];
         loop {
             match a {
                 i::Ability::Labelled { ability, .. } => a = ability,
-                i::Ability::Let { ability, .. } => {
-                    bound = true;
+                i::Ability::Let { ability, bind: b } => {
+                    bind = b;
                     a = ability
                 }
                 _ => break,
             }
         }
+        let bound = !bind.is_empty();
         match a {
             // With a target it isn't a mana ability (CR 605.5a), and
             // targets aren't chosen yet (CR 601.2c, 602.2b).
@@ -2114,18 +2886,39 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
             // lowering them into actions is the next slice.
             i::Ability::Spell(effects) if effects.is_empty() => {}
             i::Ability::Spell(effects) => {
-                let node = lower::effect_node(&effects[0]);
-                return Err(Unrunnable::new(
-                    node.clone(),
-                    format!("the game can't run a spell's {node} yet"),
-                ));
+                let program = lower::spell(bind, effects).map_err(|node| {
+                    Unrunnable::new(
+                        node.clone(),
+                        format!("the game can't run a spell's {node} yet"),
+                    )
+                })?;
+                match &mut runs.spell {
+                    None => runs.spell = Some(program),
+                    // CR 608.2c: its paragraphs one after the other; a
+                    // second with targets would number its slots anew.
+                    Some(first) if program.targets.is_empty() => {
+                        first.effects.extend(program.effects)
+                    }
+                    Some(_) => {
+                        return Err(Unrunnable::new(
+                            "a spell of several paragraphs with targets",
+                            "the game can't run a later paragraph's targets yet",
+                        ))
+                    }
+                }
             }
-            i::Ability::Triggered { trigger, .. } => {
-                let node = lower::trigger_node(trigger);
-                return Err(Unrunnable::new(
-                    node.clone(),
-                    format!("the game can't run its triggered ability {node} yet"),
-                ));
+            i::Ability::Triggered {
+                trigger,
+                effect,
+                limits,
+            } => {
+                let def = lower::triggered(bind, trigger, effect, limits).map_err(|node| {
+                    Unrunnable::new(
+                        node.clone(),
+                        format!("the game can't run its triggered ability: {node}"),
+                    )
+                })?;
+                runs.triggered.insert(n, def);
             }
             other => {
                 let node = short(other);
@@ -2161,6 +2954,14 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
         [one] => Err(short(one)),
         _ => Err("a static ability of several parts".into()),
     }
+}
+
+/// What putting triggered abilities on the stack did.
+enum Put {
+    Nothing,
+    Some,
+    /// The game waits on a choice: an order or targets.
+    Waiting,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
