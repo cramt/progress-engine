@@ -412,6 +412,11 @@ mod native {
         let mut turnless = 0;
         let mut finished = 0;
         let mut winner_line = 0;
+        // Lines before each game's stop (all of a finished game's), and all
+        // lines: a smoother measure than games to the end, which moves only
+        // when a game's last stop goes.
+        let mut followed = 0;
+        let mut lines = 0;
         // Reason (or card) -> games, and the first game and line it stopped.
         let mut reasons: HashMap<String, (usize, String)> = HashMap::new();
         let mut by_card: HashMap<String, usize> = HashMap::new();
@@ -446,6 +451,8 @@ mod native {
                     End::Finished => (None, turn_at(g, g.entries.len())),
                     End::Stopped { entry, .. } => (Some(*entry), turn_at(g, *entry)),
                 };
+                lines += g.entries.len();
+                followed += stop_at.unwrap_or(g.entries.len());
                 let row = reached.entry(turn).or_default();
                 match (&replayed.end, stop_at) {
                     (End::Stopped { stop, .. }, Some(at)) => {
@@ -479,6 +486,10 @@ mod native {
         println!(
             "replayed to the end: {finished} ({}), {winner_line} of them to the log's winner line",
             pct(finished, eligible)
+        );
+        println!(
+            "lines followed: {followed} of {lines} ({:.2}%), the lines before each game's stop",
+            100.0 * followed as f64 / lines.max(1) as f64
         );
         let mut reasons: Vec<_> = reasons.into_iter().collect();
         reasons.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(&b.0)));
