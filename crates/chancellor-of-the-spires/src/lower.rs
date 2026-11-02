@@ -585,6 +585,15 @@ pub fn condition_objects(o: &Objects) -> Result<Filter, String> {
     Ok(f)
 }
 
+/// "for each creature you control": the permanents counted, read from the
+/// ability's source, so "other" and "you" are relative to it.
+pub fn counted(o: &Objects) -> Result<Filter, String> {
+    match o.quant {
+        Quant::Plural | Quant::All | Quant::Each => objects(o),
+        _ => Err(format!("counting {}", short(&o.quant))),
+    }
+}
+
 /// "All creatures", "nontoken artifacts you control": a filter over the
 /// battlefield, re-read as the layers go. Targets aren't a static's.
 fn objects(o: &Objects) -> Result<Filter, String> {

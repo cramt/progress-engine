@@ -82,8 +82,9 @@ mana costs of generic, coloured, colourless and hybrid symbols (CR 107.4,
 caster's control (CR 608.3a) and an instant or sorcery going to the
 graveyard (CR 608.2n); mana abilities that tap, pay life (CR 119.4) and
 deal their controller damage, as painlands do (CR 120.3a), adding fixed
-mana, a choice of it, any colour, or a colour of the commander's identity
-(CR 903.4), without the stack (CR 605.3b), a creature's only once it has
+mana, a choice of it, any colour, a colour of the commander's identity
+(CR 903.4), or mana for each permanent a filter matches, counted as it is
+activated (Gaea's Cradle, CR 608.2h), without the stack (CR 605.3b), a creature's only once it has
 been yours since your turn began (CR 302.6) or has haste; a basic land
 type's intrinsic mana ability (CR 305.6), which the layers grant after
 layer 4, so Yavimaya's Forests tap for {G}, Blood Moon's Mountains for {R}
@@ -253,10 +254,10 @@ fetchlands first), a shock land's "as this enters" (158), a fast land's
 Duress first), a Leyline from the opening hand (35), a conditional static
 ("if", 19), Prairie Stream's "unless you control two or more basic lands"
 (16), a check land's filter with alternatives (15), a
-discard the engine doesn't ask for (15, cycling's cost). Only one stop is
-the engine disagreeing with Magic Online rather than refusing: Gaea's
-Cradle's "Add {G} for each creature" isn't read as a mana ability (CR
-605.1a), so Survival of the Fittest can't be paid for.
+discard the engine doesn't ask for (15, cycling's cost). The one stop that
+was the engine disagreeing with Magic Online rather than refusing, Gaea's
+Cradle's "Add {G} for each creature" not read as a mana ability (CR
+605.1a), is gone: that game now stops at an attack.
 `tests/replay.rs` replays hand-written logs, a short game to its end and
 the plays that must stop it: a second land, a spell no land pays for, a
 land in the opponent's turn.

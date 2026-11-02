@@ -1081,3 +1081,39 @@ fn the_london_mulligan() {
     assert_eq!(game.player(THEM).hand().len(), 7);
     assert_eq!(game.player(ME).library().len(), 15);
 }
+
+/// Name the first hidden card in `p`'s hand.
+fn name_in_hand(game: &mut Game, p: PlayerId, name: &str) -> CardId {
+    let c = *game
+        .player(p)
+        .hand()
+        .iter()
+        .find(|c| game.card(**c).is_none())
+        .expect("a hidden card in hand");
+    game.reveal(c, card(name)).unwrap();
+    c
+}
+
+/// CR 605.1a, 605.3b, 608.2h: Gaea's Cradle's "Add {G} for each creature
+/// you control" is a mana ability, and the amount is counted as it is
+/// activated: none with no creature, then {G} once Llanowar Elves is mine.
+#[test]
+fn gaeas_cradle_adds_mana_for_each_creature() {
+    let mut game = constructed(vec![hidden(20), forests(20)], false);
+    my_next_main(&mut game);
+    let cradle = name_in_hand(&mut game, ME, "Gaea's Cradle");
+    act(&mut game, Action::PlayLand(cradle));
+    let cradle = permanent(&game, cradle).unwrap();
+    let adds =
+        |game: &Game| -> Vec<ManaPool> { mana_of(game, cradle).iter().map(|m| m.adds).collect() };
+    assert_eq!(adds(&game), [ManaPool::default()]);
+
+    my_next_main(&mut game);
+    let forest = name_in_hand(&mut game, ME, "Forest");
+    act(&mut game, Action::PlayLand(forest));
+    let elves = name_in_hand(&mut game, ME, "Llanowar Elves");
+    cast(&mut game, elves);
+    resolve_stack(&mut game);
+    assert!(permanent(&game, elves).is_some());
+    assert_eq!(adds(&game), [ManaPool::of([Mana::Green])]);
+}

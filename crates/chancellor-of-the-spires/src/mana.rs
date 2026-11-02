@@ -6,7 +6,8 @@ use std::fmt;
 
 use vivisurgeons_insight::ast as i;
 
-use crate::model::{BasicLandType, Color};
+use crate::lower;
+use crate::model::{BasicLandType, Color, Filter};
 
 /// One mana's type (CR 106.1b): a colour or colourless.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -292,6 +293,11 @@ pub enum Adds {
     /// "Add one mana of any color in your commander's color identity" (CR
     /// 903.4): none if you have no commander (CR 903.4f).
     CommanderIdentity,
+    /// "Add {G} for each creature you control": `each` once per permanent
+    /// the filter matches, counted as the ability resolves (CR 608.2h),
+    /// which for a mana ability is as it is activated (CR 605.3b). The
+    /// filter is read from the source, so "you" is its controller.
+    ForEach { each: ManaPool, filter: Filter },
 }
 
 /// An activated mana ability the engine can run (CR 605.1a): its cost is
@@ -309,10 +315,23 @@ pub struct ManaAbility {
 
 impl ManaAbility {
     /// The mana each way of activating it can add, for a player with this
-    /// commander colour identity (`None`: no commander).
-    pub fn options(&self, identity: Option<&[Color]>) -> Vec<ManaPool> {
+    /// commander colour identity (`None`: no commander), with `count`
+    /// saying how many permanents a filter matches now.
+    pub fn options(
+        &self,
+        identity: Option<&[Color]>,
+        count: impl Fn(&Filter) -> u32,
+    ) -> Vec<ManaPool> {
         match &self.adds {
             Adds::Options(o) => o.clone(),
+            Adds::ForEach { each, filter } => {
+                let n = count(filter);
+                let mut pool = ManaPool::default();
+                for _ in 0..n {
+                    pool.add_all(each);
+                }
+                vec![pool]
+            }
             Adds::AnyColor => [
                 Color::White,
                 Color::Blue,
@@ -345,7 +364,12 @@ pub fn mana_ability(a: &i::Ability) -> Option<Result<ManaAbility, String>> {
     else {
         return None;
     };
-    if !effect.iter().any(|e| matches!(e, i::Effect::AddMana(_))) {
+    let adds_mana = |e: &i::Effect| match e {
+        i::Effect::AddMana(_) => true,
+        i::Effect::ForEach { then, .. } => matches!(then.as_slice(), [i::Effect::AddMana(_)]),
+        _ => false,
+    };
+    if !effect.iter().any(adds_mana) {
         return None;
     }
     Some(lower_mana_ability(cost, effect, limits))
@@ -375,10 +399,21 @@ fn lower_mana_ability(
     let [add, rest @ ..] = effect else {
         return Err("an empty mana ability".into());
     };
-    let i::Effect::AddMana(add) = add else {
-        return Err(format!("a mana ability that does {} first", short(add)));
+    ability.adds = match add {
+        i::Effect::AddMana(add) => adds(add)?,
+        // "Add {G} for each creature you control" (Gaea's Cradle).
+        i::Effect::ForEach { each, then, .. } => match then.as_slice() {
+            [i::Effect::AddMana(add)] => match adds(add)? {
+                Adds::Options(o) if o.len() == 1 => Adds::ForEach {
+                    each: o[0],
+                    filter: lower::counted(each)?,
+                },
+                _ => return Err("adding a choice of mana for each".into()),
+            },
+            _ => return Err("a mana ability doing more for each".into()),
+        },
+        other => return Err(format!("a mana ability that does {} first", short(other))),
     };
-    ability.adds = adds(add)?;
     for e in rest {
         match e {
             i::Effect::Damage {

@@ -981,7 +981,9 @@ impl Game {
         let player = self.player(p);
         let began = player.turn_began;
         let mut out = Vec::new();
-        for (id, chars) in self.characteristics() {
+        let all = self.characteristics();
+        for (id, chars) in &all {
+            let id = *id;
             if chars.controller != p {
                 continue;
             }
@@ -997,7 +999,13 @@ impl Game {
                     // CR 305.6.
                     Ability::Intrinsic(t) => (true, 0, vec![ManaPool::of([Mana::of(*t)])]),
                     Ability::Unread(n) => match runs.and_then(|r| r.mana.get(n)) {
-                        Some(a) => (a.tap, a.life, a.options(player.identity.as_deref())),
+                        Some(a) => (
+                            a.tap,
+                            a.life,
+                            a.options(player.identity.as_deref(), |f| {
+                                self.count(f, id, chars, &all)
+                            }),
+                        ),
                         None => continue,
                     },
                     _ => continue,
@@ -1019,6 +1027,28 @@ impl Game {
             }
         }
         out
+    }
+
+    /// How many permanents `filter` matches, read from `source` (CR 608.2h).
+    fn count(
+        &self,
+        filter: &Filter,
+        source: ObjectId,
+        source_chars: &Chars,
+        all: &BTreeMap<ObjectId, Chars>,
+    ) -> u32 {
+        all.iter()
+            .filter(|(o, c)| {
+                filter.matches(&Seen {
+                    id: **o,
+                    chars: c,
+                    source,
+                    source_chars,
+                    source_attached_to: self.battlefield.objects[&source].attached_to,
+                    token: self.battlefield.objects[*o].token,
+                })
+            })
+            .count() as u32
     }
 
     fn payments(&self, p: PlayerId, owed: &ManaCost) -> Vec<Payment> {
