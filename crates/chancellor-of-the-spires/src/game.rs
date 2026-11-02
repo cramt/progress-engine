@@ -1433,7 +1433,19 @@ impl Game {
         match &known.runs {
             Err(r) => Some(r.clone()),
             Ok(_) if is_land(&known.text.type_line) => None,
-            Ok(runs) => self.cast_refusal(known, runs).err(),
+            Ok(runs) => Game::cast_refusal(known, runs).err(),
+        }
+    }
+
+    /// What the engine makes of a card before any game: why it refuses
+    /// it, as `refusal` would once it is known, and the abilities it
+    /// carries that nothing offers (`dormant`).
+    pub fn reads(text: &CardText) -> (Option<Unrunnable>, Vec<String>) {
+        let known = Known::read(text.clone());
+        match &known.runs {
+            Err(r) => (Some(r.clone()), Vec::new()),
+            Ok(runs) if is_land(&known.text.type_line) => (None, runs.dormant.clone()),
+            Ok(runs) => (Game::cast_refusal(&known, runs).err(), runs.dormant.clone()),
         }
     }
 
@@ -2355,7 +2367,7 @@ impl Game {
     }
 
     /// What this engine can't cast yet, beyond the card's abilities.
-    fn cast_refusal(&self, entry: &Known, runs: &Runnable) -> Result<ManaCost, Unrunnable> {
+    fn cast_refusal(entry: &Known, runs: &Runnable) -> Result<ManaCost, Unrunnable> {
         let cost = entry.cost.clone()?.ok_or_else(|| {
             Unrunnable::new("no mana cost", "it has no mana cost to pay (CR 118.6)")
         })?;
@@ -2387,12 +2399,10 @@ impl Game {
     fn cast(&mut self, p: PlayerId, card: CardId) -> Result<(), Rejected> {
         let entry = self.known(card).expect("only a known card is offered");
         let runs = self.runs(card)?;
-        let cost = self
-            .cast_refusal(entry, runs)
-            .map_err(|refusal| Rejected::Refused {
-                card: entry.text.name.clone(),
-                refusal,
-            })?;
+        let cost = Game::cast_refusal(entry, runs).map_err(|refusal| Rejected::Refused {
+            card: entry.text.name.clone(),
+            refusal,
+        })?;
         let from_command = self.command.contains(&card);
         let before = self.clone();
         if from_command {

@@ -27,6 +27,7 @@ mod native {
 
     use anyhow::{bail, Context, Result};
     use chancellor_of_the_spires::deck::{self, CardText};
+    use chancellor_of_the_spires::game::Game;
     use chancellor_of_the_spires::log;
     use chancellor_of_the_spires::replay::{self as r, End};
     use chip_scryfall::bulk::BulkCard;
@@ -613,12 +614,14 @@ mod native {
         // Per milestone: games seen, finished, lines followed, lines, and
         // its stops by card and node.
         let mut within: Vec<MilestoneRun> = milestones.iter().map(|_| Default::default()).collect();
+        // What the engine makes of each card, before any game.
+        let mut reads: HashMap<String, Option<String>> = HashMap::new();
         let games = each_replayed(
             &mut names,
             &texts,
             only,
             &mut turnless,
-            |m, g, replayed, _| {
+            |m, g, replayed, names| {
                 eligible += 1;
                 if only.is_some() {
                     print_game(m, g, replayed);
@@ -642,6 +645,21 @@ mod native {
                         continue;
                     }
                     run.seen += 1;
+                    let refused: Vec<String> = game_cards(g, names)
+                        .into_iter()
+                        .filter_map(|c| {
+                            let r = reads.entry(c.clone()).or_insert_with(|| {
+                                texts.get(&c).and_then(|t| Game::reads(t).0).map(|u| u.node)
+                            });
+                            r.as_ref().map(|node| format!("{c}: {node}"))
+                        })
+                        .collect();
+                    *run.refusing.entry(refused.len()).or_default() += 1;
+                    for c in &refused {
+                        let e = run.refused.entry(c.clone()).or_default();
+                        e.0 += 1;
+                        e.1 += (refused.len() == 1) as usize;
+                    }
                     run.lines += g.entries.len();
                     run.followed += these;
                     match (&replayed.end, stop_at) {
@@ -715,6 +733,26 @@ mod native {
             for (key, (n, example)) in stops.iter().take(top) {
                 println!("{n:>6}  {key}\n        e.g. {example}");
             }
+            let refusing: Vec<String> = run
+                .refusing
+                .iter()
+                .map(|(k, n)| format!("{k}: {n}"))
+                .collect();
+            println!(
+                "  games by how many of their cards the engine refuses before any game: {}",
+                refusing.join(", ")
+            );
+            let mut refused: Vec<_> = run.refused.iter().collect();
+            refused.sort_by(|a, b| {
+                b.1 .1
+                    .cmp(&a.1 .1)
+                    .then(b.1 .0.cmp(&a.1 .0))
+                    .then(a.0.cmp(b.0))
+            });
+            println!("  refused cards: games it alone is refused in, games it is in");
+            for (card, (n, alone)) in refused.iter().take(top) {
+                println!("{alone:>6} {n:>4}  {card}");
+            }
         }
         let mut reasons: Vec<_> = reasons.into_iter().collect();
         reasons.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(&b.0)));
@@ -745,6 +783,11 @@ mod native {
         followed: usize,
         lines: usize,
         stops: HashMap<String, (usize, String)>,
+        /// Games by how many of their cards the engine refuses.
+        refusing: std::collections::BTreeMap<usize, usize>,
+        /// Each refused card: the games it is in, and those it is the
+        /// only refused card of.
+        refused: HashMap<String, (usize, usize)>,
     }
 
     /// One game's replay, line by line, with what the engine did.
