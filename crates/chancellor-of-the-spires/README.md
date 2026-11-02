@@ -59,6 +59,10 @@ on. Turn-based and state-based actions are never decisions.
   mana its text lets it add), or activate another activated ability
   (`Activate(Activation { source, ability })`), whose costs the engine
   pays as it goes on the stack.
+- `PayOrEnterTapped { player, card, life }`: a shock land's "As this land
+  enters, you may pay 2 life. If you don't, it enters tapped", asked
+  before it enters (CR 614.1c, 614.12a) and only of a player with the life
+  to pay (CR 119.4), answered `PayLife(bool)`.
 - `Search { player, filter, known, hidden }`: a resolving ability searches
   the player's library (CR 701.23a), answered `Find(Found)`: `Nothing`
   (CR 701.23b), a known card, or `Hidden(card, text)`, a hidden card of
@@ -103,8 +107,8 @@ text says, and shuffling (CR 701.23, 701.24a); a basic land
 type's intrinsic mana ability (CR 305.6), which the layers grant after
 layer 4, so Yavimaya's Forests tap for {G}, Blood Moon's Mountains for {R}
 alone (CR 305.7), and a land that loses all abilities for nothing; "enters
-tapped", and "unless you control" a filter, read off the permanent as it
-enters (CR 614.12); mana pools emptying as each step ends (CR 500.5);
+tapped", "unless you control" a filter, and a shock land's life or tapped,
+read off the permanent as it would enter (CR 614.12); mana pools emptying as each step ends (CR 500.5);
 state-based actions whenever a player would get priority (CR 704.3) for 0
 life, drawing from an empty library, toughness 0 or less and the legend
 rule (CR 704.5a–b, 704.5f, 704.5j), and a commander's return to the
@@ -122,24 +126,23 @@ which do nothing until something attacks. A non-mana activated ability
 the engine can't run (a target, a mana cost, a limit, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**31 of Loam's 90 distinct cards are played or cast and resolved, 12 of
+**34 of Loam's 90 distinct cards are played or cast and resolved, 15 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
-Mystic, Command Tower, Karplusan Forest, Yavimaya, and the fetchlands
-Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded Foothills),
-measured 2026-11-02:
+Mystic, Command Tower, Karplusan Forest, Yavimaya, the fetchlands Misty
+Rainforest, Prismatic Vista, Scalding Tarn and Wooded Foothills, and the
+shock lands Breeding Pool, Steam Vents and Stomping Ground), measured
+2026-11-02:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
 node refused. The most refused: a spell's effects (20), triggered
-abilities (16, the commander among them), shock lands' "as this enters"
-(3), additional costs, loyalty, conditional statics and playing lands from
-a graveyard (2 each). `tests/game.rs` scripts the rules above, and plays
+abilities (16, the commander among them), additional costs, loyalty,
+conditional statics and playing lands from a graveyard (2 each). `tests/game.rs` scripts the rules above, and plays
 Loam against a goldfish for six turns, casting what it can.
 
 Not yet: any spell's effect, activated abilities with targets, mana costs,
-limits or effects other than a search for a card, triggers, declaring attackers (the declare blockers and combat
-damage steps aren't in `Step` until something can attack, CR 508.8),
-a land's back face (CR 712), and shock lands' choice as they
-enter. State-based actions that give a choice run one after the other
+limits or effects other than a search for a card, triggers, declaring
+attackers (the declare blockers and combat damage steps aren't in `Step`
+until something can attack, CR 508.8), and a land's back face (CR 712). State-based actions that give a choice run one after the other
 rather than at once (CR 704.3), which nothing can tell apart without
 triggers.
 
@@ -175,7 +178,7 @@ control", "enchanted" and "equipped"; and, as they resolve, `Modify` and
 earthbend. Everything else that changes no characteristic is carried as
 `Ability::Unread` so an effect can still remove it: triggered, activated,
 loyalty and chapter abilities, keywords the model doesn't name, and an
-explicit list of statics (costs, enters tapped, restrictions, replacement
+explicit list of statics (costs, enters tapped, a shock land's choice, restrictions, replacement
 and prevention effects, `lower::not_characteristics`). A reference in a
 static ("its mana value") is read through the `Let` that binds it, and an
 ability carried unread keeps its `Let`, its targets and trigger objects
@@ -183,14 +186,17 @@ bound for the state machine. Any other node is
 refused by name, never dropped. `insight card <name>` shows what a card
 reads as.
 
-**495 of the 574 cards in the Modern metagame lower whole** (521 of 600
-faces), measured 2026-11-01 against the Scryfall bulk file:
+**514 of the 574 cards in the Modern metagame lower whole** (540 of 600
+faces), measured 2026-11-02 against the Scryfall bulk file:
 `cargo test --release -p chancellor-of-the-spires --test coverage -- --ignored --nocapture`
-prints the number and the refusals by node. The most refused are "as this
-enters" (25, a choice, or a copiable effect if it sets a size, CR 613.2a),
-"as long as" (16) and "if" (8), conditions not modelled yet; then 7a's
-characteristic-defining abilities (`SetPt`) and copy effects. Karn
-Liberated and two others don't parse: they are cards with a rule of their
+prints the number and the refusals by node. It was 495 until a shock
+land's "As this land enters, you may pay 2 life" was carried as the choice
+it is, which changes no characteristic: 19 cards. The most refused are "as
+long as" (16) and "if" (8), conditions not modelled yet; then modifying
+by an amount, "as this enters" (6, other choices, or a copiable effect if
+it sets a size, CR 613.2a), 7a's characteristic-defining abilities
+(`SetPt`) and copy effects. Karn Liberated and two others don't parse:
+they are cards with a rule of their
 own, which Insight's headline leaves out.
 
 ## Real games
@@ -258,8 +264,12 @@ it is found, choosing as it chooses a payment: each basic land, the colours
 the player's spells this game need most first, then each land the log
 shows the player playing anywhere in the match (their deck has it), the
 engine refusing any that doesn't match what was searched for; and if a
-later spell can't be paid for, it goes back and finds the next. The game
-it replays is one consistent with the log, not necessarily the one played.
+later spell can't be paid for, it goes back and finds the next. A shock
+land's life is the same: no line says it was paid and life totals aren't
+printed, so the replay doesn't pay and the land enters tapped, unless that
+leaves a later spell unpaid for, when it goes back and pays. Life is paid
+only when something that follows needs the land untapped. The game it
+replays is one consistent with the log, not necessarily the one played.
 
 The first line the engine won't follow ends the game's replay with a
 typed `Stop`: a card refused by the node of its text the engine can't run,
@@ -269,29 +279,29 @@ a kind of line not followed yet (a trigger, an attack). `--game ID` prints one g
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 10 replay to the end** (7 to the log's winner
+**Of 1,061 games replayed, 11 replay to the end** (8 to the log's winner
 line), all of them games that end in the first turn, measured 2026-11-02.
 They are the 1,299 games that parse whole and that Insight reads whole,
 less 238 with no turn in them (empty logs, concessions during the
-mulligans). 857 stop in the first turn, 113 in the second, 7 in the third,
-and 74 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't
-London mulligans, 2 disagree on who started). The 185 games that stopped
-at a fetchland now fetch and stop later, mostly at the first spell with an
-effect or a trigger. The stops, by games: a triggered ability (221, Goblin
-Lackey, Jackal Pup and Champion of the Parish first), a spell's effect
-(163, Duress first), a shock land's "as this enters" (158), a fast land's
-"unless you control two or fewer other lands" (96), a Leyline from the
-opening hand (35), Cloudpost's "for each Locus on the battlefield" (29), a
-conditional static ("if", 24), exalted (23) and a discard the engine
-doesn't ask for (19, cycling's cost). None is the engine disagreeing with
-Magic Online; the one that was, Gaea's Cradle's "Add {G} for each
+mulligans). 824 stop in the first turn, 142 in the second, 9 in the third,
+1 in the fourth, and 74 at the setup (21 logs name one player, 6 begin
+mid-game, 3 aren't London mulligans, 2 disagree on who started). The
+stops, by games: a triggered ability (245, Goblin Lackey, Jackal Pup and
+Champion of the Parish first), a spell's effect (200, Inquisition of
+Kozilek and Duress first), a fast land's "unless you control two or fewer
+other lands" (107), a Leyline from the opening hand (35), Cloudpost's "for
+each Locus on the battlefield" (33), exalted (30), a conditional static
+("if", 25), an exile line not followed (25), a check land's filter with
+alternatives (22) and "as long as" (21). None is the engine disagreeing
+with Magic Online; the one that was, Gaea's Cradle's "Add {G} for each
 creature" not read as a mana ability (CR 605.1a), now pays for Survival of
 the Fittest.
 `tests/replay.rs` replays hand-written logs, a short game to its end and
 the plays that must stop it: a second land, a spell no land pays for, a
-land in the opponent's turn; and a fetchland whose search the replay
-answers again when the first land it found can't pay for a later spell,
-and one the log says found nothing.
+land in the opponent's turn; a fetchland whose search the replay answers
+again when the first land it found can't pay for a later spell, and one
+the log says found nothing; and a shock land paid for only when a spell
+that turn needs it.
 
 ## Speed
 

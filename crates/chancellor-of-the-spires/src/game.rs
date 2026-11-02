@@ -134,8 +134,11 @@ enum Enters {
     /// "This land enters tapped."
     Tapped,
     /// "This land enters tapped unless you control a legendary green
-    /// creature."
-    TappedUnlessYouControl(Filter),
+    /// creature", "… two or fewer other lands", "… a Mountain or a Plains".
+    TappedUnless(lower::YouControl),
+    /// "As this land enters, you may pay 2 life. If you don't, it enters
+    /// tapped."
+    TappedUnlessPaysLife(u32),
 }
 
 /// Why the engine refuses a card: the node of Insight's tree (or the rule)
@@ -371,6 +374,16 @@ enum Waiting {
         then: PlayerId,
         passes: usize,
     },
+    /// CR 614.1c, 614.12a: `card` is about to enter under `player`'s
+    /// control, who may pay `life` or have it enter tapped; then `then`.
+    PayOrEnterTapped {
+        player: PlayerId,
+        card: CardId,
+        life: u32,
+        /// Whether it enters tapped all the same.
+        tapped: bool,
+        then: Then,
+    },
     /// A resolving ability has `player` search their library (CR 701.23a)
     /// for a card `filter` matches, to put onto the battlefield.
     Search {
@@ -430,6 +443,14 @@ pub enum Decision {
     LegendRule {
         player: PlayerId,
         among: Vec<ObjectId>,
+    },
+    /// CR 614.1c, 614.12a: as `card` enters, `player` may pay `life`
+    /// (`Answer::PayLife(true)`); if they don't, it enters tapped. A shock
+    /// land's "As this land enters, you may pay 2 life".
+    PayOrEnterTapped {
+        player: PlayerId,
+        card: CardId,
+        life: u32,
     },
     /// CR 701.23a–b: search your library for a card `filter` matches,
     /// answered with `Answer::Find`. `known` are the library's cards whose
@@ -506,6 +527,9 @@ pub enum Answer {
     Keep(ObjectId),
     /// CR 701.23: what the search found.
     Find(Found),
+    /// CR 614.12a, 119.4: pay the life a permanent's replacement effect
+    /// offers as it enters, or not.
+    PayLife(bool),
 }
 
 #[derive(Debug)]
@@ -919,6 +943,13 @@ impl Game {
                 player: *player,
                 among: among.clone(),
             },
+            Waiting::PayOrEnterTapped {
+                player, card, life, ..
+            } => Decision::PayOrEnterTapped {
+                player: *player,
+                card: *card,
+                life: *life,
+            },
             Waiting::Search { player, filter, .. } => {
                 let library = &self.player(*player).library;
                 Decision::Search {
@@ -1038,6 +1069,22 @@ impl Game {
                     self.put_in_graveyard(*id);
                 }
                 self.give_priority(then, passes);
+            }
+            (
+                Waiting::PayOrEnterTapped {
+                    player,
+                    card,
+                    life,
+                    tapped,
+                    then,
+                },
+                Answer::PayLife(pay),
+            ) => {
+                if *pay {
+                    // CR 119.4.
+                    self.players[player.0 as usize].life -= life as i32;
+                }
+                self.place(card, player, tapped || !pay, then);
             }
             (
                 Waiting::Search {
@@ -1546,45 +1593,96 @@ impl Game {
     /// off the permanent as it would exist on the battlefield (CR 614.12),
     /// so a land that enters having lost its abilities enters untapped.
     fn enter(&mut self, card: CardId, controller: PlayerId, put_tapped: bool, then: Then) {
-        let known = match &self.cards[card.0 as usize].face {
-            Face::Known(k) => Arc::clone(k),
-            Face::Hidden => unreachable!("only a known card enters"),
-        };
-        let runs = known.runs.as_ref().expect("only a card that runs enters");
+        let (tapped, pays) = self.entering(card, controller);
+        let tapped = tapped || put_tapped;
+        match pays {
+            // CR 614.12a: the choice is made before it enters. Paying is
+            // a choice even when something else has it enter tapped.
+            Some(life) if self.player(controller).life >= life as i32 => {
+                self.waiting = Waiting::PayOrEnterTapped {
+                    player: controller,
+                    card,
+                    life,
+                    tapped,
+                    then,
+                };
+            }
+            // CR 119.4: unable to pay the life, so nothing to choose.
+            Some(_) => self.place(card, controller, true, then),
+            None => self.place(card, controller, tapped, then),
+        }
+    }
+
+    /// Which of the card's own replacement effects on how it enters apply,
+    /// read off the permanent as it would exist on the battlefield (CR
+    /// 614.12): whether one has it enter tapped, and the life one offers to
+    /// pay instead. A condition counts the permanents its controller
+    /// controls, never itself, since it isn't on the battlefield yet.
+    fn entering(&self, card: CardId, controller: PlayerId) -> (bool, Option<u32>) {
+        let runs = self.runs_of(card);
         let mut chars = runs.lowered.chars.clone();
         chars.controller = controller;
-        let id = self.battlefield.enter(chars, runs.lowered.statics.clone());
+        let mut would = self.battlefield.clone();
+        let id = would.enter(chars, runs.lowered.statics.clone());
+        let now = characteristics(&would);
+        let me = &now[&id];
+        let holds = |cond: &lower::YouControl| {
+            let n = now
+                .iter()
+                .filter(|(o, c)| {
+                    **o != id
+                        && c.controller == controller
+                        && cond.any_of.iter().any(|f| {
+                            f.matches(&Seen {
+                                id: **o,
+                                chars: c,
+                                source: id,
+                                source_chars: me,
+                                source_attached_to: None,
+                                token: would.objects[*o].token,
+                            })
+                        })
+                })
+                .count();
+            cond.count.holds(n as u32)
+        };
+        let mut tapped = false;
+        let mut pays = None;
+        for (n, e) in &runs.enters {
+            if !me.abilities.contains(&Ability::Unread(*n)) {
+                continue;
+            }
+            match e {
+                Enters::Tapped => tapped = true,
+                Enters::TappedUnless(cond) => tapped |= !holds(cond),
+                Enters::TappedUnlessPaysLife(life) => pays = Some(*life),
+            }
+        }
+        (tapped, pays)
+    }
+
+    fn runs_of(&self, card: CardId) -> &Runnable {
+        match &self.cards[card.0 as usize].face {
+            Face::Known(k) => k.runs.as_ref().expect("only a card that runs enters"),
+            Face::Hidden => unreachable!("only a known card enters"),
+        }
+    }
+
+    /// The card is put onto the battlefield, a new object (CR 400.7).
+    fn place(&mut self, card: CardId, controller: PlayerId, tapped: bool, then: Then) {
+        let runs = self.runs_of(card);
+        let mut chars = runs.lowered.chars.clone();
+        chars.controller = controller;
+        let statics = runs.lowered.statics.clone();
+        let id = self.battlefield.enter(chars, statics);
         self.permanents.insert(
             id,
             Permanent {
                 card,
-                tapped: false,
+                tapped,
                 since: self.turn,
             },
         );
-        let now = self.characteristics();
-        let has = &now[&id].abilities;
-        let tapped = runs.enters.iter().any(|(n, e)| {
-            has.contains(&Ability::Unread(*n))
-                && match e {
-                    Enters::Tapped => true,
-                    Enters::TappedUnlessYouControl(filter) => !now.iter().any(|(o, c)| {
-                        *o != id
-                            && c.controller == controller
-                            && filter.matches(&Seen {
-                                id: *o,
-                                chars: c,
-                                source: *o,
-                                source_chars: c,
-                                source_attached_to: None,
-                                token: self.battlefield.objects[o].token,
-                            })
-                    }),
-                }
-        });
-        if let Some(perm) = self.permanents.get_mut(&id) {
-            perm.tapped = tapped || put_tapped;
-        }
         self.proceed(then);
     }
 
@@ -2044,9 +2142,19 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
         [i::Static::EntersTappedUnless {
             what,
             unless: i::Condition::YouControl(objects),
-        }] if itself(what) => Ok(Enters::TappedUnlessYouControl(lower::condition_objects(
-            objects,
-        )?)),
+        }] if itself(what) => {
+            let c = lower::you_control(objects)?;
+            if c.count != lower::Count::AtLeast(1) {
+                return Err(format!("a condition on {}", short(&objects.quant)));
+            }
+            if c.any_of.len() > 1 {
+                return Err("a filter with alternatives".into());
+            }
+            Ok(Enters::TappedUnless(c))
+        }
+        [i::Static::AsEnters { what, then }] if itself(what) => lower::pays_life_or_tapped(then)
+            .map(Enters::TappedUnlessPaysLife)
+            .ok_or_else(|| "AsEnters".to_string()),
         [one] => Err(short(one)),
         _ => Err("a static ability of several parts".into()),
     }

@@ -28,7 +28,13 @@ fn bears() -> CardText {
 }
 
 /// The real cards the logs here name beyond these, from the card index.
-const INDEXED: &[&str] = &["Mountain", "Swamp", "Wooded Foothills", "Raging Goblin"];
+const INDEXED: &[&str] = &[
+    "Mountain",
+    "Swamp",
+    "Wooded Foothills",
+    "Raging Goblin",
+    "Stomping Ground",
+];
 
 fn index() -> &'static IndexFile {
     static INDEX: OnceLock<IndexFile> = OnceLock::new();
@@ -328,4 +334,42 @@ fn a_search_the_log_says_failed_finds_nothing() {
             card: "Grizzly Bears".into()
         })
     );
+}
+
+/// CR 614.12a, 119.4: the log never says whether a shock land's 2 life was
+/// paid. The replay doesn't pay, so Stomping Ground enters tapped, unless
+/// a spell that turn can't be paid for otherwise: here Raging Goblin, cast
+/// off it the turn it is played, so the replay goes back and pays.
+#[test]
+fn a_shock_land_is_paid_for_only_when_what_follows_needs_it() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Stomping Ground].
+        alice casts [Raging Goblin].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    assert!(r
+        .trace
+        .iter()
+        .any(|t| t.did == "chose again: paid 2 life for Stomping Ground to enter untapped"));
+    assert_eq!(r.game.unwrap().player(ALICE).life(), 18);
+
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Stomping Ground].
+        Turn 1: bob
+        bob plays [Island].
+        Turn 2: alice
+        alice casts [Raging Goblin].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    assert!(r
+        .trace
+        .iter()
+        .any(|t| t.did == "Stomping Ground enters tapped, no life paid"));
+    assert_eq!(r.game.unwrap().player(ALICE).life(), 20);
 }

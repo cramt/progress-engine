@@ -192,10 +192,45 @@ fn resolve<'a>(o: &'a Objects, scope: &'a [Objects]) -> Result<&'a Objects, Stri
 /// costs, permissions, replacement and prevention effects, and effects on
 /// players (CR 613.10–11, 614, 615, 601.2f). The layers carry them unread.
 /// What isn't listed may change one, so lowering it is refused rather than
-/// carried, and a characteristic is never dropped. "As this enters" isn't
-/// here: setting power and toughness as it enters is a copiable effect,
-/// layer 1 (CR 613.2a).
+/// carried, and a characteristic is never dropped. "As this enters" is
+/// here only as a shock land's choice: setting power and toughness as it
+/// enters is a copiable effect, layer 1 (CR 613.2a).
 fn not_characteristics(s: &i::Static) -> bool {
+    use i::Static::*;
+    match s {
+        AsEnters { what, then } => {
+            what.quant == Quant::SelfRef && pays_life_or_tapped(then).is_some()
+        }
+        _ => listed_not_characteristics(s),
+    }
+}
+
+/// "As this land enters, you may pay 2 life. If you don't, it enters
+/// tapped": the life, for a replacement effect whose choice is made before
+/// the permanent enters (CR 614.1c, 614.12a).
+pub fn pays_life_or_tapped(then: &[i::Effect]) -> Option<u32> {
+    match then {
+        [i::Effect::May {
+            who: i::Player::You,
+            then: pay,
+        }, i::Effect::IfYouDont(otherwise)] => match (pay.as_slice(), otherwise.as_slice()) {
+            (
+                [i::Effect::Pay {
+                    who: i::Player::You,
+                    cost,
+                }],
+                [i::Effect::EntersTapped(o)],
+            ) if o.quant == Quant::SelfRef => match cost.as_slice() {
+                [i::Cost::PayLife(i::Amount::N(n))] => Some(*n),
+                _ => None,
+            },
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn listed_not_characteristics(s: &i::Static) -> bool {
     use i::Static::*;
     matches!(
         s,
@@ -565,24 +600,67 @@ fn fixed(p: &IPt) -> Option<Pt> {
     }
 }
 
-/// "a legendary green creature" in "unless you control …": a filter over
-/// the battlefield read once, as the condition is checked. Nothing is the
-/// condition's source, so "other" and "this" are refused.
-pub fn condition_objects(o: &Objects) -> Result<Filter, String> {
-    if o.quant != Quant::One {
-        return Err(format!("a condition on {}", short(&o.quant)));
+/// "You control a Mountain or a Plains", "you control two or fewer other
+/// lands": how many of the permanents you control match any of the
+/// filters, read once, as the condition is checked.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct YouControl {
+    pub any_of: Vec<Filter>,
+    pub count: Count,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Count {
+    AtLeast(u32),
+    AtMost(u32),
+}
+
+impl Count {
+    pub fn holds(self, n: u32) -> bool {
+        match self {
+            Count::AtLeast(k) => n >= k,
+            Count::AtMost(k) => n <= k,
+        }
     }
-    let f = objects(&Objects {
-        quant: Quant::All,
-        filter: o.filter.clone(),
-    })?;
-    if f.0
+}
+
+/// "a legendary green creature", "two or more basic lands", "a Mountain
+/// or a Plains" in "unless you control …". Its source is the permanent
+/// the condition is about, so "other" is relative to it; "this" and
+/// "enchanted" are refused.
+pub fn you_control(o: &Objects) -> Result<YouControl, String> {
+    let count = match o.quant {
+        Quant::One => Count::AtLeast(1),
+        Quant::AtLeast(i::Amount::N(n)) => Count::AtLeast(n),
+        Quant::AtMost(i::Amount::N(n)) => Count::AtMost(n),
+        ref q => return Err(format!("a condition on {}", short(q))),
+    };
+    if o.filter.kind.is_some() || o.filter.or.is_some() {
+        return Err("a filter over a kind of object".into());
+    }
+    let any_of = o
+        .filter
+        .alts
         .iter()
-        .any(|p| matches!(p, Pred::Other | Pred::Itself | Pred::AttachedTo))
+        .map(|alt| {
+            objects(&Objects {
+                quant: Quant::All,
+                filter: i::Filter {
+                    alts: vec![alt.clone()],
+                    posts: o.filter.posts.clone(),
+                    ..i::Filter::default()
+                },
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if any_of
+        .iter()
+        .flat_map(|f| &f.0)
+        .any(|p| matches!(p, Pred::Itself | Pred::AttachedTo))
     {
         return Err("a condition relative to its source".into());
     }
-    Ok(f)
+    Ok(YouControl { any_of, count })
 }
 
 /// "for each creature you control": the permanents counted, read from the

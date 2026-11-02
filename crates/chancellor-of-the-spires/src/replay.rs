@@ -750,6 +750,7 @@ impl Driver<'_> {
                 hidden,
                 ..
             } => self.search(player, known, hidden),
+            Decision::PayOrEnterTapped { card, life, .. } => self.pay_or_tap(card, life),
             d @ (Decision::Pay { .. } | Decision::Mulligan { .. } | Decision::Bottom { .. }) => {
                 unreachable!("the replay answers {d:?} where it arises")
             }
@@ -832,6 +833,15 @@ impl Driver<'_> {
                         };
                         if actions.contains(&wanted) {
                             return Ok(c);
+                        }
+                        // One it refuses is never offered: no waiting for
+                        // the turn to end.
+                        if let Some(r) = self.game().refusal(c) {
+                            return Err(Stop::Refused {
+                                card: name.to_string(),
+                                node: r.node,
+                                why: r.why,
+                            });
                         }
                     }
                 }
@@ -992,6 +1002,34 @@ impl Driver<'_> {
         Ok(())
     }
 
+    /// A shock land's choice, which the log never shows: no line says
+    /// life was paid, and life totals aren't printed. The replay doesn't
+    /// pay, so the land enters tapped, unless that leaves a later spell
+    /// that can't be paid for; then it goes back and pays. Paying is only
+    /// ever chosen because something that follows needs it.
+    fn pay_or_tap(&mut self, card: CardId, life: u32) -> Followed {
+        let name = self
+            .game()
+            .card(card)
+            .map(|t| t.name.clone())
+            .unwrap_or_default();
+        let game = self.game().clone();
+        self.checkpoints.push(Checkpoint {
+            game,
+            entry: self.at,
+            trace: self.trace.len(),
+            resume: self.at,
+            others: vec![Retry::Answer(
+                Answer::PayLife(true),
+                format!("paid {life} life for {name} to enter untapped"),
+            )],
+        });
+        self.act(Answer::PayLife(false))?;
+        let at = self.at;
+        self.did(at, format!("{name} enters tapped, no life paid"));
+        Ok(())
+    }
+
     /// The payments the solver finds for the spell being cast, best first.
     fn payments(&mut self) -> Result<Vec<Vec<ManaActivation>>, Stop> {
         let game = self.game();
@@ -1020,7 +1058,9 @@ impl Driver<'_> {
             }
             match self.game().decision() {
                 Decision::Discard { player, count, .. } if player == p => break count,
-                Decision::Priority { .. } | Decision::Search { .. } => self.pass()?,
+                Decision::Priority { .. }
+                | Decision::Search { .. }
+                | Decision::PayOrEnterTapped { .. } => self.pass()?,
                 _ => {
                     return Err(Stop::Diverged(Divergence::NeverOffered {
                         what: "a discard".into(),

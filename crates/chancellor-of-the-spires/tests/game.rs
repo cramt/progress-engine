@@ -102,6 +102,14 @@ fn act(game: &mut Game, a: Action) -> Decision {
     game.step(Answer::Act(a)).unwrap_or_else(|e| panic!("{e}"))
 }
 
+/// The goldfish pilot's answer to a shock land: the simplest, not paying,
+/// so it enters tapped.
+fn enter_unpaid(game: &mut Game) {
+    if let Decision::PayOrEnterTapped { .. } = game.decision() {
+        game.step(Answer::PayLife(false)).unwrap();
+    }
+}
+
 fn land_in_hand(game: &Game, p: PlayerId) -> CardId {
     *game.player(p).hand().iter().next().expect("a card in hand")
 }
@@ -792,6 +800,7 @@ fn pilot_main_phase(game: &mut Game, refused: &mut BTreeSet<String>) -> Vec<Stri
     for land in lands {
         match game.step(Answer::Act(Action::PlayLand(land))) {
             Ok(_) => {
+                enter_unpaid(game);
                 did.push(game.card(land).unwrap().name.clone());
                 break;
             }
@@ -853,13 +862,14 @@ fn loam_goldfished_casts_what_it_can() {
             vec!["Scalding Tarn"],
             vec!["Mountain"],
             vec!["Command Beacon"],
-            vec![],
+            // Unpaid, it enters tapped (CR 614.12a).
+            vec!["Breeding Pool"],
         ]
     );
     // Trade Routes' {U} came from Cephalid Coliseum, which dealt me 1
     // damage (CR 120.3a).
     assert_eq!(game.player(ME).life(), 39);
-    assert_eq!(game.permanents().len(), 6);
+    assert_eq!(game.permanents().len(), 7);
     assert_eq!(game.player(THEM).lands_played(), 0);
     assert!(refused
         .iter()
@@ -919,6 +929,7 @@ fn loam_coverage() {
             my_next_main(&mut game);
             if land {
                 act(&mut game, Action::PlayLand(target));
+                enter_unpaid(&mut game);
                 done = permanent(&game, target).is_some();
                 break;
             }
@@ -941,6 +952,7 @@ fn loam_coverage() {
                 .min_by_key(|l| have(&game.card(**l).unwrap().name))
             {
                 act(&mut game, Action::PlayLand(*l));
+                enter_unpaid(&mut game);
             }
             if !actions(&game).contains(&Action::Cast(target)) {
                 continue;
@@ -981,7 +993,7 @@ fn loam_coverage() {
     }
     assert_eq!(cards.len(), 90);
     // The README's number: a change that moves it updates it there.
-    assert_eq!((runs.len(), whole.len()), (31, 12));
+    assert_eq!((runs.len(), whole.len()), (34, 15));
 }
 
 fn hidden(n: usize) -> DeckCards {
@@ -1221,4 +1233,71 @@ fn a_search_may_find_nothing_and_evolving_wilds_puts_its_land_in_tapped() {
             None => assert!(!find),
         }
     }
+}
+
+/// Name a hidden card in my hand and play it, in my next main phase.
+fn play_named(game: &mut Game, name: &str) -> ObjectId {
+    my_next_main(game);
+    let c = name_in_hand(game, ME, name);
+    act(game, Action::PlayLand(c));
+    permanent(game, c).expect("on the battlefield")
+}
+
+fn tapped(game: &Game, id: ObjectId) -> bool {
+    game.permanents()[&id].tapped
+}
+
+/// CR 614.1c, 614.12a, 119.4: as a shock land enters I choose, before it
+/// is on the battlefield, to pay 2 life or have it enter tapped.
+#[test]
+fn a_shock_land_enters_untapped_for_2_life_or_tapped() {
+    for pay in [true, false] {
+        let mut game = constructed(vec![hidden(20), forests(20)], false);
+        my_next_main(&mut game);
+        let c = name_in_hand(&mut game, ME, "Stomping Ground");
+        let d = act(&mut game, Action::PlayLand(c));
+        assert_eq!(
+            d,
+            Decision::PayOrEnterTapped {
+                player: ME,
+                card: c,
+                life: 2
+            }
+        );
+        assert_eq!(permanent(&game, c), None, "chosen before it enters");
+        let d = game.step(Answer::PayLife(pay)).unwrap();
+        assert_eq!(priority(&d).0, ME);
+        let id = permanent(&game, c).unwrap();
+        assert_eq!(tapped(&game, id), !pay);
+        assert_eq!(game.player(ME).life(), if pay { 18 } else { 20 });
+    }
+}
+
+/// CR 608.2c, 614.12a: a shock land a fetchland finds asks its choice as
+/// it enters, partway through the ability's resolution, and the ability
+/// goes on after it: the library shuffled and the active player given
+/// priority.
+#[test]
+fn a_shock_land_found_by_a_fetchland_asks_as_it_enters() {
+    let mut game = constructed(vec![hidden(20), forests(20)], false);
+    let fetch = play_named(&mut game, "Wooded Foothills");
+    let a = the_activation(&game, fetch);
+    act(&mut game, Action::Activate(a));
+    assert!(matches!(
+        resolve_to_decision(&mut game),
+        Decision::Search { .. }
+    ));
+    let c = game.player(ME).library()[0];
+    let d = game
+        .step(Answer::Find(Found::Hidden(
+            c,
+            Box::new(card("Stomping Ground")),
+        )))
+        .unwrap();
+    assert!(matches!(d, Decision::PayOrEnterTapped { card, .. } if card == c));
+    let d = game.step(Answer::PayLife(true)).unwrap();
+    assert_eq!(priority(&d).0, ME);
+    assert!(game.stack().is_empty());
+    assert_eq!(game.player(ME).life(), 17);
+    assert!(!tapped(&game, permanent(&game, c).unwrap()));
 }
