@@ -5,7 +5,8 @@
 //! the next. A game replays from its seed and its answers.
 //!
 //! So far: mulligans, the turn's steps with priority, playing lands,
-//! casting spells and paying their mana, mana abilities, the stack and
+//! casting spells and paying their mana, mana abilities, activated
+//! abilities on the stack (so far the fetchlands' search), the stack and
 //! resolving permanent spells, commander tax, drawing, discarding to hand
 //! size, and the state-based actions for life, an empty library, toughness
 //! and a commander's return. No spell's effect runs yet, no trigger, and no
@@ -34,7 +35,7 @@ use vivisurgeons_insight::ast as i;
 
 use crate::deck::{CardText, DeckCards};
 use crate::layers::characteristics;
-use crate::lower::{self, Lowered, Refusal};
+use crate::lower::{self, Activated, CardFilter, Effect, Lowered, Refusal};
 use crate::mana::{self as m, short};
 pub use crate::mana::{Mana, ManaCost, ManaPool, Shard};
 use crate::model::{
@@ -77,20 +78,39 @@ enum Face {
 /// it.
 struct Known {
     text: CardText,
+    /// Its printed characteristics, if the layers can read them, whether or
+    /// not the game runs the rest of it: what a search matches.
+    printed: Option<Chars>,
     runs: Result<Runnable, Unrunnable>,
     cost: Result<Option<ManaCost>, Unrunnable>,
 }
 
 impl Known {
     fn read(text: CardText) -> Known {
-        let runs = text
+        let lowered = text
             .as_card()
             .map_err(|why| Unrunnable::new("a multi-faced card", why))
-            .and_then(|c| lower::card(&c).map_err(unlowered))
-            .and_then(runnable);
+            .and_then(|c| lower::card(&c).map_err(unlowered));
+        let printed = lowered.as_ref().ok().map(|l| l.chars.clone());
+        let runs = lowered.and_then(runnable);
         let cost =
             ManaCost::parse(&text.mana_cost).map_err(|why| Unrunnable::new(why.clone(), why));
-        Known { text, runs, cost }
+        Known {
+            text,
+            printed,
+            runs,
+            cost,
+        }
+    }
+
+    /// Whether a search for `filter` finds this card: Ok if it matches and
+    /// the engine can put it onto the battlefield, the refusal if it
+    /// matches and the engine can't, and `Ok(false)` if it doesn't match.
+    fn found_by(&self, filter: &CardFilter) -> Result<bool, Unrunnable> {
+        if !self.printed.as_ref().is_some_and(|c| filter.matches(c)) {
+            return Ok(false);
+        }
+        self.runs.as_ref().map(|_| true).map_err(Clone::clone)
     }
 }
 
@@ -100,6 +120,9 @@ impl Known {
 struct Runnable {
     lowered: Lowered,
     mana: BTreeMap<u16, m::ManaAbility>,
+    /// Its other activated abilities (CR 602): the ones the engine runs,
+    /// and why it can't run the rest, which are never offered.
+    activated: BTreeMap<u16, Result<Activated, Unrunnable>>,
     enters: BTreeMap<u16, Enters>,
     flash: bool,
     /// The abilities it carries that nothing offers to activate yet.
@@ -240,13 +263,55 @@ pub struct Permanent {
     pub since: u32,
 }
 
-/// What can be on the stack (CR 405.1): spells so far, since no ability
-/// other than a mana ability is activated and nothing triggers.
+/// What can be on the stack (CR 405.1): spells, and activated abilities
+/// other than mana abilities. Nothing triggers yet.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StackObject {
     /// A card on the stack (CR 112.1), controlled by who cast it (CR
     /// 601.2a).
     Spell { card: CardId, controller: PlayerId },
+    /// An activated ability (CR 602.2a): the card whose ability it is, by
+    /// its index among that card's unread abilities, and who activated
+    /// it. It exists independently of its source (CR 113.7a), so a source
+    /// sacrificed to pay for it changes nothing.
+    Ability {
+        source: CardId,
+        ability: u16,
+        controller: PlayerId,
+    },
+}
+
+/// Where an ability's resolution stands when it stops for a choice: the
+/// ability, and the instruction after the one being followed (CR 608.2c).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Resuming {
+    source: CardId,
+    ability: u16,
+    controller: PlayerId,
+    next: usize,
+}
+
+/// What happens once a permanent has entered.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Then {
+    /// This player gets priority (CR 117.3b, 117.3c).
+    Priority(PlayerId),
+    /// The resolving ability goes on.
+    Resume(Resuming),
+}
+
+/// What a search found (CR 701.23).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Found {
+    /// Nothing: a search for a card with a stated quality needn't find one
+    /// (CR 701.23b).
+    Nothing,
+    /// A card of the library whose name is known.
+    Card(CardId),
+    /// A hidden card of the library, named as it is found: it was some
+    /// card all along, and nothing in the game could tell which until now
+    /// (`game`'s "Hidden cards"). It must match what was searched for.
+    Hidden(CardId, Box<CardText>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -306,6 +371,14 @@ enum Waiting {
         then: PlayerId,
         passes: usize,
     },
+    /// A resolving ability has `player` search their library (CR 701.23a)
+    /// for a card `filter` matches, to put onto the battlefield.
+    Search {
+        player: PlayerId,
+        filter: CardFilter,
+        tapped: bool,
+        resume: Resuming,
+    },
     Over(Outcome),
 }
 
@@ -358,7 +431,24 @@ pub enum Decision {
         player: PlayerId,
         among: Vec<ObjectId>,
     },
+    /// CR 701.23a–b: search your library for a card `filter` matches,
+    /// answered with `Answer::Find`. `known` are the library's cards whose
+    /// names are known that match; any of its `hidden` cards might too.
+    Search {
+        player: PlayerId,
+        filter: CardFilter,
+        known: Vec<CardId>,
+        hidden: usize,
+    },
     Over(Outcome),
+}
+
+/// Activating an activated ability that isn't a mana ability (CR 602):
+/// `source`'s `ability`, among those the layers say it has now.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Activation {
+    pub source: ObjectId,
+    pub ability: Ability,
 }
 
 /// Activating a mana ability, and the mana it adds of the ways its text
@@ -383,6 +473,9 @@ pub enum Action {
     Cast(CardId),
     /// A mana ability, which doesn't use the stack (CR 605.3b).
     Mana(ManaActivation),
+    /// Any other activated ability, which goes on the stack (CR 602.2,
+    /// 117.1b).
+    Activate(Activation),
 }
 
 /// What a player paying a spell's cost can do.
@@ -411,6 +504,8 @@ pub enum Answer {
     CommandZone(bool),
     /// CR 704.5j: the legendary permanent kept.
     Keep(ObjectId),
+    /// CR 701.23: what the search found.
+    Find(Found),
 }
 
 #[derive(Debug)]
@@ -824,7 +919,27 @@ impl Game {
                 player: *player,
                 among: among.clone(),
             },
+            Waiting::Search { player, filter, .. } => {
+                let library = &self.player(*player).library;
+                Decision::Search {
+                    player: *player,
+                    filter: filter.clone(),
+                    known: library
+                        .iter()
+                        .copied()
+                        .filter(|c| self.finds(*c, filter))
+                        .collect(),
+                    hidden: library.iter().filter(|c| self.known(**c).is_none()).count(),
+                }
+            }
         }
+    }
+
+    /// Whether `filter` matches this card, which must be known and one the
+    /// engine can put onto the battlefield.
+    fn finds(&self, c: CardId, filter: &CardFilter) -> bool {
+        self.known(c)
+            .is_some_and(|k| k.found_by(filter) == Ok(true))
     }
 
     /// Answer the decision and run on to the next one. An answer that isn't
@@ -924,6 +1039,64 @@ impl Game {
                 }
                 self.give_priority(then, passes);
             }
+            (
+                Waiting::Search {
+                    player,
+                    filter,
+                    tapped,
+                    resume,
+                },
+                Answer::Find(found),
+            ) => {
+                let library = &self.player(player).library;
+                // What it is, if it is in the library and its name known
+                // or given now for a hidden card.
+                let read = match found {
+                    Found::Nothing => None,
+                    Found::Card(c) if library.contains(c) => match self.known(*c) {
+                        Some(_) => Some((*c, None)),
+                        None => return Err(Rejected::Illegal(answer)),
+                    },
+                    Found::Hidden(c, text) if library.contains(c) && self.known(*c).is_none() => {
+                        Some((*c, Some(Arc::new(Known::read((**text).clone())))))
+                    }
+                    _ => return Err(Rejected::Illegal(answer)),
+                };
+                let card = match read {
+                    None => None,
+                    Some((c, named)) => {
+                        let known =
+                            named
+                                .clone()
+                                .unwrap_or_else(|| match &self.cards[c.0 as usize].face {
+                                    Face::Known(k) => Arc::clone(k),
+                                    Face::Hidden => unreachable!("checked known"),
+                                });
+                        match known.found_by(&filter) {
+                            Ok(true) => {}
+                            Ok(false) => return Err(Rejected::Illegal(answer)),
+                            Err(refusal) => {
+                                return Err(Rejected::Refused {
+                                    card: known.text.name.clone(),
+                                    refusal,
+                                })
+                            }
+                        }
+                        if let Some(named) = named {
+                            self.cards[c.0 as usize].face = Face::Known(named);
+                        }
+                        Some(c)
+                    }
+                };
+                let then = Then::Resume(resume);
+                match card {
+                    Some(c) => {
+                        self.players[player.0 as usize].library.retain(|x| *x != c);
+                        self.enter(c, player, tapped, then);
+                    }
+                    None => self.proceed(then),
+                }
+            }
             _ => return Err(Rejected::Illegal(answer)),
         }
         Ok(self.decision())
@@ -964,7 +1137,57 @@ impl Game {
             }
         }
         actions.extend(self.mana_activations(p).into_iter().map(Action::Mana));
+        actions.extend(self.activations(p).into_iter().map(Action::Activate));
         actions
+    }
+
+    /// Every activated ability other than a mana ability `p` can activate
+    /// now (CR 117.1b), costs they can pay (CR 118.3, 119.4) and all.
+    fn activations(&self, p: PlayerId) -> Vec<Activation> {
+        let player = self.player(p);
+        let mut out = Vec::new();
+        for (id, chars) in self.characteristics() {
+            if chars.controller != p {
+                continue;
+            }
+            let perm = &self.permanents[&id];
+            let Some(runs) = self.known(perm.card).and_then(|k| k.runs.as_ref().ok()) else {
+                continue;
+            };
+            for ability in &chars.abilities {
+                let Ability::Unread(n) = ability else {
+                    continue;
+                };
+                let Some(Ok(def)) = runs.activated.get(n) else {
+                    continue;
+                };
+                // CR 602.5a.
+                let sick = chars.is(CardType::Creature)
+                    && !chars.abilities.contains(&Ability::Keyword(Keyword::Haste))
+                    && player.turn_began.is_none_or(|t| perm.since >= t);
+                if def.cost.tap && (perm.tapped || sick)
+                    || def.cost.life > 0 && player.life < def.cost.life as i32
+                {
+                    continue;
+                }
+                out.push(Activation {
+                    source: id,
+                    ability: *ability,
+                });
+            }
+        }
+        out
+    }
+
+    /// Why the engine never offers any of this card's activated abilities
+    /// other than mana abilities: the first it can't run, or `None` if it
+    /// runs one of them (or has none).
+    pub fn activation_refusal(&self, c: CardId) -> Option<Unrunnable> {
+        match &self.known(c)?.runs {
+            Err(r) => Some(r.clone()),
+            Ok(runs) if runs.activated.values().any(Result::is_ok) => None,
+            Ok(runs) => runs.activated.values().find_map(|a| a.clone().err()),
+        }
     }
 
     /// CR 117.1a, 304.1, 702.8a: an instant, or a card with flash.
@@ -1086,13 +1309,46 @@ impl Game {
                 let player = &mut self.players[p.0 as usize];
                 player.hand.retain(|c| *c != card);
                 player.lands_played += 1;
-                self.enter(card, p);
                 // CR 117.3c.
-                self.give_priority(p, 0);
+                self.enter(card, p, false, Then::Priority(p));
             }
             Action::Cast(card) => self.cast(p, card)?,
             Action::Mana(a) => {
                 self.activate(p, a);
+                // CR 117.3c.
+                self.give_priority(p, 0);
+            }
+            Action::Activate(a) => {
+                let card = self.permanents[&a.source].card;
+                let Ability::Unread(n) = a.ability else {
+                    unreachable!("only an unread ability is offered to activate")
+                };
+                let Some(Ok(def)) = self
+                    .known(card)
+                    .and_then(|k| k.runs.as_ref().ok())
+                    .and_then(|r| r.activated.get(&n))
+                else {
+                    unreachable!("only an ability that runs is offered")
+                };
+                let cost = def.cost.clone();
+                // CR 602.2a: on the stack first, then its costs paid (CR
+                // 602.2b, 601.2h), which need no choice.
+                self.stack.push_back(StackObject::Ability {
+                    source: card,
+                    ability: n,
+                    controller: p,
+                });
+                if cost.tap {
+                    if let Some(perm) = self.permanents.get_mut(&a.source) {
+                        perm.tapped = true;
+                    }
+                }
+                // CR 119.4.
+                self.players[p.0 as usize].life -= cost.life as i32;
+                if cost.sacrifice {
+                    // CR 701.21a.
+                    self.put_in_graveyard(a.source);
+                }
                 // CR 117.3c.
                 self.give_priority(p, 0);
             }
@@ -1211,28 +1467,85 @@ impl Game {
     /// The top of the stack resolves (CR 608), and the active player gets
     /// priority (CR 117.3b).
     fn resolve_top(&mut self) {
-        if let Some(StackObject::Spell { card, controller }) = self.stack.pop_back() {
-            let permanent = self
-                .known(card)
-                .and_then(|k| k.runs.as_ref().ok())
-                .is_some_and(|r| is_permanent(&r.lowered.chars));
-            if permanent {
-                // CR 608.3a.
-                self.enter(card, controller);
-            } else {
-                // CR 608.2n. Only a spell with no instructions gets here.
-                let owner = self.owner(card);
-                self.players[owner.0 as usize].graveyard.push_back(card);
+        let then = Then::Priority(self.active);
+        match self.stack.pop_back() {
+            Some(StackObject::Spell { card, controller }) => {
+                let permanent = self
+                    .known(card)
+                    .and_then(|k| k.runs.as_ref().ok())
+                    .is_some_and(|r| is_permanent(&r.lowered.chars));
+                if permanent {
+                    // CR 608.3a.
+                    self.enter(card, controller, false, then);
+                } else {
+                    // CR 608.2n. Only a spell with no instructions gets here.
+                    let owner = self.owner(card);
+                    self.players[owner.0 as usize].graveyard.push_back(card);
+                    self.proceed(then);
+                }
+            }
+            Some(StackObject::Ability {
+                source,
+                ability,
+                controller,
+            }) => self.follow(Resuming {
+                source,
+                ability,
+                controller,
+                next: 0,
+            }),
+            None => self.proceed(then),
+        }
+    }
+
+    /// Follow a resolving ability's instructions in order from `at.next`
+    /// (CR 608.2c), stopping at one that asks for a choice; then the
+    /// ability is done and the active player gets priority (CR 117.3b).
+    fn follow(&mut self, at: Resuming) {
+        let Some(Ok(def)) = self
+            .known(at.source)
+            .and_then(|k| k.runs.as_ref().ok())
+            .and_then(|r| r.activated.get(&at.ability))
+        else {
+            unreachable!("only an ability that runs is activated")
+        };
+        let effects = def.effects.clone();
+        let p = at.controller;
+        for (k, e) in effects.into_iter().enumerate().skip(at.next) {
+            match e {
+                Effect::SearchToBattlefield { filter, tapped } => {
+                    self.waiting = Waiting::Search {
+                        player: p,
+                        filter,
+                        tapped,
+                        resume: Resuming { next: k + 1, ..at },
+                    };
+                    return;
+                }
+                // CR 701.24a.
+                Effect::Shuffle => {
+                    let mut library = std::mem::take(&mut self.players[p.0 as usize].library);
+                    self.rng.shuffle(&mut library);
+                    self.players[p.0 as usize].library = library;
+                }
             }
         }
         self.give_priority(self.active, 0);
     }
 
-    /// The card enters the battlefield under `controller`'s control, tapped
-    /// if its own replacement effect says so. Which of those apply is read
+    fn proceed(&mut self, then: Then) {
+        match then {
+            Then::Priority(p) => self.give_priority(p, 0),
+            Then::Resume(at) => self.follow(at),
+        }
+    }
+
+    /// The card enters the battlefield under `controller`'s control,
+    /// tapped if the instruction putting it there says so or its own
+    /// replacement effect does, then `then`. Which of those apply is read
     /// off the permanent as it would exist on the battlefield (CR 614.12),
     /// so a land that enters having lost its abilities enters untapped.
-    fn enter(&mut self, card: CardId, controller: PlayerId) {
+    fn enter(&mut self, card: CardId, controller: PlayerId, put_tapped: bool, then: Then) {
         let known = match &self.cards[card.0 as usize].face {
             Face::Known(k) => Arc::clone(k),
             Face::Hidden => unreachable!("only a known card enters"),
@@ -1270,8 +1583,9 @@ impl Game {
                 }
         });
         if let Some(perm) = self.permanents.get_mut(&id) {
-            perm.tapped = tapped;
+            perm.tapped = tapped || put_tapped;
         }
+        self.proceed(then);
     }
 
     /// Exactly `count` distinct cards of `p`'s hand.
@@ -1555,8 +1869,10 @@ impl Game {
         self.command.retain(|c| !owned(c));
         self.exile.retain(|c| !owned(c));
         self.commanders_moved.retain(|c| !owned(c));
+        // CR 800.4a: their spells and abilities on the stack cease to exist.
         self.stack.retain(|o| match o {
             StackObject::Spell { card, .. } => !owned(card),
+            StackObject::Ability { controller, .. } => *controller != p,
         });
         let gone: Vec<ObjectId> = self
             .permanents
@@ -1606,6 +1922,7 @@ fn hand_keyword(k: &i::Keyword) -> bool {
 fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
     let mut runs = Runnable {
         mana: BTreeMap::new(),
+        activated: BTreeMap::new(),
         enters: BTreeMap::new(),
         flash: false,
         dormant: Vec::new(),
@@ -1628,12 +1945,37 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
             }
         }
         match a {
-            // With a target it isn't a mana ability (CR 605.5a).
+            // With a target it isn't a mana ability (CR 605.5a), and
+            // targets aren't chosen yet (CR 601.2c, 602.2b).
             i::Ability::Activated { .. } if bound => {
-                runs.dormant.push("an activated ability".into())
+                runs.dormant
+                    .push("an activated ability with a target".into());
+                runs.activated.insert(
+                    n,
+                    Err(Unrunnable::new(
+                        "a target",
+                        "the game can't choose an activated ability's targets yet",
+                    )),
+                );
             }
-            i::Ability::Activated { .. } => match m::mana_ability(a) {
-                None => runs.dormant.push("an activated ability".into()),
+            i::Ability::Activated {
+                cost,
+                effect,
+                limits,
+            } => match m::mana_ability(a) {
+                None => {
+                    let def = lower::activated(cost, effect, limits).map_err(|node| {
+                        Unrunnable::new(
+                            node.clone(),
+                            format!("the game can't run its activated ability: {node}"),
+                        )
+                    });
+                    if let Err(r) = &def {
+                        runs.dormant
+                            .push(format!("an activated ability: {}", r.node));
+                    }
+                    runs.activated.insert(n, def);
+                }
                 Some(Ok(def)) => {
                     runs.mana.insert(n, def);
                 }

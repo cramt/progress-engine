@@ -190,6 +190,17 @@ pub struct Seen<'a> {
 }
 
 impl Filter {
+    /// A card outside the battlefield, by its own characteristics: only a
+    /// filter of `Is` and `IsNot` says anything of one, and any other
+    /// predicate fails.
+    pub fn matches_card(&self, c: &Chars) -> bool {
+        self.0.iter().all(|p| match p {
+            Pred::Is(prop) => prop.of(c),
+            Pred::IsNot(prop) => !prop.of(c),
+            _ => false,
+        })
+    }
+
     pub fn matches(&self, s: &Seen) -> bool {
         self.0.iter().all(|p| match p {
             Pred::Is(prop) => prop.of(s.chars),

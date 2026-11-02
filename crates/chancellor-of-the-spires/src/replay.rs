@@ -14,15 +14,17 @@
 //! What the log hides stays hidden (`game`'s "Hidden cards"): each library
 //! is [`DECK_SIZE`] cards no one has named, a card is named as it enters a
 //! hand only when the log first shows it (played, cast, discarded), and
-//! which lands paid a cost is solved for, never read.
+//! which lands paid a cost, and what a search found, are chosen for, never
+//! read: the first choice that works, gone back on when a later spell
+//! can't be paid for.
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 use crate::deck::{CardText, DeckCards};
 use crate::game::{
-    Action, Answer, CardId, Decision, Format, Game, ManaActivation, ManaCost, ManaPool, Payment,
-    Rejected, Setup, Step, HAND_SIZE,
+    Action, Activation, Answer, CardId, Decision, Format, Found, Game, ManaActivation, ManaCost,
+    ManaPool, Payment, Rejected, Setup, StackObject, Step, HAND_SIZE,
 };
 use crate::log::{self, Entry, Event, Object};
 use crate::mana::short;
@@ -33,8 +35,8 @@ use crate::model::{ObjectId, PlayerId};
 /// minimum that most decks sit at (CR 100.2a).
 pub const DECK_SIZE: usize = 60;
 
-/// How many earlier payments the replay may go back and choose again when
-/// a later spell can't be paid for, per game.
+/// How many earlier choices (payments, searches) the replay may go back
+/// and make again when a later spell can't be paid for, per game.
 const BACKTRACKS: usize = 64;
 
 /// One game replayed: what the engine did for each line, how it ended,
@@ -135,6 +137,9 @@ pub enum Divergence {
     /// A draw the engine doesn't make: not the active player's in their
     /// draw step (CR 504.1), or a second one.
     Draw,
+    /// A search the log doesn't say failed, with no card the player could
+    /// have found.
+    Unfound,
 }
 
 impl Stop {
@@ -195,6 +200,10 @@ pub fn replay(
         seats: Vec::new(),
         game: None,
         drawn: 0,
+        checkpoints: Vec::new(),
+        at: 0,
+        lands: Vec::new(),
+        demand: Vec::new(),
     };
     let end = r.run(m, g);
     Replay {
@@ -204,13 +213,21 @@ pub fn replay(
     }
 }
 
-/// A point to go back to: the game as it was when a spell was paid for,
-/// and the other ways to pay it.
+/// A point to go back to: the game as it was at a choice the log doesn't
+/// show (a payment, a search), the other ways to make it, and the line to
+/// go on from once one is made.
 struct Checkpoint {
     game: Game,
     entry: usize,
     trace: usize,
-    payments: Vec<Vec<ManaActivation>>,
+    resume: usize,
+    others: Vec<Retry>,
+}
+
+#[derive(Clone)]
+enum Retry {
+    Pay(Vec<ManaActivation>),
+    Answer(Answer, String),
 }
 
 struct Driver<'a> {
@@ -222,6 +239,15 @@ struct Driver<'a> {
     game: Option<Game>,
     /// The last turn whose draw step's draw the log has shown.
     drawn: u32,
+    checkpoints: Vec<Checkpoint>,
+    /// The line being followed.
+    at: usize,
+    /// For each engine player, the lands the log shows them playing in any
+    /// game of the match: cards their deck has.
+    lands: Vec<Vec<String>>,
+    /// For each engine player, how many of each colour's mana symbols the
+    /// spells they cast this game have, W U B R G.
+    demand: Vec<[u32; 5]>,
 }
 
 type Followed = Result<(), Stop>;
@@ -249,7 +275,6 @@ impl Driver<'_> {
         if let Err(stop) = self.set_up(m, g) {
             return End::Stopped { entry: 0, stop };
         }
-        let mut checkpoints: Vec<Checkpoint> = Vec::new();
         let mut backtracks = 0;
         // The failure that got furthest, which is the one reported if no
         // other payment gets past it.
@@ -257,35 +282,47 @@ impl Driver<'_> {
         let mut i = 0;
         while i < g.entries.len() {
             let entry = &g.entries[i];
-            match self.follow(g, i, entry, &mut checkpoints) {
+            self.at = i;
+            match self.follow(g, i, entry) {
                 Ok(Next::Line(n)) => i = n,
                 Ok(Next::Done) => return End::Finished,
                 Err(stop) => {
-                    let unpayable = matches!(stop, Stop::Diverged(Divergence::Unpayable { .. }));
+                    let unpayable = matches!(
+                        stop,
+                        Stop::Diverged(Divergence::Unpayable { .. } | Divergence::EngineOver)
+                    );
                     if furthest.as_ref().is_none_or(|f| i > f.0) {
                         furthest = Some((i, stop.clone(), self.trace.clone()));
                     }
-                    // Only a payment chosen earlier can make a later one
-                    // impossible, so only then is it worth going back.
+                    // Only a choice made earlier can make a later payment
+                    // impossible, or lose the game early, so only then is
+                    // it worth going back.
                     let retry = unpayable && backtracks < BACKTRACKS;
-                    match checkpoints.last_mut().filter(|_| retry) {
+                    match self.checkpoints.last_mut().filter(|_| retry) {
                         Some(cp) => {
                             backtracks += 1;
-                            let payment = cp.payments.remove(0);
+                            let other = cp.others.remove(0);
                             let mut game = cp.game.clone();
-                            let (entry, len) = (cp.entry, cp.trace);
-                            if cp.payments.is_empty() {
-                                checkpoints.pop();
+                            let (entry, len, resume) = (cp.entry, cp.trace, cp.resume);
+                            if cp.others.is_empty() {
+                                self.checkpoints.pop();
                             }
                             self.trace.truncate(len);
-                            match pay_with(&mut game, &payment) {
-                                Ok(()) => {
-                                    self.trace.push(Traced {
-                                        entry,
-                                        did: format!("paid again, {}", describe(&payment)),
-                                    });
+                            let did = match other {
+                                Retry::Pay(payment) => pay_with(&mut game, &payment)
+                                    .map(|()| format!("paid again, {}", describe(&payment))),
+                                Retry::Answer(answer, did) => game
+                                    .step(answer)
+                                    .map(|_| format!("chose again: {did}"))
+                                    .map_err(|_| Stop::Illegal {
+                                        what: "an answer tried before".into(),
+                                    }),
+                            };
+                            match did {
+                                Ok(did) => {
+                                    self.trace.push(Traced { entry, did });
                                     self.game = Some(game);
-                                    i = entry + 1;
+                                    i = resume;
                                 }
                                 Err(_) => continue,
                             }
@@ -344,6 +381,34 @@ impl Driver<'_> {
         self.seats = vec![PlayerId(0); 2];
         self.seats[starter.0 as usize] = PlayerId(0);
         self.seats[other(starter).0 as usize] = PlayerId(1);
+        self.lands = vec![Vec::new(); 2];
+        for e in m.games.iter().flat_map(|g| &g.entries) {
+            if let Event::PlaysLand {
+                player,
+                card: Object::Card(c),
+            } = &e.event
+            {
+                let seat = self.seat(*player).0 as usize;
+                let lands = &mut self.lands[seat];
+                if !lands.iter().any(|l| l == c.name()) {
+                    lands.push(c.name().to_string());
+                }
+            }
+        }
+        self.demand = vec![[0; 5]; 2];
+        for e in &g.entries {
+            if let Event::Casts(cast) = &e.event {
+                if let Object::Card(c) = &cast.card {
+                    let p = self.seat(cast.player).0 as usize;
+                    if let Some(text) = (self.cards)(c.name()) {
+                        for (k, symbol) in ["W", "U", "B", "R", "G"].iter().enumerate() {
+                            self.demand[p][k] +=
+                                text.mana_cost.matches(&format!("{symbol}}}")).count() as u32;
+                        }
+                    }
+                }
+            }
+        }
 
         // Mulligans taken, and the London mulligan's bottoming checked.
         let mut taken = [0u32; 2];
@@ -421,13 +486,7 @@ impl Driver<'_> {
         });
     }
 
-    fn follow(
-        &mut self,
-        g: &log::Game,
-        i: usize,
-        entry: &Entry,
-        checkpoints: &mut Vec<Checkpoint>,
-    ) -> Result<Next, Stop> {
+    fn follow(&mut self, g: &log::Game, i: usize, entry: &Entry) -> Result<Next, Stop> {
         use Event::*;
         let unfollowed = |card: Option<&str>| Stop::Unfollowed {
             event: short(&entry.event),
@@ -516,11 +575,13 @@ impl Driver<'_> {
                     }));
                 };
                 if !rest.is_empty() {
-                    checkpoints.push(Checkpoint {
-                        game: self.game().clone(),
+                    let game = self.game().clone();
+                    self.checkpoints.push(Checkpoint {
+                        game,
                         entry: i,
                         trace: self.trace.len(),
-                        payments: rest.to_vec(),
+                        resume: i + 1,
+                        others: rest.iter().cloned().map(Retry::Pay).collect(),
                     });
                 }
                 pay_with(self.game(), first)?;
@@ -556,10 +617,41 @@ impl Driver<'_> {
                 return Err(Stop::Diverged(Divergence::LogOver));
             }
             Activates(a) => {
-                return Err(match &a.card {
-                    Object::Card(c) => unfollowed(Some(c.name())),
-                    _ => unfollowed(None),
-                })
+                let Object::Card(card) = &a.card else {
+                    return Err(unfollowed(None));
+                };
+                let p = self.seat(a.player);
+                let on_stack = a.targets.iter().any(|t| self.targets_stack(&t.target));
+                let activation = self.activation(p, card.name(), on_stack)?;
+                self.act(Answer::Act(Action::Activate(activation)))?;
+                // Nothing the engine activates yet has a target: one that
+                // has is never offered.
+                if !a.targets.is_empty() {
+                    return Err(Stop::Diverged(Divergence::Targets {
+                        card: card.name().to_string(),
+                    }));
+                }
+                self.did(i, format!("activated {}'s ability", card.name()));
+            }
+            // CR 701.23b: the search the ability on the stack makes finds
+            // nothing.
+            FailsToFind { player, .. } => {
+                let p = self.seat(*player);
+                let turn = self.game().turn();
+                loop {
+                    let game = self.game();
+                    match game.decision() {
+                        Decision::Search { player, .. } if player == p => break,
+                        Decision::Priority { .. }
+                            if !game.stack().is_empty() && game.turn() == turn =>
+                        {
+                            self.pass()?
+                        }
+                        _ => return Err(unfollowed(None)),
+                    }
+                }
+                self.act(Answer::Find(Found::Nothing))?;
+                self.did(i, "found nothing (CR 701.23b)");
             }
             Trigger(t) => {
                 return Err(match &t.source {
@@ -601,7 +693,7 @@ impl Driver<'_> {
         };
         let game = self.game.as_ref().expect("set up");
         game.stack().iter().any(|o| match o {
-            crate::game::StackObject::Spell { card, .. } => {
+            StackObject::Spell { card, .. } | StackObject::Ability { source: card, .. } => {
                 game.card(*card).is_some_and(|t| t.name == c.name())
             }
         })
@@ -652,6 +744,12 @@ impl Driver<'_> {
                 what: "a commander's return".into(),
             })),
             Decision::Over(_) => Err(Stop::Diverged(Divergence::EngineOver)),
+            Decision::Search {
+                player,
+                known,
+                hidden,
+                ..
+            } => self.search(player, known, hidden),
             d @ (Decision::Pay { .. } | Decision::Mulligan { .. } | Decision::Bottom { .. }) => {
                 unreachable!("the replay answers {d:?} where it arises")
             }
@@ -742,6 +840,158 @@ impl Driver<'_> {
         }
     }
 
+    /// Pass priority until `p` may activate an ability of a permanent named
+    /// `name` they control, within this turn, as `offered` does for a
+    /// play. Which of its abilities is the one the engine offers: a card
+    /// whose abilities it offers more than one of isn't followed yet.
+    fn activation(&mut self, p: PlayerId, name: &str, respond: bool) -> Result<Activation, Stop> {
+        let text = self.text(name)?;
+        let turn = self.game().turn();
+        if !respond {
+            while !self.game().stack().is_empty() {
+                self.pass()?;
+                if self.game().turn() != turn {
+                    break;
+                }
+            }
+        }
+        loop {
+            let game = self.game();
+            let chars = game.characteristics();
+            let named: Vec<CardId> = game
+                .permanents()
+                .iter()
+                .filter(|(id, _)| chars[id].controller == p)
+                .map(|(_, perm)| perm.card)
+                .filter(|c| game.card(*c).is_some_and(|t| t.name == text.name))
+                .collect();
+            // An ability the engine never offers isn't waited for.
+            let refused = named.iter().map(|c| game.activation_refusal(*c));
+            let refused: Option<Vec<_>> = refused.collect();
+            if let Some(r) = refused.and_then(|r| r.into_iter().next()) {
+                return Err(Stop::Refused {
+                    card: name.to_string(),
+                    node: r.node,
+                    why: r.why,
+                });
+            }
+            if named.is_empty() || game.turn() != turn {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("activate {name}"),
+                }));
+            }
+            if let Decision::Priority { player, actions } = game.decision() {
+                if player == p {
+                    let offered: Vec<Activation> = actions
+                        .iter()
+                        .filter_map(|a| match a {
+                            Action::Activate(a)
+                                if named.contains(&game.permanents()[&a.source].card) =>
+                            {
+                                Some(*a)
+                            }
+                            _ => None,
+                        })
+                        .collect();
+                    if let Some(first) = offered.first() {
+                        if offered.iter().any(|a| a.ability != first.ability) {
+                            return Err(Stop::Unfollowed {
+                                event: "Activates one of several abilities".into(),
+                                card: Some(name.to_string()),
+                            });
+                        }
+                        return Ok(*first);
+                    }
+                }
+            }
+            self.pass()?;
+        }
+    }
+
+    /// Answer a search the log doesn't show the result of. The log says
+    /// when a search fails (`FailsToFind`), so this one found a card; which
+    /// card isn't said, so the replay chooses, as it chooses a payment, and
+    /// goes back to choose again if a later spell can't be paid for. The
+    /// candidates are the library's known cards, then a hidden card named
+    /// as each basic land, the colours the player's spells this game need
+    /// most first, then each land the log shows the player playing in the
+    /// match. The engine checks each matches what was searched for.
+    fn search(&mut self, p: PlayerId, known: Vec<CardId>, hidden: usize) -> Followed {
+        let mut tries: Vec<(Answer, String)> = Vec::new();
+        for c in known {
+            let name = self
+                .game()
+                .card(c)
+                .map(|t| t.name.clone())
+                .unwrap_or_default();
+            tries.push((Answer::Find(Found::Card(c)), format!("found {name}")));
+        }
+        let game = self.game.as_ref().expect("set up");
+        let hidden_card = game
+            .player(p)
+            .library()
+            .iter()
+            .copied()
+            .find(|c| game.card(*c).is_none());
+        if let Some(c) = hidden_card.filter(|_| hidden > 0) {
+            let demand = self.demand[p.0 as usize];
+            let mut basics: Vec<(usize, &str)> =
+                ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+                    .into_iter()
+                    .enumerate()
+                    .collect();
+            basics.sort_by_key(|(k, _)| std::cmp::Reverse(demand[*k]));
+            let names: Vec<String> = basics
+                .into_iter()
+                .map(|(_, n)| n.to_string())
+                .chain(std::iter::once("Wastes".to_string()))
+                .chain(self.lands[p.0 as usize].clone())
+                .collect();
+            for n in names {
+                let Ok(text) = self.text(&n) else { continue };
+                tries.push((
+                    Answer::Find(Found::Hidden(c, Box::new(text))),
+                    format!("found {n}, from the hidden library"),
+                ));
+            }
+        }
+        let mut legal = Vec::new();
+        let mut refused = None;
+        for (answer, did) in tries {
+            match self.game().clone().step(answer.clone()) {
+                Ok(_) => legal.push((answer, did)),
+                Err(Rejected::Refused { card, refusal }) => {
+                    refused.get_or_insert(Stop::Refused {
+                        card,
+                        node: refusal.node,
+                        why: refusal.why,
+                    });
+                }
+                Err(Rejected::Illegal(_)) => {}
+            }
+        }
+        let Some(((first, did), rest)) = legal.split_first() else {
+            return Err(refused.unwrap_or(Stop::Diverged(Divergence::Unfound)));
+        };
+        if !rest.is_empty() {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others: rest
+                    .iter()
+                    .map(|(a, d)| Retry::Answer(a.clone(), d.clone()))
+                    .collect(),
+            });
+        }
+        self.act(first.clone())?;
+        let at = self.at;
+        self.did(at, did.clone());
+        Ok(())
+    }
+
     /// The payments the solver finds for the spell being cast, best first.
     fn payments(&mut self) -> Result<Vec<Vec<ManaActivation>>, Stop> {
         let game = self.game();
@@ -770,7 +1020,7 @@ impl Driver<'_> {
             }
             match self.game().decision() {
                 Decision::Discard { player, count, .. } if player == p => break count,
-                Decision::Priority { .. } => self.pass()?,
+                Decision::Priority { .. } | Decision::Search { .. } => self.pass()?,
                 _ => {
                     return Err(Stop::Diverged(Divergence::NeverOffered {
                         what: "a discard".into(),

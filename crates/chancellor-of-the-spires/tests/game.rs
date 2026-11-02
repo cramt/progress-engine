@@ -981,7 +981,7 @@ fn loam_coverage() {
     }
     assert_eq!(cards.len(), 90);
     // The README's number: a change that moves it updates it there.
-    assert_eq!((runs.len(), whole.len()), (31, 8));
+    assert_eq!((runs.len(), whole.len()), (31, 12));
 }
 
 fn hidden(n: usize) -> DeckCards {
@@ -1116,4 +1116,109 @@ fn gaeas_cradle_adds_mana_for_each_creature() {
     resolve_stack(&mut game);
     assert!(permanent(&game, elves).is_some());
     assert_eq!(adds(&game), [ManaPool::of([Mana::Green])]);
+}
+
+/// Pass until the stack is empty and a decision other than priority, or
+/// my priority again, comes up.
+fn resolve_to_decision(game: &mut Game) -> Decision {
+    while !game.stack().is_empty() {
+        if !matches!(game.decision(), Decision::Priority { .. }) {
+            break;
+        }
+        game.step(Answer::Act(Action::Pass)).unwrap();
+    }
+    game.decision()
+}
+
+fn the_activation(game: &Game, source: ObjectId) -> Activation {
+    actions(game)
+        .into_iter()
+        .find_map(|a| match a {
+            Action::Activate(a) if a.source == source => Some(a),
+            _ => None,
+        })
+        .expect("an activation offered")
+}
+
+/// CR 602.2, 119.4, 701.21a, 405.1, 608.2c, 701.23a, 701.24a, 117.3b: Wooded
+/// Foothills' ability is activated by paying its costs (it is tapped and
+/// sacrificed, I pay 1 life) and goes on the stack; when it resolves I search
+/// my hidden library. The card found must be a Mountain or Forest card: a
+/// hidden one named Island or Lightning Bolt isn't found, nor is one the
+/// engine refuses. A Forest is, and enters untapped, the library one card
+/// smaller, and the active player gets priority.
+#[test]
+fn a_fetchland_searches_the_library_for_a_land_it_matches() {
+    let mut game = constructed(vec![hidden(20), forests(20)], false);
+    my_next_main(&mut game);
+    let fetch = name_in_hand(&mut game, ME, "Wooded Foothills");
+    act(&mut game, Action::PlayLand(fetch));
+    let source = permanent(&game, fetch).unwrap();
+    assert!(mana_of(&game, source).is_empty(), "not a mana ability");
+    let a = the_activation(&game, source);
+    act(&mut game, Action::Activate(a));
+    assert_eq!(game.player(ME).life(), 19);
+    assert_eq!(permanent(&game, fetch), None);
+    assert!(game.player(ME).graveyard().contains(&fetch));
+    assert_eq!(game.stack().len(), 1);
+    let library = game.player(ME).library().len();
+    let Decision::Search {
+        player,
+        known,
+        hidden,
+        ..
+    } = resolve_to_decision(&mut game)
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((player, known.len(), hidden), (ME, 0, library));
+    let c = game.player(ME).library()[0];
+    for wrong in ["Island", "Lightning Bolt"] {
+        let r = game.step(Answer::Find(Found::Hidden(c, Box::new(card(wrong)))));
+        assert!(matches!(r, Err(Rejected::Illegal(_))), "{wrong}: {r:?}");
+    }
+    assert!(game.card(c).is_none(), "a refused answer names nothing");
+    let d = game
+        .step(Answer::Find(Found::Hidden(c, Box::new(card("Forest")))))
+        .unwrap();
+    assert_eq!(priority(&d).0, ME);
+    let forest = permanent(&game, c).expect("the Forest entered");
+    assert!(!game.permanents()[&forest].tapped);
+    assert_eq!(game.player(ME).library().len(), library - 1);
+    assert_eq!(mana_of(&game, forest).len(), 1);
+}
+
+/// CR 701.23b: a search for a card with a stated quality may find nothing.
+/// Evolving Wilds puts what it finds onto the battlefield tapped.
+#[test]
+fn a_search_may_find_nothing_and_evolving_wilds_puts_its_land_in_tapped() {
+    for find in [false, true] {
+        let mut game = constructed(vec![hidden(20), forests(20)], false);
+        my_next_main(&mut game);
+        let wilds = name_in_hand(&mut game, ME, "Evolving Wilds");
+        act(&mut game, Action::PlayLand(wilds));
+        let source = permanent(&game, wilds).unwrap();
+        let a = the_activation(&game, source);
+        act(&mut game, Action::Activate(a));
+        assert_eq!(game.player(ME).life(), 20);
+        assert!(matches!(
+            resolve_to_decision(&mut game),
+            Decision::Search { .. }
+        ));
+        let c = game.player(ME).library()[0];
+        let found = if find {
+            Found::Hidden(c, Box::new(card("Swamp")))
+        } else {
+            Found::Nothing
+        };
+        game.step(Answer::Find(found)).unwrap();
+        assert!(game.stack().is_empty());
+        match permanent(&game, c) {
+            Some(swamp) => {
+                assert!(find);
+                assert!(game.permanents()[&swamp].tapped);
+            }
+            None => assert!(!find),
+        }
+    }
 }

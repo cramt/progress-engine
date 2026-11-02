@@ -54,9 +54,17 @@ among the legal ones, refuses any other with the game unchanged, and runs
 on. Turn-based and state-based actions are never decisions.
 
 - `Priority { player, actions }`: pass, play a land, `Cast(card)` from
-  hand or a commander from the command zone, or activate a mana ability
+  hand or a commander from the command zone, activate a mana ability
   (`Mana(ManaActivation { source, ability, adds })`, one action for each
-  mana its text lets it add).
+  mana its text lets it add), or activate another activated ability
+  (`Activate(Activation { source, ability })`), whose costs the engine
+  pays as it goes on the stack.
+- `Search { player, filter, known, hidden }`: a resolving ability searches
+  the player's library (CR 701.23a), answered `Find(Found)`: `Nothing`
+  (CR 701.23b), a known card, or `Hidden(card, text)`, a hidden card of
+  the library named as it is found. Either must match the filter, a
+  card's own types and supertypes ("a Mountain or Forest card", "a basic
+  land card"), or the answer is illegal.
 - `Pay { player, spell, owed, actions }`: the spell is on the stack and
   its total cost determined (CR 601.2a–f). The answers are `Payment::Mana`
   (a mana ability, CR 601.2g), `Payment::Spend(mana)`, offered for every
@@ -84,8 +92,14 @@ graveyard (CR 608.2n); mana abilities that tap, pay life (CR 119.4) and
 deal their controller damage, as painlands do (CR 120.3a), adding fixed
 mana, a choice of it, any colour, a colour of the commander's identity
 (CR 903.4), or mana for each permanent a filter matches, counted as it is
-activated (Gaea's Cradle, CR 608.2h), without the stack (CR 605.3b), a creature's only once it has
-been yours since your turn began (CR 302.6) or has haste; a basic land
+activated (Gaea's Cradle, CR 608.2h), without the stack (CR 605.3b), a
+creature's only once it has been yours since your turn began (CR 302.6)
+or has haste; other activated abilities any time you have priority (CR
+117.1b), costing a tap, life and sacrificing their source (CR 602.2,
+701.21a), on the stack and resolving independently of their source (CR
+113.7a), so far with the fetchlands' effects: searching your library for
+a card a filter matches, putting it onto the battlefield, tapped if the
+text says, and shuffling (CR 701.23, 701.24a); a basic land
 type's intrinsic mana ability (CR 305.6), which the layers grant after
 layer 4, so Yavimaya's Forests tap for {G}, Blood Moon's Mountains for {R}
 alone (CR 305.7), and a land that loses all abilities for nothing; "enters
@@ -104,12 +118,15 @@ into actions is the next slice), a triggered ability, a static that isn't
 `{X}`, Phyrexian or snow mana, a planeswalker or battle (their counters),
 an Aura (its target), and a keyword other than flash, cycling, transmute,
 partner and combat's (reach, menace, first and double strike, defender),
-which do nothing until something attacks. A non-mana activated ability is
-carried and never offered, so a fetchland plays and can't fetch.
+which do nothing until something attacks. A non-mana activated ability
+the engine can't run (a target, a mana cost, a limit, another effect) is
+carried and never offered, so the card plays and the ability doesn't.
 
-**31 of Loam's 90 distinct cards are played or cast and resolved, 8 of
+**31 of Loam's 90 distinct cards are played or cast and resolved, 12 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
-Mystic, Command Tower, Karplusan Forest, Yavimaya), measured 2026-11-01:
+Mystic, Command Tower, Karplusan Forest, Yavimaya, and the fetchlands
+Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded Foothills),
+measured 2026-11-02:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
 node refused. The most refused: a spell's effects (20), triggered
@@ -118,8 +135,8 @@ abilities (16, the commander among them), shock lands' "as this enters"
 a graveyard (2 each). `tests/game.rs` scripts the rules above, and plays
 Loam against a goldfish for six turns, casting what it can.
 
-Not yet: any spell's effect, activated abilities other than mana
-abilities, triggers, declaring attackers (the declare blockers and combat
+Not yet: any spell's effect, activated abilities with targets, mana costs,
+limits or effects other than a search for a card, triggers, declaring attackers (the declare blockers and combat
 damage steps aren't in `Step` until something can attack, CR 508.8),
 a land's back face (CR 712), and shock lands' choice as they
 enter. State-based actions that give a choice run one after the other
@@ -228,39 +245,53 @@ has to be the log's, counting each player's turns), a land played, a spell
 cast with its payment found by searching the mana abilities the engine
 offers (fewest first, the least flexible sources tapped first, and an
 earlier payment chosen again if a later spell can't be paid), the draw
-step's draw on the logs that print it, and the cleanup discard. A spell on
-the stack resolves before the next line unless that line targets it. Chat,
-spectators and the client's notices are the only lines passed over.
+step's draw on the logs that print it, the cleanup discard, and an ability
+activated. A spell or ability on the stack resolves before the next line
+unless that line targets it. Chat, spectators and the client's notices are
+the only lines passed over.
+
+A fetchland's search is the log's to say and it doesn't: it prints the
+activation, and a failed search ("fails to find"), never the card found,
+which a basic land rarely shows again. So unless the log says the search
+failed, the replay answers it with a hidden card of the library named as
+it is found, choosing as it chooses a payment: each basic land, the colours
+the player's spells this game need most first, then each land the log
+shows the player playing anywhere in the match (their deck has it), the
+engine refusing any that doesn't match what was searched for; and if a
+later spell can't be paid for, it goes back and finds the next. The game
+it replays is one consistent with the log, not necessarily the one played.
 
 The first line the engine won't follow ends the game's replay with a
 typed `Stop`: a card refused by the node of its text the engine can't run,
 an answer it calls illegal, a state that disagrees with the log (a play it
 never offers that turn, a spell it can't pay for, a turn out of step), or
-a kind of line not followed yet (an activated ability, a trigger, an
-attack). `--game ID` prints one game line by line with what the engine
+a kind of line not followed yet (a trigger, an attack). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 10 replay to the end** (7 to the log's winner
-line), all of them games that end in the first turn, measured 2026-11-01. They are the 1,299
-games that parse whole and that Insight reads whole, less 238 with no turn
-in them (empty logs, concessions during the mulligans). 869 stop in the
-first turn, 103 in the second, 5 in the third, and 74 at the setup (21 logs
-name one player, 6 begin mid-game, 3 aren't London mulligans, 2 disagree
-on who started). The stops, by games: a triggered ability (192, Champion
-of the Parish and Goblin Lackey first), an activated ability (185,
-fetchlands first), a shock land's "as this enters" (158), a fast land's
-"unless you control two or fewer other lands" (95), a spell's effect (92,
-Duress first), a Leyline from the opening hand (35), a conditional static
-("if", 19), Prairie Stream's "unless you control two or more basic lands"
-(16), a check land's filter with alternatives (15), a
-discard the engine doesn't ask for (15, cycling's cost). The one stop that
-was the engine disagreeing with Magic Online rather than refusing, Gaea's
-Cradle's "Add {G} for each creature" not read as a mana ability (CR
-605.1a), is gone: that game now stops at an attack.
+line), all of them games that end in the first turn, measured 2026-11-02.
+They are the 1,299 games that parse whole and that Insight reads whole,
+less 238 with no turn in them (empty logs, concessions during the
+mulligans). 857 stop in the first turn, 113 in the second, 7 in the third,
+and 74 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't
+London mulligans, 2 disagree on who started). The 185 games that stopped
+at a fetchland now fetch and stop later, mostly at the first spell with an
+effect or a trigger. The stops, by games: a triggered ability (221, Goblin
+Lackey, Jackal Pup and Champion of the Parish first), a spell's effect
+(163, Duress first), a shock land's "as this enters" (158), a fast land's
+"unless you control two or fewer other lands" (96), a Leyline from the
+opening hand (35), Cloudpost's "for each Locus on the battlefield" (29), a
+conditional static ("if", 24), exalted (23) and a discard the engine
+doesn't ask for (19, cycling's cost). None is the engine disagreeing with
+Magic Online; the one that was, Gaea's Cradle's "Add {G} for each
+creature" not read as a mana ability (CR 605.1a), now pays for Survival of
+the Fittest.
 `tests/replay.rs` replays hand-written logs, a short game to its end and
 the plays that must stop it: a second land, a spell no land pays for, a
-land in the opponent's turn.
+land in the opponent's turn; and a fetchland whose search the replay
+answers again when the first land it found can't pay for a later spell,
+and one the log says found nothing.
 
 ## Speed
 

@@ -2,10 +2,14 @@
 //! the engine (`replay`). The players are alice and bob; no real log is
 //! ever committed.
 
-use chancellor_of_the_spires::deck::{CardText, Oracle};
+use std::path::Path;
+use std::sync::OnceLock;
+
+use chancellor_of_the_spires::deck::{self, CardText, Oracle};
 use chancellor_of_the_spires::log;
 use chancellor_of_the_spires::model::{pt, Color, PlayerId};
 use chancellor_of_the_spires::replay::{replay, Divergence, End, Replay, SetupStop, Stop};
+use chip_scryfall::index::IndexFile;
 
 const ALICE: PlayerId = PlayerId(0);
 const BOB: PlayerId = PlayerId(1);
@@ -23,10 +27,22 @@ fn bears() -> CardText {
     }
 }
 
+/// The real cards the logs here name beyond these, from the card index.
+const INDEXED: &[&str] = &["Mountain", "Swamp", "Wooded Foothills", "Raging Goblin"];
+
+fn index() -> &'static IndexFile {
+    static INDEX: OnceLock<IndexFile> = OnceLock::new();
+    INDEX.get_or_init(|| {
+        IndexFile::open(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../decks/index.jsonl"))
+            .expect("decks/index.jsonl")
+    })
+}
+
 fn cards(name: &str) -> Option<CardText> {
     match name {
         "Forest" | "Island" => Some(CardText::basic(name)),
         "Grizzly Bears" => Some(bears()),
+        n if INDEXED.contains(&n) => Some(deck::card(n, index()).unwrap()),
         _ => None,
     }
 }
@@ -234,5 +250,82 @@ fn a_card_named_in_the_main_phase_is_cast_in_it() {
     assert_eq!(
         game.step_now(),
         chancellor_of_the_spires::game::Step::PrecombatMain
+    );
+}
+
+fn on_battlefield(game: &chancellor_of_the_spires::game::Game, name: &str) -> usize {
+    game.permanents()
+        .values()
+        .filter(|p| game.card(p.card).is_some_and(|c| c.name == name))
+        .count()
+}
+
+/// CR 602.2, 701.23, 701.24: a fetchland activated, its search answered by
+/// the replay since the log never says what was found. Alice's spells this
+/// game need {R} and {G} alike, so the first basic tried is a Mountain,
+/// with which Grizzly Bears on Island can't be paid for; the replay goes
+/// back to the search, finds a Forest instead, and the rest follows.
+#[test]
+fn a_fetchland_finds_what_later_spells_need() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Wooded Foothills].
+        alice activates an ability of [Wooded Foothills] ( Search your library for a Mountain or Forest card, put it onto the battlefield, then shuffle.).
+        Turn 1: bob
+        bob plays [Island].
+        Turn 2: alice
+        alice plays [Island].
+        alice casts [Grizzly Bears].
+        Turn 2: bob
+        bob plays [Island].
+        Turn 3: alice
+        alice plays [Mountain].
+        alice casts [Raging Goblin].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    assert!(
+        r.trace
+            .iter()
+            .any(|t| t.did.starts_with("chose again: found Forest")),
+        "{:#?}",
+        r.trace
+    );
+    let game = r.game.unwrap();
+    // CR 119.4: the fetch's life.
+    assert_eq!(game.player(ALICE).life(), 19);
+    assert_eq!(on_battlefield(&game, "Wooded Foothills"), 0);
+    assert_eq!(on_battlefield(&game, "Forest"), 1);
+    assert_eq!(on_battlefield(&game, "Grizzly Bears"), 1);
+    // Cast, and still on the stack when bob concedes.
+    assert_eq!(game.stack().len(), 1);
+}
+
+/// CR 701.23b: when the log says the search failed, it found nothing, and
+/// Grizzly Bears off one Island can't be paid for.
+#[test]
+fn a_search_the_log_says_failed_finds_nothing() {
+    let (g, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Wooded Foothills].
+        alice activates an ability of [Wooded Foothills] ( Search your library for a Mountain or Forest card, put it onto the battlefield, then shuffle.).
+        alice fails to find a Mountain or Forest card.
+        Turn 1: bob
+        bob plays [Island].
+        Turn 2: alice
+        alice plays [Island].
+        alice casts [Grizzly Bears].
+    ");
+    let End::Stopped { entry, stop } = &r.end else {
+        panic!("{:?}", r.trace)
+    };
+    assert_eq!(g.entries[*entry].text, "alice casts [Grizzly Bears].");
+    assert_eq!(
+        *stop,
+        Stop::Diverged(Divergence::Unpayable {
+            card: "Grizzly Bears".into()
+        })
     );
 }

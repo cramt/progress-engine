@@ -647,3 +647,154 @@ fn objects(o: &Objects) -> Result<Filter, String> {
     }
     Ok(Filter(preds))
 }
+
+/// "a Mountain or Forest card", "a basic land card": a card outside the
+/// battlefield matched by its own characteristics, any one of the
+/// alternatives (CR 701.23a).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CardFilter(pub Vec<Filter>);
+
+impl CardFilter {
+    pub fn matches(&self, c: &Chars) -> bool {
+        self.0.iter().any(|f| f.matches_card(c))
+    }
+}
+
+/// One instruction of an activated ability other than a mana ability, as
+/// it resolves (CR 608.2c).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Effect {
+    /// "Search your library for a Mountain or Forest card, put it onto the
+    /// battlefield (tapped)": the controller searches their own library
+    /// and may find a card the filter matches (CR 701.23a–b).
+    SearchToBattlefield { filter: CardFilter, tapped: bool },
+    /// "then shuffle": the controller's library (CR 701.24a).
+    Shuffle,
+}
+
+/// An activated ability's cost, of the kinds the engine pays (CR 602.2b,
+/// 601.2h): tapping its source, life (CR 119.4), and sacrificing the
+/// source (CR 701.21a).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ActivationCost {
+    pub tap: bool,
+    pub life: u32,
+    pub sacrifice: bool,
+}
+
+/// An activated ability that isn't a mana ability (CR 602), lowered.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Activated {
+    pub cost: ActivationCost,
+    pub effects: Vec<Effect>,
+}
+
+/// An activated ability's cost and effect, or the node with no lowering
+/// yet. A target binds it under a `Let`, which never gets here.
+pub fn activated(
+    cost: &[i::Cost],
+    effect: &[i::Effect],
+    limits: &[i::Limit],
+) -> Result<Activated, String> {
+    if let Some(l) = limits.first() {
+        return Err(format!("an activated ability limited by {}", short(l)));
+    }
+    let mut paid = ActivationCost::default();
+    for c in cost {
+        match c {
+            i::Cost::Tap => paid.tap = true,
+            i::Cost::PayLife(i::Amount::N(n)) => paid.life += n,
+            i::Cost::Sacrifice(o) if itself(o) => paid.sacrifice = true,
+            other => return Err(format!("an activation cost of {}", short(other))),
+        }
+    }
+    let mut effects = Vec::new();
+    for e in effect {
+        effects.extend(resolving(e)?);
+    }
+    Ok(Activated {
+        cost: paid,
+        effects,
+    })
+}
+
+fn itself(o: &Objects) -> bool {
+    o.quant == Quant::SelfRef && o.filter == i::Filter::default()
+}
+
+/// One of an ability's effects.
+fn resolving(e: &i::Effect) -> Result<Vec<Effect>, String> {
+    let blank = |o: &Objects, q: Quant| o.quant == q && o.filter == i::Filter::default();
+    match e {
+        // "Search your library for a Mountain or Forest card, put it onto
+        // the battlefield, then shuffle": the card found is introduced by
+        // the `With` and put onto the battlefield by the reference to it.
+        i::Effect::With { bind, then } => match (bind.as_slice(), then.as_slice()) {
+            (
+                [card],
+                [i::Effect::Search {
+                    who: i::Player::You,
+                    zones,
+                    what,
+                    and,
+                }, i::Effect::Move {
+                    what: moved,
+                    from: None,
+                    to: i::Zone::Battlefield,
+                    tapped,
+                    transformed: false,
+                    under: None,
+                    order: None,
+                }, rest @ ..],
+            ) if matches!(zones.as_slice(), [i::Zone::Library(i::Player::You)])
+                && and.is_empty()
+                && blank(what, Quant::Introduced(0))
+                && blank(moved, Quant::Bound(0)) =>
+            {
+                let mut out = vec![Effect::SearchToBattlefield {
+                    filter: card_filter(card)?,
+                    tapped: *tapped,
+                }];
+                for r in rest {
+                    out.extend(resolving(r)?);
+                }
+                Ok(out)
+            }
+            _ => Err("With".into()),
+        },
+        i::Effect::Shuffle(i::Player::You) => Ok(vec![Effect::Shuffle]),
+        other => Err(short(other)),
+    }
+}
+
+/// "a Mountain or Forest card": one card, by its types and colours alone.
+fn card_filter(o: &Objects) -> Result<CardFilter, String> {
+    if o.quant != Quant::One {
+        return Err(format!("searching for {}", short(&o.quant)));
+    }
+    let f = &o.filter;
+    if f.kind != Some(i::Noun::Card) || f.or.is_some() || !f.posts.is_empty() {
+        return Err("searching for other than a card by its characteristics".into());
+    }
+    let alts = f
+        .alts
+        .iter()
+        .map(|alt| {
+            objects(&Objects {
+                quant: Quant::All,
+                filter: i::Filter {
+                    alts: vec![alt.clone()],
+                    ..i::Filter::default()
+                },
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if alts
+        .iter()
+        .flat_map(|f| &f.0)
+        .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_)))
+    {
+        return Err("a card filter relative to its source".into());
+    }
+    Ok(CardFilter(alts))
+}
