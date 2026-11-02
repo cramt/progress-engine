@@ -856,6 +856,13 @@ pub enum Effect {
         counter: Counter,
         n: u32,
     },
+    /// "Target creature gets +3/+3 until end of turn": a continuous effect
+    /// on the object as it resolves (CR 611.2c), ending in cleanup (CR
+    /// 514.2).
+    UntilEndOfTurn {
+        on: Obj,
+        ops: Vec<Op>,
+    },
 }
 
 /// A player an instruction names: its controller ("you", CR 109.5) or a
@@ -872,6 +879,8 @@ pub enum Who {
 pub enum Obj {
     Itself,
     Target(usize),
+    /// The object the trigger event names: exalted's "that creature".
+    Triggering,
 }
 
 /// What damage is dealt to.
@@ -880,6 +889,9 @@ pub enum DamageTo {
     /// A target, a player or a permanent as its slot allows.
     Target(usize),
     You,
+    /// "the player or planeswalker it's attacking": whom the ability's
+    /// source attacks as it resolves, if it still does.
+    Attacked,
 }
 
 /// What a target slot may be (CR 115.1).
@@ -910,6 +922,16 @@ pub enum TriggerEvent {
     /// enters": a permanent the filter matches, read from the trigger's
     /// source, enters the battlefield (CR 603.6a).
     Enters(Filter),
+    /// "Whenever this creature attacks": a creature the filter matches is
+    /// declared as an attacker (CR 508.3a).
+    Attacks(Filter),
+    /// Exalted's "Whenever a creature you control attacks alone": the only
+    /// creature declared as an attacker is one the filter matches (CR
+    /// 506.5, 702.83a).
+    AttacksAlone(Filter),
+    /// Prowess's "Whenever you cast a noncreature spell": its controller
+    /// casts a spell the filter matches (CR 601.2i, 702.108a).
+    YouCast(CardFilter),
 }
 
 /// A triggered ability, lowered.
@@ -946,12 +968,48 @@ pub fn triggered(
                 under: None,
                 state: None,
             } => TriggerEvent::Enters(entering(what)?),
+            i::Event::Attacks(what) => TriggerEvent::Attacks(entering(what)?),
             _ => return Err(trigger_node(trigger)),
         },
         _ => return Err(trigger_node(trigger)),
     };
     let program = spell(bind, effect)?;
     Ok(Triggered { event, program })
+}
+
+/// The keywords that are triggered abilities and that the engine runs,
+/// written out as their rules define them: exalted (CR 702.83a) and
+/// prowess (CR 702.108a). `None` for any other keyword.
+pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
+    if k.param.is_some() {
+        return None;
+    }
+    let plus_one = vec![Op::ModifyPt(pt(1, 1))];
+    match k.name.to_lowercase().as_str() {
+        "exalted" => Some(Triggered {
+            event: TriggerEvent::AttacksAlone(Filter(vec![Pred::YouControl])),
+            program: Program {
+                targets: Vec::new(),
+                effects: vec![Effect::UntilEndOfTurn {
+                    on: Obj::Triggering,
+                    ops: plus_one,
+                }],
+            },
+        }),
+        "prowess" => Some(Triggered {
+            event: TriggerEvent::YouCast(CardFilter(vec![Filter(vec![Pred::IsNot(Prop::Type(
+                CardType::Creature,
+            ))])])),
+            program: Program {
+                targets: Vec::new(),
+                effects: vec![Effect::UntilEndOfTurn {
+                    on: Obj::Itself,
+                    ops: plus_one,
+                }],
+            },
+        }),
+        _ => None,
+    }
 }
 
 /// "this creature", "another Human you control", "a creature": what an
@@ -1093,6 +1151,11 @@ impl<'a> Scope<'a> {
                 Ok(DamageTo::Target(self.slot(TargetSpec::Any)))
             }
             [i::Recipient::Player(i::Player::You)] => Ok(DamageTo::You),
+            [i::Recipient::AttackedBy(o)]
+                if o.quant == Quant::SelfRef && o.filter == i::Filter::default() =>
+            {
+                Ok(DamageTo::Attacked)
+            }
             [i::Recipient::Player(p)] => match self.who(p)? {
                 Who::Target(s) => Ok(DamageTo::Target(s)),
                 Who::You => Ok(DamageTo::You),
@@ -1114,7 +1177,7 @@ impl<'a> Scope<'a> {
             },
             [i::Recipient::Objects(o)] => match self.obj(o, depth)? {
                 Obj::Target(s) => Ok(DamageTo::Target(s)),
-                Obj::Itself => Err("damage to its own source".into()),
+                Obj::Itself | Obj::Triggering => Err("damage to its own source".into()),
             },
             _ => Err("damage to several recipients".into()),
         }
@@ -1176,6 +1239,18 @@ impl<'a> Scope<'a> {
                 counter: counter(kind).ok_or_else(node)?,
                 n: n(k)?,
             },
+            i::Effect::Modify {
+                what,
+                dur: i::Duration::UntilEndOfTurn,
+                ..
+            } => {
+                let on = self.obj(what, depth)?;
+                let r = resolution(e).map_err(|_| node())?;
+                if !r.counters.is_empty() {
+                    return Err(node());
+                }
+                Effect::UntilEndOfTurn { on, ops: r.ops }
+            }
             i::Effect::RevealHand(_) => return Err(format!("{} alone", node())),
             i::Effect::Shuffle(i::Player::You) => Effect::Shuffle,
             _ => return Err(node()),

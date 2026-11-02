@@ -255,7 +255,12 @@ impl Run<'_> {
             .cloned()
             .collect();
         for o in set {
-            let printed = &self.state.objects[&o].printed;
+            // An object that left the battlefield since the effect began
+            // is gone, and a new object if it returns (CR 400.7).
+            let Some(object) = self.state.objects.get(&o) else {
+                continue;
+            };
+            let printed = &object.printed;
             if let Some(c) = self.now.get_mut(&o) {
                 for op in &ops {
                     op.apply(c, printed);

@@ -74,6 +74,9 @@ fn pass_until(game: &mut Game, who: PlayerId, step: Step) -> Decision {
                 game.step(Answer::Discard(hand[..count].to_vec())).unwrap()
             }
             Decision::ReturnCommander { .. } => game.step(Answer::CommandZone(true)).unwrap(),
+            // The goldfish pilot never attacks, and nothing blocks.
+            Decision::Attackers { .. } => game.step(Answer::Attack(vec![])).unwrap(),
+            Decision::Blockers { .. } => game.step(Answer::Block(vec![])).unwrap(),
             _ => game.step(Answer::Act(Action::Pass)).unwrap(),
         };
     }
@@ -86,13 +89,9 @@ fn my_next_main(game: &mut Game) -> Decision {
     if game.active() == ME && game.step_now() >= Step::PrecombatMain {
         let turn = game.turn();
         while game.turn() == turn {
-            match game.decision() {
-                Decision::Discard { count, hand, .. } => {
-                    game.step(Answer::Discard(hand[..count].to_vec())).unwrap()
-                }
-                Decision::ReturnCommander { .. } => game.step(Answer::CommandZone(true)).unwrap(),
-                _ => game.step(Answer::Act(Action::Pass)).unwrap(),
-            };
+            if !simplest(game) {
+                game.step(Answer::Act(Action::Pass)).unwrap();
+            }
         }
     }
     pass_until(game, ME, Step::PrecombatMain)
@@ -450,6 +449,8 @@ fn simplest(game: &mut Game) -> bool {
         Decision::Discard { count, hand, .. } => Answer::Discard(hand[..count].to_vec()),
         Decision::Search { .. } => Answer::Find(Found::Nothing),
         Decision::PayOrEnterTapped { .. } => Answer::PayLife(false),
+        Decision::Attackers { .. } => Answer::Attack(vec![]),
+        Decision::Blockers { .. } => Answer::Block(vec![]),
         _ => return false,
     };
     game.step(answer).unwrap_or_else(|e| panic!("{e}"));

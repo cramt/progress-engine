@@ -1,6 +1,7 @@
 //! Spells' and triggered abilities' effects, run through the game: targets
 //! chosen on casting and checked again on resolution, a hand revealed and
-//! a card chosen from it, damage, scry, draw, and an enters trigger.
+//! a card chosen from it, damage, scry, draw, an enters trigger; and
+//! combat, with what attacking triggers.
 
 use std::path::Path;
 use std::sync::OnceLock;
@@ -40,6 +41,16 @@ fn deck(cards: &[(&str, usize)]) -> DeckCards {
 /// A constructed game, from the first seed that deals me at least as many
 /// of each card as `wants` says.
 fn deal(me: &[(&str, usize)], them: &[(&str, usize)], wants: &[(&str, usize)]) -> Game {
+    deal_both(me, them, wants, &[])
+}
+
+/// As `deal`, and them at least as many as `they_want` says.
+fn deal_both(
+    me: &[(&str, usize)],
+    them: &[(&str, usize)],
+    wants: &[(&str, usize)],
+    they_want: &[(&str, usize)],
+) -> Game {
     for seed in 0..500 {
         let game = Game::start(Setup {
             format: Format::Constructed,
@@ -48,10 +59,12 @@ fn deal(me: &[(&str, usize)], them: &[(&str, usize)], wants: &[(&str, usize)]) -
             seed,
         })
         .unwrap();
-        if wants
-            .iter()
-            .all(|(w, k)| named(&game, game.player(ME).hand(), w) >= *k)
-        {
+        let has = |p: PlayerId, wants: &[(&str, usize)]| {
+            wants
+                .iter()
+                .all(|(w, k)| named(&game, game.player(p).hand(), w) >= *k)
+        };
+        if has(ME, wants) && has(THEM, they_want) {
             let mut game = game;
             pass_until(&mut game, ME, Step::PrecombatMain);
             return game;
@@ -92,6 +105,12 @@ fn pass_until(game: &mut Game, who: PlayerId, s: Step) {
             Decision::Discard { count, hand, .. } => {
                 step(game, Answer::Discard(hand[..count].to_vec()));
             }
+            Decision::Attackers { .. } => {
+                step(game, Answer::Attack(vec![]));
+            }
+            Decision::Blockers { .. } => {
+                step(game, Answer::Block(vec![]));
+            }
             _ => {
                 step(game, Answer::Act(Action::Pass));
             }
@@ -108,14 +127,22 @@ fn my_next_main(game: &mut Game) {
 
 /// Play a land of this name from my hand.
 fn play(game: &mut Game, name: &str) {
-    let c = in_hand(game, ME, name).expect("in hand");
+    play_as(game, ME, name)
+}
+
+fn play_as(game: &mut Game, p: PlayerId, name: &str) {
+    let c = in_hand(game, p, name).expect("in hand");
     step(game, Answer::Act(Action::PlayLand(c)));
 }
 
 /// Cast this card from my hand, choose these targets if it has any, and
 /// pay with the first payment that taps what pays it.
 fn cast(game: &mut Game, name: &str, targets: Option<Vec<Target>>) {
-    let c = in_hand(game, ME, name).expect("in hand");
+    cast_as(game, ME, name, targets)
+}
+
+fn cast_as(game: &mut Game, p: PlayerId, name: &str, targets: Option<Vec<Target>>) {
+    let c = in_hand(game, p, name).expect("in hand");
     let mut d = step(game, Answer::Act(Action::Cast(c)));
     if let Some(t) = targets {
         assert!(matches!(d, Decision::Targets { .. }), "{d:?}");
@@ -412,4 +439,287 @@ fn a_temple_scries_as_it_enters() {
         },
     );
     assert_eq!(game.player(ME).library().back(), Some(&cards[0]));
+}
+
+/// Pass until the active player declares attackers (CR 508.1).
+fn to_attackers(
+    game: &mut Game,
+) -> (
+    Vec<chancellor_of_the_spires::model::ObjectId>,
+    Vec<PlayerId>,
+) {
+    for _ in 0..100 {
+        match game.decision() {
+            Decision::Attackers { can, defenders, .. } => return (can, defenders),
+            _ => {
+                step(game, Answer::Act(Action::Pass));
+            }
+        }
+    }
+    panic!("no declaration of attackers")
+}
+
+/// Pass, without blocking, until combat is over.
+fn through_combat(game: &mut Game) {
+    while game.step_now() <= Step::EndOfCombat {
+        match game.decision() {
+            Decision::Blockers { .. } => step(game, Answer::Block(vec![])),
+            _ => step(game, Answer::Act(Action::Pass)),
+        };
+    }
+}
+
+fn pt_of(
+    game: &Game,
+    id: chancellor_of_the_spires::model::ObjectId,
+) -> chancellor_of_the_spires::model::Pt {
+    game.characteristics()[&id].pt.unwrap()
+}
+
+/// CR 302.6, 508.1a, 508.1f, 510.1b, 120.3a: a creature that came under
+/// my control this turn can't attack; next turn it attacks, taps, and
+/// unblocked deals its power to the player it attacks.
+#[test]
+fn an_unblocked_creature_deals_its_power_to_the_player() {
+    let mut game = deal(
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Forest", 60)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    // Summoning sick: no creature can attack, so nothing is asked.
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 20);
+    my_next_main(&mut game);
+    let (can, defenders) = to_attackers(&mut game);
+    assert_eq!((can, defenders), (vec![bears], vec![THEM]));
+    step(&mut game, Answer::Attack(vec![(bears, THEM)]));
+    assert!(game.permanents()[&bears].tapped);
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+}
+
+/// CR 509.1a, 702.9b, 510.1c–d, 704.5g: Grizzly Bears can't block Storm
+/// Crow, which flies; blocking Grizzly Bears they trade, each dealt
+/// lethal damage.
+#[test]
+fn blocks_obey_flying_and_blocked_creatures_trade() {
+    let mut game = deal_both(
+        &[
+            ("Forest", 20),
+            ("Island", 20),
+            ("Grizzly Bears", 10),
+            ("Storm Crow", 10),
+        ],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[
+            ("Forest", 2),
+            ("Island", 1),
+            ("Grizzly Bears", 1),
+            ("Storm Crow", 1),
+        ],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    cast(&mut game, "Storm Crow", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let theirs = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    resolve(&mut game);
+    let crow = creature(&game, "Storm Crow").unwrap();
+    let (can, _) = to_attackers(&mut game);
+    assert_eq!(can, vec![crow], "my Bears are summoning sick");
+    step(&mut game, Answer::Attack(vec![(crow, THEM)]));
+    let blockers = loop {
+        match game.decision() {
+            Decision::Blockers { player, can, .. } => {
+                assert_eq!(player, THEM);
+                break can;
+            }
+            _ => step(&mut game, Answer::Act(Action::Pass)),
+        };
+    };
+    assert_eq!(blockers, vec![theirs]);
+    assert!(game.step(Answer::Block(vec![(theirs, crow)])).is_err());
+    step(&mut game, Answer::Block(vec![]));
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 19);
+    my_next_main(&mut game);
+    let mine = game
+        .permanents()
+        .iter()
+        .find(|(id, p)| **id != theirs && game.card(p.card).unwrap().name == "Grizzly Bears")
+        .map(|(id, _)| *id)
+        .unwrap();
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(mine, THEM), (crow, THEM)]));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    step(&mut game, Answer::Block(vec![(theirs, mine)]));
+    through_combat(&mut game);
+    assert!(!game.permanents().contains_key(&mine));
+    assert!(!game.permanents().contains_key(&theirs));
+    assert_eq!(game.player(THEM).life(), 18);
+}
+
+/// CR 510.4, 702.7b: Youthful Knight's first strike deals its damage in a
+/// step of its own, so the Grizzly Bears blocking it die before they deal
+/// theirs.
+#[test]
+fn first_strike_kills_the_blocker_first() {
+    let mut game = deal_both(
+        &[("Plains", 40), ("Youthful Knight", 20)],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Plains", 2), ("Youthful Knight", 1)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Plains");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Youthful Knight", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    let knight = creature(&game, "Youthful Knight").unwrap();
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(knight, THEM)]));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    step(&mut game, Answer::Block(vec![(bears, knight)]));
+    let mut steps = Vec::new();
+    while game.step_now() <= Step::EndOfCombat {
+        steps.push(game.step_now());
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert!(steps.contains(&Step::FirstStrikeDamage));
+    assert!(!game.permanents().contains_key(&bears));
+    assert!(game.permanents().contains_key(&knight));
+    assert_eq!(game.permanents()[&knight].damage, 0);
+}
+
+/// CR 702.83a, 506.5, 603.3, 514.2: Noble Hierarch's exalted triggers when
+/// a creature I control attacks alone, which gets +1/+1 until end of turn,
+/// and is a 2/2 again after cleanup.
+#[test]
+fn exalted_pumps_a_creature_attacking_alone_until_end_of_turn() {
+    let mut game = deal(
+        &[
+            ("Forest", 30),
+            ("Noble Hierarch", 15),
+            ("Grizzly Bears", 15),
+        ],
+        &[("Forest", 60)],
+        &[("Forest", 2), ("Noble Hierarch", 1), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Noble Hierarch", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(bears, THEM)]));
+    assert!(matches!(
+        game.stack().back(),
+        Some(StackObject::Trigger { triggering: Some(t), .. }) if *t == bears
+    ));
+    resolve(&mut game);
+    assert_eq!(pt_of(&game, bears), pt(3, 3));
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 17);
+    pass_until(&mut game, THEM, Step::Upkeep);
+    assert_eq!(pt_of(&game, bears), pt(2, 2));
+}
+
+/// CR 702.108a, 601.2i: Monastery Swiftspear's prowess triggers as I cast
+/// Lightning Bolt, a noncreature spell, and resolves first, above it.
+#[test]
+fn prowess_triggers_on_a_noncreature_spell() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Monastery Swiftspear", 15),
+            ("Lightning Bolt", 15),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 2),
+            ("Monastery Swiftspear", 1),
+            ("Lightning Bolt", 1),
+        ],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Monastery Swiftspear", None);
+    resolve(&mut game);
+    let spear = creature(&game, "Monastery Swiftspear").unwrap();
+    assert!(
+        game.stack().is_empty(),
+        "a creature spell isn't noncreature"
+    );
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Player(THEM)]),
+    );
+    assert_eq!(game.stack().len(), 2);
+    resolve(&mut game);
+    assert_eq!(pt_of(&game, spear), pt(2, 3));
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 17);
+}
+
+/// CR 508.3a, 113.7a: Scorch Spitter's "Whenever this creature attacks,
+/// it deals 1 damage to the player or planeswalker it's attacking".
+#[test]
+fn an_attack_trigger_damages_the_player_attacked() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Scorch Spitter", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 1), ("Scorch Spitter", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Scorch Spitter", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    let spitter = creature(&game, "Scorch Spitter").unwrap();
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(spitter, THEM)]));
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 19);
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
 }

@@ -685,6 +685,91 @@ impl Driver<'_> {
                 self.act(Answer::Find(Found::Nothing))?;
                 self.did(i, "found nothing (CR 701.23b)");
             }
+            Attacked {
+                defender: log::Defender::Player(d),
+                attackers: log::Attackers::Seen(attackers),
+            } => {
+                let defender = self.seat(*d);
+                let mut names = Vec::new();
+                for a in attackers {
+                    let Object::Card(c) = a else {
+                        return Err(unfollowed(None));
+                    };
+                    names.push(self.text(c.name())?.name);
+                }
+                let turn = self.game().turn();
+                let can = loop {
+                    let game = self.game();
+                    if game.turn() != turn || game.step_now() > Step::DeclareAttackers {
+                        return Err(Stop::Diverged(Divergence::NeverOffered {
+                            what: "an attack".into(),
+                        }));
+                    }
+                    match game.decision() {
+                        Decision::Attackers { can, .. } => break can,
+                        Decision::Priority { .. } => self.act(Answer::Act(Action::Pass))?,
+                        _ => self.pass()?,
+                    }
+                };
+                let game = self.game.as_ref().expect("set up");
+                let mut declared: Vec<(ObjectId, PlayerId)> = Vec::new();
+                for n in &names {
+                    let Some(a) = can.iter().find(|id| {
+                        !declared.iter().any(|(x, _)| x == *id)
+                            && game
+                                .card(game.permanents()[*id].card)
+                                .is_some_and(|t| &t.name == n)
+                    }) else {
+                        return Err(Stop::Diverged(Divergence::NeverOffered {
+                            what: format!("attack with {n}"),
+                        }));
+                    };
+                    declared.push((*a, defender));
+                }
+                self.act(Answer::Attack(declared))?;
+                self.did(i, format!("attacked with {}", names.join(", ")));
+            }
+            Blocks {
+                blocker: Object::Card(b),
+                attacker: Object::Card(a),
+            } => {
+                let turn = self.game().turn();
+                loop {
+                    let game = self.game();
+                    if let Decision::Blockers { .. } = game.decision() {
+                        self.pass()?;
+                        break;
+                    }
+                    if game.turn() != turn || game.step_now() > Step::DeclareBlockers {
+                        break;
+                    }
+                    self.pass()?;
+                }
+                let (bn, an) = (self.text(b.name())?.name, self.text(a.name())?.name);
+                let game = self.game();
+                let named = |id: &ObjectId, n: &str| {
+                    game.permanents()
+                        .get(id)
+                        .and_then(|p| game.card(p.card))
+                        .is_some_and(|t| t.name == n)
+                };
+                if !game
+                    .blocks()
+                    .iter()
+                    .any(|(x, y)| named(x, &bn) && named(y, &an))
+                {
+                    return Err(Stop::Diverged(Divergence::NeverOffered {
+                        what: format!("{bn} blocking {an}"),
+                    }));
+                }
+                self.did(i, format!("{bn} blocks {an}"));
+            }
+            TriggerFailed(c) => {
+                self.did(
+                    i,
+                    format!("{}'s trigger has no legal target (CR 603.3d)", c.name()),
+                );
+            }
             Trigger(t) => {
                 let log::Source::Card(c) = &t.source else {
                     let log::Source::Named(n) = &t.source else {
@@ -883,6 +968,43 @@ impl Driver<'_> {
             Decision::ChooseFromHand { .. } => Err(Stop::Diverged(Divergence::Unlogged {
                 what: "a card chosen from a revealed hand".into(),
             })),
+            // No line this turn shows an attack: none is declared.
+            Decision::Attackers { .. } => {
+                if self.attack_ahead() {
+                    return Err(Stop::Diverged(Divergence::Unlogged {
+                        what: "a line before the attack that shows it".into(),
+                    }));
+                }
+                self.act(Answer::Attack(Vec::new()))
+            }
+            Decision::Blockers { can, attackers, .. } => {
+                let blocks = self.blocks_ahead(&can, &attackers)?;
+                self.act(Answer::Block(blocks))
+            }
+            // The log never shows how damage was divided: lethal to each
+            // blocker in turn, and the rest to the last, or past them to
+            // the player with trample (CR 702.19b).
+            Decision::Assign {
+                power, to, lethal, ..
+            } => {
+                let mut left = power;
+                let mut amounts: Vec<u32> = lethal
+                    .iter()
+                    .zip(&to)
+                    .map(|(l, t)| match t {
+                        Target::Player(_) => 0,
+                        Target::Object(_) => {
+                            let n = (*l).min(left);
+                            left -= n;
+                            n
+                        }
+                    })
+                    .collect();
+                if let Some(last) = amounts.last_mut() {
+                    *last += left;
+                }
+                self.act(Answer::Assign(amounts))
+            }
             Decision::Scry { .. } => Err(Stop::Diverged(Divergence::Unlogged {
                 what: "a scry".into(),
             })),
@@ -907,6 +1029,69 @@ impl Driver<'_> {
                 unreachable!("the replay answers {d:?} where it arises")
             }
         }
+    }
+
+    /// Whether a line from the one being followed to the end of the turn
+    /// shows an attack.
+    fn attack_ahead(&self) -> bool {
+        // Passing to a new turn's line, the lines after it are that turn's.
+        if matches!(self.entries[self.at].event, Event::TurnBegins(_)) {
+            return false;
+        }
+        self.entries
+            .iter()
+            .skip(self.at + 1)
+            .take_while(|e| !matches!(e.event, Event::TurnBegins(_)))
+            .any(|e| matches!(e.event, Event::Attacked { .. }))
+    }
+
+    /// The blocks the log shows from the line being followed to the end of
+    /// the turn, as the defending player's declaration: each blocker a
+    /// creature of `can` of
+    /// that name, each attacker one of `attackers` of its name, the first
+    /// when two share it.
+    fn blocks_ahead(
+        &mut self,
+        can: &[ObjectId],
+        attackers: &[ObjectId],
+    ) -> Result<Vec<(ObjectId, ObjectId)>, Stop> {
+        let lines: Vec<(String, String)> = self
+            .entries
+            .iter()
+            .skip(self.at)
+            .take_while(|e| !matches!(e.event, Event::TurnBegins(_)))
+            .filter_map(|e| match &e.event {
+                Event::Blocks {
+                    blocker: Object::Card(b),
+                    attacker: Object::Card(a),
+                } => Some((b.name().to_string(), a.name().to_string())),
+                _ => None,
+            })
+            .collect();
+        let mut out = Vec::new();
+        for (b, a) in lines {
+            let (b, a) = (self.text(&b)?.name, self.text(&a)?.name);
+            let game = self.game.as_ref().expect("set up");
+            let named = |id: &ObjectId, n: &str| {
+                game.card(game.permanents()[id].card)
+                    .is_some_and(|t| t.name == n)
+            };
+            let Some(blocker) = can
+                .iter()
+                .find(|id| named(id, &b) && !out.iter().any(|(x, _)| x == *id))
+            else {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("{b} blocking {a}"),
+                }));
+            };
+            let Some(attacker) = attackers.iter().find(|id| named(id, &a)) else {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("{b} blocking {a}"),
+                }));
+            };
+            out.push((*blocker, *attacker));
+        }
+        Ok(out)
     }
 
     fn name_of(&self, c: CardId) -> String {
@@ -1211,10 +1396,45 @@ impl Driver<'_> {
         Ok(Some(*c))
     }
 
+    /// Whether a later line this turn shows the top of the stack resolving:
+    /// a draw or a reveal "with" its card. A play before that line was made
+    /// in response to it.
+    fn resolves_later(&self) -> bool {
+        let game = self.game.as_ref().expect("set up");
+        let Some(top) = game.stack().back() else {
+            return false;
+        };
+        let card = match top {
+            StackObject::Spell { card, .. }
+            | StackObject::Ability { source: card, .. }
+            | StackObject::Trigger { source: card, .. } => *card,
+        };
+        let Some(name) = game.card(card).map(|t| t.name.clone()) else {
+            return false;
+        };
+        let is = |s: &log::Source| matches!(s, log::Source::Card(c) if c.name() == name);
+        self.entries
+            .iter()
+            .skip(self.at + 1)
+            .take_while(|e| !matches!(e.event, Event::TurnBegins(_)))
+            .any(|e| match &e.event {
+                Event::Draws { with: Some(s), .. } => is(s),
+                Event::Reveals {
+                    how:
+                        log::Reveal::With(s)
+                        | log::Reveal::HandTo(s)
+                        | log::Reveal::Many { with: s, .. },
+                    ..
+                } => is(s),
+                _ => false,
+            })
+    }
+
     /// Pass priority until `p` may play or cast `name` from their hand,
-    /// within this turn, and say which card it is. The stack resolves first
-    /// unless the play targets a spell on it: the log doesn't say when a
-    /// spell resolved, and a play that answers one targets it.
+    /// within this turn, and say which card it is. The stack resolves first,
+    /// down to what a later line shows resolving, unless the play targets
+    /// a spell on it: the log doesn't say when a spell resolved, and a
+    /// play that answers one targets it or comes before its result.
     fn offered(
         &mut self,
         p: PlayerId,
@@ -1232,7 +1452,7 @@ impl Driver<'_> {
                 None => true,
             };
         if !respond {
-            while !self.game().stack().is_empty() {
+            while !self.game().stack().is_empty() && !self.resolves_later() {
                 self.pass()?;
                 if self.game().turn() != turn {
                     break;
@@ -1300,7 +1520,7 @@ impl Driver<'_> {
         let text = self.text(name)?;
         let turn = self.game().turn();
         if !respond {
-            while !self.game().stack().is_empty() {
+            while !self.game().stack().is_empty() && !self.resolves_later() {
                 self.pass()?;
                 if self.game().turn() != turn {
                     break;

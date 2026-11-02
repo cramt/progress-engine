@@ -451,13 +451,24 @@ impl State {
 
     /// A spell or ability resolves into a continuous effect on these
     /// objects (CR 611.2c, 613.7b).
-    pub fn resolve(&mut self, affects: impl IntoIterator<Item = ObjectId>, ops: Vec<Op>) {
+    pub fn resolve(
+        &mut self,
+        affects: impl IntoIterator<Item = ObjectId>,
+        ops: Vec<Op>,
+    ) -> Timestamp {
         let timestamp = Timestamp(self.tick());
         self.resolved.push_back(Resolved {
             timestamp,
             affects: affects.into_iter().collect(),
             ops,
         });
+        timestamp
+    }
+
+    /// Continuous effects that end, "until end of turn" ones in cleanup
+    /// (CR 514.2).
+    pub fn end(&mut self, ended: &[Timestamp]) {
+        self.resolved.retain(|r| !ended.contains(&r.timestamp));
     }
 
     pub fn put_counters(&mut self, on: ObjectId, kind: Counter, n: u32) {

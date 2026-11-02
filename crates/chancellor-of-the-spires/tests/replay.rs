@@ -219,9 +219,10 @@ fn refusals_and_unfollowed_lines_are_named() {
         alice plays [Forest].
         bob is being attacked by [Grizzly Bears]
     ");
+    // No creature to attack with.
     assert_eq!(
         r.end.stop().map(Stop::kind),
-        Some("unfollowed: Attacked".to_string())
+        Some("diverged: NeverOffered".to_string())
     );
 }
 
@@ -452,4 +453,48 @@ fn a_revealed_hand_and_a_trigger_replay() {
         r.end.stop(),
         Some(&Stop::Diverged(Divergence::HandSize { log: 6, engine: 7 }))
     );
+}
+
+/// An attack and a block as the log prints them (CR 508.1, 509.1): Raging
+/// Goblin attacks with haste the turn it is cast, unblocked; the next
+/// turn Grizzly Bears block it and it dies (CR 510.1c, 704.5g). The
+/// damage itself is never printed, so the engine's life total is the
+/// check.
+#[test]
+fn an_attack_and_a_block_replay() {
+    let lines = "
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Mountain].
+        alice casts [Raging Goblin].
+        bob is being attacked by [Raging Goblin]
+        Turn 1: bob
+        bob plays [Forest].
+        Turn 2: alice
+        Turn 2: bob
+        bob plays [Forest].
+        bob casts [Grizzly Bears].
+        Turn 3: alice
+        bob is being attacked by [Raging Goblin]
+        [Grizzly Bears] blocks [Raging Goblin].
+        Turn 3: bob
+        alice has conceded from the game.
+    ";
+    let (_, r) = run(lines);
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.unwrap();
+    assert_eq!(game.player(BOB).life(), 19);
+    let graveyard: Vec<String> = game
+        .player(ALICE)
+        .graveyard()
+        .iter()
+        .filter_map(|c| game.card(*c).map(|t| t.name.clone()))
+        .collect();
+    assert_eq!(graveyard, ["Raging Goblin"]);
+    // A block the engine calls illegal: a creature that isn't there.
+    let (_, r) = run(&lines.replace("[Grizzly Bears] blocks", "[Mountain] blocks"));
+    assert!(matches!(
+        r.end.stop(),
+        Some(Stop::Diverged(Divergence::NeverOffered { .. }))
+    ));
 }

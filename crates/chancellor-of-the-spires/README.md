@@ -88,6 +88,19 @@ on. Turn-based and state-based actions are never decisions.
   which symbol changes nothing modelled), and `Payment::Cancel`, which
   puts the game back as it was before the cast, mana abilities included
   (CR 733.1). A cost no pool pays offers only `Cancel`.
+- `Attackers { player, can, defenders }`: the active player declares
+  attackers (CR 508.1), answered `Attack` with each attacker and the
+  player it attacks, none for no attack; asked only when a creature can
+  attack: untapped, under its controller's control since their turn
+  began or with haste (CR 302.6), and without defender (CR 702.3b).
+- `Blockers { player, can, attackers }`: each defending player declares
+  blockers (CR 509.1), answered `Block` with each blocker and the
+  attacker it blocks, legal when a creature with flying is blocked only
+  by flying or reach and one with menace by two or more (CR 702.9b,
+  702.111b).
+- `Assign { player, source, power, to, lethal }`: a creature blocked by
+  two or more, or with trample, divides its combat damage (CR 510.1c,
+  702.19b), answered `Assign` with an amount for each.
 - `Discard { player, count, hand }` in cleanup (CR 514.1) or as an
   instruction says (CR 701.9a),
   `ReturnCommander { player, card }` (CR 903.9a, answered
@@ -130,7 +143,17 @@ matches enters, itself or "another Human you control" (CR 603.6a), put on
 the stack the next time a player would receive priority, the active
 player's first, each player's in the order they choose (CR 603.3b),
 with their targets, removed if a target slot has no legal choice (CR
-603.3d), and resolving independently of their source (CR 113.7a); a basic land
+603.3d), and resolving independently of their source (CR 113.7a), on a
+permanent entering, a creature attacking (CR 508.3a) and its
+controller casting a spell (CR 601.2i), with exalted and prowess written
+out as the triggers they are (CR 702.83a, 702.108a) and "until end of
+turn" effects ending in cleanup (CR 514.2); combat: attackers tapping
+unless they have vigilance (CR 508.1f), blockers, the declare blockers
+and combat damage steps skipped with no attackers (CR 508.8), a
+first-strike damage step for first and double strike (CR 510.4),
+combat damage assigned and dealt at once (CR 510.1–510.2), to the player
+an unblocked creature attacks or the creatures blocking and blocked,
+deathtouch and lifelink as for any damage; a basic land
 type's intrinsic mana ability (CR 305.6), which the layers grant after
 layer 4, so Yavimaya's Forests tap for {G}, Blood Moon's Mountains for {R}
 alone (CR 305.7), and a land that loses all abilities for nothing; "enters
@@ -148,15 +171,15 @@ a multiplayer game going on without them (CR 800.4a).
 A card the game can't run is refused by name when played or cast rather
 than run without what it can't do: an instruction with no lowering, named
 by its node (`Effect::Destroy`, `Effect::May(Move)`), a triggered ability
-on any other event (`Trigger::When(Event::Attacks)`,
+on any other event (`Trigger::When(Event::DealsDamageTo)`,
 `Trigger::At(Step::Upkeep)`), a reference the ability's binders don't
 resolve to a target or its source, a static that isn't
 "enters tapped", a mana ability with a cost or effect beyond those above,
 `{X}`, Phyrexian or snow mana, a planeswalker or battle (their counters),
 an Aura (its target), and a keyword other than flash, cycling, transmute,
-partner and combat's (reach, menace, first and double strike, defender),
-which do nothing until something attacks; cycling, transmute and
-flashback are carried, never offered. A non-mana activated ability
+flashback, partner, exalted, prowess and combat's (reach, menace, first
+and double strike, defender); cycling, transmute and flashback are
+carried, never offered. A non-mana activated ability
 the engine can't run (a target, a mana cost, a limit, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
@@ -177,10 +200,11 @@ Loam against a goldfish for six turns, casting what it can.
 Not yet: most instructions (destroy, exile, return, create a token,
 counter a spell, modal spells, "may", "if"), X, targeting a spell,
 activated abilities with targets, mana costs, limits or effects other
-than a search for a card, triggers on any event but entering, "intervening
-if" (CR 603.4), a card that triggers from a graveyard, declaring
-attackers (the declare blockers and combat damage steps aren't in `Step`
-until something can attack, CR 508.8), and a land's back face (CR 712). State-based actions that give a choice run one after the other
+than a search for a card, triggers on any event but entering, attacking
+and casting, "intervening if" (CR 603.4), a card that triggers from a
+graveyard, attacking a planeswalker or battle, requirements and
+restrictions on attacking and blocking beyond flying, reach, menace and
+defender, a creature blocking two, and a land's back face (CR 712). State-based actions that give a choice run one after the other
 rather than at once (CR 704.3), which nothing can tell apart without
 triggers.
 
@@ -325,42 +349,52 @@ engine puts on the stack that no line shows, or one a line shows that the
 engine never triggered, stops the replay (`UnloggedTrigger`,
 `Untriggered`), and a trigger's targets and the order of several are read
 from the lines that show them. A draw "with" a spell or ability is the
-engine's own as it resolves.
+engine's own as it resolves. An attack is the log's "is being attacked
+by" line, its attackers by name, and the blocks the "[X] blocks [Y]"
+lines after it, the first of two creatures of one name where the log
+can't tell them apart; a turn whose lines show no attack declares none.
+How a creature blocked by two divides its damage is never printed, so
+the replay assigns each blocker lethal damage in turn and the rest to the
+last, or past them to the player with trample. The log doesn't say when
+a spell resolved either: the stack resolves before a line's play,
+down to what a later line shows resolving ("reveals their hand to
+[Duress]"), so a fetchland activated in response to Duress is activated
+with Duress on the stack.
 
 The first line the engine won't follow ends the game's replay with a
 typed `Stop`: a card refused by the node of its text the engine can't run,
 an answer it calls illegal, a state that disagrees with the log (a play it
 never offers that turn, a spell it can't pay for, a turn out of step), or
-a kind of line not followed yet (an attack, an exile). `--game ID` prints one game line by line with what the engine
+a kind of line not followed yet (an exile, a creature put onto the
+battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 18 replay to the end** (15 to the log's winner
-line), 5 of them past the first turn, measured 2026-11-02; it was 15
-before spells' effects and enters triggers ran. They are the
+**Of 1,061 games replayed, 19 replay to the end** (16 to the log's winner
+line), 6 of them past the first turn, measured 2026-11-02; it was 15
+before spells' effects, triggers and combat ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 627 stop
-in the first turn, 300 in the second, 35 in the third, 7 later, and 74 at
+no turn in them (empty logs, concessions during the mulligans). 559 stop
+in the first turn, 345 in the second, 54 in the third, 10 later, and 74 at
 the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started). Lands stop few games now:
 fetchlands, shock, fast, battle and check lands all run, and the most a
-land stops is Cloudpost (35) and Fabled Passage's "then if you control
-four or more lands, untap that land" (8). A refused spell or trigger is
+land stops is Cloudpost (37) and Fabled Passage's "then if you control
+four or more lands, untap that land" (10). A refused spell or trigger is
 ranked by the node it needs: before they ran, `Effect::RevealHand` (86
 games: Inquisition of Kozilek, Duress, Thoughtseize),
 `Trigger::When(Event::Enters)` (94: Champion of the Parish, Temple of
 Deceit, Wall of Blossoms), `Trigger::When(Event::Attacks)` (54),
-`Effect::Draw` (35), `Effect::Scry` (23), then
-`Trigger::When(Event::DealsDamageTo)` (26), `Trigger::At(Step::Upkeep)`
-and `Trigger::When(Event::IsDealtDamage)` (24 each). The stops now, by
-games: `Trigger::When(Event::Attacks)` (57, Goblin Guide and Scorch
-Spitter first), exalted (40), "as long as" and Cloudpost's count "on the
-battlefield" (37 each), a Leyline from the opening hand (35), an upkeep
-trigger (33), an attack (33), a discard the engine doesn't ask for and an
-exile line not followed (32 each), a card with two faces (30), and the
-damage triggers of Goblin Lackey and Jackal Pup (28, 25), `Effect::LookAtTop`
-(27) and prowess (25). Combat and what it triggers is the biggest of them
-together. None is the engine disagreeing with Magic Online; those that
+`Effect::Draw` (35), exalted (33), `Effect::Scry` (23), prowess and an
+attack (23 each), then `Trigger::When(Event::DealsDamageTo)` (26),
+`Trigger::At(Step::Upkeep)` and `Trigger::When(Event::IsDealtDamage)`
+(24 each). The stops now, by games: "as long as" (41), Cloudpost's count
+"on the battlefield" (39), an upkeep trigger (38: Aether Vial, Dark
+Confidant, Mirri's Guile), an exile line not followed, a card with two
+faces, a discard the engine doesn't ask for and a Leyline from the
+opening hand (35 or 36 each), Goblin Lackey's "deals damage to a player"
+trigger (33), `Effect::LookAtTop` (30: Portent), Jackal Pup's "is dealt
+damage" (25) and Goblin Guide's `Effect::RevealTop` (24). None is the engine disagreeing with Magic Online; those that
 were are fixed: Gaea's Cradle's "Add {G} for each creature" not read as a
 mana ability (CR 605.1a), and Champion of the Parish's "another Human"
 missing a Human, since a creature type said with no card type was read
@@ -373,9 +407,12 @@ land in the opponent's turn; a fetchland whose search the replay answers
 again when the first land it found can't pay for a later spell, and one
 the log says found nothing; a shock land paid for only when a spell
 that turn needs it; and Duress's revealed hand and Champion of the
-Parish's trigger, which must each match the engine's. `tests/effects.rs`
-runs Thoughtseize, Lightning Bolt (at a player, at a creature, and at one
-already gone), Preordain, Champion of the Parish and Temple of Deceit.
+Parish's trigger, which must each match the engine's; and an attack and
+a block. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
+player, at a creature, and at one already gone), Preordain, Champion of
+the Parish, Temple of Deceit, and combat: an unblocked attacker,
+flying against a block, a trade, first strike, exalted, prowess and
+Scorch Spitter's attack trigger.
 
 ## Speed
 

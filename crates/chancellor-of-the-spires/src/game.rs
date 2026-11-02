@@ -30,7 +30,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::Arc;
 
-use imbl::{OrdMap, Vector};
+use imbl::{OrdMap, OrdSet, Vector};
 use vivisurgeons_insight::ast as i;
 
 use crate::deck::{CardText, DeckCards};
@@ -43,7 +43,7 @@ use crate::mana::{self as m, short};
 pub use crate::mana::{Mana, ManaCost, ManaPool, Shard};
 use crate::model::{
     Ability, CardType, Chars, Color, Filter, Keyword, ObjectId, PlayerId, Pred, Seen, State,
-    Subtype, Supertype,
+    Subtype, Supertype, Timestamp,
 };
 
 /// CR 103.4.
@@ -181,10 +181,11 @@ impl Unrunnable {
     }
 }
 
-/// A turn's steps, and the main phases, which have none (CR 500.1). Combat
-/// is its beginning, the declaration of attackers and its end: with no
-/// attackers the declare blockers and combat damage steps are skipped
-/// (CR 508.8), and nothing can attack yet, so they aren't here.
+/// A turn's steps, and the main phases, which have none (CR 500.1). With
+/// no attackers the declare blockers and combat damage steps are skipped
+/// (CR 508.8), and the first-strike damage step happens only when an
+/// attacking or blocking creature has first strike or double strike (CR
+/// 510.4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Step {
     Untap,
@@ -193,6 +194,9 @@ pub enum Step {
     PrecombatMain,
     BeginningOfCombat,
     DeclareAttackers,
+    DeclareBlockers,
+    FirstStrikeDamage,
+    CombatDamage,
     EndOfCombat,
     PostcombatMain,
     End,
@@ -212,7 +216,10 @@ impl Step {
             Step::Draw => Step::PrecombatMain,
             Step::PrecombatMain => Step::BeginningOfCombat,
             Step::BeginningOfCombat => Step::DeclareAttackers,
-            Step::DeclareAttackers => Step::EndOfCombat,
+            Step::DeclareAttackers => Step::DeclareBlockers,
+            Step::DeclareBlockers => Step::FirstStrikeDamage,
+            Step::FirstStrikeDamage => Step::CombatDamage,
+            Step::CombatDamage => Step::EndOfCombat,
             Step::EndOfCombat => Step::PostcombatMain,
             Step::PostcombatMain => Step::End,
             Step::End => Step::Cleanup,
@@ -318,6 +325,8 @@ pub enum StackObject {
         ability: u16,
         controller: PlayerId,
         targets: Vec<Target>,
+        /// The object its event names, exalted's attacking creature.
+        triggering: Option<ObjectId>,
         seq: u32,
     },
     /// An activated ability (CR 602.2a): the card whose ability it is, by
@@ -351,6 +360,8 @@ struct Resuming {
     /// Each target slot's target, or `None` if it is illegal now: an
     /// instruction won't act on an illegal target (CR 608.2b).
     targets: Vec<Option<Target>>,
+    /// The object the trigger event named.
+    triggering: Option<ObjectId>,
     next: usize,
 }
 
@@ -362,9 +373,39 @@ pub struct Pending {
     pub object: ObjectId,
     pub ability: u16,
     pub controller: PlayerId,
+    /// The object its event names, exalted's attacking creature.
+    pub triggering: Option<ObjectId>,
     /// Its controller has put it in order among their others (CR 603.3b).
     ordered: bool,
 }
+
+/// What happened that a triggered ability may be waiting for (CR 603.2).
+enum Event {
+    /// A permanent entered the battlefield (CR 603.6a).
+    Entered(ObjectId),
+    /// These creatures were declared as attackers (CR 508.3a).
+    Attacked(Vec<ObjectId>),
+    /// A player cast this spell (CR 601.2i).
+    Cast { card: CardId, controller: PlayerId },
+}
+
+/// The combat phase's state (CR 506): who attacks whom, who blocks what.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct Combat {
+    /// Each attacking creature and the player it attacks (CR 508.1b).
+    attackers: OrdMap<ObjectId, PlayerId>,
+    /// Each blocking creature and the attacker it blocks (CR 509.1a).
+    blockers: OrdMap<ObjectId, ObjectId>,
+    /// The attackers blocked, which stay blocked when their blockers go
+    /// (CR 509.1h).
+    blocked: OrdSet<ObjectId>,
+    /// The creatures that dealt first-strike damage (CR 510.4).
+    struck: OrdSet<ObjectId>,
+}
+
+/// Combat damage assigned before it is dealt (CR 510.1–510.2): the source,
+/// what it is dealt to, and how much.
+type Assigned = Vec<(ObjectId, Target, u32)>;
 
 /// What targets are being chosen for (CR 601.2c, 603.3d).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -470,6 +511,27 @@ enum Waiting {
         player: PlayerId,
         cards: Vec<CardId>,
         resume: Resuming,
+    },
+    /// CR 508.1: the active player declares attackers.
+    Attackers {
+        player: PlayerId,
+    },
+    /// CR 509.1: `player` declares blockers; `rest` are the other
+    /// defending players, still to.
+    Blockers {
+        player: PlayerId,
+        rest: Vec<PlayerId>,
+    },
+    /// CR 510.1c, 702.19b: `source`'s controller divides its combat damage
+    /// among `to`; `left` are the creatures still to assign theirs, and
+    /// `assigned` what is assigned so far, in the first-strike step or not.
+    Assign {
+        player: PlayerId,
+        source: ObjectId,
+        to: Vec<Target>,
+        left: Vec<ObjectId>,
+        assigned: Assigned,
+        first: bool,
     },
     /// CR 704.5j, before `then` gets priority.
     LegendRule {
@@ -595,6 +657,32 @@ pub enum Decision {
         player: PlayerId,
         cards: Vec<CardId>,
     },
+    /// CR 508.1a: the creatures `player` may attack with, and whom.
+    /// Answered with `Answer::Attack`, none for no attack.
+    Attackers {
+        player: PlayerId,
+        can: Vec<ObjectId>,
+        defenders: Vec<PlayerId>,
+    },
+    /// CR 509.1a: the creatures `player` may block with, and the attackers
+    /// attacking them. Answered with `Answer::Block`, legal when flying
+    /// and menace are obeyed (CR 702.9b, 702.111b).
+    Blockers {
+        player: PlayerId,
+        can: Vec<ObjectId>,
+        attackers: Vec<ObjectId>,
+    },
+    /// CR 510.1c, 702.19b: `source` assigns `power` combat damage among
+    /// `to`, answered with `Answer::Assign`, an amount for each. With
+    /// trample `to` ends with the player it attacks, who gets damage only
+    /// once each blocker is assigned `lethal` (CR 702.19b).
+    Assign {
+        player: PlayerId,
+        source: ObjectId,
+        power: u32,
+        to: Vec<Target>,
+        lethal: Vec<u32>,
+    },
     /// CR 701.23a–b: search your library for a card `filter` matches,
     /// answered with `Answer::Find`. `known` are the library's cards whose
     /// names are known that match; any of its `hidden` cards might too.
@@ -685,6 +773,12 @@ pub enum Answer {
         top: Vec<CardId>,
         bottom: Vec<CardId>,
     },
+    /// CR 508.1a–b: each attacker and the player it attacks.
+    Attack(Vec<(ObjectId, PlayerId)>),
+    /// CR 509.1a: each blocker and the attacker it blocks.
+    Block(Vec<(ObjectId, ObjectId)>),
+    /// CR 510.1c: the damage assigned to each of the decision's `to`.
+    Assign(Vec<u32>),
 }
 
 #[derive(Debug)]
@@ -756,6 +850,11 @@ pub struct Game {
     triggers: u32,
     /// The card whose spell or ability most recently finished resolving.
     last_resolved: Option<CardId>,
+    /// The combat this turn, from the declaration of attackers to the end
+    /// of combat (CR 506, 511.3).
+    combat: Option<Combat>,
+    /// The "until end of turn" effects to end in cleanup (CR 514.2).
+    until_end_of_turn: Vec<Timestamp>,
     exile: Vector<CardId>,
     command: Vector<CardId>,
     /// How many times each commander has been cast from the command zone
@@ -909,6 +1008,8 @@ impl Game {
             pending: Vector::new(),
             triggers: 0,
             last_resolved: None,
+            combat: None,
+            until_end_of_turn: Vec::new(),
             exile: Vector::new(),
             command,
             commander_casts: OrdMap::new(),
@@ -1137,6 +1238,38 @@ impl Game {
                 player: *player,
                 cards: cards.clone(),
             },
+            Waiting::Attackers { player } => Decision::Attackers {
+                player: *player,
+                can: self.can_attack(*player),
+                defenders: (0..self.players.len())
+                    .map(|q| PlayerId(q as u8))
+                    .filter(|q| q != player && !self.player(*q).left)
+                    .collect(),
+            },
+            Waiting::Blockers { player, .. } => Decision::Blockers {
+                player: *player,
+                can: self.can_block(*player),
+                attackers: self
+                    .combat
+                    .as_ref()
+                    .map(|c| {
+                        c.attackers
+                            .iter()
+                            .filter(|(a, d)| *d == player && self.permanents.contains_key(*a))
+                            .map(|(a, _)| *a)
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+            },
+            Waiting::Assign {
+                player, source, to, ..
+            } => Decision::Assign {
+                player: *player,
+                source: *source,
+                power: self.power(*source),
+                to: to.clone(),
+                lethal: to.iter().map(|t| self.lethal(*source, *t)).collect(),
+            },
             Waiting::Priority { player, .. } => Decision::Priority {
                 player: *player,
                 actions: self.actions(*player),
@@ -1236,9 +1369,14 @@ impl Game {
                     if from_command {
                         *self.commander_casts.entry(spell).or_insert(0) += 1;
                     }
-                    // CR 601.2i: the spell becomes cast, and its caster had
-                    // priority, so gets it again.
+                    // CR 601.2i: the spell becomes cast, what waits for a
+                    // spell cast triggers, and its caster had priority, so
+                    // gets it again.
                     self.before_cast = None;
+                    self.trigger_on(Event::Cast {
+                        card: spell,
+                        controller: player,
+                    });
                     self.give_priority(player, 0);
                 }
                 Payment::Cancel => {
@@ -1332,6 +1470,63 @@ impl Game {
                     _ => return Err(Rejected::Illegal(answer)),
                 }
                 self.follow(resume);
+            }
+            (Waiting::Attackers { player }, Answer::Attack(declared)) => {
+                let Decision::Attackers { can, defenders, .. } = self.decision() else {
+                    unreachable!("declaring attackers")
+                };
+                let mut seen = BTreeSet::new();
+                if !declared
+                    .iter()
+                    .all(|(a, d)| can.contains(a) && defenders.contains(d) && seen.insert(*a))
+                {
+                    return Err(Rejected::Illegal(answer));
+                }
+                self.declare_attackers(player, declared);
+            }
+            (Waiting::Blockers { player, rest }, Answer::Block(declared)) => {
+                if !self.legal_blocks(player, declared) {
+                    return Err(Rejected::Illegal(answer));
+                }
+                let combat = self.combat.get_or_insert_with(Combat::default);
+                for (b, a) in declared {
+                    combat.blockers.insert(*b, *a);
+                    combat.blocked.insert(*a);
+                }
+                self.declare_blockers(rest);
+            }
+            (
+                Waiting::Assign {
+                    source,
+                    to,
+                    left,
+                    mut assigned,
+                    first,
+                    ..
+                },
+                Answer::Assign(amounts),
+            ) => {
+                let Decision::Assign { power, lethal, .. } = self.decision() else {
+                    unreachable!("assigning damage")
+                };
+                let to_player = to.iter().position(|t| matches!(t, Target::Player(_)));
+                let blockers_lethal = to
+                    .iter()
+                    .zip(amounts)
+                    .zip(&lethal)
+                    .all(|((t, n), l)| matches!(t, Target::Player(_)) || n >= l);
+                let legal = amounts.len() == to.len()
+                    && amounts.iter().sum::<u32>() == power
+                    && to_player.is_none_or(|k| amounts[k] == 0 || blockers_lethal);
+                if !legal {
+                    return Err(Rejected::Illegal(answer));
+                }
+                for (t, n) in to.iter().zip(amounts) {
+                    if *n > 0 {
+                        assigned.push((source, *t, *n));
+                    }
+                }
+                self.assign_from(left, assigned, first);
             }
             (
                 Waiting::Scry {
@@ -1872,7 +2067,12 @@ impl Game {
                     // CR 608.3a.
                     self.enter(card, controller, false, then);
                 } else {
-                    self.begin_resolving(Instructions::Spell(card), controller, None, targets);
+                    self.begin_resolving(
+                        Instructions::Spell(card),
+                        controller,
+                        (None, None),
+                        targets,
+                    );
                 }
             }
             Some(StackObject::Ability {
@@ -1884,6 +2084,7 @@ impl Game {
                 controller,
                 object: None,
                 targets: Vec::new(),
+                triggering: None,
                 next: 0,
             }),
             Some(StackObject::Trigger {
@@ -1892,11 +2093,12 @@ impl Game {
                 ability,
                 controller,
                 targets,
+                triggering,
                 ..
             }) => self.begin_resolving(
                 Instructions::Triggered(source, ability),
                 controller,
-                Some(object),
+                (Some(object), triggering),
                 targets,
             ),
             None => self.proceed(then),
@@ -1910,7 +2112,7 @@ impl Game {
         &mut self,
         what: Instructions,
         controller: PlayerId,
-        object: Option<ObjectId>,
+        (object, triggering): (Option<ObjectId>, Option<ObjectId>),
         targets: Vec<Target>,
     ) {
         let slots = self.program(what).targets.clone();
@@ -1924,6 +2126,7 @@ impl Game {
             controller,
             object,
             targets: checked,
+            triggering,
             next: 0,
         };
         if !targets.is_empty() && at.targets.iter().all(Option::is_none) {
@@ -2051,9 +2254,14 @@ impl Game {
                     let to = match to {
                         DamageTo::You => Some(Target::Player(p)),
                         DamageTo::Target(s) => at.targets[s],
+                        DamageTo::Attacked => at
+                            .object
+                            .and_then(|o| self.combat.as_ref()?.attackers.get(&o).copied())
+                            .map(Target::Player),
                     };
                     if let Some(to) = to {
-                        self.damage(&at, to, n);
+                        let source = self.source_of(&at);
+                        self.deal(source.as_ref(), at.controller, &[(to, n)]);
                     }
                 }
                 Effect::Scry(n) => {
@@ -2074,17 +2282,14 @@ impl Game {
                     }
                 }
                 Effect::PutCounters { on, counter, n } => {
-                    let on = match on {
-                        Obj::Itself => at.object,
-                        Obj::Target(s) => match at.targets[s] {
-                            Some(Target::Object(o)) => Some(o),
-                            _ => None,
-                        },
-                    };
-                    // CR 400.7: a permanent that left is gone, and the
-                    // instruction does nothing.
-                    if let Some(o) = on.filter(|o| self.permanents.contains_key(o)) {
+                    if let Some(o) = self.object(&at, on) {
                         self.battlefield.put_counters(o, counter, n);
+                    }
+                }
+                Effect::UntilEndOfTurn { on, ops } => {
+                    if let Some(o) = self.object(&at, on) {
+                        let t = self.battlefield.resolve([o], ops);
+                        self.until_end_of_turn.push(t);
                     }
                 }
             }
@@ -2092,17 +2297,25 @@ impl Game {
         self.done(&at)
     }
 
-    /// `n` damage from the resolving spell or ability's source (CR 120.3):
-    /// a player loses that much life, a creature has it marked; lifelink
-    /// gains its controller that much (CR 702.15b), and deathtouch makes it
-    /// lethal (CR 702.2b). The source is read as it is now, or as it last
+    /// The permanent an instruction names, if it is still on the
+    /// battlefield: one that left is a new object, and the instruction
+    /// does nothing to it (CR 400.7).
+    fn object(&self, at: &Resuming, on: Obj) -> Option<ObjectId> {
+        let o = match on {
+            Obj::Itself => at.object,
+            Obj::Triggering => at.triggering,
+            Obj::Target(s) => match at.targets[s] {
+                Some(Target::Object(o)) => Some(o),
+                _ => None,
+            },
+        };
+        o.filter(|o| self.permanents.contains_key(o))
+    }
+
+    /// What the resolving spell or ability's source is now, or as it last
     /// existed (CR 113.7a).
-    fn damage(&mut self, at: &Resuming, to: Target, n: u32) {
-        if n == 0 {
-            return;
-        }
-        let source = at
-            .object
+    fn source_of(&self, at: &Resuming) -> Option<Chars> {
+        at.object
             .and_then(|o| self.characteristics().remove(&o))
             .or_else(|| {
                 let card = match at.what {
@@ -2111,26 +2324,36 @@ impl Game {
                     | Instructions::Triggered(c, _) => c,
                 };
                 self.known(card).and_then(|k| k.printed.clone())
-            });
-        let has = |k: Keyword| {
-            source
-                .as_ref()
-                .is_some_and(|c| c.abilities.contains(&Ability::Keyword(k)))
-        };
-        match to {
-            // CR 120.3a.
-            Target::Player(q) => self.players[q.0 as usize].life -= n as i32,
-            // CR 120.3e.
-            Target::Object(o) => {
-                if let Some(perm) = self.permanents.get_mut(&o) {
-                    perm.damage += n;
-                    perm.deathtouched |= has(Keyword::Deathtouch);
+            })
+    }
+
+    /// Damage from one source, dealt at once (CR 120.3): a player loses
+    /// that much life, a creature has it marked; lifelink gains the
+    /// source's controller the total (CR 702.15b), and deathtouch makes it
+    /// lethal (CR 702.2b).
+    fn deal(&mut self, source: Option<&Chars>, controller: PlayerId, hits: &[(Target, u32)]) {
+        let has = |k: Keyword| source.is_some_and(|c| c.abilities.contains(&Ability::Keyword(k)));
+        let mut total = 0;
+        for (to, n) in hits {
+            if *n == 0 {
+                continue;
+            }
+            total += n;
+            match to {
+                // CR 120.3a.
+                Target::Player(q) => self.players[q.0 as usize].life -= *n as i32,
+                // CR 120.3e.
+                Target::Object(o) => {
+                    if let Some(perm) = self.permanents.get_mut(o) {
+                        perm.damage += n;
+                        perm.deathtouched |= has(Keyword::Deathtouch);
+                    }
                 }
             }
         }
         if has(Keyword::Lifelink) {
-            let controller = source.map_or(at.controller, |c| c.controller);
-            self.players[controller.0 as usize].life += n as i32;
+            let controller = source.map_or(controller, |c| c.controller);
+            self.players[controller.0 as usize].life += total as i32;
         }
     }
 
@@ -2251,6 +2474,7 @@ impl Game {
             ability: t.ability,
             controller: t.controller,
             targets,
+            triggering: t.triggering,
             seq: self.triggers,
         });
     }
@@ -2272,6 +2496,22 @@ impl Game {
         })
     }
 
+    /// The creatures attacking, and whom (CR 506.3).
+    pub fn attacks(&self) -> Vec<(ObjectId, PlayerId)> {
+        self.combat
+            .as_ref()
+            .map(|c| c.attackers.iter().map(|(a, d)| (*a, *d)).collect())
+            .unwrap_or_default()
+    }
+
+    /// The creatures blocking, and what each blocks.
+    pub fn blocks(&self) -> Vec<(ObjectId, ObjectId)> {
+        self.combat
+            .as_ref()
+            .map(|c| c.blockers.iter().map(|(b, a)| (*b, *a)).collect())
+            .unwrap_or_default()
+    }
+
     /// The card whose spell or ability most recently finished resolving.
     pub fn last_resolved(&self) -> Option<CardId> {
         self.last_resolved
@@ -2282,43 +2522,317 @@ impl Game {
         &self.pending
     }
 
-    /// A permanent entered: each enters ability whose filter it matches
-    /// triggers (CR 603.2, 603.6a), its own included.
-    fn entered(&mut self, id: ObjectId) {
+    /// Each triggered ability on the battlefield waiting for what
+    /// happened triggers (CR 603.2): an enters ability whose filter the
+    /// permanent matches, its own included (CR 603.6a); an attacks ability
+    /// for each attacker it matches (CR 508.3a), and exalted for one that
+    /// attacks alone (CR 506.5); prowess for its controller's spell.
+    fn trigger_on(&mut self, event: Event) {
         let all = self.characteristics();
-        let me = &all[&id];
-        let token = self.battlefield.objects[&id].token;
         let mut triggered = Vec::new();
         for (src, chars) in &all {
             let card = self.permanents[src].card;
             let Some(runs) = self.known(card).and_then(|k| k.runs.as_ref().ok()) else {
                 continue;
             };
+            let seen = |id: ObjectId| Seen {
+                id,
+                chars: &all[&id],
+                source: *src,
+                source_chars: chars,
+                source_attached_to: self.battlefield.objects[src].attached_to,
+                token: self.battlefield.objects[&id].token,
+            };
             for (n, t) in &runs.triggered {
                 if !chars.abilities.contains(&Ability::Unread(*n)) {
                     continue;
                 }
-                let TriggerEvent::Enters(filter) = &t.event;
-                let seen = Seen {
-                    id,
-                    chars: me,
-                    source: *src,
-                    source_chars: chars,
-                    source_attached_to: self.battlefield.objects[src].attached_to,
-                    token,
+                let objects: Vec<Option<ObjectId>> = match (&t.event, &event) {
+                    (TriggerEvent::Enters(f), Event::Entered(id)) => {
+                        f.matches(&seen(*id)).then_some(None).into_iter().collect()
+                    }
+                    (TriggerEvent::Attacks(f), Event::Attacked(ids)) => ids
+                        .iter()
+                        .filter(|id| f.matches(&seen(**id)))
+                        .map(|id| Some(*id))
+                        .collect(),
+                    (TriggerEvent::AttacksAlone(f), Event::Attacked(ids)) => match ids.as_slice() {
+                        [id] if f.matches(&seen(*id)) => vec![Some(*id)],
+                        _ => vec![],
+                    },
+                    (TriggerEvent::YouCast(f), Event::Cast { card, controller }) => {
+                        let printed = self.known(*card).and_then(|k| k.printed.as_ref());
+                        (*controller == chars.controller && printed.is_some_and(|c| f.matches(c)))
+                            .then_some(None)
+                            .into_iter()
+                            .collect()
+                    }
+                    _ => vec![],
                 };
-                if filter.matches(&seen) {
+                for triggering in objects {
                     triggered.push(Pending {
                         source: card,
                         object: *src,
                         ability: *n,
                         controller: chars.controller,
+                        triggering,
                         ordered: false,
                     });
                 }
             }
         }
         self.pending.extend(triggered);
+    }
+
+    /// Whether a creature has a keyword: one the layers name, or one its
+    /// card carries unread (first strike, reach, menace, defender).
+    fn has_keyword(&self, id: ObjectId, chars: &Chars, name: &str) -> bool {
+        let named = match name {
+            "flying" => Some(Keyword::Flying),
+            "trample" => Some(Keyword::Trample),
+            "vigilance" => Some(Keyword::Vigilance),
+            "haste" => Some(Keyword::Haste),
+            "deathtouch" => Some(Keyword::Deathtouch),
+            "lifelink" => Some(Keyword::Lifelink),
+            _ => None,
+        };
+        if let Some(k) = named {
+            return chars.abilities.contains(&Ability::Keyword(k));
+        }
+        let Some(runs) = self
+            .known(self.permanents[&id].card)
+            .and_then(|k| k.runs.as_ref().ok())
+        else {
+            return false;
+        };
+        chars.abilities.iter().any(|a| match a {
+            Ability::Unread(n) => matches!(
+                runs.lowered.unread.get(*n as usize),
+                Some(i::Ability::Keywords(ks))
+                    if ks.iter().any(|k| k.param.is_none() && k.name.eq_ignore_ascii_case(name))
+            ),
+            _ => false,
+        })
+    }
+
+    /// CR 508.1a, 302.6, 702.3b: untapped creatures `p` controls that have
+    /// been theirs since their turn began, or have haste, and lack
+    /// defender.
+    fn can_attack(&self, p: PlayerId) -> Vec<ObjectId> {
+        let began = self.player(p).turn_began;
+        self.characteristics()
+            .iter()
+            .filter(|(id, c)| {
+                let perm = &self.permanents[*id];
+                c.controller == p
+                    && c.is(CardType::Creature)
+                    && !perm.tapped
+                    && (began.is_some_and(|t| perm.since < t) || self.has_keyword(**id, c, "haste"))
+                    && !self.has_keyword(**id, c, "defender")
+            })
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
+    /// CR 509.1a: untapped creatures `p` controls.
+    fn can_block(&self, p: PlayerId) -> Vec<ObjectId> {
+        self.characteristics()
+            .iter()
+            .filter(|(id, c)| {
+                c.controller == p && c.is(CardType::Creature) && !self.permanents[*id].tapped
+            })
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
+    /// CR 509.1a–c: each blocker one of `p`'s untapped creatures, blocking
+    /// one creature attacking `p`; a creature with flying blocked only by
+    /// creatures with flying or reach (CR 702.9b), one with menace by two
+    /// or more (CR 702.111b).
+    fn legal_blocks(&self, p: PlayerId, declared: &[(ObjectId, ObjectId)]) -> bool {
+        let Decision::Blockers { can, attackers, .. } = self.decision() else {
+            return false;
+        };
+        let chars = self.characteristics();
+        let mut seen = BTreeSet::new();
+        let shape = declared.iter().all(|(b, a)| {
+            can.contains(b) && attackers.contains(a) && seen.insert(*b) && chars[b].controller == p
+        });
+        shape
+            && attackers.iter().all(|a| {
+                let by: Vec<ObjectId> = declared
+                    .iter()
+                    .filter(|(_, x)| x == a)
+                    .map(|(b, _)| *b)
+                    .collect();
+                let flying = self.has_keyword(*a, &chars[a], "flying");
+                let menace = self.has_keyword(*a, &chars[a], "menace");
+                (!menace || by.is_empty() || by.len() >= 2)
+                    && (!flying
+                        || by.iter().all(|b| {
+                            self.has_keyword(*b, &chars[b], "flying")
+                                || self.has_keyword(*b, &chars[b], "reach")
+                        }))
+            })
+    }
+
+    /// CR 508.1b–f, 508.1m: the attackers attack, tapping unless they
+    /// have vigilance (CR 702.20b), and what waits for them triggers; then
+    /// the active player gets priority (CR 508.2).
+    fn declare_attackers(&mut self, p: PlayerId, declared: &[(ObjectId, PlayerId)]) {
+        let chars = self.characteristics();
+        let mut combat = Combat::default();
+        for (a, d) in declared {
+            combat.attackers.insert(*a, *d);
+            if !self.has_keyword(*a, &chars[a], "vigilance") {
+                if let Some(perm) = self.permanents.get_mut(a) {
+                    perm.tapped = true;
+                }
+            }
+        }
+        self.combat = Some(combat);
+        if !declared.is_empty() {
+            self.trigger_on(Event::Attacked(declared.iter().map(|(a, _)| *a).collect()));
+        }
+        self.give_priority(p, 0);
+    }
+
+    /// CR 509.1: each defending player in turn order from the active
+    /// player declares blockers, then the active player gets priority (CR
+    /// 509.2).
+    fn declare_blockers(&mut self, mut rest: Vec<PlayerId>) {
+        while !rest.is_empty() {
+            let p = rest.remove(0);
+            if !self.can_block(p).is_empty() {
+                self.waiting = Waiting::Blockers { player: p, rest };
+                return;
+            }
+        }
+        self.give_priority(self.active, 0);
+    }
+
+    /// A creature's power as it assigns damage, 0 if it has none.
+    fn power(&self, id: ObjectId) -> u32 {
+        self.characteristics()
+            .get(&id)
+            .and_then(|c| c.pt)
+            .map_or(0, |p| p.power.max(0) as u32)
+    }
+
+    /// The damage that is lethal to `to` from `source` (CR 702.19b): the
+    /// creature's toughness less the damage on it, 1 from a source with
+    /// deathtouch (CR 702.2c), 0 for a player.
+    fn lethal(&self, source: ObjectId, to: Target) -> u32 {
+        let Target::Object(o) = to else { return 0 };
+        let chars = self.characteristics();
+        if chars
+            .get(&source)
+            .is_some_and(|c| self.has_keyword(source, c, "deathtouch"))
+        {
+            return 1;
+        }
+        let toughness = chars.get(&o).and_then(|c| c.pt).map_or(0, |p| p.toughness);
+        let marked = self.permanents.get(&o).map_or(0, |p| p.damage as i32);
+        (toughness - marked).max(0) as u32
+    }
+
+    /// CR 510.1, 510.4: the creatures that assign combat damage in this
+    /// step, attackers first, then each assigns it.
+    fn combat_damage(&mut self, first: bool) {
+        let Some(combat) = self.combat.clone() else {
+            return self.give_priority(self.active, 0);
+        };
+        let chars = self.characteristics();
+        let strikes = |id: &ObjectId| {
+            let c = &chars[id];
+            let fs = self.has_keyword(*id, c, "first strike");
+            let ds = self.has_keyword(*id, c, "double strike");
+            if first {
+                fs || ds
+            } else {
+                !combat.struck.contains(id) || ds
+            }
+        };
+        let left: Vec<ObjectId> = combat
+            .attackers
+            .keys()
+            .chain(combat.blockers.keys())
+            .filter(|id| chars.contains_key(id) && strikes(id) && self.power(**id) > 0)
+            .copied()
+            .collect();
+        self.assign_from(left, Vec::new(), first);
+    }
+
+    /// Each creature in `left` assigns its combat damage (CR 510.1a–d): an
+    /// unblocked attacker to the player it attacks, a blocked one to its
+    /// blocker, its controller dividing it among two or more or, with
+    /// trample, past them to the player (CR 702.19b); a blocker to the
+    /// attacker it blocks. Then it is dealt at once (CR 510.2).
+    fn assign_from(&mut self, mut left: Vec<ObjectId>, mut assigned: Assigned, first: bool) {
+        let combat = self.combat.clone().unwrap_or_default();
+        while !left.is_empty() {
+            let id = left.remove(0);
+            let power = self.power(id);
+            if let Some(defender) = combat.attackers.get(&id) {
+                let blockers: Vec<ObjectId> = combat
+                    .blockers
+                    .iter()
+                    .filter(|(b, a)| **a == id && self.permanents.contains_key(*b))
+                    .map(|(b, _)| *b)
+                    .collect();
+                let chars = self.characteristics();
+                let trample = self.has_keyword(id, &chars[&id], "trample");
+                let player = Target::Player(*defender);
+                match blockers.as_slice() {
+                    // CR 510.1b.
+                    _ if !combat.blocked.contains(&id) => assigned.push((id, player, power)),
+                    // CR 510.1c, 702.19e.
+                    [] if trample => assigned.push((id, player, power)),
+                    [] => {}
+                    [b] if !trample => assigned.push((id, Target::Object(*b), power)),
+                    _ => {
+                        let mut to: Vec<Target> =
+                            blockers.iter().map(|b| Target::Object(*b)).collect();
+                        if trample {
+                            to.push(player);
+                        }
+                        self.waiting = Waiting::Assign {
+                            player: chars[&id].controller,
+                            source: id,
+                            to,
+                            left,
+                            assigned,
+                            first,
+                        };
+                        return;
+                    }
+                }
+            } else if let Some(a) = combat.blockers.get(&id) {
+                // CR 510.1d.
+                if self.permanents.contains_key(a) && combat.attackers.contains_key(a) {
+                    assigned.push((id, Target::Object(*a), power));
+                }
+            }
+        }
+        // CR 510.2: dealt simultaneously, each source's at once.
+        let chars = self.characteristics();
+        let sources: BTreeSet<ObjectId> = assigned.iter().map(|(s, _, _)| *s).collect();
+        for s in &sources {
+            let hits: Vec<(Target, u32)> = assigned
+                .iter()
+                .filter(|(x, _, _)| x == s)
+                .map(|(_, t, n)| (*t, *n))
+                .collect();
+            let source = chars.get(s).cloned();
+            let controller = source.as_ref().map_or(self.active, |c| c.controller);
+            self.deal(source.as_ref(), controller, &hits);
+        }
+        if first {
+            if let Some(c) = self.combat.as_mut() {
+                c.struck.extend(sources);
+            }
+        }
+        self.give_priority(self.active, 0);
     }
 
     fn proceed(&mut self, then: Then) {
@@ -2427,7 +2941,7 @@ impl Game {
                 deathtouched: false,
             },
         );
-        self.entered(id);
+        self.trigger_on(Event::Entered(id));
         self.proceed(then);
     }
 
@@ -2506,6 +3020,32 @@ impl Game {
                     self.draw(self.active);
                     return self.give_priority(self.active, 0);
                 }
+                // CR 508.1: declaring no attackers is no choice when no
+                // creature can attack.
+                Step::DeclareAttackers => {
+                    let p = self.active;
+                    if self.can_attack(p).is_empty() {
+                        self.combat = Some(Combat::default());
+                        return self.give_priority(p, 0);
+                    }
+                    self.waiting = Waiting::Attackers { player: p };
+                    return;
+                }
+                Step::DeclareBlockers => {
+                    let attacked: BTreeSet<PlayerId> = self
+                        .combat
+                        .as_ref()
+                        .map(|c| c.attackers.values().copied().collect())
+                        .unwrap_or_default();
+                    let n = self.players.len();
+                    let rest = (1..n)
+                        .map(|k| PlayerId(((self.active.0 as usize + k) % n) as u8))
+                        .filter(|q| attacked.contains(q))
+                        .collect();
+                    return self.declare_blockers(rest);
+                }
+                Step::FirstStrikeDamage => return self.combat_damage(true),
+                Step::CombatDamage => return self.combat_damage(false),
                 Step::Cleanup => {
                     let player = self.player(self.active);
                     let count = player.hand.len().saturating_sub(HAND_SIZE);
@@ -2518,6 +3058,8 @@ impl Game {
                         return;
                     }
                     // CR 514.2.
+                    let ended = std::mem::take(&mut self.until_end_of_turn);
+                    self.battlefield.end(&ended);
                     let ids: Vec<ObjectId> = self.permanents.keys().copied().collect();
                     for id in ids {
                         if let Some(perm) = self.permanents.get_mut(&id) {
@@ -2560,7 +3102,15 @@ impl Game {
     /// next, beginning the next turn after cleanup and returning `None`.
     fn after(&mut self, step: Step) -> Option<Step> {
         self.empty_pools();
-        match step.next() {
+        // CR 511.3.
+        if step == Step::EndOfCombat {
+            self.combat = None;
+        }
+        let mut next = step.next();
+        while let Some(s) = next.filter(|s| self.skips(*s)) {
+            next = s.next();
+        }
+        match next {
             // CR 103.8a: in a two-player game the starting player skips
             // their first draw step. In other multiplayer games no one
             // does (CR 103.8c).
@@ -2574,6 +3124,38 @@ impl Game {
                 self.begin_turn(next);
                 None
             }
+        }
+    }
+
+    /// CR 508.8: with no attackers, the declare blockers and combat damage
+    /// steps are skipped; CR 510.4: the first-strike damage step happens
+    /// only for a creature with first or double strike in combat.
+    fn skips(&self, s: Step) -> bool {
+        let fighting: Vec<ObjectId> = self
+            .combat
+            .as_ref()
+            .map(|c| {
+                c.attackers
+                    .keys()
+                    .chain(c.blockers.keys())
+                    .copied()
+                    .collect()
+            })
+            .unwrap_or_default();
+        let live: Vec<&ObjectId> = fighting
+            .iter()
+            .filter(|id| self.permanents.contains_key(*id))
+            .collect();
+        match s {
+            Step::DeclareBlockers | Step::CombatDamage => fighting.is_empty(),
+            Step::FirstStrikeDamage => {
+                let chars = self.characteristics();
+                !live.iter().any(|id| {
+                    self.has_keyword(**id, &chars[*id], "first strike")
+                        || self.has_keyword(**id, &chars[*id], "double strike")
+                })
+            }
+            _ => false,
         }
     }
 
@@ -2863,6 +3445,8 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                 for k in ks {
                     if k.name.eq_ignore_ascii_case("flash") {
                         runs.flash = true;
+                    } else if let Some(t) = lower::keyword_trigger(k) {
+                        runs.triggered.insert(n, t);
                     } else if hand_keyword(k) {
                         runs.dormant.push(k.name.to_lowercase());
                     } else if !combat_keyword(k) {
