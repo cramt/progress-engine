@@ -386,9 +386,6 @@ impl Driver<'_> {
                 Ok(Next::Line(n)) => i = n,
                 Ok(Next::Done) => return End::Finished,
                 Err(stop) => {
-                    if std::env::var_os("CHANCELLOR_DEBUG").is_some() {
-                        eprintln!("line {i}: {stop}");
-                    }
                     let triggers = matches!(
                         stop,
                         Stop::Diverged(
