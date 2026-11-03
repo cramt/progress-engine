@@ -239,6 +239,7 @@ pub fn replay(
         unseen: Vec::new(),
         activated: (0, Vec::new()),
         pick: None,
+        early: None,
         named: HashMap::new(),
         trace: Vec::new(),
         seats: Vec::new(),
@@ -310,6 +311,7 @@ struct Knew {
     unseen: Vec<String>,
     activated: (u32, Vec<ObjectId>),
     pick: Option<(usize, usize)>,
+    early: Option<usize>,
 }
 
 #[derive(Clone)]
@@ -322,6 +324,9 @@ enum Retry {
     /// Follow the line again, activating the ability of this one of the
     /// permanents of its name (`which_source`).
     Pick(usize),
+    /// Follow the line again, casting its spell in its caster's beginning
+    /// phase rather than their main phase.
+    Early,
 }
 
 struct Driver<'a> {
@@ -341,6 +346,9 @@ struct Driver<'a> {
     /// The line, and which of the permanents of its name to activate, when
     /// it is followed again (`Retry::Pick`).
     pick: Option<(usize, usize)>,
+    /// The line whose spell is cast in its caster's beginning phase
+    /// (`Retry::Early`).
+    early: Option<usize>,
     named: HashMap<String, Option<CardText>>,
     trace: Vec<Traced>,
     /// The engine's player for each of the log's.
@@ -403,6 +411,7 @@ impl Driver<'_> {
             unseen: self.unseen.clone(),
             activated: self.activated.clone(),
             pick: self.pick,
+            early: self.early,
         }
     }
 
@@ -420,6 +429,7 @@ impl Driver<'_> {
         self.unseen = knew.unseen;
         self.activated = knew.activated;
         self.pick = knew.pick;
+        self.early = knew.early;
     }
 
     fn seat(&self, p: log::Player) -> PlayerId {
@@ -466,10 +476,15 @@ impl Driver<'_> {
                 Ok(Next::Line(n)) => i = n,
                 Ok(Next::Done) => return End::Finished,
                 Err(stop) => {
+                    // What resolving first would show and the log doesn't:
+                    // a trigger, or a choice (Duress's, answered with a
+                    // Lightning Bolt).
                     let triggers = matches!(
                         stop,
                         Stop::Diverged(
-                            Divergence::UnloggedTrigger { .. } | Divergence::Untriggered { .. }
+                            Divergence::UnloggedTrigger { .. }
+                                | Divergence::Untriggered { .. }
+                                | Divergence::Unlogged { .. }
                         )
                     );
                     // A permanent tapped to pay can't then attack, block or
@@ -481,9 +496,16 @@ impl Driver<'_> {
                             Divergence::Unpayable { .. }
                                 | Divergence::EngineOver
                                 | Divergence::NeverOffered { .. }
+                                // A target named for what a search found.
+                                | Divergence::Targets { .. }
                         )
                     );
-                    if furthest.as_ref().is_none_or(|f| i > f.0) {
+                    // Of two stops at one line, a card refused says more
+                    // than what another way of following it ran into.
+                    let refused = matches!(stop, Stop::Refused { .. });
+                    if furthest.as_ref().is_none_or(|f| {
+                        i > f.0 || i == f.0 && refused && matches!(f.1, Stop::Diverged(_))
+                    }) {
                         furthest = Some((i, stop.clone(), self.trace.clone()));
                     }
                     // Only a choice made earlier can make a later payment
@@ -515,6 +537,12 @@ impl Driver<'_> {
                             let did = match other {
                                 Retry::Respond => {
                                     self.respond = Some(entry);
+                                    self.game = Some(game);
+                                    i = resume;
+                                    continue;
+                                }
+                                Retry::Early => {
+                                    self.early = Some(entry);
                                     self.game = Some(game);
                                     i = resume;
                                     continue;
@@ -886,10 +914,17 @@ impl Driver<'_> {
                 // spell on the stack targets, answers it: it is cast
                 // before what it answers resolves.
                 let on_stack = cast.targets.iter().any(|a| self.targets_stack(&a.target));
+                // "targeting Triggered ability from Goblin Lackey": an
+                // ability on the stack.
+                let at_ability = cast.targets.iter().any(|a| {
+                    matches!(&a.target, log::Target::Named(n)
+                        if n.starts_with("Triggered ability") || n.starts_with("Activated ability"))
+                });
                 let answers = cast
                     .targets
                     .iter()
                     .any(|a| self.targeted_on_stack(&a.target))
+                    || at_ability
                     || self.respond == Some(i);
                 // The log never says it was cast in response: it may have
                 // been, if what follows says so (a trigger the spell on
@@ -1178,7 +1213,10 @@ impl Driver<'_> {
                         self.pass()?;
                         break;
                     }
-                    if game.turn() != turn || game.step_now() > Step::DeclareBlockers {
+                    // Declared already, by the line before: a second block
+                    // line passes no priority, or combat damage would be
+                    // dealt before it is checked.
+                    if game.turn() != turn || game.step_now() >= Step::DeclareBlockers {
                         break;
                     }
                     self.pass()?;
@@ -1282,18 +1320,21 @@ impl Driver<'_> {
             // What a resolving spell or ability did: checked once what is
             // on the stack this turn resolves, against the permanent of
             // that name with the most of those counters.
-            PutsCounters { counters, .. } => {
-                self.until_choice()?;
+            PutsCounters { player, counters } => {
+                let p = self.seat(*player);
+                // A counter put as a mana ability's cost (Wall of Roots's
+                // -0/-1), which the log prints as it is activated: the
+                // mana floats until what it pays for is cast.
+                if !self.counter_mana(p, counters)? {
+                    self.until_choice()?;
+                    self.counter_mana(p, counters)?;
+                }
                 for counted in counters {
                     let log::Target::Object(Object::Card(c)) = &counted.on else {
                         return Err(unfollowed(None));
                     };
                     let name = self.permanent_name(c)?;
-                    let kind = match counted.kind.as_str() {
-                        "+1/+1" => Counter::PlusOne,
-                        "-1/-1" => Counter::MinusOne,
-                        k => Counter::Named(k.to_string()),
-                    };
+                    let kind = counter_kind(&counted.kind);
                     let game = self.game();
                     let most = game
                         .permanents()
@@ -1699,9 +1740,28 @@ impl Driver<'_> {
             Decision::Discard { count, .. } => {
                 Err(Stop::Diverged(Divergence::UnloggedDiscard { count }))
             }
-            Decision::LegendRule { .. } => Err(Stop::Diverged(Divergence::Unlogged {
-                what: "the legend rule".into(),
-            })),
+            // CR 704.5j: the log never shows which was kept, nor can it
+            // tell two of one name apart: the first, and the others gone
+            // back to if a later line can't be followed.
+            Decision::LegendRule { among, .. } => {
+                let game = self.game().clone();
+                self.checkpoints.push(Checkpoint {
+                    game,
+                    entry: self.at,
+                    trace: self.trace.len(),
+                    resume: self.at,
+                    others: among[1..]
+                        .iter()
+                        .map(|o| Retry::Answer(Answer::Keep(*o), "kept another (CR 704.5j)".into()))
+                        .collect(),
+                    knew: self.knew(),
+                    back: Back::Any,
+                });
+                self.act(Answer::Keep(among[0]))?;
+                let at = self.at;
+                self.did(at, "kept one of two legendary permanents (CR 704.5j)");
+                Ok(())
+            }
             Decision::ReturnCommander { .. } => Err(Stop::Diverged(Divergence::Unlogged {
                 what: "a commander's return".into(),
             })),
@@ -1785,7 +1845,12 @@ impl Driver<'_> {
                     what: format!("{b} blocking {a}"),
                 }));
             };
-            let Some(attacker) = attackers.iter().find(|id| named(id, &a)) else {
+            // Of two attackers of one name, one not yet blocked first.
+            let unblocked = attackers
+                .iter()
+                .find(|id| named(id, &a) && !out.iter().any(|(_, x)| x == *id));
+            let Some(attacker) = unblocked.or_else(|| attackers.iter().find(|id| named(id, &a)))
+            else {
                 return Err(Stop::Diverged(Divergence::NeverOffered {
                     what: format!("{b} blocking {a}"),
                 }));
@@ -2437,6 +2502,32 @@ impl Driver<'_> {
                 }
             }
         }
+        // A spell its caster casts in their own turn's beginning phase with
+        // nothing to answer is cast in their main phase, where the log
+        // never says the turn has got to: Dark Ritual's mana is gone by
+        // then if cast in the draw step. Cast earlier only if what follows
+        // needs it.
+        let game = self.game.as_ref().expect("set up");
+        if matches!(kind, Kind::Cast(_))
+            && game.active() == p
+            && game.step_now() < Step::PrecombatMain
+            && game.stack().is_empty()
+            && self.early != Some(self.at)
+        {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others: vec![Retry::Early],
+                knew: self.knew(),
+                back: Back::Unplayable,
+            });
+            while self.game().step_now() < Step::PrecombatMain && self.game().turn() == turn {
+                self.pass()?;
+            }
+        }
         let mut seen = None;
         loop {
             let game = self.game();
@@ -2553,6 +2644,21 @@ impl Driver<'_> {
     ) -> Result<Activation, Stop> {
         let text = self.text(name)?;
         let turn = self.game().turn();
+        // An ability of a card in no zone the engine activates from yet: a
+        // companion's put into a hand (CR 702.139c), a card's in a
+        // graveyard.
+        let game = self.game.as_ref().expect("set up");
+        if !game
+            .permanents()
+            .values()
+            .any(|perm| game.card(perm.card).is_some_and(|t| t.name == text.name))
+            && game.stack().is_empty()
+        {
+            return Err(Stop::Unfollowed {
+                event: "Activates of a card not on the battlefield".into(),
+                card: Some(name.to_string()),
+            });
+        }
         if !respond {
             while !self.game().stack().is_empty() && !self.resolves_later() {
                 self.pass()?;
@@ -2630,6 +2736,46 @@ impl Driver<'_> {
             }
             self.pass()?;
         }
+    }
+
+    /// A line putting one counter on a permanent of `p`'s whose mana
+    /// ability costs that counter: the ability activated now, if `p` has
+    /// priority, the first mana it offers taken. Whether it was.
+    fn counter_mana(&mut self, p: PlayerId, counters: &[log::Counted]) -> Result<bool, Stop> {
+        let [counted] = counters else {
+            return Ok(false);
+        };
+        let log::Target::Object(Object::Card(c)) = &counted.on else {
+            return Ok(false);
+        };
+        if counted.count != 1 {
+            return Ok(false);
+        }
+        let name = self.permanent_name(c)?;
+        let kind = counter_kind(&counted.kind);
+        let game = self.game.as_ref().expect("set up");
+        let Decision::Priority { player, actions } = game.decision() else {
+            return Ok(false);
+        };
+        if player != p {
+            return Ok(false);
+        }
+        let mana = actions.iter().find_map(|a| match a {
+            Action::Mana(m)
+                if game.mana_counter(m).as_ref() == Some(&kind)
+                    && game
+                        .card(game.permanents()[&m.source].card)
+                        .is_some_and(|t| t.name == name) =>
+            {
+                Some(*a)
+            }
+            _ => None,
+        });
+        let Some(mana) = mana else {
+            return Ok(false);
+        };
+        self.act(Answer::Act(mana))?;
+        Ok(true)
     }
 
     /// Which of the permanents of one name the line activates `ability`
@@ -3195,13 +3341,21 @@ impl Driver<'_> {
             })
             .collect();
         let game = self.game.as_ref().expect("set up");
-        let named = |a: &ManaActivation| {
+        let named = |o: &ObjectId| {
             game.permanents()
-                .get(&a.source)
+                .get(o)
                 .and_then(|p| game.card(p.card))
                 .is_some_and(|t| used.contains(&t.name))
         };
-        found.sort_by_key(|p| p.iter().filter(|a| named(a)).count());
+        // And a permanent sacrificed for mana is the last resort.
+        found.sort_by_key(|p| {
+            (
+                p.iter().filter(|a| a.sacrifices.is_some()).count(),
+                p.iter()
+                    .filter(|a| named(&a.source) || a.sacrifices.as_ref().is_some_and(named))
+                    .count(),
+            )
+        });
         Ok(found)
     }
 
@@ -3348,6 +3502,20 @@ fn pay_with(game: &mut Game, payment: &[ManaActivation]) -> Followed {
     Ok(())
 }
 
+/// A counter as the log names its kind: "+1/+1", "-0/-1", or a name.
+fn counter_kind(kind: &str) -> Counter {
+    let pt = kind.split_once('/').and_then(|(a, b)| {
+        let n = |s: &str| s.trim_start_matches('+').parse::<i32>().ok();
+        Some((n(a)?, n(b)?))
+    });
+    match pt {
+        Some((1, 1)) => Counter::PlusOne,
+        Some((-1, -1)) => Counter::MinusOne,
+        Some((a, b)) => Counter::Pt(a, b),
+        None => Counter::Named(kind.to_string()),
+    }
+}
+
 /// How many of the words a log prints of an ability, cut off at "...",
 /// its Oracle text has after its cost.
 fn shared_words(said: &str, oracle: &str) -> usize {
@@ -3386,9 +3554,13 @@ const SEARCH: usize = 20_000;
 /// untapped. The log never says which lands paid, so the replay tries
 /// these in order.
 fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec<ManaActivation>> {
-    let mut sources: BTreeMap<ObjectId, Vec<ManaActivation>> = BTreeMap::new();
+    // An ability that sacrifices another permanent can be activated again
+    // for another (Skirk Prospector's "Sacrifice a Goblin"): each choice of
+    // what it sacrifices is a source of its own.
+    let mut sources: BTreeMap<(ObjectId, Option<ObjectId>), Vec<ManaActivation>> = BTreeMap::new();
     for m in options {
-        sources.entry(m.source).or_default().push(*m);
+        let other = m.sacrifices.filter(|o| *o != m.source);
+        sources.entry((m.source, other)).or_default().push(*m);
     }
     // Sources that cost mana last, so the mana they spend is made first.
     let mut sources: Vec<Vec<ManaActivation>> = sources.into_values().collect();
@@ -3411,6 +3583,9 @@ fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec
         owed: &'a ManaCost,
         sources: &'a [Vec<ManaActivation>],
         most: u32,
+        /// The mana in the pool before any is made, which may be the
+        /// wrong kind: Dark Ritual's {B}{B}{B} doesn't pay {1}{R}.
+        initial: u32,
         first_filter: usize,
         visited: usize,
         out: Vec<Vec<ManaActivation>>,
@@ -3430,7 +3605,7 @@ fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec
             }
             // Enough mana needs no more, though the wrong kind can still
             // be filtered.
-            if pool.total() >= self.most && i < self.first_filter {
+            if pool.total() >= self.most + self.initial && i < self.first_filter {
                 if self.first_filter < self.sources.len() {
                     self.go(self.first_filter, pool, chosen);
                 }
@@ -3453,6 +3628,7 @@ fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec
         owed,
         sources: &sources,
         most,
+        initial: pool.total(),
         first_filter,
         visited: 0,
         out: Vec::new(),
@@ -3464,5 +3640,14 @@ fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec
         .collect();
     let mut out = s.out;
     out.sort_by_key(|p| (p.len(), p.iter().map(|a| options[&a.source]).sum::<usize>()));
+    // Sacrifices last, a source's of itself after any of another, so
+    // nothing sacrificed is needed for a later activation.
+    for p in &mut out {
+        p.sort_by_key(|a| match a.sacrifices {
+            None => 0,
+            Some(o) if o != a.source => 1,
+            Some(_) => 2,
+        });
+    }
     out
 }

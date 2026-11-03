@@ -1319,6 +1319,10 @@ pub enum TriggerEvent {
     /// names, relative to its controller, casts a spell the filter
     /// matches, by its card's characteristics (CR 601.2i, 702.108a).
     Casts { by: CastBy, spells: CardFilter },
+    /// "Whenever an opponent draws a card": a player `by` names, relative
+    /// to its controller, draws a card, once for each (CR 121.2), "that
+    /// player" the one who drew.
+    Draws { by: CastBy },
     /// "Whenever this creature is dealt damage": a permanent the filter
     /// matches is dealt damage, the amount the event's (CR 120.3).
     DealtDamage(Filter),
@@ -1432,6 +1436,14 @@ pub fn triggered(
                 },
             },
             i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
+            i::Event::Draws(who) => TriggerEvent::Draws {
+                by: match who {
+                    i::Player::You => CastBy::You,
+                    i::Player::APlayer | i::Player::Each => CastBy::Anyone,
+                    i::Player::AnOpponent | i::Player::EachOpponent => CastBy::Opponents,
+                    _ => return Err(trigger_node(trigger)),
+                },
+            },
             i::Event::Dies(what) => TriggerEvent::Dies(entering(what)?),
             i::Event::DealsDamageTo { what, to }
                 if matches!(to.as_slice(), [i::Recipient::Player(i::Player::APlayer)]) =>
@@ -1477,7 +1489,10 @@ pub fn triggered(
     };
     let mut scope = Scope::new(bind);
     scope.amount = matches!(event, TriggerEvent::DealtDamage(_));
-    scope.caster = matches!(event, TriggerEvent::Casts { .. });
+    scope.caster = matches!(
+        event,
+        TriggerEvent::Casts { .. } | TriggerEvent::Draws { .. }
+    );
     let lowered = scope.effects(effect)?;
     scope.program.effects = lowered;
     Ok(Triggered {
@@ -2532,12 +2547,13 @@ fn spell_filter(o: &Objects) -> Result<CardFilter, String> {
     Ok(f)
 }
 
-/// "+1/+1", "-1/-1" and named counters.
-fn counter(kind: &i::CounterKind) -> Option<Counter> {
+/// "+1/+1", "-1/-1", "-0/-1" and named counters.
+pub fn counter(kind: &i::CounterKind) -> Option<Counter> {
     match kind {
         i::CounterKind::Pt(p) if p.signed => match (p.power, p.toughness) {
             (PtPart::N(1), PtPart::N(1)) => Some(Counter::PlusOne),
             (PtPart::N(-1), PtPart::N(-1)) => Some(Counter::MinusOne),
+            (PtPart::N(a), PtPart::N(b)) => Some(Counter::Pt(a, b)),
             _ => None,
         },
         i::CounterKind::Named(n) => Some(Counter::Named(n.clone())),

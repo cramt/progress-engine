@@ -146,9 +146,12 @@ reductions taken from the generic component alone, never below {0} (CR
 caster's control (CR 608.3a) and an instant or sorcery going to the
 graveyard (CR 608.2n); mana abilities that tap, pay life (CR 119.4) and
 deal their controller damage, as painlands do (CR 120.3a), pay mana
-from the pool, as filter lands and Signets do (CR 605.3a), or are
+from the pool, as filter lands and Signets do (CR 605.3a), put a counter
+on their source (Wall of Roots's -0/-1, CR 602.2b), sacrifice their
+source or a permanent a filter matches (Lotus Petal, Skirk Prospector's
+"Sacrifice a Goblin", CR 701.21a), or are
 limited by "Activate only if you control a creature with power 4 or
-greater" (CR 602.5), adding fixed
+greater" (CR 602.5) or to once each turn (CR 602.5b), adding fixed
 mana, a choice of it, any colour, a colour of the commander's identity
 (CR 903.4), or mana for each permanent a filter matches, counted as it is
 activated (Gaea's Cradle, CR 608.2h), without the stack (CR 605.3b), a
@@ -188,7 +191,8 @@ instruction gives, its creator its owner and controller, named for its
 subtypes (CR 111.1–111.4), a card refused if a token it makes can't run, gain and lose life, damage to any target, a player, a player or
 planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
-lifelink, CR 702.15b), scry and +1/+1 or named counters, mana added to the pool (Dark
+lifelink, CR 702.15b), scry and +1/+1, other power and toughness
+(CR 122.1a) or named counters, mana added to the pool (Dark
 Ritual, CR 106.3), "can't be regenerated", which restricts nothing
 while no regeneration lowers (CR 701.19a–c), a card name chosen, of a
 real card with the characteristics asked (Cabal Therapy's "a nonland
@@ -206,7 +210,9 @@ with their targets, removed if a target slot has no legal choice (CR
 603.3d), and resolving independently of their source (CR 113.7a), on a
 permanent entering, a creature attacking (CR 508.3a), a player, its
 controller or an opponent casting a spell a filter matches, "that
-player" its caster (CR 601.2i: Eidolon of the Great Revel, Warmth), a permanent being dealt damage, with the
+player" its caster (CR 601.2i: Eidolon of the Great Revel, Warmth), a
+player, you or an opponent drawing a card, "that player" the one who
+drew (CR 121.2: Razorkin Needlehead), a permanent being dealt damage, with the
 amount for "that much" (CR 120.3; combat damage dealt at once is one
 event, CR 510.2), a permanent dealing damage, or combat damage, to a
 player, a creature dying, its own "when this creature dies" looking back
@@ -542,8 +548,19 @@ spell or ability on the stack targets is activated in response to it
 that can target a spell is aimed at one; of permanents of one name, the
 replay activates one not yet activated this turn (a second Mishra's
 Factory animated, not the first again), and goes back to another if a
-later play can't be made; and a payment taps last what a later line this
-turn attacks, blocks or activates with.
+later play can't be made; a payment taps last what a later line this
+turn attacks, blocks or activates with, and sacrifices for mana last of
+all; a "puts a -0/-1 counter on [Wall of Roots]" line is its mana
+ability activated then, the mana floating; a spell its caster casts in
+their own upkeep or draw step with nothing to answer is cast in their
+main phase instead (Dark Ritual's mana would empty first), earlier only
+if what follows needs it; mana of the wrong colour in the pool is no
+reason to stop tapping lands; two block lines naming attackers of one
+name block two of them; the legend rule's choice, which the log never
+shows, keeps the first and goes back to another if a later line can't be
+followed; and a spell whose casting after the stack resolves leaves a
+choice the log doesn't show (Duress's) is cast in response, as one that
+leaves an unshown trigger is.
 
 The first line the engine won't follow ends the game's replay with a
 typed `Stop`: a card refused by the node of its text the engine can't run,
@@ -554,17 +571,17 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 41 replay to the end** (38 to the log's winner
-line), 24 of them past the first turn, and **25.00% of their lines are
-followed** (19,544 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 44 replay to the end** (41 to the log's winner
+line), 27 of them past the first turn, and **25.55% of their lines are
+followed** (19,978 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-03, and 14 games rely on a land the log never names (1
+measured 2026-11-03, and 13 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 342 stop
-in the first turn, 403 in the second, 146 in the third, 66 later, and 63
+no turn in them (empty logs, concessions during the mulligans). 338 stop
+in the first turn, 385 in the second, 157 in the third, 74 later, and 63
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -643,9 +660,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-03 39 of the 500 replay to
-the end and 32.39% of their lines are followed** (10,253 of 31,659), 3
-of them relying on a land the log never names (1 to the end), and 40
+Worked card by card from there, **on 2026-11-03 42 of the 500 replay to
+the end and 33.62% of their lines are followed** (10,643 of 31,659), 2
+of them relying on a land the log never names (1 to the end), and 41
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -661,7 +678,9 @@ a creature type (Hired Claw); delayed triggers (Portent); a discard
 instead of entering (Mox Diamond); revealed cards a filter sorts (Goblin
 Ringleader); alternative costs and flashback, a card name chosen and a
 hand revealed (Cabal Therapy); training (Hopeful Initiate); an
-intervening "if" (Valakut); "then if you control" (Fabled Passage). And
+intervening "if" (Valakut); "then if you control" (Fabled Passage); draw
+triggers (Razorkin Needlehead); mana abilities costing a counter, once
+each turn (Wall of Roots), or a sacrifice (Skirk Prospector). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -670,9 +689,13 @@ names as a hypothesis, and which of two permanents of one name an
 activation is of. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Wild Growth's Aura (10), Razorkin Needlehead's
-draw trigger, Wall of Roots and morph's face-down casting (9 each), and
-Quest for Pure Flame, Skirk Prospector and Sylvan Library (8 each).
+top of the worklist now: Quest for Pure Flame's damage trigger (13),
+Burst Lightning's kicker and Wild Growth's Aura (10 each), Sylvan
+Library and morph's face-down casting (9 each), and City of Brass and
+Vesuva (8 each). The one divergence left is the replay's: a filter land
+making more mana than one spell needs, the rest floating for the next
+(Flooded Grove's {G}{G} paying two Fyndhorn Elves), which the payment
+search never tries.
 
 ## Speed
 

@@ -531,6 +531,8 @@ enum Event {
     Begins(TurnStep),
     /// This creature died: it is gone, as it last existed (CR 700.4).
     Died(ObjectId),
+    /// This player drew a card (CR 121.2).
+    Drew(PlayerId),
 }
 
 /// The combat phase's state (CR 506): who attacks whom, who blocks what.
@@ -1010,6 +1012,9 @@ pub struct ManaActivation {
     /// pay a hybrid or generic symbol (CR 605.3a, 601.2h); none for one
     /// without.
     pub pays: ManaPool,
+    /// The permanent its cost sacrifices, if it sacrifices one (CR
+    /// 701.21a).
+    pub sacrifices: Option<ObjectId>,
 }
 
 /// What a player with priority can do.
@@ -1187,6 +1192,9 @@ pub struct Game {
     /// Cards discarded this turn by an instruction that chose none of
     /// them ("discards all cards with that name").
     discarded: u32,
+    /// The abilities limited to once each turn activated this turn, by
+    /// their permanent and index (CR 602.5b).
+    used: OrdSet<(ObjectId, u16)>,
     /// The counters each permanent that left had as it last existed, for
     /// an ability of its that counts them (CR 608.2h, 113.7a).
     last_known: OrdMap<ObjectId, LastKnown>,
@@ -1352,6 +1360,7 @@ impl Game {
             shuffled: 0,
             created: 0,
             discarded: 0,
+            used: OrdSet::new(),
             exile: Vector::new(),
             command,
             commander_casts: OrdMap::new(),
@@ -2585,6 +2594,18 @@ impl Game {
         out
     }
 
+    /// The counter a mana ability puts on its source as its cost.
+    pub fn mana_counter(&self, a: &ManaActivation) -> Option<Counter> {
+        let Ability::Unread(n) = a.ability else {
+            return None;
+        };
+        let card = self.permanents.get(&a.source)?.card;
+        match &self.known(card)?.runs {
+            Ok(r) => r.mana.get(&n)?.counter.clone(),
+            Err(_) => None,
+        }
+    }
+
     /// The zones a card may be cast from by its alternative costs (CR
     /// 118.9), before any game.
     pub fn alternatives_of(text: &CardText) -> Vec<lower::CastFrom> {
@@ -2653,15 +2674,21 @@ impl Game {
                 && began.is_none_or(|t| perm.since >= t);
             let runs = self.known(perm.card).and_then(|k| k.runs.as_ref().ok());
             for ability in &chars.abilities {
-                let (tap, life, mana, options) = match ability {
+                let (tap, life, mana, options, sacrifice) = match ability {
                     // CR 305.6.
-                    Ability::Intrinsic(t) => (true, 0, None, vec![ManaPool::of([Mana::of(*t)])]),
-                    // CR 602.5.
+                    Ability::Intrinsic(t) => {
+                        (true, 0, None, vec![ManaPool::of([Mana::of(*t)])], None)
+                    }
+                    // CR 602.5, 602.5b.
                     Ability::Unread(n)
                         if runs
                             .and_then(|r| r.mana.get(n))
                             .and_then(|a| a.only_if.as_ref())
-                            .is_some_and(|c| !self.you_control(c, id, chars, &all)) =>
+                            .is_some_and(|c| !self.you_control(c, id, chars, &all))
+                            || runs
+                                .and_then(|r| r.mana.get(n))
+                                .is_some_and(|a| a.once_per_turn)
+                                && self.used.contains(&(id, *n)) =>
                     {
                         continue
                     }
@@ -2673,6 +2700,7 @@ impl Game {
                             a.options(player.identity.as_deref(), |f| {
                                 self.count(f, id, chars, &all)
                             }),
+                            a.sacrifice.as_ref(),
                         ),
                         None => continue,
                     },
@@ -2694,16 +2722,27 @@ impl Game {
                         ))
                     }
                 };
+                // CR 701.21a: each permanent it could sacrifice.
+                let sacrificed: Vec<Option<ObjectId>> = match sacrifice {
+                    None => vec![None],
+                    Some(m::Sacrifice::Itself) => vec![Some(id)],
+                    Some(m::Sacrifice::One(f)) => {
+                        self.sacrificable(p, f).into_iter().map(Some).collect()
+                    }
+                };
                 let mut seen = BTreeSet::new();
                 for adds in options {
                     for pays in &ways {
-                        if seen.insert((adds, *pays)) {
-                            out.push(ManaActivation {
-                                source: id,
-                                ability: *ability,
-                                adds,
-                                pays: *pays,
-                            });
+                        for sacrifices in &sacrificed {
+                            if seen.insert((adds, *pays, *sacrifices)) {
+                                out.push(ManaActivation {
+                                    source: id,
+                                    ability: *ability,
+                                    adds,
+                                    pays: *pays,
+                                    sacrifices: *sacrifices,
+                                });
+                            }
                         }
                     }
                 }
@@ -3087,15 +3126,29 @@ impl Game {
         let chars = self.characteristics();
         let source = &chars[&a.source];
         let perm = &self.permanents[&a.source];
-        let (tap, life, damage) = match a.ability {
-            Ability::Intrinsic(_) => (true, 0, 0),
+        let (tap, life, damage, counter, once) = match a.ability {
+            Ability::Intrinsic(_) => (true, 0, 0, None, None),
             Ability::Unread(n) => {
                 let runs = self.known(perm.card).and_then(|k| k.runs.as_ref().ok());
                 let def = &runs.expect("a listed ability runs").mana[&n];
-                (def.tap, def.life, def.damage_to_you)
+                let once = def.once_per_turn.then_some(n);
+                (
+                    def.tap,
+                    def.life,
+                    def.damage_to_you,
+                    def.counter.clone(),
+                    once,
+                )
             }
             _ => unreachable!("only mana abilities are listed"),
         };
+        if let Some(n) = once {
+            self.used.insert((a.source, n));
+        }
+        // CR 602.2b: a counter put on it is part of the cost.
+        if let Some(c) = counter {
+            self.battlefield.put_counters(a.source, c, 1);
+        }
         let lifelink = source
             .abilities
             .contains(&Ability::Keyword(Keyword::Lifelink));
@@ -3114,6 +3167,9 @@ impl Game {
         player.life -= damage as i32;
         if lifelink {
             player.life += damage as i32;
+        }
+        if let Some(o) = a.sacrifices {
+            self.put_in_graveyard(o);
         }
     }
 
@@ -4294,6 +4350,14 @@ impl Game {
                         [id] if f.matches(&seen(*id)) => vec![(Some(*id), None)],
                         _ => vec![],
                     },
+                    (TriggerEvent::Draws { by }, Event::Drew(q)) => {
+                        let drew = match by {
+                            lower::CastBy::Anyone => true,
+                            lower::CastBy::You => *q == chars.controller,
+                            lower::CastBy::Opponents => *q != chars.controller,
+                        };
+                        drew.then_some((None, None)).into_iter().collect()
+                    }
                     (TriggerEvent::Casts { by, spells }, Event::Cast { card, controller }) => {
                         let printed = self.known(*card).and_then(|k| k.printed.as_ref());
                         let caster = match by {
@@ -4308,9 +4372,11 @@ impl Game {
                     }
                     _ => vec![],
                 };
-                // A spell cast names its caster, "that player".
+                // A spell cast names its caster, "that player", and a draw
+                // who drew.
                 let player = match &event {
                     Event::Cast { controller, .. } => Some(*controller),
+                    Event::Drew(q) => Some(*q),
                     _ => None,
                 };
                 // CR 603.4: an intervening "if" checked as it triggers.
@@ -4831,11 +4897,15 @@ impl Game {
         player.graveyard.extend(cards.iter().copied());
     }
 
-    /// CR 121.1, 121.4.
+    /// CR 121.1, 121.4: a card drawn, which what waits for it triggers
+    /// on; from an empty library, none is.
     fn draw(&mut self, p: PlayerId) {
         let player = &mut self.players[p.0 as usize];
         match player.library.pop_front() {
-            Some(c) => player.hand.push_back(c),
+            Some(c) => {
+                player.hand.push_back(c);
+                self.trigger_on(Event::Drew(p));
+            }
             None => player.drew_from_empty = true,
         }
     }
@@ -4860,6 +4930,7 @@ impl Game {
         self.shuffled = 0;
         self.created = 0;
         self.discarded = 0;
+        self.used = OrdSet::new();
         self.active = p;
         self.players[p.0 as usize].turn_began = Some(self.turn);
         for player in &mut self.players {

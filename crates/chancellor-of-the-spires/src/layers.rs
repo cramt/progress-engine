@@ -345,11 +345,20 @@ impl Run<'_> {
     /// where they fall among 7c's effects doesn't matter.
     fn counters(&mut self) {
         for (id, o) in &self.state.objects {
-            let n = |k: &Counter| *o.counters.get(k).unwrap_or(&0) as i32;
-            let net = n(&Counter::PlusOne) - n(&Counter::MinusOne);
+            let (mut power, mut toughness) = (0, 0);
+            for (k, n) in &o.counters {
+                let (dp, dt) = match k {
+                    Counter::PlusOne => (1, 1),
+                    Counter::MinusOne => (-1, -1),
+                    Counter::Pt(p, t) => (*p, *t),
+                    Counter::Named(_) => (0, 0),
+                };
+                power += dp * *n as i32;
+                toughness += dt * *n as i32;
+            }
             if let Some(p) = self.now.get_mut(id).and_then(|c| c.pt.as_mut()) {
-                p.power += net;
-                p.toughness += net;
+                p.power += power;
+                p.toughness += toughness;
             }
         }
     }

@@ -57,6 +57,9 @@ const INDEXED: &[&str] = &[
     "Portent",
     "Cabal Therapy",
     "Typhoid Rats",
+    "Dark Ritual",
+    "Wall of Roots",
+    "Llanowar Elves",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1008,4 +1011,64 @@ fn cabal_therapy_names_and_flashes_back() {
     assert_eq!(game.exile().len(), 1);
     assert_eq!(game.player(BOB).graveyard().len(), 3);
     assert_eq!(game.player(BOB).hand().len(), 4);
+}
+
+/// CR 106.3, 500.5: Dark Ritual's mana stays in the pool through the main
+/// phase, so Duress cast after it resolves is paid from it.
+#[test]
+fn dark_ritual_s_mana_pays_for_the_next_spell() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Swamp].
+        alice casts [Dark Ritual].
+        alice casts [Duress] targeting bob.
+        bob reveals their hand to [Duress], containing [Island], [Island], [Island], [Island], [Island], [Island], and [Island].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+}
+
+/// Mana of the wrong kind in the pool is no reason to stop looking: Dark
+/// Ritual's {B}{B}{B} doesn't pay Raging Goblin's {R}, a Mountain does.
+#[test]
+fn a_pool_of_the_wrong_colour_still_taps_a_land() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Mountain].
+        Turn 1: bob
+        bob plays [Island].
+        Turn 2: alice
+        alice plays [Swamp].
+        alice casts [Dark Ritual].
+        alice casts [Raging Goblin].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+}
+
+/// A "puts a -0/-1 counter on [Wall of Roots]" line is its mana ability's
+/// cost, printed as it is activated (CR 602.2b): the replay activates it
+/// then, and the mana floats until Llanowar Elves is cast with it.
+#[test]
+fn wall_of_roots_counter_line_is_its_mana_ability() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Forest].
+        Turn 1: bob
+        bob plays [Island].
+        Turn 2: alice
+        alice plays [Forest].
+        alice casts [Wall of Roots].
+        alice puts a -0/-1 counter on [Wall of Roots].
+        alice casts [Llanowar Elves].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    let game = r.game.unwrap();
+    // Cast off the Wall's {G}, and on the stack when bob concedes.
+    assert_eq!(game.stack().len(), 1);
+    assert_eq!(on_battlefield(&game, "Wall of Roots"), 1);
 }

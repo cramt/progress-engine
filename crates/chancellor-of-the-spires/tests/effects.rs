@@ -2217,3 +2217,93 @@ fn fabled_passage_untaps_the_land_it_finds_with_four_lands() {
     play(&mut game, "Fabled Passage");
     assert!(!crack(&mut game), "four lands: untapped");
 }
+
+/// CR 602.5b, 605.1a, 122.1a: Wall of Roots's "Put a -0/-1 counter on
+/// this creature: Add {G}. Activate only once each turn" is a mana
+/// ability without {T}, so it is activated the turn it enters, the counter
+/// shrinking it, and not again that turn; next turn it is.
+#[test]
+fn wall_of_roots_adds_mana_once_each_turn_for_a_counter() {
+    let mut game = deal(
+        &[("Forest", 40), ("Wall of Roots", 20)],
+        &[("Forest", 60)],
+        &[("Forest", 2), ("Wall of Roots", 1)],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Wall of Roots", None);
+    resolve(&mut game);
+    let wall = creature(&game, "Wall of Roots").unwrap();
+    let roots = |game: &Game| match game.decision() {
+        Decision::Priority { actions, .. } => actions
+            .into_iter()
+            .find(|a| matches!(a, Action::Mana(m) if m.source == wall)),
+        _ => None,
+    };
+    let a = roots(&game).expect("offered while summoning sick");
+    step(&mut game, Answer::Act(a));
+    assert_eq!(game.player(ME).pool().total(), 1);
+    assert_eq!(pt_of(&game, wall), pt(0, 4));
+    assert_eq!(roots(&game), None);
+    my_next_main(&mut game);
+    assert!(roots(&game).is_some());
+}
+
+/// Razorkin Needlehead's "Whenever an opponent draws a card, this creature
+/// deals 1 damage to them": the opponent's draw step draw triggers it, a
+/// draw of mine doesn't.
+#[test]
+fn razorkin_needlehead_punishes_an_opponent_s_draw() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Razorkin Needlehead", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 2), ("Razorkin Needlehead", 1)],
+    );
+    play(&mut game, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Razorkin Needlehead", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::Draw);
+    assert_eq!(game.stack().len(), 1);
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 19);
+    my_next_main(&mut game);
+    assert_eq!(game.player(ME).life(), 20);
+}
+
+/// CR 605.1a, 701.21a: Skirk Prospector's "Sacrifice a Goblin: Add {R}"
+/// is offered once for each Goblin I control, itself among them, and the
+/// one chosen goes to the graveyard as the mana is added.
+#[test]
+fn skirk_prospector_sacrifices_a_goblin_for_mana() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Skirk Prospector", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 1), ("Skirk Prospector", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Skirk Prospector", None);
+    resolve(&mut game);
+    let skirk = creature(&game, "Skirk Prospector").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let sac: Vec<ManaActivation> = actions
+        .iter()
+        .filter_map(|a| match a {
+            Action::Mana(m) if m.source == skirk => Some(*m),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(sac.len(), 1);
+    assert_eq!(sac[0].sacrifices, Some(skirk));
+    step(&mut game, Answer::Act(Action::Mana(sac[0])));
+    assert_eq!(game.player(ME).pool().total(), 1);
+    assert_eq!(creature(&game, "Skirk Prospector"), None);
+    assert_eq!(
+        named(&game, game.player(ME).graveyard(), "Skirk Prospector"),
+        1
+    );
+}

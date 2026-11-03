@@ -317,6 +317,21 @@ pub struct ManaAbility {
     pub adds: Adds,
     /// "This land deals 1 damage to you."
     pub damage_to_you: u32,
+    /// Wall of Roots's "Put a -0/-1 counter on this creature": a counter
+    /// put on its source as it is activated (CR 602.2b).
+    pub counter: Option<crate::model::Counter>,
+    /// "Activate only once each turn" (CR 602.5b).
+    pub once_per_turn: bool,
+    /// "Sacrifice this artifact", "Sacrifice a Goblin" (CR 701.21a).
+    pub sacrifice: Option<Sacrifice>,
+}
+
+/// What a mana ability's cost sacrifices.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Sacrifice {
+    Itself,
+    /// One permanent its controller controls that the filter matches.
+    One(Filter),
 }
 
 impl ManaAbility {
@@ -387,8 +402,10 @@ fn lower_mana_ability(
     limits: &[i::Limit],
 ) -> Result<ManaAbility, String> {
     let mut only_if = None;
+    let mut once_per_turn = false;
     for l in limits {
         match l {
+            i::Limit::OncePerTurn => once_per_turn = true,
             i::Limit::OnlyIf(i::Condition::YouControl(o)) if only_if.is_none() => {
                 only_if = Some(lower::you_control(o)?)
             }
@@ -402,6 +419,9 @@ fn lower_mana_ability(
         only_if,
         adds: Adds::Options(Vec::new()),
         damage_to_you: 0,
+        counter: None,
+        once_per_turn,
+        sacrifice: None,
     };
     for c in cost {
         match c {
@@ -409,6 +429,33 @@ fn lower_mana_ability(
             i::Cost::PayLife(i::Amount::N(n)) => ability.life += n,
             i::Cost::Mana(m) if ability.mana.is_none() => {
                 ability.mana = Some(ManaCost::from_symbols(m)?)
+            }
+            i::Cost::PutCounters {
+                n: i::Amount::N(1),
+                kind,
+                on,
+            } if ability.counter.is_none()
+                && on.quant == i::Quant::SelfRef
+                && on.filter == i::Filter::default() =>
+            {
+                ability.counter =
+                    Some(lower::counter(kind).ok_or("a mana ability costing a counter")?)
+            }
+            i::Cost::Sacrifice(o) if ability.sacrifice.is_none() => {
+                ability.sacrifice = Some(
+                    if o.quant == i::Quant::SelfRef && o.filter == i::Filter::default() {
+                        Sacrifice::Itself
+                    } else if o.quant == i::Quant::One {
+                        let mut f = lower::counted(&i::Objects {
+                            quant: i::Quant::All,
+                            filter: o.filter.clone(),
+                        })?;
+                        f.0.push(crate::model::Pred::YouControl);
+                        Sacrifice::One(f)
+                    } else {
+                        return Err(format!("a mana ability sacrificing {}", short(&o.quant)));
+                    },
+                )
             }
             other => return Err(format!("a mana ability costing {}", short(other))),
         }

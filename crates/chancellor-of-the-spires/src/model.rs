@@ -484,6 +484,8 @@ pub struct Resolved {
 pub enum Counter {
     PlusOne,
     MinusOne,
+    /// Any other power and toughness counter, "-0/-1" (CR 122.1a).
+    Pt(i32, i32),
     Named(String),
 }
 
