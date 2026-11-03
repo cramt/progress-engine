@@ -159,7 +159,10 @@ the fetchlands' effects, and Aether Vial's, which counts its
 charge counters as it resolves, as the Vial last existed if it has left
 (CR 608.2h); instants' and sorceries'
 instructions in order (CR 608.2c), going to the graveyard after (CR
-608.2n): draw, discard, a hand revealed and a card chosen from it to
+608.2n), each acting on one object or on each permanent a filter
+matches as it is followed ("put a +1/+1 counter on each other Human you
+control", "destroy all creatures", "2 damage to each creature", dealt at
+once): draw, discard, a hand revealed and a card chosen from it to
 discard, the top cards of a library revealed or looked at and bound for
 the instructions after them (Insight's `With`, a slot per binder): put
 into a hand, one chosen among them, put back on top or the bottom in

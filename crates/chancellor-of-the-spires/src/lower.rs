@@ -967,14 +967,14 @@ pub enum Effect {
         n: Amount,
     },
     /// "Destroy target creature" (CR 701.8a): to its owner's graveyard.
-    Destroy(Obj),
+    Destroy(On),
     /// "Exile target creature" (CR 701.13a).
-    Exile(Obj),
+    Exile(On),
     /// "Return target permanent to its owner's hand".
-    ToOwnersHand(Obj),
+    ToOwnersHand(On),
     /// "Tap target land", "untap it" (CR 701.26a).
-    Tap(Obj),
-    Untap(Obj),
+    Tap(On),
+    Untap(On),
     /// "Sacrifice this creature" (CR 701.21a): only a permanent its
     /// controller controls.
     Sacrifice(Obj),
@@ -1000,7 +1000,7 @@ pub enum Effect {
     AddMana(crate::mana::ManaPool),
     /// CR 122.1, 122.6.
     PutCounters {
-        on: Obj,
+        on: On,
         counter: Counter,
         n: u32,
     },
@@ -1008,7 +1008,7 @@ pub enum Effect {
     /// on the object as it resolves (CR 611.2c), ending in cleanup (CR
     /// 514.2).
     UntilEndOfTurn {
-        on: Obj,
+        on: On,
         ops: Vec<Op>,
         /// "+2/+0 … for each other attacking Goblin": the modification
         /// once per permanent the filter matches, read from the ability's
@@ -1122,6 +1122,15 @@ pub enum Obj {
     Triggering,
 }
 
+/// What an instruction acts on: one object, or each permanent a filter
+/// matches as it is followed, "each other Human you control", "all
+/// creatures", read from the ability's source.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum On {
+    One(Obj),
+    Each(Filter),
+}
+
 /// How much: a number, or "that much", the amount of the event that
 /// triggered the ability (Jackal Pup's "it deals that much damage to
 /// you").
@@ -1137,7 +1146,7 @@ pub enum Amount {
 }
 
 /// What damage is dealt to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DamageTo {
     /// A target, a player or a permanent as its slot allows.
     Target(usize),
@@ -1147,6 +1156,9 @@ pub enum DamageTo {
     Attacked,
     /// "That player": the one the trigger event names.
     EventPlayer,
+    /// "To each creature": each permanent the filter matches, dealt
+    /// damage at once (CR 120.3).
+    Each(Filter),
 }
 
 /// What a target slot may be (CR 115.1).
@@ -1331,7 +1343,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
             program: Program {
                 targets: Vec::new(),
                 effects: vec![Effect::UntilEndOfTurn {
-                    on: Obj::Triggering,
+                    on: On::One(Obj::Triggering),
                     ops: plus_one,
                     per: None,
                 }],
@@ -1347,7 +1359,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
             program: Program {
                 targets: Vec::new(),
                 effects: vec![Effect::UntilEndOfTurn {
-                    on: Obj::Itself,
+                    on: On::One(Obj::Itself),
                     ops: plus_one,
                     per: None,
                 }],
@@ -1528,6 +1540,15 @@ impl<'a> Scope<'a> {
         }
     }
 
+    /// One object, or "each other Human you control", "all creatures":
+    /// each permanent a filter matches, read from the ability's source.
+    fn on(&mut self, o: &Objects) -> Result<On, String> {
+        match o.quant {
+            Quant::Each | Quant::All => Ok(On::Each(objects(o)?)),
+            _ => Ok(On::One(self.obj(o)?)),
+        }
+    }
+
     fn who(&mut self, p: &i::Player) -> Result<Who, String> {
         let opponent = match p {
             i::Player::You => return Ok(Who::You),
@@ -1606,6 +1627,9 @@ impl<'a> Scope<'a> {
                 }
                 _ => Err("damage to one of several kinds of target".into()),
             },
+            [i::Recipient::Objects(o)] if matches!(o.quant, Quant::Each | Quant::All) => {
+                Ok(DamageTo::Each(objects(o)?))
+            }
             [i::Recipient::Objects(o)] => match self.obj(o)? {
                 Obj::Target(s) => Ok(DamageTo::Target(s)),
                 Obj::Itself | Obj::Triggering => Err("damage to its own source".into()),
@@ -1672,10 +1696,10 @@ impl<'a> Scope<'a> {
                 token: Box::new(token_text(token)?),
                 tapped: token.tapped,
             },
-            i::Effect::Destroy { what, .. } => Effect::Destroy(self.obj(what)?),
-            i::Effect::Tap(what) => Effect::Tap(self.obj(what)?),
-            i::Effect::Untap(what) => Effect::Untap(self.obj(what)?),
-            i::Effect::Exile(what) => Effect::Exile(self.obj(what)?),
+            i::Effect::Destroy { what, .. } => Effect::Destroy(self.on(what)?),
+            i::Effect::Tap(what) => Effect::Tap(self.on(what)?),
+            i::Effect::Untap(what) => Effect::Untap(self.on(what)?),
+            i::Effect::Exile(what) => Effect::Exile(self.on(what)?),
             i::Effect::Sacrifice {
                 who: i::Player::You,
                 what,
@@ -1689,7 +1713,7 @@ impl<'a> Scope<'a> {
                 under: None,
                 order: None,
             } if !matches!(what.quant, Quant::Rest { .. }) && what.filter.kind.is_none() => {
-                Effect::ToOwnersHand(self.obj(what)?)
+                Effect::ToOwnersHand(self.on(what)?)
             }
             i::Effect::Counter { what, unless: None }
                 if what.quant
@@ -1720,7 +1744,7 @@ impl<'a> Scope<'a> {
                 _ => return Err("adding a choice of mana".into()),
             },
             i::Effect::PutCounters { n: k, kind, on } => Effect::PutCounters {
-                on: self.obj(on)?,
+                on: self.on(on)?,
                 counter: counter(kind).ok_or_else(node)?,
                 n: n(k)?,
             },
@@ -1734,7 +1758,7 @@ impl<'a> Scope<'a> {
                 dur: i::Duration::UntilEndOfTurn,
                 ..
             } => {
-                let on = self.obj(what)?;
+                let on = self.on(what)?;
                 let r = resolution(e).map_err(|_| node())?;
                 if !r.counters.is_empty() {
                     return Err(node());
@@ -1753,7 +1777,7 @@ impl<'a> Scope<'a> {
                     dur: i::Duration::UntilEndOfTurn,
                     ..
                 }] => {
-                    let on = self.obj(what)?;
+                    let on = On::One(self.obj(what)?);
                     let r = resolution(m).map_err(|_| node())?;
                     if !r.counters.is_empty() || !r.ops.iter().all(|o| matches!(o, Op::ModifyPt(_)))
                     {

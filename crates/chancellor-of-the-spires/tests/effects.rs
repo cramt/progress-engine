@@ -1814,3 +1814,55 @@ fn dark_ritual_adds_three_black_mana() {
     resolve(&mut game);
     assert_eq!(game.player(ME).pool().to_string(), "{B}{B}{B}");
 }
+
+/// CR 608.2c, 120.3: Thalia's Lieutenant puts a +1/+1 counter on each
+/// other Human I control as it enters, and Pyroclasm deals 2 damage to
+/// each creature at once.
+#[test]
+fn an_instruction_acts_on_each_permanent_a_filter_matches() {
+    let mut game = deal_both(
+        &[
+            ("Plains", 30),
+            ("Champion of the Parish", 15),
+            ("Thalia's Lieutenant", 15),
+        ],
+        &[("Mountain", 40), ("Pyroclasm", 20)],
+        &[
+            ("Plains", 2),
+            ("Champion of the Parish", 1),
+            ("Thalia's Lieutenant", 1),
+        ],
+        &[("Mountain", 2), ("Pyroclasm", 1)],
+    );
+    play(&mut game, "Plains");
+    cast(&mut game, "Champion of the Parish", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Plains");
+    cast(&mut game, "Thalia's Lieutenant", None);
+    resolve(&mut game);
+    // Both triggers: Champion's for another Human, the Lieutenant's own.
+    for _ in 0..4 {
+        match game.decision() {
+            Decision::Order { triggers, .. } => {
+                step(&mut game, Answer::Order((0..triggers.len()).collect()));
+            }
+            _ if !game.stack().is_empty() => {
+                resolve(&mut game);
+            }
+            _ => break,
+        }
+    }
+    let champion = creature(&game, "Champion of the Parish").unwrap();
+    let lieutenant = creature(&game, "Thalia's Lieutenant").unwrap();
+    assert_eq!(pt_of(&game, champion), pt(3, 3));
+    assert_eq!(pt_of(&game, lieutenant), pt(1, 1));
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(&mut game, THEM, "Pyroclasm", None);
+    resolve(&mut game);
+    assert!(game.permanents().contains_key(&champion));
+    assert!(!game.permanents().contains_key(&lieutenant));
+}

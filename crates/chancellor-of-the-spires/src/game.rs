@@ -2904,31 +2904,38 @@ impl Game {
                     }
                 }
                 // CR 702.12b.
-                Effect::Destroy(o) => {
-                    if let Some(o) = self.object(&at, o) {
-                        if !self.characteristics()[&o].has(Keyword::Indestructible) {
+                Effect::Destroy(on) => {
+                    for o in self.objects_on(&at, &on) {
+                        if self
+                            .characteristics()
+                            .get(&o)
+                            .is_some_and(|c| !c.has(Keyword::Indestructible))
+                        {
                             self.put_in_graveyard(o);
                         }
                     }
                 }
-                Effect::Exile(o) => {
-                    if let Some(o) = self.object(&at, o) {
-                        self.leave_battlefield(o, Zone::Exile);
+                Effect::Exile(on) => {
+                    for o in self.objects_on(&at, &on) {
+                        if self.permanents.contains_key(&o) {
+                            self.leave_battlefield(o, Zone::Exile);
+                        }
                     }
                 }
                 // CR 701.26a.
-                Effect::Tap(o) | Effect::Untap(o) => {
+                Effect::Tap(ref on) | Effect::Untap(ref on) => {
                     let tapped = matches!(e, Effect::Tap(_));
-                    if let Some(perm) = self
-                        .object(&at, o)
-                        .and_then(|o| self.permanents.get_mut(&o))
-                    {
-                        perm.tapped = tapped;
+                    for o in self.objects_on(&at, on) {
+                        if let Some(perm) = self.permanents.get_mut(&o) {
+                            perm.tapped = tapped;
+                        }
                     }
                 }
-                Effect::ToOwnersHand(o) => {
-                    if let Some(o) = self.object(&at, o) {
-                        self.leave_battlefield(o, Zone::Hand);
+                Effect::ToOwnersHand(on) => {
+                    for o in self.objects_on(&at, &on) {
+                        if self.permanents.contains_key(&o) {
+                            self.leave_battlefield(o, Zone::Hand);
+                        }
                     }
                 }
                 // CR 701.21a: only a permanent its controller controls.
@@ -2966,8 +2973,24 @@ impl Game {
                         }
                     }
                 }
+                Effect::Damage {
+                    to: DamageTo::Each(f),
+                    n,
+                } => {
+                    let n = self.amount(&at, n);
+                    let hits: Vec<(Target, u32)> = self
+                        .objects_on(&at, &lower::On::Each(f))
+                        .into_iter()
+                        .map(|o| (Target::Object(o), n))
+                        .collect();
+                    let source = self.source_of(&at);
+                    let hit = self.deal(source.as_ref(), at.controller, &hits);
+                    let by = at.object.filter(|o| self.permanents.contains_key(o));
+                    self.damage_triggers(hit, by, false);
+                }
                 Effect::Damage { to, n } => {
                     let to = match to {
+                        DamageTo::Each(_) => unreachable!("dealt above"),
                         DamageTo::You => Some(Target::Player(p)),
                         DamageTo::EventPlayer => at.player.map(Target::Player),
                         DamageTo::Target(s) => at.targets[s],
@@ -3004,8 +3027,8 @@ impl Game {
                     }
                 }
                 Effect::PutCounters { on, counter, n } => {
-                    if let Some(o) = self.object(&at, on) {
-                        self.battlefield.put_counters(o, counter, n);
+                    for o in self.objects_on(&at, &on) {
+                        self.battlefield.put_counters(o, counter.clone(), n);
                     }
                 }
                 Effect::UntilEndOfTurn { on, ops, per } => {
@@ -3028,8 +3051,10 @@ impl Game {
                                 .collect()
                         }
                     };
-                    if let Some(o) = self.object(&at, on) {
-                        let t = self.battlefield.resolve([o], ops);
+                    // CR 611.2c: the set it affects fixed as it resolves.
+                    let set = self.objects_on(&at, &on);
+                    if !set.is_empty() {
+                        let t = self.battlefield.resolve(set, ops);
                         self.until_end_of_turn.push(t);
                     }
                 }
@@ -3222,6 +3247,43 @@ impl Game {
     fn object(&self, at: &Resuming, on: Obj) -> Option<ObjectId> {
         self.named(at, on)
             .filter(|o| self.permanents.contains_key(o))
+    }
+
+    /// The permanents an instruction acts on: the one it names, if it is
+    /// still there, or each the filter matches now, read from the
+    /// ability's source; a spell's, off the battlefield, is its card with
+    /// its controller (CR 608.2h).
+    fn objects_on(&self, at: &Resuming, on: &lower::On) -> Vec<ObjectId> {
+        match on {
+            lower::On::One(o) => self.object(at, *o).into_iter().collect(),
+            lower::On::Each(f) => {
+                let all = self.characteristics();
+                let here = at.object.filter(|o| all.contains_key(o));
+                let mut card = self.known(at.what.card()).and_then(|k| k.printed.clone());
+                if let Some(c) = &mut card {
+                    c.controller = at.controller;
+                }
+                let Some(source_chars) = here.map(|o| &all[&o]).or(card.as_ref()) else {
+                    return Vec::new();
+                };
+                let source = here.unwrap_or(ObjectId(u32::MAX));
+                all.iter()
+                    .filter(|(o, c)| {
+                        f.matches(&Seen {
+                            id: **o,
+                            chars: c,
+                            source,
+                            source_chars,
+                            source_attached_to: here
+                                .and_then(|s| self.battlefield.objects[&s].attached_to),
+                            token: self.battlefield.objects[*o].token,
+                            attacking: self.battlefield.attacking.contains(*o),
+                        })
+                    })
+                    .map(|(o, _)| *o)
+                    .collect()
+            }
+        }
     }
 
     /// The object an instruction names, whether or not it is still there.
