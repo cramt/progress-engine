@@ -141,7 +141,8 @@ reductions taken from the generic component alone, never below {0} (CR
 601.2f, 118.7a); a permanent spell entering under its
 caster's control (CR 608.3a) and an instant or sorcery going to the
 graveyard (CR 608.2n); mana abilities that tap, pay life (CR 119.4) and
-deal their controller damage, as painlands do (CR 120.3a), adding fixed
+deal their controller damage, as painlands do (CR 120.3a), pay mana
+from the pool, as filter lands and Signets do (CR 605.3a), adding fixed
 mana, a choice of it, any colour, a colour of the commander's identity
 (CR 903.4), or mana for each permanent a filter matches, counted as it is
 activated (Gaea's Cradle, CR 608.2h), without the stack (CR 605.3b), a
@@ -383,7 +384,8 @@ a hand: played, cast or discarded. Then each line becomes answers: priority
 passed until the turn and step the line can happen in (the engine's turn
 has to be the log's, counting each player's turns), a land played, a spell
 cast with its payment found by searching the mana abilities the engine
-offers (fewest first, the least flexible sources tapped first, and an
+offers (fewest first, the least flexible sources tapped first, a
+filter land or Signet after the sources whose mana it spends, and an
 earlier payment chosen again if a later spell can't be paid), the draw
 step's draw on the logs that print it, the cleanup discard, and an ability
 activated. A spell or ability on the stack resolves before the next line

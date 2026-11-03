@@ -1612,3 +1612,62 @@ fn mishras_factory_becomes_a_creature_that_is_still_a_land_until_end_of_turn() {
     let now = &game.characteristics()[&factory];
     assert!(!now.is(CardType::Creature) && now.pt.is_none());
 }
+
+/// CR 605.3a, 601.2g–h: Gruul Signet's "{1}, {T}: Add {R}{G}" is offered
+/// once the pool can pay its {1}, and pays it from the pool, so two
+/// Mountains and the Signet cast Grizzly Bears.
+#[test]
+fn a_signet_spends_mana_from_the_pool_to_add_two() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Gruul Signet", 15),
+            ("Grizzly Bears", 15),
+        ],
+        &[("Forest", 60)],
+        &[("Mountain", 2), ("Gruul Signet", 1), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Gruul Signet", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    let signet = creature(&game, "Gruul Signet").unwrap();
+    let bears = in_hand(&game, ME, "Grizzly Bears").unwrap();
+    let Decision::Pay { actions, .. } = step(&mut game, Answer::Act(Action::Cast(bears))) else {
+        panic!()
+    };
+    let by_signet = |actions: &[Payment]| {
+        actions
+            .iter()
+            .find(|a| matches!(a, Payment::Mana(m) if m.source == signet))
+            .copied()
+    };
+    assert_eq!(
+        by_signet(&actions),
+        None,
+        "nothing in the pool to pay {{1}}"
+    );
+    let mountain = actions
+        .iter()
+        .find(|a| matches!(a, Payment::Mana(_)))
+        .copied()
+        .unwrap();
+    let Decision::Pay { actions, .. } = step(&mut game, Answer::Pay(mountain)) else {
+        panic!()
+    };
+    let signet_mana = by_signet(&actions).expect("offered with {R} in the pool");
+    let Decision::Pay { actions, .. } = step(&mut game, Answer::Pay(signet_mana)) else {
+        panic!()
+    };
+    assert_eq!(game.player(ME).pool().to_string(), "{R}{G}");
+    let spend = actions
+        .iter()
+        .find(|a| matches!(a, Payment::Spend(_)))
+        .copied()
+        .unwrap();
+    step(&mut game, Answer::Pay(spend));
+    resolve(&mut game);
+    assert!(creature(&game, "Grizzly Bears").is_some());
+}

@@ -2339,17 +2339,11 @@ impl Driver<'_> {
     /// The payments the solver finds for the spell being cast, best first.
     fn payments(&mut self) -> Result<Vec<Vec<ManaActivation>>, Stop> {
         let game = self.game();
-        let Decision::Pay {
-            player,
-            owed,
-            actions,
-            ..
-        } = game.decision()
-        else {
+        let Decision::Pay { player, owed, .. } = game.decision() else {
             unreachable!("a cast waits for its payment")
         };
         let pool = *game.player(player).pool();
-        Ok(solve(&owed, pool, &actions))
+        Ok(solve(&owed, pool, &game.mana_options(player)))
     }
 
     /// The discard to hand size in cleanup (CR 514.1), of the cards the
@@ -2524,14 +2518,19 @@ const SEARCH: usize = 20_000;
 /// activations first, then those leaving the most flexible sources
 /// untapped. The log never says which lands paid, so the replay tries
 /// these in order.
-fn solve(owed: &ManaCost, pool: ManaPool, actions: &[Payment]) -> Vec<Vec<ManaActivation>> {
+fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec<ManaActivation>> {
     let mut sources: BTreeMap<ObjectId, Vec<ManaActivation>> = BTreeMap::new();
-    for a in actions {
-        if let Payment::Mana(m) = a {
-            sources.entry(m.source).or_default().push(*m);
-        }
+    for m in options {
+        sources.entry(m.source).or_default().push(*m);
     }
-    let sources: Vec<Vec<ManaActivation>> = sources.into_values().collect();
+    // Sources that cost mana last, so the mana they spend is made first.
+    let mut sources: Vec<Vec<ManaActivation>> = sources.into_values().collect();
+    sources.sort_by_key(|v| v.iter().any(|a| !a.pays.is_empty()));
+    let filters = sources
+        .iter()
+        .filter(|v| v.iter().any(|a| !a.pays.is_empty()))
+        .count();
+    let first_filter = sources.len() - filters;
     let most = owed.generic
         + owed
             .shards
@@ -2545,6 +2544,7 @@ fn solve(owed: &ManaCost, pool: ManaPool, actions: &[Payment]) -> Vec<Vec<ManaAc
         owed: &'a ManaCost,
         sources: &'a [Vec<ManaActivation>],
         most: u32,
+        first_filter: usize,
         visited: usize,
         out: Vec<Vec<ManaActivation>>,
     }
@@ -2558,11 +2558,22 @@ fn solve(owed: &ManaCost, pool: ManaPool, actions: &[Payment]) -> Vec<Vec<ManaAc
                 self.out.push(chosen.clone());
                 return;
             }
-            if i == self.sources.len() || pool.total() >= self.most {
+            if i == self.sources.len() {
+                return;
+            }
+            // Enough mana needs no more, though the wrong kind can still
+            // be filtered.
+            if pool.total() >= self.most && i < self.first_filter {
+                if self.first_filter < self.sources.len() {
+                    self.go(self.first_filter, pool, chosen);
+                }
                 return;
             }
             for a in &self.sources[i] {
-                let mut more = pool;
+                if !pool.contains(&a.pays) {
+                    continue;
+                }
+                let mut more = pool.minus(&a.pays);
                 more.add_all(&a.adds);
                 chosen.push(*a);
                 self.go(i + 1, more, chosen);
@@ -2575,6 +2586,7 @@ fn solve(owed: &ManaCost, pool: ManaPool, actions: &[Payment]) -> Vec<Vec<ManaAc
         owed,
         sources: &sources,
         most,
+        first_filter,
         visited: 0,
         out: Vec::new(),
     };

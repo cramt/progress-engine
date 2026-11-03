@@ -44,6 +44,8 @@ const INDEXED: &[&str] = &[
     "Lightning Bolt",
     "Swords to Plowshares",
     "Mishra's Factory",
+    "Cascade Bluffs",
+    "Daring Apprentice",
 ];
 
 fn index() -> &'static IndexFile {
@@ -686,6 +688,34 @@ fn an_activation_line_names_which_of_a_cards_abilities_by_its_text() {
         bob is being attacked by [Raging Goblin]
         [Mishra's Factory] blocks [Raging Goblin].
         bob activates an ability of [Mishra's Factory] targeting [Mishra's Factory] ( Target Assembly-Worker creature gets +1/+1 until end of turn.).
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+}
+
+/// CR 605.3a: the payment solver plans a filter land's "{U/R}, {T}: Add
+/// {U}{U}" after the Mountain whose {R} it spends, so two Mountains and
+/// Cascade Bluffs cast a {1}{U}{U} spell.
+#[test]
+fn a_payment_filters_mana_through_a_filter_land() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        Turn 1: bob
+        bob plays [Forest].
+        Turn 2: alice
+        alice plays [Cascade Bluffs].
+        Turn 2: bob
+        bob plays [Forest].
+        Turn 3: alice
+        alice plays [Mountain].
+        alice casts [Daring Apprentice].
         alice has conceded from the game.
         bob wins the game.
         Winner: bob

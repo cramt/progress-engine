@@ -301,13 +301,16 @@ pub enum Adds {
 }
 
 /// An activated mana ability the engine can run (CR 605.1a): its cost is
-/// tapping its source and paying life, and it adds mana, maybe dealing its
-/// controller damage too, as a painland does.
+/// tapping its source, paying life and paying mana, and it adds mana,
+/// maybe dealing its controller damage too, as a painland does.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ManaAbility {
     pub tap: bool,
     /// CR 119.4.
     pub life: u32,
+    /// "{1}, {T}: Add {R}{G}", a filter land's "{U/R}, {T}": mana paid
+    /// from its controller's pool as it is activated (CR 605.3a, 601.2h).
+    pub mana: Option<ManaCost>,
     pub adds: Adds,
     /// "This land deals 1 damage to you."
     pub damage_to_you: u32,
@@ -386,6 +389,7 @@ fn lower_mana_ability(
     let mut ability = ManaAbility {
         tap: false,
         life: 0,
+        mana: None,
         adds: Adds::Options(Vec::new()),
         damage_to_you: 0,
     };
@@ -393,6 +397,9 @@ fn lower_mana_ability(
         match c {
             i::Cost::Tap => ability.tap = true,
             i::Cost::PayLife(i::Amount::N(n)) => ability.life += n,
+            i::Cost::Mana(m) if ability.mana.is_none() => {
+                ability.mana = Some(ManaCost::from_symbols(m)?)
+            }
             other => return Err(format!("a mana ability costing {}", short(other))),
         }
     }

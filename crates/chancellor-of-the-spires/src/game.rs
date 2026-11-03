@@ -900,6 +900,10 @@ pub struct ManaActivation {
     pub source: ObjectId,
     pub ability: Ability,
     pub adds: ManaPool,
+    /// The mana spent from the pool for its mana cost, the way chosen to
+    /// pay a hybrid or generic symbol (CR 605.3a, 601.2h); none for one
+    /// without.
+    pub pays: ManaPool,
 }
 
 /// What a player with priority can do.
@@ -2255,8 +2259,19 @@ impl Game {
     }
 
     /// Every mana ability `p` can activate now, once for each choice of
-    /// mana it gives.
+    /// mana it gives and each way to pay its mana cost from the pool.
     fn mana_activations(&self, p: PlayerId) -> Vec<ManaActivation> {
+        let pool = self.player(p).pool;
+        self.mana_options(p)
+            .into_iter()
+            .filter(|a| pool.contains(&a.pays))
+            .collect()
+    }
+
+    /// The mana abilities `p` could activate with enough mana in their
+    /// pool: every way to pay each one's mana cost from any mana, so a
+    /// payment can be planned before the mana it spends is made.
+    pub fn mana_options(&self, p: PlayerId) -> Vec<ManaActivation> {
         let player = self.player(p);
         let began = player.turn_began;
         let mut out = Vec::new();
@@ -2274,13 +2289,14 @@ impl Game {
                 && began.is_none_or(|t| perm.since >= t);
             let runs = self.known(perm.card).and_then(|k| k.runs.as_ref().ok());
             for ability in &chars.abilities {
-                let (tap, life, options) = match ability {
+                let (tap, life, mana, options) = match ability {
                     // CR 305.6.
-                    Ability::Intrinsic(t) => (true, 0, vec![ManaPool::of([Mana::of(*t)])]),
+                    Ability::Intrinsic(t) => (true, 0, None, vec![ManaPool::of([Mana::of(*t)])]),
                     Ability::Unread(n) => match runs.and_then(|r| r.mana.get(n)) {
                         Some(a) => (
                             a.tap,
                             a.life,
+                            a.mana.as_ref(),
                             a.options(player.identity.as_deref(), |f| {
                                 self.count(f, id, chars, &all)
                             }),
@@ -2293,14 +2309,29 @@ impl Game {
                 if tap && (perm.tapped || sick) || life > 0 && player.life < life as i32 {
                     continue;
                 }
+                // Each exact way any mana pays its cost.
+                let ways = match mana {
+                    None => vec![ManaPool::default()],
+                    Some(cost) => {
+                        let n = cost.generic + 2 * cost.shards.len() as u32;
+                        cost.payments(&ManaPool::of(
+                            Mana::ALL
+                                .iter()
+                                .flat_map(|m| std::iter::repeat_n(*m, n as usize)),
+                        ))
+                    }
+                };
                 let mut seen = BTreeSet::new();
                 for adds in options {
-                    if seen.insert(adds) {
-                        out.push(ManaActivation {
-                            source: id,
-                            ability: *ability,
-                            adds,
-                        });
+                    for pays in &ways {
+                        if seen.insert((adds, *pays)) {
+                            out.push(ManaActivation {
+                                source: id,
+                                ability: *ability,
+                                adds,
+                                pays: *pays,
+                            });
+                        }
                     }
                 }
             }
@@ -2600,6 +2631,7 @@ impl Game {
         let player = &mut self.players[p.0 as usize];
         // CR 119.4.
         player.life -= life as i32;
+        player.pool = player.pool.minus(&a.pays);
         player.pool.add_all(&a.adds);
         // CR 120.3a, 120.3f: its damage to its controller is life lost,
         // and gained back if it has lifelink.
