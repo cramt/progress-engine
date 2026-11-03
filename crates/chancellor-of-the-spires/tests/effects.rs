@@ -2445,3 +2445,111 @@ fn city_of_brass_hurts_when_tapped_and_a_trigger_adds_mana_of_a_colour_chosen() 
     step(&mut game, Answer::Mana(options[1]));
     assert_eq!(game.player(ME).pool().total(), 1);
 }
+
+/// CR 118.12a: Mana Leak counters the spell unless its controller pays
+/// {3}; declining, it is countered, and paying, it resolves.
+#[test]
+fn mana_leak_counters_unless_its_controller_pays() {
+    for pays in [false, true] {
+        let mut game = deal_both(
+            &[("Island", 40), ("Mana Leak", 20)],
+            &[("Forest", 40), ("Grizzly Bears", 20)],
+            &[("Island", 2), ("Mana Leak", 1)],
+            &[("Forest", 5), ("Grizzly Bears", 1)],
+        );
+        play(&mut game, "Island");
+        for _ in 0..4 {
+            pass_until(&mut game, THEM, Step::PrecombatMain);
+            play_as(&mut game, THEM, "Forest");
+            my_next_main(&mut game);
+            if in_hand(&game, ME, "Island").is_some() {
+                play(&mut game, "Island");
+            }
+        }
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, "Forest");
+        let bears = in_hand(&game, THEM, "Grizzly Bears").unwrap();
+        cast_as(&mut game, THEM, "Grizzly Bears", None);
+        // They pass priority to me with Bears on the stack.
+        step(&mut game, Answer::Act(Action::Pass));
+        cast(&mut game, "Mana Leak", Some(vec![Target::Spell(bears)]));
+        let Decision::PayUnless {
+            player,
+            owed,
+            actions,
+            ..
+        } = resolve(&mut game)
+        else {
+            panic!("{:?}", game.decision())
+        };
+        assert_eq!((player, owed.generic), (THEM, 3));
+        if pays {
+            let mut actions = actions;
+            loop {
+                let pay = actions
+                    .iter()
+                    .find(|a| matches!(a, Payment::Spend(_)))
+                    .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+                    .copied()
+                    .expect("three Forests untapped");
+                let d = step(&mut game, Answer::Pay(pay));
+                match d {
+                    Decision::PayUnless { actions: a, .. } => actions = a,
+                    _ => break,
+                }
+            }
+            resolve(&mut game);
+            assert!(creature(&game, "Grizzly Bears").is_some());
+        } else {
+            step(&mut game, Answer::Pay(Payment::Cancel));
+            assert!(game.player(THEM).graveyard().contains(&bears));
+            assert!(game.stack().is_empty());
+        }
+    }
+}
+
+/// CR 702.30a: echo triggers in the upkeep after the permanent came under
+/// its controller's control, and it is sacrificed unless the echo is paid;
+/// a turn later it doesn't trigger again.
+#[test]
+fn echo_is_paid_or_the_permanent_sacrificed_in_the_next_upkeep() {
+    for pays in [false, true] {
+        let mut game = deal(
+            &[("Mountain", 40), ("Goblin Patrol", 20)],
+            &[("Forest", 60)],
+            &[("Mountain", 2), ("Goblin Patrol", 1)],
+        );
+        play(&mut game, "Mountain");
+        cast(&mut game, "Goblin Patrol", None);
+        resolve(&mut game);
+        pass_until(&mut game, ME, Step::Upkeep);
+        assert_eq!(game.stack().len(), 1, "echo triggers");
+        let Decision::PayUnless { actions, .. } = resolve(&mut game) else {
+            panic!("{:?}", game.decision())
+        };
+        if pays {
+            let tap = actions
+                .iter()
+                .find(|a| matches!(a, Payment::Mana(_)))
+                .copied()
+                .unwrap();
+            let Decision::PayUnless { actions, .. } = step(&mut game, Answer::Pay(tap)) else {
+                panic!("{:?}", game.decision())
+            };
+            let spend = actions
+                .iter()
+                .find(|a| matches!(a, Payment::Spend(_)))
+                .copied()
+                .unwrap();
+            step(&mut game, Answer::Pay(spend));
+            assert!(creature(&game, "Goblin Patrol").is_some());
+            my_next_main(&mut game);
+            pass_until(&mut game, THEM, Step::Upkeep);
+            pass_until(&mut game, ME, Step::Upkeep);
+            assert!(game.stack().is_empty(), "no echo a turn later");
+        } else {
+            step(&mut game, Answer::Pay(Payment::Cancel));
+            assert_eq!(creature(&game, "Goblin Patrol"), None);
+        }
+    }
+}

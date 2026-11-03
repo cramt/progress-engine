@@ -1160,6 +1160,14 @@ pub enum Effect {
         control: YouControl,
         then: Vec<Effect>,
     },
+    /// "Sacrifice it unless you pay {R}", "Counter target spell unless its
+    /// controller pays {3}": `who` may pay the mana, and if they don't,
+    /// these instructions are followed (CR 118.12a).
+    Unless {
+        who: Who,
+        cost: crate::mana::ManaCost,
+        otherwise: Vec<Effect>,
+    },
     /// "Choose a nonland card name": the controller names a card of the
     /// Oracle card reference the filter matches (CR 201.4, 201.4a), for
     /// the instructions after to read.
@@ -1176,9 +1184,12 @@ impl Effect {
     /// The instructions this one holds, which a resolution may enter.
     pub fn inner(&self) -> Option<&[Effect]> {
         match self {
-            Effect::May(_, then) | Effect::IfCard { then, .. } | Effect::IfControl { then, .. } => {
-                Some(then)
-            }
+            Effect::May(_, then)
+            | Effect::IfCard { then, .. }
+            | Effect::IfControl { then, .. }
+            | Effect::Unless {
+                otherwise: then, ..
+            } => Some(then),
             _ => None,
         }
     }
@@ -1216,6 +1227,8 @@ pub enum Who {
     /// "That player": the one the trigger event names, the caster of the
     /// spell cast.
     EventPlayer,
+    /// "Its controller" of the spell in this target slot.
+    SpellController(usize),
 }
 
 /// An object an instruction names: the ability's own source ("this
@@ -1380,14 +1393,21 @@ pub struct Triggered {
     pub condition: Option<Intervening>,
 }
 
-/// "If you control at least five other Mountains": as many permanents its
-/// controller controls as the condition counts, read from the ability's
-/// source, and "other" than the object its event names when `excluding`
-/// (Valakut's "a Mountain … enters, if you control five other Mountains").
+/// An intervening "if" (CR 603.4).
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Intervening {
-    pub control: YouControl,
-    pub excluding: bool,
+pub enum Intervening {
+    /// "If you control at least five other Mountains": as many permanents
+    /// its controller controls as the condition counts, read from the
+    /// ability's source, and "other" than the object its event names when
+    /// `excluding` (Valakut's "a Mountain … enters, if you control five
+    /// other Mountains").
+    Control {
+        control: YouControl,
+        excluding: bool,
+    },
+    /// Echo's "if this permanent came under your control since the
+    /// beginning of your last upkeep" (CR 702.30a).
+    ArrivedSinceLastUpkeep,
 }
 
 /// A spell's instructions, its paragraphs in order (CR 608.2c), with the
@@ -1555,7 +1575,7 @@ fn intervening(cond: &i::Condition, bind: &[Objects]) -> Result<Intervening, Str
             _ => true,
         });
     }
-    Ok(Intervening {
+    Ok(Intervening::Control {
         control: you_control(&o)?,
         excluding,
     })
@@ -1563,9 +1583,32 @@ fn intervening(cond: &i::Condition, bind: &[Objects]) -> Result<Intervening, Str
 
 /// The keywords that are triggered abilities and that the engine runs,
 /// written out as their rules define them: exalted (CR 702.83a), prowess
-/// (CR 702.108a) and training (CR 702.149a). `None` for any other
-/// keyword.
+/// (CR 702.108a), training (CR 702.149a) and echo for mana (CR 702.30a).
+/// `None` for any other keyword.
 pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
+    if k.name.eq_ignore_ascii_case("echo") {
+        let Some(i::KeywordParam::Cost(cost)) = &k.param else {
+            return None;
+        };
+        let [i::Cost::Mana(m)] = cost.as_slice() else {
+            return None;
+        };
+        return Some(Triggered {
+            event: TriggerEvent::Begins {
+                step: TurnStep::Upkeep,
+                whose: Whose::Yours,
+            },
+            program: Program {
+                targets: Vec::new(),
+                effects: vec![Effect::Unless {
+                    who: Who::You,
+                    cost: crate::mana::ManaCost::from_symbols(m).ok()?,
+                    otherwise: vec![Effect::Sacrifice(Obj::Itself)],
+                }],
+            },
+            condition: Some(Intervening::ArrivedSinceLastUpkeep),
+        });
+    }
     if k.param.is_some() {
         return None;
     }
@@ -1796,6 +1839,10 @@ impl<'a> Scope<'a> {
             Quant::Target {
                 n: i::Amount::N(1),
                 up_to: false,
+            } if o.filter.kind == Some(i::Noun::Spell) => TargetSpec::Spell(spell_filter(o)?),
+            Quant::Target {
+                n: i::Amount::N(1),
+                up_to: false,
             } => TargetSpec::Permanent(target_filter(o)?),
             ref q => return Err(format!("a binder of {}", short(q))),
         };
@@ -1889,7 +1936,7 @@ impl<'a> Scope<'a> {
                 Who::Target(s) => Ok(DamageTo::Target(s)),
                 Who::You => Ok(DamageTo::You),
                 Who::EventPlayer => Ok(DamageTo::EventPlayer),
-                Who::Defending | Who::ControllerOf(_) => {
+                Who::Defending | Who::ControllerOf(_) | Who::SpellController(_) => {
                     Err("damage to the defending player or a controller".into())
                 }
             },
@@ -2007,6 +2054,33 @@ impl<'a> Scope<'a> {
                     && what.filter.kind == Some(i::Noun::Spell) =>
             {
                 Effect::Counter(self.slot(TargetSpec::Spell(spell_filter(what)?)))
+            }
+            // "Counter target spell unless its controller pays {3}" (CR
+            // 118.12a), the spell a `Let` binds.
+            i::Effect::Counter {
+                what,
+                unless: Some((who, cost)),
+            } if matches!(what.quant, Quant::Introduced(_) | Quant::Bound(_)) => {
+                let Obj::Target(slot) = self.obj(what)? else {
+                    return Err(node());
+                };
+                if !matches!(self.program.targets[slot], TargetSpec::Spell(_)) {
+                    return Err(format!("{} of a permanent", node()));
+                }
+                let i::Player::ControllerOf(of) = who else {
+                    return Err(format!("{} unless {} pays", node(), short(who)));
+                };
+                if self.obj(of)? != Obj::Target(slot) {
+                    return Err(format!("{} unless another's controller pays", node()));
+                }
+                let [i::Cost::Mana(m)] = cost.as_slice() else {
+                    return Err(format!("{} unless a cost other than mana is paid", node()));
+                };
+                Effect::Unless {
+                    who: Who::SpellController(slot),
+                    cost: crate::mana::ManaCost::from_symbols(m)?,
+                    otherwise: vec![Effect::Counter(slot)],
+                }
             }
             i::Effect::Damage {
                 source: Some(source),

@@ -329,6 +329,9 @@ enum Retry {
     /// Follow the line again, casting its spell in its caster's beginning
     /// phase rather than their main phase.
     Early,
+    /// Go on from the checkpoint's game as it is, the choice made there
+    /// already: what it was.
+    Take(String),
 }
 
 struct Driver<'a> {
@@ -570,6 +573,7 @@ impl Driver<'_> {
                                     i = resume;
                                     continue;
                                 }
+                                Retry::Take(did) => Ok(did),
                                 Retry::Pay(payment) => pay_with(&mut game, &payment)
                                     .map(|()| format!("paid again, {}", describe(&payment))),
                                 Retry::Answer(answer, did) => {
@@ -1270,6 +1274,14 @@ impl Driver<'_> {
                 }
                 self.did(i, format!("named {name} (CR 201.4)"));
             }
+            // Echo paid, as the engine asks (`pay_unless`), which reads
+            // this line ahead.
+            PaysEcho { card, .. } => {
+                if !self.until_consumed(i)? {
+                    return Err(unfollowed(Some(card.name())));
+                }
+                self.did(i, format!("paid {}'s echo (CR 702.30a)", card.name()));
+            }
             UsesAbility { card, .. } => {
                 // The "may" it answers is answered as the engine asks
                 // (`may`), which reads this line ahead.
@@ -1356,6 +1368,7 @@ impl Driver<'_> {
                                 Decision::May { .. }
                                 | Decision::ChooseName { .. }
                                 | Decision::ChooseMana { .. }
+                                | Decision::PayUnless { .. }
                                 | Decision::Reveal { .. }
                                 | Decision::Targets { .. }
                                 | Decision::Order { .. }
@@ -1808,6 +1821,9 @@ impl Driver<'_> {
             } => self.search(player, &filter, known, hidden),
             Decision::May { card, .. } => self.may(card),
             Decision::ChooseName { player, card, .. } => self.choose_name(player, card),
+            Decision::PayUnless {
+                player, card, owed, ..
+            } => self.pay_unless(player, card, owed),
             Decision::ChooseMana {
                 player, options, ..
             } => self.choose_mana(player, options),
@@ -2272,15 +2288,7 @@ impl Driver<'_> {
             return Ok(false);
         }
         self.by_colour(player, &mut mana, |m| m.adds);
-        // In their own turn's beginning phase, it was tapped in the main
-        // phase, where the log never says the turn has got to: mana made
-        // in the draw step is gone by then.
-        let turn = self.game().turn();
-        if self.game().active() == player {
-            while self.game().step_now() < Step::PrecombatMain && self.game().turn() == turn {
-                self.pass()?;
-            }
-        }
+        self.pass_to_main_for_next_cast(player)?;
         if mana.len() > 1 {
             let game = self.game().clone();
             self.checkpoints.push(Checkpoint {
@@ -2308,6 +2316,103 @@ impl Driver<'_> {
             format!("tapped {name} for {}, the mana floating", mana[0].adds),
         );
         Ok(true)
+    }
+
+    /// An "unless" `p` may pay (CR 118.12a), which the log shows only for
+    /// echo: "paid the echo cost for [X]", read ahead to the end of the
+    /// turn. Anything else isn't paid, and is paid instead, with the first
+    /// payment found, if a later line can't be followed otherwise (Mana
+    /// Leak's {3}).
+    fn pay_unless(&mut self, p: PlayerId, card: CardId, owed: ManaCost) -> Followed {
+        let name = self.name_of(card);
+        let said = self
+            .entries
+            .iter()
+            .enumerate()
+            .skip(self.at)
+            .take_while(|(k, e)| *k == self.at || !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|(k, e)| match &e.event {
+                Event::PaysEcho { player, card: c }
+                    if self.seat(*player) == p
+                        && c.name() == name
+                        && !self.consumed.contains(&k) =>
+                {
+                    Some(k)
+                }
+                _ => None,
+            });
+        let game = self.game.as_ref().expect("set up");
+        let pool = *game.player(p).pool();
+        let payments = solve(&owed, pool, &unlogged_mana(game, p));
+        if let Some(k) = said {
+            let Some(first) = payments.first() else {
+                return Err(Stop::Diverged(Divergence::Unpayable { card: name }));
+            };
+            self.consumed.insert(k);
+            pay_with(self.game(), first)?;
+            let at = self.at;
+            self.did(at, format!("paid {owed} for {name}'s echo (CR 702.30a)"));
+            return Ok(());
+        }
+        // Echo paid says so, so an echo with no line wasn't.
+        let echo = self.text(&name).is_ok_and(|t| {
+            let (crate::deck::Oracle::OneFace(o) | crate::deck::Oracle::JoinedFaces(o)) = &t.oracle;
+            o.lines().any(|l| l.starts_with("Echo"))
+        });
+        if !echo {
+            if let Some(first) = payments.first() {
+                let mut paid = self.game().clone();
+                pay_with(&mut paid, first)?;
+                self.checkpoints.push(Checkpoint {
+                    game: paid,
+                    entry: self.at,
+                    trace: self.trace.len(),
+                    resume: self.at,
+                    others: vec![Retry::Take(format!("paid {owed} for {name}'s \"unless\""))],
+                    knew: self.knew(),
+                    back: Back::Any,
+                });
+            }
+        }
+        self.act(Answer::Pay(Payment::Cancel))?;
+        let at = self.at;
+        self.did(at, format!("didn't pay {owed} for {name} (CR 118.12a)"));
+        Ok(())
+    }
+
+    /// Mana a line shows made in `p`'s own turn, for the spell their next
+    /// line casts: if that is a sorcery-speed spell, it was made in a main
+    /// phase, where the log never says the turn has got to, so the turn
+    /// goes on to the next one first (mana made in the draw step or combat
+    /// is gone by then, CR 500.5).
+    fn pass_to_main_for_next_cast(&mut self, p: PlayerId) -> Followed {
+        let next = self
+            .entries
+            .iter()
+            .skip(self.at + 1)
+            .take_while(|e| !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|e| match &e.event {
+                Event::Casts(c) if self.seat(c.player) == p => match &c.card {
+                    Object::Card(c) => Some(c.name().to_string()),
+                    _ => None,
+                },
+                _ => None,
+            });
+        let Some(text) = next.and_then(|n| self.text(&n).ok()) else {
+            return Ok(());
+        };
+        let (crate::deck::Oracle::OneFace(o) | crate::deck::Oracle::JoinedFaces(o)) = &text.oracle;
+        let fast = text.type_line.contains("Instant") || o.lines().any(|l| l.starts_with("Flash"));
+        let turn = self.game().turn();
+        while !fast
+            && self.game().active() == p
+            && self.game().turn() == turn
+            && self.game().stack().is_empty()
+            && !self.game().step_now().is_main()
+        {
+            self.pass()?;
+        }
+        Ok(())
     }
 
     /// The card `player` names for `card`'s instruction (CR 201.4): the
@@ -2356,6 +2461,7 @@ impl Driver<'_> {
                 | Decision::May { .. }
                 | Decision::ChooseName { .. }
                 | Decision::ChooseMana { .. }
+                | Decision::PayUnless { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
                 | Decision::Arrange { .. }
@@ -2404,6 +2510,7 @@ impl Driver<'_> {
                 | Decision::May { .. }
                 | Decision::ChooseName { .. }
                 | Decision::ChooseMana { .. }
+                | Decision::PayUnless { .. }
                 | Decision::PutFromHand { .. }
                 | Decision::Search { .. }
                 | Decision::Reveal { .. }
@@ -2973,25 +3080,28 @@ impl Driver<'_> {
         }
         let name = self.permanent_name(c)?;
         let kind = counter_kind(&counted.kind);
-        let game = self.game.as_ref().expect("set up");
-        let Decision::Priority { player, actions } = game.decision() else {
-            return Ok(false);
+        let offered = |game: &Game| {
+            let Decision::Priority { player, actions } = game.decision() else {
+                return None;
+            };
+            if player != p {
+                return None;
+            }
+            actions.into_iter().find(|a| match a {
+                Action::Mana(m) => {
+                    game.mana_counter(m).as_ref() == Some(&kind)
+                        && game
+                            .card(game.permanents()[&m.source].card)
+                            .is_some_and(|t| t.name == name)
+                }
+                _ => false,
+            })
         };
-        if player != p {
+        if offered(self.game.as_ref().expect("set up")).is_none() {
             return Ok(false);
         }
-        let mana = actions.iter().find_map(|a| match a {
-            Action::Mana(m)
-                if game.mana_counter(m).as_ref() == Some(&kind)
-                    && game
-                        .card(game.permanents()[&m.source].card)
-                        .is_some_and(|t| t.name == name) =>
-            {
-                Some(*a)
-            }
-            _ => None,
-        });
-        let Some(mana) = mana else {
+        self.pass_to_main_for_next_cast(p)?;
+        let Some(mana) = offered(self.game.as_ref().expect("set up")) else {
             return Ok(false);
         };
         self.act(Answer::Act(mana))?;
@@ -3301,6 +3411,7 @@ impl Driver<'_> {
                     Decision::May { .. }
                     | Decision::ChooseName { .. }
                     | Decision::ChooseMana { .. }
+                    | Decision::PayUnless { .. }
                     | Decision::Reveal { .. }
                     | Decision::ChooseAmong { .. }
                     | Decision::Arrange { .. }
@@ -3540,7 +3651,7 @@ impl Driver<'_> {
             unreachable!("a cast waits for its payment")
         };
         let pool = *game.player(player).pool();
-        let mut found = solve(&owed, pool, &game.mana_options(player));
+        let mut found = solve(&owed, pool, &unlogged_mana(game, player));
         // A permanent a later line this turn attacks, blocks or activates
         // with is tapped for mana last: tapped, it couldn't.
         let used: BTreeSet<String> = self
@@ -3709,7 +3820,8 @@ fn pay_with(game: &mut Game, payment: &[ManaActivation]) -> Followed {
         game.step(Answer::Pay(Payment::Mana(*a)))
             .map_err(|_| illegal(Answer::Pay(Payment::Mana(*a))))?;
     }
-    let Decision::Pay { actions, .. } = game.decision() else {
+    let (Decision::Pay { actions, .. } | Decision::PayUnless { actions, .. }) = game.decision()
+    else {
         unreachable!("still paying")
     };
     let spend = actions
@@ -3722,6 +3834,16 @@ fn pay_with(game: &mut Game, payment: &[ManaActivation]) -> Followed {
     game.step(Answer::Pay(spend))
         .map_err(|_| illegal(Answer::Pay(spend)))?;
     Ok(())
+}
+
+/// The mana abilities a payment may activate without a line saying so:
+/// not one that puts a counter on its source, whose line the log prints as
+/// it is activated (Wall of Roots, `counter_mana`).
+fn unlogged_mana(game: &Game, p: PlayerId) -> Vec<ManaActivation> {
+    game.mana_options(p)
+        .into_iter()
+        .filter(|a| game.mana_counter(a).is_none())
+        .collect()
 }
 
 /// A revealed hand as the log lists it, with a split card's halves, which

@@ -305,6 +305,9 @@ pub struct Player {
     drew_from_empty: bool,
     /// The turn number their most recent turn began on (CR 302.6).
     turn_began: Option<u32>,
+    /// The turn number the turn before it began on: their last upkeep's,
+    /// for echo (CR 702.30a).
+    last_turn: Option<u32>,
     /// Their commanders' colour identity (CR 903.4), or `None` with no
     /// commander (CR 903.4f).
     identity: Option<Vec<Color>>,
@@ -790,6 +793,13 @@ enum Waiting {
         count: u32,
         filter: Filter,
     },
+    /// CR 118.12a: `player` may pay `owed` for the "unless" instruction
+    /// `at` points to.
+    PayUnless {
+        player: PlayerId,
+        owed: ManaCost,
+        at: Resuming,
+    },
     /// CR 106.3: `player` chooses which of `options` the resolving
     /// instruction adds to their pool.
     ChooseMana {
@@ -995,6 +1005,15 @@ pub enum Decision {
         spell: CardId,
         count: u32,
         legal: Vec<ObjectId>,
+    },
+    /// CR 118.12a: pay `owed` for `card`'s "unless", activating mana
+    /// abilities first, or not: answered `Answer::Pay`, `Payment::Cancel`
+    /// declining, so what follows the "unless" happens.
+    PayUnless {
+        player: PlayerId,
+        card: CardId,
+        owed: ManaCost,
+        actions: Vec<Payment>,
     },
     /// CR 106.3: choose the mana `card`'s instruction adds, one of
     /// `options`, answered `Answer::Mana`.
@@ -1361,6 +1380,7 @@ impl Game {
                 lands_played: 0,
                 drew_from_empty: false,
                 turn_began: None,
+                last_turn: None,
                 identity,
                 mulligans: 0,
                 kept: !setup.mulligans,
@@ -1889,6 +1909,12 @@ impl Game {
                 spell: *spell,
                 count: *count,
                 legal: self.sacrificable(*player, filter),
+            },
+            Waiting::PayUnless { player, owed, at } => Decision::PayUnless {
+                player: *player,
+                card: at.what.card(),
+                owed: owed.clone(),
+                actions: self.payments(*player, owed),
             },
             Waiting::ChooseMana {
                 player,
@@ -2456,6 +2482,24 @@ impl Game {
                     self.put_in_graveyard(*o);
                 }
                 self.cast_done(player, spell);
+            }
+            (Waiting::PayUnless { player, owed, at }, Answer::Pay(pay))
+                if self.payments(player, &owed).contains(pay) =>
+            {
+                let mut at = at;
+                match *pay {
+                    Payment::Mana(a) => self.activate(player, a),
+                    Payment::Spend(spent) => {
+                        let pool = &mut self.players[player.0 as usize].pool;
+                        *pool = pool.minus(&spent);
+                        *at.next.last_mut().expect("a cursor") += 1;
+                        self.follow(at);
+                    }
+                    Payment::Cancel => {
+                        at.next.push(0);
+                        self.follow(at);
+                    }
+                }
             }
             (
                 Waiting::ChooseMana {
@@ -3424,6 +3468,15 @@ impl Game {
                 Who::Defending => defending,
                 Who::ControllerOf(o) => self.now_or_last(&at, o).map(|c| c.controller),
                 Who::EventPlayer => at.player,
+                Who::SpellController(s) => match at.targets[s] {
+                    Some(Target::Spell(c)) => self.stack.iter().find_map(|o| match o {
+                        StackObject::Spell {
+                            card, controller, ..
+                        } if *card == c => Some(*controller),
+                        _ => None,
+                    }),
+                    _ => None,
+                },
             };
             match e {
                 Effect::Search {
@@ -3811,6 +3864,16 @@ impl Game {
                         at = here;
                         at.next.push(0);
                     }
+                }
+                // CR 118.12a: they may pay; if they don't, what follows.
+                Effect::Unless { who: w, cost, .. } => {
+                    let Some(q) = who(w) else { continue };
+                    self.waiting = Waiting::PayUnless {
+                        player: q,
+                        owed: cost,
+                        at: here,
+                    };
+                    return;
                 }
                 Effect::ChooseName(filter) => {
                     self.waiting = Waiting::ChooseName {
@@ -4286,6 +4349,7 @@ impl Game {
             | Waiting::Arrange { resume: at, .. }
             | Waiting::PutFromHand { resume: at, .. }
             | Waiting::ChooseMana { resume: at, .. }
+            | Waiting::PayUnless { at, .. }
             | Waiting::ChooseName { resume: at, .. } => at,
             _ => return None,
         };
@@ -4543,7 +4607,9 @@ impl Game {
 
     /// Whether an intervening "if" holds (CR 603.4): the permanents the
     /// source's controller controls that it counts, read from the source,
-    /// less the object the event names when it says "other".
+    /// less the object the event names when it says "other"; or the source
+    /// having come under its controller's control since their last upkeep
+    /// began, which is their previous turn's (CR 702.30a).
     fn intervening(
         &self,
         c: &lower::Intervening,
@@ -4552,12 +4618,22 @@ impl Game {
         triggering: Option<ObjectId>,
         all: &BTreeMap<ObjectId, Chars>,
     ) -> bool {
+        let (control, excluding) = match c {
+            lower::Intervening::Control { control, excluding } => (control, *excluding),
+            lower::Intervening::ArrivedSinceLastUpkeep => {
+                let last = self.player(source_chars.controller).last_turn;
+                return self
+                    .permanents
+                    .get(&source)
+                    .is_some_and(|p| last.is_none_or(|t| p.since >= t));
+            }
+        };
         let n = all
             .iter()
             .filter(|(o, ch)| {
                 ch.controller == source_chars.controller
-                    && !(c.excluding && Some(**o) == triggering)
-                    && c.control.any_of.iter().any(|f| {
+                    && !(excluding && Some(**o) == triggering)
+                    && control.any_of.iter().any(|f| {
                         f.matches(&Seen {
                             id: **o,
                             chars: ch,
@@ -4574,7 +4650,7 @@ impl Game {
                     })
             })
             .count();
-        c.control.count.holds(n as u32)
+        control.count.holds(n as u32)
     }
 
     /// CR 508.1a, 302.6, 702.3b: untapped creatures `p` controls that have
@@ -5019,7 +5095,9 @@ impl Game {
         self.discarded = 0;
         self.used = OrdSet::new();
         self.active = p;
-        self.players[p.0 as usize].turn_began = Some(self.turn);
+        let player = &mut self.players[p.0 as usize];
+        player.last_turn = player.turn_began;
+        player.turn_began = Some(self.turn);
         for player in &mut self.players {
             player.lands_played = 0;
         }

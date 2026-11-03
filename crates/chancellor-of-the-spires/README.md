@@ -197,7 +197,10 @@ Ritual, CR 106.3), "can't be regenerated", which restricts nothing
 while no regeneration lowers (CR 701.19a–c), a card name chosen, of a
 real card with the characteristics asked (Cabal Therapy's "a nonland
 card name", CR 201.4a), a hand revealed, its hidden cards named (CR
-701.20a), "discards all cards with that name" (CR 701.9a), and "then if
+701.20a), "discards all cards with that name" (CR 701.9a), "counter target
+spell unless its controller pays {3}" and echo's "sacrifice it unless
+you pay" (CR 118.12a, 702.30a: Mana Leak, Goblin Patrol), the payer
+activating mana abilities first or declining, and "then if
 you control four or more lands", "that land" being the permanent a card
 found became (Fabled Passage); their targets
 chosen as they are cast, and checked again as they resolve, an illegal
@@ -225,9 +228,11 @@ an instruction creates, "Draw a card at the beginning of the next turn's
 upkeep", triggering once (CR 603.7a–c: Portent), an "intervening if"
 that counts what its controller controls, checked as it triggers and as
 it resolves, "other" than the object its event names when it says so
-(Valakut's "if you control at least five other Mountains", CR 603.4),
-with exalted, prowess and training written
-out as the triggers they are (CR 702.83a, 702.108a, 702.149a) and "until end of
+(Valakut's "if you control at least five other Mountains", CR 603.4), or
+echo's "if this permanent came under your control since the beginning of
+your last upkeep" (CR 702.30a),
+with exalted, prowess, training and echo written
+out as the triggers they are (CR 702.83a, 702.108a, 702.149a, 702.30a) and "until end of
 turn" effects ending in cleanup (CR 514.2); combat: attackers tapping
 unless they have vigilance (CR 508.1f), blockers, the declare blockers
 and combat damage steps skipped with no attackers (CR 508.8), a
@@ -564,7 +569,13 @@ the stack is the land tapped for mana then, in its controller's main
 phase if it is their turn; a counters line resolves the stack only until
 the counters it shows are there, each line's counted apart from those
 before; a split card's halves listed beside it in a revealed hand are
-one card; two block lines naming attackers of one
+one card; an "unless" the log shows paid only for echo ("paid the echo
+cost for [X]"), so echo is paid when that line follows and not
+otherwise, and anything else, Mana Leak's {3}, isn't paid unless a later
+line can't be followed then; a payment never activates a mana ability
+whose counter the log would print (Wall of Roots), and mana a line shows
+made for a sorcery-speed spell in its caster's turn is made in a main
+phase; two block lines naming attackers of one
 name block two of them; the legend rule's choice, which the log never
 shows, keeps the first and goes back to another if a later line can't be
 followed; and a spell whose casting after the stack resolves leaves a
@@ -580,9 +591,9 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 46 replay to the end** (43 to the log's winner
-line), 29 of them past the first turn, and **26.27% of their lines are
-followed** (20,539 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 47 replay to the end** (44 to the log's winner
+line), 30 of them past the first turn, and **26.50% of their lines are
+followed** (20,719 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-03, and 13 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
@@ -669,8 +680,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-03 44 of the 500 replay to
-the end and 35.32% of their lines are followed** (11,182 of 31,659), 3
+Worked card by card from there, **on 2026-11-03 45 of the 500 replay to
+the end and 35.88% of their lines are followed** (11,358 of 31,659), 3
 of them relying on a land the log never names (1 to the end), and 44
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -693,7 +704,7 @@ each turn (Wall of Roots), or a sacrifice (Skirk Prospector); damage a
 source you control deals an opponent, a spell's too (Quest for Pure
 Flame); the beginning of combat (Luminarch Aspirant); becoming tapped
 (City of Brass); mana of a colour chosen as an instruction resolves
-(Outcaster Trailblazer). And
+(Outcaster Trailblazer); "unless" paid or not (Mana Leak, echo). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -702,9 +713,9 @@ names as a hypothesis, and which of two permanents of one name an
 activation is of. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Burst Lightning's kicker (11), Wild Growth's
-Aura (10), Sylvan Library and morph's face-down casting (9 each), Mana
-Leak's "unless its controller pays" and Vesuva's copy (8 each), and no
+top of the worklist now: Burst Lightning's kicker and Sylvan Library (11
+each), Wild Growth's Aura (10), morph's face-down casting (9), Gempalm
+Incinerator's cycling trigger and Vesuva's copy (8 each), and no
 divergence is left: those the run found were the replay's (a block or
 an activation of the wrong one of two permanents of one name, a ritual's
 mana cast away in the draw step, a filter land's floating mana never
