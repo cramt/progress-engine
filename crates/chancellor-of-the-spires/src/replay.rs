@@ -813,6 +813,25 @@ impl Driver<'_> {
             }
             Discards { player, cards } => {
                 let p = self.seat(*player);
+                // "discards [X]." then "cycles [X].": the discard is the
+                // cost of its cycling (CR 702.29a).
+                if let [Object::Card(c)] = cards.as_slice() {
+                    let cycles = self.entries[i + 1..]
+                        .iter()
+                        .position(|e| !matches!(e.event, Chat { .. } | Watching { .. }))
+                        .map(|k| i + 1 + k)
+                        .filter(|j| {
+                            matches!(&self.entries[*j].event,
+                                Cycles { player: q, card } if q == player && card.name() == c.name())
+                        });
+                    if let Some(j) = cycles {
+                        self.cycle(p, c.name(), i)?;
+                        for k in i..=j {
+                            self.did(k, format!("cycled {} (CR 702.29a)", c.name()));
+                        }
+                        return Ok(Next::Line(j + 1));
+                    }
+                }
                 // A resolving spell or ability's: a card chosen from a
                 // revealed hand, or cards the player chooses.
                 match self.until_choice()? {
@@ -870,6 +889,46 @@ impl Driver<'_> {
                     _ => String::new(),
                 };
                 self.did(i, format!("activated {}'s ability{paid}", card.name()));
+            }
+            // "Search your library for an enchantment card, reveal it":
+            // the card the search finds, which the line names.
+            Reveals {
+                player,
+                cards,
+                how: log::Reveal::Plain,
+            } if cards.len() == 1 => {
+                let p = self.seat(*player);
+                let turn = self.game().turn();
+                loop {
+                    let game = self.game();
+                    match game.decision() {
+                        Decision::Search { player, .. } if player == p => break,
+                        Decision::Priority { .. }
+                            if !game.stack().is_empty() && game.turn() == turn =>
+                        {
+                            self.pass()?
+                        }
+                        _ => return Err(unfollowed(Some(cards[0].name()))),
+                    }
+                }
+                let text = self.text(cards[0].name())?;
+                let game = self.game();
+                let library = game.player(p).library().clone();
+                let found = match library
+                    .iter()
+                    .find(|c| game.card(**c).is_some_and(|t| t.name == text.name))
+                {
+                    Some(c) => Found::Card(*c),
+                    None => match library.iter().find(|c| game.card(**c).is_none()) {
+                        Some(c) => Found::Hidden(*c, Box::new(text)),
+                        None => return Err(Stop::Diverged(Divergence::Unfound)),
+                    },
+                };
+                self.act(Answer::Find(found))?;
+                self.did(
+                    i,
+                    format!("found {}, revealed (CR 701.23a)", cards[0].name()),
+                );
             }
             // CR 701.23b: the search the ability on the stack makes finds
             // nothing.
@@ -1538,6 +1597,54 @@ impl Driver<'_> {
             out.push(t);
         }
         Ok(out)
+    }
+
+    /// `p` cycles the card of this name from their hand: offered any time
+    /// they have priority, the stack resolving first down to what a later
+    /// line shows resolving, as a play's does.
+    fn cycle(&mut self, p: PlayerId, name: &str, i: usize) -> Followed {
+        self.text(name)?;
+        let turn = self.game().turn();
+        while !self.game().stack().is_empty() && !self.resolves_later() {
+            self.pass()?;
+            if self.game().turn() != turn {
+                break;
+            }
+        }
+        loop {
+            let game = self.game();
+            if game.turn() != turn {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("cycle {name}"),
+                }));
+            }
+            if let Decision::Priority { player, .. } = game.decision() {
+                if player == p {
+                    if let Some(c) = self.in_hand(p, name)? {
+                        let Decision::Priority { actions, .. } = self.game().decision() else {
+                            unreachable!("naming a card changes no decision")
+                        };
+                        if actions.contains(&Action::Cycle(c)) {
+                            self.act(Answer::Act(Action::Cycle(c)))?;
+                            self.aim_and_pay(i, &[], name)?;
+                            return Ok(());
+                        }
+                        if let Some(r) = self.game().refusal(c) {
+                            return Err(Stop::Refused {
+                                card: name.to_string(),
+                                node: r.node,
+                                why: r.why,
+                            });
+                        }
+                        return Err(Stop::Unfollowed {
+                            event: "Cycles".into(),
+                            card: Some(name.to_string()),
+                        });
+                    }
+                }
+            }
+            self.pass()?;
+        }
     }
 
     /// A spell being cast or an ability activated: the targets the log

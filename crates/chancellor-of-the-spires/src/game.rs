@@ -160,6 +160,8 @@ struct Runnable {
     /// "If this card is in your opening hand, you may begin the game with
     /// it on the battlefield" (CR 103.6a).
     begins: bool,
+    /// Cycling (CR 702.29a), by its index, and its cost and instruction.
+    cycling: Option<(u16, Activated)>,
     /// "You have hexproof" (CR 702.11c), by the ability's index, so it
     /// works only while the permanent has it.
     hexproof: BTreeSet<u16>,
@@ -394,8 +396,9 @@ pub enum StackObject {
     /// sacrificed to pay for it changes nothing.
     Ability {
         source: CardId,
-        /// The permanent it was activated from, "this artifact".
-        object: ObjectId,
+        /// The permanent it was activated from, "this artifact", or none
+        /// for one activated from a hand (cycling, CR 702.29a).
+        object: Option<ObjectId>,
         ability: u16,
         controller: PlayerId,
         /// Chosen as it was activated (CR 602.2b, 601.2c), by slot.
@@ -927,6 +930,9 @@ pub enum Action {
     /// Any other activated ability, which goes on the stack (CR 602.2,
     /// 117.1b).
     Activate(Activation),
+    /// A card's cycling from its owner's hand: "[Cost], Discard this card:
+    /// Draw a card" (CR 702.29a).
+    Cycle(CardId),
 }
 
 /// What a player paying a spell's cost can do.
@@ -2162,6 +2168,18 @@ impl Game {
                     .map(|c| Action::PlayLand(*c)),
             );
         }
+        // CR 702.29a: cycling any time its owner has priority.
+        actions.extend(
+            player
+                .hand
+                .iter()
+                .filter(|c| {
+                    self.known(**c)
+                        .and_then(|k| k.runs.as_ref().ok())
+                        .is_some_and(|r| r.cycling.is_some())
+                })
+                .map(|c| Action::Cycle(*c)),
+        );
         let from_command = self
             .command
             .iter()
@@ -2412,6 +2430,23 @@ impl Game {
                 // CR 117.3c.
                 self.give_priority(p, 0);
             }
+            // CR 702.29a, 602.2: discarding it is part of the cost, paid
+            // as the ability goes on the stack.
+            Action::Cycle(card) => {
+                let Some((n, def)) = self.runs_of(card).cycling.clone() else {
+                    unreachable!("only a card with cycling is offered")
+                };
+                self.before_cast = Some(Box::new(self.clone()));
+                self.discard(p, &[card]);
+                self.stack.push_back(StackObject::Ability {
+                    source: card,
+                    object: None,
+                    ability: n,
+                    controller: p,
+                    targets: Vec::new(),
+                });
+                self.pay_ability(p, card, def.cost.mana);
+            }
             Action::Activate(a) => {
                 let card = self.permanents[&a.source].card;
                 let Ability::Unread(n) = a.ability else {
@@ -2431,7 +2466,7 @@ impl Game {
                 // and its costs paid (CR 602.2b, 601.2c, 601.2h).
                 self.stack.push_back(StackObject::Ability {
                     source: card,
-                    object: a.source,
+                    object: Some(a.source),
                     ability: n,
                     controller: p,
                     targets: Vec::new(),
@@ -2682,7 +2717,7 @@ impl Game {
             }) => self.begin_resolving(
                 Instructions::Activated(source, ability),
                 controller,
-                (Some(object), None, None, None),
+                (object, None, None, None),
                 targets,
             ),
             Some(StackObject::Trigger {
@@ -2759,7 +2794,10 @@ impl Game {
             Instructions::Triggered(c, n) => &self.runs_of(c).triggered[&n].program,
             Instructions::Activated(c, n) => match self.runs_of(c).activated.get(&n) {
                 Some(Ok(def)) => &def.program,
-                _ => &NONE,
+                _ => match &self.runs_of(c).cycling {
+                    Some((k, def)) if *k == n => &def.program,
+                    _ => &NONE,
+                },
             },
         }
     }
@@ -4603,6 +4641,21 @@ fn hand_keyword(k: &i::Keyword) -> bool {
     name.ends_with("cycling") || name == "transmute" || name == "flashback"
 }
 
+/// "Cycling {2}": its mana cost, if that is all its cost is; landcycling
+/// and the like search instead, and stay carried.
+fn cycling_cost(k: &i::Keyword) -> Option<ManaCost> {
+    if !k.name.eq_ignore_ascii_case("cycling") {
+        return None;
+    }
+    match k.param.as_ref()? {
+        i::KeywordParam::Cost(c) => match c.as_slice() {
+            [i::Cost::Mana(m)] => ManaCost::from_symbols(m).ok(),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 /// What of a card's abilities the game runs, or the first it can't. The
 /// layers carry triggered abilities and statics such as "enters tapped"
 /// unread (ADR-0037); one the game can't run is refused by name rather
@@ -4618,6 +4671,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         flash: false,
         begins: false,
         hexproof: BTreeSet::new(),
+        cycling: None,
         cost_changes: BTreeMap::new(),
         dormant: Vec::new(),
         lowered,
@@ -4673,6 +4727,23 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                 for k in ks {
                     if k.name.eq_ignore_ascii_case("flash") {
                         runs.flash = true;
+                    } else if let Some(cost) = cycling_cost(k) {
+                        runs.cycling = Some((
+                            n,
+                            Activated {
+                                cost: lower::ActivationCost {
+                                    mana: Some(cost),
+                                    ..Default::default()
+                                },
+                                program: lower::Program {
+                                    targets: Vec::new(),
+                                    effects: vec![Effect::Draw {
+                                        who: lower::Who::You,
+                                        n: 1,
+                                    }],
+                                },
+                            },
+                        ));
                     } else if let Some(t) = lower::keyword_trigger(k) {
                         runs.triggered.insert(n, t);
                     } else if hand_keyword(k) {

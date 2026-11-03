@@ -48,6 +48,9 @@ const INDEXED: &[&str] = &[
     "Daring Apprentice",
     "Warmth",
     "Eidolon of the Great Revel",
+    "Enlightened Tutor",
+    "Aura of Silence",
+    "Lonely Sandbar",
 ];
 
 fn index() -> &'static IndexFile {
@@ -771,4 +774,61 @@ fn a_spell_is_cast_in_response_when_the_triggers_after_say_so() {
         Winner: bob
     ");
     assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+}
+
+/// CR 701.23a: Enlightened Tutor's "Search your library for an artifact
+/// or enchantment card, reveal it": the line that reveals it names what
+/// the search found, put on top.
+#[test]
+fn a_search_that_reveals_finds_the_card_the_line_names() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Plains].
+        alice casts [Enlightened Tutor].
+        alice reveals [Aura of Silence].
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    let top = game.player(ALICE).library()[0];
+    assert_eq!(
+        game.card(top).map(|t| t.name.as_str()),
+        Some("Aura of Silence")
+    );
+}
+
+/// CR 702.29a: "discards [Lonely Sandbar]" then "cycles [Lonely Sandbar]"
+/// is its cycling: the discard its cost with {U}, and a card drawn as it
+/// resolves.
+#[test]
+fn a_discard_then_a_cycle_line_cycles_the_card() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        alice discards [Lonely Sandbar].
+        alice cycles [Lonely Sandbar].
+        Turn 1: bob
+        bob plays [Forest].
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(
+        game.player(ALICE).hand().len(),
+        6,
+        "seven, less the Island, less the Sandbar, and a draw"
+    );
+    assert_eq!(game.player(ALICE).graveyard().len(), 1);
 }

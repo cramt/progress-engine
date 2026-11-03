@@ -245,21 +245,24 @@ resolve to a target or its source, a static that isn't
 an Aura (its target), and a keyword other than flash, cycling, transmute,
 flashback, partner, exalted, prowess and the layers' own (flying, reach,
 menace, first and double strike, defender, haste, vigilance, trample,
-deathtouch, lifelink, shroud, hexproof, indestructible, shadow, and protection from a colour, from multicolored or
-from everything); cycling, transmute and flashback are carried, never
+deathtouch, lifelink, shroud, hexproof, indestructible, shadow, and
+protection from a colour, from multicolored or from everything); cycling
+for mana is activated from its owner's hand, discarding it to draw a card
+(CR 702.29a), and landcycling, transmute and flashback are carried, never
 offered. A non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**36 of Loam's 90 distinct cards are played or cast and resolved, 18 of
+**36 of Loam's 90 distinct cards are played or cast and resolved, 24 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
 Foothills, the shock lands Breeding Pool, Steam Vents and Stomping
 Ground, Nature's Lore, since a search is an instruction like any other,
-and Fiery Islet and Waterlogged Grove, the two more since an activated
-ability can cost mana: "{1}, {T}, Sacrifice this land: Draw a card"),
-measured 2026-11-03, Deep Analysis played too since it
+Fiery Islet and Waterlogged Grove, since an activated ability can cost
+mana: "{1}, {T}, Sacrifice this land: Draw a card", and the six more
+since cycling runs: Coastal Peak, Desert of the Fervent, Forgotten Cave,
+Ketria Triome, Lonely Sandbar and Sheltered Thicket), measured 2026-11-03, Deep Analysis played too since it
 draws two, its flashback carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
