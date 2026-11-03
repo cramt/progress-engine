@@ -2015,3 +2015,205 @@ fn goblin_ringleader_takes_the_goblins_it_reveals() {
         );
     }
 }
+
+/// CR 201.4a, 701.20a, 701.9a, 702.34a, 118.9, 601.2h: Cabal Therapy
+/// names a nonland card, a land's name refused; their hand is revealed and
+/// every card of that name discarded. From my graveyard it is cast again
+/// for its flashback cost, sacrificing a creature as the rest of its cost
+/// is paid, and exiled as it resolves rather than put back.
+#[test]
+fn cabal_therapy_names_a_card_and_flashes_back_for_a_creature() {
+    let mut game = deal_both(
+        &[("Swamp", 20), ("Cabal Therapy", 20), ("Typhoid Rats", 20)],
+        &[("Forest", 30), ("Grizzly Bears", 30)],
+        &[("Swamp", 1), ("Cabal Therapy", 1), ("Typhoid Rats", 1)],
+        &[("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Swamp");
+    // No creature to sacrifice, so no flashback offered yet.
+    cast(&mut game, "Cabal Therapy", Some(vec![Target::Player(THEM)]));
+    let Decision::ChooseName { player, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(player, ME);
+    assert!(game
+        .step(Answer::Name(Box::new(CardText::basic("Forest"))))
+        .is_err());
+    let bears = named(&game, game.player(THEM).hand(), "Grizzly Bears");
+    assert!(bears > 0);
+    step(&mut game, Answer::Name(Box::new(card("Grizzly Bears"))));
+    assert_eq!(named(&game, game.player(THEM).hand(), "Grizzly Bears"), 0);
+    assert_eq!(
+        named(&game, game.player(THEM).graveyard(), "Grizzly Bears"),
+        bears
+    );
+    assert_eq!(game.discarded(), bears as u32);
+    let therapy = game.player(ME).graveyard()[0];
+    assert_eq!(game.card(therapy).unwrap().name, "Cabal Therapy");
+    let flashback = |game: &Game| match game.decision() {
+        Decision::Priority { actions, .. } => actions
+            .into_iter()
+            .find(|a| matches!(a, Action::CastAlternative(c, _) if *c == therapy)),
+        _ => None,
+    };
+    assert_eq!(flashback(&game), None);
+
+    // With a creature on the battlefield, it is offered from the graveyard.
+    my_next_main(&mut game);
+    let rats = in_hand(&game, ME, "Typhoid Rats").expect("dealt");
+    step(&mut game, Answer::Act(Action::Cast(rats)));
+    while let Decision::Pay { actions, .. } = game.decision() {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    let Some(fb) = flashback(&game) else {
+        panic!("flashback offered: {:?}", game.decision())
+    };
+    step(&mut game, Answer::Act(fb));
+    step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    // Its flashback cost has no mana: {0}, paid from the empty pool.
+    let Decision::Pay { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    step(&mut game, Answer::Pay(Payment::Spend(ManaPool::default())));
+    assert!(actions.contains(&Payment::Spend(ManaPool::default())));
+    let Decision::Sacrifice { count, legal, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((count, legal.len()), (1, 1));
+    step(&mut game, Answer::Sacrifice(legal.clone()));
+    assert_eq!(named(&game, game.player(ME).graveyard(), "Typhoid Rats"), 1);
+    let Decision::ChooseName { .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    step(&mut game, Answer::Name(Box::new(card("Grizzly Bears"))));
+    // Exiled, not back in the graveyard (CR 702.34a).
+    assert!(game.exile().contains(&therapy));
+    assert!(!game.player(ME).graveyard().contains(&therapy));
+}
+
+/// CR 702.149a: Hopeful Initiate's training triggers when it attacks with
+/// a creature of greater power, Watchwolf, and puts a +1/+1 counter on it;
+/// attacking alone, it doesn't.
+#[test]
+fn training_grows_a_creature_attacking_beside_a_bigger_one() {
+    let mut game = deal(
+        &[
+            ("Plains", 20),
+            ("Forest", 20),
+            ("Hopeful Initiate", 10),
+            ("Watchwolf", 10),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Plains", 1),
+            ("Forest", 1),
+            ("Hopeful Initiate", 1),
+            ("Watchwolf", 1),
+        ],
+    );
+    play(&mut game, "Plains");
+    cast(&mut game, "Hopeful Initiate", None);
+    resolve(&mut game);
+    let initiate = creature(&game, "Hopeful Initiate").unwrap();
+    my_next_main(&mut game);
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(initiate, THEM)]));
+    assert!(game.stack().is_empty(), "alone, no training");
+    through_combat(&mut game);
+    pass_until(&mut game, ME, Step::PostcombatMain);
+    play(&mut game, "Forest");
+    cast(&mut game, "Watchwolf", None);
+    resolve(&mut game);
+    let wolf = creature(&game, "Watchwolf").unwrap();
+    my_next_main(&mut game);
+    to_attackers(&mut game);
+    step(
+        &mut game,
+        Answer::Attack(vec![(initiate, THEM), (wolf, THEM)]),
+    );
+    assert_eq!(game.stack().len(), 1);
+    resolve(&mut game);
+    assert_eq!(pt_of(&game, initiate), pt(2, 3));
+}
+
+/// CR 603.4: Valakut's "if you control at least five other Mountains" is
+/// checked as a Mountain enters, counting the Mountains other than that
+/// one: the sixth Mountain triggers it, the fifth doesn't.
+#[test]
+fn valakut_triggers_only_with_five_other_mountains() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Valakut, the Molten Pinnacle", 20)],
+        &[("Forest", 60)],
+        &[("Valakut, the Molten Pinnacle", 1), ("Mountain", 1)],
+    );
+    play(&mut game, "Valakut, the Molten Pinnacle");
+    for turn in 1..=6 {
+        my_next_main(&mut game);
+        let Some(m) = in_hand(&game, ME, "Mountain") else {
+            return;
+        };
+        step(&mut game, Answer::Act(Action::PlayLand(m)));
+        let triggered =
+            !game.stack().is_empty() || matches!(game.decision(), Decision::Targets { .. });
+        assert_eq!(triggered, turn == 6, "Mountain number {turn}");
+    }
+    let Decision::Targets { slots, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(slots[0].contains(&Target::Player(THEM)));
+    step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    let Decision::May { .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    step(&mut game, Answer::May(true));
+    assert_eq!(game.player(THEM).life(), 17);
+}
+
+/// Fabled Passage: the basic land found enters tapped, then is untapped
+/// only if its controller controls four or more lands as that instruction
+/// is followed, the land found among them (CR 608.2c).
+#[test]
+fn fabled_passage_untaps_the_land_it_finds_with_four_lands() {
+    let mut game = deal(
+        &[("Forest", 40), ("Fabled Passage", 20)],
+        &[("Forest", 60)],
+        &[("Forest", 3), ("Fabled Passage", 2)],
+    );
+    let crack = |game: &mut Game| {
+        let passage = creature(game, "Fabled Passage").unwrap();
+        let Decision::Priority { actions, .. } = game.decision() else {
+            panic!("{:?}", game.decision())
+        };
+        let a = actions
+            .iter()
+            .find(|a| matches!(a, Action::Activate(x) if x.source == passage))
+            .copied()
+            .expect("offered");
+        step(game, Answer::Act(a));
+        let Decision::Search { known, .. } = resolve(game) else {
+            panic!("{:?}", game.decision())
+        };
+        step(game, Answer::Find(Found::Card(known[0])));
+        game.permanents()
+            .values()
+            .find(|p| p.card == known[0])
+            .unwrap()
+            .tapped
+    };
+    play(&mut game, "Fabled Passage");
+    assert!(crack(&mut game), "one land: it stays tapped");
+    for _ in 0..2 {
+        my_next_main(&mut game);
+        play(&mut game, "Forest");
+    }
+    my_next_main(&mut game);
+    play(&mut game, "Fabled Passage");
+    assert!(!crack(&mut game), "four lands: untapped");
+}

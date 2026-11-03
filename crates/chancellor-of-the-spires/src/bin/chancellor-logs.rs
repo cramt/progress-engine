@@ -371,16 +371,51 @@ mod native {
 
     /// Every card of the bulk file as the engine reads it, by its name.
     fn card_texts(bulk: &str) -> Result<HashMap<String, CardText>> {
+        Ok(cards_and_lands(bulk)?.0)
+    }
+
+    /// The bulk file's cards as `card_texts`, and the lands legal in
+    /// Modern, the five basics and Wastes aside, which a search in a
+    /// Modern game may find though the log never names them
+    /// (`replay::UnseenLand`). Penny Dreadful's legality isn't in the
+    /// bulk file, so its games get none.
+    fn cards_and_lands(bulk: &str) -> Result<(HashMap<String, CardText>, Vec<r::UnseenLand>)> {
         let text = fs::read_to_string(bulk).with_context(|| format!("reading {bulk}"))?;
         let records = text
             .lines()
             .filter_map(|l| facet_json::from_str::<BulkCard>(l).ok());
         let (index, _) = Index::build(records, None);
-        Ok(index
+        let texts = index
             .cards
             .values()
             .map(|c| (c.name.clone(), deck::text(c)))
-            .collect())
+            .collect();
+        let basics = ["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"];
+        let mut lands: Vec<r::UnseenLand> = index
+            .cards
+            .values()
+            .filter(|c| {
+                let front = c.type_line.split("//").next().unwrap_or("");
+                front.split('—').next().unwrap_or("").contains("Land")
+                    && !basics.contains(&c.name.as_str())
+                    && c.legalities.get("modern") == Some(chip_scryfall::legality::Legality::Legal)
+            })
+            .map(|c| r::UnseenLand {
+                name: c.name.clone(),
+                makes: ["W", "U", "B", "R", "G"].map(|m| c.produces.iter().any(|p| p == m)),
+            })
+            .collect();
+        lands.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok((texts, lands))
+    }
+
+    /// Whether a match was Modern: a Freeform match whose comment or
+    /// Gatherling event says so.
+    fn is_modern(m: &log::Match) -> bool {
+        m.format == "Freeform"
+            && std::iter::once(&m.comment)
+                .chain(m.games.iter().flat_map(|g| &g.notes))
+                .any(|t| t.to_lowercase().contains("modern"))
     }
 
     /// The log's turn number at entry `i`: each player's own count, as
@@ -401,6 +436,7 @@ mod native {
     fn each_replayed(
         names: &mut Names,
         texts: &HashMap<String, CardText>,
+        modern: &[r::UnseenLand],
         only: Option<u64>,
         turnless: &mut usize,
         mut f: impl FnMut(&log::Match, &log::Game, &r::Replay, &mut Names),
@@ -429,7 +465,8 @@ mod native {
                 }
                 let replayed = {
                     let mut cards = |name: &str| texts.get(&names.read(name).0).cloned();
-                    r::replay(&m, g, &mut cards)
+                    let unseen = if is_modern(&m) { modern } else { &[] };
+                    r::replay(&m, g, &mut cards, unseen)
                 };
                 f(&m, g, &replayed, names);
             }
@@ -521,13 +558,14 @@ mod native {
             }
         }
         let mut names = Names::load(&bulk)?;
-        let texts = card_texts(&bulk)?;
+        let (texts, modern) = cards_and_lands(&bulk)?;
         let mut candidates: Vec<(u64, BTreeSet<String>)> = Vec::new();
         let mut setup = 0;
         let mut turnless = 0;
         each_replayed(
             &mut names,
             &texts,
+            &modern,
             None,
             &mut turnless,
             |_, g, replayed, names| {
@@ -617,13 +655,16 @@ mod native {
             }
         }
         let mut names = Names::load(&bulk)?;
-        let texts = card_texts(&bulk)?;
+        let (texts, modern) = cards_and_lands(&bulk)?;
         let milestones = read_milestones()?;
 
         let mut eligible = 0;
         let mut turnless = 0;
         let mut finished = 0;
         let mut winner_line = 0;
+        // Games whose replay relied on a land the log never names, and
+        // those of them to the end.
+        let mut unseen = (0, 0);
         // Lines before each game's stop (all of a finished game's), and all
         // lines: a smoother measure than games to the end, which moves only
         // when a game's last stop goes.
@@ -641,12 +682,17 @@ mod native {
         let games = each_replayed(
             &mut names,
             &texts,
+            &modern,
             only,
             &mut turnless,
             |m, g, replayed, names| {
                 eligible += 1;
                 if only.is_some() {
                     print_game(m, g, replayed);
+                }
+                if !replayed.unseen.is_empty() {
+                    unseen.0 += 1;
+                    unseen.1 += (replayed.end == End::Finished) as usize;
                 }
                 let (stop_at, turn) = match &replayed.end {
                     End::Finished => (None, turn_at(g, g.entries.len())),
@@ -684,6 +730,10 @@ mod native {
                     }
                     run.lines += g.entries.len();
                     run.followed += these;
+                    if !replayed.unseen.is_empty() {
+                        run.unseen.0 += 1;
+                        run.unseen.1 += (replayed.end == End::Finished) as usize;
+                    }
                     match (&replayed.end, stop_at) {
                         (End::Stopped { stop, .. }, Some(at)) => {
                             let key = match stop.card() {
@@ -693,6 +743,10 @@ mod native {
                             if refused.is_empty() {
                                 run.clean
                                     .push(format!("{key}\n        e.g. {}", example(at)));
+                            }
+                            if matches!(stop, r::Stop::Diverged(_)) {
+                                run.diverged
+                                    .push(format!("{stop}\n        {}", example(at)));
                             }
                             let s = run.stops.entry(key).or_insert_with(|| (0, example(at)));
                             s.0 += 1;
@@ -734,6 +788,10 @@ mod native {
             "lines followed: {followed} of {lines} ({:.2}%), the lines before each game's stop",
             100.0 * followed as f64 / lines.max(1) as f64
         );
+        println!(
+            "relied on a land the log never names, found as a hypothesis: {} games, {} of them to the end",
+            unseen.0, unseen.1
+        );
         for (ms, run) in milestones.iter().zip(&within) {
             println!(
                 "\nmilestone {}: {} games, {} cards; {} of the games replayed here",
@@ -753,6 +811,10 @@ mod native {
                 run.lines,
                 100.0 * run.followed as f64 / run.lines.max(1) as f64
             );
+            println!(
+                "  relied on a land the log never names: {} games, {} of them to the end",
+                run.unseen.0, run.unseen.1
+            );
             let mut stops: Vec<_> = run.stops.iter().collect();
             stops.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(b.0)));
             println!("  worklist: its stops by games, the card and the node");
@@ -768,6 +830,13 @@ mod native {
                 "  games by how many of their cards the engine refuses before any game: {}",
                 refusing.join(", ")
             );
+            println!(
+                "  divergences, the engine disagreeing with the log ({}):",
+                run.diverged.len()
+            );
+            for d in &run.diverged {
+                println!("        {d}");
+            }
             println!("  stops of games with no card refused:");
             for c in &run.clean {
                 println!("        {c}");
@@ -809,12 +878,17 @@ mod native {
     #[derive(Default)]
     struct MilestoneRun {
         seen: usize,
+        /// Games relying on a land the log never names, and those of them
+        /// to the end.
+        unseen: (usize, usize),
         finished: usize,
         followed: usize,
         lines: usize,
         stops: HashMap<String, (usize, String)>,
         /// The stops of games none of whose cards the engine refuses.
         clean: Vec<String>,
+        /// Every divergence, with its game and line.
+        diverged: Vec<String>,
         /// Games by how many of their cards the engine refuses.
         refusing: std::collections::BTreeMap<usize, usize>,
         /// Each refused card: the games it is in, and those it is the

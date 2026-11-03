@@ -1150,13 +1150,32 @@ pub enum Effect {
         filter: CardFilter,
         then: Vec<Effect>,
     },
+    /// "Then if you control four or more lands, …": these instructions,
+    /// only if the controller controls as many permanents as the condition
+    /// counts as it is followed.
+    IfControl {
+        control: YouControl,
+        then: Vec<Effect>,
+    },
+    /// "Choose a nonland card name": the controller names a card of the
+    /// Oracle card reference the filter matches (CR 201.4, 201.4a), for
+    /// the instructions after to read.
+    ChooseName(CardFilter),
+    /// "Target player reveals their hand" (CR 701.20a): every card of it
+    /// seen, so a hidden one is named.
+    RevealHand(Who),
+    /// "Discards all cards with that name": each card of the player's
+    /// hand with the name chosen (CR 701.9a).
+    DiscardNamed(Who),
 }
 
 impl Effect {
     /// The instructions this one holds, which a resolution may enter.
     pub fn inner(&self) -> Option<&[Effect]> {
         match self {
-            Effect::May(_, then) | Effect::IfCard { then, .. } => Some(then),
+            Effect::May(_, then) | Effect::IfCard { then, .. } | Effect::IfControl { then, .. } => {
+                Some(then)
+            }
             _ => None,
         }
     }
@@ -1204,6 +1223,9 @@ pub enum Obj {
     Target(usize),
     /// The object the trigger event names: exalted's "that creature".
     Triggering,
+    /// The permanent a card an instruction found became: Fabled Passage's
+    /// "untap that land", put onto the battlefield.
+    Found(Slot),
 }
 
 /// What an instruction acts on: one object, or each permanent a filter
@@ -1284,6 +1306,10 @@ pub enum TriggerEvent {
     /// declares at least `n` attackers the filter matches, once however
     /// many (CR 508.3a).
     AttacksWith { filter: Filter, n: u32 },
+    /// Training's "Whenever this creature and at least one other creature
+    /// with power greater than this creature's power attack" (CR
+    /// 702.149a).
+    Trains,
     /// Exalted's "Whenever a creature you control attacks alone": the only
     /// creature declared as an attacker is one the filter matches (CR
     /// 506.5, 702.83a).
@@ -1332,6 +1358,20 @@ pub enum Whose {
 pub struct Triggered {
     pub event: TriggerEvent,
     pub program: Program,
+    /// An "intervening if" clause (CR 603.4): checked as the event
+    /// happens, the ability triggering only if it holds, and again as it
+    /// resolves, doing nothing if it doesn't.
+    pub condition: Option<Intervening>,
+}
+
+/// "If you control at least five other Mountains": as many permanents its
+/// controller controls as the condition counts, read from the ability's
+/// source, and "other" than the object its event names when `excluding`
+/// (Valakut's "a Mountain … enters, if you control five other Mountains").
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Intervening {
+    pub control: YouControl,
+    pub excluding: bool,
 }
 
 /// A spell's instructions, its paragraphs in order (CR 608.2c), with the
@@ -1354,13 +1394,27 @@ pub fn triggered(
     if let Some(l) = limits.first() {
         return Err(format!("a triggered ability limited by {}", short(l)));
     }
+    let (trigger, condition) = match trigger {
+        i::Trigger::InterveningIf(t, cond) => (&**t, Some(intervening(cond, bind)?)),
+        t => (t, None),
+    };
+    // "Whenever a Mountain you control enters": the object a `Let` binds.
+    let bound = |o: &Objects| -> Objects {
+        match o.quant {
+            Quant::Introduced(k) | Quant::Bound(k) if o.filter == i::Filter::default() => bind
+                .len()
+                .checked_sub(1 + k as usize)
+                .map_or_else(|| o.clone(), |b| bind[b].clone()),
+            _ => o.clone(),
+        }
+    };
     let event = match trigger {
         i::Trigger::When(e) => match &**e {
             i::Event::Enters {
                 what,
                 under: None,
                 state: None,
-            } => TriggerEvent::Enters(entering(what)?),
+            } => TriggerEvent::Enters(entering(&bound(what))?),
             i::Event::Attacks(what) => TriggerEvent::Attacks(entering(what)?),
             i::Event::AttacksWith {
                 who: i::Player::You,
@@ -1429,12 +1483,41 @@ pub fn triggered(
     Ok(Triggered {
         event,
         program: scope.program,
+        condition,
+    })
+}
+
+/// An intervening "if" a triggered ability's trigger condition has (CR
+/// 603.4), of those lowered: "if you control at least five other
+/// Mountains", "other" than the object a `Let` binds being the event's.
+fn intervening(cond: &i::Condition, bind: &[Objects]) -> Result<Intervening, String> {
+    let i::Condition::YouControl(o) = cond else {
+        return Err(format!("an intervening if of {}", short(cond)));
+    };
+    let mut excluding = false;
+    let mut o = o.clone();
+    for alt in &mut o.filter.alts {
+        alt.retain(|a| match a {
+            Adj::OtherThan(x)
+                if matches!(x.quant, Quant::Bound(k) if (k as usize) < bind.len())
+                    && x.filter == i::Filter::default() =>
+            {
+                excluding = true;
+                false
+            }
+            _ => true,
+        });
+    }
+    Ok(Intervening {
+        control: you_control(&o)?,
+        excluding,
     })
 }
 
 /// The keywords that are triggered abilities and that the engine runs,
-/// written out as their rules define them: exalted (CR 702.83a) and
-/// prowess (CR 702.108a). `None` for any other keyword.
+/// written out as their rules define them: exalted (CR 702.83a), prowess
+/// (CR 702.108a) and training (CR 702.149a). `None` for any other
+/// keyword.
 pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
     if k.param.is_some() {
         return None;
@@ -1451,6 +1534,19 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                     per: None,
                 }],
             },
+            condition: None,
+        }),
+        "training" => Some(Triggered {
+            event: TriggerEvent::Trains,
+            program: Program {
+                targets: Vec::new(),
+                effects: vec![Effect::PutCounters {
+                    on: On::One(Obj::Itself),
+                    counter: Counter::PlusOne,
+                    n: 1,
+                }],
+            },
+            condition: None,
         }),
         "prowess" => Some(Triggered {
             event: TriggerEvent::Casts {
@@ -1467,6 +1563,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                     per: None,
                 }],
             },
+            condition: None,
         }),
         _ => None,
     }
@@ -1523,6 +1620,8 @@ struct Scope<'a> {
     /// What a search looks for, by the slot of the card it finds, and
     /// whether that card is put onto the battlefield.
     described: BTreeMap<Slot, (Objects, bool)>,
+    /// Whether an instruction before has chosen a card name, "that name".
+    named: bool,
 }
 
 impl<'a> Scope<'a> {
@@ -1540,6 +1639,7 @@ impl<'a> Scope<'a> {
             whose: BTreeMap::new(),
             among: BTreeMap::new(),
             described: BTreeMap::new(),
+            named: false,
         }
     }
 
@@ -1660,6 +1760,9 @@ impl<'a> Scope<'a> {
     fn obj(&mut self, o: &Objects) -> Result<Obj, String> {
         match o.quant {
             Quant::SelfRef if o.filter == i::Filter::default() => Ok(Obj::Itself),
+            Quant::Introduced(i) | Quant::Bound(i) if self.found(i.into()).is_some() => {
+                Ok(Obj::Found(self.found(i.into()).expect("found")?))
+            }
             Quant::Introduced(i) | Quant::Bound(i) => Ok(Obj::Target(self.binder(i.into())?)),
             Quant::Target {
                 n: i::Amount::N(1),
@@ -1763,7 +1866,9 @@ impl<'a> Scope<'a> {
             }
             [i::Recipient::Objects(o)] => match self.obj(o)? {
                 Obj::Target(s) => Ok(DamageTo::Target(s)),
-                Obj::Itself | Obj::Triggering => Err("damage to its own source".into()),
+                Obj::Itself | Obj::Triggering | Obj::Found(_) => {
+                    Err("damage to its own source or a card found".into())
+                }
             },
             _ => Err("damage to several recipients".into()),
         }
@@ -1944,7 +2049,32 @@ impl<'a> Scope<'a> {
                 }
                 _ => return Err(node()),
             },
-            i::Effect::RevealHand(_) => return Err(format!("{} alone", node())),
+            i::Effect::RevealHand(p) => Effect::RevealHand(self.who(p)?),
+            // CR 201.4a.
+            i::Effect::Choose(c @ (i::Choice::NonlandCardName | i::Choice::CardName)) => {
+                self.named = true;
+                let nonland = matches!(c, i::Choice::NonlandCardName);
+                Effect::ChooseName(CardFilter(vec![Filter(if nonland {
+                    vec![Pred::IsNot(Prop::Type(CardType::Land))]
+                } else {
+                    Vec::new()
+                })]))
+            }
+            i::Effect::Discard {
+                who,
+                what,
+                random: false,
+            } if self.named
+                && what.quant == Quant::All
+                && what.filter
+                    == (i::Filter {
+                        kind: Some(i::Noun::Card),
+                        posts: vec![Post::WithThatName],
+                        ..i::Filter::default()
+                    }) =>
+            {
+                Effect::DiscardNamed(self.who(who)?)
+            }
             i::Effect::With { bind, then } => return self.with(bind, then),
             i::Effect::Search {
                 who,
@@ -2054,6 +2184,14 @@ impl<'a> Scope<'a> {
                     _ => return Err(format!("{} of found cards", node())),
                 }
             }
+            i::Effect::If {
+                cond: i::Condition::YouControl(o),
+                then,
+                ..
+            } => Effect::IfControl {
+                control: you_control(o)?,
+                then: self.effects(then)?,
+            },
             i::Effect::If {
                 cond: i::Condition::Is { what, filter },
                 then,
@@ -2463,6 +2601,111 @@ pub fn activated(
 
 fn itself(o: &Objects) -> bool {
     o.quant == Quant::SelfRef && o.filter == i::Filter::default()
+}
+
+/// What a spell's total cost asks beyond mana (CR 601.2f), paid with it
+/// as the spell is cast (CR 601.2h).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct OtherCosts {
+    /// CR 119.4.
+    pub life: u32,
+    /// "Sacrifice a creature", "sacrifice two Mountains": that many
+    /// permanents the filter matches, of the caster's (CR 701.21a).
+    pub sacrifice: Option<(u32, Filter)>,
+}
+
+/// Where a card is cast from by an alternative cost.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CastFrom {
+    Hand,
+    Graveyard,
+}
+
+/// A cost a card may be cast for rather than its mana cost (CR 118.9),
+/// from the zone it says: Fireblast's "You may sacrifice two Mountains
+/// rather than pay this spell's mana cost" from a hand, flashback from a
+/// graveyard (CR 702.34a).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Alternative {
+    pub from: CastFrom,
+    /// Its mana, `{0}` when it has none, to which cost changes still apply
+    /// (CR 118.9d, 601.2f).
+    pub mana: crate::mana::ManaCost,
+    pub other: OtherCosts,
+    /// Flashback's "If the flashback cost was paid, exile this card
+    /// instead of putting it anywhere else any time it would leave the
+    /// stack" (CR 702.34a).
+    pub exiled: bool,
+    /// Flashback's "if the resulting spell is an instant or sorcery
+    /// spell" (CR 702.34a).
+    pub instant_or_sorcery: bool,
+}
+
+/// A cost written as Insight reads it, of the kinds a spell's cost can be
+/// paid with here: mana, life and sacrificing permanents.
+fn spell_cost(cost: &[i::Cost]) -> Result<(crate::mana::ManaCost, OtherCosts), String> {
+    let mut mana = None;
+    let mut other = OtherCosts::default();
+    for c in cost {
+        match c {
+            i::Cost::Mana(m) if mana.is_none() => {
+                mana = Some(crate::mana::ManaCost::from_symbols(m)?)
+            }
+            i::Cost::PayLife(i::Amount::N(n)) => other.life += n,
+            i::Cost::Sacrifice(o) if other.sacrifice.is_none() => {
+                let n = match &o.quant {
+                    Quant::One => 1,
+                    Quant::N(i::Amount::N(n)) => *n,
+                    q => return Err(format!("a cost sacrificing {}", short(q))),
+                };
+                let mut f = objects(&Objects {
+                    quant: Quant::All,
+                    filter: o.filter.clone(),
+                })?;
+                if f.0.iter().any(|p| matches!(p, Pred::Itself | Pred::Other)) {
+                    return Err("a sacrifice relative to its source".into());
+                }
+                f.0.push(Pred::YouControl);
+                other.sacrifice = Some((n, f));
+            }
+            other => return Err(format!("a spell's cost of {}", short(other))),
+        }
+    }
+    Ok((mana.unwrap_or_default(), other))
+}
+
+/// "Flashback {1}{U}, Pay 3 life", "Flashback—Sacrifice a creature": `None`
+/// if the keyword isn't flashback with a cost, or the node it can't
+/// lower.
+pub fn flashback(k: &i::Keyword) -> Option<Result<Alternative, String>> {
+    if !k.name.eq_ignore_ascii_case("flashback") {
+        return None;
+    }
+    let Some(i::KeywordParam::Cost(cost)) = &k.param else {
+        return Some(Err("flashback without a cost".into()));
+    };
+    Some(spell_cost(cost).map(|(mana, other)| Alternative {
+        from: CastFrom::Graveyard,
+        mana,
+        other,
+        exiled: true,
+        instant_or_sorcery: true,
+    }))
+}
+
+/// "You may sacrifice two Mountains rather than pay this spell's mana
+/// cost": `None` if the static isn't one alternative cost.
+pub fn alternative_cost(parts: &[i::Static]) -> Option<Result<Alternative, String>> {
+    let [i::Static::AlternativeCost(cost)] = parts else {
+        return None;
+    };
+    Some(spell_cost(cost).map(|(mana, other)| Alternative {
+        from: CastFrom::Hand,
+        mana,
+        other,
+        exiled: false,
+        instant_or_sorcery: false,
+    }))
 }
 
 /// Whether an instruction in these, or a "may" in them, puts the card the

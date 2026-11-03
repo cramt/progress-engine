@@ -18,7 +18,7 @@
 //! read: the first choice that works, gone back on when a later spell
 //! can't be paid for.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 
 use crate::deck::{CardText, DeckCards};
@@ -27,6 +27,7 @@ use crate::game::{
     ManaPool, Payment, Rejected, Setup, StackObject, Step, Target, HAND_SIZE,
 };
 use crate::log::{self, Entry, Event, Object};
+use crate::lower::CastFrom;
 use crate::mana::short;
 use crate::model::{Ability, Counter, ObjectId, PlayerId};
 
@@ -46,7 +47,25 @@ pub struct Replay {
     pub trace: Vec<Traced>,
     pub end: End,
     pub game: Option<Game>,
+    /// The lands a search found that the log never names anywhere in the
+    /// match, named as a hypothesis (`UnseenLand`), which the replay as it
+    /// ended relies on.
+    pub unseen: Vec<String>,
 }
+
+/// A real land the log may never name, which a search the log doesn't
+/// show the result of may find as a hypothesis: one legal in the game's
+/// format, and the colours of mana it makes, W U B R G, to try first the
+/// lands making the colours the player's spells need.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UnseenLand {
+    pub name: String,
+    pub makes: [bool; 5],
+}
+
+/// How many lands the log never names a search may try, best first, before
+/// it gives up on the hypothesis.
+const UNSEEN_TRIES: usize = 8;
 
 /// A log line followed, by its index in the game's entries.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -203,9 +222,23 @@ pub fn replay(
     m: &log::Match,
     g: &log::Game,
     cards: &mut dyn FnMut(&str) -> Option<CardText>,
+    unseen: &[UnseenLand],
 ) -> Replay {
+    let mentioned = m
+        .games
+        .iter()
+        .flat_map(|g| &g.entries)
+        .flat_map(|e| e.event.cards())
+        .map(|c| c.name().to_string())
+        .collect();
     let mut r = Driver {
         cards,
+        unseen_lands: unseen,
+        mentioned,
+        alternatives: HashMap::new(),
+        unseen: Vec::new(),
+        activated: (0, Vec::new()),
+        pick: None,
         named: HashMap::new(),
         trace: Vec::new(),
         seats: Vec::new(),
@@ -220,6 +253,7 @@ pub fn replay(
         bottomed: (0, 0),
         created: (0, 0),
         shuffled: (0, 0),
+        discarded: (0, 0),
         entries: g.entries.clone(),
         respond: None,
     };
@@ -228,6 +262,7 @@ pub fn replay(
         trace: r.trace,
         end,
         game: r.game,
+        unseen: r.unseen,
     }
 }
 
@@ -270,7 +305,11 @@ struct Knew {
     bottomed: (u32, u32),
     created: (u32, u32),
     shuffled: (u32, u32),
+    discarded: (u32, u32),
     respond: Option<usize>,
+    unseen: Vec<String>,
+    activated: (u32, Vec<ObjectId>),
+    pick: Option<(usize, usize)>,
 }
 
 #[derive(Clone)]
@@ -280,10 +319,28 @@ enum Retry {
     /// Follow the line again, casting its spell in response to what is on
     /// the stack rather than after it resolves.
     Respond,
+    /// Follow the line again, activating the ability of this one of the
+    /// permanents of its name (`which_source`).
+    Pick(usize),
 }
 
 struct Driver<'a> {
     cards: &'a mut dyn FnMut(&str) -> Option<CardText>,
+    /// The lands a search may find that the log never names.
+    unseen_lands: &'a [UnseenLand],
+    /// Every card name the match's log names.
+    mentioned: HashSet<String>,
+    /// The zones each card the log casts may be cast from by an
+    /// alternative cost, as read.
+    alternatives: HashMap<String, Vec<CastFrom>>,
+    /// The lands the log never names that a search has found so far.
+    unseen: Vec<String>,
+    /// The turn, and the permanents the replay activated an ability of in
+    /// it.
+    activated: (u32, Vec<ObjectId>),
+    /// The line, and which of the permanents of its name to activate, when
+    /// it is followed again (`Retry::Pick`).
+    pick: Option<(usize, usize)>,
     named: HashMap<String, Option<CardText>>,
     trace: Vec<Traced>,
     /// The engine's player for each of the log's.
@@ -314,6 +371,9 @@ struct Driver<'a> {
     /// The turn, and how many shuffles by an instruction the log has
     /// shown in it.
     shuffled: (u32, u32),
+    /// The turn, and how many cards the log has shown discarded in it by
+    /// an instruction with no choice in it.
+    discarded: (u32, u32),
     /// The game's lines, for the choices a later line shows (a trigger's
     /// targets, the order triggers go on the stack).
     entries: Vec<Entry>,
@@ -338,8 +398,28 @@ impl Driver<'_> {
             bottomed: self.bottomed,
             created: self.created,
             shuffled: self.shuffled,
+            discarded: self.discarded,
             respond: self.respond,
+            unseen: self.unseen.clone(),
+            activated: self.activated.clone(),
+            pick: self.pick,
         }
+    }
+
+    /// Put back what the replay knew of the log, with the game it knew it
+    /// of.
+    fn restore(&mut self, knew: Knew) {
+        self.drawn = knew.drawn;
+        self.matched = knew.matched;
+        self.consumed = knew.consumed;
+        self.bottomed = knew.bottomed;
+        self.shuffled = knew.shuffled;
+        self.created = knew.created;
+        self.discarded = knew.discarded;
+        self.respond = knew.respond;
+        self.unseen = knew.unseen;
+        self.activated = knew.activated;
+        self.pick = knew.pick;
     }
 
     fn seat(&self, p: log::Player) -> PlayerId {
@@ -431,13 +511,7 @@ impl Driver<'_> {
                                 self.checkpoints.pop();
                             }
                             self.trace.truncate(len);
-                            self.drawn = knew.drawn;
-                            self.matched = knew.matched;
-                            self.consumed = knew.consumed;
-                            self.bottomed = knew.bottomed;
-                            self.shuffled = knew.shuffled;
-                            self.created = knew.created;
-                            self.respond = knew.respond;
+                            self.restore(knew);
                             let did = match other {
                                 Retry::Respond => {
                                     self.respond = Some(entry);
@@ -445,14 +519,22 @@ impl Driver<'_> {
                                     i = resume;
                                     continue;
                                 }
+                                Retry::Pick(k) => {
+                                    self.pick = Some((entry, k));
+                                    self.game = Some(game);
+                                    i = resume;
+                                    continue;
+                                }
                                 Retry::Pay(payment) => pay_with(&mut game, &payment)
                                     .map(|()| format!("paid again, {}", describe(&payment))),
-                                Retry::Answer(answer, did) => game
-                                    .step(answer)
-                                    .map(|_| format!("chose again: {did}"))
-                                    .map_err(|_| Stop::Illegal {
-                                        what: "an answer tried before".into(),
-                                    }),
+                                Retry::Answer(answer, did) => {
+                                    self.note_unseen(&answer);
+                                    game.step(answer)
+                                        .map(|_| format!("chose again: {did}"))
+                                        .map_err(|_| Stop::Illegal {
+                                            what: "an answer tried before".into(),
+                                        })
+                                }
                             };
                             match did {
                                 Ok(did) => {
@@ -769,8 +851,8 @@ impl Driver<'_> {
                 card: Object::Card(card),
             } => {
                 let p = self.seat(*player);
-                let c = self.offered(p, card.name(), Kind::Land, false, false)?;
-                self.act(Answer::Act(Action::PlayLand(c)))?;
+                let play = self.offered(p, card.name(), Kind::Land, false, false)?;
+                self.act(Answer::Act(play))?;
                 self.did(i, format!("played {}", card.name()));
             }
             Casts(cast) => {
@@ -778,13 +860,27 @@ impl Driver<'_> {
                     return Err(unfollowed(None));
                 };
                 // Flashback, suspend, kicker, an alternative cost: the line
-                // shows which.
-                if cast.via.is_some() {
-                    return Err(Stop::Unfollowed {
-                        event: "Casts other than from hand for its mana cost".into(),
-                        card: Some(card.name().to_string()),
-                    });
-                }
+                // shows which, though older logs print nothing for
+                // Fireblast's sacrifice. Of these, an alternative cost from
+                // a hand or flashback from a graveyard is followed.
+                let other = || Stop::Unfollowed {
+                    event: "Casts other than from hand for its mana cost".into(),
+                    card: Some(card.name().to_string()),
+                };
+                let routes = match cast.via.as_deref() {
+                    None => vec![Route::ManaCost, Route::Alternative(CastFrom::Hand)],
+                    Some(v)
+                        if v == "from the graveyard"
+                            || v.starts_with("with Flashback")
+                                && v.ends_with("from the graveyard") =>
+                    {
+                        vec![Route::Alternative(CastFrom::Graveyard)]
+                    }
+                    Some(v) if v.starts_with("by sacrificing ") => {
+                        vec![Route::Alternative(CastFrom::Hand)]
+                    }
+                    Some(_) => return Err(other()),
+                };
                 let p = self.seat(cast.player);
                 // A spell targeting a spell on the stack, or a permanent a
                 // spell on the stack targets, answers it: it is cast
@@ -810,9 +906,53 @@ impl Driver<'_> {
                         back: Back::Triggers,
                     });
                 }
-                let c = self.offered(p, card.name(), Kind::Cast, on_stack, answers)?;
-                self.act(Answer::Act(Action::Cast(c)))?;
-                let paid = self.aim_and_pay(i, &cast.targets, card.name())?;
+                // The first route that can be paid for; a line that names
+                // none is cast for its mana cost if it can be, and for an
+                // alternative cost the card has otherwise.
+                let text = self.text(card.name())?;
+                let zones = self
+                    .alternatives
+                    .entry(text.name.clone())
+                    .or_insert_with(|| Game::alternatives_of(&text))
+                    .clone();
+                let routes: Vec<Route> = routes
+                    .into_iter()
+                    .filter(|r| match r {
+                        Route::ManaCost => true,
+                        Route::Alternative(from) => zones.contains(from),
+                    })
+                    .collect();
+                let Some((last, before)) = routes.split_last() else {
+                    return Err(other());
+                };
+                let mut paid = None;
+                for route in before {
+                    let saved = (
+                        self.game.clone(),
+                        self.trace.len(),
+                        self.checkpoints.len(),
+                        self.knew(),
+                    );
+                    let tried = self.cast_by(i, cast, card.name(), p, *route, on_stack, answers);
+                    match tried {
+                        Ok(how) => {
+                            paid = Some(how);
+                            break;
+                        }
+                        Err(Stop::Diverged(Divergence::Unpayable { .. })) => {
+                            let (game, trace, checkpoints, knew) = saved;
+                            self.game = game;
+                            self.trace.truncate(trace);
+                            self.checkpoints.truncate(checkpoints);
+                            self.restore(knew);
+                        }
+                        Err(stop) => return Err(stop),
+                    }
+                }
+                let paid = match paid {
+                    Some(paid) => paid,
+                    None => self.cast_by(i, cast, card.name(), p, *last, on_stack, answers)?,
+                };
                 self.did(i, format!("cast {}, {paid}", card.name()));
             }
             Discards { player, cards } => {
@@ -853,6 +993,19 @@ impl Driver<'_> {
                     }
                     _ => {}
                 }
+                // Discarded by an instruction with no choice in it, which
+                // the engine must have discarded this turn.
+                let turn = self.game().turn();
+                let seen = if self.discarded.0 == turn {
+                    self.discarded.1
+                } else {
+                    0
+                } + cards.len() as u32;
+                if seen <= self.game().discarded() {
+                    self.discarded = (turn, seen);
+                    self.did(i, "discarded by the instruction (CR 701.9a)");
+                    return Ok(Next::Line(i + 1));
+                }
                 let game = self.game();
                 // CR 514.1: only the active player with more than seven
                 // cards discards in cleanup; any other discard is a cost
@@ -878,7 +1031,17 @@ impl Driver<'_> {
                     return Err(unfollowed(None));
                 };
                 let p = self.seat(a.player);
-                let on_stack = a.targets.iter().any(|t| self.targets_stack(&t.target));
+                // An ability targeting a spell, or of a permanent a spell
+                // or ability on the stack targets, answers it: activated
+                // before it resolves (Mogg Fanatic sacrificed to Seal of
+                // Fire's damage).
+                let game = self.game.as_ref().expect("set up");
+                let at_spells = game.permanents().values().any(|perm| {
+                    game.card(perm.card).is_some_and(|t| t.name == card.name())
+                        && game.activation_targets_spells(perm.card)
+                });
+                let on_stack = at_spells && a.targets.iter().any(|t| self.targets_stack(&t.target))
+                    || self.targeted_on_stack(&log::Target::Object(a.card.clone()));
                 // The ability's text, which the log may print after its
                 // last target, where it reads as that target's note.
                 let said = std::iter::once(a.ability.as_str())
@@ -1038,6 +1201,18 @@ impl Driver<'_> {
                     }));
                 }
                 self.did(i, format!("{bn} blocks {an}"));
+            }
+            // The card named for a resolving instruction (CR 201.4), named
+            // as the engine asks (`choose_name`), which reads this line
+            // ahead.
+            Names { name, .. } => {
+                if !self.until_consumed(i)? {
+                    return Err(Stop::Unfollowed {
+                        event: "Names".into(),
+                        card: Some(name.clone()),
+                    });
+                }
+                self.did(i, format!("named {name} (CR 201.4)"));
             }
             UsesAbility { card, .. } => {
                 // The "may" it answers is answered as the engine asks
@@ -1273,7 +1448,42 @@ impl Driver<'_> {
                     Decision::ChooseFromHand { whose, .. } if whose == p => {
                         return self.hand_choice(g, i, p)
                     }
-                    _ => return Err(unfollowed(None)),
+                    _ => {
+                        // A hand an instruction revealed with nothing hidden
+                        // in it, so nothing to name: the engine's has as
+                        // many cards, with those the instruction discarded
+                        // since.
+                        let Event::Reveals {
+                            cards,
+                            how: log::Reveal::HandTo(log::Source::Card(by)),
+                            ..
+                        } = &entry.event
+                        else {
+                            return Err(unfollowed(None));
+                        };
+                        let game = self.game.as_ref().expect("set up");
+                        let resolved = game
+                            .last_resolved()
+                            .is_some_and(|c| game.card(c).is_some_and(|t| t.name == by.name()));
+                        let turn = game.turn();
+                        let unmatched = game.discarded()
+                            - if self.discarded.0 == turn {
+                                self.discarded.1
+                            } else {
+                                0
+                            };
+                        let held = game.player(p).hand().len() + unmatched as usize;
+                        if !resolved {
+                            return Err(unfollowed(None));
+                        }
+                        if held != cards.len() {
+                            return Err(Stop::Diverged(Divergence::HandSize {
+                                log: cards.len(),
+                                engine: held,
+                            }));
+                        }
+                        self.did(i, "the hand revealed, nothing in it hidden (CR 701.20a)");
+                    }
                 }
             }
             // What a resolving instruction put into a hand: checked once
@@ -1330,12 +1540,9 @@ impl Driver<'_> {
         };
         let game = self.game.as_ref().expect("set up");
         game.stack().iter().any(|o| {
-            let targets = match o {
-                StackObject::Spell { targets, .. } | StackObject::Trigger { targets, .. } => {
-                    targets
-                }
-                StackObject::Ability { .. } => return false,
-            };
+            let (StackObject::Spell { targets, .. }
+            | StackObject::Trigger { targets, .. }
+            | StackObject::Ability { targets, .. }) = o;
             targets.iter().any(|t| match t {
                 Target::Object(id) => game
                     .permanents()
@@ -1501,12 +1708,14 @@ impl Driver<'_> {
             Decision::Over(_) => Err(Stop::Diverged(Divergence::EngineOver)),
             Decision::Search {
                 player,
+                filter,
                 known,
                 hidden,
-                ..
-            } => self.search(player, known, hidden),
+            } => self.search(player, &filter, known, hidden),
             Decision::May { card, .. } => self.may(card),
-            Decision::Reveal { player, cards } => self.reveal(player, cards.len()),
+            Decision::ChooseName { player, card, .. } => self.choose_name(player, card),
+            Decision::Sacrifice { .. } => self.sacrifice(),
+            Decision::Reveal { player, cards } => self.reveal(player, &cards),
             // Cards looked at are hidden alike to the log: which is chosen,
             // and the order they go back in, is nothing it can tell.
             Decision::ChooseAmong { cards, n, .. } => self.act(Answer::Choose(cards[..n].to_vec())),
@@ -1766,7 +1975,136 @@ impl Driver<'_> {
             });
         }
         pay_with(self.game(), first)?;
+        // The rest of its cost, which the log doesn't show either.
+        if let Decision::Sacrifice { .. } = self.game().decision() {
+            self.sacrifice()?;
+        }
         Ok(describe(first))
+    }
+
+    /// Permanents sacrificed to pay for a spell (CR 601.2h), which the log
+    /// never names: first a creature whose dies trigger the lines right
+    /// after show, then one no later line of the game names, then the
+    /// rest, and another choice gone back to if any later line can't be
+    /// followed.
+    fn sacrifice(&mut self) -> Followed {
+        let game = self.game.as_ref().expect("set up");
+        let Decision::Sacrifice {
+            player,
+            count,
+            legal,
+            ..
+        } = game.decision()
+        else {
+            unreachable!("waiting on a sacrifice")
+        };
+        let name = |o: &ObjectId| {
+            game.card(game.permanents()[o].card)
+                .map(|t| t.name.clone())
+                .unwrap_or_default()
+        };
+        let dying: Vec<String> = self.entries[self.at + 1..]
+            .iter()
+            .take_while(|e| {
+                matches!(
+                    e.event,
+                    Event::Trigger(_) | Event::Chat { .. } | Event::Watching { .. }
+                )
+            })
+            .filter_map(|e| match &e.event {
+                Event::Trigger(t) if self.seat(t.player) == player => {
+                    source_name(t).map(str::to_string)
+                }
+                _ => None,
+            })
+            .collect();
+        let later: BTreeSet<String> = self.entries[self.at + 1..]
+            .iter()
+            .flat_map(|e| e.event.cards())
+            .map(|c| c.name().to_string())
+            .collect();
+        let mut ranked = legal.clone();
+        ranked.sort_by_key(|o| {
+            let n = name(o);
+            if dying.contains(&n) {
+                0
+            } else if !later.contains(&n) {
+                1
+            } else {
+                2
+            }
+        });
+        // The first `count` of the ranking, then each other choice of one.
+        let count = count as usize;
+        let mut choices: Vec<Vec<ObjectId>> = vec![ranked.iter().take(count).copied().collect()];
+        if count == 1 {
+            choices.extend(ranked.iter().skip(1).map(|o| vec![*o]));
+        }
+        let described: Vec<String> = choices
+            .iter()
+            .map(|c| c.iter().map(name).collect::<Vec<_>>().join(" and "))
+            .collect();
+        let others: Vec<Retry> = choices
+            .iter()
+            .zip(&described)
+            .skip(1)
+            .map(|(c, d)| {
+                Retry::Answer(
+                    Answer::Sacrifice(c.clone()),
+                    format!("sacrificed {d} instead"),
+                )
+            })
+            .collect();
+        if !others.is_empty() {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at + 1,
+                others,
+                knew: self.knew(),
+                back: Back::Any,
+            });
+        }
+        self.act(Answer::Sacrifice(choices[0].clone()))?;
+        let at = self.at;
+        self.did(
+            at,
+            format!("sacrificed {} to pay (CR 701.21a)", described[0]),
+        );
+        Ok(())
+    }
+
+    /// The card `player` names for `card`'s instruction (CR 201.4): the
+    /// log's "names [X] for [Cabal Therapy]" line, from the line being
+    /// followed to the end of the turn.
+    fn choose_name(&mut self, player: PlayerId, card: CardId) -> Followed {
+        let by = self.name_of(card);
+        let said = self
+            .entries
+            .iter()
+            .enumerate()
+            .skip(self.at)
+            .take_while(|(k, e)| *k == self.at || !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|(k, e)| match &e.event {
+                Event::Names {
+                    player: q,
+                    name,
+                    for_source: log::Source::Card(s),
+                } if self.seat(*q) == player && s.name() == by && !self.consumed.contains(&k) => {
+                    Some((k, name.clone()))
+                }
+                _ => None,
+            });
+        let Some((k, name)) = said else {
+            return Err(Stop::Diverged(Divergence::Unlogged {
+                what: format!("the name chosen for {by}"),
+            }));
+        };
+        let text = self.text(&name)?;
+        self.consumed.insert(k);
+        self.act(Answer::Name(Box::new(text)))
     }
 
     /// Pass priority while something on the stack resolves this turn, and
@@ -1782,6 +2120,7 @@ impl Driver<'_> {
                 Decision::Search { .. }
                 | Decision::PayOrEnterTapped { .. }
                 | Decision::May { .. }
+                | Decision::ChooseName { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
                 | Decision::Arrange { .. }
@@ -1824,6 +2163,7 @@ impl Driver<'_> {
                 | Decision::Blockers { .. }
                 | Decision::Assign { .. }
                 | Decision::May { .. }
+                | Decision::ChooseName { .. }
                 | Decision::PutFromHand { .. }
                 | Decision::Search { .. }
                 | Decision::Reveal { .. }
@@ -2065,10 +2405,11 @@ impl Driver<'_> {
     }
 
     /// Pass priority until `p` may play or cast `name` from their hand,
-    /// within this turn, and say which card it is. The stack resolves first,
-    /// down to what a later line shows resolving, unless the play targets
-    /// a spell on it: the log doesn't say when a spell resolved, and a
-    /// play that answers one targets it or comes before its result.
+    /// or from their graveyard by an alternative cost that allows it,
+    /// within this turn, and say how. The stack resolves first, down to
+    /// what a later line shows resolving, unless the play targets a spell
+    /// on it: the log doesn't say when a spell resolved, and a play that
+    /// answers one targets it or comes before its result.
     fn offered(
         &mut self,
         p: PlayerId,
@@ -2076,7 +2417,7 @@ impl Driver<'_> {
         kind: Kind,
         respond: bool,
         answers: bool,
-    ) -> Result<CardId, Stop> {
+    ) -> Result<Action, Stop> {
         self.text(name)?;
         let turn = self.game().turn();
         // A card the engine runs that names a card on the stack targets
@@ -2084,7 +2425,7 @@ impl Driver<'_> {
         // permanent the spell becomes.
         let respond = answers
             || respond
-                && match self.in_hand(p, name)? {
+                && match self.find(p, name, kind)? {
                     Some(c) => self.game().refusal(c).is_some() || self.game().targets_spells(c),
                     None => true,
                 };
@@ -2120,18 +2461,24 @@ impl Driver<'_> {
             }
             if let Decision::Priority { player, .. } = game.decision() {
                 if player == p {
-                    if let Some(c) = self.in_hand(p, name)? {
+                    if let Some(c) = self.find(p, name, kind)? {
                         seen = Some(c);
-                        let wanted = match kind {
-                            Kind::Land => Action::PlayLand(c),
-                            Kind::Cast => Action::Cast(c),
-                        };
                         // Asked after naming it: a hidden card isn't offered.
                         let Decision::Priority { actions, .. } = self.game().decision() else {
                             unreachable!("naming a card changes no decision")
                         };
-                        if actions.contains(&wanted) {
-                            return Ok(c);
+                        let wanted =
+                            actions.iter().copied().find(|a| match (kind, a) {
+                                (Kind::Land, Action::PlayLand(x))
+                                | (Kind::Cast(Route::ManaCost), Action::Cast(x))
+                                | (
+                                    Kind::Cast(Route::Alternative(_)),
+                                    Action::CastAlternative(x, _),
+                                ) => *x == c,
+                                _ => false,
+                            });
+                        if let Some(a) = wanted {
+                            return Ok(a);
                         }
                         // One it refuses is never offered: no waiting for
                         // the turn to end.
@@ -2142,11 +2489,55 @@ impl Driver<'_> {
                                 why: r.why,
                             });
                         }
+                        // Nor one it has no such alternative cost for.
+                        if let Kind::Cast(Route::Alternative(from)) = kind {
+                            if !self.game().alternatives(c).contains(&from) {
+                                return Err(Stop::Unfollowed {
+                                    event: "Casts other than from hand for its mana cost".into(),
+                                    card: Some(name.to_string()),
+                                });
+                            }
+                        }
                     }
                 }
             }
             self.pass()?;
         }
+    }
+
+    /// Cast the line's spell by `route`: the card offered, its targets
+    /// and its cost paid. What paid it, said.
+    #[allow(clippy::too_many_arguments)]
+    fn cast_by(
+        &mut self,
+        i: usize,
+        cast: &log::Cast,
+        name: &str,
+        p: PlayerId,
+        route: Route,
+        on_stack: bool,
+        answers: bool,
+    ) -> Result<String, Stop> {
+        let cast_it = self.offered(p, name, Kind::Cast(route), on_stack, answers)?;
+        self.act(Answer::Act(cast_it))?;
+        self.aim_and_pay(i, &cast.targets, name)
+    }
+
+    /// The card of `p`'s named `name` where `kind` casts or plays it from:
+    /// their graveyard for flashback, otherwise their hand, naming a
+    /// hidden card of it if none is known to be.
+    fn find(&mut self, p: PlayerId, name: &str, kind: Kind) -> Result<Option<CardId>, Stop> {
+        if kind != Kind::Cast(Route::Alternative(CastFrom::Graveyard)) {
+            return self.in_hand(p, name);
+        }
+        let text = self.text(name)?;
+        let game = self.game();
+        Ok(game
+            .player(p)
+            .graveyard()
+            .iter()
+            .copied()
+            .find(|c| game.card(*c).is_some_and(|t| t.name == text.name)))
     }
 
     /// Pass priority until `p` may activate an ability of a permanent named
@@ -2210,7 +2601,8 @@ impl Driver<'_> {
                         .collect();
                     if let Some(first) = offered.first() {
                         if offered.iter().all(|a| a.ability == first.ability) {
-                            return Ok(*first);
+                            let first = *first;
+                            return Ok(self.which_source(&offered, first.ability));
                         }
                         // Which of its abilities: the one whose text has
                         // the most of the words the log prints of it.
@@ -2231,12 +2623,56 @@ impl Driver<'_> {
                                 card: Some(name.to_string()),
                             });
                         }
-                        return Ok(*top[0]);
+                        let ability = top[0].ability;
+                        return Ok(self.which_source(&offered, ability));
                     }
                 }
             }
             self.pass()?;
         }
+    }
+
+    /// Which of the permanents of one name the line activates `ability`
+    /// of, which the log can't say: one not activated this turn first,
+    /// the others gone back to when a later play can't be made (a second
+    /// Mishra's Factory animated, not the first again).
+    fn which_source(&mut self, offered: &[Activation], ability: Ability) -> Activation {
+        let turn = self.game().turn();
+        let mut sources: Vec<Activation> = offered
+            .iter()
+            .filter(|a| a.ability == ability)
+            .copied()
+            .collect();
+        let activated = if self.activated.0 == turn {
+            self.activated.1.clone()
+        } else {
+            Vec::new()
+        };
+        sources.sort_by_key(|a| activated.contains(&a.source));
+        let k = match self.pick {
+            Some((at, k)) if at == self.at && k < sources.len() => k,
+            _ => {
+                if sources.len() > 1 {
+                    let game = self.game().clone();
+                    self.checkpoints.push(Checkpoint {
+                        game,
+                        entry: self.at,
+                        trace: self.trace.len(),
+                        resume: self.at,
+                        others: (1..sources.len()).map(Retry::Pick).collect(),
+                        knew: self.knew(),
+                        back: Back::Unplayable,
+                    });
+                }
+                0
+            }
+        };
+        let chosen = sources[k];
+        if self.activated.0 != turn {
+            self.activated = (turn, Vec::new());
+        }
+        self.activated.1.push(chosen.source);
+        chosen
     }
 
     /// Answer a search the log doesn't show the result of. The log says
@@ -2247,8 +2683,18 @@ impl Driver<'_> {
     /// as each basic land, the colours the player's spells this game need
     /// most first, then each land the log shows the player playing in the
     /// match, then each card it shows them casting or playing later this
-    /// game. The engine checks each matches what was searched for.
-    fn search(&mut self, p: PlayerId, known: Vec<CardId>, hidden: usize) -> Followed {
+    /// game. Last, as a hypothesis, a real land the log never names that
+    /// the filter matches, of those legal in the game's format
+    /// (`UnseenLand`), the ones making the colours the player's spells
+    /// need most first, at most `UNSEEN_TRIES` of them. The engine checks
+    /// each matches what was searched for.
+    fn search(
+        &mut self,
+        p: PlayerId,
+        filter: &crate::lower::CardFilter,
+        known: Vec<CardId>,
+        hidden: usize,
+    ) -> Followed {
         let mut tries: Vec<(Answer, String)> = Vec::new();
         for c in known {
             let name = self
@@ -2292,23 +2738,55 @@ impl Driver<'_> {
                 })
                 .collect();
             let mut names: Vec<String> = Vec::new();
+            // The lands seen played in the match: theirs, then their
+            // opponent's.
+            let seen = self.lands[p.0 as usize]
+                .iter()
+                .chain(&self.lands[1 - p.0 as usize])
+                .cloned();
             for n in basics
                 .into_iter()
                 .map(|(_, n)| n.to_string())
                 .chain(std::iter::once("Wastes".to_string()))
-                .chain(self.lands[p.0 as usize].clone())
+                .chain(seen)
                 .chain(later)
             {
                 if !names.contains(&n) {
                     names.push(n);
                 }
             }
+            let mut unseen: Vec<&UnseenLand> = self
+                .unseen_lands
+                .iter()
+                .filter(|l| !self.mentioned.contains(&l.name) && !names.contains(&l.name))
+                .collect();
+            unseen.sort_by_key(|l| {
+                let need: u32 = (0..5).filter(|k| l.makes[*k]).map(|k| demand[k]).sum();
+                (std::cmp::Reverse(need), l.name.clone())
+            });
+            let mut tried = 0;
+            for l in unseen {
+                if tried == UNSEEN_TRIES {
+                    break;
+                }
+                let Ok(text) = self.text(&l.name) else {
+                    continue;
+                };
+                // Only one the filter matches is worth asking the engine,
+                // which checks it again.
+                if crate::lower::printed(&text).is_ok_and(|c| filter.matches(&c)) {
+                    names.push(l.name.clone());
+                    tried += 1;
+                }
+            }
             for n in names {
                 let Ok(text) = self.text(&n) else { continue };
-                tries.push((
-                    Answer::Find(Found::Hidden(c, Box::new(text))),
-                    format!("found {n}, from the hidden library"),
-                ));
+                let did = if !self.hypothesis(&text.name) {
+                    format!("found {n}, from the hidden library")
+                } else {
+                    format!("found {n}, from the hidden library, a land the log never names")
+                };
+                tries.push((Answer::Find(Found::Hidden(c, Box::new(text))), did));
             }
         }
         let mut legal = Vec::new();
@@ -2344,10 +2822,27 @@ impl Driver<'_> {
                 back: Back::Unplayable,
             });
         }
+        self.note_unseen(first);
         self.act(first.clone())?;
         let at = self.at;
         self.did(at, did.clone());
         Ok(())
+    }
+
+    /// A search's card the log never names, found as a hypothesis, is
+    /// recorded as one the replay relies on.
+    fn note_unseen(&mut self, answer: &Answer) {
+        if let Answer::Find(Found::Hidden(_, text)) = answer {
+            if self.hypothesis(&text.name) {
+                self.unseen.push(text.name.clone());
+            }
+        }
+    }
+
+    /// Whether a card is one of the lands the log never names, found only
+    /// as a hypothesis.
+    fn hypothesis(&self, name: &str) -> bool {
+        !self.mentioned.contains(name) && self.unseen_lands.iter().any(|l| l.name == name)
     }
 
     /// A shock land's choice, which the log never shows: no line says
@@ -2438,6 +2933,7 @@ impl Driver<'_> {
                 && match game.decision() {
                     Decision::Priority { .. } => !game.stack().is_empty(),
                     Decision::May { .. }
+                    | Decision::ChooseName { .. }
                     | Decision::Reveal { .. }
                     | Decision::ChooseAmong { .. }
                     | Decision::Arrange { .. }
@@ -2460,8 +2956,12 @@ impl Driver<'_> {
     /// one had named: the log's "reveals [X] with [Dark Confidant]'s
     /// ability" lines, from the line being followed to the end of the
     /// turn, name them in order.
-    fn reveal(&mut self, p: PlayerId, count: usize) -> Followed {
+    fn reveal(&mut self, p: PlayerId, cards: &[CardId]) -> Followed {
+        let count = cards.len();
         let game = self.game.as_ref().expect("set up");
+        if cards.iter().all(|c| game.player(p).hand().contains(c)) {
+            return self.reveal_hand(p);
+        }
         let by = game
             .resolving()
             .map(|c| self.name_of(c))
@@ -2498,6 +2998,81 @@ impl Driver<'_> {
             .map(|n| self.text(n))
             .collect::<Result<Vec<_>, _>>()?;
         self.act(Answer::Reveal(texts))
+    }
+
+    /// `p`'s hand, revealed by a resolving instruction with hidden cards in
+    /// it (CR 701.20a): the log's "reveals their hand to [Cabal Therapy],
+    /// containing …" line, from the line being followed to the end of the
+    /// turn, names all of it, the hidden cards the names no known card
+    /// takes, and the engine's hand must have as many cards.
+    fn reveal_hand(&mut self, p: PlayerId) -> Followed {
+        let game = self.game.as_ref().expect("set up");
+        let by = game
+            .resolving()
+            .map(|c| self.name_of(c))
+            .unwrap_or_default();
+        let said = self
+            .entries
+            .iter()
+            .enumerate()
+            .skip(self.at)
+            .take_while(|(k, e)| *k == self.at || !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|(k, e)| match &e.event {
+                Event::Reveals {
+                    player,
+                    cards,
+                    how: log::Reveal::HandTo(log::Source::Card(s)),
+                } if self.seat(*player) == p && s.name() == by && !self.consumed.contains(&k) => {
+                    Some((
+                        k,
+                        cards
+                            .iter()
+                            .map(|c| c.name().to_string())
+                            .collect::<Vec<_>>(),
+                    ))
+                }
+                _ => None,
+            });
+        let Some((k, names)) = said else {
+            return Err(Stop::Diverged(Divergence::Unlogged {
+                what: format!("the hand revealed to {by}"),
+            }));
+        };
+        let hand = game.player(p).hand().clone();
+        if names.len() != hand.len() {
+            return Err(Stop::Diverged(Divergence::HandSize {
+                log: names.len(),
+                engine: hand.len(),
+            }));
+        }
+        // The known cards take their names first; the rest name the
+        // hidden ones, in order.
+        let mut left: Vec<CardId> = hand.iter().copied().collect();
+        let mut unnamed = Vec::new();
+        for n in &names {
+            let text = self.text(n)?;
+            let game = self.game.as_ref().expect("set up");
+            match left
+                .iter()
+                .position(|c| game.card(*c).is_some_and(|t| t.name == text.name))
+            {
+                Some(at) => {
+                    left.remove(at);
+                }
+                None => unnamed.push(text),
+            }
+        }
+        let game = self.game.as_ref().expect("set up");
+        if left.iter().any(|c| game.card(*c).is_some()) {
+            let card = left
+                .iter()
+                .find_map(|c| game.card(*c))
+                .map(|t| t.name.clone())
+                .unwrap_or_default();
+            return Err(Stop::Diverged(Divergence::NotInHand { card }));
+        }
+        self.consumed.insert(k);
+        self.act(Answer::Reveal(unnamed))
     }
 
     /// A card `p` puts onto the battlefield from their hand, which the log
@@ -2597,7 +3172,37 @@ impl Driver<'_> {
             unreachable!("a cast waits for its payment")
         };
         let pool = *game.player(player).pool();
-        Ok(solve(&owed, pool, &game.mana_options(player)))
+        let mut found = solve(&owed, pool, &game.mana_options(player));
+        // A permanent a later line this turn attacks, blocks or activates
+        // with is tapped for mana last: tapped, it couldn't.
+        let used: BTreeSet<String> = self
+            .entries
+            .iter()
+            .skip(self.at + 1)
+            .take_while(|e| !matches!(e.event, Event::TurnBegins(_)))
+            .flat_map(|e| match &e.event {
+                Event::Attacked {
+                    attackers: log::Attackers::Seen(xs),
+                    ..
+                } => xs.iter().collect::<Vec<_>>(),
+                Event::Blocks { blocker, .. } => vec![blocker],
+                Event::Activates(a) => vec![&a.card],
+                _ => Vec::new(),
+            })
+            .filter_map(|o| match o {
+                Object::Card(c) => Some(c.name().to_string()),
+                _ => None,
+            })
+            .collect();
+        let game = self.game.as_ref().expect("set up");
+        let named = |a: &ManaActivation| {
+            game.permanents()
+                .get(&a.source)
+                .and_then(|p| game.card(p.card))
+                .is_some_and(|t| used.contains(&t.name))
+        };
+        found.sort_by_key(|p| p.iter().filter(|a| named(a)).count());
+        Ok(found)
     }
 
     /// The discard to hand size in cleanup (CR 514.1), of the cards the
@@ -2698,14 +3303,22 @@ fn source_name(t: &log::Trigger) -> Option<&str> {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Land,
-    Cast,
+    Cast(Route),
+}
+
+/// How a line's spell is cast: for its mana cost, from a hand, or for an
+/// alternative cost from the zone it allows (CR 118.9).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Route {
+    ManaCost,
+    Alternative(CastFrom),
 }
 
 impl Kind {
     fn verb(self) -> &'static str {
         match self {
             Kind::Land => "play",
-            Kind::Cast => "cast",
+            Kind::Cast(_) => "cast",
         }
     }
 }

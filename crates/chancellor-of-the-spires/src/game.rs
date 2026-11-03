@@ -168,6 +168,10 @@ struct Runnable {
     /// Statics that change what spells cost (CR 601.2f), by index, so
     /// each works only while the permanent has it.
     cost_changes: BTreeMap<u16, lower::CostChange>,
+    /// The costs it may be cast for rather than its mana cost, and from
+    /// where (CR 118.9): flashback, Fireblast's sacrifice. By the index of
+    /// the ability that allows it.
+    alternatives: BTreeMap<u16, lower::Alternative>,
     /// The abilities it carries that nothing offers to activate yet.
     dormant: Vec<String>,
 }
@@ -374,6 +378,9 @@ pub enum StackObject {
         card: CardId,
         controller: PlayerId,
         targets: Vec<Target>,
+        /// How it was cast: for its mana cost, or an alternative cost
+        /// (CR 601.2b).
+        via: Via,
     },
     /// A triggered ability (CR 603.3): the card whose ability it is, by
     /// its index among that card's unread abilities, the permanent it
@@ -411,10 +418,19 @@ pub enum StackObject {
     },
 }
 
+/// How a spell was cast (CR 601.2b, 601.2f): for its mana cost, from a
+/// hand or the command zone, or for one of its card's alternative costs
+/// (CR 118.9), by the index of the ability that allows it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Via {
+    ManaCost,
+    Alternative(u16),
+}
+
 /// Whose instructions are resolving.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Instructions {
-    Spell(CardId),
+    Spell(CardId, Via),
     Activated(CardId, u16),
     Triggered(CardId, TriggerOf),
 }
@@ -446,7 +462,7 @@ impl Instructions {
     /// The card whose spell or ability it is.
     fn card(self) -> CardId {
         match self {
-            Instructions::Spell(c)
+            Instructions::Spell(c, _)
             | Instructions::Activated(c, _)
             | Instructions::Triggered(c, _) => c,
         }
@@ -477,6 +493,8 @@ struct Resuming {
     /// The cards its instructions have found, by the slot each binds
     /// (`lower::Slot`).
     found: OrdMap<Slot, Vec<CardId>>,
+    /// The card name an instruction chose (CR 201.4), "that name".
+    name: Option<String>,
 }
 
 /// A triggered ability that has triggered and waits to be put on the stack
@@ -754,6 +772,21 @@ enum Waiting {
         into: Slot,
         resume: Resuming,
     },
+    /// CR 601.2h: `player` sacrifices `count` permanents `filter`
+    /// matches to pay for `spell`, the rest of its cost paid.
+    Sacrifice {
+        player: PlayerId,
+        spell: CardId,
+        count: u32,
+        filter: Filter,
+    },
+    /// CR 201.4: `player` names a card `filter` matches for the resolving
+    /// instruction.
+    ChooseName {
+        player: PlayerId,
+        filter: CardFilter,
+        resume: Resuming,
+    },
     Over(Outcome),
 }
 
@@ -937,6 +970,23 @@ pub enum Decision {
         known: Vec<CardId>,
         hidden: usize,
     },
+    /// CR 601.2h, 701.21a: sacrifice exactly `count` of `legal`, the
+    /// permanents `player` controls that the cost names, to pay for
+    /// `spell`, answered `Answer::Sacrifice`.
+    Sacrifice {
+        player: PlayerId,
+        spell: CardId,
+        count: u32,
+        legal: Vec<ObjectId>,
+    },
+    /// CR 201.4, 201.4a: name a card of the Oracle card reference that
+    /// `filter` matches, for `card`'s instruction, answered
+    /// `Answer::Name`.
+    ChooseName {
+        player: PlayerId,
+        card: CardId,
+        filter: CardFilter,
+    },
     Over(Outcome),
 }
 
@@ -972,6 +1022,10 @@ pub enum Action {
     /// Begin casting a spell from hand, or a commander from the command
     /// zone (CR 601.2, 903.8). Listed when its timing allows (CR 117.1a).
     Cast(CardId),
+    /// Begin casting a spell for its card's alternative cost `n` (the
+    /// index of the ability that allows it), from the zone that cost
+    /// allows: flashback from a graveyard (CR 118.9a, 601.2b, 702.34a).
+    CastAlternative(CardId, u16),
     /// A mana ability, which doesn't use the stack (CR 605.3b).
     Mana(ManaActivation),
     /// Any other activated ability, which goes on the stack (CR 602.2,
@@ -1042,6 +1096,10 @@ pub enum Answer {
     Block(Vec<(ObjectId, ObjectId)>),
     /// CR 510.1c: the damage assigned to each of the decision's `to`.
     Assign(Vec<u32>),
+    /// CR 701.21a: the permanents sacrificed.
+    Sacrifice(Vec<ObjectId>),
+    /// CR 201.4: the card named, as the Oracle card reference has it.
+    Name(Box<CardText>),
 }
 
 #[derive(Debug)]
@@ -1126,6 +1184,9 @@ pub struct Game {
     shuffled: u32,
     /// Tokens created this turn.
     created: u32,
+    /// Cards discarded this turn by an instruction that chose none of
+    /// them ("discards all cards with that name").
+    discarded: u32,
     /// The counters each permanent that left had as it last existed, for
     /// an ability of its that counts them (CR 608.2h, 113.7a).
     last_known: OrdMap<ObjectId, LastKnown>,
@@ -1290,6 +1351,7 @@ impl Game {
             bottomed: 0,
             shuffled: 0,
             created: 0,
+            discarded: 0,
             exile: Vector::new(),
             command,
             commander_casts: OrdMap::new(),
@@ -1475,6 +1537,27 @@ impl Game {
             .is_some_and(|p| p.targets.iter().any(|t| matches!(t, TargetSpec::Spell(_))))
     }
 
+    /// Whether an activated ability of a known card has a target slot a
+    /// spell fills.
+    pub fn activation_targets_spells(&self, c: CardId) -> bool {
+        self.known(c)
+            .and_then(|k| k.runs.as_ref().ok())
+            .is_some_and(|r| {
+                r.activated.values().flatten().any(|a| {
+                    a.program
+                        .targets
+                        .iter()
+                        .any(|t| matches!(t, TargetSpec::Spell(_)))
+                })
+            })
+    }
+
+    /// How many cards an instruction that chose none of them discarded
+    /// this turn ("discards all cards with that name").
+    pub fn discarded(&self) -> u32 {
+        self.discarded
+    }
+
     /// How many tokens have been created this turn.
     pub fn created(&self) -> u32 {
         self.created
@@ -1521,8 +1604,18 @@ impl Game {
         match &known.runs {
             Err(r) => Some(r.clone()),
             Ok(_) if is_land(&known.text.type_line) => None,
-            Ok(runs) => Game::cast_refusal(known, runs).err(),
+            Ok(runs) => Game::spell_refusal_any(known, runs),
         }
+    }
+
+    /// Why a card can be cast no way at all: for its mana cost, or for an
+    /// alternative cost when it has one.
+    fn spell_refusal_any(known: &Known, runs: &Runnable) -> Option<Unrunnable> {
+        let refused = Game::cast_refusal(known, runs).err()?;
+        if runs.alternatives.is_empty() {
+            return Some(refused);
+        }
+        Game::spell_refusal(runs).err()
     }
 
     /// What the engine makes of a card before any game: why it refuses
@@ -1533,7 +1626,7 @@ impl Game {
         match &known.runs {
             Err(r) => (Some(r.clone()), Vec::new()),
             Ok(runs) if is_land(&known.text.type_line) => (None, runs.dormant.clone()),
-            Ok(runs) => (Game::cast_refusal(&known, runs).err(), runs.dormant.clone()),
+            Ok(runs) => (Game::spell_refusal_any(&known, runs), runs.dormant.clone()),
         }
     }
 
@@ -1753,6 +1846,26 @@ impl Game {
                 card: *card,
                 life: *life,
             },
+            Waiting::Sacrifice {
+                player,
+                spell,
+                count,
+                filter,
+            } => Decision::Sacrifice {
+                player: *player,
+                spell: *spell,
+                count: *count,
+                legal: self.sacrificable(*player, filter),
+            },
+            Waiting::ChooseName {
+                player,
+                filter,
+                resume,
+            } => Decision::ChooseName {
+                player: *player,
+                card: resume.what.card(),
+                filter: filter.clone(),
+            },
             Waiting::Search {
                 player,
                 filter,
@@ -1775,6 +1888,27 @@ impl Game {
                 }
             }
         }
+    }
+
+    /// The permanents `p` controls that `filter` matches, which they may
+    /// sacrifice (CR 701.21a).
+    fn sacrificable(&self, p: PlayerId, filter: &Filter) -> Vec<ObjectId> {
+        let all = self.characteristics();
+        all.iter()
+            .filter(|(o, c)| {
+                c.controller == p
+                    && filter.matches(&Seen {
+                        id: **o,
+                        chars: c,
+                        source: ObjectId(u32::MAX),
+                        source_chars: c,
+                        source_attached_to: None,
+                        token: self.battlefield.objects[*o].token,
+                        attacking: self.battlefield.attacking.contains(*o),
+                    })
+            })
+            .map(|(o, _)| *o)
+            .collect()
     }
 
     /// Whether `filter` matches this card, which must be known and one the
@@ -1854,15 +1988,21 @@ impl Game {
                     if from_command {
                         *self.commander_casts.entry(spell).or_insert(0) += 1;
                     }
-                    // CR 601.2i: the spell becomes cast, what waits for a
-                    // spell cast triggers, and its caster had priority, so
-                    // gets it again.
-                    self.before_cast = None;
-                    self.trigger_on(Event::Cast {
-                        card: spell,
-                        controller: player,
-                    });
-                    self.give_priority(player, 0);
+                    // CR 601.2h: the rest of its total cost, paid with the
+                    // mana in any order.
+                    let other = self.other_costs(spell);
+                    self.players[player.0 as usize].life -= other.life as i32;
+                    match other.sacrifice {
+                        Some((count, filter)) => {
+                            self.waiting = Waiting::Sacrifice {
+                                player,
+                                spell,
+                                count,
+                                filter,
+                            }
+                        }
+                        None => self.cast_done(player, spell),
+                    }
                 }
                 Payment::Cancel => {
                     let before = self.before_cast.take().expect("a cast to cancel");
@@ -2253,6 +2393,38 @@ impl Game {
                 resume.found.insert(into, card.into_iter().collect());
                 self.follow(resume);
             }
+            (
+                Waiting::Sacrifice {
+                    player,
+                    spell,
+                    count,
+                    filter,
+                },
+                Answer::Sacrifice(chosen),
+            ) => {
+                let legal = self.sacrificable(player, &filter);
+                let distinct: BTreeSet<&ObjectId> = chosen.iter().collect();
+                if chosen.len() != count as usize
+                    || distinct.len() != chosen.len()
+                    || !chosen.iter().all(|o| legal.contains(o))
+                {
+                    return Err(Rejected::Illegal(answer));
+                }
+                for o in chosen {
+                    self.put_in_graveyard(*o);
+                }
+                self.cast_done(player, spell);
+            }
+            (Waiting::ChooseName { filter, resume, .. }, Answer::Name(text)) => {
+                // CR 201.4a: a card whose Oracle text has the
+                // characteristics, not a token.
+                if !lower::printed(text).is_ok_and(|c| filter.matches(&c)) {
+                    return Err(Rejected::Illegal(answer));
+                }
+                let mut resume = resume;
+                resume.name = Some(text.name.clone());
+                self.follow(resume);
+            }
             _ => return Err(Rejected::Illegal(answer)),
         }
         Ok(self.decision())
@@ -2316,6 +2488,50 @@ impl Game {
                 actions.push(Action::Cast(*c));
             }
         }
+        // CR 118.9, 601.2b: a card cast for an alternative cost, from the
+        // zone that cost allows, with the timing its type has (CR
+        // 117.1a); one whose other costs can't be paid isn't (CR 601.2h).
+        let zones = [
+            (lower::CastFrom::Hand, &player.hand),
+            (lower::CastFrom::Graveyard, &player.graveyard),
+        ];
+        for (from, cards) in zones {
+            for c in cards.iter() {
+                let Some(known) = self.known(*c) else {
+                    continue;
+                };
+                let Ok(runs) = &known.runs else { continue };
+                if is_land(&known.text.type_line)
+                    || Game::spell_refusal(runs).is_err()
+                    || !(sorcery_speed || self.instant_speed(known))
+                {
+                    continue;
+                }
+                let targetable = runs.spell.as_ref().is_none_or(|program| {
+                    program
+                        .targets
+                        .iter()
+                        .all(|t| !self.legal_targets(t, p, known.printed.as_ref()).is_empty())
+                });
+                let instant_or_sorcery = runs.lowered.chars.is(CardType::Instant)
+                    || runs.lowered.chars.is(CardType::Sorcery);
+                for (n, alt) in &runs.alternatives {
+                    let payable = player.life >= alt.other.life as i32
+                        && alt
+                            .other
+                            .sacrifice
+                            .as_ref()
+                            .is_none_or(|(k, f)| self.sacrificable(p, f).len() >= *k as usize);
+                    if alt.from == from
+                        && (instant_or_sorcery || !alt.instant_or_sorcery)
+                        && targetable
+                        && payable
+                    {
+                        actions.push(Action::CastAlternative(*c, *n));
+                    }
+                }
+            }
+        }
         actions.extend(self.mana_activations(p).into_iter().map(Action::Mana));
         actions.extend(self.activations(p).into_iter().map(Action::Activate));
         actions
@@ -2367,6 +2583,24 @@ impl Game {
             }
         }
         out
+    }
+
+    /// The zones a card may be cast from by its alternative costs (CR
+    /// 118.9), before any game.
+    pub fn alternatives_of(text: &CardText) -> Vec<lower::CastFrom> {
+        match Known::read(text.clone()).runs {
+            Ok(r) => r.alternatives.values().map(|a| a.from).collect(),
+            Err(_) => Vec::new(),
+        }
+    }
+
+    /// The zones a known card may be cast from by its alternative costs
+    /// (CR 118.9).
+    pub fn alternatives(&self, c: CardId) -> Vec<lower::CastFrom> {
+        match self.known(c).map(|k| &k.runs) {
+            Some(Ok(r)) => r.alternatives.values().map(|a| a.from).collect(),
+            _ => Vec::new(),
+        }
     }
 
     /// Why the engine never offers any of this card's activated abilities
@@ -2568,7 +2802,8 @@ impl Game {
                 // CR 117.3c.
                 self.enter(card, p, false, Then::Priority(p));
             }
-            Action::Cast(card) => self.cast(p, card)?,
+            Action::Cast(card) => self.cast(p, card, Via::ManaCost)?,
+            Action::CastAlternative(card, n) => self.cast(p, card, Via::Alternative(n))?,
             Action::Mana(a) => {
                 self.activate(p, a);
                 // CR 117.3c.
@@ -2674,11 +2909,19 @@ impl Game {
         })
     }
 
-    /// What this engine can't cast yet, beyond the card's abilities.
+    /// What this engine can't cast yet for its mana cost, beyond the
+    /// card's abilities.
     fn cast_refusal(entry: &Known, runs: &Runnable) -> Result<ManaCost, Unrunnable> {
-        let cost = entry.cost.clone()?.ok_or_else(|| {
-            Unrunnable::new("no mana cost", "it has no mana cost to pay (CR 118.6)")
-        })?;
+        Game::spell_refusal(runs)?;
+        entry
+            .cost
+            .clone()?
+            .ok_or_else(|| Unrunnable::new("no mana cost", "it has no mana cost to pay (CR 118.6)"))
+    }
+
+    /// What this engine can't cast yet however it is cast, beyond the
+    /// card's abilities.
+    fn spell_refusal(runs: &Runnable) -> Result<(), Unrunnable> {
         let chars = &runs.lowered.chars;
         // CR 306.5b, 310.4b: they enter with counters the card index
         // doesn't keep, and leave without them (CR 704.5i).
@@ -2697,33 +2940,42 @@ impl Game {
         if chars.subtypes.contains(&Subtype::Other("Aura".into())) {
             return Err(Unrunnable::new("Aura", "an Aura spell targets"));
         }
-        Ok(cost)
+        Ok(())
     }
 
     /// CR 601.2a–f: move the card to the stack, then determine its total
     /// cost and wait for it to be paid. The card has no modes, targets, X
     /// or additional costs to announce, since one that has any is refused
     /// when read.
-    fn cast(&mut self, p: PlayerId, card: CardId) -> Result<(), Rejected> {
+    fn cast(&mut self, p: PlayerId, card: CardId, via: Via) -> Result<(), Rejected> {
         let entry = self.known(card).expect("only a known card is offered");
         let runs = self.runs(card)?;
-        let cost = Game::cast_refusal(entry, runs).map_err(|refusal| Rejected::Refused {
+        let refused = |refusal| Rejected::Refused {
             card: entry.text.name.clone(),
             refusal,
-        })?;
-        let from_command = self.command.contains(&card);
+        };
+        let cost = match via {
+            Via::ManaCost => Game::cast_refusal(entry, runs).map_err(refused)?,
+            Via::Alternative(n) => {
+                Game::spell_refusal(runs).map_err(refused)?;
+                runs.alternatives[&n].mana.clone()
+            }
+        };
+        let from_command = via == Via::ManaCost && self.command.contains(&card);
         let before = self.clone();
-        if from_command {
-            self.command.retain(|c| *c != card);
-        } else {
-            self.players[p.0 as usize].hand.retain(|c| *c != card);
-        }
+        // CR 601.2a: from wherever it is.
+        self.command.retain(|c| *c != card);
+        let player = &mut self.players[p.0 as usize];
+        player.hand.retain(|c| *c != card);
+        player.graveyard.retain(|c| *c != card);
         let slots = self.runs_of(card).spell.as_ref().map(|s| s.targets.clone());
         self.stack.push_back(StackObject::Spell {
             card,
             controller: p,
             targets: Vec::new(),
+            via,
         });
+        // CR 903.8: commander tax is on a cast from the command zone.
         let owed = if from_command {
             cost.plus_generic(COMMANDER_TAX * self.commander_casts(card))
         } else {
@@ -2791,6 +3043,45 @@ impl Game {
         }
     }
 
+    /// What the spell on the stack costs beyond mana: its alternative
+    /// cost's, if it was cast for one (CR 601.2f).
+    fn other_costs(&self, spell: CardId) -> lower::OtherCosts {
+        let via = self.stack.iter().find_map(|o| match o {
+            StackObject::Spell { card, via, .. } if *card == spell => Some(*via),
+            _ => None,
+        });
+        match via {
+            Some(Via::Alternative(n)) => self.runs_of(spell).alternatives[&n].other.clone(),
+            _ => lower::OtherCosts::default(),
+        }
+    }
+
+    /// CR 601.2i: the spell becomes cast, what waits for a spell cast
+    /// triggers, and its caster had priority, so gets it again.
+    fn cast_done(&mut self, player: PlayerId, spell: CardId) {
+        self.before_cast = None;
+        self.trigger_on(Event::Cast {
+            card: spell,
+            controller: player,
+        });
+        self.give_priority(player, 0);
+    }
+
+    /// A spell leaves the stack for its owner's graveyard, or exile if it
+    /// was cast for flashback (CR 702.34a).
+    fn off_the_stack(&mut self, card: CardId, via: Via) {
+        let exiled = match via {
+            Via::Alternative(n) => self.runs_of(card).alternatives[&n].exiled,
+            Via::ManaCost => false,
+        };
+        if exiled {
+            self.exile.push_back(card);
+        } else {
+            let owner = self.owner(card);
+            self.players[owner.0 as usize].graveyard.push_back(card);
+        }
+    }
+
     /// Pay a mana ability's cost and resolve it at once (CR 605.3b).
     fn activate(&mut self, p: PlayerId, a: ManaActivation) {
         let chars = self.characteristics();
@@ -2835,6 +3126,7 @@ impl Game {
                 card,
                 controller,
                 targets,
+                via,
             }) => {
                 let permanent = self
                     .known(card)
@@ -2845,7 +3137,7 @@ impl Game {
                     self.enter(card, controller, false, then);
                 } else {
                     self.begin_resolving(
-                        Instructions::Spell(card),
+                        Instructions::Spell(card, via),
                         controller,
                         (None, None, None, None),
                         targets,
@@ -2920,9 +3212,29 @@ impl Game {
             player,
             next: vec![0],
             found: OrdMap::new(),
+            name: None,
         };
         if !targets.is_empty() && at.targets.iter().all(Option::is_none) {
             return self.done(&at);
+        }
+        // CR 603.4: an intervening "if" checked again as it resolves, from
+        // its source as it is now or last existed.
+        if let Instructions::Triggered(card, TriggerOf::Printed(n)) = what {
+            if let Some(c) = self.runs_of(card).triggered[&n].condition.clone() {
+                let all = self.characteristics();
+                let holds = source.as_ref().is_some_and(|sc| {
+                    self.intervening(
+                        &c,
+                        object.unwrap_or(ObjectId(u32::MAX)),
+                        sc,
+                        at.triggering,
+                        &all,
+                    )
+                });
+                if !holds {
+                    return self.done(&at);
+                }
+            }
         }
         self.follow(at)
     }
@@ -2934,7 +3246,7 @@ impl Game {
             effects: Vec::new(),
         };
         match what {
-            Instructions::Spell(c) => self.runs_of(c).spell.as_ref().unwrap_or(&NONE),
+            Instructions::Spell(c, _) => self.runs_of(c).spell.as_ref().unwrap_or(&NONE),
             Instructions::Triggered(c, TriggerOf::Printed(n)) => {
                 &self.runs_of(c).triggered[&n].program
             }
@@ -2952,14 +3264,9 @@ impl Game {
     /// The spell or ability is done: a spell goes to its owner's graveyard
     /// (CR 608.2n), and the active player gets priority (CR 117.3b).
     fn done(&mut self, at: &Resuming) {
-        self.last_resolved = Some(match at.what {
-            Instructions::Spell(c)
-            | Instructions::Activated(c, _)
-            | Instructions::Triggered(c, _) => c,
-        });
-        if let Instructions::Spell(card) = at.what {
-            let owner = self.owner(card);
-            self.players[owner.0 as usize].graveyard.push_back(card);
+        self.last_resolved = Some(at.what.card());
+        if let Instructions::Spell(card, via) = at.what {
+            self.off_the_stack(card, via);
         }
         self.give_priority(self.active, 0);
     }
@@ -3153,9 +3460,9 @@ impl Game {
                             |x| matches!(x, StackObject::Spell { card, .. } if *card == c),
                         );
                         if let Some(k) = on_stack {
-                            self.stack.remove(k);
-                            let owner = self.owner(c);
-                            self.players[owner.0 as usize].graveyard.push_back(c);
+                            if let StackObject::Spell { via, .. } = self.stack.remove(k) {
+                                self.off_the_stack(c, via);
+                            }
                         }
                     }
                 }
@@ -3360,6 +3667,74 @@ impl Game {
                         }
                     }
                 }
+                Effect::IfControl { control, .. } => {
+                    let all = self.characteristics();
+                    let n = all
+                        .iter()
+                        .filter(|(o, c)| {
+                            c.controller == p
+                                && control.any_of.iter().any(|f| {
+                                    f.matches(&Seen {
+                                        id: **o,
+                                        chars: c,
+                                        source: ObjectId(u32::MAX),
+                                        source_chars: c,
+                                        source_attached_to: None,
+                                        token: self.battlefield.objects[*o].token,
+                                        attacking: self.battlefield.attacking.contains(*o),
+                                    })
+                                })
+                        })
+                        .count();
+                    if control.count.holds(n as u32) {
+                        at = here;
+                        at.next.push(0);
+                    }
+                }
+                Effect::ChooseName(filter) => {
+                    self.waiting = Waiting::ChooseName {
+                        player: p,
+                        filter,
+                        resume,
+                    };
+                    return;
+                }
+                // CR 701.20a: seen by all, so a hidden card of it is named.
+                Effect::RevealHand(w) => {
+                    let Some(q) = who(w) else { continue };
+                    let hidden: Vec<CardId> = self
+                        .player(q)
+                        .hand
+                        .iter()
+                        .copied()
+                        .filter(|c| self.known(*c).is_none())
+                        .collect();
+                    if !hidden.is_empty() {
+                        self.waiting = Waiting::Reveal {
+                            player: q,
+                            cards: hidden,
+                            resume,
+                        };
+                        return;
+                    }
+                }
+                // CR 701.9a: no choice in it, the name chosen.
+                Effect::DiscardNamed(w) => {
+                    let Some(q) = who(w) else { continue };
+                    let cards: Vec<CardId> = self
+                        .player(q)
+                        .hand
+                        .iter()
+                        .copied()
+                        .filter(|c| {
+                            at.name
+                                .as_ref()
+                                .is_some_and(|n| self.card(*c).is_some_and(|t| &t.name == n))
+                        })
+                        .collect();
+                    self.discard(q, &cards);
+                    self.discarded += cards.len() as u32;
+                }
                 Effect::IfCard { card, filter, .. } => {
                     let holds = match at.found.get(&card).map(Vec::as_slice) {
                         Some([c]) => self
@@ -3499,6 +3874,14 @@ impl Game {
             Obj::Triggering => at.triggering,
             Obj::Target(s) => match at.targets[s] {
                 Some(Target::Object(o)) => Some(o),
+                _ => None,
+            },
+            Obj::Found(s) => match at.found.get(&s).map(Vec::as_slice) {
+                Some([c]) => self
+                    .permanents
+                    .iter()
+                    .find(|(_, p)| p.card == *c)
+                    .map(|(o, _)| *o),
                 _ => None,
             },
         }
@@ -3874,7 +4257,7 @@ impl Game {
                     }
                     (TriggerEvent::Enters(f), Event::Entered(id)) => f
                         .matches(&seen(*id))
-                        .then_some((None, None))
+                        .then_some((Some(*id), None))
                         .into_iter()
                         .collect(),
                     (TriggerEvent::Attacks(f), Event::Attacked(ids)) => ids
@@ -3892,6 +4275,17 @@ impl Game {
                             })
                             .count();
                         (with >= *n as usize)
+                            .then_some((None, None))
+                            .into_iter()
+                            .collect()
+                    }
+                    // CR 702.149a: power as the layers have it now.
+                    (TriggerEvent::Trains, Event::Attacked(ids)) => {
+                        let power = |id: &ObjectId| {
+                            all.get(id).and_then(|c| c.pt).map_or(i32::MIN, |p| p.power)
+                        };
+                        let mine = power(src);
+                        (ids.contains(src) && ids.iter().any(|id| id != src && power(id) > mine))
                             .then_some((None, None))
                             .into_iter()
                             .collect()
@@ -3919,6 +4313,12 @@ impl Game {
                     Event::Cast { controller, .. } => Some(*controller),
                     _ => None,
                 };
+                // CR 603.4: an intervening "if" checked as it triggers.
+                let objects = objects.into_iter().filter(|(triggering, _)| {
+                    t.condition
+                        .as_ref()
+                        .is_none_or(|c| self.intervening(c, *src, chars, *triggering, &all))
+                });
                 for (triggering, amount) in objects {
                     triggered.push(Pending {
                         source: card,
@@ -3986,6 +4386,42 @@ impl Game {
             }
         }
         self.pending.extend(triggered);
+    }
+
+    /// Whether an intervening "if" holds (CR 603.4): the permanents the
+    /// source's controller controls that it counts, read from the source,
+    /// less the object the event names when it says "other".
+    fn intervening(
+        &self,
+        c: &lower::Intervening,
+        source: ObjectId,
+        source_chars: &Chars,
+        triggering: Option<ObjectId>,
+        all: &BTreeMap<ObjectId, Chars>,
+    ) -> bool {
+        let n = all
+            .iter()
+            .filter(|(o, ch)| {
+                ch.controller == source_chars.controller
+                    && !(c.excluding && Some(**o) == triggering)
+                    && c.control.any_of.iter().any(|f| {
+                        f.matches(&Seen {
+                            id: **o,
+                            chars: ch,
+                            source,
+                            source_chars,
+                            source_attached_to: self
+                                .battlefield
+                                .objects
+                                .get(&source)
+                                .and_then(|x| x.attached_to),
+                            token: self.battlefield.objects[*o].token,
+                            attacking: self.battlefield.attacking.contains(*o),
+                        })
+                    })
+            })
+            .count();
+        c.control.count.holds(n as u32)
     }
 
     /// CR 508.1a, 302.6, 702.3b: untapped creatures `p` controls that have
@@ -4423,6 +4859,7 @@ impl Game {
         self.bottomed = 0;
         self.shuffled = 0;
         self.created = 0;
+        self.discarded = 0;
         self.active = p;
         self.players[p.0 as usize].turn_began = Some(self.turn);
         for player in &mut self.players {
@@ -4896,6 +5333,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         hexproof: BTreeSet::new(),
         cycling: None,
         cost_changes: BTreeMap::new(),
+        alternatives: BTreeMap::new(),
         dormant: Vec::new(),
         lowered,
     };
@@ -4969,6 +5407,15 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                         ));
                     } else if let Some(t) = lower::keyword_trigger(k) {
                         runs.triggered.insert(n, t);
+                    } else if let Some(alt) = lower::flashback(k) {
+                        // One the engine can't pay for is carried and
+                        // never offered: the card is still cast from hand.
+                        match alt {
+                            Ok(alt) => {
+                                runs.alternatives.insert(n, alt);
+                            }
+                            Err(node) => runs.dormant.push(format!("flashback: {node}")),
+                        }
                     } else if hand_keyword(k) {
                         runs.dormant.push(k.name.to_lowercase());
                     } else if !before_the_game(k) {
@@ -4984,6 +5431,14 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     if matches!(ks.as_slice(), [k] if k.param.is_none() && k.name.eq_ignore_ascii_case("hexproof"))) =>
             {
                 runs.hexproof.insert(n);
+            }
+            i::Ability::Static(parts) if lower::alternative_cost(parts).is_some() => {
+                match lower::alternative_cost(parts).expect("an alternative cost") {
+                    Ok(alt) => {
+                        runs.alternatives.insert(n, alt);
+                    }
+                    Err(node) => runs.dormant.push(format!("an alternative cost: {node}")),
+                }
             }
             i::Ability::Static(parts) if lower::cost_change(parts).is_some() => {
                 let change = lower::cost_change(parts)

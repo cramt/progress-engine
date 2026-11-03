@@ -8,7 +8,9 @@ use std::sync::OnceLock;
 use chancellor_of_the_spires::deck::{self, CardText, Oracle};
 use chancellor_of_the_spires::log;
 use chancellor_of_the_spires::model::{pt, Color, PlayerId};
-use chancellor_of_the_spires::replay::{replay, Divergence, End, Replay, SetupStop, Stop};
+use chancellor_of_the_spires::replay::{
+    replay, Divergence, End, Replay, SetupStop, Stop, UnseenLand,
+};
 use chip_scryfall::index::IndexFile;
 
 const ALICE: PlayerId = PlayerId(0);
@@ -53,6 +55,8 @@ const INDEXED: &[&str] = &[
     "Lonely Sandbar",
     "Mox Diamond",
     "Portent",
+    "Cabal Therapy",
+    "Typhoid Rats",
 ];
 
 fn index() -> &'static IndexFile {
@@ -75,6 +79,16 @@ fn cards(name: &str) -> Option<CardText> {
 /// A one-game match: the export's header, then `lines`, each given a
 /// timestamp.
 fn run(lines: &str) -> (log::Game, Replay) {
+    run_with(lines, &mut cards, &[])
+}
+
+/// As `run`, with these cards and the lands a search may find that the log
+/// never names.
+fn run_with(
+    lines: &str,
+    cards: &mut dyn FnMut(&str) -> Option<CardText>,
+    unseen: &[UnseenLand],
+) -> (log::Game, Replay) {
     let body: String = lines
         .lines()
         .map(str::trim)
@@ -91,7 +105,7 @@ fn run(lines: &str) -> (log::Game, Replay) {
     let m = log::parse(&text).unwrap();
     let g = m.games[0].clone();
     assert_eq!(g.unrecognised().count(), 0, "{:?}", g.entries);
-    let r = replay(&m, &g, &mut cards);
+    let r = replay(&m, &g, cards, unseen);
     (g, r)
 }
 
@@ -910,4 +924,88 @@ fn a_shuffle_line_is_an_instructions_shuffle() {
         "no instruction shuffled: {:?}",
         r.end
     );
+}
+
+/// A fetchland's find the log never names, where no basic or land the
+/// match shows will do (here, no basic is in the card data): a real land
+/// of those the game's format allows, as a hypothesis, the one making the
+/// colours alice's spells need first, and only one the search's filter
+/// matches. The replay says it relied on it.
+#[test]
+fn a_fetchland_may_find_a_land_the_log_never_names() {
+    let land = |name: &str, makes: [bool; 5]| UnseenLand {
+        name: name.into(),
+        makes,
+    };
+    let unseen = [
+        // Plains Island: not a Mountain or Forest card, though it makes
+        // nothing alice needs either.
+        land("Tundra", [true, true, false, false, false]),
+        land("Volcanic Island", [false, true, false, true, false]),
+        land("Taiga", [false, false, false, true, true]),
+    ];
+    let mut no_basics = |name: &str| match name {
+        "Forest" | "Mountain" => None,
+        "Tundra" | "Volcanic Island" | "Taiga" => Some(deck::card(name, index()).unwrap()),
+        n => cards(n),
+    };
+    let (_, r) = run_with(
+        "
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Wooded Foothills].
+        alice activates an ability of [Wooded Foothills] ( Search your library for a Mountain or Forest card, put it onto the battlefield, then shuffle.).
+        Turn 1: bob
+        bob plays [Island].
+        Turn 2: alice
+        alice plays [Island].
+        alice casts [Grizzly Bears].
+        bob has conceded from the game.
+    ",
+        &mut no_basics,
+        &unseen,
+    );
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    assert_eq!(r.unseen, ["Taiga"]);
+    let game = r.game.unwrap();
+    assert_eq!(on_battlefield(&game, "Taiga"), 1);
+    assert_eq!(on_battlefield(&game, "Tundra"), 0);
+}
+
+/// Cabal Therapy names the card the log's "names" line does (CR 201.4),
+/// the hand revealed names bob's hidden cards (CR 701.20a), and each card
+/// of that name is discarded, a line apiece. Cast again from the graveyard
+/// for its flashback cost, the creature sacrificed is one the log never
+/// names, and the spell is exiled (CR 702.34a).
+#[test]
+fn cabal_therapy_names_and_flashes_back() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Swamp].
+        alice casts [Cabal Therapy] targeting bob.
+        alice names Grizzly Bears for [Cabal Therapy].
+        bob reveals their hand to [Cabal Therapy], containing [Grizzly Bears], [Island], [Island], [Island], [Island], [Island], and [Grizzly Bears].
+        bob discards [Grizzly Bears].
+        bob discards [Grizzly Bears].
+        Turn 1: bob
+        bob plays [Island].
+        Turn 2: alice
+        alice plays [Swamp].
+        alice casts [Typhoid Rats].
+        Turn 2: bob
+        bob plays [Island].
+        Turn 3: alice
+        alice casts [Cabal Therapy] with FlashbackSacrifice a creature from the graveyard targeting bob.
+        alice names Grizzly Bears for [Cabal Therapy].
+        bob reveals their hand to [Cabal Therapy], containing [Island], [Island], [Grizzly Bears], [Island], and [Island].
+        bob discards [Grizzly Bears].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    let game = r.game.unwrap();
+    assert_eq!(on_battlefield(&game, "Typhoid Rats"), 0);
+    assert_eq!(game.exile().len(), 1);
+    assert_eq!(game.player(BOB).graveyard().len(), 3);
+    assert_eq!(game.player(BOB).hand().len(), 4);
 }

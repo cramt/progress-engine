@@ -519,7 +519,8 @@ fn a_creature_cast_at_sorcery_speed_resolves_onto_the_battlefield() {
         [&StackObject::Spell {
             targets: vec![],
             card: bird,
-            controller: ME
+            controller: ME,
+            via: Via::ManaCost,
         }]
     );
     assert_eq!(game.player(ME).pool().total(), 0);
@@ -1020,7 +1021,7 @@ fn loam_coverage() {
     }
     assert_eq!(cards.len(), 90);
     // The README's number: a change that moves it updates it there.
-    assert_eq!((runs.len(), whole.len()), (36, 24));
+    assert_eq!((runs.len(), whole.len()), (36, 25));
 }
 
 fn hidden(n: usize) -> DeckCards {

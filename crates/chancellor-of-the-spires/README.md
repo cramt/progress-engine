@@ -189,8 +189,13 @@ subtypes (CR 111.1–111.4), a card refused if a token it makes can't run, gain 
 planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
 lifelink, CR 702.15b), scry and +1/+1 or named counters, mana added to the pool (Dark
-Ritual, CR 106.3), and "can't be regenerated", which restricts nothing
-while no regeneration lowers (CR 701.19a–c); their targets
+Ritual, CR 106.3), "can't be regenerated", which restricts nothing
+while no regeneration lowers (CR 701.19a–c), a card name chosen, of a
+real card with the characteristics asked (Cabal Therapy's "a nonland
+card name", CR 201.4a), a hand revealed, its hidden cards named (CR
+701.20a), "discards all cards with that name" (CR 701.9a), and "then if
+you control four or more lands", "that land" being the permanent a card
+found became (Fabled Passage); their targets
 chosen as they are cast, and checked again as they resolve, an illegal
 one left alone and a spell with every target illegal not resolving (CR
 608.2b); triggered abilities that trigger when a permanent a filter
@@ -211,8 +216,12 @@ Lizards, CR 508.3a), and the beginning
 of an upkeep, draw step or end step, yours,
 each or an opponent's (CR 503.1a, 504.2, 513.1a), and a delayed trigger
 an instruction creates, "Draw a card at the beginning of the next turn's
-upkeep", triggering once (CR 603.7a–c: Portent), with exalted and prowess written
-out as the triggers they are (CR 702.83a, 702.108a) and "until end of
+upkeep", triggering once (CR 603.7a–c: Portent), an "intervening if"
+that counts what its controller controls, checked as it triggers and as
+it resolves, "other" than the object its event names when it says so
+(Valakut's "if you control at least five other Mountains", CR 603.4),
+with exalted, prowess and training written
+out as the triggers they are (CR 702.83a, 702.108a, 702.149a) and "until end of
 turn" effects ending in cleanup (CR 514.2); combat: attackers tapping
 unless they have vigilance (CR 508.1f), blockers, the declare blockers
 and combat damage steps skipped with no attackers (CR 508.8), a
@@ -255,17 +264,26 @@ resolve to a target or its source, a static that isn't
 "enters tapped", a mana ability with a cost or effect beyond those above,
 `{X}`, Phyrexian or snow mana, a planeswalker or battle (their counters),
 an Aura (its target), and a keyword other than flash, cycling, transmute,
-flashback, partner, exalted, prowess and the layers' own (flying, reach,
+flashback, partner, exalted, prowess, training and the layers' own (flying, reach,
 menace, first and double strike, defender, haste, vigilance, trample,
 deathtouch, lifelink, shroud, hexproof, indestructible, shadow, and
 protection from a colour, from multicolored or from everything); cycling
 for mana is activated from its owner's hand, discarding it to draw a card
-(CR 702.29a), and landcycling, transmute and flashback are carried, never
+(CR 702.29a), and landcycling and transmute are carried, never
+offered. A card is cast for an alternative cost (CR 118.9) rather than
+its mana cost from the zone that cost allows: Fireblast's "sacrifice two
+Mountains rather than pay this spell's mana cost" from a hand, and
+flashback from a graveyard, only an instant or sorcery (CR 702.34a),
+the alternative's mana, `{0}` when it has none, changed by cost changes
+like any (CR 118.9d), the rest of it (life, sacrificing permanents a
+filter matches) paid after the mana (CR 601.2h), offered only when it
+can be, and a spell cast for flashback exiled whenever it would leave the
+stack; one whose cost isn't mana, life or a sacrifice is carried, never
 offered. A non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**36 of Loam's 90 distinct cards are played or cast and resolved, 24 of
+**36 of Loam's 90 distinct cards are played or cast and resolved, 25 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
@@ -274,8 +292,8 @@ Ground, Nature's Lore, since a search is an instruction like any other,
 Fiery Islet and Waterlogged Grove, since an activated ability can cost
 mana: "{1}, {T}, Sacrifice this land: Draw a card", and the six more
 since cycling runs: Coastal Peak, Desert of the Fervent, Forgotten Cave,
-Ketria Triome, Lonely Sandbar and Sheltered Thicket), measured 2026-11-03, Deep Analysis played too since it
-draws two, its flashback carried:
+Ketria Triome, Lonely Sandbar and Sheltered Thicket, and Deep Analysis,
+whose flashback runs), measured 2026-11-03:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
 node refused. The most refused: `Trigger::When(Event::Discards)` and
@@ -287,7 +305,7 @@ Loam against a goldfish for six turns, casting what it can.
 Not yet: most instructions (modal spells, "if", a predefined token or
 one with abilities beyond keywords), X,
 activated abilities with limits or costs beyond a tap, life, mana and
-sacrificing their source, triggers on any other event (leaving the battlefield other than dying), "intervening if" (CR 603.4), a card that triggers from a
+sacrificing their source, triggers on any other event (leaving the battlefield other than dying), an "intervening if" other than "if you control …" (CR 603.4), a card that triggers from a
 graveyard, attacking a planeswalker or battle, requirements and
 restrictions on attacking and blocking beyond flying, reach, menace and
 defender, a creature blocking two, and a land's back face (CR 712). State-based actions run one creature after the other rather than at
@@ -422,10 +440,20 @@ which a basic land rarely shows again. So unless the log says the search
 failed, the replay answers it with a hidden card of the library named as
 it is found, choosing as it chooses a payment: each basic land, the colours
 the player's spells this game need most first, then each land the log
-shows the player playing anywhere in the match (their deck has it), then each card it shows them casting or
-playing later in the game (a tutor's find shows up again), the
-engine refusing any that doesn't match what was searched for; and if a
-later spell can't be paid for, it goes back and finds the next. A shock
+shows the player playing anywhere in the match (their deck has it), then
+each their opponent plays, then each card it shows them casting or
+playing later in the game (a tutor's find shows up again), and last, as
+a hypothesis, a real land the log never names at all: one of the Scryfall
+bulk file's lands legal in the game's format that the search's filter
+matches, those making the colours the player's spells need most first,
+at most eight. Only Modern has a legality the bulk file gives (a
+Freeform match whose comment or event says Modern); Penny Dreadful's
+isn't in it, so its games and other Freeform ones get no such land. The
+engine refuses any find that doesn't match what was searched for, the
+hypothesis included; and if a later spell can't be paid for, it goes
+back and finds the next. The report counts the games whose replay, as it
+ended, relies on a land the log never names, apart from games to the
+end. A shock
 land's life is the same: no line says it was paid and life totals aren't
 printed, so the replay doesn't pay and the land enters tapped, unless that
 leaves a later spell unpaid for, when it goes back and pays. Life is paid
@@ -496,6 +524,27 @@ response to Warmth): the replay goes back and casts it so. A "removed from the
 stack because it has no legal targets" line must match the engine's
 spell leaving the stack unresolved (CR 608.2b).
 
+A cast line says how the spell was cast when it wasn't plainly from
+hand for its mana cost ("from the graveyard", "with Flashback{1U}, Pay 3
+life from the graveyard", "by sacrificing 2 Mountains"), and the replay
+casts it that way, by the card's alternative cost from that zone; older
+logs print nothing for Fireblast's sacrifice, so a line that says nothing
+is cast for the mana cost and, if that can't be paid, for an
+alternative cost from a hand. The permanents sacrificed to pay are never
+named: the replay sacrifices first a creature whose dies trigger the lines
+right after show, then one no later line names, and goes back to another
+if a later line can't be followed. The card Cabal Therapy names is the
+log's "names [X] for [Cabal Therapy]" line, the hand revealed to it names
+the hidden cards of it, and each "discards" line after must match a card
+the engine discarded by that instruction. An ability of a permanent a
+spell or ability on the stack targets is activated in response to it
+(Mogg Fanatic sacrificed to Seal of Fire's damage), and only an ability
+that can target a spell is aimed at one; of permanents of one name, the
+replay activates one not yet activated this turn (a second Mishra's
+Factory animated, not the first again), and goes back to another if a
+later play can't be made; and a payment taps last what a later line this
+turn attacks, blocks or activates with.
+
 The first line the engine won't follow ends the game's replay with a
 typed `Stop`: a card refused by the node of its text the engine can't run,
 an answer it calls illegal, a state that disagrees with the log (a play it
@@ -505,16 +554,17 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 38 replay to the end** (35 to the log's winner
-line), 21 of them past the first turn, and **23.99% of their lines are
-followed** (18,756 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 41 replay to the end** (38 to the log's winner
+line), 24 of them past the first turn, and **25.00% of their lines are
+followed** (19,544 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-03; it was 20 games and 20.96% before the milestone's
+measured 2026-11-03, and 14 games rely on a land the log never names (1
+of them to the end); it was 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 447 stop
-in the first turn, 434 in the second, 75 in the third, 22 later, and 63
+no turn in them (empty logs, concessions during the mulligans). 342 stop
+in the first turn, 403 in the second, 146 in the third, 66 later, and 63
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -593,9 +643,10 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-03 36 of the 500 replay to
-the end and 30.31% of their lines are followed** (9,595 of 31,659), and
-37 games have no card the engine refuses before any game (from 21). The
+Worked card by card from there, **on 2026-11-03 39 of the 500 replay to
+the end and 32.39% of their lines are followed** (10,253 of 31,659), 3
+of them relying on a land the log never names (1 to the end), and 40
+games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -608,17 +659,20 @@ a spell (Dark Ritual); instructions on each permanent a filter matches
 (Thalia's Lieutenant, Pyroclasm, Wrath of God); cycling; attacking with
 a creature type (Hired Claw); delayed triggers (Portent); a discard
 instead of entering (Mox Diamond); revealed cards a filter sorts (Goblin
-Ringleader). And the replay's inferences: which of a card's abilities a
+Ringleader); alternative costs and flashback, a card name chosen and a
+hand revealed (Cabal Therapy); training (Hopeful Initiate); an
+intervening "if" (Valakut); "then if you control" (Fabled Passage). And
+the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
-instruction's. One divergence was the engine's own, found by the full
+instruction's, the creature sacrificed for flashback, a land the log never
+names as a hypothesis, and which of two permanents of one name an
+activation is of. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Cabal Therapy's named card (18, most also
-flashed back), Hopeful Initiate's training, Valakut's "if" trigger and
-Wild Growth's Aura (10 each), Fabled Passage's "then if" and morph's
-face-down casting (9 each), Quest for Pure Flame, Razorkin Needlehead's
-draw trigger, Sylvan Library and Wall of Roots (8 each).
+top of the worklist now: Wild Growth's Aura (10), Razorkin Needlehead's
+draw trigger, Wall of Roots and morph's face-down casting (9 each), and
+Quest for Pure Flame, Skirk Prospector and Sylvan Library (8 each).
 
 ## Speed
 
