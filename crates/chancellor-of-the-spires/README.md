@@ -142,7 +142,9 @@ reductions taken from the generic component alone, never below {0} (CR
 caster's control (CR 608.3a) and an instant or sorcery going to the
 graveyard (CR 608.2n); mana abilities that tap, pay life (CR 119.4) and
 deal their controller damage, as painlands do (CR 120.3a), pay mana
-from the pool, as filter lands and Signets do (CR 605.3a), adding fixed
+from the pool, as filter lands and Signets do (CR 605.3a), or are
+limited by "Activate only if you control a creature with power 4 or
+greater" (CR 602.5), adding fixed
 mana, a choice of it, any colour, a colour of the commander's identity
 (CR 903.4), or mana for each permanent a filter matches, counted as it is
 activated (Gaea's Cradle, CR 608.2h), without the stack (CR 605.3b), a

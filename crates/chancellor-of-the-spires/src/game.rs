@@ -2316,6 +2316,15 @@ impl Game {
                 let (tap, life, mana, options) = match ability {
                     // CR 305.6.
                     Ability::Intrinsic(t) => (true, 0, None, vec![ManaPool::of([Mana::of(*t)])]),
+                    // CR 602.5.
+                    Ability::Unread(n)
+                        if runs
+                            .and_then(|r| r.mana.get(n))
+                            .and_then(|a| a.only_if.as_ref())
+                            .is_some_and(|c| !self.you_control(c, id, chars, &all)) =>
+                    {
+                        continue
+                    }
                     Ability::Unread(n) => match runs.and_then(|r| r.mana.get(n)) {
                         Some(a) => (
                             a.tap,
@@ -2361,6 +2370,35 @@ impl Game {
             }
         }
         out
+    }
+
+    /// Whether the source's controller controls as many permanents as the
+    /// condition counts, read from the source.
+    fn you_control(
+        &self,
+        c: &model::YouControl,
+        source: ObjectId,
+        source_chars: &Chars,
+        all: &BTreeMap<ObjectId, Chars>,
+    ) -> bool {
+        let n = all
+            .iter()
+            .filter(|(o, ch)| {
+                ch.controller == source_chars.controller
+                    && c.any_of.iter().any(|f| {
+                        f.matches(&Seen {
+                            id: **o,
+                            chars: ch,
+                            source,
+                            source_chars,
+                            source_attached_to: self.battlefield.objects[&source].attached_to,
+                            token: self.battlefield.objects[*o].token,
+                            attacking: self.battlefield.attacking.contains(*o),
+                        })
+                    })
+            })
+            .count();
+        c.count.holds(n as u32)
     }
 
     /// How many permanents `filter` matches, read from `source` (CR 608.2h).
@@ -4635,10 +4673,15 @@ fn before_the_game(k: &i::Keyword) -> bool {
 }
 
 /// Abilities that work only from a hand or a graveyard, which nothing
-/// offers yet (CR 702.29a, 702.29e, 702.53a, 702.34a).
+/// offers yet (CR 702.29a, 702.29e, 702.53a, 702.34a; eternalize, embalm,
+/// unearth and scavenge, CR 702.129a, 702.128a, 702.84a, 702.97a).
 fn hand_keyword(k: &i::Keyword) -> bool {
     let name = k.name.to_lowercase();
-    name.ends_with("cycling") || name == "transmute" || name == "flashback"
+    name.ends_with("cycling")
+        || matches!(
+            name.as_str(),
+            "transmute" | "flashback" | "eternalize" | "embalm" | "unearth" | "scavenge"
+        )
 }
 
 /// "Cycling {2}": its mana cost, if that is all its cost is; landcycling

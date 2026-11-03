@@ -624,7 +624,17 @@ fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbilit
     // effect, and when it exists.
     if let [i::Static::AsLongAs { cond, then, .. }] = parts {
         let condition = match cond {
-            i::Condition::YouControl(o) => Condition::YouControl(you_control(o)?),
+            i::Condition::YouControl(o) => {
+                let c = you_control(o)?;
+                if c.any_of
+                    .iter()
+                    .flat_map(|f| &f.0)
+                    .any(|p| matches!(p, Pred::Power(..)))
+                {
+                    return Err("a static's condition over power".into());
+                }
+                Condition::YouControl(c)
+            }
             i::Condition::ItsYourTurn => Condition::YourTurn,
             other => return Err(format!("AsLongAs({})", short(other))),
         };
@@ -654,8 +664,14 @@ fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbilit
     if carried {
         return Err("a characteristic and a rule in one ability".into());
     }
+    let filter = filter.ok_or("an empty static ability")?;
+    // Layer 7 changes power, so a static reading it would depend on
+    // layer 7's effects, which `Layer::has_dependencies` says none does.
+    if filter.0.iter().any(|p| matches!(p, Pred::Power(..))) {
+        return Err("a static over power".into());
+    }
     Ok(StaticAbility {
-        filter: filter.ok_or("an empty static ability")?,
+        filter,
         ops,
         condition: None,
     })
@@ -895,6 +911,23 @@ fn objects(o: &Objects) -> Result<Filter, String> {
     for post in &f.posts {
         preds.push(match post {
             Post::Controller(i::Player::You) => Pred::YouControl,
+            Post::With(i::Compare {
+                stat: stat @ (i::Stat::Power | i::Stat::ManaValue),
+                op,
+                value: i::Amount::N(v),
+            }) => {
+                let cmp = match op {
+                    i::Op::Eq => Cmp::Eq,
+                    i::Op::Le => Cmp::AtMost,
+                    i::Op::Ge => Cmp::AtLeast,
+                    i::Op::Lt => Cmp::Below,
+                    i::Op::Gt => Cmp::Above,
+                };
+                match stat {
+                    i::Stat::Power => Pred::Power(cmp, *v),
+                    _ => Pred::ManaValue(cmp, *v),
+                }
+            }
             // "each Locus on the battlefield": a filter over permanents
             // reads the battlefield already.
             Post::In(i::Zone::Battlefield) => continue,

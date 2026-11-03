@@ -1866,3 +1866,48 @@ fn an_instruction_acts_on_each_permanent_a_filter_matches() {
     assert!(game.permanents().contains_key(&champion));
     assert!(!game.permanents().contains_key(&lieutenant));
 }
+
+/// CR 602.5: Fanatic of Rhonas's "{T}: Add {G}{G}{G}{G}. Activate only if
+/// you control a creature with power 4 or greater" is offered only once
+/// Giant Growth makes it a 4/7.
+#[test]
+fn a_mana_ability_limited_by_what_you_control_is_offered_only_then() {
+    let mut game = deal(
+        &[
+            ("Forest", 30),
+            ("Fanatic of Rhonas", 15),
+            ("Giant Growth", 15),
+        ],
+        &[("Mountain", 60)],
+        &[("Forest", 4), ("Fanatic of Rhonas", 1), ("Giant Growth", 1)],
+    );
+    for _ in 0..3 {
+        play(&mut game, "Forest");
+        my_next_main(&mut game);
+    }
+    play(&mut game, "Forest");
+    cast(&mut game, "Fanatic of Rhonas", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    let fanatic = creature(&game, "Fanatic of Rhonas").unwrap();
+    let adds = |game: &Game| -> Vec<String> {
+        let Decision::Priority { actions, .. } = game.decision() else {
+            panic!()
+        };
+        actions
+            .iter()
+            .filter_map(|a| match a {
+                Action::Mana(m) if m.source == fanatic => Some(m.adds.to_string()),
+                _ => None,
+            })
+            .collect()
+    };
+    assert_eq!(adds(&game), vec!["{G}"]);
+    cast(
+        &mut game,
+        "Giant Growth",
+        Some(vec![Target::Object(fanatic)]),
+    );
+    resolve(&mut game);
+    assert_eq!(adds(&game), vec!["{G}", "{G}{G}{G}{G}"]);
+}

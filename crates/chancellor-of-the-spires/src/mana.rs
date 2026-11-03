@@ -311,6 +311,9 @@ pub struct ManaAbility {
     /// "{1}, {T}: Add {R}{G}", a filter land's "{U/R}, {T}": mana paid
     /// from its controller's pool as it is activated (CR 605.3a, 601.2h).
     pub mana: Option<ManaCost>,
+    /// "Activate only if you control a creature with power 4 or greater"
+    /// (CR 602.5): counted among its controller's permanents.
+    pub only_if: Option<crate::model::YouControl>,
     pub adds: Adds,
     /// "This land deals 1 damage to you."
     pub damage_to_you: u32,
@@ -383,13 +386,20 @@ fn lower_mana_ability(
     effect: &[i::Effect],
     limits: &[i::Limit],
 ) -> Result<ManaAbility, String> {
-    if let Some(l) = limits.first() {
-        return Err(format!("a mana ability limited by {}", short(l)));
+    let mut only_if = None;
+    for l in limits {
+        match l {
+            i::Limit::OnlyIf(i::Condition::YouControl(o)) if only_if.is_none() => {
+                only_if = Some(lower::you_control(o)?)
+            }
+            other => return Err(format!("a mana ability limited by {}", short(other))),
+        }
     }
     let mut ability = ManaAbility {
         tap: false,
         life: 0,
         mana: None,
+        only_if,
         adds: Adds::Options(Vec::new()),
         damage_to_you: 0,
     };

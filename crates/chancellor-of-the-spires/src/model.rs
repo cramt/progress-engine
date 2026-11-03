@@ -231,6 +231,10 @@ pub enum Pred {
     ManaValue(Cmp, u32),
     /// "attacking": an attacking creature (CR 506.4).
     Attacking,
+    /// "with power 4 or greater": a creature's power, as the layers make
+    /// it (CR 208.1). Layer 7 changes it, so no static's filter reads it
+    /// (`lower` refuses one), which keeps layer 7 free of dependencies.
+    Power(Cmp, u32),
 }
 
 /// A comparison of a number against a fixed one.
@@ -299,6 +303,10 @@ impl Filter {
             Pred::Nontoken => !s.token,
             Pred::ManaValue(cmp, n) => cmp.holds(s.chars.mana_value, *n),
             Pred::Attacking => s.attacking,
+            Pred::Power(cmp, n) => s
+                .chars
+                .pt
+                .is_some_and(|p| cmp.holds(p.power.max(0) as u32, *n)),
         })
     }
 }
