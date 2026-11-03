@@ -52,6 +52,7 @@ const INDEXED: &[&str] = &[
     "Aura of Silence",
     "Lonely Sandbar",
     "Mox Diamond",
+    "Portent",
 ];
 
 fn index() -> &'static IndexFile {
@@ -866,5 +867,47 @@ fn mox_diamond_enters_for_the_land_the_next_line_discards() {
         game.player(ALICE).graveyard().len(),
         2,
         "the Forest and a Mox"
+    );
+}
+
+/// CR 701.24a, 603.7a: "shuffles their library" after Portent is its "You
+/// may have that player shuffle" taken, matched to the engine's shuffle;
+/// its delayed draw goes on the stack at the next turn's upkeep.
+#[test]
+fn a_shuffle_line_is_an_instructions_shuffle() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        alice casts [Portent] targeting alice.
+        alice shuffles their library.
+        Turn 1: bob
+        alice puts triggered ability from [Portent] onto the stack (Draw a card at the beginning of the next turn's upkeep.).
+        alice draws a card with [Portent]'s ability.
+        bob plays [Forest].
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        alice shuffles their library.
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert!(
+        matches!(r.end, End::Stopped { entry: 6, .. }),
+        "no instruction shuffled: {:?}",
+        r.end
     );
 }

@@ -1122,6 +1122,8 @@ pub struct Game {
     until_end_of_turn: Vec<Timestamp>,
     /// Cards an instruction put on the bottom of a library this turn.
     bottomed: u32,
+    /// Libraries an instruction shuffled this turn.
+    shuffled: u32,
     /// Tokens created this turn.
     created: u32,
     /// The counters each permanent that left had as it last existed, for
@@ -1286,6 +1288,7 @@ impl Game {
             delayed: Vector::new(),
             last_known: OrdMap::new(),
             bottomed: 0,
+            shuffled: 0,
             created: 0,
             exile: Vector::new(),
             command,
@@ -1481,6 +1484,11 @@ impl Game {
     /// this turn.
     pub fn bottomed(&self) -> u32 {
         self.bottomed
+    }
+
+    /// How many libraries an instruction has shuffled this turn.
+    pub fn shuffled(&self) -> u32 {
+        self.shuffled
     }
 
     /// How many counters of this kind are on the permanent, or were as it
@@ -3037,6 +3045,7 @@ impl Game {
                     let mut library = std::mem::take(&mut self.players[q.0 as usize].library);
                     self.rng.shuffle(&mut library);
                     self.players[q.0 as usize].library = library;
+                    self.shuffled += 1;
                 }
                 Effect::Draw { who: w, n } => {
                     if let Some(q) = who(w) {
@@ -4404,6 +4413,7 @@ impl Game {
         self.turn += 1;
         self.battlefield.active = Some(p);
         self.bottomed = 0;
+        self.shuffled = 0;
         self.created = 0;
         self.active = p;
         self.players[p.0 as usize].turn_began = Some(self.turn);

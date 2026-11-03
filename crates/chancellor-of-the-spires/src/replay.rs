@@ -219,6 +219,7 @@ pub fn replay(
         consumed: BTreeSet::new(),
         bottomed: (0, 0),
         created: (0, 0),
+        shuffled: (0, 0),
         entries: g.entries.clone(),
         respond: None,
     };
@@ -268,6 +269,7 @@ struct Knew {
     consumed: BTreeSet<usize>,
     bottomed: (u32, u32),
     created: (u32, u32),
+    shuffled: (u32, u32),
     respond: Option<usize>,
 }
 
@@ -309,6 +311,9 @@ struct Driver<'a> {
     bottomed: (u32, u32),
     /// The turn, and how many tokens the log has shown created in it.
     created: (u32, u32),
+    /// The turn, and how many shuffles by an instruction the log has
+    /// shown in it.
+    shuffled: (u32, u32),
     /// The game's lines, for the choices a later line shows (a trigger's
     /// targets, the order triggers go on the stack).
     entries: Vec<Entry>,
@@ -332,6 +337,7 @@ impl Driver<'_> {
             consumed: self.consumed.clone(),
             bottomed: self.bottomed,
             created: self.created,
+            shuffled: self.shuffled,
             respond: self.respond,
         }
     }
@@ -432,6 +438,7 @@ impl Driver<'_> {
                             self.matched = knew.matched;
                             self.consumed = knew.consumed;
                             self.bottomed = knew.bottomed;
+                            self.shuffled = knew.shuffled;
                             self.created = knew.created;
                             self.respond = knew.respond;
                             let did = match other {
@@ -1059,6 +1066,22 @@ impl Driver<'_> {
                     });
                 }
                 self.did(i, "the card revealed (CR 701.20a)");
+            }
+            // A library an instruction shuffled ("You may have that player
+            // shuffle"), which the engine must have shuffled this turn.
+            Shuffles(_) => {
+                self.until_choice()?;
+                let turn = self.game().turn();
+                let seen = if self.shuffled.0 == turn {
+                    self.shuffled.1
+                } else {
+                    0
+                } + 1;
+                if seen > self.game().shuffled() {
+                    return Err(unfollowed(None));
+                }
+                self.shuffled = (turn, seen);
+                self.did(i, "shuffled by the instruction (CR 701.24a)");
             }
             // Cards an instruction put on the bottom, which the engine
             // must have put there this turn.
