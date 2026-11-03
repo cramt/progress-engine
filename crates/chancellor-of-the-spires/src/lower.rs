@@ -232,6 +232,13 @@ fn not_characteristics(s: &i::Static) -> bool {
         // "If you control two or more other lands, this land enters
         // tapped."
         If { then, .. } => !then.is_empty() && then.iter().all(not_characteristics),
+        // "During your turn, spells you cast cost {1} less": a rule while
+        // it holds.
+        AsLongAs {
+            cond: i::Condition::ItsYourTurn,
+            then,
+            ..
+        } => !then.is_empty() && then.iter().all(not_characteristics),
         _ => listed_not_characteristics(s),
     }
 }
@@ -1017,10 +1024,12 @@ pub enum Effect {
         who: Who,
         n: u32,
     },
-    /// "Discard two cards": the player chooses which (CR 701.9a).
+    /// "Discard two cards": the player chooses which (CR 701.9a), bound
+    /// to `into` for "each land card discarded this way".
     Discard {
         who: Who,
         n: u32,
+        into: Slot,
     },
     /// "Target player reveals their hand. You choose a nonland card from
     /// it. That player discards that card." (CR 701.20a, 701.9a): the
@@ -1265,6 +1274,13 @@ pub enum Amount {
     /// "Equal to its power": of the object, or as it last existed (CR
     /// 608.2h).
     PowerOf(Obj),
+    /// "Gain 3 life for each land card discarded this way": `each` for
+    /// each card bound to `slot` that `filter` matches.
+    PerFound {
+        each: u32,
+        slot: Slot,
+        filter: CardFilter,
+    },
     /// "The number of Goblins on the battlefield": the permanents the
     /// filter matches as it is followed, read from the ability's source
     /// (CR 608.2h).
@@ -1725,6 +1741,9 @@ struct Scope<'a> {
     named: bool,
     /// What X is, "where X is the number of Goblins on the battlefield".
     x: Option<Amount>,
+    /// The slot the cards an instruction before discarded are bound to,
+    /// "discarded this way".
+    discarded: Option<Slot>,
 }
 
 impl<'a> Scope<'a> {
@@ -1744,6 +1763,7 @@ impl<'a> Scope<'a> {
             described: BTreeMap::new(),
             named: false,
             x: None,
+            discarded: None,
         }
     }
 
@@ -2009,9 +2029,12 @@ impl<'a> Scope<'a> {
                     Quant::N(a) => n(a)?,
                     q => return Err(format!("discarding {}", short(q))),
                 };
+                let into = self.new_slot();
+                self.discarded = Some(into);
                 Effect::Discard {
                     who: self.who(who)?,
                     n: k,
+                    into,
                 }
             }
             i::Effect::LoseLife { who, n: k } => Effect::LoseLife {
@@ -2177,6 +2200,38 @@ impl<'a> Scope<'a> {
             }
             // "It gets +2/+0 until end of turn for each other attacking
             // Goblin": one modification, its size counted (CR 608.2h).
+            // "For each land card discarded this way, gain 3 life."
+            i::Effect::ForEach { each, then, .. }
+                if matches!(
+                    each.filter.posts.as_slice(),
+                    [Post::Marked(i::Marked::Discarded)]
+                ) =>
+            {
+                let slot = self
+                    .discarded
+                    .ok_or("cards discarded by nothing the engine binds")?;
+                let filter = card_filter(&Objects {
+                    quant: Quant::One,
+                    filter: i::Filter {
+                        posts: Vec::new(),
+                        ..each.filter.clone()
+                    },
+                })?;
+                match then.as_slice() {
+                    [i::Effect::GainLife {
+                        who: i::Player::You,
+                        n: i::Amount::N(k),
+                    }] => Effect::GainLife {
+                        who: Who::You,
+                        n: Amount::PerFound {
+                            each: *k,
+                            slot,
+                            filter,
+                        },
+                    },
+                    _ => return Err(format!("{} discarded this way", node())),
+                }
+            }
             i::Effect::ForEach { each, then, .. } => match then.as_slice() {
                 [m @ i::Effect::Modify {
                     what,
@@ -2727,6 +2782,17 @@ pub struct ActivationCost {
 pub struct Activated {
     pub cost: ActivationCost,
     pub program: Program,
+    pub limits: ActivationLimits,
+}
+
+/// When an activated ability may be activated, beyond any time its
+/// controller has priority (CR 602.5).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ActivationLimits {
+    /// "Activate only once each turn" (CR 602.5b).
+    pub once_per_turn: bool,
+    /// "Activate only if an opponent lost life this turn" (CR 602.5).
+    pub opponent_lost_life: bool,
 }
 
 /// An activated ability's cost and effect, with the `Let` that binds its
@@ -2737,8 +2803,17 @@ pub fn activated(
     effect: &[i::Effect],
     limits: &[i::Limit],
 ) -> Result<Activated, String> {
-    if let Some(l) = limits.first() {
-        return Err(format!("an activated ability limited by {}", short(l)));
+    let mut limited = ActivationLimits::default();
+    for l in limits {
+        match l {
+            i::Limit::OncePerTurn => limited.once_per_turn = true,
+            i::Limit::OnlyIf(i::Condition::DidThisTurn(e))
+                if matches!(&**e, i::Event::LosesLife(i::Player::AnOpponent)) =>
+            {
+                limited.opponent_lost_life = true
+            }
+            other => return Err(format!("an activated ability limited by {}", short(other))),
+        }
     }
     let mut paid = ActivationCost::default();
     for c in cost {
@@ -2758,6 +2833,7 @@ pub fn activated(
     Ok(Activated {
         cost: paid,
         program: scope.program,
+        limits: limited,
     })
 }
 
@@ -2970,6 +3046,12 @@ pub struct CostChange {
     /// (CR 118.7a).
     pub generic: u32,
     pub less: bool,
+    /// "{1} less for each creature you control with power 4 or greater":
+    /// the change once for each permanent the filter matches, read from
+    /// the static's permanent (CR 601.2f).
+    pub per: Option<Filter>,
+    /// "During your turn": only in its controller's turn.
+    pub your_turn: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2981,6 +3063,15 @@ pub enum CastBy {
 
 /// A static that is one cost change, lowered, or `None` if it isn't one.
 pub fn cost_change(parts: &[i::Static]) -> Option<Result<CostChange, String>> {
+    // "During your turn, …": only in its controller's turn.
+    let (parts, your_turn) = match parts {
+        [i::Static::AsLongAs {
+            cond: i::Condition::ItsYourTurn,
+            then,
+            ..
+        }] => (then.as_slice(), true),
+        _ => (parts, false),
+    };
     let [i::Static::CostChange {
         what,
         by,
@@ -2991,9 +3082,9 @@ pub fn cost_change(parts: &[i::Static]) -> Option<Result<CostChange, String>> {
         return None;
     };
     Some((|| {
-        if per.is_some() {
-            return Err("a cost change for each".into());
-        }
+        // "For each creature you control with power 4 or greater": counted
+        // among the battlefield's permanents, read from the static's.
+        let per = per.as_ref().map(counted).transpose()?;
         if what.filter.kind != Some(i::Noun::Spell) || what.filter.or.is_some() {
             return Err("a cost change of other than spells".into());
         }
@@ -3025,6 +3116,8 @@ pub fn cost_change(parts: &[i::Static]) -> Option<Result<CostChange, String>> {
             cast_by,
             generic,
             less: *less,
+            per,
+            your_turn,
         })
     })())
 }

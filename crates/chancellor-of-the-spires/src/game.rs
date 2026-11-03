@@ -172,6 +172,9 @@ struct Runnable {
     /// where (CR 118.9): flashback, Fireblast's sacrifice. By the index of
     /// the ability that allows it.
     alternatives: BTreeMap<u16, lower::Alternative>,
+    /// "You may play an additional land on each of your turns" (CR
+    /// 305.2a), by index: how many more.
+    extra_lands: BTreeMap<u16, u32>,
     /// The abilities it carries that nothing offers to activate yet.
     dormant: Vec<String>,
 }
@@ -311,6 +314,8 @@ pub struct Player {
     /// The turn number the turn before it began on: their last upkeep's,
     /// for echo (CR 702.30a).
     last_turn: Option<u32>,
+    /// Whether they have lost life this turn (CR 119.3).
+    lost_life: bool,
     /// Their commanders' colour identity (CR 903.4), or `None` with no
     /// commander (CR 903.4f).
     identity: Option<Vec<Color>>,
@@ -652,11 +657,12 @@ enum Waiting {
         ability: bool,
         from_command: bool,
     },
-    /// CR 514.1, or an instruction (CR 701.9a), which `then` goes on with.
+    /// CR 514.1, or an instruction (CR 701.9a), which `then` goes on with,
+    /// the cards discarded bound to its slot.
     Discard {
         player: PlayerId,
         count: usize,
-        then: Option<Resuming>,
+        then: Option<(Resuming, Slot)>,
     },
     /// `player` chooses targets for each of `slots` (CR 601.2c, 603.3d).
     Targets {
@@ -1384,6 +1390,7 @@ impl Game {
                 drew_from_empty: false,
                 turn_began: None,
                 last_turn: None,
+                lost_life: false,
                 identity,
                 mulligans: 0,
                 kept: !setup.mulligans,
@@ -2062,7 +2069,7 @@ impl Game {
                     // CR 601.2h: the rest of its total cost, paid with the
                     // mana in any order.
                     let other = self.other_costs(spell);
-                    self.players[player.0 as usize].life -= other.life as i32;
+                    self.lose_life(player, other.life);
                     match other.sacrifice {
                         Some((count, filter)) => {
                             self.waiting = Waiting::Sacrifice {
@@ -2090,7 +2097,11 @@ impl Game {
             ) if self.can_discard(player, count, cards) => {
                 self.discard(player, cards);
                 match then {
-                    Some(at) => self.follow(at),
+                    // Bound for "discarded this way".
+                    Some((mut at, into)) => {
+                        at.found.insert(into, cards.clone());
+                        self.follow(at)
+                    }
                     // The excess is gone, so beginning cleanup again
                     // discards nothing and runs the rest of it (CR
                     // 514.2–514.3).
@@ -2406,7 +2417,7 @@ impl Game {
             ) => {
                 if *pay {
                     // CR 119.4.
-                    self.players[player.0 as usize].life -= life as i32;
+                    self.lose_life(player, life);
                 }
                 self.place(card, player, tapped || !pay, then);
             }
@@ -2536,8 +2547,9 @@ impl Game {
         // CR 117.1a: a noninstant spell, and a land, only in your main
         // phase with the stack empty.
         let sorcery_speed = p == self.active && self.step.is_main() && self.stack.is_empty();
-        // One land a turn (CR 305.2, 305.2a); nothing raises it yet.
-        if sorcery_speed && player.lands_played < 1 {
+        // One land a turn, more for each static that lets its controller
+        // play an additional one (CR 305.2, 305.2a).
+        if sorcery_speed && player.lands_played < 1 + self.extra_lands(p) {
             actions.extend(
                 player
                     .hand
@@ -2637,6 +2649,29 @@ impl Game {
         actions
     }
 
+    /// How many more lands than one `p` may play this turn (CR 305.2a).
+    fn extra_lands(&self, p: PlayerId) -> u32 {
+        self.characteristics()
+            .iter()
+            .filter(|(_, c)| c.controller == p)
+            .map(|(id, c)| {
+                let Some(runs) = self
+                    .known(self.permanents[id].card)
+                    .and_then(|k| k.runs.as_ref().ok())
+                else {
+                    return 0;
+                };
+                c.abilities
+                    .iter()
+                    .filter_map(|a| match a {
+                        Ability::Unread(n) => runs.extra_lands.get(n).copied(),
+                        _ => None,
+                    })
+                    .sum::<u32>()
+            })
+            .sum()
+    }
+
     /// Every activated ability other than a mana ability `p` can activate
     /// now (CR 117.1b), costs they can pay (CR 118.3, 119.4) and all.
     fn activations(&self, p: PlayerId) -> Vec<Activation> {
@@ -2661,8 +2696,19 @@ impl Game {
                 let sick = chars.is(CardType::Creature)
                     && !chars.abilities.contains(&Ability::Keyword(Keyword::Haste))
                     && player.turn_began.is_none_or(|t| perm.since >= t);
+                // CR 602.5, 602.5b.
+                let Ability::Unread(k) = ability else {
+                    continue;
+                };
+                let opponent_lost = self
+                    .players
+                    .iter()
+                    .enumerate()
+                    .any(|(q, pl)| q != p.0 as usize && pl.lost_life);
                 if def.cost.tap && (perm.tapped || sick)
                     || def.cost.life > 0 && player.life < def.cost.life as i32
+                    || def.limits.once_per_turn && self.used.contains(&(id, *k))
+                    || def.limits.opponent_lost_life && !opponent_lost
                 {
                     continue;
                 }
@@ -3024,6 +3070,9 @@ impl Game {
                 };
                 let cost = def.cost.clone();
                 let slots = def.program.targets.clone();
+                if def.limits.once_per_turn {
+                    self.used.insert((a.source, n));
+                }
                 self.before_cast = Some(Box::new(self.clone()));
                 // CR 602.2a: on the stack first, then its targets chosen
                 // and its costs paid (CR 602.2b, 601.2c, 601.2h).
@@ -3038,7 +3087,7 @@ impl Game {
                     self.tap(a.source);
                 }
                 // CR 119.4.
-                self.players[p.0 as usize].life -= cost.life as i32;
+                self.lose_life(p, cost.life);
                 if cost.sacrifice {
                     // CR 701.21a.
                     self.put_in_graveyard(a.source);
@@ -3193,7 +3242,8 @@ impl Game {
             return cost;
         };
         let (mut more, mut less) = (0, 0);
-        for (id, chars) in self.characteristics() {
+        let all = self.characteristics();
+        for (id, chars) in all.clone() {
             let Some(runs) = self
                 .known(self.permanents[&id].card)
                 .and_then(|k| k.runs.as_ref().ok())
@@ -3210,11 +3260,16 @@ impl Game {
                     lower::CastBy::You => p == chars.controller,
                     lower::CastBy::Opponents => p != chars.controller,
                 };
-                if caster && change.spells.matches(spell) {
+                let now = !change.your_turn || chars.controller == self.active;
+                if caster && now && change.spells.matches(spell) {
+                    let times = match &change.per {
+                        None => 1,
+                        Some(f) => self.count(f, id, &chars, &all),
+                    };
                     if change.less {
-                        less += change.generic;
+                        less += change.generic * times;
                     } else {
-                        more += change.generic;
+                        more += change.generic * times;
                     }
                 }
             }
@@ -3306,16 +3361,16 @@ impl Game {
         if tap {
             self.tap(a.source);
         }
-        let player = &mut self.players[p.0 as usize];
         // CR 119.4.
-        player.life -= life as i32;
+        self.lose_life(p, life);
+        let player = &mut self.players[p.0 as usize];
         player.pool = player.pool.minus(&a.pays);
         player.pool.add_all(&a.adds);
         // CR 120.3a, 120.3f: its damage to its controller is life lost,
         // and gained back if it has lifelink.
-        player.life -= damage as i32;
+        self.lose_life(p, damage);
         if lifelink {
-            player.life += damage as i32;
+            self.players[p.0 as usize].life += damage as i32;
         }
         if let Some(o) = a.sacrifices {
             self.put_in_graveyard(o);
@@ -3581,14 +3636,14 @@ impl Game {
                         }
                     }
                 }
-                Effect::Discard { who: w, n } => {
+                Effect::Discard { who: w, n, into } => {
                     let Some(q) = who(w) else { continue };
                     let count = (n as usize).min(self.player(q).hand.len());
                     if count > 0 {
                         self.waiting = Waiting::Discard {
                             player: q,
                             count,
-                            then: Some(resume),
+                            then: Some((resume, into)),
                         };
                         return;
                     }
@@ -3607,7 +3662,7 @@ impl Game {
                 Effect::LoseLife { who: w, n } => {
                     let n = self.amount(&at, n);
                     if let Some(q) = who(w) {
-                        self.players[q.0 as usize].life -= n as i32;
+                        self.lose_life(q, n);
                     }
                 }
                 Effect::GainLife { who: w, n } => {
@@ -4048,6 +4103,23 @@ impl Game {
         match n {
             lower::Amount::N(n) => n,
             lower::Amount::CountOf(f) => self.objects_on(at, &lower::On::Each(f)).len() as u32,
+            lower::Amount::PerFound { each, slot, filter } => {
+                let matching = at
+                    .found
+                    .get(&slot)
+                    .map(|cards| {
+                        cards
+                            .iter()
+                            .filter(|c| {
+                                self.known(**c)
+                                    .and_then(|k| k.printed.as_ref())
+                                    .is_some_and(|ch| filter.matches(ch))
+                            })
+                            .count()
+                    })
+                    .unwrap_or(0);
+                each * matching as u32
+            }
             lower::Amount::ThatMuch => at.amount.unwrap_or(0),
             lower::Amount::PowerOf(o) => self
                 .now_or_last(at, o)
@@ -4189,7 +4261,7 @@ impl Game {
             match to {
                 // CR 120.3a.
                 Target::Player(q) => {
-                    self.players[q.0 as usize].life -= *n as i32;
+                    self.lose_life(*q, *n);
                     dealt.players.insert(*q);
                 }
                 // CR 120.3e.
@@ -4396,7 +4468,10 @@ impl Game {
     /// its instructions ask for, if any.
     pub fn resolving(&self) -> Option<CardId> {
         let at = match &self.waiting {
-            Waiting::Discard { then: Some(at), .. }
+            Waiting::Discard {
+                then: Some((at, _)),
+                ..
+            }
             | Waiting::ChooseFromHand { resume: at, .. }
             | Waiting::Scry { resume: at, .. }
             | Waiting::Search { resume: at, .. }
@@ -5172,6 +5247,7 @@ impl Game {
         player.turn_began = Some(self.turn);
         for player in &mut self.players {
             player.lands_played = 0;
+            player.lost_life = false;
         }
         self.run_from(Step::Untap);
     }
@@ -5508,6 +5584,16 @@ impl Game {
             .map(|((p, _), ids)| Checked::Legend(p, ids))
     }
 
+    /// A player loses life, paid or dealt as damage (CR 119.3, 119.4,
+    /// 120.3a), and has lost life this turn.
+    fn lose_life(&mut self, q: PlayerId, n: u32) {
+        if n > 0 {
+            let player = &mut self.players[q.0 as usize];
+            player.life -= n as i32;
+            player.lost_life = true;
+        }
+    }
+
     /// An untapped permanent becomes tapped (CR 701.26a), which what waits
     /// for that triggers on.
     fn tap(&mut self, id: ObjectId) {
@@ -5659,6 +5745,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         cycling: None,
         cost_changes: BTreeMap::new(),
         alternatives: BTreeMap::new(),
+        extra_lands: BTreeMap::new(),
         dormant: Vec::new(),
         lowered,
     };
@@ -5728,6 +5815,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                                         n: 1,
                                     }],
                                 },
+                                limits: Default::default(),
                             },
                         ));
                     } else if let Some(t) = lower::keyword_trigger(k) {
@@ -5756,6 +5844,14 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     if matches!(ks.as_slice(), [k] if k.param.is_none() && k.name.eq_ignore_ascii_case("hexproof"))) =>
             {
                 runs.hexproof.insert(n);
+            }
+            // CR 305.2a.
+            i::Ability::Static(parts)
+                if matches!(parts.as_slice(), [i::Static::ExtraLand(i::Amount::N(_))]) =>
+            {
+                if let [i::Static::ExtraLand(i::Amount::N(k))] = parts.as_slice() {
+                    runs.extra_lands.insert(n, *k);
+                }
             }
             i::Ability::Static(parts) if lower::alternative_cost(parts).is_some() => {
                 match lower::alternative_cost(parts).expect("an alternative cost") {

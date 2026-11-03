@@ -134,13 +134,16 @@ resolving the top (CR 405.5, 608.1), after which the active player gets
 priority (CR 117.3b); untap (CR 502.3); the starting player skipping their
 first draw in a two-player game and no one in a larger one (CR 103.8a,
 103.8c); one land a turn, only in your main phase with priority and the
-stack empty (CR 305.1–305.2); casting (CR 601.2) at sorcery speed, or any
+stack empty, and another for each "You may play an additional land on
+each of your turns" its player controls (CR 305.1–305.2a: Exploration); casting (CR 601.2) at sorcery speed, or any
 time you have priority for an instant or a card with flash (CR 117.1a);
 mana costs of generic, coloured, colourless and hybrid symbols (CR 107.4,
 202.1a); commander tax (CR 903.8); a static's generic cost change for
 spells a filter matches, cast by anyone, its controller or their
 opponents (Thalia's "Noncreature spells cost {1} more", Goblin
-Warchief's "Goblin spells you cast cost {1} less"), increases added and
+Warchief's "Goblin spells you cast cost {1} less"), for each permanent a
+filter matches and only during its controller's turn (Temur
+Battlecrier's), increases added and
 reductions taken from the generic component alone, never below {0} (CR
 601.2f, 118.7a); a permanent spell entering under its
 caster's control (CR 608.3a) and an instant or sorcery going to the
@@ -158,7 +161,8 @@ mana, a choice of it, any colour, a colour of the commander's identity
 activated (Gaea's Cradle, CR 608.2h), without the stack (CR 605.3b), a
 creature's only once it has been yours since your turn began (CR 302.6)
 or has haste; other activated abilities any time you have priority (CR
-117.1b), costing a tap, life, sacrificing their source and mana, paid
+117.1b), or only once each turn or if an opponent lost life this turn
+(CR 602.5, 602.5b: Hired Claw), costing a tap, life, sacrificing their source and mana, paid
 as a spell's is (CR 602.2, 602.2b, 701.21a), their targets chosen as
 they are activated (Mogg Fanatic, Wasteland, Rishadan Port's "Tap target
 land", CR 701.26a), "becomes a 2/2 Assembly-Worker artifact creature
@@ -194,7 +198,8 @@ planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
 lifelink, CR 702.15b), scry and +1/+1, other power and toughness
 (CR 122.1a) or named counters, mana added to the pool (Dark
-Ritual, CR 106.3), damage "where X is the number of Goblins on the
+Ritual, CR 106.3), life "for each land card discarded this way", of
+the cards the discard bound (Gerrard's Verdict), damage "where X is the number of Goblins on the
 battlefield", counted as it is dealt (CR 608.2h), "can't be regenerated", which restricts nothing
 while no regeneration lowers (CR 701.19a–c), a card name chosen, of a
 real card with the characteristics asked (Cabal Therapy's "a nonland
@@ -376,10 +381,13 @@ bound for the state machine. Any other node is
 refused by name, never dropped. `insight card <name>` shows what a card
 reads as.
 
-**524 of the 574 cards in the Modern metagame lower whole** (550 of 600
-faces), measured 2026-11-02 against the Scryfall bulk file:
+**526 of the 574 cards in the Modern metagame lower whole** (552 of 600
+faces), measured 2026-11-03 against the Scryfall bulk file:
 `cargo test --release -p chancellor-of-the-spires --test coverage -- --ignored --nocapture`
-prints the number and the refusals by node. It was 523 until the layers
+prints the number and the refusals by node. It was 524 until a rule that
+holds only during its controller's turn ("During your turn, spells you
+cast cost {1} less", Temur Battlecrier's kind) was carried
+for the state machine rather than refused, and 523 until the layers
 named first and double strike, menace, reach, defender and protection, so
 a static granting one lowers, and 522 until "as long as you control …" and "as long as it's your
 turn" lowered with a static over its own object, and 495 until a shock
@@ -388,8 +396,7 @@ land's "As this land enters, you may pay 2 life" (19 cards) and a static
 enters tapped", 8) were carried, since neither changes a characteristic.
 The most refused are modifying by an amount (8), "as this enters" (6, other choices, or a copiable effect if
 it sets a size, CR 613.2a), 7a's characteristic-defining abilities
-(`SetPt`), copy effects, and "as long as" over an amount or whose turn
-(4 each, Dromoka's a rule, not a characteristic). Karn Liberated and two others don't parse:
+(`SetPt`), copy effects, and "as long as" over an amount (3 or 4 each). Karn Liberated and two others don't parse:
 they are cards with a rule of their
 own, which Insight's headline leaves out.
 
@@ -599,17 +606,17 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 51 replay to the end** (48 to the log's winner
-line), 34 of them past the first turn, and **26.99% of their lines are
-followed** (21,103 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 52 replay to the end** (49 to the log's winner
+line), 35 of them past the first turn, and **27.27% of their lines are
+followed** (21,319 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-03, and 14 games rely on a land the log never names (1
+measured 2026-11-03, and 15 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 320 stop
-in the first turn, 369 in the second, 172 in the third, 86 later, and 63
+no turn in them (empty logs, concessions during the mulligans). 315 stop
+in the first turn, 363 in the second, 177 in the third, 91 later, and 63
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -624,7 +631,7 @@ Aether Vial 19.83%; revealing and looking at a library's top cards 20
 games, 20.43%; Leylines 20.55%; "as long as" 20.62%; destroy, exile,
 bounce, counter and dying 20.72%; search as an instruction 20.81%;
 responses 20.84%; tokens 20.96%; then the milestone's work took it to
-23.99% and on to 26.99% (below). Games to the end barely moved: a game
+23.99% and on to 27.27% (below). Games to the end barely moved: a game
 that gets past one stop meets the next, most in its first two turns. The
 stops now, by games: an exile line not followed (60: suspend's Rift Bolt,
 Grim Lavamancer's cost), a card with two faces (50), `Trigger::When(Event::Or)`
@@ -686,9 +693,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-03 49 of the 500 replay to
-the end and 36.80% of their lines are followed** (11,650 of 31,659), 4
-of them relying on a land the log never names (1 to the end), and 53
+Worked card by card from there, **on 2026-11-03 50 of the 500 replay to
+the end and 37.48% of their lines are followed** (11,866 of 31,659), 5
+of them relying on a land the log never names (1 to the end), and 54
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -712,7 +719,11 @@ Flame); the beginning of combat (Luminarch Aspirant); becoming tapped
 (City of Brass); mana of a colour chosen as an instruction resolves
 (Outcaster Trailblazer); "unless" paid or not (Mana Leak, echo); a
 cycling trigger and an X counted (Gempalm Incinerator); entering with
-counters and a mana ability taking one off (Gemstone Mine). And
+counters and a mana ability taking one off (Gemstone Mine); another land
+a turn (Exploration); an activated ability limited to once a turn and
+to an opponent having lost life (Hired Claw); a cost change for each
+permanent during its controller's turn (Temur Battlecrier); "for each
+land card discarded this way" (Gerrard's Verdict). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -721,9 +732,10 @@ names as a hypothesis, and which of two permanents of one name an
 activation is of. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Burst Lightning's kicker and Sylvan Library (11
-each), Wild Growth's Aura and morph's face-down casting (10 each),
-Vesuva's copy (8) and Temur Battlecrier (7), and no divergence is left: those the run found were the replay's (a block or
+top of the worklist now: Wild Growth's Aura (12), Burst Lightning's
+kicker and Sylvan Library (11 each), morph's face-down casting (10),
+Vesuva's copy (8), and Goblin Cadets and Veteran Survivor (6 each), and
+no divergence is left: those the run found were the replay's (a block or
 an activation of the wrong one of two permanents of one name, a ritual's
 mana cast away in the draw step, a filter land's floating mana never
 tried), each fixed.

@@ -2646,3 +2646,138 @@ fn gemstone_mine_runs_out_of_mining_counters() {
     }
     assert_eq!(creature(&game, "Gemstone Mine"), None);
 }
+
+/// CR 305.2a: with Exploration I may play a second land this turn, not a
+/// third.
+#[test]
+fn exploration_lets_me_play_an_additional_land() {
+    let mut game = deal(
+        &[("Forest", 40), ("Exploration", 20)],
+        &[("Forest", 60)],
+        &[("Forest", 3), ("Exploration", 1)],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Exploration", None);
+    resolve(&mut game);
+    play(&mut game, "Forest");
+    assert!(in_hand(&game, ME, "Forest").is_some());
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(!actions.iter().any(|a| matches!(a, Action::PlayLand(_))));
+}
+
+/// CR 602.5, 602.5b: Hired Claw's "{1}{R}: Put a +1/+1 counter on this
+/// creature. Activate only if an opponent lost life this turn and only once
+/// each turn" isn't offered until they have lost life, then once.
+#[test]
+fn hired_claw_grows_once_after_an_opponent_lost_life() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Hired Claw", 10), ("Lightning Bolt", 10)],
+        &[("Forest", 60)],
+        &[("Mountain", 3), ("Hired Claw", 1), ("Lightning Bolt", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Hired Claw", None);
+    resolve(&mut game);
+    let claw = creature(&game, "Hired Claw").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    let grow = |game: &Game| match game.decision() {
+        Decision::Priority { actions, .. } => actions
+            .into_iter()
+            .find(|a| matches!(a, Action::Activate(x) if x.source == claw)),
+        _ => None,
+    };
+    assert_eq!(grow(&game), None, "no one has lost life");
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Player(THEM)]),
+    );
+    resolve(&mut game);
+    let a = grow(&game).expect("they lost life");
+    step(&mut game, Answer::Act(a));
+    while let Decision::Pay { actions, .. } = game.decision() {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .unwrap();
+        step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    assert_eq!(pt_of(&game, claw), pt(2, 3));
+    assert_eq!(grow(&game), None, "once each turn");
+}
+
+/// CR 601.2f: Temur Battlecrier's "During your turn, spells you cast cost
+/// {1} less to cast for each creature you control with power 4 or
+/// greater" counts itself, a 4/3, so Grizzly Bears costs {G}.
+#[test]
+fn temur_battlecrier_discounts_my_spells_for_each_big_creature() {
+    let mut game = deal(
+        &[
+            ("Forest", 15),
+            ("Island", 15),
+            ("Mountain", 15),
+            ("Temur Battlecrier", 8),
+            ("Grizzly Bears", 7),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Forest", 2),
+            ("Island", 1),
+            ("Mountain", 1),
+            ("Temur Battlecrier", 1),
+            ("Grizzly Bears", 1),
+        ],
+    );
+    assert_eq!(owed_for(&mut game, ME, "Grizzly Bears"), "{1}{G}");
+    for land in ["Forest", "Island"] {
+        play(&mut game, land);
+        my_next_main(&mut game);
+    }
+    play(&mut game, "Mountain");
+    cast(&mut game, "Temur Battlecrier", None);
+    resolve(&mut game);
+    assert_eq!(owed_for(&mut game, ME, "Grizzly Bears"), "{G}");
+}
+
+/// CR 701.9a, 608.2c: Gerrard's Verdict's "Target player discards two
+/// cards. You gain 3 life for each land card discarded this way" counts
+/// the lands among the two they chose.
+#[test]
+fn gerrards_verdict_gains_life_for_each_land_discarded() {
+    let mut game = deal_both(
+        &[("Plains", 20), ("Swamp", 20), ("Gerrard's Verdict", 20)],
+        &[("Forest", 30), ("Grizzly Bears", 30)],
+        &[("Plains", 1), ("Swamp", 1), ("Gerrard's Verdict", 1)],
+        &[("Forest", 1), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Plains");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(
+        &mut game,
+        "Gerrard's Verdict",
+        Some(vec![Target::Player(THEM)]),
+    );
+    let Decision::Discard { player, hand, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(player, THEM);
+    let forest = *hand
+        .iter()
+        .find(|c| game.card(**c).unwrap().name == "Forest")
+        .unwrap();
+    let bears = *hand
+        .iter()
+        .find(|c| game.card(**c).unwrap().name == "Grizzly Bears")
+        .unwrap();
+    step(&mut game, Answer::Discard(vec![forest, bears]));
+    assert_eq!(game.player(ME).life(), 23);
+}
