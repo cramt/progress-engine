@@ -527,12 +527,20 @@ enum Event {
     Damaged(BTreeMap<ObjectId, u32>),
     /// This permanent dealt damage to a player, combat damage or not.
     DamagedPlayer { source: ObjectId, combat: bool },
+    /// A source this player controls dealt damage to that player, a spell
+    /// or a permanent (CR 120.3).
+    PlayerDamaged {
+        player: PlayerId,
+        controller: PlayerId,
+    },
     /// A step of the active player's turn began.
     Begins(TurnStep),
     /// This creature died: it is gone, as it last existed (CR 700.4).
     Died(ObjectId),
     /// This player drew a card (CR 121.2).
     Drew(PlayerId),
+    /// This permanent became tapped (CR 701.26a).
+    BecameTapped(ObjectId),
 }
 
 /// The combat phase's state (CR 506): who attacks whom, who blocks what.
@@ -782,6 +790,13 @@ enum Waiting {
         count: u32,
         filter: Filter,
     },
+    /// CR 106.3: `player` chooses which of `options` the resolving
+    /// instruction adds to their pool.
+    ChooseMana {
+        player: PlayerId,
+        options: Vec<ManaPool>,
+        resume: Resuming,
+    },
     /// CR 201.4: `player` names a card `filter` matches for the resolving
     /// instruction.
     ChooseName {
@@ -981,6 +996,13 @@ pub enum Decision {
         count: u32,
         legal: Vec<ObjectId>,
     },
+    /// CR 106.3: choose the mana `card`'s instruction adds, one of
+    /// `options`, answered `Answer::Mana`.
+    ChooseMana {
+        player: PlayerId,
+        card: CardId,
+        options: Vec<ManaPool>,
+    },
     /// CR 201.4, 201.4a: name a card of the Oracle card reference that
     /// `filter` matches, for `card`'s instruction, answered
     /// `Answer::Name`.
@@ -1105,6 +1127,8 @@ pub enum Answer {
     Sacrifice(Vec<ObjectId>),
     /// CR 201.4: the card named, as the Oracle card reference has it.
     Name(Box<CardText>),
+    /// CR 106.3: the mana added.
+    Mana(ManaPool),
 }
 
 #[derive(Debug)]
@@ -1866,6 +1890,15 @@ impl Game {
                 count: *count,
                 legal: self.sacrificable(*player, filter),
             },
+            Waiting::ChooseMana {
+                player,
+                options,
+                resume,
+            } => Decision::ChooseMana {
+                player: *player,
+                card: resume.what.card(),
+                options: options.clone(),
+            },
             Waiting::ChooseName {
                 player,
                 filter,
@@ -2424,6 +2457,17 @@ impl Game {
                 }
                 self.cast_done(player, spell);
             }
+            (
+                Waiting::ChooseMana {
+                    player,
+                    options,
+                    resume,
+                },
+                Answer::Mana(mana),
+            ) if options.contains(mana) => {
+                self.players[player.0 as usize].pool.add_all(mana);
+                self.follow(resume);
+            }
             (Waiting::ChooseName { filter, resume, .. }, Answer::Name(text)) => {
                 // CR 201.4a: a card whose Oracle text has the
                 // characteristics, not a token.
@@ -2592,6 +2636,21 @@ impl Game {
             }
         }
         out
+    }
+
+    /// Whether a permanent has a triggered ability that triggers on its
+    /// becoming tapped (City of Brass).
+    pub fn triggers_on_tapping(&self, id: ObjectId) -> bool {
+        let Some(perm) = self.permanents.get(&id) else {
+            return false;
+        };
+        match self.known(perm.card).map(|k| &k.runs) {
+            Some(Ok(r)) => r
+                .triggered
+                .values()
+                .any(|t| matches!(t.event, TriggerEvent::BecomesTapped(_))),
+            _ => false,
+        }
     }
 
     /// The counter a mana ability puts on its source as its cost.
@@ -2890,9 +2949,7 @@ impl Game {
                     targets: Vec::new(),
                 });
                 if cost.tap {
-                    if let Some(perm) = self.permanents.get_mut(&a.source) {
-                        perm.tapped = true;
-                    }
+                    self.tap(a.source);
                 }
                 // CR 119.4.
                 self.players[p.0 as usize].life -= cost.life as i32;
@@ -3153,9 +3210,7 @@ impl Game {
             .abilities
             .contains(&Ability::Keyword(Keyword::Lifelink));
         if tap {
-            if let Some(perm) = self.permanents.get_mut(&a.source) {
-                perm.tapped = true;
-            }
+            self.tap(a.source);
         }
         let player = &mut self.players[p.0 as usize];
         // CR 119.4.
@@ -3475,8 +3530,10 @@ impl Game {
                 Effect::Tap(ref on) | Effect::Untap(ref on) => {
                     let tapped = matches!(e, Effect::Tap(_));
                     for o in self.objects_on(&at, on) {
-                        if let Some(perm) = self.permanents.get_mut(&o) {
-                            perm.tapped = tapped;
+                        if tapped {
+                            self.tap(o);
+                        } else if let Some(perm) = self.permanents.get_mut(&o) {
+                            perm.tapped = false;
                         }
                     }
                 }
@@ -3535,7 +3592,7 @@ impl Game {
                     let source = self.source_of(&at);
                     let hit = self.deal(source.as_ref(), at.controller, &hits);
                     let by = at.object.filter(|o| self.permanents.contains_key(o));
-                    self.damage_triggers(hit, by, false);
+                    self.damage_triggers(hit, by, false, at.controller);
                 }
                 Effect::Damage { to, n } => {
                     let to = match to {
@@ -3553,11 +3610,19 @@ impl Game {
                         let source = self.source_of(&at);
                         let hit = self.deal(source.as_ref(), at.controller, &[(to, n)]);
                         let by = at.object.filter(|o| self.permanents.contains_key(o));
-                        self.damage_triggers(hit, by, false);
+                        self.damage_triggers(hit, by, false, at.controller);
                     }
                 }
                 // CR 106.3.
                 Effect::AddMana(mana) => self.players[p.0 as usize].pool.add_all(&mana),
+                Effect::AddManaOf(options) => {
+                    self.waiting = Waiting::ChooseMana {
+                        player: p,
+                        options,
+                        resume,
+                    };
+                    return;
+                }
                 // CR 603.7a.
                 Effect::Delayed { step, effects } => self.delayed.push_back(Delayed {
                     source: at.what.card(),
@@ -4028,14 +4093,21 @@ impl Game {
 
     /// What waits for damage dealt at once triggers: a permanent dealt
     /// some, and the permanent `by` that dealt it to each player.
-    fn damage_triggers(&mut self, hit: Dealt, by: Option<ObjectId>, combat: bool) {
+    fn damage_triggers(
+        &mut self,
+        hit: Dealt,
+        by: Option<ObjectId>,
+        combat: bool,
+        controller: PlayerId,
+    ) {
         if !hit.objects.is_empty() {
             self.trigger_on(Event::Damaged(hit.objects));
         }
-        if let Some(source) = by {
-            for _ in hit.players {
+        for player in hit.players {
+            if let Some(source) = by {
                 self.trigger_on(Event::DamagedPlayer { source, combat });
             }
+            self.trigger_on(Event::PlayerDamaged { player, controller });
         }
     }
 
@@ -4212,7 +4284,9 @@ impl Game {
             | Waiting::Reveal { resume: at, .. }
             | Waiting::ChooseAmong { resume: at, .. }
             | Waiting::Arrange { resume: at, .. }
-            | Waiting::PutFromHand { resume: at, .. } => at,
+            | Waiting::PutFromHand { resume: at, .. }
+            | Waiting::ChooseMana { resume: at, .. }
+            | Waiting::ChooseName { resume: at, .. } => at,
             _ => return None,
         };
         Some(at.what.card())
@@ -4350,6 +4424,19 @@ impl Game {
                         [id] if f.matches(&seen(*id)) => vec![(Some(*id), None)],
                         _ => vec![],
                     },
+                    (
+                        TriggerEvent::YourSourceDamages { opponent },
+                        Event::PlayerDamaged { player, controller },
+                    ) => (*controller == chars.controller
+                        && (!opponent || *player != chars.controller))
+                        .then_some((None, None))
+                        .into_iter()
+                        .collect(),
+                    (TriggerEvent::BecomesTapped(f), Event::BecameTapped(id)) => f
+                        .matches(&seen(*id))
+                        .then_some((Some(*id), None))
+                        .into_iter()
+                        .collect(),
                     (TriggerEvent::Draws { by }, Event::Drew(q)) => {
                         let drew = match by {
                             lower::CastBy::Anyone => true,
@@ -4566,9 +4653,7 @@ impl Game {
         for (a, d) in declared {
             combat.attackers.insert(*a, *d);
             if !chars[a].has(Keyword::Vigilance) {
-                if let Some(perm) = self.permanents.get_mut(a) {
-                    perm.tapped = true;
-                }
+                self.tap(*a);
             }
         }
         self.battlefield.attacking = combat.attackers.keys().copied().collect();
@@ -4700,7 +4785,7 @@ impl Game {
         let chars = self.characteristics();
         let sources: BTreeSet<ObjectId> = assigned.iter().map(|(s, _, _)| *s).collect();
         let mut dealt: BTreeMap<ObjectId, u32> = BTreeMap::new();
-        let mut hit_players: Vec<ObjectId> = Vec::new();
+        let mut hit_players: Vec<(ObjectId, PlayerId, PlayerId)> = Vec::new();
         for s in &sources {
             let hits: Vec<(Target, u32)> = assigned
                 .iter()
@@ -4713,8 +4798,8 @@ impl Game {
             for (o, n) in hit.objects {
                 *dealt.entry(o).or_insert(0) += n;
             }
-            for _ in hit.players {
-                hit_players.push(*s);
+            for q in hit.players {
+                hit_players.push((*s, controller, q));
             }
         }
         // One event for all of it: a creature dealt damage by two at once
@@ -4726,12 +4811,14 @@ impl Game {
             },
             None,
             true,
+            self.active,
         );
-        for s in hit_players {
+        for (s, controller, player) in hit_players {
             self.trigger_on(Event::DamagedPlayer {
                 source: s,
                 combat: true,
             });
+            self.trigger_on(Event::PlayerDamaged { player, controller });
         }
         if first {
             if let Some(c) = self.combat.as_mut() {
@@ -5028,6 +5115,11 @@ impl Game {
                         return self.give_priority(self.active, 0);
                     }
                 }
+                // CR 507.1: what waits for the beginning of combat.
+                Step::BeginningOfCombat => {
+                    self.trigger_on(Event::Begins(TurnStep::BeginningOfCombat));
+                    return self.give_priority(self.active, 0);
+                }
                 _ => return self.give_priority(self.active, 0),
             }
             match self.after(step) {
@@ -5266,6 +5358,17 @@ impl Game {
             .map(|((p, _), ids)| Checked::Legend(p, ids))
     }
 
+    /// An untapped permanent becomes tapped (CR 701.26a), which what waits
+    /// for that triggers on.
+    fn tap(&mut self, id: ObjectId) {
+        if let Some(perm) = self.permanents.get_mut(&id) {
+            if !perm.tapped {
+                perm.tapped = true;
+                self.trigger_on(Event::BecameTapped(id));
+            }
+        }
+    }
+
     /// A permanent is put into its owner's graveyard.
     fn put_in_graveyard(&mut self, id: ObjectId) {
         self.leave_battlefield(id, Zone::Graveyard);
@@ -5361,14 +5464,15 @@ fn before_the_game(k: &i::Keyword) -> bool {
 }
 
 /// Abilities that work only from a hand or a graveyard, which nothing
-/// offers yet (CR 702.29a, 702.29e, 702.53a, 702.34a; eternalize, embalm,
-/// unearth and scavenge, CR 702.129a, 702.128a, 702.84a, 702.97a).
+/// offers yet (CR 702.29a, 702.29e, 702.53a; eternalize, embalm, unearth,
+/// scavenge and plot, CR 702.129a, 702.128a, 702.84a, 702.97a, 702.170a),
+/// and flashback whose cost the engine can't pay (CR 702.34a).
 fn hand_keyword(k: &i::Keyword) -> bool {
     let name = k.name.to_lowercase();
     name.ends_with("cycling")
         || matches!(
             name.as_str(),
-            "transmute" | "flashback" | "eternalize" | "embalm" | "unearth" | "scavenge"
+            "transmute" | "flashback" | "eternalize" | "embalm" | "unearth" | "scavenge" | "plot"
         )
 }
 

@@ -23,8 +23,8 @@ use std::fmt;
 
 use crate::deck::{CardText, DeckCards};
 use crate::game::{
-    Action, Activation, Answer, CardId, Decision, Format, Found, Game, ManaActivation, ManaCost,
-    ManaPool, Payment, Rejected, Setup, StackObject, Step, Target, HAND_SIZE,
+    Action, Activation, Answer, CardId, Decision, Format, Found, Game, Mana, ManaActivation,
+    ManaCost, ManaPool, Payment, Rejected, Setup, StackObject, Step, Target, HAND_SIZE,
 };
 use crate::log::{self, Entry, Event, Object};
 use crate::lower::CastFrom;
@@ -240,6 +240,7 @@ pub fn replay(
         activated: (0, Vec::new()),
         pick: None,
         early: None,
+        counted: BTreeMap::new(),
         named: HashMap::new(),
         trace: Vec::new(),
         seats: Vec::new(),
@@ -312,6 +313,7 @@ struct Knew {
     activated: (u32, Vec<ObjectId>),
     pick: Option<(usize, usize)>,
     early: Option<usize>,
+    counted: BTreeMap<(ObjectId, Counter), u32>,
 }
 
 #[derive(Clone)]
@@ -349,6 +351,8 @@ struct Driver<'a> {
     /// The line whose spell is cast in its caster's beginning phase
     /// (`Retry::Early`).
     early: Option<usize>,
+    /// The counters the log has shown put on each permanent, by kind.
+    counted: BTreeMap<(ObjectId, Counter), u32>,
     named: HashMap<String, Option<CardText>>,
     trace: Vec<Traced>,
     /// The engine's player for each of the log's.
@@ -412,6 +416,7 @@ impl Driver<'_> {
             activated: self.activated.clone(),
             pick: self.pick,
             early: self.early,
+            counted: self.counted.clone(),
         }
     }
 
@@ -430,6 +435,7 @@ impl Driver<'_> {
         self.activated = knew.activated;
         self.pick = knew.pick;
         self.early = knew.early;
+        self.counted = knew.counted;
     }
 
     fn seat(&self, p: log::Player) -> PlayerId {
@@ -487,6 +493,12 @@ impl Driver<'_> {
                                 | Divergence::Unlogged { .. }
                         )
                     );
+                    let tapped_trigger = matches!(
+                        stop,
+                        Stop::Diverged(
+                            Divergence::UnloggedTrigger { .. } | Divergence::Untriggered { .. }
+                        )
+                    );
                     // A permanent tapped to pay can't then attack, block or
                     // be tapped again: a play never offered is reason to
                     // go back too.
@@ -515,9 +527,14 @@ impl Driver<'_> {
                     // The latest choice that could have caused this; any
                     // after it are of a game gone back from.
                     let cause = |b: Back| match b {
-                        Back::Unplayable => unpayable,
+                        // A land tapped to pay can trigger (City of Brass):
+                        // a trigger the log doesn't show, or one it shows
+                        // that never came, is reason to pay otherwise.
+                        Back::Unplayable => unpayable || tapped_trigger,
                         Back::Any => true,
-                        Back::Triggers => triggers,
+                        // Or a cost it can't pay once what is on the stack
+                        // resolves (Chill's tax on a red spell).
+                        Back::Triggers => triggers || unpayable,
                     };
                     while self.checkpoints.last().is_some_and(|cp| !cause(cp.back)) {
                         self.checkpoints.pop();
@@ -1004,7 +1021,8 @@ impl Driver<'_> {
                                 Cycles { player: q, card } if q == player && card.name() == c.name())
                         });
                     if let Some(j) = cycles {
-                        self.cycle(p, c.name(), i)?;
+                        // A payment gone back to goes on after both lines.
+                        self.cycle(p, c.name(), j)?;
                         for k in i..=j {
                             self.did(k, format!("cycled {} (CR 702.29a)", c.name()));
                         }
@@ -1326,26 +1344,39 @@ impl Driver<'_> {
                 // -0/-1), which the log prints as it is activated: the
                 // mana floats until what it pays for is cast.
                 if !self.counter_mana(p, counters)? {
-                    self.until_choice()?;
+                    // What resolves on the stack this turn until the
+                    // counters are there, and no further: a second trigger
+                    // waiting is the next line's.
+                    let turn = self.game().turn();
+                    while self.counters_missing(counters)?.is_some() {
+                        let game = self.game();
+                        let passing = game.turn() == turn
+                            && match game.decision() {
+                                Decision::Priority { .. } => !game.stack().is_empty(),
+                                Decision::May { .. }
+                                | Decision::ChooseName { .. }
+                                | Decision::ChooseMana { .. }
+                                | Decision::Reveal { .. }
+                                | Decision::Targets { .. }
+                                | Decision::Order { .. }
+                                | Decision::Search { .. }
+                                | Decision::PayOrEnterTapped { .. } => true,
+                                _ => false,
+                            };
+                        if !passing {
+                            break;
+                        }
+                        self.pass()?;
+                    }
                     self.counter_mana(p, counters)?;
                 }
+                if let Some(what) = self.counters_missing(counters)? {
+                    return Err(Stop::Diverged(Divergence::NeverOffered { what }));
+                }
+                // Those the log has shown now, so the next line's are more.
                 for counted in counters {
-                    let log::Target::Object(Object::Card(c)) = &counted.on else {
-                        return Err(unfollowed(None));
-                    };
-                    let name = self.permanent_name(c)?;
-                    let kind = counter_kind(&counted.kind);
-                    let game = self.game();
-                    let most = game
-                        .permanents()
-                        .iter()
-                        .filter(|(_, p)| game.card(p.card).is_some_and(|t| t.name == name))
-                        .map(|(id, _)| game.counters_on(*id, &kind))
-                        .max();
-                    if most.is_none_or(|n| n < counted.count) {
-                        return Err(Stop::Diverged(Divergence::NeverOffered {
-                            what: format!("{} {} counters on {name}", counted.count, counted.kind),
-                        }));
+                    if let Some(key) = self.counters_on_named(counted)? {
+                        *self.counted.entry(key).or_default() += counted.count;
                     }
                 }
                 self.did(i, "the counters are on it");
@@ -1517,9 +1548,12 @@ impl Driver<'_> {
                         if !resolved {
                             return Err(unfollowed(None));
                         }
-                        if held != cards.len() {
+                        let shown =
+                            split_halves_once(cards.iter().map(|c| c.name().to_string()).collect())
+                                .len();
+                        if held != shown {
                             return Err(Stop::Diverged(Divergence::HandSize {
-                                log: cards.len(),
+                                log: shown,
                                 engine: held,
                             }));
                         }
@@ -1774,6 +1808,9 @@ impl Driver<'_> {
             } => self.search(player, &filter, known, hidden),
             Decision::May { card, .. } => self.may(card),
             Decision::ChooseName { player, card, .. } => self.choose_name(player, card),
+            Decision::ChooseMana {
+                player, options, ..
+            } => self.choose_mana(player, options),
             Decision::Sacrifice { .. } => self.sacrifice(),
             Decision::Reveal { player, cards } => self.reveal(player, &cards),
             // Cards looked at are hidden alike to the log: which is chosen,
@@ -2141,6 +2178,138 @@ impl Driver<'_> {
         Ok(())
     }
 
+    /// The mana an instruction adds, which the log never says: the colour
+    /// the player's next spell this turn asks most first, then their
+    /// spells this game, the others gone back to if a later spell can't
+    /// be paid for.
+    fn choose_mana(&mut self, p: PlayerId, mut options: Vec<ManaPool>) -> Followed {
+        self.by_colour(p, &mut options, |o| *o);
+        if options.len() > 1 {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others: options[1..]
+                    .iter()
+                    .map(|o| Retry::Answer(Answer::Mana(*o), format!("added {o} instead")))
+                    .collect(),
+                knew: self.knew(),
+                back: Back::Unplayable,
+            });
+        }
+        let first = options[0];
+        self.act(Answer::Mana(first))?;
+        let at = self.at;
+        self.did(at, format!("added {first} (CR 106.3)"));
+        Ok(())
+    }
+
+    /// Sort mana by the colour `p`'s next spell this turn asks most, then
+    /// their spells this game.
+    fn by_colour<T>(&mut self, p: PlayerId, items: &mut [T], mana: impl Fn(&T) -> ManaPool) {
+        let next = self
+            .entries
+            .iter()
+            .skip(self.at)
+            .take_while(|e| !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|e| match &e.event {
+                Event::Casts(c) if self.seat(c.player) == p => match &c.card {
+                    Object::Card(c) => Some(c.name().to_string()),
+                    _ => None,
+                },
+                _ => None,
+            });
+        let cost = next
+            .and_then(|n| self.text(&n).ok())
+            .map(|t| t.mana_cost)
+            .unwrap_or_default();
+        let demand = self.demand[p.0 as usize];
+        let colours = [Mana::White, Mana::Blue, Mana::Black, Mana::Red, Mana::Green];
+        let letters = ["W", "U", "B", "R", "G"];
+        items.sort_by_key(|t| {
+            let o = mana(t);
+            let (now, game): (usize, u32) = (0..5)
+                .filter(|k| o.get(colours[*k]) > 0)
+                .map(|k| {
+                    (
+                        cost.matches(&format!("{}}}", letters[k])).count(),
+                        demand[k],
+                    )
+                })
+                .fold((0, 0), |(a, b), (x, y)| (a + x, b + y));
+            (std::cmp::Reverse(now), std::cmp::Reverse(game))
+        });
+    }
+
+    /// A trigger line of a permanent that triggers on becoming tapped
+    /// (City of Brass), with nothing on the stack: it was tapped for mana,
+    /// which the log never shows, and the mana floats. Whether it was.
+    fn tapped_for_mana(&mut self, name: &str) -> Result<bool, Stop> {
+        let game = self.game.as_ref().expect("set up");
+        let Decision::Priority { player, actions } = game.decision() else {
+            return Ok(false);
+        };
+        if !game.stack().is_empty() {
+            return Ok(false);
+        }
+        let mut mana: Vec<ManaActivation> = actions
+            .iter()
+            .filter_map(|a| match a {
+                Action::Mana(m)
+                    if game
+                        .card(game.permanents()[&m.source].card)
+                        .is_some_and(|t| t.name == name)
+                        && game.triggers_on_tapping(m.source) =>
+                {
+                    Some(*m)
+                }
+                _ => None,
+            })
+            .collect();
+        if mana.is_empty() {
+            return Ok(false);
+        }
+        self.by_colour(player, &mut mana, |m| m.adds);
+        // In their own turn's beginning phase, it was tapped in the main
+        // phase, where the log never says the turn has got to: mana made
+        // in the draw step is gone by then.
+        let turn = self.game().turn();
+        if self.game().active() == player {
+            while self.game().step_now() < Step::PrecombatMain && self.game().turn() == turn {
+                self.pass()?;
+            }
+        }
+        if mana.len() > 1 {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others: mana[1..]
+                    .iter()
+                    .map(|m| {
+                        Retry::Answer(
+                            Answer::Act(Action::Mana(*m)),
+                            format!("tapped {name} for {} instead", m.adds),
+                        )
+                    })
+                    .collect(),
+                knew: self.knew(),
+                back: Back::Unplayable,
+            });
+        }
+        self.act(Answer::Act(Action::Mana(mana[0])))?;
+        let at = self.at;
+        self.did(
+            at,
+            format!("tapped {name} for {}, the mana floating", mana[0].adds),
+        );
+        Ok(true)
+    }
+
     /// The card `player` names for `card`'s instruction (CR 201.4): the
     /// log's "names [X] for [Cabal Therapy]" line, from the line being
     /// followed to the end of the turn.
@@ -2186,6 +2355,7 @@ impl Driver<'_> {
                 | Decision::PayOrEnterTapped { .. }
                 | Decision::May { .. }
                 | Decision::ChooseName { .. }
+                | Decision::ChooseMana { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
                 | Decision::Arrange { .. }
@@ -2216,6 +2386,10 @@ impl Driver<'_> {
                 self.matched.insert(seq);
                 return Ok(());
             }
+            if self.tapped_for_mana(&text.name)? {
+                continue;
+            }
+            let game = self.game.as_ref().expect("set up");
             match game.decision() {
                 // What is on the stack resolves, or the turn goes on to
                 // what triggers it, combat damage.
@@ -2229,6 +2403,7 @@ impl Driver<'_> {
                 | Decision::Assign { .. }
                 | Decision::May { .. }
                 | Decision::ChooseName { .. }
+                | Decision::ChooseMana { .. }
                 | Decision::PutFromHand { .. }
                 | Decision::Search { .. }
                 | Decision::Reveal { .. }
@@ -2374,6 +2549,7 @@ impl Driver<'_> {
             }
             _ => discarded.iter().cloned().chain(revealed).collect(),
         };
+        let names = split_halves_once(names);
         let hand = self.game().player(p).hand().clone();
         if names.len() != hand.len() {
             return Err(Stop::Diverged(Divergence::HandSize {
@@ -2738,6 +2914,50 @@ impl Driver<'_> {
         }
     }
 
+    /// The permanent of the name a counters line names with at least as
+    /// many of those counters more than the log has shown on it, and the
+    /// key it is counted by.
+    fn counters_on_named(
+        &mut self,
+        counted: &log::Counted,
+    ) -> Result<Option<(ObjectId, Counter)>, Stop> {
+        let log::Target::Object(Object::Card(c)) = &counted.on else {
+            return Err(Stop::Unfollowed {
+                event: "PutsCounters".into(),
+                card: None,
+            });
+        };
+        let name = self.permanent_name(c)?;
+        let kind = counter_kind(&counted.kind);
+        let game = self.game.as_ref().expect("set up");
+        Ok(game
+            .permanents()
+            .iter()
+            .filter(|(_, p)| game.card(p.card).is_some_and(|t| t.name == name))
+            .map(|(id, _)| (*id, kind.clone()))
+            .find(|key| {
+                let shown = self.counted.get(key).copied().unwrap_or(0);
+                game.counters_on(key.0, &key.1) >= shown + counted.count
+            }))
+    }
+
+    /// What of a counters line isn't on the battlefield yet, if anything.
+    fn counters_missing(&mut self, counters: &[log::Counted]) -> Result<Option<String>, Stop> {
+        for counted in counters {
+            if self.counters_on_named(counted)?.is_none() {
+                let name = match &counted.on {
+                    log::Target::Object(Object::Card(c)) => c.name().to_string(),
+                    _ => String::new(),
+                };
+                return Ok(Some(format!(
+                    "{} {} counters on {name}",
+                    counted.count, counted.kind
+                )));
+            }
+        }
+        Ok(None)
+    }
+
     /// A line putting one counter on a permanent of `p`'s whose mana
     /// ability costs that counter: the ability activated now, if `p` has
     /// priority, the first mana it offers taken. Whether it was.
@@ -3080,6 +3300,7 @@ impl Driver<'_> {
                     Decision::Priority { .. } => !game.stack().is_empty(),
                     Decision::May { .. }
                     | Decision::ChooseName { .. }
+                    | Decision::ChooseMana { .. }
                     | Decision::Reveal { .. }
                     | Decision::ChooseAmong { .. }
                     | Decision::Arrange { .. }
@@ -3184,6 +3405,7 @@ impl Driver<'_> {
                 what: format!("the hand revealed to {by}"),
             }));
         };
+        let names = split_halves_once(names);
         let hand = game.player(p).hand().clone();
         if names.len() != hand.len() {
             return Err(Stop::Diverged(Divergence::HandSize {
@@ -3502,6 +3724,23 @@ fn pay_with(game: &mut Game, payment: &[ManaActivation]) -> Followed {
     Ok(())
 }
 
+/// A revealed hand as the log lists it, with a split card's halves, which
+/// some logs list beside it ("[Ice], [Fire], [Fire // Ice]"), dropped: one
+/// card, not three.
+fn split_halves_once(names: Vec<String>) -> Vec<String> {
+    let mut out = names.clone();
+    for n in &names {
+        if let Some((a, b)) = n.split_once(" // ") {
+            for half in [a, b] {
+                if let Some(k) = out.iter().position(|x| x == half) {
+                    out.remove(k);
+                }
+            }
+        }
+    }
+    out
+}
+
 /// A counter as the log names its kind: "+1/+1", "-0/-1", or a name.
 fn counter_kind(kind: &str) -> Counter {
     let pt = kind.split_once('/').and_then(|(a, b)| {
@@ -3634,12 +3873,43 @@ fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec
         out: Vec::new(),
     };
     s.go(0, pool, &mut Vec::new());
-    let options: HashMap<ObjectId, usize> = sources
+    let per_source: HashMap<ObjectId, usize> = sources
         .iter()
         .filter_map(|v| Some((v.first()?.source, v.len())))
         .collect();
     let mut out = s.out;
-    out.sort_by_key(|p| (p.len(), p.iter().map(|a| options[&a.source]).sum::<usize>()));
+    out.sort_by_key(|p| {
+        (
+            p.len(),
+            p.iter().map(|a| per_source[&a.source]).sum::<usize>(),
+        )
+    });
+    // Then each with a filter land run on mana it leaves, the more mana
+    // floating for a later spell this step (Flooded Grove's {G}{G} from
+    // one {G}, paying two Fyndhorn Elves): never the first tried, as
+    // nothing so far needs it.
+    let filters: Vec<&ManaActivation> = options.iter().filter(|a| !a.pays.is_empty()).collect();
+    let mut floated = Vec::new();
+    for p in out.iter().take(8) {
+        let mut after = pool;
+        for a in p {
+            after = after.minus(&a.pays);
+            after.add_all(&a.adds);
+        }
+        for f in &filters {
+            if p.iter().any(|a| a.source == f.source) || !after.contains(&f.pays) {
+                continue;
+            }
+            let mut more = after.minus(&f.pays);
+            more.add_all(&f.adds);
+            if more.total() > after.total() && !owed.payments(&more).is_empty() {
+                let mut with = p.clone();
+                with.push(**f);
+                floated.push(with);
+            }
+        }
+    }
+    out.extend(floated);
     // Sacrifices last, a source's of itself after any of another, so
     // nothing sacrificed is needed for a later activation.
     for p in &mut out {

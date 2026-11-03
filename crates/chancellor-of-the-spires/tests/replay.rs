@@ -60,6 +60,7 @@ const INDEXED: &[&str] = &[
     "Dark Ritual",
     "Wall of Roots",
     "Llanowar Elves",
+    "City of Brass",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1071,4 +1072,22 @@ fn wall_of_roots_counter_line_is_its_mana_ability() {
     // Cast off the Wall's {G}, and on the stack when bob concedes.
     assert_eq!(game.stack().len(), 1);
     assert_eq!(on_battlefield(&game, "Wall of Roots"), 1);
+}
+
+/// City of Brass's "Whenever this land becomes tapped" line with nothing
+/// on the stack: it was tapped for mana, which the log never shows, and
+/// the {R} it made floats until Raging Goblin is cast (CR 701.26a, 106.4).
+#[test]
+fn a_city_of_brass_trigger_line_is_it_tapped_for_mana() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [City of Brass].
+        alice puts triggered ability from [City of Brass] onto the stack (Whenever City of Brass becomes tapped, it deals 1 damage to you.).
+        alice casts [Raging Goblin].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    let game = r.game.unwrap();
+    assert_eq!(game.player(ALICE).life(), 19);
 }

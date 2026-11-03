@@ -289,7 +289,7 @@ offered. A non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**36 of Loam's 90 distinct cards are played or cast and resolved, 25 of
+**37 of Loam's 90 distinct cards are played or cast and resolved, 26 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
@@ -298,14 +298,15 @@ Ground, Nature's Lore, since a search is an instruction like any other,
 Fiery Islet and Waterlogged Grove, since an activated ability can cost
 mana: "{1}, {T}, Sacrifice this land: Draw a card", and the six more
 since cycling runs: Coastal Peak, Desert of the Fervent, Forgotten Cave,
-Ketria Triome, Lonely Sandbar and Sheltered Thicket, and Deep Analysis,
-whose flashback runs), measured 2026-11-03:
+Ketria Triome, Lonely Sandbar and Sheltered Thicket, Deep Analysis,
+whose flashback runs, and Lotus Cobra, whose landfall adds mana of a
+colour chosen), measured 2026-11-03:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
-node refused. The most refused: `Trigger::When(Event::Discards)` and
-`With` (4 each: Cultivate's two lands to two places), then discarding
-more than a card, `Effect::Move` from a graveyard and modifying by an
-amount (3 each). `tests/game.rs` scripts the rules above, and plays
+node refused. The most refused: `With` (5: Cultivate's two lands to two
+places), `Trigger::When(Event::Discards)` (4), then discarding more than
+a card, `Effect::Move` from a graveyard and modifying by an amount (3
+each). `tests/game.rs` scripts the rules above, and plays
 Loam against a goldfish for six turns, casting what it can.
 
 Not yet: most instructions (modal spells, "if", a predefined token or
@@ -555,7 +556,15 @@ ability activated then, the mana floating; a spell its caster casts in
 their own upkeep or draw step with nothing to answer is cast in their
 main phase instead (Dark Ritual's mana would empty first), earlier only
 if what follows needs it; mana of the wrong colour in the pool is no
-reason to stop tapping lands; two block lines naming attackers of one
+reason to stop tapping lands, and a payment may run a filter land on
+mana it leaves over, the rest floating for a later spell, tried only
+when a later spell can't be paid otherwise (Flooded Grove's {G}{G}
+paying two Fyndhorn Elves); a City of Brass trigger line with nothing on
+the stack is the land tapped for mana then, in its controller's main
+phase if it is their turn; a counters line resolves the stack only until
+the counters it shows are there, each line's counted apart from those
+before; a split card's halves listed beside it in a revealed hand are
+one card; two block lines naming attackers of one
 name block two of them; the legend rule's choice, which the log never
 shows, keeps the first and goes back to another if a later line can't be
 followed; and a spell whose casting after the stack resolves leaves a
@@ -571,17 +580,17 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 44 replay to the end** (41 to the log's winner
-line), 27 of them past the first turn, and **25.55% of their lines are
-followed** (19,978 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 46 replay to the end** (43 to the log's winner
+line), 29 of them past the first turn, and **26.27% of their lines are
+followed** (20,539 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-03, and 13 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 338 stop
-in the first turn, 385 in the second, 157 in the third, 74 later, and 63
+no turn in them (empty logs, concessions during the mulligans). 332 stop
+in the first turn, 376 in the second, 164 in the third, 80 later, and 63
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -660,9 +669,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-03 42 of the 500 replay to
-the end and 33.62% of their lines are followed** (10,643 of 31,659), 2
-of them relying on a land the log never names (1 to the end), and 41
+Worked card by card from there, **on 2026-11-03 44 of the 500 replay to
+the end and 35.32% of their lines are followed** (11,182 of 31,659), 3
+of them relying on a land the log never names (1 to the end), and 44
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -680,7 +689,11 @@ Ringleader); alternative costs and flashback, a card name chosen and a
 hand revealed (Cabal Therapy); training (Hopeful Initiate); an
 intervening "if" (Valakut); "then if you control" (Fabled Passage); draw
 triggers (Razorkin Needlehead); mana abilities costing a counter, once
-each turn (Wall of Roots), or a sacrifice (Skirk Prospector). And
+each turn (Wall of Roots), or a sacrifice (Skirk Prospector); damage a
+source you control deals an opponent, a spell's too (Quest for Pure
+Flame); the beginning of combat (Luminarch Aspirant); becoming tapped
+(City of Brass); mana of a colour chosen as an instruction resolves
+(Outcaster Trailblazer). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -689,13 +702,13 @@ names as a hypothesis, and which of two permanents of one name an
 activation is of. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Quest for Pure Flame's damage trigger (13),
-Burst Lightning's kicker and Wild Growth's Aura (10 each), Sylvan
-Library and morph's face-down casting (9 each), and City of Brass and
-Vesuva (8 each). The one divergence left is the replay's: a filter land
-making more mana than one spell needs, the rest floating for the next
-(Flooded Grove's {G}{G} paying two Fyndhorn Elves), which the payment
-search never tries.
+top of the worklist now: Burst Lightning's kicker (11), Wild Growth's
+Aura (10), Sylvan Library and morph's face-down casting (9 each), Mana
+Leak's "unless its controller pays" and Vesuva's copy (8 each), and no
+divergence is left: those the run found were the replay's (a block or
+an activation of the wrong one of two permanents of one name, a ritual's
+mana cast away in the draw step, a filter land's floating mana never
+tried), each fixed.
 
 ## Speed
 

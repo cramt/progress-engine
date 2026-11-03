@@ -1079,6 +1079,9 @@ pub enum Effect {
     /// Dark Ritual's "Add {B}{B}{B}": mana in its controller's pool (CR
     /// 106.3).
     AddMana(crate::mana::ManaPool),
+    /// "Add one mana of any color": the one its controller chooses of
+    /// these, as it resolves (CR 106.3, 608.2d).
+    AddManaOf(Vec<crate::mana::ManaPool>),
     /// CR 122.1, 122.6.
     PutCounters {
         on: On,
@@ -1319,6 +1322,14 @@ pub enum TriggerEvent {
     /// names, relative to its controller, casts a spell the filter
     /// matches, by its card's characteristics (CR 601.2i, 702.108a).
     Casts { by: CastBy, spells: CardFilter },
+    /// "Whenever a source you control deals damage to an opponent": a
+    /// spell or permanent its controller controls deals damage to a
+    /// player, an opponent if `opponent`, once for each player dealt
+    /// damage at once (CR 120.3).
+    YourSourceDamages { opponent: bool },
+    /// "Whenever this land becomes tapped": a permanent the filter
+    /// matches becomes tapped, for mana, a cost or anything else.
+    BecomesTapped(Filter),
     /// "Whenever an opponent draws a card": a player `by` names, relative
     /// to its controller, draws a card, once for each (CR 121.2), "that
     /// player" the one who drew.
@@ -1346,6 +1357,7 @@ pub enum TriggerEvent {
 pub enum TurnStep {
     Upkeep,
     Draw,
+    BeginningOfCombat,
     End,
 }
 
@@ -1436,6 +1448,7 @@ pub fn triggered(
                 },
             },
             i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
+            i::Event::BecomesTapped(what) => TriggerEvent::BecomesTapped(entering(what)?),
             i::Event::Draws(who) => TriggerEvent::Draws {
                 by: match who {
                     i::Player::You => CastBy::You,
@@ -1446,11 +1459,29 @@ pub fn triggered(
             },
             i::Event::Dies(what) => TriggerEvent::Dies(entering(what)?),
             i::Event::DealsDamageTo { what, to }
-                if matches!(to.as_slice(), [i::Recipient::Player(i::Player::APlayer)]) =>
+                if matches!(to.as_slice(), [i::Recipient::Player(i::Player::APlayer)])
+                    && what.filter.kind != Some(i::Noun::Source) =>
             {
                 TriggerEvent::DealsDamageToPlayer {
                     what: entering(what)?,
                     combat: false,
+                }
+            }
+            i::Event::DealsDamageTo { what, to }
+                if what.quant == Quant::One
+                    && what.filter
+                        == (i::Filter {
+                            kind: Some(i::Noun::Source),
+                            posts: vec![Post::Controller(i::Player::You)],
+                            ..i::Filter::default()
+                        }) =>
+            {
+                TriggerEvent::YourSourceDamages {
+                    opponent: match to.as_slice() {
+                        [i::Recipient::Player(i::Player::AnOpponent)] => true,
+                        [i::Recipient::Player(i::Player::APlayer)] => false,
+                        _ => return Err(trigger_node(trigger)),
+                    },
                 }
             }
             i::Event::DealsCombatDamageToPlayer(what) => TriggerEvent::DealsDamageToPlayer {
@@ -1474,6 +1505,7 @@ pub fn triggered(
             let (step, whose) = match step {
                 i::Step::Upkeep(w) => (TurnStep::Upkeep, w),
                 i::Step::DrawStep(w) => (TurnStep::Draw, w),
+                i::Step::Combat(w) => (TurnStep::BeginningOfCombat, w),
                 i::Step::EndStep(w) => (TurnStep::End, w),
                 _ => return Err(trigger_node(trigger)),
             };
@@ -2014,6 +2046,18 @@ impl<'a> Scope<'a> {
             }
             i::Effect::AddMana(add) => match crate::mana::adds(add)? {
                 crate::mana::Adds::Options(o) if o.len() == 1 => Effect::AddMana(o[0]),
+                crate::mana::Adds::Options(o) => Effect::AddManaOf(o),
+                crate::mana::Adds::AnyColor => Effect::AddManaOf(
+                    [
+                        Color::White,
+                        Color::Blue,
+                        Color::Black,
+                        Color::Red,
+                        Color::Green,
+                    ]
+                    .map(|c| crate::mana::ManaPool::of([crate::mana::Mana::of_color(c)]))
+                    .to_vec(),
+                ),
                 _ => return Err("adding a choice of mana".into()),
             },
             i::Effect::PutCounters { n: k, kind, on } => Effect::PutCounters {

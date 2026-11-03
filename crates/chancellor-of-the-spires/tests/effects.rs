@@ -2307,3 +2307,141 @@ fn skirk_prospector_sacrifices_a_goblin_for_mana() {
         1
     );
 }
+
+/// Quest for Pure Flame's "Whenever a source you control deals damage to
+/// an opponent, you may put a quest counter on this enchantment": my
+/// Lightning Bolt at them triggers it, a spell being a source too (CR
+/// 120.3); Bolt at my own face doesn't.
+#[test]
+fn quest_for_pure_flame_counts_damage_my_sources_deal_an_opponent() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Quest for Pure Flame", 10),
+            ("Lightning Bolt", 20),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 2),
+            ("Quest for Pure Flame", 1),
+            ("Lightning Bolt", 2),
+        ],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Quest for Pure Flame", None);
+    resolve(&mut game);
+    let quest = creature(&game, "Quest for Pure Flame").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Lightning Bolt", Some(vec![Target::Player(ME)]));
+    resolve(&mut game);
+    assert!(game.stack().is_empty());
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Player(THEM)]),
+    );
+    resolve(&mut game);
+    assert_eq!(game.stack().len(), 1);
+    let Decision::May { .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    step(&mut game, Answer::May(true));
+    let quest_counter = chancellor_of_the_spires::model::Counter::Named("quest".into());
+    assert_eq!(game.counters_on(quest, &quest_counter), 1);
+}
+
+/// CR 507.1: Luminarch Aspirant's "At the beginning of combat on your
+/// turn, put a +1/+1 counter on target creature you control" triggers in
+/// my beginning of combat step, not theirs.
+#[test]
+fn luminarch_aspirant_grows_a_creature_at_the_beginning_of_my_combat() {
+    let mut game = deal(
+        &[("Plains", 40), ("Luminarch Aspirant", 20)],
+        &[("Forest", 60)],
+        &[("Plains", 2), ("Luminarch Aspirant", 1)],
+    );
+    play(&mut game, "Plains");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Luminarch Aspirant", None);
+    resolve(&mut game);
+    let aspirant = creature(&game, "Luminarch Aspirant").unwrap();
+    step(&mut game, Answer::Act(Action::Pass));
+    let d = step(&mut game, Answer::Act(Action::Pass));
+    let Decision::Targets { slots, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(slots, vec![vec![Target::Object(aspirant)]]);
+    step(&mut game, Answer::Targets(vec![Target::Object(aspirant)]));
+    resolve(&mut game);
+    assert_eq!(pt_of(&game, aspirant), pt(2, 2));
+    pass_until(&mut game, THEM, Step::PostcombatMain);
+    assert_eq!(pt_of(&game, aspirant), pt(2, 2));
+}
+
+/// City of Brass's "Whenever this land becomes tapped, it deals 1 damage to
+/// you" triggers when it is tapped for mana (CR 701.26a), and Outcaster
+/// Trailblazer's "add one mana of any color" is the colour chosen as it
+/// resolves (CR 106.3).
+#[test]
+fn city_of_brass_hurts_when_tapped_and_a_trigger_adds_mana_of_a_colour_chosen() {
+    let mut game = deal(
+        &[("City of Brass", 30), ("Outcaster Trailblazer", 30)],
+        &[("Forest", 60)],
+        &[("City of Brass", 3), ("Outcaster Trailblazer", 1)],
+    );
+    play(&mut game, "City of Brass");
+    let city = creature(&game, "City of Brass").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let tap = actions
+        .iter()
+        .find(|a| matches!(a, Action::Mana(m) if m.source == city))
+        .copied()
+        .unwrap();
+    step(&mut game, Answer::Act(tap));
+    assert_eq!(game.stack().len(), 1);
+    resolve(&mut game);
+    assert_eq!(game.player(ME).life(), 19);
+    for _ in 0..2 {
+        my_next_main(&mut game);
+        play(&mut game, "City of Brass");
+    }
+    let trailblazer = in_hand(&game, ME, "Outcaster Trailblazer").unwrap();
+    step(&mut game, Answer::Act(Action::Cast(trailblazer)));
+    while let Decision::Pay { actions, .. } = game.decision() {
+        let green = game.player(ME).pool().get(Mana::Green) > 0;
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| {
+                actions
+                    .iter()
+                    .find(|a| matches!(a, Payment::Mana(m) if green || m.adds.get(Mana::Green) > 0))
+            })
+            .copied()
+            .expect("a way to pay");
+        step(&mut game, Answer::Pay(pay));
+    }
+    // The three Cities' triggers, then the Trailblazer, then its own.
+    loop {
+        match game.decision() {
+            Decision::Order { triggers, .. } => {
+                step(&mut game, Answer::Order((0..triggers.len()).collect()));
+            }
+            Decision::Priority { .. } if !game.stack().is_empty() => {
+                resolve(&mut game);
+            }
+            _ => break,
+        }
+    }
+    assert_eq!(game.player(ME).life(), 16);
+    let Decision::ChooseMana { options, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(options.len(), 5);
+    step(&mut game, Answer::Mana(options[1]));
+    assert_eq!(game.player(ME).pool().total(), 1);
+}

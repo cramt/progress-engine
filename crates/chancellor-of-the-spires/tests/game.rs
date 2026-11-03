@@ -1021,7 +1021,7 @@ fn loam_coverage() {
     }
     assert_eq!(cards.len(), 90);
     // The README's number: a change that moves it updates it there.
-    assert_eq!((runs.len(), whole.len()), (36, 25));
+    assert_eq!((runs.len(), whole.len()), (37, 26));
 }
 
 fn hidden(n: usize) -> DeckCards {
