@@ -1274,6 +1274,15 @@ impl Driver<'_> {
                 }
                 self.did(i, format!("named {name} (CR 201.4)"));
             }
+            // A counter taken off as a mana ability's cost (Gemstone Mine),
+            // which the log prints as it is activated.
+            RemovesCounters { player, counters } => {
+                let p = self.seat(*player);
+                if !self.counter_cost_mana(p, counters, true)? {
+                    return Err(unfollowed(None));
+                }
+                self.did(i, "a mana ability's counter removed (CR 602.2b)");
+            }
             // Echo paid, as the engine asks (`pay_unless`), which reads
             // this line ahead.
             PaysEcho { card, .. } => {
@@ -3069,6 +3078,17 @@ impl Driver<'_> {
     /// ability costs that counter: the ability activated now, if `p` has
     /// priority, the first mana it offers taken. Whether it was.
     fn counter_mana(&mut self, p: PlayerId, counters: &[log::Counted]) -> Result<bool, Stop> {
+        self.counter_cost_mana(p, counters, false)
+    }
+
+    /// As `counter_mana`, for a counter put on (`removes` false) or taken
+    /// off (Gemstone Mine's mining counter) as a mana ability's cost.
+    fn counter_cost_mana(
+        &mut self,
+        p: PlayerId,
+        counters: &[log::Counted],
+        removes: bool,
+    ) -> Result<bool, Stop> {
         let [counted] = counters else {
             return Ok(false);
         };
@@ -3080,31 +3100,78 @@ impl Driver<'_> {
         }
         let name = self.permanent_name(c)?;
         let kind = counter_kind(&counted.kind);
-        let offered = |game: &Game| {
+        let offered = |game: &Game| -> Vec<ManaActivation> {
             let Decision::Priority { player, actions } = game.decision() else {
-                return None;
+                return Vec::new();
             };
             if player != p {
-                return None;
+                return Vec::new();
             }
-            actions.into_iter().find(|a| match a {
-                Action::Mana(m) => {
-                    game.mana_counter(m).as_ref() == Some(&kind)
-                        && game
-                            .card(game.permanents()[&m.source].card)
-                            .is_some_and(|t| t.name == name)
-                }
-                _ => false,
-            })
+            actions
+                .into_iter()
+                .filter_map(|a| match a {
+                    Action::Mana(m) => {
+                        let cost = if removes {
+                            game.mana_removes(&m)
+                        } else {
+                            game.mana_counter(&m)
+                        };
+                        (cost.as_ref() == Some(&kind)
+                            && game
+                                .card(game.permanents()[&m.source].card)
+                                .is_some_and(|t| t.name == name))
+                        .then_some(m)
+                    }
+                    _ => None,
+                })
+                .collect()
         };
-        if offered(self.game.as_ref().expect("set up")).is_none() {
-            return Ok(false);
+        // In another's turn, or with them to act, they pass to `p` first:
+        // a mana ability is activated with priority (CR 605.3a).
+        let game = self.game.as_ref().expect("set up");
+        if offered(game).is_empty() {
+            let theirs =
+                matches!(game.decision(), Decision::Priority { player, .. } if player != p);
+            let mut passed = game.clone();
+            if !theirs
+                || passed.step(Answer::Act(Action::Pass)).is_err()
+                || offered(&passed).is_empty()
+            {
+                return Ok(false);
+            }
+            self.act(Answer::Act(Action::Pass))?;
         }
         self.pass_to_main_for_next_cast(p)?;
-        let Some(mana) = offered(self.game.as_ref().expect("set up")) else {
+        let mut mana = offered(self.game.as_ref().expect("set up"));
+        if mana.is_empty() {
             return Ok(false);
-        };
-        self.act(Answer::Act(mana))?;
+        }
+        // Which mana it made the log doesn't say: what the next spell
+        // asks first, the rest gone back to.
+        self.by_colour(p, &mut mana, |m| m.adds);
+        if mana.len() > 1 {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                // A line of a counter put on is followed again, to count
+                // it; one taken off is done, or another would be.
+                resume: self.at + usize::from(removes),
+                others: mana[1..]
+                    .iter()
+                    .map(|m| {
+                        Retry::Answer(
+                            Answer::Act(Action::Mana(*m)),
+                            format!("made {} instead", m.adds),
+                        )
+                    })
+                    .collect(),
+                knew: self.knew(),
+                back: Back::Unplayable,
+            });
+        }
+        self.act(Answer::Act(Action::Mana(mana[0])))?;
         Ok(true)
     }
 
@@ -3842,7 +3909,7 @@ fn pay_with(game: &mut Game, payment: &[ManaActivation]) -> Followed {
 fn unlogged_mana(game: &Game, p: PlayerId) -> Vec<ManaActivation> {
     game.mana_options(p)
         .into_iter()
-        .filter(|a| game.mana_counter(a).is_none())
+        .filter(|a| game.mana_counter(a).is_none() && game.mana_removes(a).is_none())
         .collect()
 }
 

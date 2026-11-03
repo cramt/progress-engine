@@ -2553,3 +2553,96 @@ fn echo_is_paid_or_the_permanent_sacrificed_in_the_next_upkeep() {
         }
     }
 }
+
+/// CR 702.29a, 603.3: Gempalm Incinerator's "When you cycle this card,
+/// you may have it deal X damage to target creature, where X is the
+/// number of Goblins on the battlefield" triggers from the graveyard it is
+/// discarded to, above the cycling, and counts the Goblins as it resolves.
+#[test]
+fn gempalm_incinerator_counts_goblins_when_cycled() {
+    let mut game = deal_both(
+        &[
+            ("Mountain", 30),
+            ("Gempalm Incinerator", 15),
+            ("Raging Goblin", 15),
+        ],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[
+            ("Mountain", 3),
+            ("Gempalm Incinerator", 1),
+            ("Raging Goblin", 2),
+        ],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    let gempalm = in_hand(&game, ME, "Gempalm Incinerator").unwrap();
+    step(&mut game, Answer::Act(Action::Cycle(gempalm)));
+    while let Decision::Pay { actions, .. } = game.decision() {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        step(&mut game, Answer::Pay(pay));
+    }
+    let Decision::Targets { slots, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(slots[0].contains(&Target::Object(bears)));
+    step(&mut game, Answer::Targets(vec![Target::Object(bears)]));
+    assert_eq!(game.stack().len(), 2);
+    let Decision::May { .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    step(&mut game, Answer::May(true));
+    // Two Goblins, 2 damage: the Bears die.
+    assert_eq!(creature(&game, "Grizzly Bears"), None);
+}
+
+/// CR 614.1c, 122.6, 118.3: Gemstone Mine enters with three mining
+/// counters, each activation takes one off for a mana of any colour, and
+/// the one that leaves none sacrifices it.
+#[test]
+fn gemstone_mine_runs_out_of_mining_counters() {
+    let mut game = deal(
+        &[("Gemstone Mine", 60)],
+        &[("Forest", 60)],
+        &[("Gemstone Mine", 1)],
+    );
+    play(&mut game, "Gemstone Mine");
+    let mine = creature(&game, "Gemstone Mine").unwrap();
+    let mining = chancellor_of_the_spires::model::Counter::Named("mining".into());
+    assert_eq!(game.counters_on(mine, &mining), 3);
+    for left in [2, 1, 0] {
+        let Decision::Priority { actions, .. } = game.decision() else {
+            panic!("{:?}", game.decision())
+        };
+        let tap = actions
+            .iter()
+            .find(|a| matches!(a, Action::Mana(m) if m.source == mine))
+            .copied()
+            .expect("offered while it has a counter and is untapped");
+        step(&mut game, Answer::Act(tap));
+        if left > 0 {
+            assert_eq!(game.counters_on(mine, &mining), left);
+            my_next_main(&mut game);
+        }
+    }
+    assert_eq!(creature(&game, "Gemstone Mine"), None);
+}

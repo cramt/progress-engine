@@ -592,6 +592,18 @@ impl State {
         }
     }
 
+    /// Take `n` counters of a kind off an object, as many as it has.
+    pub fn remove_counters(&mut self, on: ObjectId, kind: &Counter, n: u32) {
+        if let Some(o) = self.objects.get_mut(&on) {
+            if let Some(k) = o.counters.get_mut(kind) {
+                *k = k.saturating_sub(n);
+                if *k == 0 {
+                    o.counters.remove(kind);
+                }
+            }
+        }
+    }
+
     /// An Aura or Equipment becomes attached, with a new timestamp (CR 613.7e).
     pub fn attach(&mut self, what: ObjectId, to: ObjectId) {
         let timestamp = Timestamp(self.tick());

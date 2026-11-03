@@ -219,6 +219,9 @@ enum Enters {
     /// land card instead. If you do, put this artifact onto the
     /// battlefield. If you don't, put it into its owner's graveyard."
     DiscardOrGraveyard(CardFilter),
+    /// "This land enters with three mining counters on it" (CR 614.1c,
+    /// 122.6).
+    WithCounters(Counter, u32),
 }
 
 /// Why the engine refuses a card: the node of Insight's tree (or the rule)
@@ -2697,6 +2700,18 @@ impl Game {
         }
     }
 
+    /// The counter a mana ability takes off its source as its cost.
+    pub fn mana_removes(&self, a: &ManaActivation) -> Option<Counter> {
+        let Ability::Unread(n) = a.ability else {
+            return None;
+        };
+        let card = self.permanents.get(&a.source)?.card;
+        match &self.known(card)?.runs {
+            Ok(r) => r.mana.get(&n)?.remove_counter.clone(),
+            Err(_) => None,
+        }
+    }
+
     /// The counter a mana ability puts on its source as its cost.
     pub fn mana_counter(&self, a: &ManaActivation) -> Option<Counter> {
         let Ability::Unread(n) = a.ability else {
@@ -2791,7 +2806,12 @@ impl Game {
                             || runs
                                 .and_then(|r| r.mana.get(n))
                                 .is_some_and(|a| a.once_per_turn)
-                                && self.used.contains(&(id, *n)) =>
+                                && self.used.contains(&(id, *n))
+                            // CR 118.3: a counter it hasn't can't be removed.
+                            || runs
+                                .and_then(|r| r.mana.get(n))
+                                .and_then(|a| a.remove_counter.as_ref())
+                                .is_some_and(|c| self.counters_on(id, c) == 0) =>
                     {
                         continue
                     }
@@ -2966,6 +2986,28 @@ impl Game {
                     controller: p,
                     targets: Vec::new(),
                 });
+                // "When you cycle this card": from the graveyard it went
+                // to, put on the stack the next time a player would get
+                // priority (CR 603.3).
+                let cycled: Vec<u16> = self
+                    .runs_of(card)
+                    .triggered
+                    .iter()
+                    .filter(|(_, t)| t.event == TriggerEvent::CyclesItself)
+                    .map(|(n, _)| *n)
+                    .collect();
+                for k in cycled {
+                    self.pending.push_back(Pending {
+                        source: card,
+                        object: None,
+                        ability: TriggerOf::Printed(k),
+                        controller: p,
+                        triggering: None,
+                        amount: None,
+                        player: None,
+                        ordered: false,
+                    });
+                }
                 self.pay_ability(p, card, def.cost.mana);
             }
             Action::Activate(a) => {
@@ -3227,22 +3269,30 @@ impl Game {
         let chars = self.characteristics();
         let source = &chars[&a.source];
         let perm = &self.permanents[&a.source];
-        let (tap, life, damage, counter, once) = match a.ability {
-            Ability::Intrinsic(_) => (true, 0, 0, None, None),
+        let (tap, life, damage, counter, once, removes) = match a.ability {
+            Ability::Intrinsic(_) => (true, 0, 0, None, None, None),
             Ability::Unread(n) => {
                 let runs = self.known(perm.card).and_then(|k| k.runs.as_ref().ok());
                 let def = &runs.expect("a listed ability runs").mana[&n];
                 let once = def.once_per_turn.then_some(n);
+                let removes = def
+                    .remove_counter
+                    .clone()
+                    .map(|c| (c, def.sacrificed_when_none));
                 (
                     def.tap,
                     def.life,
                     def.damage_to_you,
                     def.counter.clone(),
                     once,
+                    removes,
                 )
             }
             _ => unreachable!("only mana abilities are listed"),
         };
+        if let Some((c, _)) = &removes {
+            self.battlefield.remove_counters(a.source, c, 1);
+        }
         if let Some(n) = once {
             self.used.insert((a.source, n));
         }
@@ -3269,6 +3319,12 @@ impl Game {
         }
         if let Some(o) = a.sacrifices {
             self.put_in_graveyard(o);
+        }
+        // "If there are no mining counters on this land, sacrifice it."
+        if let Some((c, true)) = removes {
+            if self.counters_on(a.source, &c) == 0 {
+                self.put_in_graveyard(a.source);
+            }
         }
     }
 
@@ -3991,6 +4047,7 @@ impl Game {
     fn amount(&self, at: &Resuming, n: lower::Amount) -> u32 {
         match n {
             lower::Amount::N(n) => n,
+            lower::Amount::CountOf(f) => self.objects_on(at, &lower::On::Each(f)).len() as u32,
             lower::Amount::ThatMuch => at.amount.unwrap_or(0),
             lower::Amount::PowerOf(o) => self
                 .now_or_last(at, o)
@@ -4998,6 +5055,7 @@ impl Game {
                 Enters::TappedIf(cond) => tapped |= holds(cond),
                 Enters::TappedUnlessPaysLife(life) => pays = Some(*life),
                 Enters::DiscardOrGraveyard(f) => discard = Some(f.clone()),
+                Enters::WithCounters(..) => {}
             }
         }
         (tapped, pays, discard)
@@ -5038,6 +5096,20 @@ impl Game {
                 deathtouched: false,
             },
         );
+        // CR 614.1c, 122.6: with its counters as it enters, before what
+        // waits for it to enter looks.
+        let counters: Vec<(Counter, u32)> = self
+            .runs_of(card)
+            .enters
+            .values()
+            .filter_map(|e| match e {
+                Enters::WithCounters(c, n) => Some((c.clone(), *n)),
+                _ => None,
+            })
+            .collect();
+        for (c, n) in counters {
+            self.battlefield.put_counters(id, c, n);
+        }
         self.trigger_on(Event::Entered(id));
     }
 
@@ -5787,6 +5859,13 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
         [i::Static::Replacement { event, instead }] => lower::discard_to_enter(event, instead)
             .map(Enters::DiscardOrGraveyard)
             .ok_or_else(|| "Replacement".to_string()),
+        [i::Static::EntersWithCounters {
+            what,
+            n: i::Amount::N(n),
+            kind,
+        }] if itself(what) => lower::counter(kind)
+            .map(|c| Enters::WithCounters(c, *n))
+            .ok_or_else(|| "EntersWithCounters".to_string()),
         [i::Static::AsEnters { what, then }] if itself(what) => lower::pays_life_or_tapped(then)
             .map(Enters::TappedUnlessPaysLife)
             .ok_or_else(|| "AsEnters".to_string()),

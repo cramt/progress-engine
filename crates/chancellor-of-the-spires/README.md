@@ -147,7 +147,8 @@ caster's control (CR 608.3a) and an instant or sorcery going to the
 graveyard (CR 608.2n); mana abilities that tap, pay life (CR 119.4) and
 deal their controller damage, as painlands do (CR 120.3a), pay mana
 from the pool, as filter lands and Signets do (CR 605.3a), put a counter
-on their source (Wall of Roots's -0/-1, CR 602.2b), sacrifice their
+on their source or take one off it (Wall of Roots's -0/-1, Gemstone
+Mine's mining counter, sacrificed when none are left, CR 602.2b, 118.3), sacrifice their
 source or a permanent a filter matches (Lotus Petal, Skirk Prospector's
 "Sacrifice a Goblin", CR 701.21a), or are
 limited by "Activate only if you control a creature with power 4 or
@@ -193,7 +194,8 @@ planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
 lifelink, CR 702.15b), scry and +1/+1, other power and toughness
 (CR 122.1a) or named counters, mana added to the pool (Dark
-Ritual, CR 106.3), "can't be regenerated", which restricts nothing
+Ritual, CR 106.3), damage "where X is the number of Goblins on the
+battlefield", counted as it is dealt (CR 608.2h), "can't be regenerated", which restricts nothing
 while no regeneration lowers (CR 701.19a–c), a card name chosen, of a
 real card with the characteristics asked (Cabal Therapy's "a nonland
 card name", CR 201.4a), a hand revealed, its hidden cards named (CR
@@ -215,7 +217,8 @@ permanent entering, a creature attacking (CR 508.3a), a player, its
 controller or an opponent casting a spell a filter matches, "that
 player" its caster (CR 601.2i: Eidolon of the Great Revel, Warmth), a
 player, you or an opponent drawing a card, "that player" the one who
-drew (CR 121.2: Razorkin Needlehead), a permanent being dealt damage, with the
+drew (CR 121.2: Razorkin Needlehead), its owner cycling the card, from
+the graveyard it went to (Gempalm Incinerator, CR 702.29a), a permanent being dealt damage, with the
 amount for "that much" (CR 120.3; combat damage dealt at once is one
 event, CR 510.2), a permanent dealing damage, or combat damage, to a
 player, a creature dying, its own "when this creature dies" looking back
@@ -246,7 +249,8 @@ alone (CR 305.7), and a land that loses all abilities for nothing; "enters
 tapped", "unless you control" or "if you control" a number of permanents
 a filter, or any of its alternatives, matches ("two or fewer other lands",
 "two or more basic lands", "a Mountain or a Plains"), not counting the
-land itself, and a shock land's life or tapped, all read off the
+land itself, a shock land's life or tapped, and entering with counters
+(Gemstone Mine, CR 614.1c, 122.6), all read off the
 permanent as it would enter (CR 614.12); mana pools emptying as each step ends (CR 500.5);
 a player with hexproof (Leyline of Sanctity's "You have hexproof") never
 a legal target of an opponent's spell or ability (CR 702.11c, 115.4);
@@ -294,7 +298,7 @@ offered. A non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**37 of Loam's 90 distinct cards are played or cast and resolved, 26 of
+**38 of Loam's 90 distinct cards are played or cast and resolved, 26 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
@@ -305,7 +309,8 @@ mana: "{1}, {T}, Sacrifice this land: Draw a card", and the six more
 since cycling runs: Coastal Peak, Desert of the Fervent, Forgotten Cave,
 Ketria Triome, Lonely Sandbar and Sheltered Thicket, Deep Analysis,
 whose flashback runs, and Lotus Cobra, whose landfall adds mana of a
-colour chosen), measured 2026-11-03:
+colour chosen), measured 2026-11-03, Blast Zone played too since it
+enters with its counter, its abilities carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
 node refused. The most refused: `With` (5: Cultivate's two lands to two
@@ -575,7 +580,10 @@ otherwise, and anything else, Mana Leak's {3}, isn't paid unless a later
 line can't be followed then; a payment never activates a mana ability
 whose counter the log would print (Wall of Roots), and mana a line shows
 made for a sorcery-speed spell in its caster's turn is made in a main
-phase; two block lines naming attackers of one
+phase, the other player passing to its controller first when it is
+theirs to act (a Wall of Roots tapped for mana while blocking); a
+"removes a mining counter from [Gemstone Mine]" line is its mana
+ability, the colour the next spell asks first; two block lines naming attackers of one
 name block two of them; the legend rule's choice, which the log never
 shows, keeps the first and goes back to another if a later line can't be
 followed; and a spell whose casting after the stack resolves leaves a
@@ -591,17 +599,17 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 47 replay to the end** (44 to the log's winner
-line), 30 of them past the first turn, and **26.50% of their lines are
-followed** (20,719 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 51 replay to the end** (48 to the log's winner
+line), 34 of them past the first turn, and **26.99% of their lines are
+followed** (21,103 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-03, and 13 games rely on a land the log never names (1
+measured 2026-11-03, and 14 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 332 stop
-in the first turn, 376 in the second, 164 in the third, 80 later, and 63
+no turn in them (empty logs, concessions during the mulligans). 320 stop
+in the first turn, 369 in the second, 172 in the third, 86 later, and 63
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -616,17 +624,15 @@ Aether Vial 19.83%; revealing and looking at a library's top cards 20
 games, 20.43%; Leylines 20.55%; "as long as" 20.62%; destroy, exile,
 bounce, counter and dying 20.72%; search as an instruction 20.81%;
 responses 20.84%; tokens 20.96%; then the milestone's work took it to
-23.99% (below). Games to the end barely moved: a game
+23.99% and on to 26.99% (below). Games to the end barely moved: a game
 that gets past one stop meets the next, most in its first two turns. The
-stops now, by games: an exile line not followed (44: suspend's Rift Bolt,
-Search for Tomorrow and Lotus Bloom), a discard the engine doesn't ask
-for (39: cycling), a card with two faces (36: Delver of Secrets, the
-modal lands), a mana ability with a mana cost (33: the filter lands),
-`Trigger::When(Event::Casts)` (30: Eidolon of the Great Revel), a
-replacement effect (29: Mox Diamond, Leyline of the Void), a mana ability
-limited by "only if" (27), a cost change (25: Thalia),
-`Trigger::When(Event::Or)` (25: Stitcher's Supplier) and entering with
-counters (23: Gemstone Mine). None is the engine disagreeing with Magic Online; those that
+stops now, by games: an exile line not followed (60: suspend's Rift Bolt,
+Grim Lavamancer's cost), a card with two faces (50), `Trigger::When(Event::Or)`
+(42: Stitcher's Supplier), "as this enters" (29: Cavern of Souls), a
+restriction (27), looking at a hand (22: Gitaxian Probe), modifying by
+an amount (21), a cast other than from hand for its mana cost or an
+alternative cost the engine runs (21: Green Sun's Zenith's X), and one
+player named (21). None is the engine disagreeing with Magic Online; those that
 were are fixed: Gaea's Cradle's "Add {G} for each creature" not read as a
 mana ability (CR 605.1a), and Champion of the Parish's "another Human"
 missing a Human, since a creature type said with no card type was read
@@ -680,9 +686,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-03 45 of the 500 replay to
-the end and 35.88% of their lines are followed** (11,358 of 31,659), 3
-of them relying on a land the log never names (1 to the end), and 44
+Worked card by card from there, **on 2026-11-03 49 of the 500 replay to
+the end and 36.80% of their lines are followed** (11,650 of 31,659), 4
+of them relying on a land the log never names (1 to the end), and 53
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -704,7 +710,9 @@ each turn (Wall of Roots), or a sacrifice (Skirk Prospector); damage a
 source you control deals an opponent, a spell's too (Quest for Pure
 Flame); the beginning of combat (Luminarch Aspirant); becoming tapped
 (City of Brass); mana of a colour chosen as an instruction resolves
-(Outcaster Trailblazer); "unless" paid or not (Mana Leak, echo). And
+(Outcaster Trailblazer); "unless" paid or not (Mana Leak, echo); a
+cycling trigger and an X counted (Gempalm Incinerator); entering with
+counters and a mana ability taking one off (Gemstone Mine). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -714,9 +722,8 @@ activation is of. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
 top of the worklist now: Burst Lightning's kicker and Sylvan Library (11
-each), Wild Growth's Aura (10), morph's face-down casting (9), Gempalm
-Incinerator's cycling trigger and Vesuva's copy (8 each), and no
-divergence is left: those the run found were the replay's (a block or
+each), Wild Growth's Aura and morph's face-down casting (10 each),
+Vesuva's copy (8) and Temur Battlecrier (7), and no divergence is left: those the run found were the replay's (a block or
 an activation of the wrong one of two permanents of one name, a ritual's
 mana cast away in the draw step, a filter land's floating mana never
 tried), each fixed.

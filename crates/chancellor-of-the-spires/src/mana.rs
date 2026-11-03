@@ -322,6 +322,13 @@ pub struct ManaAbility {
     pub counter: Option<crate::model::Counter>,
     /// "Activate only once each turn" (CR 602.5b).
     pub once_per_turn: bool,
+    /// Gemstone Mine's "Remove a mining counter from this land": a counter
+    /// taken off its source as it is activated, so one it has none of
+    /// can't be (CR 602.2b, 118.3).
+    pub remove_counter: Option<crate::model::Counter>,
+    /// "If there are no mining counters on this land, sacrifice it", once
+    /// the mana is added.
+    pub sacrificed_when_none: bool,
     /// "Sacrifice this artifact", "Sacrifice a Goblin" (CR 701.21a).
     pub sacrifice: Option<Sacrifice>,
 }
@@ -422,6 +429,8 @@ fn lower_mana_ability(
         counter: None,
         once_per_turn,
         sacrifice: None,
+        remove_counter: None,
+        sacrificed_when_none: false,
     };
     for c in cost {
         match c {
@@ -440,6 +449,17 @@ fn lower_mana_ability(
             {
                 ability.counter =
                     Some(lower::counter(kind).ok_or("a mana ability costing a counter")?)
+            }
+            i::Cost::RemoveCounters {
+                n: i::Amount::N(1),
+                kind,
+                from,
+            } if ability.remove_counter.is_none()
+                && from.quant == i::Quant::SelfRef
+                && from.filter == i::Filter::default() =>
+            {
+                ability.remove_counter =
+                    Some(lower::counter(kind).ok_or("a mana ability removing a counter")?)
             }
             i::Cost::Sacrifice(o) if ability.sacrifice.is_none() => {
                 ability.sacrifice = Some(
@@ -480,6 +500,22 @@ fn lower_mana_ability(
     };
     for e in rest {
         match e {
+            // "If there are no mining counters on this land, sacrifice
+            // it": of the counter its cost removes.
+            i::Effect::If {
+                cond: i::Condition::Not(c),
+                then,
+                ..
+            } if matches!(&**c, i::Condition::HasCounter { what, kind: Some(k) }
+                    if what.quant == i::Quant::SelfRef
+                        && what.filter == i::Filter::default()
+                        && lower::counter(k).is_some()
+                        && lower::counter(k) == ability.remove_counter)
+                && matches!(then.as_slice(), [i::Effect::Sacrifice { who: i::Player::You, what }]
+                    if what.quant == i::Quant::SelfRef && what.filter == i::Filter::default()) =>
+            {
+                ability.sacrificed_when_none = true
+            }
             i::Effect::Damage {
                 source: Some(source),
                 n: i::Amount::N(n),

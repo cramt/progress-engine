@@ -1256,7 +1256,7 @@ pub enum On {
 /// How much: a number, or "that much", the amount of the event that
 /// triggered the ability (Jackal Pup's "it deals that much damage to
 /// you").
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Amount {
     N(u32),
     ThatMuch,
@@ -1265,6 +1265,10 @@ pub enum Amount {
     /// "Equal to its power": of the object, or as it last existed (CR
     /// 608.2h).
     PowerOf(Obj),
+    /// "The number of Goblins on the battlefield": the permanents the
+    /// filter matches as it is followed, read from the ability's source
+    /// (CR 608.2h).
+    CountOf(Filter),
 }
 
 /// What damage is dealt to.
@@ -1340,6 +1344,9 @@ pub enum TriggerEvent {
     /// player, an opponent if `opponent`, once for each player dealt
     /// damage at once (CR 120.3).
     YourSourceDamages { opponent: bool },
+    /// "When you cycle this card": its owner cycles it (CR 702.29a), the
+    /// ability triggering from wherever the card has gone.
+    CyclesItself,
     /// "Whenever this land becomes tapped": a permanent the filter
     /// matches becomes tapped, for mana, a cost or anything else.
     BecomesTapped(Filter),
@@ -1469,6 +1476,10 @@ pub fn triggered(
             },
             i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
             i::Event::BecomesTapped(what) => TriggerEvent::BecomesTapped(entering(what)?),
+            i::Event::Cycles {
+                who: i::Player::You,
+                what: Some(o),
+            } if itself(o) => TriggerEvent::CyclesItself,
             i::Event::Draws(who) => TriggerEvent::Draws {
                 by: match who {
                     i::Player::You => CastBy::You,
@@ -1712,6 +1723,8 @@ struct Scope<'a> {
     described: BTreeMap<Slot, (Objects, bool)>,
     /// Whether an instruction before has chosen a card name, "that name".
     named: bool,
+    /// What X is, "where X is the number of Goblins on the battlefield".
+    x: Option<Amount>,
 }
 
 impl<'a> Scope<'a> {
@@ -1730,6 +1743,7 @@ impl<'a> Scope<'a> {
             among: BTreeMap::new(),
             described: BTreeMap::new(),
             named: false,
+            x: None,
         }
     }
 
@@ -2091,6 +2105,7 @@ impl<'a> Scope<'a> {
                     to: self.damage_to(to)?,
                     n: match k {
                         i::Amount::ThatMany if self.amount => Amount::ThatMuch,
+                        i::Amount::X if self.x.is_some() => self.x.clone().expect("an X"),
                         k => Amount::N(n(k)?),
                     },
                 }
@@ -2209,6 +2224,19 @@ impl<'a> Scope<'a> {
                 Effect::DiscardNamed(self.who(who)?)
             }
             i::Effect::With { bind, then } => return self.with(bind, then),
+            // "…, where X is the number of Goblins on the battlefield".
+            i::Effect::Where { then, x } => {
+                let amount = match x {
+                    i::Amount::CountOf(o) => Amount::CountOf(counted(o)?),
+                    other => return Err(format!("X as {}", short(other))),
+                };
+                if self.x.replace(amount).is_some() {
+                    return Err("an X within an X".into());
+                }
+                let lowered = self.effects(then);
+                self.x = None;
+                return lowered;
+            }
             i::Effect::Search {
                 who,
                 zones,
