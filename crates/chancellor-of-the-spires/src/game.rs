@@ -2903,9 +2903,12 @@ impl Game {
                         self.players[q.0 as usize].life += n as i32;
                     }
                 }
+                // CR 702.12b.
                 Effect::Destroy(o) => {
                     if let Some(o) = self.object(&at, o) {
-                        self.put_in_graveyard(o);
+                        if !self.characteristics()[&o].has(Keyword::Indestructible) {
+                            self.put_in_graveyard(o);
+                        }
                     }
                 }
                 Effect::Exile(o) => {
@@ -2981,6 +2984,8 @@ impl Game {
                         self.damage_triggers(hit, by, false);
                     }
                 }
+                // CR 106.3.
+                Effect::AddMana(mana) => self.players[p.0 as usize].pool.add_all(&mana),
                 Effect::Scry(n) => {
                     let cards: Vec<CardId> = self
                         .player(p)
@@ -3339,11 +3344,17 @@ impl Game {
                 .map(|q| PlayerId(q as u8))
                 .filter(|q| !self.player(*q).left && (*q == p || !self.has_hexproof(*q)))
         };
-        // CR 702.16b: not a permanent with protection from the source.
+        // CR 702.16b: not a permanent with protection from the source;
+        // CR 702.18a, 702.11b: nor one with shroud, nor with hexproof
+        // unless its controller's.
         let permanents = |f: &dyn Fn(&Chars) -> bool| -> Vec<Target> {
             self.characteristics()
                 .into_iter()
-                .filter(|(_, c)| f(c) && !source.is_some_and(|s| c.protected_from(s)))
+                .filter(|(_, c)| {
+                    f(c) && !source.is_some_and(|s| c.protected_from(s))
+                        && !c.has(Keyword::Shroud)
+                        && !(c.has(Keyword::Hexproof) && c.controller != p)
+                })
                 .map(|(o, _)| Target::Object(o))
                 .collect()
         };
@@ -3732,6 +3743,10 @@ impl Game {
                 // CR 702.16f.
                 (!menace || by.is_empty() || by.len() >= 2)
                     && by.iter().all(|b| !chars[a].protected_from(&chars[b]))
+                    // CR 702.28b.
+                    && by
+                        .iter()
+                        .all(|b| chars[a].has(Keyword::Shadow) == chars[b].has(Keyword::Shadow))
                     && (!flying
                         || by
                             .iter()
@@ -4360,9 +4375,12 @@ impl Game {
                 .into_iter()
                 .filter(|(id, c)| {
                     let perm = &self.permanents[id];
+                    // CR 702.12b: lethal damage doesn't destroy one
+                    // with indestructible; toughness 0 isn't destruction.
                     c.pt.is_some_and(|p| {
                         p.toughness <= 0
                             || c.is(CardType::Creature)
+                                && !c.has(Keyword::Indestructible)
                                 && (perm.damage >= p.toughness as u32 || perm.deathtouched)
                                 && perm.damage > 0
                     })

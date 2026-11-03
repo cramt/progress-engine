@@ -1707,3 +1707,110 @@ fn eidolon_of_the_great_revel_damages_whoever_casts_a_cheap_spell() {
     resolve(&mut game);
     assert_eq!(game.player(ME).life(), 17);
 }
+
+/// CR 702.18a, 702.12b: Argothian Enchantress's shroud keeps a Bolt from
+/// targeting it, and Darksteel Myr's indestructible keeps lethal damage
+/// from destroying it.
+#[test]
+fn shroud_stops_targets_and_indestructible_survives_lethal_damage() {
+    let mut game = deal_both(
+        &[
+            ("Forest", 20),
+            ("Mountain", 20),
+            ("Argothian Enchantress", 10),
+            ("Darksteel Myr", 10),
+        ],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[
+            ("Forest", 2),
+            ("Mountain", 1),
+            ("Argothian Enchantress", 1),
+            ("Darksteel Myr", 1),
+        ],
+        &[("Mountain", 3), ("Lightning Bolt", 2)],
+    );
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Forest");
+    cast(&mut game, "Argothian Enchantress", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Darksteel Myr", None);
+    resolve(&mut game);
+    let enchantress = creature(&game, "Argothian Enchantress").unwrap();
+    let myr = creature(&game, "Darksteel Myr").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    let bolt = in_hand(&game, THEM, "Lightning Bolt").unwrap();
+    let Decision::Targets { slots, .. } = step(&mut game, Answer::Act(Action::Cast(bolt))) else {
+        panic!("Bolt targets")
+    };
+    assert!(!slots[0].contains(&Target::Object(enchantress)));
+    assert!(slots[0].contains(&Target::Object(myr)));
+    let mut d = step(&mut game, Answer::Targets(vec![Target::Object(myr)]));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .unwrap();
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    assert_eq!(game.permanents()[&myr].damage, 3);
+    assert!(game.permanents().contains_key(&myr), "indestructible");
+}
+
+/// CR 702.28b: Soltari Priest's shadow: Grizzly Bears can't block it.
+#[test]
+fn a_creature_with_shadow_is_blocked_only_by_shadow() {
+    let mut game = deal_both(
+        &[("Plains", 40), ("Soltari Priest", 20)],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Plains", 2), ("Soltari Priest", 1)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Plains");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Plains");
+    cast(&mut game, "Soltari Priest", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    let priest = creature(&game, "Soltari Priest").unwrap();
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(priest, THEM)]));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert!(game.step(Answer::Block(vec![(bears, priest)])).is_err());
+}
+
+/// CR 106.3, 608.2c: Dark Ritual's "Add {B}{B}{B}" puts the mana in its
+/// controller's pool as it resolves.
+#[test]
+fn dark_ritual_adds_three_black_mana() {
+    let mut game = deal(
+        &[("Swamp", 40), ("Dark Ritual", 20)],
+        &[("Forest", 60)],
+        &[("Swamp", 1), ("Dark Ritual", 1)],
+    );
+    play(&mut game, "Swamp");
+    cast(&mut game, "Dark Ritual", None);
+    resolve(&mut game);
+    assert_eq!(game.player(ME).pool().to_string(), "{B}{B}{B}");
+}

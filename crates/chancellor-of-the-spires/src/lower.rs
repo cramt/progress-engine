@@ -603,9 +603,13 @@ fn keyword(k: &i::Keyword) -> Option<Vec<Keyword>> {
         "first strike" => Keyword::FirstStrike,
         "flying" => Keyword::Flying,
         "haste" => Keyword::Haste,
+        "hexproof" => Keyword::Hexproof,
+        "indestructible" => Keyword::Indestructible,
         "lifelink" => Keyword::Lifelink,
         "menace" => Keyword::Menace,
         "reach" => Keyword::Reach,
+        "shadow" => Keyword::Shadow,
+        "shroud" => Keyword::Shroud,
         "trample" => Keyword::Trample,
         "vigilance" => Keyword::Vigilance,
         _ => return None,
@@ -991,6 +995,9 @@ pub enum Effect {
     },
     /// The controller scries (CR 701.22a).
     Scry(u32),
+    /// Dark Ritual's "Add {B}{B}{B}": mana in its controller's pool (CR
+    /// 106.3).
+    AddMana(crate::mana::ManaPool),
     /// CR 122.1, 122.6.
     PutCounters {
         on: Obj,
@@ -1708,6 +1715,10 @@ impl<'a> Scope<'a> {
                 }
             }
             i::Effect::Scry(k) => Effect::Scry(n(k)?),
+            i::Effect::AddMana(add) => match crate::mana::adds(add)? {
+                crate::mana::Adds::Options(o) if o.len() == 1 => Effect::AddMana(o[0]),
+                _ => return Err("adding a choice of mana".into()),
+            },
             i::Effect::PutCounters { n: k, kind, on } => Effect::PutCounters {
                 on: self.obj(on)?,
                 counter: counter(kind).ok_or_else(node)?,

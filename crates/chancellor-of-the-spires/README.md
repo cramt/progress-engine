@@ -178,7 +178,8 @@ instruction gives, its creator its owner and controller, named for its
 subtypes (CR 111.1–111.4), a card refused if a token it makes can't run, gain and lose life, damage to any target, a player, a player or
 planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
-lifelink, CR 702.15b), scry and +1/+1 or named counters; their targets
+lifelink, CR 702.15b), scry and +1/+1 or named counters, mana added to the pool (Dark
+Ritual, CR 106.3); their targets
 chosen as they are cast, and checked again as they resolve, an illegal
 one left alone and a spell with every target illegal not resolving (CR
 608.2b); triggered abilities that trigger when a permanent a filter
@@ -214,6 +215,10 @@ land itself, and a shock land's life or tapped, all read off the
 permanent as it would enter (CR 614.12); mana pools emptying as each step ends (CR 500.5);
 a player with hexproof (Leyline of Sanctity's "You have hexproof") never
 a legal target of an opponent's spell or ability (CR 702.11c, 115.4);
+shroud, and hexproof against an opponent's (CR 702.18a, 702.11b), never
+a legal target; indestructible, never destroyed by an instruction or
+lethal damage (CR 702.12b); shadow, blocking and blocked only with
+shadow (CR 702.28b);
 protection from a colour, from multicolored or from everything: never a
 legal target of a spell or ability from a source with the quality, never
 blocked by a creature with it, and its damage prevented (CR 702.16b,
@@ -237,7 +242,7 @@ resolve to a target or its source, a static that isn't
 an Aura (its target), and a keyword other than flash, cycling, transmute,
 flashback, partner, exalted, prowess and the layers' own (flying, reach,
 menace, first and double strike, defender, haste, vigilance, trample,
-deathtouch, lifelink, and protection from a colour, from multicolored or
+deathtouch, lifelink, shroud, hexproof, indestructible, shadow, and protection from a colour, from multicolored or
 from everything); cycling, transmute and flashback are carried, never
 offered. A non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is

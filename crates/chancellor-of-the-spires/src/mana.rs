@@ -439,7 +439,7 @@ fn lower_mana_ability(
     Ok(ability)
 }
 
-fn adds(add: &i::ManaAdd) -> Result<Adds, String> {
+pub(crate) fn adds(add: &i::ManaAdd) -> Result<Adds, String> {
     let pool = |m: &i::Mana| -> Result<ManaPool, String> {
         m.0.iter()
             .map(|s| Mana::symbol(s).ok_or_else(|| format!("adding {{{s}}}")))

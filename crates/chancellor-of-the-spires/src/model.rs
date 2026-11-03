@@ -88,9 +88,17 @@ pub enum Keyword {
     FirstStrike,
     Flying,
     Haste,
+    /// CR 702.11b: no opponent's spell or ability targets it.
+    Hexproof,
+    /// CR 702.12b: it isn't destroyed, by an instruction or lethal damage.
+    Indestructible,
     Lifelink,
     Menace,
     Reach,
+    /// CR 702.28b: it blocks and is blocked only with shadow.
+    Shadow,
+    /// CR 702.18a: no spell or ability targets it.
+    Shroud,
     Trample,
     Vigilance,
     /// "Protection from blue" (CR 702.16a): one instance per quality, so
