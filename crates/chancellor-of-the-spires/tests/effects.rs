@@ -1671,3 +1671,39 @@ fn a_signet_spends_mana_from_the_pool_to_add_two() {
     resolve(&mut game);
     assert!(creature(&game, "Grizzly Bears").is_some());
 }
+
+/// CR 601.2i, 603.2: Eidolon of the Great Revel triggers on any player's
+/// spell with mana value 3 or less, and deals 2 damage to its caster.
+#[test]
+fn eidolon_of_the_great_revel_damages_whoever_casts_a_cheap_spell() {
+    let mut game = deal_both(
+        &[("Mountain", 40), ("Eidolon of the Great Revel", 20)],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[("Mountain", 2), ("Eidolon of the Great Revel", 1)],
+        &[("Mountain", 2), ("Lightning Bolt", 1)],
+    );
+    play(&mut game, "Mountain");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Eidolon of the Great Revel", None);
+    resolve(&mut game);
+    assert_eq!(
+        game.player(ME).life(),
+        20,
+        "not on the battlefield as it was cast"
+    );
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Player(ME)]),
+    );
+    // The trigger goes on the stack above the Bolt and resolves first.
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+    resolve(&mut game);
+    assert_eq!(game.player(ME).life(), 17);
+}

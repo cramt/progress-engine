@@ -46,6 +46,8 @@ const INDEXED: &[&str] = &[
     "Mishra's Factory",
     "Cascade Bluffs",
     "Daring Apprentice",
+    "Warmth",
+    "Eidolon of the Great Revel",
 ];
 
 fn index() -> &'static IndexFile {
@@ -716,6 +718,54 @@ fn a_payment_filters_mana_through_a_filter_land() {
         Turn 3: alice
         alice plays [Mountain].
         alice casts [Daring Apprentice].
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+}
+
+/// CR 601.2i, 603.2: a spell cast while another is on the stack may have
+/// been cast in response, and the log never says: Warmth's "Whenever an
+/// opponent casts a red spell" would have triggered on the Bolt had Warmth
+/// resolved first, and no line shows it did, so the Bolt answered Warmth.
+/// Eidolon's trigger, which a line does show, is followed as cast after.
+#[test]
+fn a_spell_is_cast_in_response_when_the_triggers_after_say_so() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Plains].
+        Turn 1: bob
+        bob plays [Mountain].
+        Turn 2: alice
+        alice plays [Plains].
+        alice casts [Warmth].
+        bob casts [Lightning Bolt] targeting alice.
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(game.stack().len(), 2, "the Bolt above Warmth");
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        Turn 1: bob
+        bob plays [Mountain].
+        Turn 2: alice
+        alice plays [Mountain].
+        alice casts [Eidolon of the Great Revel].
+        bob casts [Lightning Bolt] targeting alice.
+        bob puts triggered ability from [Eidolon of the Great Revel] onto the stack (Whenever a player casts a spell with mana value 3 or less, Eidolon of the Great Revel deals 2 damage to that player.).
         alice has conceded from the game.
         bob wins the game.
         Winner: bob

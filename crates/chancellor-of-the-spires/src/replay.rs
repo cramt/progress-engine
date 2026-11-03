@@ -220,6 +220,7 @@ pub fn replay(
         bottomed: (0, 0),
         created: (0, 0),
         entries: g.entries.clone(),
+        respond: None,
     };
     let end = r.run(m, g);
     Replay {
@@ -240,10 +241,22 @@ struct Checkpoint {
     others: Vec<Retry>,
     /// What the replay knew of the log there.
     knew: Knew,
-    /// Whether any line that can't be followed is reason to go back, not
-    /// only a spell that can't be paid for: a "may" the log shows no
-    /// answer to, whose answer is known only from what follows.
-    any_stop: bool,
+    /// What later stop is reason to come back here.
+    back: Back,
+}
+
+/// The stops a choice the log doesn't show can cause, so the stops that
+/// are reason to go back and make it otherwise.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Back {
+    /// A payment or a search: a later spell or play it leaves impossible.
+    Unplayable,
+    /// A "may" the log shows no answer to, whose answer is known only
+    /// from what follows: any line that can't be followed.
+    Any,
+    /// A spell cast after what is on the stack resolves, or in response
+    /// to it: a trigger the log does or doesn't show.
+    Triggers,
 }
 
 /// The replay's own record of the lines it has matched, put back with the
@@ -255,12 +268,16 @@ struct Knew {
     consumed: BTreeSet<usize>,
     bottomed: (u32, u32),
     created: (u32, u32),
+    respond: Option<usize>,
 }
 
 #[derive(Clone)]
 enum Retry {
     Pay(Vec<ManaActivation>),
     Answer(Answer, String),
+    /// Follow the line again, casting its spell in response to what is on
+    /// the stack rather than after it resolves.
+    Respond,
 }
 
 struct Driver<'a> {
@@ -295,6 +312,10 @@ struct Driver<'a> {
     /// The game's lines, for the choices a later line shows (a trigger's
     /// targets, the order triggers go on the stack).
     entries: Vec<Entry>,
+    /// The line whose spell is cast in response to what is on the stack,
+    /// gone back to when casting it after what it answers can't be
+    /// followed.
+    respond: Option<usize>,
 }
 
 type Followed = Result<(), Stop>;
@@ -311,6 +332,7 @@ impl Driver<'_> {
             consumed: self.consumed.clone(),
             bottomed: self.bottomed,
             created: self.created,
+            respond: self.respond,
         }
     }
 
@@ -361,6 +383,12 @@ impl Driver<'_> {
                     if std::env::var_os("CHANCELLOR_DEBUG").is_some() {
                         eprintln!("line {i}: {stop}");
                     }
+                    let triggers = matches!(
+                        stop,
+                        Stop::Diverged(
+                            Divergence::UnloggedTrigger { .. } | Divergence::Untriggered { .. }
+                        )
+                    );
                     // A permanent tapped to pay can't then attack, block or
                     // be tapped again: a play never offered is reason to
                     // go back too.
@@ -379,11 +407,17 @@ impl Driver<'_> {
                     // or play impossible, or lose the game early, so only
                     // then is it worth going back.
                     let retry = backtracks < BACKTRACKS;
-                    match self
-                        .checkpoints
-                        .last_mut()
-                        .filter(|cp| retry && (unpayable || cp.any_stop))
-                    {
+                    // The latest choice that could have caused this; any
+                    // after it are of a game gone back from.
+                    let cause = |b: Back| match b {
+                        Back::Unplayable => unpayable,
+                        Back::Any => true,
+                        Back::Triggers => triggers,
+                    };
+                    while self.checkpoints.last().is_some_and(|cp| !cause(cp.back)) {
+                        self.checkpoints.pop();
+                    }
+                    match self.checkpoints.last_mut().filter(|_| retry) {
                         Some(cp) => {
                             backtracks += 1;
                             let other = cp.others.remove(0);
@@ -399,7 +433,14 @@ impl Driver<'_> {
                             self.consumed = knew.consumed;
                             self.bottomed = knew.bottomed;
                             self.created = knew.created;
+                            self.respond = knew.respond;
                             let did = match other {
+                                Retry::Respond => {
+                                    self.respond = Some(entry);
+                                    self.game = Some(game);
+                                    i = resume;
+                                    continue;
+                                }
                                 Retry::Pay(payment) => pay_with(&mut game, &payment)
                                     .map(|()| format!("paid again, {}", describe(&payment))),
                                 Retry::Answer(answer, did) => game
@@ -748,7 +789,23 @@ impl Driver<'_> {
                 let answers = cast
                     .targets
                     .iter()
-                    .any(|a| self.targeted_on_stack(&a.target));
+                    .any(|a| self.targeted_on_stack(&a.target))
+                    || self.respond == Some(i);
+                // The log never says it was cast in response: it may have
+                // been, if what follows says so (a trigger the spell on
+                // the stack resolving first would have caused).
+                if !answers && !self.game().stack().is_empty() {
+                    let game = self.game().clone();
+                    self.checkpoints.push(Checkpoint {
+                        game,
+                        entry: i,
+                        trace: self.trace.len(),
+                        resume: i,
+                        others: vec![Retry::Respond],
+                        knew: self.knew(),
+                        back: Back::Triggers,
+                    });
+                }
                 let c = self.offered(p, card.name(), Kind::Cast, on_stack, answers)?;
                 self.act(Answer::Act(Action::Cast(c)))?;
                 let paid = self.aim_and_pay(i, &cast.targets, card.name())?;
@@ -1514,7 +1571,7 @@ impl Driver<'_> {
                 resume: i + 1,
                 others: rest.iter().cloned().map(Retry::Pay).collect(),
                 knew: self.knew(),
-                any_stop: false,
+                back: Back::Unplayable,
             });
         }
         pay_with(self.game(), first)?;
@@ -2093,7 +2150,7 @@ impl Driver<'_> {
                     .map(|(a, d)| Retry::Answer(a.clone(), d.clone()))
                     .collect(),
                 knew: self.knew(),
-                any_stop: false,
+                back: Back::Unplayable,
             });
         }
         self.act(first.clone())?;
@@ -2124,7 +2181,7 @@ impl Driver<'_> {
                 format!("paid {life} life for {name} to enter untapped"),
             )],
             knew: self.knew(),
-            any_stop: false,
+            back: Back::Unplayable,
         });
         self.act(Answer::PayLife(false))?;
         let at = self.at;
@@ -2169,7 +2226,7 @@ impl Driver<'_> {
                 format!("declined {name}'s \"may\""),
             )],
             knew: self.knew(),
-            any_stop: true,
+            back: Back::Any,
         });
         self.act(Answer::May(true))?;
         let at = self.at;

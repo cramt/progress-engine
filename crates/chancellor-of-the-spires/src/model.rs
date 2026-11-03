@@ -187,6 +187,10 @@ pub enum Prop {
     Supertype(Supertype),
     Subtype(Subtype),
     Color(Color),
+    /// Two or more colours (CR 105.2b).
+    Multicolored,
+    /// No colour (CR 105.2c).
+    Colorless,
 }
 
 impl Prop {
@@ -196,6 +200,8 @@ impl Prop {
             Prop::Supertype(t) => c.supertypes.contains(t),
             Prop::Subtype(t) => c.subtypes.contains(t),
             Prop::Color(t) => c.colors.contains(t),
+            Prop::Multicolored => c.colors.len() >= 2,
+            Prop::Colorless => c.colors.is_empty(),
         }
     }
 }

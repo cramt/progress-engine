@@ -187,8 +187,9 @@ the stack the next time a player would receive priority, the active
 player's first, each player's in the order they choose (CR 603.3b),
 with their targets, removed if a target slot has no legal choice (CR
 603.3d), and resolving independently of their source (CR 113.7a), on a
-permanent entering, a creature attacking (CR 508.3a), its controller
-casting a spell (CR 601.2i), a permanent being dealt damage, with the
+permanent entering, a creature attacking (CR 508.3a), a player, its
+controller or an opponent casting a spell a filter matches, "that
+player" its caster (CR 601.2i: Eidolon of the Great Revel, Warmth), a permanent being dealt damage, with the
 amount for "that much" (CR 120.3; combat damage dealt at once is one
 event, CR 510.2), a permanent dealing damage, or combat damage, to a
 player, a creature dying, its own "when this creature dies" looking back
@@ -465,7 +466,10 @@ a spell resolved either: the stack resolves before a line's play,
 down to what a later line shows resolving ("reveals their hand to
 [Duress]"), so a fetchland activated in response to Duress is activated
 with Duress on the stack. A spell that targets a permanent a spell on the
-stack targets is cast in response to it too, and a "removed from the
+stack targets is cast in response to it too, and so is any spell whose
+casting after the stack resolved leaves a trigger the log doesn't show,
+or misses one it does (Warmth's on an opponent's red spell, cast in
+response to Warmth): the replay goes back and casts it so. A "removed from the
 stack because it has no legal targets" line must match the engine's
 spell leaving the stack unresolved (CR 608.2b).
 

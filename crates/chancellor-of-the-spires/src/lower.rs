@@ -762,6 +762,16 @@ fn static_part<'a>(
     })
 }
 
+/// A colour a filter asks about: one of the five, or multicolored or
+/// colorless (CR 105.2b–c).
+fn color_prop(c: &i::Color) -> Option<Prop> {
+    match c {
+        i::Color::Multicolored => Some(Prop::Multicolored),
+        i::Color::Colorless => Some(Prop::Colorless),
+        c => color(c).map(Prop::Color),
+    }
+}
+
 fn color(c: &i::Color) -> Option<Color> {
     Some(match c {
         i::Color::White => Color::White,
@@ -870,8 +880,8 @@ fn objects(o: &Objects) -> Result<Filter, String> {
                 supertype(t).ok_or(format!("supertype {t}"))?,
             )),
             Adj::Subtype(t) => Pred::Is(Prop::Subtype(subtype(t, &types))),
-            Adj::Color(c) => Pred::Is(Prop::Color(color(c).ok_or(short(c))?)),
-            Adj::NonColor(c) => Pred::IsNot(Prop::Color(color(c).ok_or(short(c))?)),
+            Adj::Color(c) => Pred::Is(color_prop(c).ok_or(short(c))?),
+            Adj::NonColor(c) => Pred::IsNot(color_prop(c).ok_or(short(c))?),
             Adj::State(i::State::Nontoken) => Pred::Nontoken,
             Adj::State(i::State::Other) => Pred::Other,
             Adj::State(i::State::Attacking) => Pred::Attacking,
@@ -1090,6 +1100,9 @@ pub enum Who {
     /// "Its controller": of the object, or as it last existed (CR
     /// 608.2h).
     ControllerOf(Obj),
+    /// "That player": the one the trigger event names, the caster of the
+    /// spell cast.
+    EventPlayer,
 }
 
 /// An object an instruction names: the ability's own source ("this
@@ -1125,6 +1138,8 @@ pub enum DamageTo {
     /// "the player or planeswalker it's attacking": whom the ability's
     /// source attacks as it resolves, if it still does.
     Attacked,
+    /// "That player": the one the trigger event names.
+    EventPlayer,
 }
 
 /// What a target slot may be (CR 115.1).
@@ -1166,9 +1181,11 @@ pub enum TriggerEvent {
     /// creature declared as an attacker is one the filter matches (CR
     /// 506.5, 702.83a).
     AttacksAlone(Filter),
-    /// Prowess's "Whenever you cast a noncreature spell": its controller
-    /// casts a spell the filter matches (CR 601.2i, 702.108a).
-    YouCast(CardFilter),
+    /// "Whenever a player casts a spell with mana value 3 or less",
+    /// prowess's "Whenever you cast a noncreature spell": a player `by`
+    /// names, relative to its controller, casts a spell the filter
+    /// matches, by its card's characteristics (CR 601.2i, 702.108a).
+    Casts { by: CastBy, spells: CardFilter },
     /// "Whenever this creature is dealt damage": a permanent the filter
     /// matches is dealt damage, the amount the event's (CR 120.3).
     DealtDamage(Filter),
@@ -1252,6 +1269,17 @@ pub fn triggered(
                 what: entering(what)?,
                 combat: true,
             },
+            // A spell cast by itself triggers from the stack, where
+            // nothing looks for triggers yet.
+            i::Event::Casts { who, what } if what.quant != Quant::SelfRef => TriggerEvent::Casts {
+                by: match who {
+                    i::Player::You => CastBy::You,
+                    i::Player::APlayer | i::Player::Each => CastBy::Anyone,
+                    i::Player::AnOpponent | i::Player::EachOpponent => CastBy::Opponents,
+                    _ => return Err(trigger_node(trigger)),
+                },
+                spells: spell_filter(what)?,
+            },
             _ => return Err(trigger_node(trigger)),
         },
         i::Trigger::At(step) => {
@@ -1273,6 +1301,7 @@ pub fn triggered(
     };
     let mut scope = Scope::new(bind);
     scope.amount = matches!(event, TriggerEvent::DealtDamage(_));
+    scope.caster = matches!(event, TriggerEvent::Casts { .. });
     let lowered = scope.effects(effect)?;
     scope.program.effects = lowered;
     Ok(Triggered {
@@ -1302,9 +1331,12 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
             },
         }),
         "prowess" => Some(Triggered {
-            event: TriggerEvent::YouCast(CardFilter(vec![Filter(vec![Pred::IsNot(Prop::Type(
-                CardType::Creature,
-            ))])])),
+            event: TriggerEvent::Casts {
+                by: CastBy::You,
+                spells: CardFilter(vec![Filter(vec![Pred::IsNot(Prop::Type(
+                    CardType::Creature,
+                ))])]),
+            },
             program: Program {
                 targets: Vec::new(),
                 effects: vec![Effect::UntilEndOfTurn {
@@ -1350,6 +1382,9 @@ struct Scope<'a> {
     player: Option<usize>,
     /// Whether the trigger event has an amount "that much" names.
     amount: bool,
+    /// Whether the trigger event names a player, a spell's caster, whom
+    /// "that player" names.
+    caster: bool,
     program: Program,
     /// The `With` binders in scope, outermost first: the slot each binds,
     /// or `None` for one nothing the engine runs reads.
@@ -1375,6 +1410,7 @@ impl<'a> Scope<'a> {
             bound: vec![None; bind.len()],
             player: None,
             amount: false,
+            caster: false,
             program: Program::default(),
             withs: Vec::new(),
             slots: 0,
@@ -1492,6 +1528,7 @@ impl<'a> Scope<'a> {
             i::Player::TargetOpponent => true,
             // "That player": the target player, when the ability names
             // exactly one player beside its controller.
+            i::Player::That if self.caster && self.player.is_none() => return Ok(Who::EventPlayer),
             i::Player::That => {
                 return self
                     .player
@@ -1542,6 +1579,7 @@ impl<'a> Scope<'a> {
             [i::Recipient::Player(p)] => match self.who(p)? {
                 Who::Target(s) => Ok(DamageTo::Target(s)),
                 Who::You => Ok(DamageTo::You),
+                Who::EventPlayer => Ok(DamageTo::EventPlayer),
                 Who::Defending | Who::ControllerOf(_) => {
                     Err("damage to the defending player or a controller".into())
                 }

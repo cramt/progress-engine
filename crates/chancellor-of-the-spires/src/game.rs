@@ -384,6 +384,8 @@ pub enum StackObject {
         triggering: Option<ObjectId>,
         /// The amount its event names.
         amount: Option<u32>,
+        /// The player its event names: a spell's caster.
+        player: Option<PlayerId>,
         seq: u32,
     },
     /// An activated ability (CR 602.2a): the card whose ability it is, by
@@ -436,6 +438,8 @@ struct Resuming {
     triggering: Option<ObjectId>,
     /// The amount the trigger event named, "that much".
     amount: Option<u32>,
+    /// The player the trigger event named, "that player".
+    player: Option<PlayerId>,
     /// The instruction to follow next: its index in the program's list,
     /// then in the list of each "may" being followed inside it.
     next: Vec<usize>,
@@ -456,6 +460,8 @@ pub struct Pending {
     pub triggering: Option<ObjectId>,
     /// The amount its event names, the damage dealt.
     pub amount: Option<u32>,
+    /// The player its event names, the caster of a spell.
+    pub player: Option<PlayerId>,
     /// Its controller has put it in order among their others (CR 603.3b).
     ordered: bool,
 }
@@ -2662,7 +2668,7 @@ impl Game {
                     self.begin_resolving(
                         Instructions::Spell(card),
                         controller,
-                        (None, None, None),
+                        (None, None, None, None),
                         targets,
                     );
                 }
@@ -2676,7 +2682,7 @@ impl Game {
             }) => self.begin_resolving(
                 Instructions::Activated(source, ability),
                 controller,
-                (Some(object), None, None),
+                (Some(object), None, None, None),
                 targets,
             ),
             Some(StackObject::Trigger {
@@ -2687,11 +2693,12 @@ impl Game {
                 targets,
                 triggering,
                 amount,
+                player,
                 ..
             }) => self.begin_resolving(
                 Instructions::Triggered(source, ability),
                 controller,
-                (Some(object), triggering, amount),
+                (Some(object), triggering, amount, player),
                 targets,
             ),
             None => self.proceed(then),
@@ -2705,7 +2712,12 @@ impl Game {
         &mut self,
         what: Instructions,
         controller: PlayerId,
-        (object, triggering, amount): (Option<ObjectId>, Option<ObjectId>, Option<u32>),
+        (object, triggering, amount, player): (
+            Option<ObjectId>,
+            Option<ObjectId>,
+            Option<u32>,
+            Option<PlayerId>,
+        ),
         targets: Vec<Target>,
     ) {
         let slots = self.program(what).targets.clone();
@@ -2726,6 +2738,7 @@ impl Game {
             targets: checked,
             triggering,
             amount,
+            player,
             next: vec![0],
             found: OrdMap::new(),
         };
@@ -2807,6 +2820,7 @@ impl Game {
                 },
                 Who::Defending => defending,
                 Who::ControllerOf(o) => self.now_or_last(&at, o).map(|c| c.controller),
+                Who::EventPlayer => at.player,
             };
             match e {
                 Effect::Search {
@@ -2952,6 +2966,7 @@ impl Game {
                 Effect::Damage { to, n } => {
                     let to = match to {
                         DamageTo::You => Some(Target::Player(p)),
+                        DamageTo::EventPlayer => at.player.map(Target::Player),
                         DamageTo::Target(s) => at.targets[s],
                         DamageTo::Attacked => at
                             .object
@@ -3462,6 +3477,7 @@ impl Game {
             targets,
             triggering: t.triggering,
             amount: t.amount,
+            player: t.player,
             seq: self.triggers,
         });
     }
@@ -3591,14 +3607,24 @@ impl Game {
                         [id] if f.matches(&seen(*id)) => vec![(Some(*id), None)],
                         _ => vec![],
                     },
-                    (TriggerEvent::YouCast(f), Event::Cast { card, controller }) => {
+                    (TriggerEvent::Casts { by, spells }, Event::Cast { card, controller }) => {
                         let printed = self.known(*card).and_then(|k| k.printed.as_ref());
-                        (*controller == chars.controller && printed.is_some_and(|c| f.matches(c)))
+                        let caster = match by {
+                            lower::CastBy::Anyone => true,
+                            lower::CastBy::You => *controller == chars.controller,
+                            lower::CastBy::Opponents => *controller != chars.controller,
+                        };
+                        (caster && printed.is_some_and(|c| spells.matches(c)))
                             .then_some((None, None))
                             .into_iter()
                             .collect()
                     }
                     _ => vec![],
+                };
+                // A spell cast names its caster, "that player".
+                let player = match &event {
+                    Event::Cast { controller, .. } => Some(*controller),
+                    _ => None,
                 };
                 for (triggering, amount) in objects {
                     triggered.push(Pending {
@@ -3608,6 +3634,7 @@ impl Game {
                         controller: chars.controller,
                         triggering,
                         amount,
+                        player,
                         ordered: false,
                     });
                 }
@@ -3639,6 +3666,7 @@ impl Game {
                             controller: l.chars.controller,
                             triggering: None,
                             amount: None,
+                            player: None,
                             ordered: false,
                         });
                     }
