@@ -832,6 +832,12 @@ impl Driver<'_> {
                         return Ok(Next::Line(j + 1));
                     }
                 }
+                // A discard instead of a permanent entering, read ahead
+                // as it entered (`discard_to_enter`).
+                if self.until_consumed(i)? {
+                    self.did(i, "discarded instead, so it entered (CR 614.1a)");
+                    return Ok(Next::Line(i + 1));
+                }
                 // A resolving spell or ability's: a card chosen from a
                 // revealed hand, or cards the player chooses.
                 match self.until_choice()? {
@@ -1461,6 +1467,7 @@ impl Driver<'_> {
             Decision::ChooseAmong { cards, n, .. } => self.act(Answer::Choose(cards[..n].to_vec())),
             Decision::Arrange { cards, .. } => self.act(Answer::Arrange(cards)),
             Decision::PutFromHand { player, .. } => self.put_from_hand(player),
+            Decision::DiscardToEnter { player, .. } => self.discard_to_enter(player),
             Decision::PayOrEnterTapped { card, life, .. } => self.pay_or_tap(card, life),
             d @ (Decision::Pay { .. }
             | Decision::Mulligan { .. }
@@ -1597,6 +1604,38 @@ impl Driver<'_> {
             out.push(t);
         }
         Ok(out)
+    }
+
+    /// Mox Diamond would enter, and `p` may discard a land card instead:
+    /// the log's next "discards [X]" line of theirs this turn says they
+    /// did, and which; with none, they didn't, and it went to the
+    /// graveyard.
+    fn discard_to_enter(&mut self, p: PlayerId) -> Followed {
+        let said = self
+            .entries
+            .iter()
+            .enumerate()
+            .skip(self.at)
+            .take_while(|(k, e)| *k == self.at || !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|(k, e)| match &e.event {
+                Event::Discards { player, cards }
+                    if self.seat(*player) == p && !self.consumed.contains(&k) =>
+                {
+                    match cards.as_slice() {
+                        [Object::Card(c)] => Some((k, c.name().to_string())),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            });
+        let Some((k, name)) = said else {
+            return self.act(Answer::Pick(None));
+        };
+        let Some(c) = self.in_hand(p, &name)? else {
+            return Err(Stop::Diverged(Divergence::NotInHand { card: name }));
+        };
+        self.consumed.insert(k);
+        self.act(Answer::Pick(Some(c)))
     }
 
     /// `p` cycles the card of this name from their hand: offered any time
@@ -2360,6 +2399,7 @@ impl Driver<'_> {
                     | Decision::Targets { .. }
                     | Decision::Order { .. }
                     | Decision::Search { .. }
+                    | Decision::DiscardToEnter { .. }
                     | Decision::PayOrEnterTapped { .. } => true,
                     _ => false,
                 };

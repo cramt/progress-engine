@@ -67,6 +67,10 @@ on. Turn-based and state-based actions are never decisions.
   enters, you may pay 2 life. If you don't, it enters tapped", asked
   before it enters (CR 614.1c, 614.12a) and only of a player with the life
   to pay (CR 119.4), answered `PayLife(bool)`.
+- `DiscardToEnter { player, card, legal, unsure }`: Mox Diamond's "If
+  this artifact would enter, you may discard a land card instead",
+  answered `Pick`: it enters for the card discarded, and goes to its
+  owner's graveyard for `None` (CR 614.1a).
 - `Targets { player, card, slots }`: each target slot's legal targets,
   asked as a spell is cast, before its cost (CR 601.2c), and as a
   triggered ability is put on the stack (CR 603.3d), answered
@@ -199,9 +203,13 @@ player" its caster (CR 601.2i: Eidolon of the Great Revel, Warmth), a permanent 
 amount for "that much" (CR 120.3; combat damage dealt at once is one
 event, CR 510.2), a permanent dealing damage, or combat damage, to a
 player, a creature dying, its own "when this creature dies" looking back
-at it as it last existed (CR 700.4, 603.6c, 603.10a), and the beginning
+at it as it last existed (CR 700.4, 603.6c, 603.10a), its controller
+attacking with one or more creatures a filter matches (Hired Claw's
+Lizards, CR 508.3a), and the beginning
 of an upkeep, draw step or end step, yours,
-each or an opponent's (CR 503.1a, 504.2, 513.1a), with exalted and prowess written
+each or an opponent's (CR 503.1a, 504.2, 513.1a), and a delayed trigger
+an instruction creates, "Draw a card at the beginning of the next turn's
+upkeep", triggering once (CR 603.7a–c: Portent), with exalted and prowess written
 out as the triggers they are (CR 702.83a, 702.108a) and "until end of
 turn" effects ending in cleanup (CR 514.2); combat: attackers tapping
 unless they have vigilance (CR 508.1f), blockers, the declare blockers

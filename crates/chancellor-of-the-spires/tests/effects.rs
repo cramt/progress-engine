@@ -407,7 +407,7 @@ fn champion_of_the_parish_grows_when_another_human_enters() {
     resolve(&mut game);
     assert!(matches!(
         game.stack().back(),
-        Some(StackObject::Trigger { object, controller: ME, .. }) if *object == champion
+        Some(StackObject::Trigger { object, controller: ME, .. }) if *object == Some(champion)
     ));
     resolve(&mut game);
     assert_eq!(game.characteristics()[&champion].pt, Some(pt(2, 2)));
@@ -1910,4 +1910,63 @@ fn a_mana_ability_limited_by_what_you_control_is_offered_only_then() {
     );
     resolve(&mut game);
     assert_eq!(adds(&game), vec!["{G}", "{G}{G}{G}{G}"]);
+}
+
+/// CR 508.3a, 603.3d: Hired Claw's "Whenever you attack with one or more
+/// Lizards" triggers once as it attacks, and deals the opponent it
+/// targets 1 damage.
+#[test]
+fn hired_claw_triggers_when_its_controller_attacks_with_a_lizard() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Hired Claw", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 1), ("Hired Claw", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Hired Claw", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    let claw = creature(&game, "Hired Claw").unwrap();
+    to_attackers(&mut game);
+    let d = step(&mut game, Answer::Attack(vec![(claw, THEM)]));
+    let Decision::Targets { slots, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(slots, vec![vec![Target::Player(THEM)]]);
+    step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 19);
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+}
+
+/// CR 603.7a–c: Portent's "Draw a card at the beginning of the next
+/// turn's upkeep" is a delayed trigger: it waits for the opponent's
+/// upkeep, then triggers once.
+#[test]
+fn portent_draws_at_the_next_turns_upkeep() {
+    let mut game = deal(
+        &[("Island", 40), ("Portent", 20)],
+        &[("Forest", 60)],
+        &[("Island", 1), ("Portent", 1)],
+    );
+    play(&mut game, "Island");
+    cast(&mut game, "Portent", Some(vec![Target::Player(ME)]));
+    step(&mut game, Answer::Act(Action::Pass));
+    let mut d = step(&mut game, Answer::Act(Action::Pass));
+    loop {
+        d = match d {
+            Decision::Arrange { cards, .. } => step(&mut game, Answer::Arrange(cards)),
+            Decision::May { .. } => step(&mut game, Answer::May(false)),
+            _ => break,
+        };
+    }
+    let hand = game.player(ME).hand().len();
+    pass_until(&mut game, THEM, Step::Upkeep);
+    assert_eq!(game.stack().len(), 1, "the delayed trigger");
+    resolve(&mut game);
+    assert_eq!(game.player(ME).hand().len(), hand + 1);
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    pass_until(&mut game, THEM, Step::Upkeep);
+    assert!(game.stack().is_empty(), "it triggers once");
 }

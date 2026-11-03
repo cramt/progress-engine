@@ -211,6 +211,10 @@ enum Enters {
     /// "As this land enters, you may pay 2 life. If you don't, it enters
     /// tapped."
     TappedUnlessPaysLife(u32),
+    /// Mox Diamond's "If this artifact would enter, you may discard a
+    /// land card instead. If you do, put this artifact onto the
+    /// battlefield. If you don't, put it into its owner's graveyard."
+    DiscardOrGraveyard(CardFilter),
 }
 
 /// Why the engine refuses a card: the node of Insight's tree (or the rule)
@@ -378,8 +382,9 @@ pub enum StackObject {
     /// the stack this game, so each is told apart.
     Trigger {
         source: CardId,
-        object: ObjectId,
-        ability: u16,
+        /// The permanent it triggered from; none for a delayed trigger.
+        object: Option<ObjectId>,
+        ability: TriggerOf,
         controller: PlayerId,
         targets: Vec<Target>,
         /// The object its event names, exalted's attacking creature.
@@ -411,7 +416,30 @@ pub enum StackObject {
 enum Instructions {
     Spell(CardId),
     Activated(CardId, u16),
-    Triggered(CardId, u16),
+    Triggered(CardId, TriggerOf),
+}
+
+/// Which triggered ability: one a card prints, by its index among the
+/// card's unread abilities, or a delayed one a resolving spell or ability
+/// created (CR 603.7a), by its place in `Game::delayed`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum TriggerOf {
+    Printed(u16),
+    Delayed(u32),
+}
+
+/// A delayed triggered ability (CR 603.7a): whose, and what it waits for,
+/// its instructions those of the effect that created it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Delayed {
+    source: CardId,
+    controller: PlayerId,
+    step: TurnStep,
+    /// The turn it was created in: it waits for a later one's step.
+    created: u32,
+    program: Program,
+    /// It triggers once (CR 603.7c).
+    fired: bool,
 }
 
 impl Instructions {
@@ -456,8 +484,8 @@ struct Resuming {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Pending {
     pub source: CardId,
-    pub object: ObjectId,
-    pub ability: u16,
+    pub object: Option<ObjectId>,
+    pub ability: TriggerOf,
     pub controller: PlayerId,
     /// The object its event names, exalted's attacking creature.
     pub triggering: Option<ObjectId>,
@@ -705,6 +733,16 @@ enum Waiting {
         tapped: bool,
         then: Then,
     },
+    /// CR 614.1a, 614.12: `card` would enter under `player`'s control,
+    /// who may discard a card `filter` matches instead; it enters if they
+    /// do and goes to its owner's graveyard if not.
+    DiscardToEnter {
+        player: PlayerId,
+        card: CardId,
+        filter: CardFilter,
+        tapped: bool,
+        then: Then,
+    },
     /// A resolving ability has `player` search their library (CR 701.23a)
     /// for a card `filter` matches, bound to `into`.
     Search {
@@ -783,6 +821,15 @@ pub enum Decision {
         player: PlayerId,
         card: CardId,
         life: u32,
+    },
+    /// CR 614.1a: `card` enters only if `player` discards a card of
+    /// `legal` instead, answered `Pick`, `None` to put it into its
+    /// owner's graveyard; `unsure` counts the hidden cards in hand.
+    DiscardToEnter {
+        player: PlayerId,
+        card: CardId,
+        legal: Vec<CardId>,
+        unsure: usize,
     },
     /// CR 601.2c, 603.3d: choose a target for each slot, among its legal
     /// ones, answered with `Answer::Targets`.
@@ -1064,6 +1111,8 @@ pub struct Game {
     pending: Vector<Pending>,
     /// How many triggered abilities have been put on the stack.
     triggers: u32,
+    /// Every delayed triggered ability created this game (CR 603.7a).
+    delayed: Vector<Delayed>,
     /// The card whose spell or ability most recently finished resolving.
     last_resolved: Option<CardId>,
     /// The combat this turn, from the declaration of attackers to the end
@@ -1234,6 +1283,7 @@ impl Game {
             last_resolved: None,
             combat: None,
             until_end_of_turn: Vec::new(),
+            delayed: Vector::new(),
             last_known: OrdMap::new(),
             bottomed: 0,
             created: 0,
@@ -1528,7 +1578,7 @@ impl Game {
                 let (controller, object) = match choosing {
                     Choosing::Spell { .. } => (*player, None),
                     Choosing::Ability { object, .. } => (*player, Some(*object)),
-                    Choosing::Trigger { pending, .. } => (pending.controller, Some(pending.object)),
+                    Choosing::Trigger { pending, .. } => (pending.controller, pending.object),
                 };
                 let source = self.source_chars(*card, object);
                 Decision::Targets {
@@ -1666,6 +1716,28 @@ impl Game {
                 player: *player,
                 among: among.clone(),
             },
+            Waiting::DiscardToEnter {
+                player,
+                card,
+                filter,
+                ..
+            } => {
+                let hand = &self.player(*player).hand;
+                Decision::DiscardToEnter {
+                    player: *player,
+                    card: *card,
+                    legal: hand
+                        .iter()
+                        .copied()
+                        .filter(|c| {
+                            self.known(*c)
+                                .and_then(|k| k.printed.as_ref())
+                                .is_some_and(|ch| filter.matches(ch))
+                        })
+                        .collect(),
+                    unsure: hand.iter().filter(|c| self.known(**c).is_none()).count(),
+                }
+            }
             Waiting::PayOrEnterTapped {
                 player, card, life, ..
             } => Decision::PayOrEnterTapped {
@@ -1818,7 +1890,7 @@ impl Game {
                 let (controller, object) = match &choosing {
                     Choosing::Spell { .. } => (player, None),
                     Choosing::Ability { object, .. } => (player, Some(*object)),
-                    Choosing::Trigger { pending, .. } => (pending.controller, Some(pending.object)),
+                    Choosing::Trigger { pending, .. } => (pending.controller, pending.object),
                 };
                 let source = self.source_chars(card, object);
                 let legal = chosen.len() == slots.len()
@@ -2076,6 +2148,32 @@ impl Game {
                     self.put_in_graveyard(*id);
                 }
                 self.give_priority(then, passes);
+            }
+            (
+                Waiting::DiscardToEnter {
+                    player,
+                    card,
+                    tapped,
+                    then,
+                    ..
+                },
+                Answer::Pick(pick),
+            ) => {
+                let Decision::DiscardToEnter { legal, .. } = self.decision() else {
+                    unreachable!("waiting on a discard to enter")
+                };
+                match pick {
+                    Some(c) if legal.contains(c) => {
+                        self.discard(player, &[*c]);
+                        self.place(card, player, tapped, then);
+                    }
+                    None => {
+                        let owner = self.owner(card);
+                        self.players[owner.0 as usize].graveyard.push_back(card);
+                        self.proceed(then);
+                    }
+                    _ => return Err(Rejected::Illegal(answer)),
+                }
             }
             (
                 Waiting::PayOrEnterTapped {
@@ -2771,7 +2869,7 @@ impl Game {
             }) => self.begin_resolving(
                 Instructions::Triggered(source, ability),
                 controller,
-                (Some(object), triggering, amount, player),
+                (object, triggering, amount, player),
                 targets,
             ),
             None => self.proceed(then),
@@ -2829,7 +2927,10 @@ impl Game {
         };
         match what {
             Instructions::Spell(c) => self.runs_of(c).spell.as_ref().unwrap_or(&NONE),
-            Instructions::Triggered(c, n) => &self.runs_of(c).triggered[&n].program,
+            Instructions::Triggered(c, TriggerOf::Printed(n)) => {
+                &self.runs_of(c).triggered[&n].program
+            }
+            Instructions::Triggered(_, TriggerOf::Delayed(k)) => &self.delayed[k as usize].program,
             Instructions::Activated(c, n) => match self.runs_of(c).activated.get(&n) {
                 Some(Ok(def)) => &def.program,
                 _ => match &self.runs_of(c).cycling {
@@ -3085,6 +3186,18 @@ impl Game {
                 }
                 // CR 106.3.
                 Effect::AddMana(mana) => self.players[p.0 as usize].pool.add_all(&mana),
+                // CR 603.7a.
+                Effect::Delayed { step, effects } => self.delayed.push_back(Delayed {
+                    source: at.what.card(),
+                    controller: p,
+                    step,
+                    created: self.turn,
+                    program: Program {
+                        targets: Vec::new(),
+                        effects,
+                    },
+                    fired: false,
+                }),
                 Effect::Scry(n) => {
                     let cards: Vec<CardId> = self
                         .player(p)
@@ -3594,7 +3707,7 @@ impl Game {
                 }
                 // CR 603.3d: one with a target slot nothing can fill is
                 // removed from the stack.
-                let source = self.source_chars(first.source, Some(first.object));
+                let source = self.source_chars(first.source, first.object);
                 if slots.iter().any(|s| {
                     self.legal_targets(s, first.controller, source.as_ref())
                         .is_empty()
@@ -3752,6 +3865,20 @@ impl Game {
                         .filter(|id| f.matches(&seen(**id)))
                         .map(|id| (Some(*id), None))
                         .collect(),
+                    (TriggerEvent::AttacksWith { filter, n }, Event::Attacked(ids)) => {
+                        let with = ids
+                            .iter()
+                            .filter(|id| {
+                                all.get(id)
+                                    .is_some_and(|c| c.controller == chars.controller)
+                                    && filter.matches(&seen(**id))
+                            })
+                            .count();
+                        (with >= *n as usize)
+                            .then_some((None, None))
+                            .into_iter()
+                            .collect()
+                    }
                     (TriggerEvent::AttacksAlone(f), Event::Attacked(ids)) => match ids.as_slice() {
                         [id] if f.matches(&seen(*id)) => vec![(Some(*id), None)],
                         _ => vec![],
@@ -3778,8 +3905,8 @@ impl Game {
                 for (triggering, amount) in objects {
                     triggered.push(Pending {
                         source: card,
-                        object: *src,
-                        ability: *n,
+                        object: Some(*src),
+                        ability: TriggerOf::Printed(*n),
                         controller: chars.controller,
                         triggering,
                         amount,
@@ -3810,8 +3937,8 @@ impl Game {
                     if l.chars.abilities.contains(&Ability::Unread(*n)) && f.matches(&seen) {
                         triggered.push(Pending {
                             source: l.card,
-                            object: *id,
-                            ability: *n,
+                            object: Some(*id),
+                            ability: TriggerOf::Printed(*n),
                             controller: l.chars.controller,
                             triggering: None,
                             amount: None,
@@ -3819,6 +3946,25 @@ impl Game {
                             ordered: false,
                         });
                     }
+                }
+            }
+        }
+        // CR 603.7b–c: a delayed trigger waiting for this step, of a
+        // later turn than the one it was created in, triggers once.
+        if let Event::Begins(step) = &event {
+            for (k, d) in self.delayed.iter_mut().enumerate() {
+                if !d.fired && d.step == *step && d.created < self.turn {
+                    d.fired = true;
+                    triggered.push(Pending {
+                        source: d.source,
+                        object: None,
+                        ability: TriggerOf::Delayed(k as u32),
+                        controller: d.controller,
+                        triggering: None,
+                        amount: None,
+                        player: None,
+                        ordered: false,
+                    });
                 }
             }
         }
@@ -4089,8 +4235,18 @@ impl Game {
     /// off the permanent as it would exist on the battlefield (CR 614.12),
     /// so a land that enters having lost its abilities enters untapped.
     fn enter(&mut self, card: CardId, controller: PlayerId, put_tapped: bool, then: Then) {
-        let (tapped, pays) = self.entering(card, controller);
+        let (tapped, pays, discard) = self.entering(card, controller);
         let tapped = tapped || put_tapped;
+        if let Some(filter) = discard {
+            self.waiting = Waiting::DiscardToEnter {
+                player: controller,
+                card,
+                filter,
+                tapped,
+                then,
+            };
+            return;
+        }
         match pays {
             // CR 614.12a: the choice is made before it enters. Paying is
             // a choice even when something else has it enter tapped.
@@ -4114,7 +4270,11 @@ impl Game {
     /// 614.12): whether one has it enter tapped, and the life one offers to
     /// pay instead. A condition counts the permanents its controller
     /// controls, never itself, since it isn't on the battlefield yet.
-    fn entering(&self, card: CardId, controller: PlayerId) -> (bool, Option<u32>) {
+    fn entering(
+        &self,
+        card: CardId,
+        controller: PlayerId,
+    ) -> (bool, Option<u32>, Option<CardFilter>) {
         let runs = self.runs_of(card);
         let mut chars = runs.lowered.chars.clone();
         chars.controller = controller;
@@ -4145,6 +4305,7 @@ impl Game {
         };
         let mut tapped = false;
         let mut pays = None;
+        let mut discard = None;
         for (n, e) in &runs.enters {
             if !me.abilities.contains(&Ability::Unread(*n)) {
                 continue;
@@ -4154,9 +4315,10 @@ impl Game {
                 Enters::TappedUnless(cond) => tapped |= !holds(cond),
                 Enters::TappedIf(cond) => tapped |= holds(cond),
                 Enters::TappedUnlessPaysLife(life) => pays = Some(*life),
+                Enters::DiscardOrGraveyard(f) => discard = Some(f.clone()),
             }
         }
-        (tapped, pays)
+        (tapped, pays, discard)
     }
 
     fn runs_of(&self, card: CardId) -> &Runnable {
@@ -4896,6 +5058,9 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
         }] if matches!(then.as_slice(), [i::Static::EntersTapped(what)] if itself(what)) => {
             Ok(Enters::TappedIf(lower::you_control(objects)?))
         }
+        [i::Static::Replacement { event, instead }] => lower::discard_to_enter(event, instead)
+            .map(Enters::DiscardOrGraveyard)
+            .ok_or_else(|| "Replacement".to_string()),
         [i::Static::AsEnters { what, then }] if itself(what) => lower::pays_life_or_tapped(then)
             .map(Enters::TappedUnlessPaysLife)
             .ok_or_else(|| "AsEnters".to_string()),

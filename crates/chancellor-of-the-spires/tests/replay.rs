@@ -51,6 +51,7 @@ const INDEXED: &[&str] = &[
     "Enlightened Tutor",
     "Aura of Silence",
     "Lonely Sandbar",
+    "Mox Diamond",
 ];
 
 fn index() -> &'static IndexFile {
@@ -831,4 +832,39 @@ fn a_discard_then_a_cycle_line_cycles_the_card() {
         "seven, less the Island, less the Sandbar, and a draw"
     );
     assert_eq!(game.player(ALICE).graveyard().len(), 1);
+}
+
+/// CR 614.1a: Mox Diamond enters only if a land card is discarded
+/// instead, which the log's next discard line says; with none, it goes
+/// to its owner's graveyard.
+#[test]
+fn mox_diamond_enters_for_the_land_the_next_line_discards() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice casts [Mox Diamond].
+        alice discards [Forest].
+        alice casts [Mox Diamond].
+        Turn 1: bob
+        bob plays [Forest].
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    let moxen = game
+        .permanents()
+        .values()
+        .filter(|p| game.card(p.card).is_some_and(|t| t.name == "Mox Diamond"))
+        .count();
+    assert_eq!(moxen, 1, "the second has no land to discard");
+    assert_eq!(
+        game.player(ALICE).graveyard().len(),
+        2,
+        "the Forest and a Mox"
+    );
 }

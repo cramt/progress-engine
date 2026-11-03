@@ -239,6 +239,45 @@ fn not_characteristics(s: &i::Static) -> bool {
 /// "As this land enters, you may pay 2 life. If you don't, it enters
 /// tapped": the life, for a replacement effect whose choice is made before
 /// the permanent enters (CR 614.1c, 614.12a).
+/// Mox Diamond's "If this artifact would enter, you may discard a land
+/// card instead. If you do, put this artifact onto the battlefield. If
+/// you don't, put it into its owner's graveyard.": the card discarded.
+pub fn discard_to_enter(event: &i::Event, instead: &[i::Effect]) -> Option<CardFilter> {
+    let i::Event::Enters {
+        what,
+        under: None,
+        state: None,
+    } = event
+    else {
+        return None;
+    };
+    let me = |o: &Objects| o.quant == Quant::SelfRef && o.filter == i::Filter::default();
+    let moved = |e: &[i::Effect], zone: i::Zone| {
+        matches!(e, [i::Effect::Move { what, from: None, to, tapped: false, transformed: false, under: None, order: None }]
+            if me(what) && *to == zone)
+    };
+    match instead {
+        [i::Effect::May {
+            who: i::Player::You,
+            then,
+        }, i::Effect::IfYouDo(enters), i::Effect::IfYouDont(not)]
+            if me(what)
+                && moved(enters, i::Zone::Battlefield)
+                && moved(not, i::Zone::OwnersGraveyard) =>
+        {
+            match then.as_slice() {
+                [i::Effect::Discard {
+                    who: i::Player::You,
+                    what,
+                    random: false,
+                }] => card_filter(what).ok(),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
 pub fn pays_life_or_tapped(then: &[i::Effect]) -> Option<u32> {
     match then {
         [i::Effect::May {
@@ -1028,6 +1067,15 @@ pub enum Effect {
     },
     /// The controller scries (CR 701.22a).
     Scry(u32),
+    /// "Draw a card at the beginning of the next turn's upkeep": a
+    /// delayed triggered ability created as this resolves (CR 603.7a),
+    /// triggering once at the next such step of a later turn (CR
+    /// 603.7b). Its instructions name nothing of the spell's but its
+    /// controller.
+    Delayed {
+        step: TurnStep,
+        effects: Vec<Effect>,
+    },
     /// Dark Ritual's "Add {B}{B}{B}": mana in its controller's pool (CR
     /// 106.3).
     AddMana(crate::mana::ManaPool),
@@ -1229,6 +1277,10 @@ pub enum TriggerEvent {
     /// "Whenever this creature attacks": a creature the filter matches is
     /// declared as an attacker (CR 508.3a).
     Attacks(Filter),
+    /// "Whenever you attack with one or more Lizards": its controller
+    /// declares at least `n` attackers the filter matches, once however
+    /// many (CR 508.3a).
+    AttacksWith { filter: Filter, n: u32 },
     /// Exalted's "Whenever a creature you control attacks alone": the only
     /// creature declared as an attacker is one the filter matches (CR
     /// 506.5, 702.83a).
@@ -1307,6 +1359,21 @@ pub fn triggered(
                 state: None,
             } => TriggerEvent::Enters(entering(what)?),
             i::Event::Attacks(what) => TriggerEvent::Attacks(entering(what)?),
+            i::Event::AttacksWith {
+                who: i::Player::You,
+                what,
+                at: None,
+            } => TriggerEvent::AttacksWith {
+                filter: objects(&Objects {
+                    quant: Quant::All,
+                    filter: what.filter.clone(),
+                })?,
+                n: match what.quant {
+                    Quant::One => 1,
+                    Quant::AtLeast(i::Amount::N(n)) => n,
+                    ref q => return Err(format!("attacking with {}", short(q))),
+                },
+            },
             i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
             i::Event::Dies(what) => TriggerEvent::Dies(entering(what)?),
             i::Event::DealsDamageTo { what, to }
@@ -1772,6 +1839,20 @@ impl<'a> Scope<'a> {
                 }
             }
             i::Effect::Scry(k) => Effect::Scry(n(k)?),
+            i::Effect::Delayed {
+                step: i::Step::Upkeep(i::Whose::NextTurns),
+                then,
+            } => {
+                let mut inner = Scope::new(&[]);
+                let effects = inner.effects(then)?;
+                if !inner.program.targets.is_empty() {
+                    return Err(format!("{} with a target", node()));
+                }
+                Effect::Delayed {
+                    step: TurnStep::Upkeep,
+                    effects,
+                }
+            }
             i::Effect::AddMana(add) => match crate::mana::adds(add)? {
                 crate::mana::Adds::Options(o) if o.len() == 1 => Effect::AddMana(o[0]),
                 _ => return Err("adding a choice of mana".into()),
