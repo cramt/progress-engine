@@ -1169,10 +1169,13 @@ impl Effect {
 pub struct Slot(pub usize);
 
 /// Cards a resolution found, as an instruction names them.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Cards {
     /// "that card", "them".
     Bound(Slot),
+    /// "all Goblin cards revealed this way": those bound to the slot that
+    /// the filter matches.
+    Matching { from: Slot, filter: CardFilter },
     /// "the rest": those bound to `from` that aren't bound to `of`.
     Rest { of: Slot, from: Slot },
 }
@@ -1571,10 +1574,38 @@ impl<'a> Scope<'a> {
                 Some(slot) => Ok(Cards::Bound(slot?)),
                 None => Err("a card bound as the ability was put on the stack".into()),
             },
+            // "the rest" of cards found and not chosen among, which are
+            // those still where they were found: an instruction before
+            // it moved the others (Goblin Ringleader's).
             Quant::Rest { of } => {
                 let of = self.found(of.into()).ok_or("the rest of nothing found")??;
-                let from = *self.among.get(&of).ok_or("the rest of no choice")?;
-                Ok(Cards::Rest { of, from })
+                match self.among.get(&of) {
+                    Some(from) => Ok(Cards::Rest { of, from: *from }),
+                    None => Ok(Cards::Bound(of)),
+                }
+            }
+            // "all Goblin cards revealed this way": of the innermost cards
+            // found.
+            Quant::All
+                if matches!(
+                    o.filter.posts.as_slice(),
+                    [Post::Marked(i::Marked::Revealed)]
+                ) =>
+            {
+                let from = self
+                    .withs
+                    .last()
+                    .copied()
+                    .flatten()
+                    .ok_or("cards revealed by nothing the engine binds")?;
+                let filter = card_filter(&Objects {
+                    quant: Quant::One,
+                    filter: i::Filter {
+                        posts: Vec::new(),
+                        ..o.filter.clone()
+                    },
+                })?;
+                Ok(Cards::Matching { from, filter })
             }
             ref q => Err(format!("cards {}", short(q))),
         }
@@ -1775,7 +1806,7 @@ impl<'a> Scope<'a> {
                 n: match k {
                     i::Amount::ManaValueOf(o) => match self.cards(o)? {
                         Cards::Bound(slot) => Amount::ManaValueOf(slot),
-                        Cards::Rest { .. } => return Err("the mana value of the rest".into()),
+                        _ => return Err("the mana value of several cards".into()),
                     },
                     k => Amount::N(n(k)?),
                 },
@@ -1839,6 +1870,14 @@ impl<'a> Scope<'a> {
                 }
             }
             i::Effect::Scry(k) => Effect::Scry(n(k)?),
+            // "can't be regenerated this turn": the engine lowers no
+            // regeneration (`Effect::Regenerate` is refused), so no shield
+            // exists for this to stop (CR 701.19a–c). When regeneration
+            // lowers, this must become the restriction it is.
+            i::Effect::Restrict {
+                rule: i::Restriction::CantBeRegenerated,
+                ..
+            } => return Ok(vec![]),
             i::Effect::Delayed {
                 step: i::Step::Upkeep(i::Whose::NextTurns),
                 then,
@@ -1989,27 +2028,25 @@ impl<'a> Scope<'a> {
                 }
                 match (to, order) {
                     (i::Zone::Hand(p), None) => Effect::ToHand {
-                        cards,
-                        who: match (p, cards) {
+                        who: match (p, &cards) {
                             (i::Player::You, _) => Who::You,
                             (i::Player::That, Cards::Bound(slot)) => {
-                                *self.whose.get(&slot).ok_or_else(node)?
+                                *self.whose.get(slot).ok_or_else(node)?
                             }
                             _ => return Err(node()),
                         },
+                        cards,
                     },
                     (i::Zone::OwnersLibraryTop, Some(i::Order::Any) | None) => {
                         Effect::ToLibrary { cards, top: true }
                     }
                     (i::Zone::Battlefield, None) => Effect::ToBattlefield {
+                        who: match &cards {
+                            Cards::Bound(slot) => self.whose.get(slot).copied().unwrap_or(Who::You),
+                            _ => Who::You,
+                        },
                         cards,
                         tapped: *tapped,
-                        who: match cards {
-                            Cards::Bound(slot) => {
-                                self.whose.get(&slot).copied().unwrap_or(Who::You)
-                            }
-                            Cards::Rest { .. } => Who::You,
-                        },
                     },
                     (i::Zone::BottomOfLibrary(i::Player::You), Some(i::Order::Any)) => {
                         Effect::ToLibrary { cards, top: false }
@@ -2105,7 +2142,7 @@ impl<'a> Scope<'a> {
                     [Post::FromAmong(among)] if o.filter.alts.is_empty() => {
                         match self.cards(among)? {
                             Cards::Bound(s) => s,
-                            Cards::Rest { .. } => return Err("one from among the rest".into()),
+                            _ => return Err("one from among several kinds of cards".into()),
                         }
                     }
                     _ => return Err("With one of some cards".into()),

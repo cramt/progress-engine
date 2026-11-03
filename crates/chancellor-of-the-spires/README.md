@@ -171,7 +171,8 @@ control", "destroy all creatures", "2 damage to each creature", dealt at
 once): draw, discard, a hand revealed and a card chosen from it to
 discard, the top cards of a library revealed or looked at and bound for
 the instructions after them (Insight's `With`, a slot per binder): put
-into a hand, one chosen among them, put back on top or the bottom in
+into a hand, those of them a filter matches ("all Goblin cards revealed
+this way", Goblin Ringleader) and the rest, one chosen among them, put back on top or the bottom in
 any order, "if it's a land card" and "its mana value", destroy (CR
 701.8a), exile (CR 701.13a), return to its owner's hand, sacrifice
 (CR 701.21a), counter target spell (CR 701.6a; a spell is never its own
@@ -188,7 +189,8 @@ subtypes (CR 111.1–111.4), a card refused if a token it makes can't run, gain 
 planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
 lifelink, CR 702.15b), scry and +1/+1 or named counters, mana added to the pool (Dark
-Ritual, CR 106.3); their targets
+Ritual, CR 106.3), and "can't be regenerated", which restricts nothing
+while no regeneration lowers (CR 701.19a–c); their targets
 chosen as they are cast, and checked again as they resolve, an illegal
 one left alone and a spell with every target illegal not resolving (CR
 608.2b); triggered abilities that trigger when a permanent a filter
@@ -503,12 +505,13 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 20 replay to the end** (17 to the log's winner
-line), 7 of them past the first turn, and **20.96% of their lines are
-followed** (16,391 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 38 replay to the end** (35 to the log's winner
+line), 21 of them past the first turn, and **23.99% of their lines are
+followed** (18,756 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-02; it was 15 games before spells' effects, triggers and
-combat ran. They are the
+measured 2026-11-03; it was 20 games and 20.96% before the milestone's
+work (below), and 15 games before spells' effects, triggers and combat
+ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
 no turn in them (empty logs, concessions during the mulligans). 447 stop
 in the first turn, 434 in the second, 75 in the third, 22 later, and 63
@@ -525,7 +528,8 @@ ranked by the node it needs. From 19 games and 19.07% of lines on
 Aether Vial 19.83%; revealing and looking at a library's top cards 20
 games, 20.43%; Leylines 20.55%; "as long as" 20.62%; destroy, exile,
 bounce, counter and dying 20.72%; search as an instruction 20.81%;
-responses 20.84%; tokens 20.96%. Games to the end barely move: a game
+responses 20.84%; tokens 20.96%; then the milestone's work took it to
+23.99% (below). Games to the end barely moved: a game
 that gets past one stop meets the next, most in its first two turns. The
 stops now, by games: an exile line not followed (44: suspend's Rift Bolt,
 Search for Tomorrow and Lotus Bloom), a discard the engine doesn't ask
@@ -588,6 +592,33 @@ were followed** (7,766 of 31,659); the top of its worklist was Mox
 Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
+
+Worked card by card from there, **on 2026-11-03 36 of the 500 replay to
+the end and 30.31% of their lines are followed** (9,595 of 31,659), and
+37 games have no card the engine refuses before any game (from 21). The
+general rules each card needed, in the order the worklist asked:
+protection and the keywords the layers name; cost changes (Thalia, Goblin
+Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
+activated abilities with targets and mana costs (Mogg Fanatic, Rishadan
+Port); a land becoming a creature until end of turn (Mishra's Factory);
+mana abilities that cost mana (filter lands, Signets) or count what you
+control (Fanatic of Rhonas); triggers on anyone's spell (Eidolon of the
+Great Revel); shroud, hexproof, indestructible and shadow; mana added by
+a spell (Dark Ritual); instructions on each permanent a filter matches
+(Thalia's Lieutenant, Pyroclasm, Wrath of God); cycling; attacking with
+a creature type (Hired Claw); delayed triggers (Portent); a discard
+instead of entering (Mox Diamond); revealed cards a filter sorts (Goblin
+Ringleader). And the replay's inferences: which of a card's abilities a
+line activates, a spell cast in response when the triggers after say so,
+a search's card from the line that reveals it, a shuffle matched to an
+instruction's. One divergence was the engine's own, found by the full
+run: a resolved effect's fixed set held a creature that had left the
+battlefield, and the layers panicked reading it (CR 400.7, fixed). The
+top of the worklist now: Cabal Therapy's named card (18, most also
+flashed back), Hopeful Initiate's training, Valakut's "if" trigger and
+Wild Growth's Aura (10 each), Fabled Passage's "then if" and morph's
+face-down casting (9 each), Quest for Pure Flame, Razorkin Needlehead's
+draw trigger, Sylvan Library and Wall of Roots (8 each).
 
 ## Speed
 

@@ -3392,6 +3392,14 @@ impl Game {
                     .filter(|c| !of.contains(c))
                     .collect()
             }
+            Cards::Matching { from, filter } => bound(from)
+                .into_iter()
+                .filter(|c| {
+                    self.known(*c)
+                        .and_then(|k| k.printed.as_ref())
+                        .is_some_and(|ch| filter.matches(ch))
+                })
+                .collect(),
         };
         named
             .into_iter()

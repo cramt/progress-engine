@@ -1970,3 +1970,48 @@ fn portent_draws_at_the_next_turns_upkeep() {
     pass_until(&mut game, THEM, Step::Upkeep);
     assert!(game.stack().is_empty(), "it triggers once");
 }
+
+/// CR 701.20a, 401.4: Goblin Ringleader reveals the top four cards of my
+/// library, puts the Goblins among them into my hand and the rest on the
+/// bottom in the order I choose.
+#[test]
+fn goblin_ringleader_takes_the_goblins_it_reveals() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Goblin Ringleader", 10),
+            ("Goblin Piker", 20),
+        ],
+        &[("Forest", 60)],
+        &[("Mountain", 4), ("Goblin Ringleader", 1)],
+    );
+    for _ in 0..3 {
+        play(&mut game, "Mountain");
+        my_next_main(&mut game);
+    }
+    play(&mut game, "Mountain");
+    let top: Vec<CardId> = game.player(ME).library().iter().take(4).copied().collect();
+    let goblins: Vec<CardId> = top
+        .iter()
+        .copied()
+        .filter(|c| game.card(*c).unwrap().type_line.contains("Goblin"))
+        .collect();
+    cast(&mut game, "Goblin Ringleader", None);
+    resolve(&mut game);
+    let mut d = resolve(&mut game);
+    if let Decision::Arrange { cards, .. } = d {
+        assert_eq!(cards.len(), 4 - goblins.len());
+        d = step(&mut game, Answer::Arrange(cards));
+    }
+    let _ = d;
+    for g in &goblins {
+        assert!(game.player(ME).hand().contains(g));
+    }
+    let library = game.player(ME).library();
+    for c in top.iter().filter(|c| !goblins.contains(c)) {
+        assert!(
+            library.iter().rev().take(4).any(|x| x == c),
+            "on the bottom"
+        );
+    }
+}

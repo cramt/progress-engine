@@ -1265,6 +1265,12 @@ impl Driver<'_> {
                 how: log::Reveal::HandTo(_) | log::Reveal::Many { .. },
                 ..
             } => {
+                // Cards a resolving instruction reveals from a library,
+                // read ahead as it asked (`reveal`).
+                if self.until_consumed(i)? {
+                    self.did(i, "the cards revealed (CR 701.20a)");
+                    return Ok(Next::Line(i + 1));
+                }
                 let p = self.seat(*player);
                 match self.until_choice()? {
                     Decision::ChooseFromHand { whose, .. } if whose == p => {
@@ -1272,6 +1278,25 @@ impl Driver<'_> {
                     }
                     _ => return Err(unfollowed(None)),
                 }
+            }
+            // What a resolving instruction put into a hand: checked once
+            // what is on the stack this turn resolves.
+            PutsInHand { player, cards, .. } => {
+                self.until_choice()?;
+                let p = self.seat(*player);
+                let game = self.game.as_ref().expect("set up");
+                let hand = game.player(p).hand();
+                let mut left: Vec<CardId> = hand.iter().copied().collect();
+                for c in cards {
+                    let Some(k) = left
+                        .iter()
+                        .position(|x| game.card(*x).is_some_and(|t| t.name == c.name()))
+                    else {
+                        return Err(unfollowed(Some(c.name())));
+                    };
+                    left.remove(k);
+                }
+                self.did(i, "put into the hand by the instruction");
             }
             other => {
                 let card = other.cards().first().map(|c| c.name().to_string());
@@ -2452,7 +2477,12 @@ impl Driver<'_> {
             if let Event::Reveals {
                 player,
                 cards,
-                how: log::Reveal::With(log::Source::Card(s)),
+                how:
+                    log::Reveal::With(log::Source::Card(s))
+                    | log::Reveal::Many {
+                        with: log::Source::Card(s),
+                        ..
+                    },
             } = &e.event
             {
                 if self.seat(*player) == p && s.name() == by && !self.consumed.contains(&k) {

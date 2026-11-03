@@ -344,3 +344,18 @@ fn a_condition_on_whose_turn_it_is() {
     s.active = Some(YOU);
     assert_eq!(pt_of(&s, me), Some(pt(3, 1)));
 }
+
+/// CR 400.7, 611.2c: Pyroclasm's set fixed as it resolves, or Giant
+/// Growth's, holds an object that later leaves; the effect goes on for the
+/// rest, and the gone object is no longer anything it affects.
+#[test]
+fn a_resolved_effect_skips_an_object_that_left() {
+    let mut state = State::default();
+    let a = state.enter(creature(pt(2, 2), 2, Color::Green), vec![]);
+    let b = state.enter(creature(pt(1, 1), 1, Color::Green), vec![]);
+    state.resolve([a, b], vec![Op::ModifyPt(pt(3, 3))]);
+    state.leave(a);
+    let now = characteristics(&state);
+    assert!(!now.contains_key(&a));
+    assert_eq!(now[&b].pt, Some(pt(4, 4)));
+}

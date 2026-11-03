@@ -170,15 +170,23 @@ impl Run<'_> {
 
     /// What the effect applies to: the set it began with, or for one that
     /// hasn't begun, what its filter matches now.
+    /// An object that has left the battlefield is gone, and a new object
+    /// is never in a set fixed before it arrived (CR 400.7, 611.2c).
     fn affects(&self, e: Effect, now: &BTreeMap<ObjectId, Chars>) -> BTreeSet<ObjectId> {
+        let here = |set: &BTreeSet<ObjectId>| -> BTreeSet<ObjectId> {
+            set.iter()
+                .copied()
+                .filter(|o| now.contains_key(o))
+                .collect()
+        };
         if let Some(set) = self.started.get(&e) {
-            return set.clone();
+            return here(set);
         }
         if !self.exists(e, now) {
             return BTreeSet::new();
         }
         match e {
-            Effect::Resolved(i) => self.state.resolved[i].affects.clone(),
+            Effect::Resolved(i) => here(&self.state.resolved[i].affects),
             Effect::Static(source, s) => now
                 .iter()
                 .filter(|(id, c)| {
