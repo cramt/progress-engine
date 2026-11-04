@@ -837,7 +837,7 @@ cost: {1}{R}
 > Kicker {5} (You may pay an additional {5} as you cast this spell.)
 > Roil Eruption deals 3 damage to any target. If this spell was kicked, it deals 5 damage instead.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["5"]))])) }])
-= Let { bind: [/* target */ Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } }], ability: Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, Instead { cond: WasKicked, then: [Damage { source: Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Same] }] }]) }
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, Instead { cond: WasKicked, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Same] }] }])
 
 ## Rubble Slinger
 face: Rubble Slinger

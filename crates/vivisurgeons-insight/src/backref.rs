@@ -249,6 +249,8 @@ struct Ev {
     top_effect: Option<usize>,
     /// It is a `ForEach`'s loop object.
     each_of_loop: bool,
+    /// It is the source of a `Damage`, the subject of "deals".
+    subject: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -308,6 +310,8 @@ struct Collect {
     /// the effect each is in within its own list.
     roots: Vec<(usize, Option<usize>)>,
     next_root: usize,
+    /// The `Damage` frame whose source is the next object entered.
+    subject_of: Option<usize>,
 }
 
 const EXISTENTIAL: [&str; 18] = [
@@ -352,6 +356,7 @@ impl Collect {
             keywords: 0,
             roots: Vec::new(),
             next_root: 0,
+            subject_of: None,
         }
     }
 
@@ -461,6 +466,7 @@ impl Collect {
             scope_root,
             top_effect,
             each_of_loop,
+            subject: false,
         });
         id
     }
@@ -505,6 +511,9 @@ impl Visitor for Collect {
             Role::Skip
         };
         let id = self.new_ev(Some(decl), role.clone(), Some(o.clone()));
+        if let Some(d) = self.subject_of.take() {
+            self.evs[id].subject = d == self.here();
+        }
         if matches!(role, Role::Ref(_) | Role::SelfMention | Role::OutOfScope) {
             let parent = self.here();
             self.frames[parent].items.push(Item::Ev(id));
@@ -592,6 +601,14 @@ impl Visitor for Collect {
             }
         }
         self.push_frame(Fk::Effect, verb_of(e));
+        self.subject_of = matches!(
+            e,
+            Effect::Damage {
+                source: Some(_),
+                ..
+            }
+        )
+        .then(|| self.here());
     }
 
     fn effect_done(&mut self, e: &mut Effect) {
@@ -1205,6 +1222,41 @@ fn pointer_of(
     })
 }
 
+/// What the source of the effect an `Instead` replaces settled on, when
+/// `e` is the source of that `Instead`'s own effect.
+fn replaced_subject(
+    ld: &LineData,
+    li: usize,
+    e: &Ev,
+    mentions: &[((usize, usize), Target)],
+) -> Option<Target> {
+    if !e.subject {
+        return None;
+    }
+    let d = e.effect_frame?;
+    let at = e.frames.iter().position(|&f| f == d)?;
+    let (parent, instead) = (*e.frames.get(at.checked_sub(2)?)?, e.frames[at - 1]);
+    let frame = &ld.c.frames;
+    if frame[instead].kind != Fk::Effect || frame[instead].verb != "Instead" {
+        return None;
+    }
+    let items = &frame[parent].items;
+    let here = items
+        .iter()
+        .position(|it| matches!(it, Item::Fr(f) if *f == instead))?;
+    let replaced = items[..here].iter().rev().find_map(|it| match it {
+        Item::Fr(f) if frame[*f].kind == Fk::Effect => Some(*f),
+        _ => None,
+    })?;
+    if frame[replaced].verb != frame[d].verb {
+        return None;
+    }
+    mentions.iter().find_map(|((l, i), t)| {
+        let x = &ld.c.evs[*i];
+        (*l == li && x.subject && x.effect_frame == Some(replaced)).then(|| t.clone())
+    })
+}
+
 /// The line, and within the reference's own line the effect, a listed
 /// object was said in.
 type Group = (usize, Option<usize>);
@@ -1327,6 +1379,17 @@ fn resolve_one(
             Class::Determined
         };
         return (cands.first().cloned(), class, cands, note);
+    }
+    // "~ deals 2 damage to any target. If this spell was kicked, it deals 4
+    // damage instead": the subject of a replacement is the subject of the
+    // effect it replaces, whatever was said between them ([instead-subject]).
+    if let Some(t) = replaced_subject(ld, li, e, mentions) {
+        return (
+            Some(t.clone()),
+            Class::Determined,
+            vec![t],
+            "the subject of the effect it replaces".into(),
+        );
     }
     match k {
         Kind::Text(Hint::Created) => push_pool(&mut cands, &is_tokenish),
@@ -2072,6 +2135,7 @@ pub fn fits(r: &Objects, b: &Objects) -> bool {
         scope_root: 0,
         top_effect: None,
         each_of_loop: false,
+        subject: false,
     };
     // "cast target nonland permanent card …, and mana … to cast that
     // spell": a card cast is the spell.

@@ -401,7 +401,7 @@ face: Frost Bite
 type: Snow Instant
 cost: {R}
 > Frost Bite deals 2 damage to target creature or planeswalker. If you control three or more snow permanents, it deals 3 damage instead.
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } }], ability: Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, Instead { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Supertype("snow")]], kind: Some(Permanent), posts: [], or: None } }), then: [Damage { source: Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Same] }] }]) }
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }, Instead { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Supertype("snow")]], kind: Some(Permanent), posts: [], or: None } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Same] }] }])
 
 ## Furnace Host Charger
 face: Furnace Host Charger
