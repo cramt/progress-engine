@@ -4072,9 +4072,6 @@ fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec
         owed: &'a ManaCost,
         sources: &'a [Vec<ManaActivation>],
         most: u32,
-        /// The mana in the pool before any is made, which may be the
-        /// wrong kind: Dark Ritual's {B}{B}{B} doesn't pay {1}{R}.
-        initial: u32,
         first_filter: usize,
         visited: usize,
         out: Vec<Vec<ManaActivation>>,
@@ -4092,9 +4089,11 @@ fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec
             if i == self.sources.len() {
                 return;
             }
-            // Enough mana needs no more, though the wrong kind can still
-            // be filtered.
-            if pool.total() >= self.most + self.initial && i < self.first_filter {
+            // Enough sources need no more, though the wrong kind of mana
+            // can still be filtered: each source spends at least one mana
+            // of a payment, so one needs no more sources than its mana
+            // symbols, however much each makes (Wild Growth's Forest).
+            if chosen.len() as u32 >= self.most && i < self.first_filter {
                 if self.first_filter < self.sources.len() {
                     self.go(self.first_filter, pool, chosen);
                 }
@@ -4117,7 +4116,6 @@ fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec
         owed,
         sources: &sources,
         most,
-        initial: pool.total(),
         first_filter,
         visited: 0,
         out: Vec::new(),

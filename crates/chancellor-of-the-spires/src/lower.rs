@@ -1589,6 +1589,92 @@ pub fn triggered(
     })
 }
 
+/// "Enchant land", "enchant creature you control" (CR 702.5a): what an
+/// Aura spell may target and the Aura may enchant, `None` if the keyword
+/// isn't enchant, and the node it can't lower if it enchants a player
+/// (CR 702.5d) or a kind of object the filter can't say.
+pub fn enchant(k: &i::Keyword) -> Option<Result<Filter, String>> {
+    if !k.name.eq_ignore_ascii_case("enchant") {
+        return None;
+    }
+    Some(match &k.param {
+        Some(i::KeywordParam::Objects(o)) if not_a_player(o) => objects(&Objects {
+            quant: Quant::All,
+            filter: o.filter.clone(),
+        }),
+        _ => Err("enchant other than a permanent".into()),
+    })
+}
+
+fn not_a_player(o: &Objects) -> bool {
+    !matches!(o.filter.kind, Some(i::Noun::Player | i::Noun::Opponent))
+}
+
+/// A triggered mana ability (CR 605.1b): "Whenever enchanted land is
+/// tapped for mana, its controller adds an additional {G}". It resolves
+/// at once with the mana ability that triggers it (CR 605.4a), so the
+/// mana is that activation's, its controller the tapped permanent's.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ManaTrigger {
+    /// The permanent tapped for mana (CR 106.12a), read from the trigger's
+    /// source.
+    pub tapped: Filter,
+    pub adds: crate::mana::ManaPool,
+}
+
+/// `None` if the ability doesn't trigger on a permanent tapped for mana.
+pub fn mana_trigger(
+    bind: &[Objects],
+    trigger: &i::Trigger,
+    effect: &[i::Effect],
+    limits: &[i::Limit],
+) -> Option<Result<ManaTrigger, String>> {
+    let i::Trigger::When(e) = trigger else {
+        return None;
+    };
+    let i::Event::TappedForMana(what) = &**e else {
+        return None;
+    };
+    let bound = |o: &Objects| -> Option<Objects> {
+        match o.quant {
+            Quant::Introduced(k) | Quant::Bound(k) if o.filter == i::Filter::default() => bind
+                .len()
+                .checked_sub(1 + k as usize)
+                .map(|b| bind[b].clone()),
+            _ => None,
+        }
+    };
+    Some((|| {
+        if !limits.is_empty() {
+            return Err("a triggered mana ability with a limit".to_string());
+        }
+        let what = bound(what).unwrap_or_else(|| what.clone());
+        let tapped = match what.quant {
+            Quant::Enchanted | Quant::Equipped => objects(&what)?,
+            _ => entering(&what)?,
+        };
+        // "its controller adds": the controller of the permanent tapped,
+        // the trigger's object.
+        let [i::Effect::Performed {
+            by: i::Player::ControllerOf(by),
+            effect,
+        }] = effect
+        else {
+            return Err("a triggered mana ability's effect".into());
+        };
+        if bound(by).is_none() {
+            return Err("mana added to another player".into());
+        }
+        let i::Effect::AddMana(i::ManaAdd::Additional(add)) = &**effect else {
+            return Err("a triggered mana ability adding other than additional mana".into());
+        };
+        match crate::mana::adds(add)? {
+            crate::mana::Adds::Options(o) if o.len() == 1 => Ok(ManaTrigger { tapped, adds: o[0] }),
+            _ => Err("a triggered mana ability adding a choice of mana".into()),
+        }
+    })())
+}
+
 /// An intervening "if" a triggered ability's trigger condition has (CR
 /// 603.4), of those lowered: "if you control at least five other
 /// Mountains", "other" than the object a `Let` binds being the event's.

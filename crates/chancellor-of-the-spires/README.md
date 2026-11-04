@@ -154,7 +154,11 @@ Battlecrier's), increases added and
 reductions taken from the generic component alone, never below {0} (CR
 601.2f, 118.7a); a permanent spell entering under its
 caster's control (CR 608.3a) and an instant or sorcery going to the
-graveyard (CR 608.2n); mana abilities that tap, pay life (CR 119.4) and
+graveyard (CR 608.2n); an Aura spell targeting what its enchant ability
+says, a permanent ("Enchant land", "enchant creature you control", CR
+303.4a, 702.5a), entering attached to it as it resolves and not resolving
+if it has become illegal (CR 608.3b–c), its "enchanted land" the
+permanent it is attached to; mana abilities that tap, pay life (CR 119.4) and
 deal their controller damage, as painlands do (CR 120.3a), pay mana
 from the pool, as filter lands and Signets do (CR 605.3a), put a counter
 on their source or take one off it (Wall of Roots's -0/-1, Gemstone
@@ -165,7 +169,11 @@ limited by "Activate only if you control a creature with power 4 or
 greater" (CR 602.5) or to once each turn (CR 602.5b), adding fixed
 mana, a choice of it, any colour, a colour of the commander's identity
 (CR 903.4), or mana for each permanent a filter matches, counted as it is
-activated (Gaea's Cradle, CR 608.2h), without the stack (CR 605.3b), a
+activated (Gaea's Cradle, CR 608.2h), without the stack (CR 605.3b),
+with what the triggered mana abilities a permanent tapped for mana
+triggers add, at once and to its controller (Wild Growth's "Whenever
+enchanted land is tapped for mana, its controller adds an additional
+{G}", CR 106.12a, 605.1b, 605.4a), a
 creature's only once it has been yours since your turn began (CR 302.6)
 or has haste; other activated abilities any time you have priority (CR
 117.1b), or only once each turn or if an opponent lost life this turn
@@ -273,12 +281,15 @@ shadow (CR 702.28b);
 protection from a colour, from multicolored or from everything: never a
 legal target of a spell or ability from a source with the quality, never
 blocked by a creature with it, and its damage prevented (CR 702.16b,
-702.16e–f, 702.16j), an Aura or Equipment never attaching yet;
+702.16e–f, 702.16j), never enchanted by an Aura with it (CR 702.16c),
+an Equipment never attaching yet;
 state-based actions whenever a player would get priority (CR 704.3) for a
 token in a zone other than the battlefield ceasing to exist (CR 704.5d,
 111.7), 0
 life, drawing from an empty library, toughness 0 or less and the legend
-rule (CR 704.5a–b, 704.5f, 704.5j), and a commander's return to the
+rule (CR 704.5a–b, 704.5f, 704.5j), an Aura attached to nothing, to
+itself or to what it can't enchant going to its owner's graveyard (CR
+704.5m, 303.4c–d), and a commander's return to the
 command zone (CR 903.9a); a loser leaving the game with what they own and
 a multiplayer game going on without them (CR 800.4a).
 
@@ -290,8 +301,10 @@ on any other event (`Trigger::When(Event::DealsDamageTo)`,
 resolve to a target or its source, a static that isn't
 "enters tapped", a mana ability with a cost or effect beyond those above,
 `{X}`, Phyrexian or snow mana, a planeswalker or battle (their counters),
-an Aura (its target), and a keyword other than flash, cycling, transmute,
-flashback, kicker (a kicker whose cost is more than mana is carried and
+an Aura enchanting a player (CR 702.5d) or with two enchant abilities, a
+triggered mana ability other than one adding fixed mana to the
+controller of a permanent tapped for mana, and a keyword other than
+flash, cycling, transmute, enchant, flashback, kicker (a kicker whose cost is more than mana is carried and
 never paid; two kickers are refused), partner, exalted, prowess, training and the layers' own (flying, reach,
 menace, first and double strike, defender, haste, vigilance, trample,
 deathtouch, lifelink, shroud, hexproof, indestructible, shadow, and
@@ -338,7 +351,10 @@ activated abilities with limits or costs beyond a tap, life, mana and
 sacrificing their source, triggers on any other event (leaving the battlefield other than dying), an "intervening if" other than "if you control …" (CR 603.4), a card that triggers from a
 graveyard, attacking a planeswalker or battle, requirements and
 restrictions on attacking and blocking beyond flying, reach, menace and
-defender, a creature blocking two, and a land's back face (CR 712). State-based actions run one creature after the other rather than at
+defender, a creature blocking two, an Aura put onto the battlefield
+other than by resolving, which enters attached to nothing and so goes to
+the graveyard rather than its player choosing what it enchants (CR
+303.4f), and a land's back face (CR 712). State-based actions run one creature after the other rather than at
 once (CR 704.3), so of two creatures dying together, the one put into
 the graveyard second sees the first die but not the other way round (CR
 603.10a).
@@ -622,17 +638,17 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 54 replay to the end** (51 to the log's winner
-line), 37 of them past the first turn, and **27.45% of their lines are
-followed** (21,462 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 55 replay to the end** (52 to the log's winner
+line), 37 of them past the first turn, and **27.78% of their lines are
+followed** (21,720 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-04, and 15 games rely on a land the log never names (1
+measured 2026-11-04, and 16 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 311 stop
-in the first turn, 361 in the second, 179 in the third, 93 later, and 63
+no turn in them (empty logs, concessions during the mulligans). 306 stop
+in the first turn, 354 in the second, 183 in the third, 100 later, and 63
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -709,9 +725,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-04 52 of the 500 replay to
-the end and 37.88% of their lines are followed** (11,993 of 31,659), 5
-of them relying on a land the log never names (1 to the end), and 56
+Worked card by card from there, **on 2026-11-04 53 of the 500 replay to
+the end and 38.52% of their lines are followed** (12,196 of 31,659), 6
+of them relying on a land the log never names (1 to the end), and 59
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -741,7 +757,10 @@ to an opponent having lost life (Hired Claw); a cost change for each
 permanent during its controller's turn (Temur Battlecrier); "for each
 land card discarded this way" (Gerrard's Verdict); kicker and "if this
 spell was kicked", with Insight reading "it deals 4 damage instead" as
-the spell's damage, not its target's (Burst Lightning). And
+the spell's damage, not its target's (Burst Lightning); Auras cast
+targeting what they enchant, attached as they resolve and put into the
+graveyard when what they enchant is gone, and a triggered mana ability
+(Wild Growth). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -750,11 +769,13 @@ names as a hypothesis, which of two permanents of one name an
 activation is of, and a winner line resolving what ended the game. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Wild Growth's Aura (12), Sylvan Library (11),
-morph's face-down casting (10), Vesuva's copy (8), and Accumulated
-Knowledge, Goblin Cadets, Scalding Viper's two faces and Veteran Survivor
-(6 each), and no divergence is left: those the run found were the
-replay's (the game's last trigger never shown resolving, a block or
+top of the worklist now: Sylvan Library (11), morph's face-down casting
+(10), Vesuva's copy (8), and Accumulated Knowledge, Goblin Cadets,
+Scalding Viper's two faces and Veteran Survivor (6 each), and no
+divergence is left: those the run found were the replay's (the game's
+last trigger never shown resolving, a payment search that stopped adding
+sources once it had as much mana as the cost, of the wrong colour from
+Wild Growth's Forest, a block or
 an activation of the wrong one of two permanents of one name, a ritual's
 mana cast away in the draw step, a filter land's floating mana never
 tried), each fixed.

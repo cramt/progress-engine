@@ -174,6 +174,11 @@ struct Runnable {
     alternatives: BTreeMap<u16, lower::Alternative>,
     /// Kicker's cost, the additional cost it may be cast with (CR 702.33a).
     kicker: Option<ManaCost>,
+    /// An Aura's enchant ability: what it targets as a spell and may
+    /// enchant (CR 303.4a, 702.5a), read from its controller.
+    enchant: Option<Filter>,
+    /// Its triggered mana abilities (CR 605.1b), by index.
+    mana_triggers: BTreeMap<u16, lower::ManaTrigger>,
     /// "You may play an additional land on each of your turns" (CR
     /// 305.2a), by index: how many more.
     extra_lands: BTreeMap<u16, u32>,
@@ -1610,6 +1615,11 @@ impl Game {
     pub fn stack(&self) -> &Vector<StackObject> {
         &self.stack
     }
+    /// What an Aura or Equipment on the battlefield is attached to.
+    pub fn attached_to(&self, id: ObjectId) -> Option<ObjectId> {
+        self.battlefield.objects.get(&id)?.attached_to
+    }
+
     pub fn permanents(&self) -> &OrdMap<ObjectId, Permanent> {
         &self.permanents
     }
@@ -2948,8 +2958,16 @@ impl Game {
                         self.sacrificable(p, f).into_iter().map(Some).collect()
                     }
                 };
+                // CR 605.1b, 605.4a: the triggered mana abilities a
+                // permanent tapped for mana triggers add theirs with it.
+                let extra = if tap {
+                    self.tapped_for_mana(id, &all)
+                } else {
+                    ManaPool::default()
+                };
                 let mut seen = BTreeSet::new();
-                for adds in options {
+                for mut adds in options {
+                    adds.add_all(&extra);
                     for pays in &ways {
                         for sacrifices in &sacrificed {
                             if seen.insert((adds, *pays, *sacrifices)) {
@@ -2967,6 +2985,36 @@ impl Game {
             }
         }
         out
+    }
+
+    /// The mana the triggered mana abilities on the battlefield add when
+    /// `id` is tapped for mana (CR 106.12a, 605.1b), each read from its
+    /// own source: Wild Growth's {G} for the land it enchants.
+    fn tapped_for_mana(&self, id: ObjectId, all: &BTreeMap<ObjectId, Chars>) -> ManaPool {
+        let mut extra = ManaPool::default();
+        for (src, chars) in all {
+            let Some(runs) = self
+                .known(self.permanents[src].card)
+                .and_then(|k| k.runs.as_ref().ok())
+            else {
+                continue;
+            };
+            for (n, t) in &runs.mana_triggers {
+                let seen = Seen {
+                    id,
+                    chars: &all[&id],
+                    source: *src,
+                    source_chars: chars,
+                    source_attached_to: self.battlefield.objects[src].attached_to,
+                    token: self.battlefield.objects[&id].token,
+                    attacking: self.battlefield.attacking.contains(&id),
+                };
+                if chars.abilities.contains(&Ability::Unread(*n)) && t.tapped.matches(&seen) {
+                    extra.add_all(&t.adds);
+                }
+            }
+        }
+        extra
     }
 
     /// Whether the source's controller controls as many permanents as the
@@ -3216,9 +3264,12 @@ impl Game {
                 ));
             }
         }
-        // CR 303.4a: an Aura spell targets.
-        if chars.subtypes.contains(&Subtype::Other("Aura".into())) {
-            return Err(Unrunnable::new("Aura", "an Aura spell targets"));
+        // CR 303.4a: an Aura spell targets what its enchant ability says.
+        if chars.subtypes.contains(&Subtype::Other("Aura".into())) && runs.enchant.is_none() {
+            return Err(Unrunnable::new(
+                "Aura",
+                "an Aura spell targets what its enchant ability says",
+            ));
         }
         Ok(())
     }
@@ -3280,7 +3331,7 @@ impl Game {
     /// CR 601.2c–f: the spell on top of the stack, whose cost before cost
     /// changes is `base`, has its targets chosen, then its total cost paid.
     fn choose_targets(&mut self, p: PlayerId, card: CardId, base: ManaCost, from_command: bool) {
-        let slots = self.runs_of(card).spell.as_ref().map(|s| s.targets.clone());
+        let slots = self.spell_targets(card);
         let owed = self.total_cost(p, card, base);
         self.waiting = match slots.filter(|s| !s.is_empty()) {
             // CR 601.2c: targets are chosen before the cost is determined
@@ -3299,6 +3350,16 @@ impl Game {
                 from_command,
             },
         };
+    }
+
+    /// The target slots of `card` cast as a spell: its instructions', or
+    /// an Aura's one, what it can enchant (CR 303.4a).
+    fn spell_targets(&self, card: CardId) -> Option<Vec<TargetSpec>> {
+        let runs = self.runs_of(card);
+        match &runs.enchant {
+            Some(f) => Some(vec![TargetSpec::Permanent(f.clone())]),
+            None => runs.spell.as_ref().map(|s| s.targets.clone()),
+        }
     }
 
     /// CR 601.2f: the spell's cost with every cost change on the
@@ -3466,7 +3527,29 @@ impl Game {
                     .known(card)
                     .and_then(|k| k.runs.as_ref().ok())
                     .is_some_and(|r| is_permanent(&r.lowered.chars));
-                if permanent {
+                let enchant = self.runs_of(card).enchant.clone();
+                if let (true, Some(filter), [to]) = (permanent, enchant, targets.as_slice()) {
+                    // CR 608.3b: an Aura whose target is illegal doesn't
+                    // resolve; CR 608.3c: one whose target is legal enters
+                    // attached to it.
+                    let source = self.source_chars(card, None);
+                    let spec = TargetSpec::Permanent(filter);
+                    match to {
+                        Target::Object(o)
+                            if self
+                                .legal_targets(&spec, controller, source.as_ref())
+                                .contains(to) =>
+                        {
+                            let (tapped, _, _) = self.entering(card, controller);
+                            self.arrive_attached(card, controller, tapped, Some(*o));
+                            self.proceed(then);
+                        }
+                        _ => {
+                            self.off_the_stack(card, via);
+                            self.give_priority(self.active, 0);
+                        }
+                    }
+                } else if permanent {
                     // CR 608.3a.
                     self.enter(card, controller, false, then);
                 } else {
@@ -5227,6 +5310,18 @@ impl Game {
     /// The card arrives on the battlefield, and what waits for that
     /// triggers.
     fn arrive(&mut self, card: CardId, controller: PlayerId, tapped: bool) {
+        self.arrive_attached(card, controller, tapped, None);
+    }
+
+    /// As `arrive`, attached to `to` as it enters, as an Aura spell
+    /// resolves (CR 608.3c).
+    fn arrive_attached(
+        &mut self,
+        card: CardId,
+        controller: PlayerId,
+        tapped: bool,
+        to: Option<ObjectId>,
+    ) {
         let runs = self.runs_of(card);
         let mut chars = runs.lowered.chars.clone();
         chars.controller = controller;
@@ -5259,6 +5354,9 @@ impl Game {
             .collect();
         for (c, n) in counters {
             self.battlefield.put_counters(id, c, n);
+        }
+        if let Some(to) = to {
+            self.battlefield.attach(id, to);
         }
         self.trigger_on(Event::Entered(id));
     }
@@ -5605,6 +5703,7 @@ impl Game {
                     })
                 })
                 .map(|(id, _)| id)
+                .chain(self.illegal_auras())
                 .collect();
             if losers.is_empty() && dying.is_empty() {
                 if let Some(legends) = self.legends() {
@@ -5638,6 +5737,35 @@ impl Game {
                 _ => {}
             }
         }
+    }
+
+    /// CR 704.5m, 303.4c–d: Auras attached to nothing, to an object gone
+    /// from the battlefield, to themselves, or to one their enchant ability
+    /// or protection (CR 702.16c) says they can't enchant.
+    fn illegal_auras(&self) -> Vec<ObjectId> {
+        let all = self.characteristics();
+        all.iter()
+            .filter(|(id, c)| {
+                c.subtypes.contains(&Subtype::Other("Aura".into())) && {
+                    let enchant = self
+                        .known(self.permanents[*id].card)
+                        .and_then(|k| k.runs.as_ref().ok())
+                        .and_then(|r| r.enchant.as_ref());
+                    let on = self.battlefield.objects[*id].attached_to;
+                    match (enchant, on.and_then(|o| all.get(&o).map(|oc| (o, oc)))) {
+                        (Some(f), Some((o, oc))) if o != **id => {
+                            oc.protected_from(c)
+                                || !f.0.iter().all(|pred| match pred {
+                                    Pred::YouControl => oc.controller == c.controller,
+                                    other => Filter(vec![other.clone()]).matches_card(oc),
+                                })
+                        }
+                        _ => true,
+                    }
+                }
+            })
+            .map(|(id, _)| *id)
+            .collect()
     }
 
     /// CR 704.5j: the first player controlling two or more legendary
@@ -5821,6 +5949,8 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         cost_changes: BTreeMap::new(),
         alternatives: BTreeMap::new(),
         kicker: None,
+        enchant: None,
+        mana_triggers: BTreeMap::new(),
         extra_lands: BTreeMap::new(),
         dormant: Vec::new(),
         lowered,
@@ -5904,6 +6034,17 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                                 runs.alternatives.insert(n, alt);
                             }
                             Err(node) => runs.dormant.push(format!("flashback: {node}")),
+                        }
+                    } else if let Some(enchant) = lower::enchant(k) {
+                        let filter = enchant.map_err(|node| {
+                            Unrunnable::new(node.clone(), format!("the game can't run {node} yet"))
+                        })?;
+                        // CR 702.5c: each instance applies; one is run.
+                        if runs.enchant.replace(filter).is_some() {
+                            return Err(Unrunnable::new(
+                                "a second enchant",
+                                "the game can't run two enchant abilities yet",
+                            ));
                         }
                     } else if let Some(kicker) = lower::kicker(k) {
                         // One the engine can't pay for is carried and
@@ -5999,6 +6140,21 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                         ))
                     }
                 }
+            }
+            i::Ability::Triggered {
+                trigger,
+                effect,
+                limits,
+            } if lower::mana_trigger(bind, trigger, effect, limits).is_some() => {
+                let def = lower::mana_trigger(bind, trigger, effect, limits)
+                    .expect("a triggered mana ability")
+                    .map_err(|node| {
+                        Unrunnable::new(
+                            node.clone(),
+                            format!("the game can't run its triggered mana ability: {node}"),
+                        )
+                    })?;
+                runs.mana_triggers.insert(n, def);
             }
             i::Ability::Triggered {
                 trigger,

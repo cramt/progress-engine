@@ -2831,3 +2831,73 @@ fn burst_lightning_deals_four_if_kicked_and_two_if_not() {
         assert_eq!(game.player(THEM).life(), life);
     }
 }
+
+/// CR 303.4a, 608.3c, 605.1b, 605.4a: Wild Growth targets a land as it is
+/// cast and enters attached to it, and the land then taps for an
+/// additional {G}, added at once; CR 704.5m: when the land is destroyed,
+/// the Aura is attached to nothing and goes to the graveyard.
+#[test]
+fn wild_growth_enchants_a_land_that_then_taps_for_two() {
+    let mut game = deal_both(
+        &[("Forest", 40), ("Wild Growth", 20)],
+        &[("Mountain", 40), ("Stone Rain", 20)],
+        &[("Forest", 2), ("Wild Growth", 1)],
+        &[("Mountain", 3), ("Stone Rain", 1)],
+    );
+    play(&mut game, "Forest");
+    let forest = creature(&game, "Forest").expect("a Forest");
+    let growth = in_hand(&game, ME, "Wild Growth").unwrap();
+    let Decision::Targets { slots, .. } = step(&mut game, Answer::Act(Action::Cast(growth))) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(slots, vec![vec![Target::Object(forest)]]);
+    let mut d = step(&mut game, Answer::Targets(vec![Target::Object(forest)]));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .unwrap();
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    let aura = creature(&game, "Wild Growth").expect("Wild Growth entered");
+    assert_eq!(game.attached_to(aura), Some(forest));
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Forest");
+    // The enchanted Forest makes {G}{G}, the other {G}.
+    let mut made: Vec<(chancellor_of_the_spires::model::ObjectId, u32)> = game
+        .mana_options(ME)
+        .iter()
+        .map(|a| (a.source, a.adds.total()))
+        .collect();
+    made.sort();
+    assert_eq!(made.len(), 2);
+    assert!(made.contains(&(forest, 2)), "{made:?}");
+    let to = game
+        .mana_options(ME)
+        .into_iter()
+        .find(|a| a.source == forest)
+        .unwrap();
+    step(&mut game, Answer::Act(Action::Mana(to)));
+    assert_eq!(game.player(ME).pool().total(), 2);
+    // Stone Rain destroys it, and Wild Growth follows (CR 704.5m).
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(
+        &mut game,
+        THEM,
+        "Stone Rain",
+        Some(vec![Target::Object(forest)]),
+    );
+    resolve(&mut game);
+    assert!(game.permanents().get(&forest).is_none());
+    assert!(creature(&game, "Wild Growth").is_none());
+    assert_eq!(named(&game, game.player(ME).graveyard(), "Wild Growth"), 1);
+}
