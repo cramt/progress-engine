@@ -1010,6 +1010,15 @@ pub enum Effect {
         filter: CardFilter,
         into: Slot,
         enters: bool,
+        /// "Reveal it", "reveal those cards": an instruction after shows
+        /// the card found (CR 701.23a, 701.20a).
+        reveals: bool,
+    },
+    /// "Search your library for up to two basic land cards": the cards
+    /// each search of one found, bound together to `into`.
+    Gather {
+        from: Vec<Slot>,
+        into: Slot,
     },
     /// "Put it onto the battlefield (tapped)", under `who`'s control.
     ToBattlefield {
@@ -1061,10 +1070,12 @@ pub enum Effect {
     Sacrifice(Obj),
     /// "Counter target spell" (CR 701.6a): the spell in this target slot.
     Counter(usize),
-    /// "Create a 0/1 green Plant creature token": `n` tokens with this
-    /// text, its controller's (CR 111.1–111.3).
+    /// "Create a 0/1 green Plant creature token", "create X … tokens,
+    /// where X is the number of creatures you control": `n` tokens with
+    /// this text, its controller's, `n` counted as it is followed (CR
+    /// 111.1–111.3, 608.2h).
     Create {
-        n: u32,
+        n: Amount,
         token: Box<crate::deck::CardText>,
         tapped: bool,
     },
@@ -1879,6 +1890,8 @@ struct Scope<'a> {
     /// What a search looks for, by the slot of the card it finds, and
     /// whether that card is put onto the battlefield.
     described: BTreeMap<Slot, (Objects, bool)>,
+    /// The slots whose cards an instruction after the search reveals.
+    revealing: BTreeSet<Slot>,
     /// Whether an instruction before has chosen a card name, "that name".
     named: bool,
     /// What X is, "where X is the number of Goblins on the battlefield".
@@ -1905,6 +1918,7 @@ impl<'a> Scope<'a> {
             sizes: BTreeMap::new(),
             in_hand: BTreeSet::new(),
             described: BTreeMap::new(),
+            revealing: BTreeSet::new(),
             named: false,
             x: None,
             discarded: None,
@@ -2209,7 +2223,7 @@ impl<'a> Scope<'a> {
                 n: k,
                 token,
             } => Effect::Create {
-                n: n(k)?,
+                n: self.resolved_amount(k)?,
                 token: Box::new(token_text(token)?),
                 tapped: token.tapped,
             },
@@ -2276,7 +2290,7 @@ impl<'a> Scope<'a> {
             } if source.quant == Quant::SelfRef && source.filter == i::Filter::default() => {
                 Effect::Damage {
                     to: self.damage_to(to)?,
-                    n: self.damage_amount(k)?,
+                    n: self.resolved_amount(k)?,
                 }
             }
             i::Effect::Scry(k) => Effect::Scry(n(k)?),
@@ -2505,6 +2519,7 @@ impl<'a> Scope<'a> {
                     filter: card_filter(&described)?,
                     into,
                     enters,
+                    reveals: self.revealing.contains(&into),
                 }
             }
             // A card found is named as it is found, so revealing it shows
@@ -2700,7 +2715,52 @@ impl<'a> Scope<'a> {
                 let s = self.new_slot();
                 self.described
                     .insert(s, (o.clone(), enters_battlefield(then)));
+                if reveals_found(then) {
+                    self.revealing.insert(s);
+                }
                 s
+            }
+            // "Search your library for up to two basic land cards": a
+            // search for one, as many times, none finding what one before
+            // found (CR 701.23a, 701.23d), the cards bound together.
+            [o] if matches!(o.quant, Quant::UpTo(i::Amount::N(_)))
+                && o.filter.kind == Some(i::Noun::Card)
+                && matches!(then.first(), Some(i::Effect::Search { what, .. })
+                    if what.quant == Quant::Introduced(0) && what.filter == i::Filter::default()) =>
+            {
+                let Quant::UpTo(i::Amount::N(n)) = o.quant else {
+                    unreachable!("matched")
+                };
+                let enters = moves_onto_battlefield(then);
+                let reveals = reveals_found(then);
+                let one = Objects {
+                    quant: Quant::One,
+                    filter: o.filter.clone(),
+                };
+                let mut each = Vec::new();
+                for _ in 0..n {
+                    let s = self.new_slot();
+                    self.described.insert(s, (one.clone(), enters));
+                    if reveals {
+                        self.revealing.insert(s);
+                    }
+                    self.withs.push(Some(s));
+                    let search = self.effect(&then[0]);
+                    self.withs.pop();
+                    out.extend(search?);
+                    each.push(s);
+                }
+                let into = self.new_slot();
+                self.sizes.insert(into, n);
+                if let Some(w) = each.first().and_then(|s| self.whose.get(s)).copied() {
+                    self.whose.insert(into, w);
+                }
+                out.push(Effect::Gather { from: each, into });
+                self.withs.push(Some(into));
+                let lowered = self.effects(&then[1..]);
+                self.withs.pop();
+                out.extend(lowered?);
+                return Ok(out);
             }
             [o] if o.quant == Quant::N(i::Amount::N(1)) => {
                 let from = match o.filter.posts.as_slice() {
@@ -2875,7 +2935,7 @@ impl<'a> Scope<'a> {
             ) if same.as_slice() == [i::Recipient::Same] && source == was => {
                 Ok(vec![Effect::Damage {
                     to: to.clone(),
-                    n: self.damage_amount(n)?,
+                    n: self.resolved_amount(n)?,
                 }])
             }
             // Anything else said again in full; a `Same` left in it is
@@ -2884,9 +2944,9 @@ impl<'a> Scope<'a> {
         }
     }
 
-    /// A damage instruction's amount: a number, "that much" of the event,
-    /// or the spell's X.
-    fn damage_amount(&self, k: &i::Amount) -> Result<Amount, String> {
+    /// An instruction's amount, worked out as it is followed: a number,
+    /// "that much" of the event, or the X a "where X is" counts.
+    fn resolved_amount(&self, k: &i::Amount) -> Result<Amount, String> {
         Ok(match k {
             i::Amount::ThatMany if self.amount => Amount::ThatMuch,
             i::Amount::X if self.x.is_some() => self.x.clone().expect("an X"),
@@ -3167,6 +3227,29 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
     Ok(paid)
 }
 
+/// "You may reveal this card from your opening hand. If you do, at the
+/// beginning of the first upkeep, create a 1/1 red Phyrexian Goblin
+/// creature token with haste" (CR 103.6b): the delayed trigger's
+/// instructions.
+pub fn opening_reveal(effects: &[i::Effect]) -> Result<Program, String> {
+    let [i::Effect::Delayed {
+        step: i::Step::Upkeep(i::Whose::First),
+        then,
+    }] = effects
+    else {
+        return Err("a reveal from the opening hand other than for the first upkeep".into());
+    };
+    let mut scope = Scope::new(&[]);
+    let effects = scope.effects(then)?;
+    if !scope.program.targets.is_empty() {
+        return Err("a reveal from the opening hand with a target".into());
+    }
+    Ok(Program {
+        targets: Vec::new(),
+        effects,
+    })
+}
+
 /// Equip's "[Cost]: Attach this permanent to target creature you control.
 /// Activate only as a sorcery" (CR 702.6a), `None` if the keyword isn't
 /// equip, and the node it can't lower if it equips only some creatures
@@ -3321,6 +3404,28 @@ pub fn alternative_cost(parts: &[i::Static]) -> Option<Result<Alternative, Strin
 
 /// Whether an instruction in these, or a "may" in them, puts the card the
 /// innermost binder names onto the battlefield.
+/// Whether an instruction reveals the cards a binder holds ("reveal it",
+/// "reveal those cards"), the log's reveal line naming each.
+fn reveals_found(effects: &[i::Effect]) -> bool {
+    effects.iter().any(|e| match e {
+        i::Effect::Reveal { what, .. } => what.quant == Quant::Bound(0),
+        i::Effect::May { then, .. } => reveals_found(then),
+        _ => false,
+    })
+}
+
+/// Whether any instruction, however deep, puts a card onto the battlefield.
+fn moves_onto_battlefield(effects: &[i::Effect]) -> bool {
+    effects.iter().any(|e| match e {
+        i::Effect::Move {
+            to: i::Zone::Battlefield,
+            ..
+        } => true,
+        i::Effect::May { then, .. } | i::Effect::With { then, .. } => moves_onto_battlefield(then),
+        _ => false,
+    })
+}
+
 fn enters_battlefield(effects: &[i::Effect]) -> bool {
     effects.iter().any(|e| match e {
         i::Effect::Move {

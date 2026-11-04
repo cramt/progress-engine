@@ -140,6 +140,18 @@ impl Known {
     }
 }
 
+/// An action a card in an opening hand allows (CR 103.6).
+#[derive(Clone, Debug)]
+enum Opening {
+    /// "If this card is in your opening hand, you may begin the game with
+    /// it on the battlefield" (CR 103.6a).
+    Begins,
+    /// "You may reveal this card from your opening hand. If you do, at the
+    /// beginning of the first upkeep, …": the delayed trigger's
+    /// instructions (CR 103.6b).
+    Reveals(Program),
+}
+
 /// What the game can run of a card: its lowered characteristics and, of
 /// the abilities the layers carry unread, the ones this engine runs, by
 /// their index (`model::Ability::Unread`).
@@ -157,9 +169,8 @@ struct Runnable {
     /// in order.
     spell: Option<Program>,
     flash: bool,
-    /// "If this card is in your opening hand, you may begin the game with
-    /// it on the battlefield" (CR 103.6a).
-    begins: bool,
+    /// What it lets its owner do from their opening hand (CR 103.6).
+    opening: Option<Opening>,
     /// Cycling (CR 702.29a), by its index, and its cost and instruction.
     cycling: Option<(u16, Activated)>,
     /// "You have hexproof" (CR 702.11c), by the ability's index, so it
@@ -814,6 +825,7 @@ enum Waiting {
         /// Whether what it finds is put onto the battlefield, so must be
         /// a card the engine runs.
         enters: bool,
+        reveals: bool,
         into: Slot,
         resume: Resuming,
     },
@@ -870,10 +882,11 @@ pub enum Decision {
         count: usize,
         hand: Vec<CardId>,
     },
-    /// CR 103.6, 103.6a: put any of `cards`, of `player`'s opening hand,
-    /// onto the battlefield, answered `Answer::Begin`. Asked only of a
-    /// player with such a card: a hidden one has to be named first, as
-    /// the hand is kept.
+    /// CR 103.6, 103.6a–b: take the action any of `cards`, of `player`'s
+    /// opening hand, allows, answered `Answer::Begin`: put onto the
+    /// battlefield, or revealed for a delayed trigger at the first upkeep.
+    /// Asked only of a player with such a card: a hidden one has to be
+    /// named first, as the hand is kept.
     OpeningHand {
         player: PlayerId,
         cards: Vec<CardId>,
@@ -1037,9 +1050,11 @@ pub enum Decision {
     /// CR 701.23a–b: search your library for a card `filter` matches,
     /// answered with `Answer::Find`. `known` are the library's cards whose
     /// names are known that match; any of its `hidden` cards might too.
+    /// `reveals` if an instruction after reveals what it finds.
     Search {
         player: PlayerId,
         filter: CardFilter,
+        reveals: bool,
         known: Vec<CardId>,
         hidden: usize,
     },
@@ -1178,7 +1193,8 @@ pub enum Answer {
     Pick(Option<CardId>),
     /// CR 608.2d: follow the "may" instruction, or not.
     May(bool),
-    /// CR 103.6a: the cards of the opening hand put onto the battlefield.
+    /// CR 103.6a–b: the cards of the opening hand whose action is taken,
+    /// put onto the battlefield or revealed.
     Begin(Vec<CardId>),
     /// What each hidden card revealed is, in the decision's order.
     Reveal(Vec<CardText>),
@@ -1533,12 +1549,12 @@ impl Game {
         self.begin_turn(PlayerId(0))
     }
 
-    /// Whether a card begins the game on the battlefield if its owner
-    /// says so (CR 103.6a): known, and run by the engine.
-    fn begins(&self, c: CardId) -> bool {
+    /// What a card lets its owner do from their opening hand (CR 103.6),
+    /// if it is known and the engine runs it.
+    fn opening(&self, c: CardId) -> Option<&Opening> {
         self.known(c)
             .and_then(|k| k.runs.as_ref().ok())
-            .is_some_and(|r| r.begins)
+            .and_then(|r| r.opening.as_ref())
     }
 
     /// Whether a player has hexproof (CR 702.11c): a permanent they
@@ -1773,7 +1789,11 @@ impl Game {
                 let hand = &self.player(*player).hand;
                 Decision::OpeningHand {
                     player: *player,
-                    cards: hand.iter().copied().filter(|c| self.begins(*c)).collect(),
+                    cards: hand
+                        .iter()
+                        .copied()
+                        .filter(|c| self.opening(*c).is_some())
+                        .collect(),
                 }
             }
             Waiting::Bottom { player, count, .. } => Decision::Bottom {
@@ -2011,18 +2031,24 @@ impl Game {
                 player,
                 filter,
                 enters,
+                reveals,
+                resume,
                 ..
             } => {
                 let library = &self.player(*player).library;
+                let found = Self::found_already(resume);
                 Decision::Search {
                     player: *player,
                     filter: filter.clone(),
+                    reveals: *reveals,
                     known: library
                         .iter()
                         .copied()
                         .filter(|c| {
-                            self.known(*c)
-                                .is_some_and(|k| k.found_by(filter, *enters) == Ok(true))
+                            !found.contains(c)
+                                && self
+                                    .known(*c)
+                                    .is_some_and(|k| k.found_by(filter, *enters) == Ok(true))
                         })
                         .collect(),
                     hidden: library.iter().filter(|c| self.known(**c).is_none()).count(),
@@ -2068,13 +2094,29 @@ impl Game {
                 if distinct.len() != cards.len()
                     || !cards
                         .iter()
-                        .all(|c| self.begins(*c) && self.player(player).hand.contains(c))
+                        .all(|c| self.opening(*c).is_some() && self.player(player).hand.contains(c))
                 {
                     return Err(Rejected::Illegal(answer));
                 }
                 for c in cards {
-                    self.players[player.0 as usize].hand.retain(|x| x != c);
-                    self.arrive(*c, player, false);
+                    match self.opening(*c).cloned() {
+                        Some(Opening::Begins) => {
+                            self.players[player.0 as usize].hand.retain(|x| x != c);
+                            self.arrive(*c, player, false);
+                        }
+                        // CR 103.6b, 603.7: revealed, it stays in the hand,
+                        // and the first upkeep, of turn 1, is of a later
+                        // turn than this.
+                        Some(Opening::Reveals(program)) => self.delayed.push_back(Delayed {
+                            source: *c,
+                            controller: player,
+                            step: TurnStep::Upkeep,
+                            created: self.turn,
+                            program,
+                            fired: false,
+                        }),
+                        None => unreachable!("checked above"),
+                    }
                 }
                 self.opening_hand_from(player.0 as usize + 1);
             }
@@ -2510,13 +2552,20 @@ impl Game {
                     enters,
                     into,
                     mut resume,
+                    ..
                 },
                 Answer::Find(found),
             ) => {
                 let library = &self.player(player).library;
                 // What it is, if it is in the library and its name known
-                // or given now for a hidden card.
+                // or given now for a hidden card, and no search of this
+                // instruction found it already.
                 let read = match found {
+                    Found::Card(c) | Found::Hidden(c, _)
+                        if Self::found_already(&resume).contains(c) =>
+                    {
+                        return Err(Rejected::Illegal(answer))
+                    }
                     Found::Nothing => None,
                     Found::Card(c) if library.contains(c) => match self.known(*c) {
                         Some(_) => Some((*c, None)),
@@ -3781,12 +3830,14 @@ impl Game {
                     filter,
                     into,
                     enters,
+                    reveals,
                 } => {
                     let Some(q) = who(w) else { continue };
                     self.waiting = Waiting::Search {
                         player: q,
                         filter,
                         enters,
+                        reveals,
                         into,
                         resume,
                     };
@@ -3917,7 +3968,7 @@ impl Game {
                 }
                 // CR 111.2: its creator owns and controls it.
                 Effect::Create { n, token, tapped } => {
-                    for _ in 0..n {
+                    for _ in 0..self.amount(&at, n) {
                         self.cards.push_back(CardEntry {
                             owner: p,
                             commander: false,
@@ -4112,6 +4163,13 @@ impl Game {
                         return;
                     }
                 }
+                Effect::Gather { from, into } => {
+                    let cards = from
+                        .iter()
+                        .flat_map(|s| at.found.get(s).cloned().unwrap_or_default())
+                        .collect();
+                    at.found.insert(into, cards);
+                }
                 Effect::ChooseAmong { from, n, into } => {
                     let cards = self.still_in_library(&at, Cards::Bound(from));
                     if cards.len() <= n as usize {
@@ -4298,6 +4356,12 @@ impl Game {
             }
         }
         self.done(&at)
+    }
+
+    /// The cards the instructions resolving have found so far: a search
+    /// for "up to two" finds each once (CR 701.23a).
+    fn found_already(at: &Resuming) -> BTreeSet<CardId> {
+        at.found.values().flatten().copied().collect()
     }
 
     /// The cards an instruction names that are still in a library, where
@@ -6083,7 +6147,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         triggered: BTreeMap::new(),
         spell: None,
         flash: false,
-        begins: false,
+        opening: None,
         hexproof: BTreeSet::new(),
         cycling: None,
         cost_changes: BTreeMap::new(),
@@ -6254,7 +6318,16 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                 not_starting_player: false,
                 counters: None,
                 if_you_do,
-            }) if if_you_do.is_empty() => runs.begins = true,
+            }) if if_you_do.is_empty() => runs.opening = Some(Opening::Begins),
+            i::Ability::OpeningHandAction(i::OpeningHandAction::Reveal(effects)) => {
+                let program = lower::opening_reveal(effects).map_err(|node| {
+                    Unrunnable::new(
+                        node.clone(),
+                        format!("the game can't run its reveal from the opening hand: {node}"),
+                    )
+                })?;
+                runs.opening = Some(Opening::Reveals(program));
+            }
             i::Ability::Static(parts) => {
                 let e = enters(parts).map_err(|node| {
                     Unrunnable::new(

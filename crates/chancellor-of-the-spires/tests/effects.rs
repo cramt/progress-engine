@@ -3023,3 +3023,136 @@ fn bonesplitter_equips_at_sorcery_speed_and_stays_when_its_creature_dies() {
     assert_eq!(game.attached_to(splitter), None);
     assert!(creature(&game, "Bonesplitter").is_some());
 }
+
+/// CR 103.6b, 603.7, 702.10: Chancellor of the Forge revealed from the
+/// opening hand stays there, and at the beginning of the first upkeep, the
+/// starting player's of turn 1, its delayed trigger creates a 1/1 red
+/// Phyrexian Goblin with haste.
+#[test]
+fn chancellor_of_the_forge_revealed_makes_a_hasty_goblin_at_the_first_upkeep() {
+    let mut found = None;
+    for seed in 0..200 {
+        let game = Game::start(Setup {
+            format: Format::Constructed,
+            decks: vec![
+                deck(&[("Chancellor of the Forge", 20), ("Mountain", 40)]),
+                deck(&[("Forest", 60)]),
+            ],
+            mulligans: false,
+            seed,
+        })
+        .unwrap();
+        if named(&game, game.player(ME).hand(), "Chancellor of the Forge") > 0 {
+            found = Some(game);
+            break;
+        }
+    }
+    let mut game = found.expect("a seed");
+    let Decision::OpeningHand { player, cards } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(player, ME);
+    step(&mut game, Answer::Begin(vec![cards[0]]));
+    assert!(game.player(ME).hand().contains(&cards[0]));
+    assert_eq!((game.turn(), game.step_now()), (1, Step::Upkeep));
+    assert_eq!(game.stack().len(), 1, "the delayed trigger");
+    resolve(&mut game);
+    let goblins: Vec<_> = game
+        .permanents()
+        .iter()
+        .filter(|(_, p)| {
+            game.card(p.card)
+                .is_some_and(|t| t.name.contains("Phyrexian Goblin"))
+        })
+        .map(|(id, _)| *id)
+        .collect();
+    let [goblin] = goblins[..] else {
+        panic!("one token: {goblins:?}")
+    };
+    let chars = &game.characteristics()[&goblin];
+    assert_eq!(chars.pt, Some(pt(1, 1)));
+    assert!(chars.has(chancellor_of_the_spires::model::Keyword::Haste));
+}
+
+/// CR 118.9, 701.21a, 701.23a, 701.23d: Flare of Cultivation cast by
+/// sacrificing a nontoken green creature rather than paying its mana
+/// cost, then "Search your library for up to two basic land cards, reveal
+/// those cards, put one onto the battlefield tapped and the other into
+/// your hand": the second search can't find the card the first did, and
+/// of the two, the one chosen enters tapped and the other goes to hand.
+#[test]
+fn flare_of_cultivation_sacrifices_an_elf_and_finds_two_lands() {
+    let mut game = deal(
+        &[
+            ("Forest", 20),
+            ("Island", 20),
+            ("Flare of Cultivation", 10),
+            ("Llanowar Elves", 10),
+        ],
+        &[("Swamp", 60)],
+        &[
+            ("Forest", 1),
+            ("Flare of Cultivation", 1),
+            ("Llanowar Elves", 1),
+        ],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Llanowar Elves", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    let flare = in_hand(&game, ME, "Flare of Cultivation").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let alt = actions
+        .into_iter()
+        .find(|a| matches!(a, Action::CastAlternative(c, _) if *c == flare))
+        .expect("the sacrifice is offered");
+    step(&mut game, Answer::Act(alt));
+    if matches!(game.decision(), Decision::Pay { .. }) {
+        step(&mut game, Answer::Pay(Payment::Spend(ManaPool::default())));
+    }
+    let Decision::Sacrifice { legal, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(legal, vec![creature(&game, "Llanowar Elves").unwrap()]);
+    step(&mut game, Answer::Sacrifice(legal));
+    let Decision::Search { known, reveals, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(reveals);
+    let by_name = |game: &Game, known: &[CardId], n: &str| {
+        known
+            .iter()
+            .copied()
+            .find(|c| game.card(*c).is_some_and(|t| t.name == n))
+            .unwrap()
+    };
+    let island = by_name(&game, &known, "Island");
+    let Decision::Search { known, .. } = step(&mut game, Answer::Find(Found::Card(island))) else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(!known.contains(&island), "found already");
+    assert!(game
+        .clone()
+        .step(Answer::Find(Found::Card(island)))
+        .is_err());
+    let forest = by_name(&game, &known, "Forest");
+    let Decision::ChooseAmong { cards, n, .. } = step(&mut game, Answer::Find(Found::Card(forest)))
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((cards, n), (vec![island, forest], 1));
+    step(&mut game, Answer::Choose(vec![forest]));
+    assert!(game.player(ME).hand().contains(&island));
+    let entered = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| p.card == forest)
+        .map(|(_, p)| p.tapped);
+    assert_eq!(entered, Some(true));
+    assert_eq!(
+        named(&game, game.player(ME).graveyard(), "Llanowar Elves"),
+        1
+    );
+}

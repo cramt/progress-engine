@@ -775,8 +775,8 @@ impl Driver<'_> {
     }
 
     /// The cards the log puts onto the battlefield from `p`'s opening hand
-    /// before the first turn (CR 103.6a), named from its hidden cards; one
-    /// the engine can't run is refused.
+    /// or reveals from it before the first turn (CR 103.6a–b), named from
+    /// its hidden cards; one the engine can't run is refused.
     fn name_begun(
         &mut self,
         g: &log::Game,
@@ -794,6 +794,14 @@ impl Driver<'_> {
                     card,
                     attacking: None,
                 } if self.seat(*player) == p => Some((k, card.name().to_string())),
+                Event::Reveals {
+                    player,
+                    cards,
+                    how: log::Reveal::OpeningHand,
+                } if self.seat(*player) == p => match cards.as_slice() {
+                    [card] => Some((k, card.name().to_string())),
+                    _ => None,
+                },
                 _ => None,
             })
             .collect();
@@ -856,6 +864,13 @@ impl Driver<'_> {
                 i,
                 "begun on the battlefield from the opening hand (CR 103.6a)",
             ),
+            Reveals {
+                cards,
+                how: log::Reveal::OpeningHand,
+                ..
+            } if entry.turn.is_none() && cards.len() == 1 => {
+                self.did(i, "revealed from the opening hand (CR 103.6b)")
+            }
             TurnBegins(t) => {
                 if t.extra {
                     return Err(unfollowed(None));
@@ -1165,7 +1180,9 @@ impl Driver<'_> {
                 self.did(i, format!("activated {}'s ability{paid}", card.name()));
             }
             // "Search your library for an enchantment card, reveal it":
-            // the card the search finds, which the line names.
+            // the card the search finds, which the line names. A search
+            // resolving before it that reveals nothing (Viridian
+            // Emissary's) is answered as the log never shows it.
             Reveals {
                 player,
                 cards,
@@ -1173,10 +1190,22 @@ impl Driver<'_> {
             } if cards.len() == 1 => {
                 let p = self.seat(*player);
                 let turn = self.game().turn();
-                loop {
+                let known = loop {
                     let game = self.game();
                     match game.decision() {
-                        Decision::Search { player, .. } if player == p => break,
+                        Decision::Search {
+                            player,
+                            known,
+                            reveals: true,
+                            ..
+                        } if player == p => break known,
+                        Decision::Search {
+                            player,
+                            filter,
+                            known,
+                            hidden,
+                            reveals: false,
+                        } => self.search(player, &filter, known, hidden)?,
                         Decision::Priority { .. }
                             if !game.stack().is_empty() && game.turn() == turn =>
                         {
@@ -1184,11 +1213,11 @@ impl Driver<'_> {
                         }
                         _ => return Err(unfollowed(Some(cards[0].name()))),
                     }
-                }
+                };
                 let text = self.text(cards[0].name())?;
                 let game = self.game();
                 let library = game.player(p).library().clone();
-                let found = match library
+                let found = match known
                     .iter()
                     .find(|c| game.card(**c).is_some_and(|t| t.name == text.name))
                 {
@@ -1886,6 +1915,7 @@ impl Driver<'_> {
                 filter,
                 known,
                 hidden,
+                ..
             } => self.search(player, &filter, known, hidden),
             Decision::May { card, .. } => self.may(card),
             Decision::ChooseName { player, card, .. } => self.choose_name(player, card),
@@ -1900,7 +1930,7 @@ impl Driver<'_> {
             Decision::Reveal { player, cards } => self.reveal(player, &cards),
             // Cards looked at are hidden alike to the log: which is chosen,
             // and the order they go back in, is nothing it can tell.
-            Decision::ChooseAmong { cards, n, .. } => self.act(Answer::Choose(cards[..n].to_vec())),
+            Decision::ChooseAmong { cards, n, .. } => self.choose_among(cards, n),
             Decision::Arrange { cards, .. } => self.act(Answer::Arrange(cards)),
             Decision::PutFromHand { player, .. } => self.put_from_hand(player),
             Decision::DiscardToEnter { player, .. } => self.discard_to_enter(player),
@@ -3457,6 +3487,46 @@ impl Driver<'_> {
         let at = self.at;
         self.did(at, did.clone());
         Ok(())
+    }
+
+    /// A choice among cards the log never shows (Impulse's look, Flare of
+    /// Cultivation's land put onto the battlefield): the first, and when
+    /// one is chosen and the cards' names differ, a checkpoint to go back
+    /// and choose each other one if a later line can't be followed. Hidden
+    /// cards are alike, so there is nothing to go back to among them.
+    fn choose_among(&mut self, cards: Vec<CardId>, n: usize) -> Followed {
+        let names: Vec<Option<String>> = {
+            let game = self.game();
+            cards
+                .iter()
+                .map(|c| game.card(*c).map(|t| t.name.clone()))
+                .collect()
+        };
+        let others: Vec<Retry> = cards
+            .iter()
+            .zip(&names)
+            .skip(1)
+            .filter_map(|(c, name)| match name {
+                Some(name) if n == 1 && Some(name) != names[0].as_ref() => Some(Retry::Answer(
+                    Answer::Choose(vec![*c]),
+                    format!("chose {name}"),
+                )),
+                _ => None,
+            })
+            .collect();
+        if !others.is_empty() {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others,
+                knew: self.knew(),
+                back: Back::Unplayable,
+            });
+        }
+        self.act(Answer::Choose(cards[..n].to_vec()))
     }
 
     /// A search's card the log never names, found as a hypothesis, is

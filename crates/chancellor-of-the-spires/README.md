@@ -324,7 +324,7 @@ offered. A non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**38 of Loam's 90 distinct cards are played or cast and resolved, 26 of
+**41 of Loam's 90 distinct cards are played or cast and resolved, 29 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
@@ -335,14 +335,14 @@ mana: "{1}, {T}, Sacrifice this land: Draw a card", and the six more
 since cycling runs: Coastal Peak, Desert of the Fervent, Forgotten Cave,
 Ketria Triome, Lonely Sandbar and Sheltered Thicket, Deep Analysis,
 whose flashback runs, and Lotus Cobra, whose landfall adds mana of a
-colour chosen), measured 2026-11-03, Blast Zone played too since it
+colour chosen, and Cultivate, Kodama's Reach and Flare of Cultivation,
+since a search can find up to two, measured 2026-11-04), Blast Zone played too since it
 enters with its counter, its abilities carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
-node refused. The most refused: `With` (5: Cultivate's two lands to two
-places), `Trigger::When(Event::Discards)` (4), then discarding more than
-a card, `Effect::Move` from a graveyard and modifying by an amount (3
-each). `tests/game.rs` scripts the rules above, and plays
+node refused. The most refused: `Trigger::When(Event::Discards)` (4),
+then discarding more than a card, `Effect::Move` from a graveyard,
+modifying by an amount and playing from another zone (3 each). `tests/game.rs` scripts the rules above, and plays
 Loam against a goldfish for six turns, casting what it can.
 
 Not yet: most instructions (modal spells, "if", a predefined token or
@@ -615,7 +615,15 @@ with [Sylvan Library]'s ability" line is its "may" taken, the "kept a
 card." and "put a card on top of …'s library." lines after it answer
 each card's "pay 4 life or" in the order printed, and since the cards
 drawn are hidden and the log never says which two were chosen, the
-replay chooses the first two drawn; and mana a line shows
+replay chooses the first two drawn; a "reveals [X] from their opening
+hand." line before the first turn names X in the hand kept, as a
+Leyline's line does, and reveals it; a "reveals [X]" line names the card
+only of a search whose instruction reveals what it finds, and one that
+doesn't (Viridian Emissary's, resolving first) is answered as a
+fetchland's is; which of the lands Flare of Cultivation found goes onto
+the battlefield is never printed, so the replay puts the first revealed
+there and goes back to the other if a later line can't be followed, as
+for any choice among named cards the log doesn't show; and mana a line shows
 made for a sorcery-speed spell in its caster's turn is made in a main
 phase, the other player passing to its controller first when it is
 theirs to act (a Wall of Roots tapped for mana while blocking); a
@@ -643,9 +651,9 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 55 replay to the end** (52 to the log's winner
-line), 37 of them past the first turn, and **28.07% of their lines are
-followed** (21,949 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 56 replay to the end** (53 to the log's winner
+line), 38 of them past the first turn, and **28.21% of their lines are
+followed** (22,054 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-04, and 16 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
@@ -705,8 +713,9 @@ Nacatl, Swords to Plowshares, Counterspell, Festering Goblin's dies
 trigger, Path to Exile, Khalni Garden's token, Silver Knight's
 protection from red, Goblin Warchief's and Thalia's cost changes, and
 Sylvan Library keeping one card for 4 life and putting the other back,
-and Bonesplitter equipped only at sorcery speed, staying unattached when
-its creature dies.
+Bonesplitter equipped only at sorcery speed, staying unattached when
+its creature dies, Chancellor of the Forge's Goblin at the first
+upkeep, and Flare of Cultivation cast by sacrificing Llanowar Elves.
 
 ### The milestone
 
@@ -733,9 +742,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-04 53 of the 500 replay to
-the end and 39.22% of their lines are followed** (12,417 of 31,659), 6
-of them relying on a land the log never names (1 to the end), and 61
+Worked card by card from there, **on 2026-11-04 54 of the 500 replay to
+the end and 39.55% of their lines are followed** (12,522 of 31,659), 6
+of them relying on a land the log never names (1 to the end), and 62
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -773,14 +782,18 @@ drawn this turn and "for each of those cards, pay 4 life or" put it
 back, with Insight reading "the card" as the loop's one card (Sylvan
 Library); equip, an ability activated only as a sorcery, attaching its
 Equipment, which comes off a creature gone or no longer one (Leyline
-Axe). And
+Axe); a card revealed from the opening hand for a delayed trigger at the
+first upkeep, and tokens counted as they are made (Chancellor of the
+Forge); a search for up to two, none finding what one before found
+(Flare of Cultivation). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
 instruction's, the creature sacrificed for flashback, a land the log never
 names as a hypothesis, which of two permanents of one name an
 activation is of, a winner line resolving what ended the game, and
-which of the cards drawn this turn Sylvan Library chooses. One divergence was the engine's own, found by the full
+which of the cards drawn this turn Sylvan Library chooses, and which
+land Flare of Cultivation puts onto the battlefield. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
 top of the worklist now: morph's face-down casting (10), Vesuva's copy
