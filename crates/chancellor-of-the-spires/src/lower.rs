@@ -1185,6 +1185,12 @@ pub enum Effect {
         cost: crate::mana::ManaCost,
         otherwise: Vec<Effect>,
     },
+    /// "Attach this permanent to target creature you control": the
+    /// ability's source becomes attached to it, unless it already is (CR
+    /// 701.3a–b).
+    Attach {
+        to: Obj,
+    },
     /// "Choose two cards in your hand drawn this turn": the controller
     /// chooses `n` of the cards in their hand drawn this turn, all of them
     /// if they have no more, bound to `into`.
@@ -3110,6 +3116,9 @@ pub struct ActivationLimits {
     pub once_per_turn: bool,
     /// "Activate only if an opponent lost life this turn" (CR 602.5).
     pub opponent_lost_life: bool,
+    /// "Activate only as a sorcery": in its controller's main phase with
+    /// the stack empty (CR 602.5d, 307.1).
+    pub sorcery_speed: bool,
 }
 
 /// An activated ability's cost and effect, with the `Let` that binds its
@@ -3132,6 +3141,17 @@ pub fn activated(
             other => return Err(format!("an activated ability limited by {}", short(other))),
         }
     }
+    let mut scope = Scope::new(bind);
+    let effects = scope.effects(effect)?;
+    scope.program.effects = effects;
+    Ok(Activated {
+        cost: activation_cost(cost)?,
+        program: scope.program,
+        limits: limited,
+    })
+}
+
+fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
     let mut paid = ActivationCost::default();
     for c in cost {
         match c {
@@ -3144,13 +3164,33 @@ pub fn activated(
             other => return Err(format!("an activation cost of {}", short(other))),
         }
     }
-    let mut scope = Scope::new(bind);
-    let effects = scope.effects(effect)?;
-    scope.program.effects = effects;
-    Ok(Activated {
-        cost: paid,
-        program: scope.program,
-        limits: limited,
+    Ok(paid)
+}
+
+/// Equip's "[Cost]: Attach this permanent to target creature you control.
+/// Activate only as a sorcery" (CR 702.6a), `None` if the keyword isn't
+/// equip, and the node it can't lower if it equips only some creatures
+/// ("Equip legendary creature {3}").
+pub fn equip(k: &i::Keyword) -> Option<Result<Activated, String>> {
+    if !k.name.eq_ignore_ascii_case("equip") {
+        return None;
+    }
+    Some(match &k.param {
+        Some(i::KeywordParam::Cost(cost)) => activation_cost(cost).map(|cost| Activated {
+            cost,
+            program: Program {
+                targets: vec![TargetSpec::Permanent(Filter(vec![
+                    Pred::Is(Prop::Type(CardType::Creature)),
+                    Pred::YouControl,
+                ]))],
+                effects: vec![Effect::Attach { to: Obj::Target(0) }],
+            },
+            limits: ActivationLimits {
+                sorcery_speed: true,
+                ..ActivationLimits::default()
+            },
+        }),
+        _ => Err("equip to only some creatures".into()),
     })
 }
 

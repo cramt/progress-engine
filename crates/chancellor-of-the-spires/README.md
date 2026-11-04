@@ -644,8 +644,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 55 replay to the end** (52 to the log's winner
-line), 37 of them past the first turn, and **28.02% of their lines are
-followed** (21,910 of 78,183: the lines before each game's stop, all of a
+line), 37 of them past the first turn, and **28.07% of their lines are
+followed** (21,949 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-04, and 16 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
@@ -704,7 +704,9 @@ Confidant, Goblin Guide, Impulse, Leyline of Sanctity's hexproof, Wild
 Nacatl, Swords to Plowshares, Counterspell, Festering Goblin's dies
 trigger, Path to Exile, Khalni Garden's token, Silver Knight's
 protection from red, Goblin Warchief's and Thalia's cost changes, and
-Sylvan Library keeping one card for 4 life and putting the other back.
+Sylvan Library keeping one card for 4 life and putting the other back,
+and Bonesplitter equipped only at sorcery speed, staying unattached when
+its creature dies.
 
 ### The milestone
 
@@ -732,7 +734,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-04 53 of the 500 replay to
-the end and 39.11% of their lines are followed** (12,382 of 31,659), 6
+the end and 39.22% of their lines are followed** (12,417 of 31,659), 6
 of them relying on a land the log never names (1 to the end), and 61
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -769,7 +771,9 @@ graveyard when what they enchant is gone, and a triggered mana ability
 (Wild Growth); a draw step "may" drawing more, a choice of the cards
 drawn this turn and "for each of those cards, pay 4 life or" put it
 back, with Insight reading "the card" as the loop's one card (Sylvan
-Library). And
+Library); equip, an ability activated only as a sorcery, attaching its
+Equipment, which comes off a creature gone or no longer one (Leyline
+Axe). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an

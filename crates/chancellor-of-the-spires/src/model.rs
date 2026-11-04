@@ -604,6 +604,14 @@ impl State {
         }
     }
 
+    /// An Equipment becomes unattached, staying on the battlefield (CR
+    /// 704.5n).
+    pub fn detach(&mut self, what: ObjectId) {
+        if let Some(o) = self.objects.get_mut(&what) {
+            o.attached_to = None;
+        }
+    }
+
     /// An Aura or Equipment becomes attached, with a new timestamp (CR 613.7e).
     pub fn attach(&mut self, what: ObjectId, to: ObjectId) {
         let timestamp = Timestamp(self.tick());

@@ -2947,3 +2947,79 @@ fn sylvan_library_keeps_a_card_for_4_life_and_puts_the_other_back() {
     assert!(!game.player(ME).hand().contains(&back));
     assert_eq!(game.player(ME).library().front(), Some(&back));
 }
+
+/// The activations of `source` offered to me now.
+fn equips(game: &Game, source: chancellor_of_the_spires::model::ObjectId) -> Vec<Activation> {
+    match game.decision() {
+        Decision::Priority { actions, .. } => actions
+            .iter()
+            .filter_map(|a| match a {
+                Action::Activate(x) if x.source == source => Some(*x),
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// CR 702.6a, 602.5d, 301.5c, 704.5n: Bonesplitter's "Equip {1}" is
+/// "{1}: Attach this permanent to target creature you control. Activate
+/// only as a sorcery": not offered with a spell on the stack, it attaches
+/// it to Grizzly Bears, which gets +2/+0, and when the Bears die it stays
+/// on the battlefield unattached.
+#[test]
+fn bonesplitter_equips_at_sorcery_speed_and_stays_when_its_creature_dies() {
+    let mut game = deal_both(
+        &[("Forest", 30), ("Bonesplitter", 15), ("Grizzly Bears", 15)],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[("Forest", 3), ("Bonesplitter", 1), ("Grizzly Bears", 1)],
+        &[("Lightning Bolt", 1)],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Bonesplitter", None);
+    resolve(&mut game);
+    let splitter = creature(&game, "Bonesplitter").unwrap();
+    assert!(equips(&game, splitter).is_empty(), "no creature to equip");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    assert!(equips(&game, splitter).is_empty(), "the stack isn't empty");
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    let [equip] = equips(&game, splitter)[..] else {
+        panic!("equip is offered")
+    };
+    let mut d = step(&mut game, Answer::Act(Action::Activate(equip)));
+    if matches!(d, Decision::Targets { .. }) {
+        d = step(&mut game, Answer::Targets(vec![Target::Object(bears)]));
+    }
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    assert_eq!(game.attached_to(splitter), Some(bears));
+    assert_eq!(pt_of(&game, bears), pt(4, 2));
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(bears)]),
+    );
+    resolve(&mut game);
+    assert!(creature(&game, "Grizzly Bears").is_none());
+    assert_eq!(game.attached_to(splitter), None);
+    assert!(creature(&game, "Bonesplitter").is_some());
+}

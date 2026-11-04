@@ -2801,6 +2801,8 @@ impl Game {
                     || def.cost.life > 0 && player.life < def.cost.life as i32
                     || def.limits.once_per_turn && self.used.contains(&(id, *k))
                     || def.limits.opponent_lost_life && !opponent_lost
+                    || def.limits.sorcery_speed
+                        && !(p == self.active && self.step.is_main() && self.stack.is_empty())
                 {
                     continue;
                 }
@@ -3875,6 +3877,19 @@ impl Game {
                     }
                 }
                 // CR 701.26a.
+                Effect::Attach { to } => {
+                    let (Some(what), Some(to)) = (at.object, self.named(&at, to)) else {
+                        continue;
+                    };
+                    let there = |o| self.permanents.contains_key(&o);
+                    if there(what)
+                        && there(to)
+                        && what != to
+                        && self.battlefield.objects[&what].attached_to != Some(to)
+                    {
+                        self.battlefield.attach(what, to);
+                    }
+                }
                 Effect::Tap(ref on) | Effect::Untap(ref on) => {
                     let tapped = matches!(e, Effect::Tap(_));
                     for o in self.objects_on(&at, on) {
@@ -5801,6 +5816,13 @@ impl Game {
                 .map(|(id, _)| id)
                 .chain(self.illegal_auras())
                 .collect();
+            let loose = self.illegal_equipment();
+            if !loose.is_empty() {
+                for id in loose {
+                    self.battlefield.detach(id);
+                }
+                checked = Checked::Performed;
+            }
             if losers.is_empty() && dying.is_empty() {
                 if let Some(legends) = self.legends() {
                     return legends;
@@ -5859,6 +5881,28 @@ impl Game {
                         _ => true,
                     }
                 }
+            })
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
+    /// CR 704.5n, 301.5c: Equipment attached to an object gone from the
+    /// battlefield, to itself, to a permanent that isn't a creature, or to
+    /// one with protection from it (CR 702.16c), which become unattached
+    /// and stay where they are.
+    fn illegal_equipment(&self) -> Vec<ObjectId> {
+        let all = self.characteristics();
+        all.iter()
+            .filter(|(id, c)| {
+                c.subtypes.contains(&Subtype::Other("Equipment".into()))
+                    && self.battlefield.objects[*id].attached_to.is_some_and(|o| {
+                        match all.get(&o) {
+                            Some(oc) => {
+                                o == **id || !oc.is(CardType::Creature) || oc.protected_from(c)
+                            }
+                            None => true,
+                        }
+                    })
             })
             .map(|(id, _)| *id)
             .collect()
@@ -6131,6 +6175,14 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                             }
                             Err(node) => runs.dormant.push(format!("flashback: {node}")),
                         }
+                    } else if let Some(equip) = lower::equip(k) {
+                        let def = equip.map_err(|node| {
+                            Unrunnable::new(node.clone(), format!("the game can't run {node} yet"))
+                        });
+                        if let Err(r) = &def {
+                            runs.dormant.push(format!("equip: {}", r.node));
+                        }
+                        runs.activated.insert(n, def);
                     } else if let Some(enchant) = lower::enchant(k) {
                         let filter = enchant.map_err(|node| {
                             Unrunnable::new(node.clone(), format!("the game can't run {node} yet"))
