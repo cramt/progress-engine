@@ -24,7 +24,7 @@ use std::fmt;
 use crate::deck::{CardText, DeckCards};
 use crate::game::{
     Action, Activation, Answer, CardId, Decision, Format, Found, Game, Mana, ManaActivation,
-    ManaCost, ManaPool, Payment, Rejected, Setup, StackObject, Step, Target, HAND_SIZE,
+    ManaCost, ManaPool, Outcome, Payment, Rejected, Setup, StackObject, Step, Target, HAND_SIZE,
 };
 use crate::log::{self, Entry, Event, Object};
 use crate::lower::CastFrom;
@@ -916,7 +916,19 @@ impl Driver<'_> {
                     event: "Casts other than from hand for its mana cost".into(),
                     card: Some(card.name().to_string()),
                 };
-                let routes = match cast.via.as_deref() {
+                // "with kicker", "(with kicker) from the graveyard": paid
+                // beside whichever cost the rest of the line says.
+                let (via, kicked) = match cast.via.as_deref() {
+                    Some(v) if v.contains("with kicker") => {
+                        let rest =
+                            v.replacen("(with kicker)", "", 1)
+                                .replacen("with kicker", "", 1);
+                        let rest = rest.trim().to_string();
+                        ((!rest.is_empty()).then_some(rest), true)
+                    }
+                    v => (v.map(str::to_string), false),
+                };
+                let routes = match via.as_deref() {
                     None => vec![Route::ManaCost, Route::Alternative(CastFrom::Hand)],
                     Some(v)
                         if v == "from the graveyard"
@@ -989,7 +1001,8 @@ impl Driver<'_> {
                         self.checkpoints.len(),
                         self.knew(),
                     );
-                    let tried = self.cast_by(i, cast, card.name(), p, *route, on_stack, answers);
+                    let tried =
+                        self.cast_by(i, cast, card.name(), p, *route, kicked, on_stack, answers);
                     match tried {
                         Ok(how) => {
                             paid = Some(how);
@@ -1007,7 +1020,9 @@ impl Driver<'_> {
                 }
                 let paid = match paid {
                     Some(paid) => paid,
-                    None => self.cast_by(i, cast, card.name(), p, *last, on_stack, answers)?,
+                    None => {
+                        self.cast_by(i, cast, card.name(), p, *last, kicked, on_stack, answers)?
+                    }
                 };
                 self.did(i, format!("cast {}, {paid}", card.name()));
             }
@@ -1080,7 +1095,36 @@ impl Driver<'_> {
                 self.did(i, "the game ends outside the rules");
                 return Ok(Next::Done);
             }
-            Wins(_) | Loses(_) => {
+            Wins(who) | Loses(who) => {
+                let won = match &entry.event {
+                    Wins(_) => self.seat(*who),
+                    _ => PlayerId(1 - self.seat(*who).0),
+                };
+                // The log stops printing as the game ends, so what was on
+                // the stack and ended it is never shown resolving (the
+                // last of two Razorkin Needlehead triggers): it resolves
+                // now, down to the game's end or an empty stack.
+                let turn = self.game().turn();
+                loop {
+                    let game = self.game();
+                    match game.decision() {
+                        Decision::Over(Outcome::Won(p)) if p == won => {
+                            self.did(i, "the game ends by the rules (CR 104.2a)");
+                            return Ok(Next::Done);
+                        }
+                        Decision::Over(_) => break,
+                        Decision::Priority { .. }
+                            if game.stack().is_empty() || game.turn() != turn =>
+                        {
+                            break
+                        }
+                        _ => {
+                            if self.pass().is_err() {
+                                break;
+                            }
+                        }
+                    }
+                }
                 return Err(Stop::Diverged(Divergence::LogOver));
             }
             Activates(a) => {
@@ -1846,6 +1890,7 @@ impl Driver<'_> {
             Decision::DiscardToEnter { player, .. } => self.discard_to_enter(player),
             Decision::PayOrEnterTapped { card, life, .. } => self.pay_or_tap(card, life),
             d @ (Decision::Pay { .. }
+            | Decision::Kicker { .. }
             | Decision::Mulligan { .. }
             | Decision::Bottom { .. }
             | Decision::OpeningHand { .. }) => {
@@ -2898,12 +2943,28 @@ impl Driver<'_> {
         name: &str,
         p: PlayerId,
         route: Route,
+        kicked: bool,
         on_stack: bool,
         answers: bool,
     ) -> Result<String, Stop> {
         let cast_it = self.offered(p, name, Kind::Cast(route), on_stack, answers)?;
         self.act(Answer::Act(cast_it))?;
-        self.aim_and_pay(i, &cast.targets, name)
+        // CR 601.2b: the line says whether its kicker was paid.
+        match self.game().decision() {
+            Decision::Kicker { .. } => self.act(Answer::Kick(kicked))?,
+            _ if kicked => {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("kick {name}"),
+                }))
+            }
+            _ => {}
+        }
+        let paid = self.aim_and_pay(i, &cast.targets, name)?;
+        Ok(if kicked {
+            format!("kicked (CR 702.33d), {paid}")
+        } else {
+            paid
+        })
     }
 
     /// The card of `p`'s named `name` where `kind` casts or plays it from:

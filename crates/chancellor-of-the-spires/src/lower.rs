@@ -1162,6 +1162,13 @@ pub enum Effect {
         filter: CardFilter,
         then: Vec<Effect>,
     },
+    /// "If this spell was kicked, …" (CR 702.33d): these instructions only
+    /// if the spell resolving was kicked, or with `was` false only if it
+    /// wasn't, as the instruction an "instead" replaces is.
+    Kicked {
+        was: bool,
+        then: Vec<Effect>,
+    },
     /// "Then if you control four or more lands, …": these instructions,
     /// only if the controller controls as many permanents as the condition
     /// counts as it is followed.
@@ -1196,6 +1203,7 @@ impl Effect {
             Effect::May(_, then)
             | Effect::IfCard { then, .. }
             | Effect::IfControl { then, .. }
+            | Effect::Kicked { then, .. }
             | Effect::Unless {
                 otherwise: then, ..
             } => Some(then),
@@ -2126,11 +2134,7 @@ impl<'a> Scope<'a> {
             } if source.quant == Quant::SelfRef && source.filter == i::Filter::default() => {
                 Effect::Damage {
                     to: self.damage_to(to)?,
-                    n: match k {
-                        i::Amount::ThatMany if self.amount => Amount::ThatMuch,
-                        i::Amount::X if self.x.is_some() => self.x.clone().expect("an X"),
-                        k => Amount::N(n(k)?),
-                    },
+                    n: self.damage_amount(k)?,
                 }
             }
             i::Effect::Scry(k) => Effect::Scry(n(k)?),
@@ -2401,6 +2405,14 @@ impl<'a> Scope<'a> {
                 }
             }
             i::Effect::If {
+                cond: i::Condition::WasKicked,
+                then,
+                ..
+            } => Effect::Kicked {
+                was: true,
+                then: self.effects(then)?,
+            },
+            i::Effect::If {
                 cond: i::Condition::YouControl(o),
                 then,
                 ..
@@ -2566,10 +2578,75 @@ impl<'a> Scope<'a> {
                 k += 2;
                 continue;
             }
+            // "~ deals 2 damage to any target. If this spell was kicked, it
+            // deals 4 damage instead": the first only if it wasn't kicked,
+            // the second only if it was (CR 702.33d).
+            if let Some(i::Effect::Instead {
+                cond: i::Condition::WasKicked,
+                then,
+            }) = effects.get(k + 1)
+            {
+                let unkicked = self.effect(&effects[k])?;
+                let kicked = self.instead(&effects[k], &unkicked, then)?;
+                out.push(Effect::Kicked {
+                    was: false,
+                    then: unkicked,
+                });
+                out.push(Effect::Kicked {
+                    was: true,
+                    then: kicked,
+                });
+                k += 2;
+                continue;
+            }
             out.extend(self.effect(&effects[k])?);
             k += 1;
         }
         Ok(out)
+    }
+
+    /// What an "instead" says in place of `replaced`, lowered to `lowered`:
+    /// its own instructions, "it deals 4 damage instead" dealt to what
+    /// the damage it replaces was, the same targets (Insight's
+    /// `Recipient::Same`).
+    fn instead(
+        &mut self,
+        replaced: &i::Effect,
+        lowered: &[Effect],
+        then: &[i::Effect],
+    ) -> Result<Vec<Effect>, String> {
+        match (replaced, lowered, then) {
+            (
+                i::Effect::Damage {
+                    source: Some(was), ..
+                },
+                [Effect::Damage { to, .. }],
+                [i::Effect::Damage {
+                    source: Some(source),
+                    n,
+                    to: same,
+                }],
+            ) if same.as_slice() == [i::Recipient::Same] && source == was => {
+                Ok(vec![Effect::Damage {
+                    to: to.clone(),
+                    n: self.damage_amount(n)?,
+                }])
+            }
+            // Anything else said again in full; a `Same` left in it is
+            // refused where it is lowered.
+            _ => self.effects(then),
+        }
+    }
+
+    /// A damage instruction's amount: a number, "that much" of the event,
+    /// or the spell's X.
+    fn damage_amount(&self, k: &i::Amount) -> Result<Amount, String> {
+        Ok(match k {
+            i::Amount::ThatMany if self.amount => Amount::ThatMuch,
+            i::Amount::X if self.x.is_some() => self.x.clone().expect("an X"),
+            i::Amount::N(n) => Amount::N(*n),
+            other => return Err(format!("an amount of {}", short(other))),
+        })
     }
 
     /// "a nonland card from it with mana value 3 or less", from `who`'s
@@ -2929,6 +3006,22 @@ pub fn flashback(k: &i::Keyword) -> Option<Result<Alternative, String>> {
         exiled: true,
         instant_or_sorcery: true,
     }))
+}
+
+/// "Kicker {4}": the optional additional cost a spell may be cast with
+/// (CR 702.33a, 601.2b). `None` if the keyword isn't kicker; the node it
+/// can't lower if its cost is more than mana.
+pub fn kicker(k: &i::Keyword) -> Option<Result<crate::mana::ManaCost, String>> {
+    if !k.name.eq_ignore_ascii_case("kicker") {
+        return None;
+    }
+    let Some(i::KeywordParam::Cost(cost)) = &k.param else {
+        return Some(Err("kicker without a cost".into()));
+    };
+    Some(match cost.as_slice() {
+        [i::Cost::Mana(m)] => crate::mana::ManaCost::from_symbols(m),
+        _ => Err("kicker with a cost other than mana".into()),
+    })
 }
 
 /// "You may sacrifice two Mountains rather than pay this spell's mana

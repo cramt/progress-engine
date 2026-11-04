@@ -172,6 +172,8 @@ struct Runnable {
     /// where (CR 118.9): flashback, Fireblast's sacrifice. By the index of
     /// the ability that allows it.
     alternatives: BTreeMap<u16, lower::Alternative>,
+    /// Kicker's cost, the additional cost it may be cast with (CR 702.33a).
+    kicker: Option<ManaCost>,
     /// "You may play an additional land on each of your turns" (CR
     /// 305.2a), by index: how many more.
     extra_lands: BTreeMap<u16, u32>,
@@ -392,6 +394,8 @@ pub enum StackObject {
         /// How it was cast: for its mana cost, or an alternative cost
         /// (CR 601.2b).
         via: Via,
+        /// Its kicker was paid (CR 702.33d).
+        kicked: bool,
     },
     /// A triggered ability (CR 603.3): the card whose ability it is, by
     /// its index among that card's unread abilities, the permanent it
@@ -441,7 +445,11 @@ pub enum Via {
 /// Whose instructions are resolving.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Instructions {
-    Spell(CardId, Via),
+    Spell {
+        card: CardId,
+        via: Via,
+        kicked: bool,
+    },
     Activated(CardId, u16),
     Triggered(CardId, TriggerOf),
 }
@@ -473,7 +481,7 @@ impl Instructions {
     /// The card whose spell or ability it is.
     fn card(self) -> CardId {
         match self {
-            Instructions::Spell(c, _)
+            Instructions::Spell { card: c, .. }
             | Instructions::Activated(c, _)
             | Instructions::Triggered(c, _) => c,
         }
@@ -655,6 +663,14 @@ enum Waiting {
         /// A spell, from the command zone or not, or an activated
         /// ability of `spell`'s (CR 602.2b).
         ability: bool,
+        from_command: bool,
+    },
+    /// CR 601.2b: `player` casting `card`, whose cost so far is `base`,
+    /// announces whether they pay its kicker.
+    Kicker {
+        player: PlayerId,
+        card: CardId,
+        base: ManaCost,
         from_command: bool,
     },
     /// CR 514.1, or an instruction (CR 701.9a), which `then` goes on with,
@@ -882,6 +898,13 @@ pub enum Decision {
     LegendRule {
         player: PlayerId,
         among: Vec<ObjectId>,
+    },
+    /// CR 601.2b, 702.33a: `player` casting `card` announces whether they
+    /// pay its kicker, `cost` more, answered `Answer::Kick`.
+    Kicker {
+        player: PlayerId,
+        card: CardId,
+        cost: ManaCost,
     },
     /// CR 614.1c, 614.12a: as `card` enters, `player` may pay `life`
     /// (`Answer::PayLife(true)`); if they don't, it enters tapped. A shock
@@ -1122,6 +1145,8 @@ pub enum Answer {
     /// CR 614.12a, 119.4: pay the life a permanent's replacement effect
     /// offers as it enters, or not.
     PayLife(bool),
+    /// CR 601.2b: `true` pays the spell's kicker.
+    Kick(bool),
     /// CR 601.2c: one target per slot.
     Targets(Vec<Target>),
     /// CR 603.3b.
@@ -1902,6 +1927,11 @@ impl Game {
                     unsure: hand.iter().filter(|c| self.known(**c).is_none()).count(),
                 }
             }
+            Waiting::Kicker { player, card, .. } => Decision::Kicker {
+                player: *player,
+                card: *card,
+                cost: self.runs_of(*card).kicker.clone().expect("a kicker"),
+            },
             Waiting::PayOrEnterTapped {
                 player, card, life, ..
             } => Decision::PayOrEnterTapped {
@@ -2404,6 +2434,25 @@ impl Game {
                     }
                     _ => return Err(Rejected::Illegal(answer)),
                 }
+            }
+            (
+                Waiting::Kicker {
+                    player,
+                    card,
+                    base,
+                    from_command,
+                },
+                Answer::Kick(kick),
+            ) => {
+                let base = if *kick {
+                    if let Some(StackObject::Spell { kicked, .. }) = self.stack.back_mut() {
+                        *kicked = true;
+                    }
+                    base.plus(self.runs_of(card).kicker.as_ref().expect("a kicker"))
+                } else {
+                    base
+                };
+                self.choose_targets(player, card, base, from_command);
             }
             (
                 Waiting::PayOrEnterTapped {
@@ -3193,18 +3242,19 @@ impl Game {
             }
         };
         let from_command = via == Via::ManaCost && self.command.contains(&card);
+        let kicker = runs.kicker.is_some();
         let before = self.clone();
         // CR 601.2a: from wherever it is.
         self.command.retain(|c| *c != card);
         let player = &mut self.players[p.0 as usize];
         player.hand.retain(|c| *c != card);
         player.graveyard.retain(|c| *c != card);
-        let slots = self.runs_of(card).spell.as_ref().map(|s| s.targets.clone());
         self.stack.push_back(StackObject::Spell {
             card,
             controller: p,
             targets: Vec::new(),
             via,
+            kicked: false,
         });
         // CR 903.8: commander tax is on a cast from the command zone.
         let owed = if from_command {
@@ -3212,8 +3262,26 @@ impl Game {
         } else {
             cost
         };
-        let owed = self.total_cost(p, card, owed);
         self.before_cast = Some(Box::new(before));
+        // CR 601.2b: an optional additional cost is announced first.
+        if kicker {
+            self.waiting = Waiting::Kicker {
+                player: p,
+                card,
+                base: owed,
+                from_command,
+            };
+            return Ok(());
+        }
+        self.choose_targets(p, card, owed, from_command);
+        Ok(())
+    }
+
+    /// CR 601.2c–f: the spell on top of the stack, whose cost before cost
+    /// changes is `base`, has its targets chosen, then its total cost paid.
+    fn choose_targets(&mut self, p: PlayerId, card: CardId, base: ManaCost, from_command: bool) {
+        let slots = self.runs_of(card).spell.as_ref().map(|s| s.targets.clone());
+        let owed = self.total_cost(p, card, base);
         self.waiting = match slots.filter(|s| !s.is_empty()) {
             // CR 601.2c: targets are chosen before the cost is determined
             // and paid.
@@ -3231,7 +3299,6 @@ impl Game {
                 from_command,
             },
         };
-        Ok(())
     }
 
     /// CR 601.2f: the spell's cost with every cost change on the
@@ -3393,6 +3460,7 @@ impl Game {
                 controller,
                 targets,
                 via,
+                kicked,
             }) => {
                 let permanent = self
                     .known(card)
@@ -3403,7 +3471,7 @@ impl Game {
                     self.enter(card, controller, false, then);
                 } else {
                     self.begin_resolving(
-                        Instructions::Spell(card, via),
+                        Instructions::Spell { card, via, kicked },
                         controller,
                         (None, None, None, None),
                         targets,
@@ -3512,7 +3580,7 @@ impl Game {
             effects: Vec::new(),
         };
         match what {
-            Instructions::Spell(c, _) => self.runs_of(c).spell.as_ref().unwrap_or(&NONE),
+            Instructions::Spell { card: c, .. } => self.runs_of(c).spell.as_ref().unwrap_or(&NONE),
             Instructions::Triggered(c, TriggerOf::Printed(n)) => {
                 &self.runs_of(c).triggered[&n].program
             }
@@ -3531,7 +3599,7 @@ impl Game {
     /// (CR 608.2n), and the active player gets priority (CR 117.3b).
     fn done(&mut self, at: &Resuming) {
         self.last_resolved = Some(at.what.card());
-        if let Instructions::Spell(card, via) = at.what {
+        if let Instructions::Spell { card, via, .. } = at.what {
             self.off_the_stack(card, via);
         }
         self.give_priority(self.active, 0);
@@ -4029,6 +4097,13 @@ impl Game {
                         .collect();
                     self.discard(q, &cards);
                     self.discarded += cards.len() as u32;
+                }
+                Effect::Kicked { was, .. } => {
+                    let kicked = matches!(at.what, Instructions::Spell { kicked: true, .. });
+                    if kicked == was {
+                        at = here;
+                        at.next.push(0);
+                    }
                 }
                 Effect::IfCard { card, filter, .. } => {
                     let holds = match at.found.get(&card).map(Vec::as_slice) {
@@ -5745,6 +5820,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         cycling: None,
         cost_changes: BTreeMap::new(),
         alternatives: BTreeMap::new(),
+        kicker: None,
         extra_lands: BTreeMap::new(),
         dormant: Vec::new(),
         lowered,
@@ -5828,6 +5904,19 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                                 runs.alternatives.insert(n, alt);
                             }
                             Err(node) => runs.dormant.push(format!("flashback: {node}")),
+                        }
+                    } else if let Some(kicker) = lower::kicker(k) {
+                        // One the engine can't pay for is carried and
+                        // never offered: the card is cast unkicked.
+                        match kicker {
+                            Ok(_) if runs.kicker.is_some() => {
+                                return Err(Unrunnable::new(
+                                    "a second kicker",
+                                    "the game can't run two kickers yet",
+                                ))
+                            }
+                            Ok(cost) => runs.kicker = Some(cost),
+                            Err(node) => runs.dormant.push(format!("kicker: {node}")),
                         }
                     } else if hand_keyword(k) {
                         runs.dormant.push(k.name.to_lowercase());

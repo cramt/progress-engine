@@ -521,6 +521,7 @@ fn a_creature_cast_at_sorcery_speed_resolves_onto_the_battlefield() {
             card: bird,
             controller: ME,
             via: Via::ManaCost,
+            kicked: false,
         }]
     );
     assert_eq!(game.player(ME).pool().total(), 0);

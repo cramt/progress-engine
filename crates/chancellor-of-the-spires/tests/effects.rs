@@ -2781,3 +2781,53 @@ fn gerrards_verdict_gains_life_for_each_land_discarded() {
     step(&mut game, Answer::Discard(vec![forest, bears]));
     assert_eq!(game.player(ME).life(), 23);
 }
+
+/// CR 601.2b, 702.33a, 702.33d: Burst Lightning's "Kicker {4}" is
+/// announced as it is cast, adds {4} to its cost, and "If this spell was
+/// kicked, it deals 4 damage instead" has the spell deal 4 to the target
+/// it chose, rather than 2.
+#[test]
+fn burst_lightning_deals_four_if_kicked_and_two_if_not() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Burst Lightning", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 5), ("Burst Lightning", 2)],
+    );
+    play(&mut game, "Mountain");
+    for _ in 0..4 {
+        my_next_main(&mut game);
+        play(&mut game, "Mountain");
+    }
+    let bolt = in_hand(&game, ME, "Burst Lightning").unwrap();
+    let kick = |game: &mut Game, kicked: bool| {
+        let d = step(game, Answer::Act(Action::Cast(bolt)));
+        let Decision::Kicker { cost, .. } = d else {
+            panic!("{d:?}")
+        };
+        assert_eq!(cost.to_string(), "{4}");
+        let d = step(game, Answer::Kick(kicked));
+        assert!(matches!(d, Decision::Targets { .. }), "{d:?}");
+        let Decision::Pay { owed, .. } = step(game, Answer::Targets(vec![Target::Player(THEM)]))
+        else {
+            panic!()
+        };
+        owed.to_string()
+    };
+    let mut unkicked = game.clone();
+    assert_eq!(kick(&mut unkicked, false), "{R}");
+    let mut kicked = game.clone();
+    assert_eq!(kick(&mut kicked, true), "{4}{R}");
+    for (game, life) in [(&mut unkicked, 18), (&mut kicked, 16)] {
+        while let Decision::Pay { actions, .. } = game.decision() {
+            let pay = actions
+                .iter()
+                .find(|a| matches!(a, Payment::Spend(_)))
+                .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+                .copied()
+                .unwrap();
+            step(game, Answer::Pay(pay));
+        }
+        resolve(game);
+        assert_eq!(game.player(THEM).life(), life);
+    }
+}

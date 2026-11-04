@@ -61,6 +61,7 @@ const INDEXED: &[&str] = &[
     "Wall of Roots",
     "Llanowar Elves",
     "City of Brass",
+    "Burst Lightning",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1090,4 +1091,110 @@ fn a_city_of_brass_trigger_line_is_it_tapped_for_mana() {
     assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
     let game = r.game.unwrap();
     assert_eq!(game.player(ALICE).life(), 19);
+}
+
+/// CR 601.2b, 702.33d: "casts [Burst Lightning] with kicker" pays its
+/// kicker, all five Mountains, and the plain line after doesn't: 4
+/// damage, then 2.
+#[test]
+fn a_cast_with_kicker_pays_it_and_one_without_does_not() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 4: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 4: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 5: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Burst Lightning] with kicker targeting bob.
+        Turn 5: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 6: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Burst Lightning] targeting bob.
+        Turn 6: bob
+        bob draws a card.
+        bob plays [Forest].
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(game.player(BOB).life(), 20 - 4 - 2);
+}
+
+/// CR 104.2a, 704.5a: the log stops printing as the game ends, so the
+/// seventh Lightning Bolt is never shown resolving; the winner line
+/// resolves it, and bob at 0 life loses.
+#[test]
+fn a_winner_line_resolves_what_ended_the_game() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        alice casts [Lightning Bolt] targeting bob.
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Lightning Bolt] targeting bob.
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Lightning Bolt] targeting bob.
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 4: alice
+        alice draws a card.
+        alice casts [Lightning Bolt] targeting bob.
+        Turn 4: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 5: alice
+        alice draws a card.
+        alice casts [Lightning Bolt] targeting bob.
+        Turn 5: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 6: alice
+        alice draws a card.
+        alice casts [Lightning Bolt] targeting bob.
+        Turn 6: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 7: alice
+        alice draws a card.
+        alice casts [Lightning Bolt] targeting bob.
+        alice wins the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    assert_eq!(r.game.expect("set up").player(BOB).life(), 20 - 7 * 3);
 }

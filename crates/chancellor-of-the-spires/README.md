@@ -71,6 +71,9 @@ on. Turn-based and state-based actions are never decisions.
   this artifact would enter, you may discard a land card instead",
   answered `Pick`: it enters for the card discarded, and goes to its
   owner's graveyard for `None` (CR 614.1a).
+- `Kicker { player, card, cost }`: a spell with kicker is being cast,
+  and its caster announces whether they pay `cost` more (CR 601.2b,
+  702.33a), before its targets, answered `Kick(bool)`.
 - `Targets { player, card, slots }`: each target slot's legal targets,
   asked as a spell is cast, before its cost (CR 601.2c), and as a
   triggered ability is put on the stack (CR 603.3d), answered
@@ -138,7 +141,11 @@ stack empty, and another for each "You may play an additional land on
 each of your turns" its player controls (CR 305.1–305.2a: Exploration); casting (CR 601.2) at sorcery speed, or any
 time you have priority for an instant or a card with flash (CR 117.1a);
 mana costs of generic, coloured, colourless and hybrid symbols (CR 107.4,
-202.1a); commander tax (CR 903.8); a static's generic cost change for
+202.1a); commander tax (CR 903.8); kicker's mana added to the cost before
+cost changes (CR 601.2f, 702.33a), and "if this spell was kicked", alone
+or as the "instead" that replaces the instruction before it, Burst
+Lightning's "it deals 4 damage instead" dealt to the target that
+instruction chose (CR 702.33d); a static's generic cost change for
 spells a filter matches, cast by anyone, its controller or their
 opponents (Thalia's "Noncreature spells cost {1} more", Goblin
 Warchief's "Goblin spells you cast cost {1} less"), for each permanent a
@@ -284,7 +291,8 @@ resolve to a target or its source, a static that isn't
 "enters tapped", a mana ability with a cost or effect beyond those above,
 `{X}`, Phyrexian or snow mana, a planeswalker or battle (their counters),
 an Aura (its target), and a keyword other than flash, cycling, transmute,
-flashback, partner, exalted, prowess, training and the layers' own (flying, reach,
+flashback, kicker (a kicker whose cost is more than mana is carried and
+never paid; two kickers are refused), partner, exalted, prowess, training and the layers' own (flying, reach,
 menace, first and double strike, defender, haste, vigilance, trample,
 deathtouch, lifelink, shroud, hexproof, indestructible, shadow, and
 protection from a colour, from multicolored or from everything); cycling
@@ -550,8 +558,9 @@ spell leaving the stack unresolved (CR 608.2b).
 
 A cast line says how the spell was cast when it wasn't plainly from
 hand for its mana cost ("from the graveyard", "with Flashback{1U}, Pay 3
-life from the graveyard", "by sacrificing 2 Mountains"), and the replay
-casts it that way, by the card's alternative cost from that zone; older
+life from the graveyard", "by sacrificing 2 Mountains"), and whether it
+was kicked ("with kicker", "(with kicker)", beside any of those), and
+the replay casts it that way, its kicker paid only when the line says so, by the card's alternative cost from that zone; older
 logs print nothing for Fireblast's sacrifice, so a line that says nothing
 is cast for the mana cost and, if that can't be paid, for an
 alternative cost from a hand. The permanents sacrificed to pay are never
@@ -597,6 +606,13 @@ followed; and a spell whose casting after the stack resolves leaves a
 choice the log doesn't show (Duress's) is cast in response, as one that
 leaves an unshown trigger is.
 
+The log stops printing as the game ends, so what was on the stack and
+ended it is never shown resolving (the second of two Razorkin Needlehead
+triggers on a draw): a "wins the game" line resolves the stack, passing
+as a line with nothing to show does, and the game replays to the end
+when that ends it with the log's winner (CR 104.2a), and diverges
+(`LogOver`) when it doesn't.
+
 The first line the engine won't follow ends the game's replay with a
 typed `Stop`: a card refused by the node of its text the engine can't run,
 an answer it calls illegal, a state that disagrees with the log (a play it
@@ -606,17 +622,17 @@ battlefield). `--game ID` prints one game line by line with what the engine
 did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 52 replay to the end** (49 to the log's winner
-line), 35 of them past the first turn, and **27.27% of their lines are
-followed** (21,319 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 54 replay to the end** (51 to the log's winner
+line), 37 of them past the first turn, and **27.45% of their lines are
+followed** (21,462 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-03, and 15 games rely on a land the log never names (1
+measured 2026-11-04, and 15 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 315 stop
-in the first turn, 363 in the second, 177 in the third, 91 later, and 63
+no turn in them (empty logs, concessions during the mulligans). 311 stop
+in the first turn, 361 in the second, 179 in the third, 93 later, and 63
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -693,9 +709,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-03 50 of the 500 replay to
-the end and 37.48% of their lines are followed** (11,866 of 31,659), 5
-of them relying on a land the log never names (1 to the end), and 54
+Worked card by card from there, **on 2026-11-04 52 of the 500 replay to
+the end and 37.88% of their lines are followed** (11,993 of 31,659), 5
+of them relying on a land the log never names (1 to the end), and 56
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -723,19 +739,22 @@ counters and a mana ability taking one off (Gemstone Mine); another land
 a turn (Exploration); an activated ability limited to once a turn and
 to an opponent having lost life (Hired Claw); a cost change for each
 permanent during its controller's turn (Temur Battlecrier); "for each
-land card discarded this way" (Gerrard's Verdict). And
+land card discarded this way" (Gerrard's Verdict); kicker and "if this
+spell was kicked", with Insight reading "it deals 4 damage instead" as
+the spell's damage, not its target's (Burst Lightning). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
 instruction's, the creature sacrificed for flashback, a land the log never
-names as a hypothesis, and which of two permanents of one name an
-activation is of. One divergence was the engine's own, found by the full
+names as a hypothesis, which of two permanents of one name an
+activation is of, and a winner line resolving what ended the game. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Wild Growth's Aura (12), Burst Lightning's
-kicker and Sylvan Library (11 each), morph's face-down casting (10),
-Vesuva's copy (8), and Goblin Cadets and Veteran Survivor (6 each), and
-no divergence is left: those the run found were the replay's (a block or
+top of the worklist now: Wild Growth's Aura (12), Sylvan Library (11),
+morph's face-down casting (10), Vesuva's copy (8), and Accumulated
+Knowledge, Goblin Cadets, Scalding Viper's two faces and Veteran Survivor
+(6 each), and no divergence is left: those the run found were the
+replay's (the game's last trigger never shown resolving, a block or
 an activation of the wrong one of two permanents of one name, a ritual's
 mana cast away in the draw step, a filter land's floating mana never
 tried), each fixed.

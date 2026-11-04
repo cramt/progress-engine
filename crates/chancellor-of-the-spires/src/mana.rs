@@ -215,6 +215,15 @@ impl ManaCost {
         }
     }
 
+    /// This cost and `other` together, as an additional cost adds to a
+    /// spell's (CR 601.2f).
+    pub fn plus(&self, other: &ManaCost) -> ManaCost {
+        ManaCost {
+            generic: self.generic + other.generic,
+            shards: self.shards.iter().chain(&other.shards).cloned().collect(),
+        }
+    }
+
     /// Whether spending exactly this mana pays the cost: coloured and
     /// colourless symbols matched by type, generic by any (CR 202.1a,
     /// 107.4b), and nothing left over.
