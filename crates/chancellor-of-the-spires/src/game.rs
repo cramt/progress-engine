@@ -323,6 +323,8 @@ pub struct Player {
     last_turn: Option<u32>,
     /// Whether they have lost life this turn (CR 119.3).
     lost_life: bool,
+    /// The cards they drew this turn (CR 121.1), wherever they are now.
+    drawn: Vector<CardId>,
     /// Their commanders' colour identity (CR 903.4), or `None` with no
     /// commander (CR 903.4f).
     identity: Option<Vec<Color>>,
@@ -823,6 +825,13 @@ enum Waiting {
         count: u32,
         filter: Filter,
     },
+    /// CR 119.4: `player` may pay `life` for the "pay life or" instruction
+    /// `at` points to.
+    PayLifeOr {
+        player: PlayerId,
+        life: u32,
+        at: Resuming,
+    },
     /// CR 118.12a: `player` may pay `owed` for the "unless" instruction
     /// `at` points to.
     PayUnless {
@@ -1042,6 +1051,14 @@ pub enum Decision {
         spell: CardId,
         count: u32,
         legal: Vec<ObjectId>,
+    },
+    /// CR 119.4: `card`'s resolving instruction says "pay `life` life or
+    /// …", answered `Answer::PayLife`: `true` pays it, `false` has the rest
+    /// followed. Asked only of a player with that much life.
+    PayLifeOr {
+        player: PlayerId,
+        card: CardId,
+        life: u32,
     },
     /// CR 118.12a: pay `owed` for `card`'s "unless", activating mana
     /// abilities first, or not: answered `Answer::Pay`, `Payment::Cancel`
@@ -1421,6 +1438,7 @@ impl Game {
                 turn_began: None,
                 last_turn: None,
                 lost_life: false,
+                drawn: Vector::new(),
                 identity,
                 mulligans: 0,
                 kept: !setup.mulligans,
@@ -1959,6 +1977,11 @@ impl Game {
                 spell: *spell,
                 count: *count,
                 legal: self.sacrificable(*player, filter),
+            },
+            Waiting::PayLifeOr { player, life, at } => Decision::PayLifeOr {
+                player: *player,
+                card: at.what.card(),
+                life: *life,
             },
             Waiting::PayUnless { player, owed, at } => Decision::PayUnless {
                 player: *player,
@@ -2555,6 +2578,16 @@ impl Game {
                     self.put_in_graveyard(*o);
                 }
                 self.cast_done(player, spell);
+            }
+            (Waiting::PayLifeOr { player, life, at }, Answer::PayLife(pay)) => {
+                let mut at = at;
+                if *pay {
+                    self.lose_life(player, life);
+                    *at.next.last_mut().expect("a cursor") += 1;
+                } else {
+                    at.next.push(0);
+                }
+                self.follow(at);
             }
             (Waiting::PayUnless { player, owed, at }, Answer::Pay(pay))
                 if self.payments(player, &owed).contains(pay) =>
@@ -4087,8 +4120,8 @@ impl Game {
                         self.players[q.0 as usize].hand.push_back(c);
                     }
                 }
-                Effect::ToLibrary { cards, top } => {
-                    let cards = self.still_in_library(&at, cards);
+                Effect::ToLibrary { cards, top, from } => {
+                    let cards = self.still_found(&at, cards, from);
                     match cards.len() {
                         0 => {}
                         1 => self.put_in_library(&cards, top),
@@ -4128,6 +4161,52 @@ impl Game {
                     }
                 }
                 // CR 118.12a: they may pay; if they don't, what follows.
+                Effect::UnlessLife { who: w, life, .. } => {
+                    let Some(q) = who(w) else { continue };
+                    // CR 119.4: with too little life, the rest is followed.
+                    if self.player(q).life < life as i32 {
+                        at = here;
+                        at.next.push(0);
+                        continue;
+                    }
+                    self.waiting = Waiting::PayLifeOr {
+                        player: q,
+                        life,
+                        at: here,
+                    };
+                    return;
+                }
+                Effect::ChooseDrawn { n, into } => {
+                    let player = self.player(p);
+                    let cards: Vec<CardId> = player
+                        .hand
+                        .iter()
+                        .copied()
+                        .filter(|c| player.drawn.contains(c))
+                        .collect();
+                    if cards.len() <= n as usize {
+                        at.found.insert(into, cards);
+                    } else {
+                        self.waiting = Waiting::ChooseAmong {
+                            player: p,
+                            cards,
+                            n: n as usize,
+                            into,
+                            resume: at,
+                        };
+                        return;
+                    }
+                }
+                Effect::Nth { from, k, into } => {
+                    let card: Vec<CardId> = at
+                        .found
+                        .get(&from)
+                        .and_then(|v| v.get(k))
+                        .copied()
+                        .into_iter()
+                        .collect();
+                    at.found.insert(into, card);
+                }
                 Effect::Unless { who: w, cost, .. } => {
                     let Some(q) = who(w) else { continue };
                     self.waiting = Waiting::PayUnless {
@@ -4210,6 +4289,12 @@ impl Game {
     /// the instruction found them: one moved since is a new object (CR
     /// 400.7).
     fn still_in_library(&self, at: &Resuming, cards: Cards) -> Vec<CardId> {
+        self.still_found(at, cards, lower::FoundIn::Library)
+    }
+
+    /// The cards an instruction names that are still in the zone `from`
+    /// it found them in (CR 400.7).
+    fn still_found(&self, at: &Resuming, cards: Cards, from: lower::FoundIn) -> Vec<CardId> {
         let bound = |s: Slot| at.found.get(&s).cloned().unwrap_or_default();
         let named = match cards {
             Cards::Bound(s) => bound(s),
@@ -4231,16 +4316,24 @@ impl Game {
         };
         named
             .into_iter()
-            .filter(|c| self.player(self.owner(*c)).library.contains(c))
+            .filter(|c| {
+                let owner = self.player(self.owner(*c));
+                match from {
+                    lower::FoundIn::Library => owner.library.contains(c),
+                    lower::FoundIn::Hand => owner.hand.contains(c),
+                }
+            })
             .collect()
     }
 
-    /// Put these cards of a library on its top or bottom, the first
-    /// topmost (CR 401.4).
+    /// Put these cards of a library or a hand on the library's top or
+    /// bottom, the first topmost (CR 401.4).
     fn put_in_library(&mut self, cards: &[CardId], top: bool) {
         for c in cards {
             let owner = self.owner(*c);
-            self.players[owner.0 as usize].library.retain(|x| x != c);
+            let player = &mut self.players[owner.0 as usize];
+            player.library.retain(|x| x != c);
+            player.hand.retain(|x| x != c);
         }
         if top {
             for c in cards.iter().rev() {
@@ -4640,6 +4733,7 @@ impl Game {
             | Waiting::PutFromHand { resume: at, .. }
             | Waiting::ChooseMana { resume: at, .. }
             | Waiting::PayUnless { at, .. }
+            | Waiting::PayLifeOr { at, .. }
             | Waiting::ChooseName { resume: at, .. } => at,
             _ => return None,
         };
@@ -5387,6 +5481,7 @@ impl Game {
         match player.library.pop_front() {
             Some(c) => {
                 player.hand.push_back(c);
+                player.drawn.push_back(c);
                 self.trigger_on(Event::Drew(p));
             }
             None => player.drew_from_empty = true,
@@ -5421,6 +5516,7 @@ impl Game {
         for player in &mut self.players {
             player.lands_played = 0;
             player.lost_life = false;
+            player.drawn = Vector::new();
         }
         self.run_from(Step::Untap);
     }

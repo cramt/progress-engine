@@ -2901,3 +2901,49 @@ fn wild_growth_enchants_a_land_that_then_taps_for_two() {
     assert!(creature(&game, "Wild Growth").is_none());
     assert_eq!(named(&game, game.player(ME).graveyard(), "Wild Growth"), 1);
 }
+
+/// CR 504.1, 504.2, 121.2, 119.4: Sylvan Library's "At the beginning of
+/// your draw step, you may draw two additional cards. If you do, choose
+/// two cards in your hand drawn this turn. For each of those cards, pay 4
+/// life or put the card on top of your library." Taken, it offers the
+/// three cards drawn this turn and none from before; the first chosen is
+/// paid for and stays, the second goes back on top.
+#[test]
+fn sylvan_library_keeps_a_card_for_4_life_and_puts_the_other_back() {
+    let mut game = deal(
+        &[("Forest", 30), ("Sylvan Library", 30)],
+        &[("Island", 60)],
+        &[("Forest", 2), ("Sylvan Library", 1)],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Sylvan Library", None);
+    resolve(&mut game);
+    let before: Vec<CardId> = game.player(ME).hand().iter().copied().collect();
+    let library = to_may(&mut game);
+    assert_eq!(game.card(library).unwrap().name, "Sylvan Library");
+    assert_eq!((game.active(), game.step_now()), (ME, Step::Draw));
+    let Decision::ChooseAmong { cards, n, .. } = step(&mut game, Answer::May(true)) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((cards.len(), n), (3, 2));
+    assert!(cards.iter().all(|c| !before.contains(c)));
+    let (kept, back) = (cards[0], cards[2]);
+    let Decision::PayLifeOr { player, life, .. } =
+        step(&mut game, Answer::Choose(vec![kept, back]))
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((player, life), (ME, 4));
+    assert!(matches!(
+        step(&mut game, Answer::PayLife(true)),
+        Decision::PayLifeOr { .. }
+    ));
+    step(&mut game, Answer::PayLife(false));
+    assert_eq!(game.player(ME).life(), 16);
+    assert!(game.player(ME).hand().contains(&kept));
+    assert!(game.player(ME).hand().contains(&cards[1]));
+    assert!(!game.player(ME).hand().contains(&back));
+    assert_eq!(game.player(ME).library().front(), Some(&back));
+}

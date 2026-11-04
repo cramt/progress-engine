@@ -610,7 +610,12 @@ one card; an "unless" the log shows paid only for echo ("paid the echo
 cost for [X]"), so echo is paid when that line follows and not
 otherwise, and anything else, Mana Leak's {3}, isn't paid unless a later
 line can't be followed then; a payment never activates a mana ability
-whose counter the log would print (Wall of Roots), and mana a line shows
+whose counter the log would print (Wall of Roots); a "draws two cards
+with [Sylvan Library]'s ability" line is its "may" taken, the "kept a
+card." and "put a card on top of …'s library." lines after it answer
+each card's "pay 4 life or" in the order printed, and since the cards
+drawn are hidden and the log never says which two were chosen, the
+replay chooses the first two drawn; and mana a line shows
 made for a sorcery-speed spell in its caster's turn is made in a main
 phase, the other player passing to its controller first when it is
 theirs to act (a Wall of Roots tapped for mana while blocking); a
@@ -639,8 +644,8 @@ did; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 55 replay to the end** (52 to the log's winner
-line), 37 of them past the first turn, and **27.78% of their lines are
-followed** (21,720 of 78,183: the lines before each game's stop, all of a
+line), 37 of them past the first turn, and **28.02% of their lines are
+followed** (21,910 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-04, and 16 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
@@ -698,7 +703,8 @@ Cloudpost, Goblin Lackey's "may" taken and declined, Aether Vial, Dark
 Confidant, Goblin Guide, Impulse, Leyline of Sanctity's hexproof, Wild
 Nacatl, Swords to Plowshares, Counterspell, Festering Goblin's dies
 trigger, Path to Exile, Khalni Garden's token, Silver Knight's
-protection from red, and Goblin Warchief's and Thalia's cost changes.
+protection from red, Goblin Warchief's and Thalia's cost changes, and
+Sylvan Library keeping one card for 4 life and putting the other back.
 
 ### The milestone
 
@@ -726,8 +732,8 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-04 53 of the 500 replay to
-the end and 38.52% of their lines are followed** (12,196 of 31,659), 6
-of them relying on a land the log never names (1 to the end), and 59
+the end and 39.11% of their lines are followed** (12,382 of 31,659), 6
+of them relying on a land the log never names (1 to the end), and 61
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -760,18 +766,22 @@ spell was kicked", with Insight reading "it deals 4 damage instead" as
 the spell's damage, not its target's (Burst Lightning); Auras cast
 targeting what they enchant, attached as they resolve and put into the
 graveyard when what they enchant is gone, and a triggered mana ability
-(Wild Growth). And
+(Wild Growth); a draw step "may" drawing more, a choice of the cards
+drawn this turn and "for each of those cards, pay 4 life or" put it
+back, with Insight reading "the card" as the loop's one card (Sylvan
+Library). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
 instruction's, the creature sacrificed for flashback, a land the log never
 names as a hypothesis, which of two permanents of one name an
-activation is of, and a winner line resolving what ended the game. One divergence was the engine's own, found by the full
+activation is of, a winner line resolving what ended the game, and
+which of the cards drawn this turn Sylvan Library chooses. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Sylvan Library (11), morph's face-down casting
-(10), Vesuva's copy (8), and Accumulated Knowledge, Goblin Cadets,
-Scalding Viper's two faces and Veteran Survivor (6 each), and no
+top of the worklist now: morph's face-down casting (10), Vesuva's copy
+(8), and Accumulated Knowledge, Goblin Cadets, Scalding Viper's two
+faces and Veteran Survivor (6 each), and no
 divergence is left: those the run found were the replay's (the game's
 last trigger never shown resolving, a payment search that stopped adding
 sources once it had as much mana as the cost, of the wrong colour from

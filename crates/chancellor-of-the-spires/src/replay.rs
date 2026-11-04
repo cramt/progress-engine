@@ -1376,6 +1376,20 @@ impl Driver<'_> {
                 self.shuffled = (turn, seen);
                 self.did(i, "shuffled by the instruction (CR 701.24a)");
             }
+            // Sylvan Library's "pay 4 life or put the card on top of your
+            // library", one line for each card, read ahead as it is asked.
+            KeepsCards { .. }
+            | PutsInLibrary {
+                cards: log::Moved::Unseen(1),
+                end: log::End::Top,
+                by: None,
+                ..
+            } => {
+                if !self.until_consumed(i)? {
+                    return Err(unfollowed(None));
+                }
+                self.did(i, "answered a \"pay life or\" (CR 119.4)");
+            }
             // Cards an instruction put on the bottom, which the engine
             // must have put there this turn.
             PutsInLibrary {
@@ -1422,6 +1436,7 @@ impl Driver<'_> {
                                 | Decision::ChooseName { .. }
                                 | Decision::ChooseMana { .. }
                                 | Decision::PayUnless { .. }
+                                | Decision::PayLifeOr { .. }
                                 | Decision::Reveal { .. }
                                 | Decision::Targets { .. }
                                 | Decision::Order { .. }
@@ -1877,6 +1892,7 @@ impl Driver<'_> {
             Decision::PayUnless {
                 player, card, owed, ..
             } => self.pay_unless(player, card, owed),
+            Decision::PayLifeOr { player, card, .. } => self.pay_life_or(player, card),
             Decision::ChooseMana {
                 player, options, ..
             } => self.choose_mana(player, options),
@@ -2516,6 +2532,7 @@ impl Driver<'_> {
                 | Decision::ChooseName { .. }
                 | Decision::ChooseMana { .. }
                 | Decision::PayUnless { .. }
+                | Decision::PayLifeOr { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
                 | Decision::Arrange { .. }
@@ -2565,6 +2582,7 @@ impl Driver<'_> {
                 | Decision::ChooseName { .. }
                 | Decision::ChooseMana { .. }
                 | Decision::PayUnless { .. }
+                | Decision::PayLifeOr { .. }
                 | Decision::PutFromHand { .. }
                 | Decision::Search { .. }
                 | Decision::Reveal { .. }
@@ -2628,6 +2646,14 @@ impl Driver<'_> {
                 break;
             }
             self.pass()?;
+        }
+        // "You may draw two additional cards": the line is the draw, so
+        // the "may" was taken.
+        if let Decision::May { card, .. } = self.game().decision() {
+            if named(self.game(), &card) {
+                self.act(Answer::May(true))?;
+                return Ok(());
+            }
         }
         let game = self.game();
         let resolving = game.resolving().is_some_and(|c| named(game, &c));
@@ -3479,6 +3505,44 @@ impl Driver<'_> {
         Ok(())
     }
 
+    /// "Pay 4 life or put the card on top of your library": the next line
+    /// of `p`'s this turn not yet read that answers one, "kept a card."
+    /// for the life paid or "put a card on top of …'s library." for not.
+    fn pay_life_or(&mut self, p: PlayerId, card: CardId) -> Followed {
+        let name = self.name_of(card);
+        let said = self
+            .entries
+            .iter()
+            .enumerate()
+            .skip(self.at)
+            .take_while(|(k, e)| *k == self.at || !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|(k, e)| {
+                if self.consumed.contains(&k) {
+                    return None;
+                }
+                match &e.event {
+                    Event::KeepsCards { player, count: 1 } if self.seat(*player) == p => {
+                        Some((k, true))
+                    }
+                    Event::PutsInLibrary {
+                        player,
+                        cards: log::Moved::Unseen(1),
+                        end: log::End::Top,
+                        by: None,
+                        ..
+                    } if self.seat(*player) == p => Some((k, false)),
+                    _ => None,
+                }
+            });
+        let Some((k, pay)) = said else {
+            return Err(Stop::Diverged(Divergence::Unlogged {
+                what: format!("whether life was paid for {name}"),
+            }));
+        };
+        self.consumed.insert(k);
+        self.act(Answer::PayLife(pay))
+    }
+
     /// A "may" of `card`'s (CR 608.2d, 603.5). A "chooses to use" or
     /// "declines to use" line for it, from the line being followed to the
     /// end of the turn, says which; with none, the replay follows it and
@@ -3540,6 +3604,7 @@ impl Driver<'_> {
                     | Decision::ChooseName { .. }
                     | Decision::ChooseMana { .. }
                     | Decision::PayUnless { .. }
+                    | Decision::PayLifeOr { .. }
                     | Decision::Reveal { .. }
                     | Decision::ChooseAmong { .. }
                     | Decision::Arrange { .. }

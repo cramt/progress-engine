@@ -1154,6 +1154,7 @@ pub enum Effect {
     ToLibrary {
         cards: Cards,
         top: bool,
+        from: FoundIn,
     },
     /// "If it's a land card, …": these instructions, only if the card
     /// bound to `card` matches.
@@ -1184,6 +1185,29 @@ pub enum Effect {
         cost: crate::mana::ManaCost,
         otherwise: Vec<Effect>,
     },
+    /// "Choose two cards in your hand drawn this turn": the controller
+    /// chooses `n` of the cards in their hand drawn this turn, all of them
+    /// if they have no more, bound to `into`.
+    ChooseDrawn {
+        n: u32,
+        into: Slot,
+    },
+    /// "For each of those cards, …" said once for each card of a set of
+    /// at most `k + 1`: the `k`-th card bound to `from`, if there is one,
+    /// bound to `into` (Insight's `ForEach`, unrolled).
+    Nth {
+        from: Slot,
+        k: usize,
+        into: Slot,
+    },
+    /// "Pay 4 life or put the card on top of your library": `who` may pay
+    /// `life` if they have that much (CR 119.4), and if they don't, these
+    /// instructions are followed.
+    UnlessLife {
+        who: Who,
+        life: u32,
+        otherwise: Vec<Effect>,
+    },
     /// "Choose a nonland card name": the controller names a card of the
     /// Oracle card reference the filter matches (CR 201.4, 201.4a), for
     /// the instructions after to read.
@@ -1206,6 +1230,9 @@ impl Effect {
             | Effect::Kicked { then, .. }
             | Effect::Unless {
                 otherwise: then, ..
+            }
+            | Effect::UnlessLife {
+                otherwise: then, ..
             } => Some(then),
             _ => None,
         }
@@ -1217,6 +1244,17 @@ impl Effect {
 /// record of what it found, one per binder.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Slot(pub usize);
+
+/// Where the cards an instruction moves were found: only those still
+/// there are its own, one moved since being a new object (CR 400.7).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FoundIn {
+    /// Revealed, looked at or searched for in a library.
+    Library,
+    /// Chosen from a hand ("choose two cards in your hand drawn this
+    /// turn").
+    Hand,
+}
 
 /// Cards a resolution found, as an instruction names them.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1828,6 +1866,10 @@ struct Scope<'a> {
     /// among cards chose from.
     whose: BTreeMap<Slot, Who>,
     among: BTreeMap<Slot, Slot>,
+    /// The most cards a slot can hold, where an instruction fixes it.
+    sizes: BTreeMap<Slot, u32>,
+    /// The slots whose cards were chosen from a hand, not a library.
+    in_hand: BTreeSet<Slot>,
     /// What a search looks for, by the slot of the card it finds, and
     /// whether that card is put onto the battlefield.
     described: BTreeMap<Slot, (Objects, bool)>,
@@ -1854,6 +1896,8 @@ impl<'a> Scope<'a> {
             made: None,
             whose: BTreeMap::new(),
             among: BTreeMap::new(),
+            sizes: BTreeMap::new(),
+            in_hand: BTreeSet::new(),
             described: BTreeMap::new(),
             named: false,
             x: None,
@@ -2100,6 +2144,12 @@ impl<'a> Scope<'a> {
     fn effect(&mut self, e: &i::Effect) -> Result<Vec<Effect>, String> {
         let n = |a: &i::Amount| match a {
             i::Amount::N(n) => Ok(*n),
+            // "Draw two additional cards": two, beside the draw the step
+            // already made (CR 504.1).
+            i::Amount::Additional(k) => match **k {
+                i::Amount::N(n) => Ok(n),
+                ref other => Err(format!("an amount of {}", short(other))),
+            },
             other => Err(format!("an amount of {}", short(other))),
         };
         let node = || effect_node(e);
@@ -2322,6 +2372,45 @@ impl<'a> Scope<'a> {
                     _ => return Err(format!("{} discarded this way", node())),
                 }
             }
+            // "For each of those cards, …": the set a binder holds, at
+            // most as many as the instruction that bound it chose, the
+            // instructions once for each.
+            i::Effect::ForEach { each, then, .. } if matches!(self.cards(each), Ok(Cards::Bound(s)) if self.sizes.contains_key(&s)) =>
+            {
+                let Ok(Cards::Bound(from)) = self.cards(each) else {
+                    unreachable!("matched")
+                };
+                let mut out = Vec::new();
+                for k in 0..self.sizes[&from] as usize {
+                    let into = self.new_slot();
+                    if self.in_hand.contains(&from) {
+                        self.in_hand.insert(into);
+                    }
+                    out.push(Effect::Nth { from, k, into });
+                    self.withs.push(Some(into));
+                    let lowered = self.effects(then);
+                    self.withs.pop();
+                    out.extend(lowered?);
+                }
+                return Ok(out);
+            }
+            // "Pay 4 life or put the card on top of your library".
+            i::Effect::Or(options)
+                if matches!(options.as_slice(), [i::Effect::Pay { cost, .. }, _]
+                    if matches!(cost.as_slice(), [i::Cost::PayLife(i::Amount::N(_))])) =>
+            {
+                let [i::Effect::Pay { who, cost }, otherwise] = options.as_slice() else {
+                    unreachable!("matched")
+                };
+                let [i::Cost::PayLife(i::Amount::N(life))] = cost.as_slice() else {
+                    unreachable!("matched")
+                };
+                Effect::UnlessLife {
+                    who: self.who(who)?,
+                    life: *life,
+                    otherwise: self.effect(otherwise)?,
+                }
+            }
             i::Effect::ForEach { each, then, .. } => match then.as_slice() {
                 [m @ i::Effect::Modify {
                     what,
@@ -2459,6 +2548,10 @@ impl<'a> Scope<'a> {
                 order,
             } if self.cards(what).is_ok() => {
                 let cards = self.cards(what)?;
+                let from = match &cards {
+                    Cards::Bound(slot) if self.in_hand.contains(slot) => FoundIn::Hand,
+                    _ => FoundIn::Library,
+                };
                 if *tapped && *to != i::Zone::Battlefield {
                     return Err(node());
                 }
@@ -2473,9 +2566,19 @@ impl<'a> Scope<'a> {
                         },
                         cards,
                     },
-                    (i::Zone::OwnersLibraryTop, Some(i::Order::Any) | None) => {
-                        Effect::ToLibrary { cards, top: true }
-                    }
+                    (i::Zone::OwnersLibraryTop, Some(i::Order::Any) | None) => Effect::ToLibrary {
+                        cards,
+                        top: true,
+                        from,
+                    },
+                    // "Put the card on top of your library": its owner's,
+                    // where a card bound for another's library goes (CR
+                    // 400.3).
+                    (i::Zone::TopOfLibrary(i::Player::You), None) => Effect::ToLibrary {
+                        cards,
+                        top: true,
+                        from,
+                    },
                     (i::Zone::Battlefield, None) => Effect::ToBattlefield {
                         who: match &cards {
                             Cards::Bound(slot) => self.whose.get(slot).copied().unwrap_or(Who::You),
@@ -2485,7 +2588,11 @@ impl<'a> Scope<'a> {
                         tapped: *tapped,
                     },
                     (i::Zone::BottomOfLibrary(i::Player::You), Some(i::Order::Any)) => {
-                        Effect::ToLibrary { cards, top: false }
+                        Effect::ToLibrary {
+                            cards,
+                            top: false,
+                            from,
+                        }
                     }
                     _ => return Err(format!("{} of found cards", node())),
                 }
@@ -2604,6 +2711,28 @@ impl<'a> Scope<'a> {
                 out.push(Effect::ChooseAmong { from, n: 1, into });
                 into
             }
+            // "Choose two cards in your hand drawn this turn".
+            [o] if o.filter.kind == Some(i::Noun::Card)
+                && o.filter.alts.is_empty()
+                && o.filter.posts
+                    == [Post::In(i::Zone::Hand(i::Player::You)), Post::DrawnThisTurn]
+                && matches!(o.quant, Quant::N(i::Amount::N(_)))
+                && matches!(then.first(), Some(i::Effect::Choose(i::Choice::Objects(c)))
+                    if c.quant == Quant::Introduced(0) && c.filter == i::Filter::default()) =>
+            {
+                let Quant::N(i::Amount::N(n)) = o.quant else {
+                    unreachable!("matched")
+                };
+                let into = self.new_slot();
+                self.sizes.insert(into, n);
+                self.in_hand.insert(into);
+                out.push(Effect::ChooseDrawn { n, into });
+                self.withs.push(Some(into));
+                let lowered = self.effects(&then[1..]);
+                self.withs.pop();
+                out.extend(lowered?);
+                return Ok(out);
+            }
             _ => return Err("With".into()),
         };
         self.withs.push(Some(slot));
@@ -2663,6 +2792,31 @@ impl<'a> Scope<'a> {
                 out.extend(rest?.into_iter().flatten());
                 k += 2;
                 continue;
+            }
+            // "You may draw two additional cards. If you do, choose two
+            // cards …": what follows "if you do" is the may's, followed
+            // only if it was, its binders bound there.
+            if let (i::Effect::May { who, then }, Some(next)) = (&effects[k], effects.get(k + 1)) {
+                let more = match next {
+                    i::Effect::IfYouDo(more) => Some(more.clone()),
+                    i::Effect::With { bind, then: inner } => match inner.as_slice() {
+                        [i::Effect::IfYouDo(more)] => Some(vec![i::Effect::With {
+                            bind: bind.clone(),
+                            then: more.clone(),
+                        }]),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let Some(more) = more {
+                    let all: Vec<i::Effect> = then.iter().cloned().chain(more).collect();
+                    out.extend(self.effect(&i::Effect::May {
+                        who: who.clone(),
+                        then: all,
+                    })?);
+                    k += 2;
+                    continue;
+                }
             }
             // "~ deals 2 damage to any target. If this spell was kicked, it
             // deals 4 damage instead": the first only if it wasn't kicked,
