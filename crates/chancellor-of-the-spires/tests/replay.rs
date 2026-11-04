@@ -62,6 +62,8 @@ const INDEXED: &[&str] = &[
     "Llanowar Elves",
     "City of Brass",
     "Burst Lightning",
+    "Gush",
+    "Coral Eel",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1197,4 +1199,49 @@ fn a_winner_line_resolves_what_ended_the_game() {
     ");
     assert_eq!(r.end, End::Finished, "{:?}", r.trace);
     assert_eq!(r.game.expect("set up").player(BOB).life(), 20 - 7 * 3);
+}
+
+/// CR 118.9, 601.2g–h: a Gush whose return line comes before its cast
+/// line, which says nothing of the cost: cast for the alternative cost,
+/// the two Islands tapped for mana first, which pays for the Coral Eel
+/// cast after it.
+#[test]
+fn gush_returns_the_islands_its_line_names_after_tapping_them_for_mana() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Island].
+        alice returns [Island] and [Island] to its owner's hand with with [Gush]'s ability.
+        alice casts [Gush].
+        alice draws two cards with [Gush].
+        alice casts [Coral Eel].
+        alice discards [Island].
+        Turn 2: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Island"), 0);
+    assert_eq!(on_battlefield(&game, "Coral Eel"), 1);
+    // Both back in hand, one discarded to hand size.
+    let islands = |cards: &imbl::Vector<chancellor_of_the_spires::game::CardId>| {
+        cards
+            .iter()
+            .filter(|c| game.card(**c).is_some_and(|t| t.name == "Island"))
+            .count()
+    };
+    assert_eq!(islands(game.player(ALICE).hand()), 1);
+    assert_eq!(islands(game.player(ALICE).graveyard()), 1);
 }

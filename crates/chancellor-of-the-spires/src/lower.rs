@@ -3391,6 +3391,9 @@ pub struct OtherCosts {
     /// "Sacrifice a creature", "sacrifice two Mountains": that many
     /// permanents the filter matches, of the caster's (CR 701.21a).
     pub sacrifice: Option<(u32, Filter)>,
+    /// Gush's "return two Islands you control to their owner's hand":
+    /// that many permanents the filter matches, of the caster's.
+    pub returned: Option<(u32, Filter)>,
 }
 
 /// Where a card is cast from by an alternative cost.
@@ -3432,25 +3435,36 @@ fn spell_cost(cost: &[i::Cost]) -> Result<(crate::mana::ManaCost, OtherCosts), S
             }
             i::Cost::PayLife(i::Amount::N(n)) => other.life += n,
             i::Cost::Sacrifice(o) if other.sacrifice.is_none() => {
-                let n = match &o.quant {
-                    Quant::One => 1,
-                    Quant::N(i::Amount::N(n)) => *n,
-                    q => return Err(format!("a cost sacrificing {}", short(q))),
-                };
-                let mut f = objects(&Objects {
-                    quant: Quant::All,
-                    filter: o.filter.clone(),
-                })?;
-                if f.0.iter().any(|p| matches!(p, Pred::Itself | Pred::Other)) {
-                    return Err("a sacrifice relative to its source".into());
-                }
-                f.0.push(Pred::YouControl);
-                other.sacrifice = Some((n, f));
+                other.sacrifice = Some(permanents_paid(o)?);
+            }
+            i::Cost::ReturnToHand(o) if other.returned.is_none() => {
+                other.returned = Some(permanents_paid(o)?);
             }
             other => return Err(format!("a spell's cost of {}", short(other))),
         }
     }
     Ok((mana.unwrap_or_default(), other))
+}
+
+/// "Two Mountains", "two Islands you control": how many permanents a cost
+/// moves, and which, of the caster's.
+fn permanents_paid(o: &Objects) -> Result<(u32, Filter), String> {
+    let n = match &o.quant {
+        Quant::One => 1,
+        Quant::N(i::Amount::N(n)) => *n,
+        q => return Err(format!("a cost of {} permanents", short(q))),
+    };
+    let mut f = objects(&Objects {
+        quant: Quant::All,
+        filter: o.filter.clone(),
+    })?;
+    if f.0.iter().any(|p| matches!(p, Pred::Itself | Pred::Other)) {
+        return Err("a cost relative to its source".into());
+    }
+    if !f.0.contains(&Pred::YouControl) {
+        f.0.push(Pred::YouControl);
+    }
+    Ok((n, f))
 }
 
 /// "Flashback {1}{U}, Pay 3 life", "Flashback—Sacrifice a creature": `None`

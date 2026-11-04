@@ -3208,3 +3208,45 @@ fn threshold_grows_nimble_mongoose_from_the_seventh_card_in_the_graveyard() {
     assert_eq!(game.player(ME).graveyard().len(), 7);
     assert_eq!(pt_of(&game, mongoose), pt(3, 3));
 }
+
+/// CR 118.9, 601.2h: Gush cast for its alternative cost returns two
+/// Islands its caster controls to their owner's hand, a tapped one too,
+/// and pays no mana; it isn't offered with fewer than two.
+#[test]
+fn gush_returns_two_islands_rather_than_pay_its_mana_cost() {
+    let mut game = deal(
+        &[("Island", 40), ("Gush", 20)],
+        &[("Swamp", 60)],
+        &[("Island", 2), ("Gush", 1)],
+    );
+    let gush = in_hand(&game, ME, "Gush").unwrap();
+    let offered = |game: &Game| {
+        let Decision::Priority { actions, .. } = game.decision() else {
+            panic!("{:?}", game.decision())
+        };
+        actions
+            .into_iter()
+            .find(|a| matches!(a, Action::CastAlternative(c, _) if *c == gush))
+    };
+    play(&mut game, "Island");
+    assert!(offered(&game).is_none(), "one Island isn't two");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    let hand = game.player(ME).hand().len();
+    let alt = offered(&game).expect("offered");
+    step(&mut game, Answer::Act(alt));
+    if matches!(game.decision(), Decision::Pay { .. }) {
+        step(&mut game, Answer::Pay(Payment::Spend(ManaPool::default())));
+    }
+    let Decision::ReturnToHand { count, legal, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((count, legal.len()), (2, 2));
+    step(&mut game, Answer::ReturnToHand(legal));
+    assert_eq!(game.returned(), 2);
+    resolve(&mut game);
+    // Gush gone, two Islands back and two cards drawn.
+    assert_eq!(game.player(ME).hand().len(), hand - 1 + 2 + 2);
+    assert!(named(&game, game.player(ME).hand(), "Island") >= 2);
+    assert!(game.permanents().is_empty());
+}

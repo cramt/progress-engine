@@ -256,6 +256,7 @@ pub fn replay(
         created: (0, 0),
         shuffled: (0, 0),
         discarded: (0, 0),
+        returned: (0, 0),
         entries: g.entries.clone(),
         respond: None,
     };
@@ -308,6 +309,7 @@ struct Knew {
     created: (u32, u32),
     shuffled: (u32, u32),
     discarded: (u32, u32),
+    returned: (u32, u32),
     respond: Option<usize>,
     unseen: Vec<String>,
     activated: (u32, Vec<ObjectId>),
@@ -389,6 +391,9 @@ struct Driver<'a> {
     /// The turn, and how many cards the log has shown discarded in it by
     /// an instruction with no choice in it.
     discarded: (u32, u32),
+    /// The turn, and how many permanents the log has shown returned to a
+    /// hand in it.
+    returned: (u32, u32),
     /// The game's lines, for the choices a later line shows (a trigger's
     /// targets, the order triggers go on the stack).
     entries: Vec<Entry>,
@@ -414,6 +419,7 @@ impl Driver<'_> {
             created: self.created,
             shuffled: self.shuffled,
             discarded: self.discarded,
+            returned: self.returned,
             respond: self.respond,
             unseen: self.unseen.clone(),
             activated: self.activated.clone(),
@@ -433,6 +439,7 @@ impl Driver<'_> {
         self.shuffled = knew.shuffled;
         self.created = knew.created;
         self.discarded = knew.discarded;
+        self.returned = knew.returned;
         self.respond = knew.respond;
         self.unseen = knew.unseen;
         self.activated = knew.activated;
@@ -443,6 +450,14 @@ impl Driver<'_> {
 
     fn seat(&self, p: log::Player) -> PlayerId {
         self.seats[p.0 as usize]
+    }
+
+    /// The log's player in this seat.
+    fn player_of(&self, seat: PlayerId) -> Option<log::Player> {
+        self.seats
+            .iter()
+            .position(|s| *s == seat)
+            .map(|k| log::Player(k as u8))
     }
 
     /// The name of the permanent a line names: a token's is the one the
@@ -944,6 +959,11 @@ impl Driver<'_> {
                     v => (v.map(str::to_string), false),
                 };
                 let routes = match via.as_deref() {
+                    // Most logs print nothing for Gush's alternative cost,
+                    // but a line beside the cast shows what it returned.
+                    None if self.returned_for(i, cast.player, card.name()).is_some() => {
+                        vec![Route::Alternative(CastFrom::Hand)]
+                    }
                     None => vec![Route::ManaCost, Route::Alternative(CastFrom::Hand)],
                     Some(v)
                         if v == "from the graveyard"
@@ -952,7 +972,7 @@ impl Driver<'_> {
                     {
                         vec![Route::Alternative(CastFrom::Graveyard)]
                     }
-                    Some(v) if v.starts_with("by sacrificing ") => {
+                    Some(v) if v.starts_with("by sacrificing ") || v.starts_with("by return ") => {
                         vec![Route::Alternative(CastFrom::Hand)]
                     }
                     Some(_) => return Err(other()),
@@ -1418,6 +1438,60 @@ impl Driver<'_> {
                     return Err(unfollowed(None));
                 }
                 self.did(i, "answered a \"pay life or\" (CR 119.4)");
+            }
+            // Permanents returned to a hand by a cost or an instruction,
+            // which the engine must have returned this turn, each in its
+            // owner's hand now.
+            ReturnsToHand {
+                player,
+                cards,
+                with: log::Source::Card(c),
+            } if self
+                .entries
+                .get(i + 1..)
+                .and_then(|rest| {
+                    rest.iter()
+                        .position(|e| !matches!(e.event, Chat { .. } | Watching { .. }))
+                })
+                .is_some_and(|k| {
+                    matches!(&self.entries[i + 1 + k].event,
+                        Casts(cast) if cast.player == *player
+                            && cast.via.as_deref().is_none_or(|v| v.starts_with("by return "))
+                            && matches!(&cast.card, Object::Card(d) if d.name() == c.name()))
+                }) =>
+            {
+                // The cost of the spell the next line casts, paid as it is
+                // cast (Gush).
+                let _ = cards;
+                self.did(i, "returned to pay for the spell the next line casts");
+            }
+            ReturnsToHand { cards, .. } if !cards.is_empty() => {
+                self.until_choice()?;
+                let turn = self.game().turn();
+                let seen = if self.returned.0 == turn {
+                    self.returned.1
+                } else {
+                    0
+                } + cards.len() as u32;
+                let game = self.game();
+                let in_hands = cards.iter().all(|c| {
+                    let wanted = cards.iter().filter(|d| d.name() == c.name()).count();
+                    game.players()
+                        .iter()
+                        .map(|p| {
+                            p.hand()
+                                .iter()
+                                .filter(|h| game.card(**h).is_some_and(|t| t.name == c.name()))
+                                .count()
+                        })
+                        .sum::<usize>()
+                        >= wanted
+                });
+                if seen > game.returned() || !in_hands {
+                    return Err(unfollowed(cards.first().map(|c| c.name())));
+                }
+                self.returned = (turn, seen);
+                self.did(i, format!("{} returned to a hand", cards.len()));
             }
             // Cards an instruction put on the bottom, which the engine
             // must have put there this turn.
@@ -1927,6 +2001,7 @@ impl Driver<'_> {
                 player, options, ..
             } => self.choose_mana(player, options),
             Decision::Sacrifice { .. } => self.sacrifice(),
+            Decision::ReturnToHand { .. } => self.return_to_hand(),
             Decision::Reveal { player, cards } => self.reveal(player, &cards),
             // Cards looked at are hidden alike to the log: which is chosen,
             // and the order they go back in, is nothing it can tell.
@@ -2174,6 +2249,7 @@ impl Driver<'_> {
         if !matches!(self.game().decision(), Decision::Pay { .. }) {
             return Ok("no mana to pay".into());
         }
+        self.tap_what_returns(i, name)?;
         let payments = self.payments()?;
         let Some((first, rest)) = payments.split_first() else {
             return Err(Stop::Diverged(Divergence::Unpayable {
@@ -2197,7 +2273,151 @@ impl Driver<'_> {
         if let Decision::Sacrifice { .. } = self.game().decision() {
             self.sacrifice()?;
         }
+        if let Decision::ReturnToHand { .. } = self.game().decision() {
+            self.return_to_hand()?;
+        }
         Ok(describe(first))
+    }
+
+    /// A spell whose cost returns permanents to hand, Gush's Islands: those
+    /// the line beside it names are tapped for mana first, as many as the
+    /// cost returns that aren't tapped already, the mana floating (CR
+    /// 601.2g–h). The log never shows a mana ability, and a land returned
+    /// untapped would have made nothing.
+    fn tap_what_returns(&mut self, i: usize, name: &str) -> Followed {
+        let Decision::Pay { player, .. } = self.game().decision() else {
+            return Ok(());
+        };
+        let Some(q) = self.player_of(player) else {
+            return Ok(());
+        };
+        let Some(j) = self.returned_for(i, q, name) else {
+            return Ok(());
+        };
+        let Event::ReturnsToHand { cards, .. } = &self.entries[j].event else {
+            return Ok(());
+        };
+        let names: Vec<String> = cards.iter().map(|c| c.name().to_string()).collect();
+        let game = self.game();
+        let name_of = |o: &ObjectId| {
+            game.card(game.permanents()[o].card)
+                .map(|t| t.name.clone())
+                .unwrap_or_default()
+        };
+        let tapped = game
+            .permanents()
+            .iter()
+            .filter(|(o, p)| {
+                p.tapped
+                    && game.characteristics()[*o].controller == player
+                    && names.contains(&name_of(o))
+            })
+            .count();
+        let mut wanted = names.len().saturating_sub(tapped);
+        while wanted > 0 {
+            let Decision::Pay { actions, .. } = self.game().decision() else {
+                return Ok(());
+            };
+            let game = self.game();
+            let tap = actions.iter().find_map(|a| match a {
+                Payment::Mana(m)
+                    if m.pays.is_empty()
+                        && m.sacrifices.is_none()
+                        && !game.permanents()[&m.source].tapped
+                        && names.contains(
+                            &game
+                                .card(game.permanents()[&m.source].card)
+                                .map(|t| t.name.clone())
+                                .unwrap_or_default(),
+                        ) =>
+                {
+                    Some(*a)
+                }
+                _ => None,
+            });
+            let Some(tap) = tap else {
+                return Ok(());
+            };
+            self.act(Answer::Pay(tap))?;
+            wanted -= 1;
+        }
+        Ok(())
+    }
+
+    /// The "returns [Island] and [Island] to its owner's hand with
+    /// [Gush]'s ability" line beside line `i`, which casts `spell`: the
+    /// log prints the cost's line before the cast, or after it.
+    fn returned_for(&self, i: usize, player: log::Player, spell: &str) -> Option<usize> {
+        let quiet = |e: &Entry| matches!(e.event, Event::Chat { .. } | Event::Watching { .. });
+        let is_it = |j: usize| {
+            matches!(&self.entries[j].event, Event::ReturnsToHand {
+                player: q,
+                with: log::Source::Card(c),
+                ..
+            } if *q == player && c.name() == spell)
+        };
+        let before = (0..i).rev().find(|j| !quiet(&self.entries[*j]));
+        let after = (i + 1..self.entries.len()).find(|j| !quiet(&self.entries[*j]));
+        before.filter(|j| is_it(*j)).or(after.filter(|j| is_it(*j)))
+    }
+
+    /// Permanents returned to hand to pay for a spell (CR 601.2h): those
+    /// the log's "returns [Island] and [Island] to its owner's hand" line
+    /// next names, the tapped first of permanents of one name, since a
+    /// land tapped for mana pays twice that way, and the first legal ones
+    /// with no such line.
+    fn return_to_hand(&mut self) -> Followed {
+        let game = self.game.as_ref().expect("set up");
+        let Decision::ReturnToHand {
+            player,
+            count,
+            mut legal,
+            ..
+        } = game.decision()
+        else {
+            unreachable!("waiting on a return to hand")
+        };
+        let spell = match game.decision() {
+            Decision::ReturnToHand { spell, .. } => game.card(spell).map(|t| t.name.clone()),
+            _ => None,
+        };
+        let named: Vec<String> = spell
+            .and_then(|n| {
+                let q = self.player_of(player)?;
+                self.returned_for(self.at, q, &n)
+            })
+            .map(|j| match &self.entries[j].event {
+                Event::ReturnsToHand { cards, .. } => {
+                    cards.iter().map(|c| c.name().to_string()).collect()
+                }
+                _ => Vec::new(),
+            })
+            .unwrap_or_default();
+        let name = |o: &ObjectId| {
+            game.card(game.permanents()[o].card)
+                .map(|t| t.name.clone())
+                .unwrap_or_default()
+        };
+        legal.sort_by_key(|o| !game.permanents()[o].tapped);
+        let mut chosen = Vec::new();
+        for n in &named {
+            if let Some(k) = legal
+                .iter()
+                .position(|o| !chosen.contains(o) && name(o) == *n)
+            {
+                chosen.push(legal[k]);
+            }
+        }
+        for o in &legal {
+            if chosen.len() >= count as usize {
+                break;
+            }
+            if !chosen.contains(o) {
+                chosen.push(*o);
+            }
+        }
+        chosen.truncate(count as usize);
+        self.act(Answer::ReturnToHand(chosen))
     }
 
     /// Permanents sacrificed to pay for a spell (CR 601.2h), which the log

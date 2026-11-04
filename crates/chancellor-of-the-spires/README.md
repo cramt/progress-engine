@@ -633,7 +633,15 @@ name block two of them; the legend rule's choice, which the log never
 shows, keeps the first and goes back to another if a later line can't be
 followed; and a spell whose casting after the stack resolves leaves a
 choice the log doesn't show (Duress's) is cast in response, as one that
-leaves an unshown trigger is.
+leaves an unshown trigger is. A "returns [Island] and [Island] to its
+owner's hand with [Gush]'s ability" line beside a line casting Gush, before
+or after it, is Gush cast for its alternative cost, even when the cast
+line doesn't say so, the permanents returned those it names, tapped ones
+first; since the log never shows a mana ability, those not tapped already
+are tapped for mana before they go, the mana floating for what is cast
+next, as a land returned untapped would have made nothing. Any other
+"returns … to its owner's hand" line must match as many permanents the
+engine returned to a hand that turn, each in a hand now.
 
 The log stops printing as the game ends, so what was on the stack and
 ended it is never shown resolving (the second of two Razorkin Needlehead
@@ -653,16 +661,16 @@ diff against a run before a change for a finished game it broke; the report rank
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 57 replay to the end** (54 to the log's winner
-line), 39 of them past the first turn, and **28.49% of their lines are
-followed** (22,271 of 78,183: the lines before each game's stop, all of a
+line), 39 of them past the first turn, and **28.65% of their lines are
+followed** (22,399 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-04, and 16 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 304 stop
-in the first turn, 348 in the second, 189 in the third, 110 later, and 53
+no turn in them (empty logs, concessions during the mulligans). 303 stop
+in the first turn, 348 in the second, 189 in the third, 111 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -703,7 +711,9 @@ that turn needs it; and Duress's revealed hand and Champion of the
 Parish's trigger, which must each match the engine's; an attack and
 a block; Goblin Lackey's "may" read from the lines after it, Aether
 Vial's upkeep trigger, a Leyline from the opening hand, and a Swords to
-Plowshares cast in response to a Lightning Bolt at the same creature. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
+Plowshares cast in response to a Lightning Bolt at the same creature;
+and a Gush whose return line comes before a cast line that says nothing
+of its cost, its Islands' floating mana paying for what follows. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
 player, at a creature, and at one already gone), Preordain, Champion of
 the Parish, Temple of Deceit, and combat: an unblocked attacker,
 flying against a block, a trade, first strike, exalted, prowess,
@@ -718,7 +728,8 @@ Bonesplitter equipped only at sorcery speed, staying unattached when
 its creature dies, Chancellor of the Forge's Goblin at the first
 upkeep, Flare of Cultivation cast by sacrificing Llanowar Elves, and
 Accumulated Knowledge drawing one more for each in a graveyard, and
-Nimble Mongoose growing from the seventh card in its graveyard.
+Nimble Mongoose growing from the seventh card in its graveyard, and Gush
+returning two Islands rather than paying its mana cost.
 
 ### The milestone
 
@@ -746,7 +757,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-04 55 of the 500 replay to
-the end and 40.16% of their lines are followed** (12,714 of 31,659), 6
+the end and 40.56% of their lines are followed** (12,842 of 31,659), 6
 of them relying on a land the log never names (1 to the end), and 64
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -791,7 +802,8 @@ Forge); a search for up to two, none finding what one before found
 (Flare of Cultivation); a number of cards drawn counted as it
 resolves, of cards in graveyards by name (Accumulated Knowledge), and
 threshold's "as long as there are seven or more cards in your
-graveyard", the layers reading each graveyard's size (Nimble Mongoose). And
+graveyard", the layers reading each graveyard's size (Nimble Mongoose);
+returning permanents to hand as an alternative cost (Gush). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an

@@ -837,6 +837,14 @@ enum Waiting {
         count: u32,
         filter: Filter,
     },
+    /// CR 601.2h: `player` returns `count` permanents `filter` matches to
+    /// their owner's hand to pay for `spell`, Gush's cost.
+    ReturnToHand {
+        player: PlayerId,
+        spell: CardId,
+        count: u32,
+        filter: Filter,
+    },
     /// CR 119.4: `player` may pay `life` for the "pay life or" instruction
     /// `at` points to.
     PayLifeOr {
@@ -1067,6 +1075,15 @@ pub enum Decision {
         count: u32,
         legal: Vec<ObjectId>,
     },
+    /// CR 601.2h: return exactly `count` of `legal`, the permanents
+    /// `player` controls that the cost names, to their owner's hand to pay
+    /// for `spell`, answered `Answer::ReturnToHand`.
+    ReturnToHand {
+        player: PlayerId,
+        spell: CardId,
+        count: u32,
+        legal: Vec<ObjectId>,
+    },
     /// CR 119.4: `card`'s resolving instruction says "pay `life` life or
     /// …", answered `Answer::PayLife`: `true` pays it, `false` has the rest
     /// followed. Asked only of a player with that much life.
@@ -1216,6 +1233,8 @@ pub enum Answer {
     Assign(Vec<u32>),
     /// CR 701.21a: the permanents sacrificed.
     Sacrifice(Vec<ObjectId>),
+    /// The permanents returned to their owner's hand to pay a cost.
+    ReturnToHand(Vec<ObjectId>),
     /// CR 201.4: the card named, as the Oracle card reference has it.
     Name(Box<CardText>),
     /// CR 106.3: the mana added.
@@ -1302,6 +1321,9 @@ pub struct Game {
     bottomed: u32,
     /// Libraries an instruction shuffled this turn.
     shuffled: u32,
+    /// Permanents returned to a hand this turn, by a cost or an
+    /// instruction.
+    returned: u32,
     /// Tokens created this turn.
     created: u32,
     /// Cards discarded this turn by an instruction that chose none of
@@ -1475,6 +1497,7 @@ impl Game {
             delayed: Vector::new(),
             last_known: OrdMap::new(),
             bottomed: 0,
+            returned: 0,
             shuffled: 0,
             created: 0,
             discarded: 0,
@@ -1699,6 +1722,11 @@ impl Game {
     /// this turn.
     pub fn bottomed(&self) -> u32 {
         self.bottomed
+    }
+
+    /// How many permanents have been returned to a hand this turn.
+    pub fn returned(&self) -> u32 {
+        self.returned
     }
 
     /// How many libraries an instruction has shuffled this turn.
@@ -2012,6 +2040,17 @@ impl Game {
                 count: *count,
                 legal: self.sacrificable(*player, filter),
             },
+            Waiting::ReturnToHand {
+                player,
+                spell,
+                count,
+                filter,
+            } => Decision::ReturnToHand {
+                player: *player,
+                spell: *spell,
+                count: *count,
+                legal: self.sacrificable(*player, filter),
+            },
             Waiting::PayLifeOr { player, life, at } => Decision::PayLifeOr {
                 player: *player,
                 card: at.what.card(),
@@ -2198,7 +2237,7 @@ impl Game {
                                 filter,
                             }
                         }
-                        None => self.cast_done(player, spell),
+                        None => self.return_or_cast(player, spell),
                     }
                 }
                 Payment::Cancel => {
@@ -2640,6 +2679,28 @@ impl Game {
                 for o in chosen {
                     self.put_in_graveyard(*o);
                 }
+                self.return_or_cast(player, spell);
+            }
+            (
+                Waiting::ReturnToHand {
+                    player,
+                    spell,
+                    count,
+                    filter,
+                },
+                Answer::ReturnToHand(chosen),
+            ) => {
+                let legal = self.sacrificable(player, &filter);
+                let distinct: BTreeSet<&ObjectId> = chosen.iter().collect();
+                if chosen.len() != count as usize
+                    || distinct.len() != chosen.len()
+                    || !chosen.iter().all(|o| legal.contains(o))
+                {
+                    return Err(Rejected::Illegal(answer));
+                }
+                for o in chosen {
+                    self.leave_battlefield(*o, Zone::Hand);
+                }
                 self.cast_done(player, spell);
             }
             (Waiting::PayLifeOr { player, life, at }, Answer::PayLife(pay)) => {
@@ -2787,6 +2848,11 @@ impl Game {
                         && alt
                             .other
                             .sacrifice
+                            .as_ref()
+                            .is_none_or(|(k, f)| self.sacrificable(p, f).len() >= *k as usize)
+                        && alt
+                            .other
+                            .returned
                             .as_ref()
                             .is_none_or(|(k, f)| self.sacrificable(p, f).len() >= *k as usize);
                     if alt.from == from
@@ -3503,6 +3569,22 @@ impl Game {
         ManaCost {
             generic: (cost.generic + more).saturating_sub(less),
             shards: cost.shards,
+        }
+    }
+
+    /// The permanents its cost returns to hand, once any it sacrifices are
+    /// gone, then the spell becomes cast.
+    fn return_or_cast(&mut self, player: PlayerId, spell: CardId) {
+        match self.other_costs(spell).returned {
+            Some((count, filter)) => {
+                self.waiting = Waiting::ReturnToHand {
+                    player,
+                    spell,
+                    count,
+                    filter,
+                }
+            }
+            None => self.cast_done(player, spell),
         }
     }
 
@@ -5619,6 +5701,7 @@ impl Game {
         self.turn += 1;
         self.battlefield.active = Some(p);
         self.bottomed = 0;
+        self.returned = 0;
         self.shuffled = 0;
         self.created = 0;
         self.discarded = 0;
@@ -6079,7 +6162,10 @@ impl Game {
         let player = &mut self.players[owner.0 as usize];
         match to {
             Zone::Graveyard => player.graveyard.push_back(perm.card),
-            Zone::Hand => player.hand.push_back(perm.card),
+            Zone::Hand => {
+                player.hand.push_back(perm.card);
+                self.returned += 1;
+            }
             Zone::Exile => self.exile.push_back(perm.card),
         }
         if to != Zone::Hand && self.cards[perm.card.0 as usize].commander {
