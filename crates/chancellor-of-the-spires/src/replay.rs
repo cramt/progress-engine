@@ -37,8 +37,10 @@ use crate::model::{Ability, Counter, ObjectId, PlayerId};
 pub const DECK_SIZE: usize = 60;
 
 /// How many earlier choices (payments, searches) the replay may go back
-/// and make again when a later spell can't be paid for, per game.
-const BACKTRACKS: usize = 64;
+/// and make again when a later spell can't be paid for, per game. It was
+/// 64 until a fetchland's find twelve lines before an unpayable Mana Leak
+/// sat behind more later choices than that (game 933380242).
+const BACKTRACKS: usize = 512;
 
 /// One game replayed: what the engine did for each line, how it ended,
 /// and the engine's game where it ended (`None` if it was never set up).
@@ -1355,6 +1357,18 @@ impl Driver<'_> {
                 }
                 self.did(i, format!("{bn} blocks {an}"));
             }
+            // A creature type chosen as a permanent enters, as the engine
+            // asks (`choose_type`), which reads this line ahead.
+            Chooses {
+                choice: log::Choice::Word(w),
+                by: Some(_),
+                ..
+            } => {
+                if !self.until_consumed(i)? {
+                    return Err(unfollowed(None));
+                }
+                self.did(i, format!("chose {w} (CR 614.12a)"));
+            }
             // The card named for a resolving instruction (CR 201.4), named
             // as the engine asks (`choose_name`), which reads this line
             // ahead.
@@ -1537,6 +1551,7 @@ impl Driver<'_> {
                                 Decision::Priority { .. } => !game.stack().is_empty(),
                                 Decision::May { .. }
                                 | Decision::ChooseName { .. }
+                                | Decision::ChooseCreatureType { .. }
                                 | Decision::ChooseMana { .. }
                                 | Decision::PayUnless { .. }
                                 | Decision::PayLifeOr { .. }
@@ -1993,6 +2008,7 @@ impl Driver<'_> {
             } => self.search(player, &filter, known, hidden),
             Decision::May { card, .. } => self.may(card),
             Decision::ChooseName { player, card, .. } => self.choose_name(player, card),
+            Decision::ChooseCreatureType { player, card } => self.choose_type(player, card),
             Decision::PayUnless {
                 player, card, owed, ..
             } => self.pay_unless(player, card, owed),
@@ -2738,6 +2754,35 @@ impl Driver<'_> {
     /// The card `player` names for `card`'s instruction (CR 201.4): the
     /// log's "names [X] for [Cabal Therapy]" line, from the line being
     /// followed to the end of the turn.
+    /// The creature type chosen as `card` enters: the log's "chooses Beast
+    /// for [Engineered Plague]" line, read ahead to the end of the turn.
+    fn choose_type(&mut self, player: PlayerId, card: CardId) -> Followed {
+        let by = self.name_of(card);
+        let said = self
+            .entries
+            .iter()
+            .enumerate()
+            .skip(self.at)
+            .take_while(|(k, e)| *k == self.at || !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|(k, e)| match &e.event {
+                Event::Chooses {
+                    player: q,
+                    choice: log::Choice::Word(w),
+                    by: Some(log::Source::Card(s)),
+                } if self.seat(*q) == player && s.name() == by && !self.consumed.contains(&k) => {
+                    Some((k, w.clone()))
+                }
+                _ => None,
+            });
+        let Some((k, word)) = said else {
+            return Err(Stop::Diverged(Divergence::Unlogged {
+                what: format!("the creature type chosen for {by}"),
+            }));
+        };
+        self.consumed.insert(k);
+        self.act(Answer::CreatureType(word))
+    }
+
     fn choose_name(&mut self, player: PlayerId, card: CardId) -> Followed {
         let by = self.name_of(card);
         let said = self
@@ -2780,6 +2825,7 @@ impl Driver<'_> {
                 | Decision::PayOrEnterTapped { .. }
                 | Decision::May { .. }
                 | Decision::ChooseName { .. }
+                | Decision::ChooseCreatureType { .. }
                 | Decision::ChooseMana { .. }
                 | Decision::PayUnless { .. }
                 | Decision::PayLifeOr { .. }
@@ -3892,6 +3938,7 @@ impl Driver<'_> {
                     Decision::Priority { .. } => !game.stack().is_empty(),
                     Decision::May { .. }
                     | Decision::ChooseName { .. }
+                    | Decision::ChooseCreatureType { .. }
                     | Decision::ChooseMana { .. }
                     | Decision::PayUnless { .. }
                     | Decision::PayLifeOr { .. }

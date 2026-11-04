@@ -223,6 +223,9 @@ pub enum Pred {
     /// "this creature": only the ability's own object.
     Itself,
     YouControl,
+    /// "your opponents control": a player other than the source's
+    /// controller controls it (CR 102.2).
+    OpponentsControl,
     /// "nontoken": a card or a copy of one, not a token (CR 111.1).
     Nontoken,
     /// "enchanted creature", "equipped creature": what the source is attached to.
@@ -231,6 +234,10 @@ pub enum Pred {
     ManaValue(Cmp, u32),
     /// "attacking": an attacking creature (CR 506.4).
     Attacking,
+    /// "of the chosen type": has the creature type its source's "as this
+    /// enters, choose a creature type" chose, the abilities linked (CR
+    /// 607.2d, 614.12a); none before it chose.
+    OfChosenType,
     /// "with power 4 or greater": a creature's power, as the layers make
     /// it (CR 208.1). Layer 7 changes it, so no static's filter reads it
     /// (`lower` refuses one), which keeps layer 7 free of dependencies.
@@ -272,6 +279,8 @@ pub struct Seen<'a> {
     pub source: ObjectId,
     pub source_chars: &'a Chars,
     pub source_attached_to: Option<ObjectId>,
+    /// The creature type the source chose as it entered, if it did.
+    pub source_chosen: Option<&'a Subtype>,
     /// Whether the object is a token. Not a characteristic (CR 109.3), so
     /// no layer changes it.
     pub token: bool,
@@ -299,7 +308,11 @@ impl Filter {
             Pred::Other => s.id != s.source,
             Pred::Itself => s.id == s.source,
             Pred::YouControl => s.chars.controller == s.source_chars.controller,
+            Pred::OpponentsControl => s.chars.controller != s.source_chars.controller,
             Pred::AttachedTo => s.source_attached_to == Some(s.id),
+            Pred::OfChosenType => s
+                .source_chosen
+                .is_some_and(|t| s.chars.subtypes.contains(t)),
             Pred::Nontoken => !s.token,
             Pred::ManaValue(cmp, n) => cmp.holds(s.chars.mana_value, *n),
             Pred::Attacking => s.attacking,
@@ -499,6 +512,9 @@ pub struct Object {
     pub counters: OrdMap<Counter, u32>,
     pub attached_to: Option<ObjectId>,
     pub token: bool,
+    /// The creature type chosen as it entered (CR 614.12), which its
+    /// abilities' "the chosen type" means.
+    pub chosen_type: Option<Subtype>,
 }
 
 /// The battlefield, as the layers need it. Persistent, so search can fork it.
@@ -553,6 +569,7 @@ impl State {
                 counters: OrdMap::new(),
                 attached_to: None,
                 token,
+                chosen_type: None,
             },
         );
         id

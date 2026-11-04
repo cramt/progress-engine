@@ -405,10 +405,13 @@ bound for the state machine. Any other node is
 refused by name, never dropped. `insight card <name>` shows what a card
 reads as.
 
-**526 of the 574 cards in the Modern metagame lower whole** (552 of 600
-faces), measured 2026-11-03 against the Scryfall bulk file:
+**528 of the 574 cards in the Modern metagame lower whole** (554 of 600
+faces), measured 2026-11-04 against the Scryfall bulk file:
 `cargo test --release -p chancellor-of-the-spires --test coverage -- --ignored --nocapture`
-prints the number and the refusals by node. It was 524 until a rule that
+prints the number and the refusals by node. It was 526 until "as this
+enters, choose a creature type" was carried for the state machine, its
+"the chosen type" read off the permanent, and "your opponents control"
+lowered, and 524 until a rule that
 holds only during its controller's turn ("During your turn, spells you
 cast cost {1} less", Temur Battlecrier's kind) was carried
 for the state machine rather than refused, and 523 until the layers
@@ -418,7 +421,7 @@ turn" lowered with a static over its own object, and 495 until a shock
 land's "As this land enters, you may pay 2 life" (19 cards) and a static
 "if" over rules alone ("If you control two or more other lands, this land
 enters tapped", 8) were carried, since neither changes a characteristic.
-The most refused are modifying by an amount (8), "as this enters" (6, other choices, or a copiable effect if
+The most refused are modifying by an amount (8), "as this enters" (5, other choices, or a copiable effect if
 it sets a size, CR 613.2a), 7a's characteristic-defining abilities
 (`SetPt`), copy effects, and "as long as" over an amount (3 or 4 each). Karn Liberated and two others don't parse:
 they are cards with a rule of their
@@ -505,7 +508,9 @@ end. A shock
 land's life is the same: no line says it was paid and life totals aren't
 printed, so the replay doesn't pay and the land enters tapped, unless that
 leaves a later spell unpaid for, when it goes back and pays. Life is paid
-only when something that follows needs the land untapped. The game it
+only when something that follows needs the land untapped. A creature
+type chosen as a permanent enters is the log's "chooses Beast for
+[Engineered Plague]" line, read ahead to the end of the turn. The game it
 replays is one consistent with the log, not necessarily the one played.
 
 The cards the log puts onto the battlefield before the first turn
@@ -661,16 +666,16 @@ diff against a run before a change for a finished game it broke; the report rank
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 57 replay to the end** (54 to the log's winner
-line), 39 of them past the first turn, and **28.65% of their lines are
-followed** (22,399 of 78,183: the lines before each game's stop, all of a
+line), 39 of them past the first turn, and **28.75% of their lines are
+followed** (22,476 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-04, and 16 games rely on a land the log never names (1
+measured 2026-11-04, and 17 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 303 stop
-in the first turn, 348 in the second, 189 in the third, 111 later, and 53
+no turn in them (empty logs, concessions during the mulligans). 304 stop
+in the first turn, 346 in the second, 188 in the third, 113 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -729,7 +734,9 @@ its creature dies, Chancellor of the Forge's Goblin at the first
 upkeep, Flare of Cultivation cast by sacrificing Llanowar Elves, and
 Accumulated Knowledge drawing one more for each in a graveyard, and
 Nimble Mongoose growing from the seventh card in its graveyard, and Gush
-returning two Islands rather than paying its mana cost.
+returning two Islands rather than paying its mana cost, and Engineered
+Plague and Plague Engineer shrinking the creature type chosen as they
+enter.
 
 ### The milestone
 
@@ -757,8 +764,8 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-04 55 of the 500 replay to
-the end and 40.56% of their lines are followed** (12,842 of 31,659), 6
-of them relying on a land the log never names (1 to the end), and 64
+the end and 40.81% of their lines are followed** (12,919 of 31,659), 7
+of them relying on a land the log never names (1 to the end), and 66
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -803,7 +810,10 @@ Forge); a search for up to two, none finding what one before found
 resolves, of cards in graveyards by name (Accumulated Knowledge), and
 threshold's "as long as there are seven or more cards in your
 graveyard", the layers reading each graveyard's size (Nimble Mongoose);
-returning permanents to hand as an alternative cost (Gush). And
+returning permanents to hand as an alternative cost (Gush); a creature
+type chosen as a permanent enters, which "the chosen type" in its
+abilities reads, and "your opponents control" (Engineered Plague, Plague
+Engineer). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -823,7 +833,12 @@ sources once it had as much mana as the cost, of the wrong colour from
 Wild Growth's Forest, a block or
 an activation of the wrong one of two permanents of one name, a ritual's
 mana cast away in the draw step, a filter land's floating mana never
-tried), each fixed.
+tried, a fetchland's find behind more than the 64 later choices the
+replay went back through, now 512), each fixed; and one was the engine's
+reading, Cavern of Souls's mana ability, whose "spend this mana only"
+binds a description and no target, taken for an ability that isn't a
+mana ability and carried, where now the card is refused by name (CR
+605.1a).
 
 ## Speed
 

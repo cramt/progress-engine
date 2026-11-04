@@ -225,6 +225,7 @@ impl Runnable {
 }
 
 /// A replacement effect on how its own permanent enters (CR 614.1c–d).
+#[derive(PartialEq)]
 enum Enters {
     /// "This land enters tapped."
     Tapped,
@@ -243,6 +244,8 @@ enum Enters {
     /// "This land enters with three mining counters on it" (CR 614.1c,
     /// 122.6).
     WithCounters(Counter, u32),
+    /// "As this enchantment enters, choose a creature type" (CR 614.12a).
+    ChooseCreatureType,
 }
 
 /// Why the engine refuses a card: the node of Insight's tree (or the rule)
@@ -797,6 +800,14 @@ enum Waiting {
         then: PlayerId,
         passes: usize,
     },
+    /// CR 614.12a: `card` is about to enter under `player`'s control, who
+    /// chooses a creature type for it first; then `then`.
+    ChooseCreatureType {
+        player: PlayerId,
+        card: CardId,
+        tapped: bool,
+        then: Then,
+    },
     /// CR 614.1c, 614.12a: `card` is about to enter under `player`'s
     /// control, who may pay `life` or have it enter tapped; then `then`.
     PayOrEnterTapped {
@@ -940,6 +951,12 @@ pub enum Decision {
         player: PlayerId,
         card: CardId,
         cost: ManaCost,
+    },
+    /// CR 614.12a, 205.3m: as `card` enters, `player` chooses a creature
+    /// type, answered `Answer::CreatureType`.
+    ChooseCreatureType {
+        player: PlayerId,
+        card: CardId,
     },
     /// CR 614.1c, 614.12a: as `card` enters, `player` may pay `life`
     /// (`Answer::PayLife(true)`); if they don't, it enters tapped. A shock
@@ -1235,6 +1252,8 @@ pub enum Answer {
     Sacrifice(Vec<ObjectId>),
     /// The permanents returned to their owner's hand to pay a cost.
     ReturnToHand(Vec<ObjectId>),
+    /// A creature type, as the Oracle text names it: "Beast" (CR 205.3m).
+    CreatureType(String),
     /// CR 201.4: the card named, as the Oracle card reference has it.
     Name(Box<CardText>),
     /// CR 106.3: the mana added.
@@ -2022,6 +2041,10 @@ impl Game {
                 card: *card,
                 cost: self.runs_of(*card).kicker.clone().expect("a kicker"),
             },
+            Waiting::ChooseCreatureType { player, card, .. } => Decision::ChooseCreatureType {
+                player: *player,
+                card: *card,
+            },
             Waiting::PayOrEnterTapped {
                 player, card, life, ..
             } => Decision::PayOrEnterTapped {
@@ -2123,6 +2146,7 @@ impl Game {
                         source: ObjectId(u32::MAX),
                         source_chars: c,
                         source_attached_to: None,
+                        source_chosen: None,
                         token: self.battlefield.objects[*o].token,
                         attacking: self.battlefield.attacking.contains(*o),
                     })
@@ -2581,6 +2605,22 @@ impl Game {
                     base
                 };
                 self.choose_targets(player, card, base, from_command);
+            }
+            (
+                Waiting::ChooseCreatureType {
+                    player,
+                    card,
+                    tapped,
+                    then,
+                },
+                Answer::CreatureType(t),
+            ) if vivisurgeons_insight::vocab::vocab()
+                .creature_types
+                .contains(&t.to_lowercase()) =>
+            {
+                let chosen = Subtype::Creature(lower::capitalised(t));
+                self.arrive_chosen(card, player, tapped, chosen);
+                self.proceed(then);
             }
             (
                 Waiting::PayOrEnterTapped {
@@ -3170,6 +3210,7 @@ impl Game {
                     source: *src,
                     source_chars: chars,
                     source_attached_to: self.battlefield.objects[src].attached_to,
+                    source_chosen: self.battlefield.objects[src].chosen_type.as_ref(),
                     token: self.battlefield.objects[&id].token,
                     attacking: self.battlefield.attacking.contains(&id),
                 };
@@ -3201,6 +3242,7 @@ impl Game {
                             source,
                             source_chars,
                             source_attached_to: self.battlefield.objects[&source].attached_to,
+                            source_chosen: self.battlefield.objects[&source].chosen_type.as_ref(),
                             token: self.battlefield.objects[*o].token,
                             attacking: self.battlefield.attacking.contains(*o),
                         })
@@ -3226,6 +3268,7 @@ impl Game {
                     source,
                     source_chars,
                     source_attached_to: self.battlefield.objects[&source].attached_to,
+                    source_chosen: self.battlefield.objects[&source].chosen_type.as_ref(),
                     token: self.battlefield.objects[*o].token,
                     attacking: self.battlefield.attacking.contains(*o),
                 })
@@ -4318,6 +4361,7 @@ impl Game {
                                         source: ObjectId(u32::MAX),
                                         source_chars: c,
                                         source_attached_to: None,
+                                        source_chosen: None,
                                         token: self.battlefield.objects[*o].token,
                                         attacking: self.battlefield.attacking.contains(*o),
                                     })
@@ -4617,6 +4661,8 @@ impl Game {
                             source_chars,
                             source_attached_to: here
                                 .and_then(|s| self.battlefield.objects[&s].attached_to),
+                            source_chosen: here
+                                .and_then(|s| self.battlefield.objects[&s].chosen_type.as_ref()),
                             token: self.battlefield.objects[*o].token,
                             attacking: self.battlefield.attacking.contains(*o),
                         })
@@ -4784,6 +4830,7 @@ impl Game {
             TargetSpec::Permanent(filter) => permanents(&|c| {
                 filter.0.iter().all(|pred| match pred {
                     Pred::YouControl => c.controller == p,
+                    Pred::OpponentsControl => c.controller != p,
                     other => Filter(vec![other.clone()]).matches_card(c),
                 })
             }),
@@ -4981,6 +5028,7 @@ impl Game {
                 source: *src,
                 source_chars: chars,
                 source_attached_to: self.battlefield.objects[src].attached_to,
+                source_chosen: self.battlefield.objects[src].chosen_type.as_ref(),
                 token: self.battlefield.objects[&id].token,
                 attacking: self.battlefield.attacking.contains(&id),
             };
@@ -5010,6 +5058,7 @@ impl Game {
                             source: *src,
                             source_chars: chars,
                             source_attached_to: self.battlefield.objects[src].attached_to,
+                            source_chosen: self.battlefield.objects[src].chosen_type.as_ref(),
                             token: l.token,
                             attacking: false,
                         })
@@ -5145,6 +5194,7 @@ impl Game {
                         source: *id,
                         source_chars: &l.chars,
                         source_attached_to: None,
+                        source_chosen: None,
                         token: l.token,
                         attacking: false,
                     };
@@ -5224,6 +5274,11 @@ impl Game {
                                 .objects
                                 .get(&source)
                                 .and_then(|x| x.attached_to),
+                            source_chosen: self
+                                .battlefield
+                                .objects
+                                .get(&source)
+                                .and_then(|x| x.chosen_type.as_ref()),
                             token: self.battlefield.objects[*o].token,
                             attacking: self.battlefield.attacking.contains(*o),
                         })
@@ -5557,6 +5612,7 @@ impl Game {
                                 source: id,
                                 source_chars: me,
                                 source_attached_to: None,
+                                source_chosen: None,
                                 token: would.objects[*o].token,
                                 attacking: would.attacking.contains(*o),
                             })
@@ -5578,10 +5634,24 @@ impl Game {
                 Enters::TappedIf(cond) => tapped |= holds(cond),
                 Enters::TappedUnlessPaysLife(life) => pays = Some(*life),
                 Enters::DiscardOrGraveyard(f) => discard = Some(f.clone()),
-                Enters::WithCounters(..) => {}
+                Enters::WithCounters(..) | Enters::ChooseCreatureType => {}
             }
         }
         (tapped, pays, discard)
+    }
+
+    /// Whether the card's own "as this enters, choose a creature type"
+    /// applies as it would enter (CR 614.12).
+    fn chooses_type(&self, card: CardId, controller: PlayerId) -> bool {
+        let runs = self.runs_of(card);
+        let mut chars = runs.lowered.chars.clone();
+        chars.controller = controller;
+        let mut would = self.layer_state();
+        let id = would.enter(chars, runs.lowered.statics.clone());
+        let me = &characteristics(&would)[&id];
+        runs.enters.iter().any(|(n, e)| {
+            *e == Enters::ChooseCreatureType && me.abilities.contains(&Ability::Unread(*n))
+        })
     }
 
     fn runs_of(&self, card: CardId) -> &Runnable {
@@ -5593,6 +5663,16 @@ impl Game {
 
     /// The card is put onto the battlefield, a new object (CR 400.7).
     fn place(&mut self, card: CardId, controller: PlayerId, tapped: bool, then: Then) {
+        // CR 614.12a: the type is chosen before it enters.
+        if self.chooses_type(card, controller) {
+            self.waiting = Waiting::ChooseCreatureType {
+                player: controller,
+                card,
+                tapped,
+                then,
+            };
+            return;
+        }
         self.arrive(card, controller, tapped);
         self.proceed(then);
     }
@@ -5603,6 +5683,12 @@ impl Game {
         self.arrive_attached(card, controller, tapped, None);
     }
 
+    /// As `arrive`, with the creature type chosen as it entered, there
+    /// before anything sees it enter.
+    fn arrive_chosen(&mut self, card: CardId, controller: PlayerId, tapped: bool, chosen: Subtype) {
+        self.arrive_with(card, controller, tapped, None, Some(chosen));
+    }
+
     /// As `arrive`, attached to `to` as it enters, as an Aura spell
     /// resolves (CR 608.3c).
     fn arrive_attached(
@@ -5611,6 +5697,17 @@ impl Game {
         controller: PlayerId,
         tapped: bool,
         to: Option<ObjectId>,
+    ) {
+        self.arrive_with(card, controller, tapped, to, None);
+    }
+
+    fn arrive_with(
+        &mut self,
+        card: CardId,
+        controller: PlayerId,
+        tapped: bool,
+        to: Option<ObjectId>,
+        chosen: Option<Subtype>,
     ) {
         let runs = self.runs_of(card);
         let mut chars = runs.lowered.chars.clone();
@@ -5647,6 +5744,9 @@ impl Game {
         }
         if let Some(to) = to {
             self.battlefield.attach(id, to);
+        }
+        if let Some(o) = self.battlefield.objects.get_mut(&id) {
+            o.chosen_type = chosen;
         }
         self.trigger_on(Event::Entered(id));
     }
@@ -6057,6 +6157,7 @@ impl Game {
                             oc.protected_from(c)
                                 || !f.0.iter().all(|pred| match pred {
                                     Pred::YouControl => oc.controller == c.controller,
+                                    Pred::OpponentsControl => oc.controller != c.controller,
                                     other => Filter(vec![other.clone()]).matches_card(oc),
                                 })
                         }
@@ -6296,7 +6397,14 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                 _ => break,
             }
         }
-        let bound = !bind.is_empty();
+        // A `Let` may bind only a description ("a creature spell of the
+        // chosen type" its mana is spent on), which is no target.
+        let bound = bind.iter().any(|o| {
+            matches!(
+                o.quant,
+                i::Quant::Target { .. } | i::Quant::AnyTarget { .. }
+            )
+        });
         match a {
             // With a target it isn't a mana ability (CR 605.5a).
             i::Ability::Activated {
@@ -6549,6 +6657,11 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
         }] if itself(what) => lower::counter(kind)
             .map(|c| Enters::WithCounters(c, *n))
             .ok_or_else(|| "EntersWithCounters".to_string()),
+        [i::Static::AsEnters { what, then }]
+            if itself(what) && lower::chooses_creature_type(then) =>
+        {
+            Ok(Enters::ChooseCreatureType)
+        }
         [i::Static::AsEnters { what, then }] if itself(what) => lower::pays_life_or_tapped(then)
             .map(Enters::TappedUnlessPaysLife)
             .ok_or_else(|| "AsEnters".to_string()),

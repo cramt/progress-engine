@@ -149,6 +149,7 @@ impl Run<'_> {
                             source,
                             source_chars,
                             source_attached_to: self.state.objects[&source].attached_to,
+                            source_chosen: self.state.objects[&source].chosen_type.as_ref(),
                             token: self.state.objects[*id].token,
                             attacking: self.state.attacking.contains(*id),
                         })
@@ -172,6 +173,7 @@ impl Run<'_> {
             source,
             source_chars,
             source_attached_to: self.state.objects[&source].attached_to,
+            source_chosen: self.state.objects[&source].chosen_type.as_ref(),
             token: self.state.objects[&id].token,
             attacking: self.state.attacking.contains(&id),
         })

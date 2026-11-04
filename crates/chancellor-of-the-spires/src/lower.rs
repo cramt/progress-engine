@@ -227,7 +227,8 @@ fn not_characteristics(s: &i::Static) -> bool {
     use i::Static::*;
     match s {
         AsEnters { what, then } => {
-            what.quant == Quant::SelfRef && pays_life_or_tapped(then).is_some()
+            what.quant == Quant::SelfRef
+                && (pays_life_or_tapped(then).is_some() || chooses_creature_type(then))
         }
         // "If you control two or more other lands, this land enters
         // tapped."
@@ -241,6 +242,11 @@ fn not_characteristics(s: &i::Static) -> bool {
         } => !then.is_empty() && then.iter().all(not_characteristics),
         _ => listed_not_characteristics(s),
     }
+}
+
+/// "As this enchantment enters, choose a creature type" (CR 614.12a).
+pub fn chooses_creature_type(then: &[i::Effect]) -> bool {
+    matches!(then, [i::Effect::Choose(i::Choice::CreatureType)])
 }
 
 /// "As this land enters, you may pay 2 life. If you don't, it enters
@@ -605,7 +611,7 @@ fn subtype(word: &str, types: &BTreeSet<CardType>) -> Subtype {
     }
 }
 
-fn capitalised(word: &str) -> String {
+pub fn capitalised(word: &str) -> String {
     let mut c = word.chars();
     c.next()
         .map(|f| {
@@ -1040,6 +1046,7 @@ fn objects(o: &Objects) -> Result<Filter, String> {
     for post in &f.posts {
         preds.push(match post {
             Post::Controller(i::Player::You) => Pred::YouControl,
+            Post::Controller(i::Player::EachOpponent) => Pred::OpponentsControl,
             Post::With(i::Compare {
                 stat: stat @ (i::Stat::Power | i::Stat::ManaValue),
                 op,
@@ -1060,6 +1067,7 @@ fn objects(o: &Objects) -> Result<Filter, String> {
             // "each Locus on the battlefield": a filter over permanents
             // reads the battlefield already.
             Post::In(i::Zone::Battlefield) => continue,
+            Post::OfChosenType => Pred::OfChosenType,
             other => return Err(short(other)),
         });
     }

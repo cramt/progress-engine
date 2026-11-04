@@ -3250,3 +3250,89 @@ fn gush_returns_two_islands_rather_than_pay_its_mana_cost() {
     assert!(named(&game, game.player(ME).hand(), "Island") >= 2);
     assert!(game.permanents().is_empty());
 }
+
+/// CR 614.12a, 607.2d, 205.3m: Engineered Plague's creature type is chosen
+/// before it enters, only a creature type, and "the chosen type" is that
+/// one: Grizzly Bears, a Bear, gets -1/-1.
+#[test]
+fn engineered_plague_shrinks_the_creature_type_chosen_as_it_enters() {
+    let mut game = deal_both(
+        &[("Swamp", 40), ("Engineered Plague", 20)],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Swamp", 3), ("Engineered Plague", 1)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(&mut game, "Engineered Plague", None);
+    let Decision::ChooseCreatureType { player, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(player, ME);
+    assert!(
+        creature(&game, "Engineered Plague").is_none(),
+        "not there yet"
+    );
+    assert!(game.step(Answer::CreatureType("Island".into())).is_err());
+    step(&mut game, Answer::CreatureType("Bear".into()));
+    assert_eq!(pt_of(&game, bears), pt(1, 1));
+}
+
+/// Plague Engineer's "Creatures of the chosen type your opponents control
+/// get -1/-1" spares its controller's own.
+#[test]
+fn plague_engineer_shrinks_only_the_opponents_creatures_of_the_chosen_type() {
+    let mut game = deal_both(
+        &[
+            ("Swamp", 20),
+            ("Forest", 10),
+            ("Plague Engineer", 15),
+            ("Grizzly Bears", 15),
+        ],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[
+            ("Swamp", 2),
+            ("Forest", 1),
+            ("Plague Engineer", 1),
+            ("Grizzly Bears", 1),
+        ],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    resolve(&mut game);
+    let mine = creature(&game, "Grizzly Bears").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let theirs = game
+        .permanents()
+        .iter()
+        .find(|(id, p)| {
+            **id != mine && game.card(p.card).is_some_and(|t| t.name == "Grizzly Bears")
+        })
+        .map(|(id, _)| *id)
+        .unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(&mut game, "Plague Engineer", None);
+    resolve(&mut game);
+    step(&mut game, Answer::CreatureType("Bear".into()));
+    assert_eq!(pt_of(&game, theirs), pt(1, 1));
+    assert_eq!(pt_of(&game, mine), pt(2, 2));
+}
