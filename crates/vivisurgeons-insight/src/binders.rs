@@ -565,18 +565,42 @@ pub(crate) struct Scope {
     count: usize,
     /// References whose binder is not in scope.
     pub(crate) misses: usize,
+    /// A loop variable over a set another binder holds ("For each of
+    /// those cards"), by its place in `stack`: that binder's id.
+    over: BTreeMap<usize, usize>,
+    /// Whether each open site is a `ForEach`'s.
+    loops: Vec<bool>,
+    /// The binder the loop's `each` being walked names, if it names one.
+    each_over: Option<usize>,
 }
 
 impl Scope {
     fn open(&mut self, n: usize) {
         self.sites.push((n, self.depth, 0));
+        self.loops.push(false);
     }
     fn close(&mut self) {
+        self.loops.pop();
         if let Some((_, _, pushed)) = self.sites.pop() {
             for _ in 0..pushed {
                 self.stack.pop();
+                self.over.remove(&self.stack.len());
             }
         }
+    }
+    /// "For each of those cards, pay 4 life or put the card on top of your
+    /// library": inside a loop over a set another binder holds, a
+    /// reference to that set is the loop's one card of it in turn
+    /// ([each-of-those]).
+    fn bound_index(&mut self, id: u8) -> u8 {
+        let id = usize::from(id);
+        for (i, (k, x)) in self.stack.iter().enumerate().rev().enumerate() {
+            if *x == Some(id) || x.is_none() && self.over.get(&k) == Some(&id) {
+                return u8::try_from(i).unwrap_or(u8::MAX);
+            }
+        }
+        self.misses += 1;
+        u8::MAX
     }
     fn index(&mut self, id: u8) -> u8 {
         match self
@@ -596,8 +620,20 @@ impl Scope {
 
 impl Visitor for Scope {
     fn enter(&mut self, o: &mut Objects) -> bool {
+        let each = self.loops.last() == Some(&true)
+            && self
+                .sites
+                .last()
+                .is_some_and(|s| s.0 > 0 && s.1 == self.depth);
+        if each {
+            self.each_over = match o.quant {
+                Quant::Bound(i) => Some(usize::from(i)),
+                _ => None,
+            };
+        }
         match &mut o.quant {
-            Quant::Bound(i) | Quant::Introduced(i) => *i = self.index(*i),
+            Quant::Bound(i) => *i = self.bound_index(*i),
+            Quant::Introduced(i) => *i = self.index(*i),
             Quant::Rest { of } => *of = self.index(*of),
             Quant::Bounds(ps) => {
                 for p in ps.iter_mut() {
@@ -618,6 +654,11 @@ impl Visitor for Scope {
                 site.0 -= 1;
                 site.2 += 1;
                 let id = take_mark(o);
+                if id.is_none() && self.loops.last() == Some(&true) {
+                    if let Some(over) = self.each_over.take() {
+                        self.over.insert(self.stack.len(), over);
+                    }
+                }
                 self.stack.push(id);
                 if let Some(id) = id {
                     self.ordinal.insert(id, self.count);
@@ -640,7 +681,10 @@ impl Visitor for Scope {
     fn effect(&mut self, e: &mut Effect) {
         match e {
             Effect::With { bind, .. } => self.open(bind.len()),
-            Effect::ForEach { .. } => self.open(1),
+            Effect::ForEach { .. } => {
+                self.open(1);
+                *self.loops.last_mut().expect("opened") = true;
+            }
             _ => self.open(0),
         }
     }
