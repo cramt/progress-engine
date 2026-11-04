@@ -443,6 +443,9 @@ pub enum Condition {
     YouControl(YouControl),
     /// "As long as it's your turn": its controller is the active player.
     YourTurn,
+    /// Threshold's "as long as there are seven or more cards in your
+    /// graveyard": how many cards its controller's graveyard holds.
+    CardsInYourGraveyard(Count),
 }
 
 /// "You control a Mountain or a Plains", "you control two or fewer other
@@ -508,6 +511,9 @@ pub struct State {
     /// "attacking" in a filter reads. The game sets it as attackers are
     /// declared and clears it as combat ends (CR 511.3).
     pub attacking: OrdSet<ObjectId>,
+    /// How many cards each player's graveyard holds, for a condition that
+    /// counts them; the game sets it as it reads the layers.
+    pub graveyards: OrdMap<PlayerId, u32>,
     pub objects: OrdMap<ObjectId, Object>,
     pub statics: OrdMap<StaticId, StaticAbility>,
     pub resolved: Vector<Resolved>,

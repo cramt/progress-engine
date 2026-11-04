@@ -3156,3 +3156,55 @@ fn flare_of_cultivation_sacrifices_an_elf_and_finds_two_lands() {
         1
     );
 }
+
+/// CR 608.2h, 121.2: Accumulated Knowledge counts the cards named
+/// Accumulated Knowledge in all graveyards as it resolves, itself still on
+/// the stack and so not one of them: the first draws one, the second two.
+#[test]
+fn accumulated_knowledge_draws_one_more_for_each_in_a_graveyard() {
+    let mut game = deal(
+        &[("Island", 30), ("Accumulated Knowledge", 30)],
+        &[("Forest", 60)],
+        &[("Island", 2), ("Accumulated Knowledge", 2)],
+    );
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    let hand = game.player(ME).hand().len();
+    cast(&mut game, "Accumulated Knowledge", None);
+    resolve(&mut game);
+    assert_eq!(game.player(ME).hand().len(), hand);
+    my_next_main(&mut game);
+    let hand = game.player(ME).hand().len();
+    cast(&mut game, "Accumulated Knowledge", None);
+    resolve(&mut game);
+    assert_eq!(game.player(ME).hand().len(), hand + 1);
+    assert_eq!(
+        named(&game, game.player(ME).graveyard(), "Accumulated Knowledge"),
+        2
+    );
+}
+
+/// CR 207.2c, 611.3a: threshold, an ability word, so Nimble Mongoose gets +2/+2 while
+/// there are seven or more cards in its controller's graveyard, read as
+/// the layers apply, here the cards discarded to hand size.
+#[test]
+fn threshold_grows_nimble_mongoose_from_the_seventh_card_in_the_graveyard() {
+    let mut game = deal(
+        &[("Forest", 30), ("Nimble Mongoose", 30)],
+        &[("Forest", 60)],
+        &[("Forest", 1), ("Nimble Mongoose", 1)],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Nimble Mongoose", None);
+    resolve(&mut game);
+    let mongoose = creature(&game, "Nimble Mongoose").unwrap();
+    while game.player(ME).graveyard().len() < 6 {
+        assert_eq!(pt_of(&game, mongoose), pt(1, 1));
+        my_next_main(&mut game);
+    }
+    assert_eq!(pt_of(&game, mongoose), pt(1, 1));
+    my_next_main(&mut game);
+    assert_eq!(game.player(ME).graveyard().len(), 7);
+    assert_eq!(pt_of(&game, mongoose), pt(3, 3));
+}

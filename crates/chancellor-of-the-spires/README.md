@@ -464,7 +464,7 @@ Lage), dungeons, and digital-only cards.
 
 ### Replay
 
-`chancellor-logs replay [--top N] [--game ID]` plays the cached games
+`chancellor-logs replay [--top N] [--game ID] [--finished F]` plays the cached games
 through the engine with `replay::replay`: a two-player constructed game,
 20 life, the starting player from "chooses to play first" (or a skipped
 first draw, or turn 1's player), the London mulligans the log shows, and
@@ -648,20 +648,21 @@ an answer it calls illegal, a state that disagrees with the log (a play it
 never offers that turn, a spell it can't pay for, a turn out of step), or
 a kind of line not followed yet (an exile, a creature put onto the
 battlefield). `--game ID` prints one game line by line with what the engine
-did; the report ranks stops by games, with an example line, players
+did; `--finished F` writes the ids of the games replayed to the end, to
+diff against a run before a change for a finished game it broke; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 56 replay to the end** (53 to the log's winner
-line), 38 of them past the first turn, and **28.21% of their lines are
-followed** (22,054 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 57 replay to the end** (54 to the log's winner
+line), 39 of them past the first turn, and **28.49% of their lines are
+followed** (22,271 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-04, and 16 games rely on a land the log never names (1
 of them to the end); it was 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 306 stop
-in the first turn, 354 in the second, 183 in the third, 100 later, and 63
+no turn in them (empty logs, concessions during the mulligans). 304 stop
+in the first turn, 348 in the second, 189 in the third, 110 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -715,7 +716,9 @@ protection from red, Goblin Warchief's and Thalia's cost changes, and
 Sylvan Library keeping one card for 4 life and putting the other back,
 Bonesplitter equipped only at sorcery speed, staying unattached when
 its creature dies, Chancellor of the Forge's Goblin at the first
-upkeep, and Flare of Cultivation cast by sacrificing Llanowar Elves.
+upkeep, Flare of Cultivation cast by sacrificing Llanowar Elves, and
+Accumulated Knowledge drawing one more for each in a graveyard, and
+Nimble Mongoose growing from the seventh card in its graveyard.
 
 ### The milestone
 
@@ -742,9 +745,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-04 54 of the 500 replay to
-the end and 39.55% of their lines are followed** (12,522 of 31,659), 6
-of them relying on a land the log never names (1 to the end), and 62
+Worked card by card from there, **on 2026-11-04 55 of the 500 replay to
+the end and 40.16% of their lines are followed** (12,714 of 31,659), 6
+of them relying on a land the log never names (1 to the end), and 64
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -785,7 +788,10 @@ Equipment, which comes off a creature gone or no longer one (Leyline
 Axe); a card revealed from the opening hand for a delayed trigger at the
 first upkeep, and tokens counted as they are made (Chancellor of the
 Forge); a search for up to two, none finding what one before found
-(Flare of Cultivation). And
+(Flare of Cultivation); a number of cards drawn counted as it
+resolves, of cards in graveyards by name (Accumulated Knowledge), and
+threshold's "as long as there are seven or more cards in your
+graveyard", the layers reading each graveyard's size (Nimble Mongoose). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an

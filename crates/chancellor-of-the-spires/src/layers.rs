@@ -128,6 +128,15 @@ impl Run<'_> {
         let cond = match cond {
             Condition::YouControl(c) => c,
             Condition::YourTurn => return self.state.active == Some(source_chars.controller),
+            Condition::CardsInYourGraveyard(count) => {
+                return count.holds(
+                    self.state
+                        .graveyards
+                        .get(&source_chars.controller)
+                        .copied()
+                        .unwrap_or(0),
+                )
+            }
         };
         let n = now
             .iter()

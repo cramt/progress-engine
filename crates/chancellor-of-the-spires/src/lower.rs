@@ -682,6 +682,28 @@ fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbilit
                 Condition::YouControl(c)
             }
             i::Condition::ItsYourTurn => Condition::YourTurn,
+            // Threshold: "seven or more cards in your graveyard".
+            i::Condition::AmountIs {
+                n: i::Amount::CountOf(o),
+                op,
+                value: i::Amount::N(v),
+            } => match cards_in_graveyards(o) {
+                Some(Ok(Amount::CardsInGraveyards {
+                    whose: Whose::Yours,
+                    named: None,
+                    filter,
+                })) if filter == CardFilter(vec![Filter::default()]) => {
+                    Condition::CardsInYourGraveyard(match op {
+                        i::Op::Ge => Count::AtLeast(*v),
+                        i::Op::Gt => Count::AtLeast(v + 1),
+                        i::Op::Le => Count::AtMost(*v),
+                        i::Op::Lt if *v > 0 => Count::AtMost(v - 1),
+                        _ => return Err("AsLongAs(AmountIs) of exactly a number".into()),
+                    })
+                }
+                Some(Err(node)) => return Err(node),
+                _ => return Err("AsLongAs(AmountIs)".into()),
+            },
             other => return Err(format!("AsLongAs({})", short(other))),
         };
         return Ok(StaticAbility {
@@ -904,6 +926,67 @@ pub fn counted(o: &Objects) -> Result<Filter, String> {
     }
 }
 
+/// "Cards named Accumulated Knowledge in all graveyards", "creature cards
+/// in your graveyard": `None` if what is counted isn't cards in
+/// graveyards.
+fn cards_in_graveyards(o: &Objects) -> Option<Result<Amount, String>> {
+    let f = &o.filter;
+    let whose = f.posts.iter().find_map(|p| match p {
+        Post::In(i::Zone::Graveyard(w)) => Some(w),
+        _ => None,
+    })?;
+    Some((|| {
+        if !matches!(o.quant, Quant::Plural | Quant::All | Quant::Each) {
+            return Err(format!("counting {}", short(&o.quant)));
+        }
+        if f.kind != Some(i::Noun::Card) || f.or.is_some() || f.alts.len() > 1 {
+            return Err("counting other than cards by their characteristics".into());
+        }
+        let whose = match whose {
+            i::Player::You => Whose::Yours,
+            i::Player::Each => Whose::Each,
+            i::Player::EachOpponent => Whose::Opponents,
+            other => {
+                return Err(format!(
+                    "cards in the graveyard of Player::{}",
+                    short(other)
+                ))
+            }
+        };
+        let mut named = None;
+        for post in &f.posts {
+            match post {
+                Post::In(i::Zone::Graveyard(_)) => {}
+                Post::Named(i::PrintedName(n)) if named.is_none() => named = Some(n.clone()),
+                other => return Err(format!("counting cards {}", short(other))),
+            }
+        }
+        let filter = match f.alts.as_slice() {
+            [] => Filter::default(),
+            [alt] => objects(&Objects {
+                quant: Quant::All,
+                filter: i::Filter {
+                    alts: vec![alt.clone()],
+                    ..i::Filter::default()
+                },
+            })?,
+            _ => unreachable!("one alternative at most"),
+        };
+        if filter
+            .0
+            .iter()
+            .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_) | Pred::ManaValue(..)))
+        {
+            return Err("a card filter relative to its source".into());
+        }
+        Ok(Amount::CardsInGraveyards {
+            whose,
+            named,
+            filter: CardFilter(vec![filter]),
+        })
+    })())
+}
+
 /// "All creatures", "nontoken artifacts you control": a filter over the
 /// battlefield, re-read as the layers go. Targets aren't a static's.
 fn objects(o: &Objects) -> Result<Filter, String> {
@@ -1028,10 +1111,11 @@ pub enum Effect {
     },
     /// "Then shuffle": a player's library (CR 701.24a).
     Shuffle(Who),
-    /// "Draw two cards" (CR 121.2).
+    /// "Draw two cards" (CR 121.2), the number worked out as it is
+    /// followed (CR 608.2h).
     Draw {
         who: Who,
-        n: u32,
+        n: Amount,
     },
     /// "Discard two cards": the player chooses which (CR 701.9a), bound
     /// to `into` for "each land card discarded this way".
@@ -1348,6 +1432,15 @@ pub enum Amount {
     /// filter matches as it is followed, read from the ability's source
     /// (CR 608.2h).
     CountOf(Filter),
+    /// "The number of cards named Accumulated Knowledge in all
+    /// graveyards": the cards in the graveyards of the players `whose`
+    /// names, relative to the ability's controller, that have the name if
+    /// one is given and that the filter matches, as it is followed.
+    CardsInGraveyards {
+        whose: Whose,
+        named: Option<String>,
+        filter: CardFilter,
+    },
 }
 
 /// What damage is dealt to.
@@ -1460,7 +1553,8 @@ pub enum TurnStep {
     End,
 }
 
-/// Whose turn a step is in, for "at the beginning of your upkeep".
+/// Whose turn a step is in, for "at the beginning of your upkeep", and
+/// whose graveyards are counted.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Whose {
     Yours,
@@ -2176,7 +2270,10 @@ impl<'a> Scope<'a> {
         Ok(vec![match e {
             i::Effect::Draw { who, n: k } => Effect::Draw {
                 who: self.who(who)?,
-                n: n(k)?,
+                n: match k {
+                    i::Amount::CountOf(_) => self.resolved_amount(k)?,
+                    _ => Amount::N(n(k)?),
+                },
             },
             i::Effect::Discard {
                 who,
@@ -2951,6 +3048,10 @@ impl<'a> Scope<'a> {
             i::Amount::ThatMany if self.amount => Amount::ThatMuch,
             i::Amount::X if self.x.is_some() => self.x.clone().expect("an X"),
             i::Amount::N(n) => Amount::N(*n),
+            i::Amount::CountOf(o) => match cards_in_graveyards(o) {
+                Some(counted) => counted?,
+                None => Amount::CountOf(counted(o)?),
+            },
             other => return Err(format!("an amount of {}", short(other))),
         })
     }

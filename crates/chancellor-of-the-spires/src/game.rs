@@ -1720,7 +1720,21 @@ impl Game {
 
     /// What each permanent is now, through the layers (CR 613).
     pub fn characteristics(&self) -> BTreeMap<ObjectId, Chars> {
-        characteristics(&self.battlefield)
+        characteristics(&self.layer_state())
+    }
+
+    /// The battlefield with what else of the game a static's condition
+    /// reads: the size of each graveyard. Cloning it is cheap, its maps
+    /// being persistent.
+    fn layer_state(&self) -> State {
+        let mut state = self.battlefield.clone();
+        state.graveyards = self
+            .players
+            .iter()
+            .enumerate()
+            .map(|(q, p)| (PlayerId(q as u8), p.graveyard.len() as u32))
+            .collect();
+        state
     }
 
     /// Whether the engine can run this card: why it refuses it if not. A
@@ -3868,7 +3882,7 @@ impl Game {
                 }
                 Effect::Draw { who: w, n } => {
                     if let Some(q) = who(w) {
-                        for _ in 0..n {
+                        for _ in 0..self.amount(&at, n) {
                             self.draw(q);
                         }
                     }
@@ -4450,6 +4464,27 @@ impl Game {
                     .unwrap_or(0);
                 each * matching as u32
             }
+            lower::Amount::CardsInGraveyards {
+                whose,
+                named,
+                filter,
+            } => self
+                .players
+                .iter()
+                .enumerate()
+                .filter(|(q, _)| match whose {
+                    lower::Whose::Yours => *q == at.controller.0 as usize,
+                    lower::Whose::Opponents => *q != at.controller.0 as usize,
+                    lower::Whose::Each => true,
+                })
+                .flat_map(|(_, player)| &player.graveyard)
+                .filter(|c| {
+                    self.known(**c).is_some_and(|k| {
+                        named.as_ref().is_none_or(|n| k.text.name == *n)
+                            && k.printed.as_ref().is_some_and(|ch| filter.matches(ch))
+                    })
+                })
+                .count() as u32,
             lower::Amount::ThatMuch => at.amount.unwrap_or(0),
             lower::Amount::PowerOf(o) => self
                 .now_or_last(at, o)
@@ -5423,7 +5458,7 @@ impl Game {
         let runs = self.runs_of(card);
         let mut chars = runs.lowered.chars.clone();
         chars.controller = controller;
-        let mut would = self.battlefield.clone();
+        let mut would = self.layer_state();
         let id = would.enter(chars, runs.lowered.statics.clone());
         let now = characteristics(&would);
         let me = &now[&id];
@@ -6222,7 +6257,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                                     targets: Vec::new(),
                                     effects: vec![Effect::Draw {
                                         who: lower::Who::You,
-                                        n: 1,
+                                        n: lower::Amount::N(1),
                                     }],
                                 },
                                 limits: Default::default(),
