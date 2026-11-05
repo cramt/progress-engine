@@ -51,6 +51,7 @@ ureq = { version = "3", default-features = false, features = ["rustls"] }
 toml_edit = { version = "0.25", default-features = false, features = ["parse", "display"] }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 imbl = "7"
+comemo = "0.5.1"
 ascent = { version = "0.8.1", default-features = false }
 pdf-writer = "0.15"
 dicebear-core = "=11.0.0-rc.2"

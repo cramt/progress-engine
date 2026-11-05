@@ -9,7 +9,7 @@ use crate::lower;
 use crate::model::{pt, Color, Pt};
 
 /// One card as the index knows it: what `lower::card` reads.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CardText {
     pub name: String,
     pub type_line: String,
@@ -24,7 +24,7 @@ pub struct CardText {
 }
 
 /// A card's rules text, as far as the index keeps it.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Oracle {
     OneFace(String),
     /// The index joins a multi-faced card's faces' text into one and keeps

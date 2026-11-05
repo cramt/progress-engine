@@ -16,6 +16,7 @@ path = "src/bin/chancellor-logs.rs"
 ascent = { workspace = true }
 vivisurgeons-insight = { workspace = true }
 imbl.workspace = true
+comemo.workspace = true
 chip-decklist.workspace = true
 chip-scryfall.workspace = true
 thiserror.workspace = true

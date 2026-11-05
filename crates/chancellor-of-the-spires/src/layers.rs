@@ -28,7 +28,18 @@ pub enum Effect {
 
 /// Every object's characteristics after the layers. A noncreature has no
 /// power and toughness, whatever is printed on it (CR 208.3).
+///
+/// Memoized on the whole state's hash, not a version the game bumps, so no
+/// mutation can forget to invalidate it: the game reads the layers dozens
+/// of times between changes, and a tap changes the key without changing the
+/// answer only at the cost of one recompute.
 pub fn characteristics(state: &State) -> BTreeMap<ObjectId, Chars> {
+    memoized(state.clone())
+}
+
+#[comemo::memoize]
+fn memoized(state: State) -> BTreeMap<ObjectId, Chars> {
+    let state = &state;
     let mut run = Run {
         state,
         now: state

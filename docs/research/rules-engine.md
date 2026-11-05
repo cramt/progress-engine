@@ -256,6 +256,15 @@ cache (see the open questions).
      from scratch or reusing the parent's result when the gate allows.
 
    Salsa is not needed for either.
+
+   Built (2026-11-05) with Typst's `comemo` instead of a version counter:
+   `layers::characteristics` is memoized on the hash of the whole layer
+   `State`, so no mutation can forget to bump a version, and each card's
+   text is read by Insight once per process (`game::known`). Measured on
+   the full replay of 1,061 games, output byte-identical: 129 s of CPU
+   before, 99 s with the read cached, 82–87 s with both. Hashing the state
+   costs less than the layer runs it skips. A fork in search shares the
+   cache, since the key is the state's contents.
 9. **A pinned Comprehensive Rules version to build against** (built: `crates/chancellor-of-the-spires/cr/`, and the flake check `cr-citations`). The repo is
    public and the CR is Wizards' text, so the pin follows
    `crates/gitaxian-probe/assets/pin.json`: commit the URL, the effective

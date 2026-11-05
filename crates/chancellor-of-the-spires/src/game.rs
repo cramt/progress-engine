@@ -91,6 +91,13 @@ struct Known {
     cost: Result<Option<ManaCost>, Unrunnable>,
 }
 
+/// What the engine makes of a card's text, read once per text: a game
+/// learns the same cards over and over, and Insight's parse is the cost.
+#[comemo::memoize]
+fn known(text: CardText) -> Arc<Known> {
+    Arc::new(Known::read(text))
+}
+
 impl Known {
     fn read(text: CardText) -> Known {
         let lowered = text
@@ -106,7 +113,9 @@ impl Known {
         };
         let runs = lowered.and_then(runnable).and_then(|r| {
             // A token it creates must run too, or it couldn't enter.
-            let refused = r.tokens().find_map(|t| Known::read(t.clone()).runs.err());
+            let refused = r
+                .tokens()
+                .find_map(|t| known(t.clone()).runs.as_ref().err().cloned());
             match refused {
                 Some(why) => Err(Unrunnable::new(
                     format!("a token: {}", why.node),
@@ -1467,7 +1476,7 @@ impl Game {
                 });
                 CardId(cards.len() as u32 - 1)
             };
-            let known = |text| Face::Known(Arc::new(Known::read(text)));
+            let known = |text| Face::Known(known(text));
             for c in deck.commander {
                 command.push_back(add(known(c), true));
             }
@@ -1672,7 +1681,7 @@ impl Game {
         if let Some(k) = self.known(c) {
             return Err(AlreadyKnown(k.text.name.clone()));
         }
-        self.cards[c.0 as usize].face = Face::Known(Arc::new(Known::read(text)));
+        self.cards[c.0 as usize].face = Face::Known(known(text));
         Ok(())
     }
     /// How many cards the game has, every `CardId` below it.
@@ -1815,7 +1824,7 @@ impl Game {
     /// it, as `refusal` would once it is known, and the abilities it
     /// carries that nothing offers (`dormant`).
     pub fn reads(text: &CardText) -> (Option<Unrunnable>, Vec<String>) {
-        let known = Known::read(text.clone());
+        let known = known(text.clone());
         match &known.runs {
             Err(r) => (Some(r.clone()), Vec::new()),
             Ok(runs) if is_land(&known.text.type_line) => (None, runs.dormant.clone()),
@@ -2377,8 +2386,7 @@ impl Game {
                 if named.len() == cards.len() =>
             {
                 for (c, text) in cards.iter().zip(named) {
-                    self.cards[c.0 as usize].face =
-                        Face::Known(Arc::new(Known::read(text.clone())));
+                    self.cards[c.0 as usize].face = Face::Known(known(text.clone()));
                 }
                 self.follow(resume);
             }
@@ -2665,7 +2673,7 @@ impl Game {
                         None => return Err(Rejected::Illegal(answer)),
                     },
                     Found::Hidden(c, text) if library.contains(c) && self.known(*c).is_none() => {
-                        Some((*c, Some(Arc::new(Known::read((**text).clone())))))
+                        Some((*c, Some(known((**text).clone()))))
                     }
                     _ => return Err(Rejected::Illegal(answer)),
                 };
@@ -3036,7 +3044,7 @@ impl Game {
     /// The zones a card may be cast from by its alternative costs (CR
     /// 118.9), before any game.
     pub fn alternatives_of(text: &CardText) -> Vec<lower::CastFrom> {
-        match Known::read(text.clone()).runs {
+        match &known(text.clone()).runs {
             Ok(r) => r.alternatives.values().map(|a| a.from).collect(),
             Err(_) => Vec::new(),
         }
@@ -4112,7 +4120,7 @@ impl Game {
                             owner: p,
                             commander: false,
                             token: true,
-                            face: Face::Known(Arc::new(Known::read((*token).clone()))),
+                            face: Face::Known(known((*token).clone())),
                         });
                         let card = CardId(self.cards.len() as u32 - 1);
                         self.arrive(card, p, tapped);

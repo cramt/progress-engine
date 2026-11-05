@@ -505,7 +505,7 @@ pub enum Counter {
     Named(String),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Object {
     pub printed: Chars,
     pub timestamp: Timestamp,
@@ -518,7 +518,7 @@ pub struct Object {
 }
 
 /// The battlefield, as the layers need it. Persistent, so search can fork it.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Hash)]
 pub struct State {
     /// Whose turn it is (CR 102.1), for "as long as it's your turn"; `None`
     /// outside a game.

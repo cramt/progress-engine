@@ -346,6 +346,7 @@ dependencies = [
  "ascent",
  "chip-decklist",
  "chip-scryfall",
+ "comemo",
  "facet-json",
  "imbl",
  "thiserror",
