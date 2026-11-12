@@ -235,7 +235,10 @@ card name", CR 201.4a), a hand revealed, its hidden cards named (CR
 701.20a), "discards all cards with that name" (CR 701.9a), "counter target
 spell unless its controller pays {3}" and echo's "sacrifice it unless
 you pay" (CR 118.12a, 702.30a: Mana Leak, Goblin Patrol), the payer
-activating mana abilities first or declining, and "then if
+activating mana abilities first or declining, an "unless" paid by
+discarding a card (Masticore, Solitary Confinement, CR 701.9a) or by
+sacrificing any number of creatures with total power 12 or greater
+(Phyrexian Dreadnought, itself among them, CR 701.21a), and "then if
 you control four or more lands", "that land" being the permanent a card
 found became (Fabled Passage); their targets
 chosen as they are cast, and checked again as they resolve, an illegal
@@ -289,7 +292,11 @@ land itself, a shock land's life or tapped, and entering with counters
 (Gemstone Mine, CR 614.1c, 122.6), all read off the
 permanent as it would enter (CR 614.12); mana pools emptying as each step ends (CR 500.5);
 a player with hexproof (Leyline of Sanctity's "You have hexproof") never
-a legal target of an opponent's spell or ability (CR 702.11c, 115.4);
+a legal target of an opponent's spell or ability (CR 702.11c, 115.4),
+and one with shroud never anyone's (CR 702.18a); a player's draw step
+skipped while a permanent of theirs says so as it would begin (CR
+614.10), and all damage that would be dealt to them prevented, a pain
+land's too (CR 615.1a: Solitary Confinement);
 shroud, and hexproof against an opponent's (CR 702.18a, 702.11b), never
 a legal target; indestructible, never destroyed by an instruction or
 lethal damage (CR 702.12b); shadow, blocking and blocked only with
@@ -637,7 +644,11 @@ before; a split card's halves listed beside it in a revealed hand are
 one card; an "unless" the log shows paid only for echo ("paid the echo
 cost for [X]"), so echo is paid when that line follows and not
 otherwise, and anything else, Mana Leak's {3}, isn't paid unless a later
-line can't be followed then; a payment never activates a mana ability
+line can't be followed then; a discard paying an "unless" is the
+player's next "discards [X]" line that turn, and with none it isn't
+paid; Phyrexian Dreadnought's sacrifice is never paid, which no log
+shows; a "skips their draw step." line past the first turn is a
+permanent's skip the engine made too (CR 614.10); a payment never activates a mana ability
 whose counter the log would print (Wall of Roots); a "draws two cards
 with [Sylvan Library]'s ability" line is its "may" taken, the "kept a
 card." and "put a card on top of …'s library." lines after it answer
@@ -710,17 +721,18 @@ did and each player's life as it ended; `--finished F` writes the ids of the gam
 diff against a run before a change for a finished game it broke; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 65 replay to the end** (62 to the log's winner
-line), 47 of them past the first turn, and **29.39% of their lines are
-followed** (22,976 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 70 replay to the end** (67 to the log's winner
+line), 52 of them past the first turn, and **29.56% of their lines are
+followed** (23,111 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-12, and 16 games rely on a land the log never names (1
-of them to the end); it was 57 games and 28.75% before morph, 20 games and 20.96% before the milestone's
+measured 2026-11-12, and 15 games rely on a land the log never names (1
+of them to the end); it was 65 games and 29.39% before the "unless" costs
+other than mana, 57 games and 28.75% before morph, 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
 no turn in them (empty logs, concessions during the mulligans). 302 stop
-in the first turn, 338 in the second, 185 in the third, 118 later, and 53
+in the first turn, 338 in the second, 184 in the third, 114 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -737,7 +749,7 @@ bounce, counter and dying 20.72%; search as an instruction 20.81%;
 responses 20.84%; tokens 20.96%; then the milestone's work took it to
 23.99% and on to 27.27% (below). Games to the end barely moved: a game
 that gets past one stop meets the next, most in its first two turns. The
-stops now, by games: an exile line not followed (74: suspend's Rift Bolt,
+stops now, by games: an exile line not followed (75: suspend's Rift Bolt,
 Grim Lavamancer's cost), a card with two faces (55), `Trigger::When(Event::Or)`
 (43: Stitcher's Supplier), a restriction (27), modifying by an amount
 (23), looking at a hand (22: Gitaxian Probe), Cavern of Souls's "spend
@@ -766,7 +778,9 @@ Plowshares cast in response to a Lightning Bolt at the same creature;
 and a Gush whose return line comes before a cast line that says nothing
 of its cost, its Islands' floating mana paying for what follows; and two
 cards cast face down, one named by the line revealing it as it dies, the
-other by the Exalted Angel attacking once a line turned it face up. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
+other by the Exalted Angel attacking once a line turned it face up; and
+a Solitary Confinement kept by a discard line, its controller's draw
+step skipped, then sacrificed with none. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
 player, at a creature, and at one already gone), Preordain, Champion of
 the Parish, Temple of Deceit, and combat: an unblocked attacker,
 flying against a block, a trade, first strike, exalted, prowess,
@@ -786,7 +800,10 @@ returning two Islands rather than paying its mana cost, and Engineered
 Plague and Plague Engineer shrinking the creature type chosen as they
 enter, and Exalted Angel cast face down as a 2/2 and turned face up for
 its morph cost, gaining the life it deals, and Nantuko Vigilante turned
-face up destroying an artifact.
+face up destroying an artifact, and Masticore kept by a discard or
+sacrificed, Phyrexian Dreadnought sacrificed unless twelve power is,
+and Solitary Confinement skipping its controller's draw step, giving
+them shroud and preventing a Jackal Pup's damage to them.
 
 ### The milestone
 
@@ -813,9 +830,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-12 63 of the 500 replay to
-the end and 42.34% of their lines are followed** (13,405 of 31,659), 6
-of them relying on a land the log never names (1 to the end), and 75
+Worked card by card from there, **on 2026-11-12 68 of the 500 replay to
+the end and 42.77% of their lines are followed** (13,540 of 31,659), 5
+of them relying on a land the log never names (1 to the end), and 82
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -867,7 +884,10 @@ Engineer); morph, cast face down as a nameless 2/2 and turned face up as
 a special action, "whenever this creature deals damage" (Exalted Angel),
 "when this creature is turned face up" and a target that is any of
 several types, "artifact or enchantment" (Nantuko Vigilante, which
-Naturalize and Disenchant read through too). And
+Naturalize and Disenchant read through too); an "unless" paid by
+discarding a card or sacrificing creatures of a total power (Masticore,
+Phyrexian Dreadnought), and a player's draw step skipped, their shroud
+and all damage to them prevented (Solitary Confinement). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -877,14 +897,17 @@ activation is of, a winner line resolving what ended the game, and
 which of the cards drawn this turn Sylvan Library chooses, which
 land Flare of Cultivation puts onto the battlefield, and which card was
 cast face down, from the line revealing it or the card with morph a line
-names once it is turned face up. One divergence was the engine's own, found by the full
+names once it is turned face up, and the discard paying an "unless"
+from the next discard line. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Vesuva's copy (8), and Grim Lavamancer's exile
-line, Goblin Cadets, Phyrexian Dreadnought's "unless", Quicksilver,
-Scalding Viper's two faces and Veteran Survivor (6 each); five of the ten
-games morph stopped now stop at a discard paying Survival of the
-Fittest's cost. No
+top of the worklist now: Stifle countering Phyrexian Dreadnought's
+trigger (9: six of the Dreadnought games stop there), Vesuva's copy
+(8), and Grim Lavamancer's exile line, Goblin Cadets, Quicksilver,
+Scalding Viper's two faces and Veteran Survivor (6 each); of the
+Solitary Confinement and Masticore games, five now replay to the end
+and the rest stop at other cards (Elephant Grass's cumulative upkeep,
+Replenish, Goblin King, Eternal Dragon's landcycling). No
 divergence is left: those the run found were the replay's (the game's
 last trigger never shown resolving, a payment search that stopped adding
 sources once it had as much mana as the cost, of the wrong colour from
@@ -899,7 +922,11 @@ own Mox Diamond rather than its opponent's, a winner line after an
 attack that never dealt its combat damage, a Dark Ritual cast in combat
 for a Phyrexian Arena that waits for the second main phase, and the
 discard paying Survival of the Fittest taken for Gerrard's Verdict's,
-now a stop of its own), each fixed; and one was the engine's
+now a stop of its own; and, once Masticore let a game run on, a Goblin
+Lackey "may" guessed taken reported as a divergence where declining it
+reached the same line and stopped at Eternal Dragon's landcycling, now
+the stop reported, since a line not followed yet says more than a
+guess's divergence there), each fixed; and one was the engine's
 reading, Cavern of Souls's mana ability, whose "spend this mana only"
 binds a description and no target, taken for an ability that isn't a
 mana ability and carried, where now the card is refused by name (CR

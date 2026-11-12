@@ -2554,6 +2554,159 @@ fn echo_is_paid_or_the_permanent_sacrificed_in_the_next_upkeep() {
     }
 }
 
+/// CR 118.12a, 701.9a: Masticore's "At the beginning of your upkeep,
+/// sacrifice this creature unless you discard a card": a card discarded
+/// keeps it, and declining sacrifices it.
+#[test]
+fn masticore_is_sacrificed_in_the_upkeep_unless_a_card_is_discarded() {
+    for discards in [false, true] {
+        let mut game = deal(
+            &[("Mountain", 40), ("Masticore", 20)],
+            &[("Forest", 60)],
+            &[("Mountain", 4), ("Masticore", 1)],
+        );
+        for _ in 0..3 {
+            play(&mut game, "Mountain");
+            my_next_main(&mut game);
+        }
+        play(&mut game, "Mountain");
+        cast(&mut game, "Masticore", None);
+        resolve(&mut game);
+        assert!(creature(&game, "Masticore").is_some());
+        pass_until(&mut game, THEM, Step::Upkeep);
+        pass_until(&mut game, ME, Step::Upkeep);
+        assert_eq!(game.stack().len(), 1, "its upkeep trigger");
+        let hand = game.player(ME).hand().len();
+        let Decision::DiscardUnless {
+            player,
+            legal,
+            unsure,
+            ..
+        } = resolve(&mut game)
+        else {
+            panic!("{:?}", game.decision())
+        };
+        assert_eq!((player, legal.len(), unsure), (ME, hand, 0));
+        if discards {
+            step(&mut game, Answer::Pick(Some(legal[0])));
+            assert!(creature(&game, "Masticore").is_some());
+            assert_eq!(game.player(ME).hand().len(), hand - 1);
+            assert!(game.player(ME).graveyard().contains(&legal[0]));
+        } else {
+            step(&mut game, Answer::Pick(None));
+            assert_eq!(creature(&game, "Masticore"), None);
+            assert_eq!(game.player(ME).hand().len(), hand);
+        }
+    }
+}
+
+/// CR 118.12a, 701.21a: Phyrexian Dreadnought's "sacrifice it unless you
+/// sacrifice any number of creatures with total power 12 or greater":
+/// Grizzly Bears alone are too little, Dreadnought itself is enough, and
+/// sacrificing nothing has it sacrificed.
+#[test]
+fn phyrexian_dreadnought_is_sacrificed_unless_twelve_power_is() {
+    for pays in [false, true] {
+        let mut game = deal(
+            &[
+                ("Forest", 30),
+                ("Grizzly Bears", 15),
+                ("Phyrexian Dreadnought", 15),
+            ],
+            &[("Mountain", 60)],
+            &[
+                ("Forest", 2),
+                ("Grizzly Bears", 1),
+                ("Phyrexian Dreadnought", 1),
+            ],
+        );
+        play(&mut game, "Forest");
+        my_next_main(&mut game);
+        play(&mut game, "Forest");
+        cast(&mut game, "Grizzly Bears", None);
+        resolve(&mut game);
+        let bears = creature(&game, "Grizzly Bears").unwrap();
+        my_next_main(&mut game);
+        cast(&mut game, "Phyrexian Dreadnought", None);
+        resolve(&mut game);
+        let dreadnought = creature(&game, "Phyrexian Dreadnought").unwrap();
+        assert_eq!(game.stack().len(), 1, "its enters trigger");
+        let Decision::SacrificeUnless { legal, power, .. } = resolve(&mut game) else {
+            panic!("{:?}", game.decision())
+        };
+        assert_eq!(power, 12);
+        assert!(legal.contains(&bears) && legal.contains(&dreadnought));
+        assert!(game.clone().step(Answer::Sacrifice(vec![bears])).is_err());
+        let paid = if pays { vec![dreadnought] } else { vec![] };
+        step(&mut game, Answer::Sacrifice(paid));
+        assert_eq!(creature(&game, "Phyrexian Dreadnought"), None);
+        assert_eq!(creature(&game, "Grizzly Bears"), Some(bears));
+    }
+}
+
+/// Solitary Confinement: its upkeep trigger asks for a discard (CR
+/// 118.12a); while it is on the battlefield its controller skips their
+/// draw step (CR 614.10), can't be targeted (CR 702.18a) and is dealt no
+/// damage (CR 615.1a); sacrificed in the upkeep, the draw step is theirs
+/// again (CR 614.10).
+#[test]
+fn solitary_confinement_skips_the_draw_gives_shroud_and_prevents_damage() {
+    for discards in [true, false] {
+        let mut game = deal_both(
+            &[("Plains", 40), ("Solitary Confinement", 20)],
+            &[("Mountain", 30), ("Jackal Pup", 15), ("Lightning Bolt", 15)],
+            &[("Plains", 3), ("Solitary Confinement", 1)],
+            &[("Mountain", 1), ("Jackal Pup", 1), ("Lightning Bolt", 1)],
+        );
+        play(&mut game, "Plains");
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, "Mountain");
+        cast_as(&mut game, THEM, "Jackal Pup", None);
+        resolve(&mut game);
+        let pup = creature(&game, "Jackal Pup").unwrap();
+        my_next_main(&mut game);
+        play(&mut game, "Plains");
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        to_attackers(&mut game);
+        step(&mut game, Answer::Attack(vec![(pup, ME)]));
+        through_combat(&mut game);
+        assert_eq!(game.player(ME).life(), 18, "before it");
+        my_next_main(&mut game);
+        play(&mut game, "Plains");
+        cast(&mut game, "Solitary Confinement", None);
+        resolve(&mut game);
+        assert!(creature(&game, "Solitary Confinement").is_some());
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        let bolt = in_hand(&game, THEM, "Lightning Bolt").unwrap();
+        let Decision::Targets { slots, .. } =
+            step(&mut game.clone(), Answer::Act(Action::Cast(bolt)))
+        else {
+            panic!("{:?}", game.decision())
+        };
+        assert!(!slots[0].contains(&Target::Player(ME)), "I have shroud");
+        assert!(slots[0].contains(&Target::Player(THEM)));
+        to_attackers(&mut game);
+        step(&mut game, Answer::Attack(vec![(pup, ME)]));
+        through_combat(&mut game);
+        assert_eq!(game.player(ME).life(), 18, "its damage prevented");
+        pass_until(&mut game, ME, Step::Upkeep);
+        let Decision::DiscardUnless { legal, .. } = resolve(&mut game) else {
+            panic!("{:?}", game.decision())
+        };
+        let hand = game.player(ME).hand().len();
+        let answer = if discards { Some(legal[0]) } else { None };
+        step(&mut game, Answer::Pick(answer));
+        pass_until(&mut game, ME, Step::PrecombatMain);
+        if discards {
+            assert!(creature(&game, "Solitary Confinement").is_some());
+            assert_eq!(game.player(ME).hand().len(), hand - 1, "no draw");
+        } else {
+            assert_eq!(creature(&game, "Solitary Confinement"), None);
+            assert_eq!(game.player(ME).hand().len(), hand + 1, "drew");
+        }
+    }
+}
+
 /// CR 702.29a, 603.3: Gempalm Incinerator's "When you cycle this card,
 /// you may have it deal X damage to target creature, where X is the
 /// number of Goblins on the battlefield" triggers from the graveyard it is

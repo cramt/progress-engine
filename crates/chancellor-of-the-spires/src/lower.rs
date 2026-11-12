@@ -1309,11 +1309,12 @@ pub enum Effect {
         then: Vec<Effect>,
     },
     /// "Sacrifice it unless you pay {R}", "Counter target spell unless its
-    /// controller pays {3}": `who` may pay the mana, and if they don't,
-    /// these instructions are followed (CR 118.12a).
+    /// controller pays {3}", "sacrifice this creature unless you discard a
+    /// card": `who` may pay the cost, and if they don't, these
+    /// instructions are followed (CR 118.12a).
     Unless {
         who: Who,
-        cost: crate::mana::ManaCost,
+        cost: UnlessCost,
         otherwise: Vec<Effect>,
     },
     /// "Attach this permanent to target creature you control": the
@@ -1355,6 +1356,20 @@ pub enum Effect {
     /// "Discards all cards with that name": each card of the player's
     /// hand with the name chosen (CR 701.9a).
     DiscardNamed(Who),
+}
+
+/// What an "unless" asks of the player it names (CR 118.12a).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum UnlessCost {
+    /// "Unless you pay {R}", "unless its controller pays {3}".
+    Mana(crate::mana::ManaCost),
+    /// "Unless you discard a card": one card of their hand the filter
+    /// matches (CR 701.9a).
+    Discard(CardFilter),
+    /// "Unless you sacrifice any number of creatures with total power 12
+    /// or greater": any number of permanents of theirs the filter
+    /// matches, their powers adding up to at least `power` (CR 701.21a).
+    SacrificePower { filter: Filter, power: u32 },
 }
 
 impl Effect {
@@ -1920,7 +1935,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 targets: Vec::new(),
                 effects: vec![Effect::Unless {
                     who: Who::You,
-                    cost: crate::mana::ManaCost::from_symbols(m).ok()?,
+                    cost: UnlessCost::Mana(crate::mana::ManaCost::from_symbols(m).ok()?),
                     otherwise: vec![Effect::Sacrifice(Obj::Itself)],
                 }],
             },
@@ -2426,8 +2441,25 @@ impl<'a> Scope<'a> {
                 };
                 Effect::Unless {
                     who: Who::SpellController(slot),
-                    cost: crate::mana::ManaCost::from_symbols(m)?,
+                    cost: UnlessCost::Mana(crate::mana::ManaCost::from_symbols(m)?),
                     otherwise: vec![Effect::Counter(slot)],
+                }
+            }
+            // "Sacrifice this creature unless you discard a card" (CR
+            // 118.12a): what the player named may pay, read as they are.
+            i::Effect::Unless { effect, who, cost } => {
+                let who = self.who(who)?;
+                let cost = match cost.as_slice() {
+                    [i::Cost::Mana(m)] => UnlessCost::Mana(crate::mana::ManaCost::from_symbols(m)?),
+                    [i::Cost::Discard(o)] => UnlessCost::Discard(discarded(o)?),
+                    [i::Cost::Sacrifice(o)] => sacrifice_power(o)?,
+                    [one] => return Err(format!("{} of a cost {}", node(), short(one))),
+                    _ => return Err(format!("{} of a cost of several parts", node())),
+                };
+                Effect::Unless {
+                    who,
+                    cost,
+                    otherwise: self.effect(effect)?,
                 }
             }
             i::Effect::Damage {
@@ -3645,6 +3677,58 @@ pub const PERMANENT_TYPES: [CardType; 6] = [
     CardType::Land,
     CardType::Planeswalker,
 ];
+
+/// "A card", "a land card": one card of a hand, by its types and colours
+/// alone, any card when nothing narrows it.
+fn discarded(o: &Objects) -> Result<CardFilter, String> {
+    if o.quant == Quant::One
+        && o.filter.alts.is_empty()
+        && o.filter.kind == Some(i::Noun::Card)
+        && o.filter.or.is_none()
+        && o.filter.posts.is_empty()
+    {
+        return Ok(CardFilter(vec![Filter(Vec::new())]));
+    }
+    hand_card(o)
+}
+
+/// "Any number of creatures with total power 12 or greater": the
+/// permanents of the payer's the filter matches, and the least their
+/// powers may add up to.
+fn sacrifice_power(o: &Objects) -> Result<UnlessCost, String> {
+    let total = |p: &i::Post| match p {
+        i::Post::Total(i::Compare {
+            stat: i::Stat::Power,
+            op: i::Op::Ge,
+            value: i::Amount::N(n),
+        }) => Some(*n),
+        _ => None,
+    };
+    let [post] = o.filter.posts.as_slice() else {
+        return Err("a sacrifice unless other than by total power".into());
+    };
+    let (Quant::AnyNumber, Some(power)) = (&o.quant, total(post)) else {
+        return Err("a sacrifice unless other than by total power".into());
+    };
+    let mut filter = objects(&Objects {
+        quant: Quant::All,
+        filter: i::Filter {
+            posts: Vec::new(),
+            ..o.filter.clone()
+        },
+    })?;
+    if filter
+        .0
+        .iter()
+        .any(|p| matches!(p, Pred::Itself | Pred::Other))
+    {
+        return Err("a cost relative to its source".into());
+    }
+    if !filter.0.contains(&Pred::YouControl) {
+        filter.0.push(Pred::YouControl);
+    }
+    Ok(UnlessCost::SacrificePower { filter, power })
+}
 
 /// "a Mountain or Forest card": one card, by its types and colours alone.
 fn card_filter(o: &Objects) -> Result<CardFilter, String> {

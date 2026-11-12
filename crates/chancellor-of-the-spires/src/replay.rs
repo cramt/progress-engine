@@ -557,9 +557,11 @@ impl Driver<'_> {
                                 | Divergence::Targets { .. }
                         )
                     );
-                    // Of two stops at one line, a card refused says more
-                    // than what another way of following it ran into.
-                    let refused = matches!(stop, Stop::Refused { .. });
+                    // Of two stops at one line, a card refused or a line
+                    // the replay can't follow yet says more than what
+                    // another way of following it ran into: the engine
+                    // hasn't disagreed with the log on every way there.
+                    let refused = matches!(stop, Stop::Refused { .. } | Stop::Unfollowed { .. });
                     if furthest.as_ref().is_none_or(|f| {
                         i > f.0 || i == f.0 && refused && matches!(f.1, Stop::Diverged(_))
                     }) {
@@ -949,6 +951,12 @@ impl Driver<'_> {
             } => {
                 let seat = self.seat(*player);
                 let game = self.game();
+                // CR 614.10: a permanent of theirs says to skip it
+                // (Solitary Confinement).
+                if game.active() == seat && game.skips_draw_step(seat) {
+                    self.did(i, "skips their draw step, as a permanent says (CR 614.10)");
+                    return Ok(Next::Line(i + 1));
+                }
                 if game.turn() != 1 || seat != PlayerId(0) {
                     return Err(Stop::Diverged(Divergence::Skip));
                 }
@@ -1203,8 +1211,8 @@ impl Driver<'_> {
                 }
                 // A discard instead of a permanent entering, read ahead
                 // as it entered (`discard_to_enter`).
+                // Or paying an "unless" (`discard_unless`), which says so.
                 if self.until_consumed(i)? {
-                    self.did(i, "discarded instead, so it entered (CR 614.1a)");
                     return Ok(Next::Line(i + 1));
                 }
                 // A resolving spell or ability's: a card chosen from a
@@ -1662,6 +1670,8 @@ impl Driver<'_> {
                                 | Decision::ChooseCreatureType { .. }
                                 | Decision::ChooseMana { .. }
                                 | Decision::PayUnless { .. }
+                                | Decision::DiscardUnless { .. }
+                                | Decision::SacrificeUnless { .. }
                                 | Decision::PayLifeOr { .. }
                                 | Decision::Reveal { .. }
                                 | Decision::Targets { .. }
@@ -2142,6 +2152,16 @@ impl Driver<'_> {
             Decision::Arrange { cards, .. } => self.act(Answer::Arrange(cards)),
             Decision::PutFromHand { player, .. } => self.put_from_hand(player),
             Decision::DiscardToEnter { player, .. } => self.discard_to_enter(player),
+            Decision::DiscardUnless { player, card, .. } => self.discard_unless(player, card),
+            // No log shows one paid: Phyrexian Dreadnought's twelve power
+            // sacrificed would be its caster's whole board.
+            Decision::SacrificeUnless { card, .. } => {
+                self.act(Answer::Sacrifice(Vec::new()))?;
+                let name = self.name_of(card);
+                let at = self.at;
+                self.did(at, format!("sacrificed nothing for {name} (CR 118.12a)"));
+                Ok(())
+            }
             Decision::PayOrEnterTapped { card, life, .. } => self.pay_or_tap(card, life),
             d @ (Decision::Pay { .. }
             | Decision::Kicker { .. }
@@ -2340,6 +2360,48 @@ impl Driver<'_> {
             return Err(Stop::Diverged(Divergence::NotInHand { card: name }));
         };
         self.consumed.insert(k);
+        self.did(k, "discarded instead, so it entered (CR 614.1a)");
+        self.act(Answer::Pick(Some(c)))
+    }
+
+    /// "Sacrifice this creature unless you discard a card" (CR 118.12a):
+    /// the log's next "discards [X]" line of `p`'s this turn says they
+    /// paid, and with what; with none, they didn't, and the permanent's
+    /// sacrifice prints nothing. Masticore's and Solitary Confinement's
+    /// upkeep, where the discard is the line after the trigger's.
+    fn discard_unless(&mut self, p: PlayerId, card: CardId) -> Followed {
+        let source = self.name_of(card);
+        let said = self
+            .entries
+            .iter()
+            .enumerate()
+            .skip(self.at)
+            .take_while(|(k, e)| *k == self.at || !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|(k, e)| match &e.event {
+                Event::Discards { player, cards }
+                    if self.seat(*player) == p && !self.consumed.contains(&k) =>
+                {
+                    match cards.as_slice() {
+                        [Object::Card(c)] => Some((k, c.name().to_string())),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            });
+        let Some((k, name)) = said else {
+            self.act(Answer::Pick(None))?;
+            let at = self.at;
+            self.did(at, format!("discarded nothing for {source} (CR 118.12a)"));
+            return Ok(());
+        };
+        let Some(c) = self.in_hand(p, &name)? else {
+            return Err(Stop::Diverged(Divergence::NotInHand { card: name }));
+        };
+        self.consumed.insert(k);
+        self.did(
+            k,
+            format!("discarded for {source}'s \"unless\" (CR 118.12a)"),
+        );
         self.act(Answer::Pick(Some(c)))
     }
 
@@ -2970,6 +3032,8 @@ impl Driver<'_> {
                 | Decision::ChooseCreatureType { .. }
                 | Decision::ChooseMana { .. }
                 | Decision::PayUnless { .. }
+                | Decision::DiscardUnless { .. }
+                | Decision::SacrificeUnless { .. }
                 | Decision::PayLifeOr { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
@@ -3020,6 +3084,8 @@ impl Driver<'_> {
                 | Decision::ChooseName { .. }
                 | Decision::ChooseMana { .. }
                 | Decision::PayUnless { .. }
+                | Decision::DiscardUnless { .. }
+                | Decision::SacrificeUnless { .. }
                 | Decision::PayLifeOr { .. }
                 | Decision::PutFromHand { .. }
                 | Decision::Search { .. }
@@ -4332,6 +4398,8 @@ impl Driver<'_> {
                     | Decision::Order { .. }
                     | Decision::Search { .. }
                     | Decision::DiscardToEnter { .. }
+                    | Decision::DiscardUnless { .. }
+                    | Decision::SacrificeUnless { .. }
                     | Decision::PayOrEnterTapped { .. } => true,
                     _ => false,
                 };

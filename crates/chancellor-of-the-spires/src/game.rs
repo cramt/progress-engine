@@ -171,6 +171,44 @@ impl Known {
     }
 }
 
+/// A static ability of a permanent's that says something of its
+/// controller.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ForYou {
+    /// "You have hexproof" (CR 702.11c).
+    Hexproof,
+    /// "You have shroud" (CR 702.18a).
+    Shroud,
+    /// "Skip your draw step" (CR 614.1b, 614.10).
+    SkipDrawStep,
+    /// "Prevent all damage that would be dealt to you" (CR 615.1a).
+    PreventAllDamage,
+}
+
+impl ForYou {
+    fn read(parts: &[i::Static]) -> Option<ForYou> {
+        let you = |r: &i::Recipient| matches!(r, i::Recipient::Player(i::Player::You));
+        match parts {
+            [i::Static::YouHave(ks)] => match ks.as_slice() {
+                [k] if k.param.is_none() && k.name.eq_ignore_ascii_case("hexproof") => {
+                    Some(ForYou::Hexproof)
+                }
+                [k] if k.param.is_none() && k.name.eq_ignore_ascii_case("shroud") => {
+                    Some(ForYou::Shroud)
+                }
+                _ => None,
+            },
+            [i::Static::SkipStep(i::Step::DrawStep(i::Whose::Yours))] => Some(ForYou::SkipDrawStep),
+            [i::Static::PreventDamage {
+                combat_only: false,
+                to: Some(to),
+                by: None,
+            }] if matches!(to.as_slice(), [r] if you(r)) => Some(ForYou::PreventAllDamage),
+            _ => None,
+        }
+    }
+}
+
 /// An action a card in an opening hand allows (CR 103.6).
 #[derive(Clone, Debug)]
 enum Opening {
@@ -204,9 +242,10 @@ struct Runnable {
     opening: Option<Opening>,
     /// Cycling (CR 702.29a), by its index, and its cost and instruction.
     cycling: Option<(u16, Activated)>,
-    /// "You have hexproof" (CR 702.11c), by the ability's index, so it
-    /// works only while the permanent has it.
-    hexproof: BTreeSet<u16>,
+    /// What its statics say of its controller ("you have hexproof", "skip
+    /// your draw step"), by the ability's index, so each works only while
+    /// the permanent has it.
+    for_you: BTreeMap<u16, ForYou>,
     /// Statics that change what spells cost (CR 601.2f), by index, so
     /// each works only while the permanent has it.
     cost_changes: BTreeMap<u16, lower::CostChange>,
@@ -920,6 +959,22 @@ enum Waiting {
         owed: ManaCost,
         at: Resuming,
     },
+    /// CR 118.12a: `player` may discard a card `filter` matches for the
+    /// "unless" instruction `at` points to.
+    DiscardUnless {
+        player: PlayerId,
+        filter: CardFilter,
+        at: Resuming,
+    },
+    /// CR 118.12a: `player` may sacrifice permanents `filter` matches
+    /// whose powers add up to at least `power` for the "unless"
+    /// instruction `at` points to.
+    SacrificeUnless {
+        player: PlayerId,
+        filter: Filter,
+        power: u32,
+        at: Resuming,
+    },
     /// CR 106.3: `player` chooses which of `options` the resolving
     /// instruction adds to their pool.
     ChooseMana {
@@ -1167,6 +1222,24 @@ pub enum Decision {
         card: CardId,
         owed: ManaCost,
         actions: Vec<Payment>,
+    },
+    /// CR 118.12a, 701.9a: discard a card of `legal` for `card`'s
+    /// "unless", answered `Pick`, `None` declining, so what follows the
+    /// "unless" happens; `unsure` counts the hidden cards in hand.
+    DiscardUnless {
+        player: PlayerId,
+        card: CardId,
+        legal: Vec<CardId>,
+        unsure: usize,
+    },
+    /// CR 118.12a, 701.21a: sacrifice any number of `legal` whose powers
+    /// add up to at least `power` for `card`'s "unless", answered
+    /// `Answer::Sacrifice`, none declining.
+    SacrificeUnless {
+        player: PlayerId,
+        card: CardId,
+        legal: Vec<ObjectId>,
+        power: u32,
     },
     /// CR 106.3: choose the mana `card`'s instruction adds, one of
     /// `options`, answered `Answer::Mana`.
@@ -1662,20 +1735,27 @@ impl Game {
             .and_then(|r| r.opening.as_ref())
     }
 
-    /// Whether a player has hexproof (CR 702.11c): a permanent they
-    /// control says so and has that ability now.
-    fn has_hexproof(&self, q: PlayerId) -> bool {
+    /// Whether a permanent `q` controls says `what` of them and has that
+    /// ability now: hexproof (CR 702.11c), shroud (CR 702.18a), a draw
+    /// step skipped (CR 614.10), all damage to them prevented (CR 615.1a).
+    fn you_have(&self, q: PlayerId, what: ForYou) -> bool {
         self.characteristics().iter().any(|(id, c)| {
             c.controller == q
                 && self
                     .known(self.permanents[id].card)
                     .and_then(|k| k.runs.as_ref().ok())
                     .is_some_and(|r| {
-                        r.hexproof
+                        r.for_you
                             .iter()
-                            .any(|n| c.abilities.contains(&Ability::Unread(*n)))
+                            .any(|(n, w)| *w == what && c.abilities.contains(&Ability::Unread(*n)))
                     })
         })
+    }
+
+    /// Whether `p`'s next draw step is skipped (CR 614.10), as a
+    /// permanent of theirs says now.
+    pub fn skips_draw_step(&self, p: PlayerId) -> bool {
+        self.you_have(p, ForYou::SkipDrawStep)
     }
 
     /// CR 103.5, 103.5c: each player who took a mulligan puts one card on
@@ -2163,6 +2243,26 @@ impl Game {
                 owed: owed.clone(),
                 actions: self.payments(*player, owed),
             },
+            Waiting::DiscardUnless { player, filter, at } => {
+                let (legal, unsure) = self.discardable(*player, filter);
+                Decision::DiscardUnless {
+                    player: *player,
+                    card: at.what.card(),
+                    legal,
+                    unsure,
+                }
+            }
+            Waiting::SacrificeUnless {
+                player,
+                filter,
+                power,
+                at,
+            } => Decision::SacrificeUnless {
+                player: *player,
+                card: at.what.card(),
+                legal: self.sacrificable(*player, filter),
+                power: *power,
+            },
             Waiting::ChooseMana {
                 player,
                 options,
@@ -2209,6 +2309,25 @@ impl Game {
                 }
             }
         }
+    }
+
+    /// The cards of `p`'s hand `filter` matches, which they may discard
+    /// (CR 701.9a), and how many cards of it are hidden.
+    fn discardable(&self, p: PlayerId, filter: &CardFilter) -> (Vec<CardId>, usize) {
+        let hand = &self.player(p).hand;
+        let legal = hand
+            .iter()
+            .copied()
+            .filter(|c| {
+                self.known(*c)
+                    .and_then(|k| k.printed.as_ref())
+                    .is_some_and(|ch| filter.matches(ch))
+            })
+            .collect();
+        (
+            legal,
+            hand.iter().filter(|c| self.known(**c).is_none()).count(),
+        )
     }
 
     /// The permanents `p` controls that `filter` matches, which they may
@@ -2854,6 +2973,50 @@ impl Game {
                         self.follow(at);
                     }
                 }
+            }
+            (Waiting::DiscardUnless { player, at, .. }, Answer::Pick(pick)) => {
+                let Decision::DiscardUnless { legal, .. } = self.decision() else {
+                    unreachable!("waiting on a discard")
+                };
+                let mut at = at;
+                match pick {
+                    Some(c) if legal.contains(c) => {
+                        self.discard(player, &[*c]);
+                        *at.next.last_mut().expect("a cursor") += 1;
+                    }
+                    None => at.next.push(0),
+                    Some(_) => return Err(Rejected::Illegal(answer)),
+                }
+                self.follow(at);
+            }
+            (
+                Waiting::SacrificeUnless {
+                    player,
+                    filter,
+                    power,
+                    at,
+                },
+                Answer::Sacrifice(chosen),
+            ) => {
+                let legal = self.sacrificable(player, &filter);
+                let distinct: BTreeSet<&ObjectId> = chosen.iter().collect();
+                let total: u32 = chosen.iter().map(|o| self.power(*o)).sum();
+                if distinct.len() != chosen.len()
+                    || !chosen.iter().all(|o| legal.contains(o))
+                    || (!chosen.is_empty() && total < power)
+                {
+                    return Err(Rejected::Illegal(answer));
+                }
+                let mut at = at;
+                if chosen.is_empty() {
+                    at.next.push(0);
+                } else {
+                    for o in chosen {
+                        self.put_in_graveyard(*o);
+                    }
+                    *at.next.last_mut().expect("a cursor") += 1;
+                }
+                self.follow(at);
             }
             (
                 Waiting::ChooseMana {
@@ -3898,7 +4061,12 @@ impl Game {
         player.pool = player.pool.minus(&a.pays);
         player.pool.add_all(&a.adds);
         // CR 120.3a, 120.3f: its damage to its controller is life lost,
-        // and gained back if it has lifelink.
+        // and gained back if it has lifelink; CR 615.6: none, prevented.
+        let damage = if self.you_have(p, ForYou::PreventAllDamage) {
+            0
+        } else {
+            damage
+        };
         self.lose_life(p, damage);
         if lifelink {
             self.players[p.0 as usize].life += damage as i32;
@@ -4613,10 +4781,45 @@ impl Game {
                 }
                 Effect::Unless { who: w, cost, .. } => {
                     let Some(q) = who(w) else { continue };
-                    self.waiting = Waiting::PayUnless {
-                        player: q,
-                        owed: cost,
-                        at: here,
+                    self.waiting = match cost {
+                        lower::UnlessCost::Mana(owed) => Waiting::PayUnless {
+                            player: q,
+                            owed,
+                            at: here,
+                        },
+                        lower::UnlessCost::Discard(filter) => {
+                            // With no card to discard, what follows.
+                            let (legal, unsure) = self.discardable(q, &filter);
+                            if legal.is_empty() && unsure == 0 {
+                                at = here;
+                                at.next.push(0);
+                                continue;
+                            }
+                            Waiting::DiscardUnless {
+                                player: q,
+                                filter,
+                                at: here,
+                            }
+                        }
+                        lower::UnlessCost::SacrificePower { filter, power } => {
+                            // Nor with too little power to sacrifice.
+                            let most: u32 = self
+                                .sacrificable(q, &filter)
+                                .iter()
+                                .map(|o| self.power(*o))
+                                .sum();
+                            if most < power {
+                                at = here;
+                                at.next.push(0);
+                                continue;
+                            }
+                            Waiting::SacrificeUnless {
+                                player: q,
+                                filter,
+                                power,
+                                at: here,
+                            }
+                        }
                     };
                     return;
                 }
@@ -4936,6 +5139,8 @@ impl Game {
             // prevented.
             let prevented = match (to, source) {
                 (Target::Object(o), Some(s)) => now.get(o).is_some_and(|c| c.protected_from(s)),
+                // CR 615.1a.
+                (Target::Player(q), _) => self.you_have(*q, ForYou::PreventAllDamage),
                 _ => false,
             };
             if *n == 0 || prevented {
@@ -5000,11 +5205,16 @@ impl Game {
     /// or protection, which are refused as they are read.
     fn legal_targets(&self, spec: &TargetSpec, p: PlayerId, source: Option<&Chars>) -> Vec<Target> {
         // CR 115.4, 702.11c: a player with hexproof can't be the target
-        // of an opponent's spell or ability.
+        // of an opponent's spell or ability; CR 702.18a: one with shroud
+        // can't be anyone's.
         let players = || {
             (0..self.players.len())
                 .map(|q| PlayerId(q as u8))
-                .filter(|q| !self.player(*q).left && (*q == p || !self.has_hexproof(*q)))
+                .filter(|q| {
+                    !self.player(*q).left
+                        && (*q == p || !self.you_have(*q, ForYou::Hexproof))
+                        && !self.you_have(*q, ForYou::Shroud)
+                })
         };
         // CR 702.16b: not a permanent with protection from the source;
         // CR 702.18a, 702.11b: nor one with shroud, nor with hexproof
@@ -5171,6 +5381,8 @@ impl Game {
             | Waiting::PutFromHand { resume: at, .. }
             | Waiting::ChooseMana { resume: at, .. }
             | Waiting::PayUnless { at, .. }
+            | Waiting::DiscardUnless { at, .. }
+            | Waiting::SacrificeUnless { at, .. }
             | Waiting::PayLifeOr { at, .. }
             | Waiting::ChooseName { resume: at, .. } => at,
             _ => return None,
@@ -6224,7 +6436,8 @@ impl Game {
 
     /// CR 508.8: with no attackers, the declare blockers and combat damage
     /// steps are skipped; CR 510.4: the first-strike damage step happens
-    /// only for a creature with first or double strike in combat.
+    /// only for a creature with first or double strike in combat; CR
+    /// 614.10: a draw step a permanent of the active player's skips.
     fn skips(&self, s: Step) -> bool {
         let fighting: Vec<ObjectId> = self
             .combat
@@ -6249,6 +6462,9 @@ impl Game {
                     chars[*id].has(Keyword::FirstStrike) || chars[*id].has(Keyword::DoubleStrike)
                 })
             }
+            // CR 614.10: decided as the step would begin, so a permanent
+            // gone in the upkeep skips nothing.
+            Step::Draw => self.you_have(self.active, ForYou::SkipDrawStep),
             _ => false,
         }
     }
@@ -6656,7 +6872,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         spell: None,
         flash: false,
         opening: None,
-        hexproof: BTreeSet::new(),
+        for_you: BTreeMap::new(),
         cycling: None,
         cost_changes: BTreeMap::new(),
         alternatives: BTreeMap::new(),
@@ -6802,11 +7018,9 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     }
                 }
             }
-            i::Ability::Static(parts)
-                if matches!(parts.as_slice(), [i::Static::YouHave(ks)]
-                    if matches!(ks.as_slice(), [k] if k.param.is_none() && k.name.eq_ignore_ascii_case("hexproof"))) =>
-            {
-                runs.hexproof.insert(n);
+            i::Ability::Static(parts) if ForYou::read(parts).is_some() => {
+                runs.for_you
+                    .insert(n, ForYou::read(parts).expect("read above"));
             }
             // CR 305.2a.
             i::Ability::Static(parts)

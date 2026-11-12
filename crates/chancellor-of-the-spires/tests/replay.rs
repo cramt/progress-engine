@@ -65,6 +65,7 @@ const INDEXED: &[&str] = &[
     "Gush",
     "Coral Eel",
     "Exalted Angel",
+    "Solitary Confinement",
 ];
 
 fn index() -> &'static IndexFile {
@@ -77,7 +78,7 @@ fn index() -> &'static IndexFile {
 
 fn cards(name: &str) -> Option<CardText> {
     match name {
-        "Forest" | "Island" => Some(CardText::basic(name)),
+        "Forest" | "Island" | "Plains" => Some(CardText::basic(name)),
         "Grizzly Bears" => Some(bears()),
         n if INDEXED.contains(&n) => Some(deck::card(n, index()).unwrap()),
         _ => None,
@@ -1310,4 +1311,61 @@ fn a_card_cast_face_down_is_the_one_a_later_line_names() {
     assert_eq!(angels, 1);
     assert_eq!(game.player(BOB).life(), 16);
     assert_eq!(game.player(ALICE).life(), 24);
+}
+
+/// CR 118.12a, 614.10: Solitary Confinement's upkeep trigger is paid with
+/// the card the next line discards, and its controller's draw step is
+/// skipped as the log says; with no discard line it is sacrificed, and
+/// the draw step that follows draws.
+#[test]
+fn solitary_confinement_is_kept_by_the_discard_line_and_skips_the_draw() {
+    let trigger = "puts triggered ability from [Solitary Confinement] onto the stack \
+        (At the beginning of your upkeep, sacrifice Solitary Confinement unless you discard a card.).";
+    let (_, r) = run(&format!(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Plains].
+        Turn 1: bob
+        bob plays [Forest].
+        Turn 2: alice
+        alice plays [Plains].
+        Turn 2: bob
+        bob plays [Forest].
+        Turn 3: alice
+        alice plays [Plains].
+        alice casts [Solitary Confinement].
+        Turn 3: bob
+        bob plays [Forest].
+        Turn 4: alice
+        alice {trigger}
+        alice discards [Forest].
+        alice skips their draw step.
+        Turn 4: bob
+        bob plays [Forest].
+        Turn 5: alice
+        alice {trigger}
+        alice draws a card.
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    "
+    ));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    assert!(r
+        .trace
+        .iter()
+        .any(|t| t.did.contains("as a permanent says (CR 614.10)")));
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Solitary Confinement"), 0);
+    let graveyard: Vec<String> = game
+        .player(ALICE)
+        .graveyard()
+        .iter()
+        .map(|c| game.card(*c).unwrap().name.clone())
+        .collect();
+    assert_eq!(graveyard, ["Forest", "Solitary Confinement"]);
 }
