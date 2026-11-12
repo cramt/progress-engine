@@ -3449,8 +3449,8 @@ pub fn counter(kind: &i::CounterKind) -> Option<Counter> {
 }
 
 /// An activated ability's cost, of the kinds the engine pays (CR 602.2b,
-/// 601.2h): tapping its source, life (CR 119.4), and sacrificing the
-/// source (CR 701.21a).
+/// 601.2h): tapping its source, life (CR 119.4), sacrificing the source
+/// (CR 701.21a), and cards of its activator's.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ActivationCost {
     pub tap: bool,
@@ -3459,6 +3459,28 @@ pub struct ActivationCost {
     /// "{1}, {T}: …": mana paid as the ability is activated (CR 602.2b,
     /// 601.2g–h).
     pub mana: Option<crate::mana::ManaCost>,
+    /// "Discard a creature card", "exile two cards from your graveyard".
+    pub cards: Option<CardsPaid>,
+}
+
+/// Cards an activated ability's cost moves out of a zone of its
+/// activator's: `count` of those `filter` matches, chosen as it is paid
+/// (CR 601.2h).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CardsPaid {
+    pub how: PaidWith,
+    pub count: u32,
+    pub filter: CardFilter,
+}
+
+/// Where the cards a cost names come from, and where they go.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PaidWith {
+    /// From the hand to the graveyard (CR 701.9a): Survival of the
+    /// Fittest.
+    Discard,
+    /// From the graveyard to exile: Grim Lavamancer.
+    ExileFromGraveyard,
 }
 
 /// An activated ability that isn't a mana ability (CR 602), lowered: its
@@ -3524,10 +3546,43 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
             i::Cost::Mana(m) if paid.mana.is_none() => {
                 paid.mana = Some(crate::mana::ManaCost::from_symbols(m)?)
             }
+            i::Cost::Discard(o) if paid.cards.is_none() && o.filter.posts.is_empty() => {
+                paid.cards = Some(cards_paid(PaidWith::Discard, o, &o.filter.posts)?)
+            }
+            i::Cost::Exile(o)
+                if paid.cards.is_none()
+                    && o.filter.posts == [Post::In(i::Zone::Graveyard(i::Player::You))] =>
+            {
+                paid.cards = Some(cards_paid(PaidWith::ExileFromGraveyard, o, &[])?)
+            }
             other => return Err(format!("an activation cost of {}", short(other))),
         }
     }
     Ok(paid)
+}
+
+/// "A creature card", "two cards from your graveyard": how many, and
+/// which by their characteristics, less the zone `rest` leaves of its
+/// posts.
+fn cards_paid(how: PaidWith, o: &Objects, rest: &[Post]) -> Result<CardsPaid, String> {
+    let count = match &o.quant {
+        Quant::One => 1,
+        Quant::N(i::Amount::N(n)) => *n,
+        q => return Err(format!("a cost of {} cards", short(q))),
+    };
+    // "Two cards": any card, which a filter of no alternatives isn't.
+    let filter = if o.filter.alts.is_empty() && o.filter.kind == Some(i::Noun::Card) {
+        CardFilter(vec![Filter::default()])
+    } else {
+        card_filter(&Objects {
+            quant: Quant::One,
+            filter: i::Filter {
+                posts: rest.to_vec(),
+                ..o.filter.clone()
+            },
+        })?
+    };
+    Ok(CardsPaid { how, count, filter })
 }
 
 /// "You may reveal this card from your opening hand. If you do, at the

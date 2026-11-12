@@ -830,6 +830,7 @@ enum Choosing {
     /// mana cost, if it has one, is paid (CR 602.2b).
     Ability {
         object: ObjectId,
+        cards: Option<lower::CardsPaid>,
         owed: Option<ManaCost>,
     },
     /// A triggered ability being put on the stack, then `then` gets
@@ -1092,6 +1093,14 @@ enum Waiting {
         count: u32,
         filter: Filter,
     },
+    /// CR 602.2b, 601.2h: `player` pays the cards the activated ability
+    /// of `source` on top of the stack costs, then its mana, `owed`.
+    PayCards {
+        player: PlayerId,
+        source: CardId,
+        cards: lower::CardsPaid,
+        owed: Option<ManaCost>,
+    },
     /// CR 119.4: `player` may pay `life` for the "pay life or" instruction
     /// `at` points to.
     PayLifeOr {
@@ -1352,6 +1361,18 @@ pub enum Decision {
         spell: CardId,
         count: u32,
         legal: Vec<ObjectId>,
+    },
+    /// CR 602.2b, 601.2h: discard (or exile from the graveyard, as `how`
+    /// says) exactly `count` of `legal`, the cards of `player`'s the cost
+    /// of `source`'s ability names, answered `Answer::Choose`; `unsure`
+    /// counts the hidden cards in a hand.
+    PayCards {
+        player: PlayerId,
+        source: CardId,
+        how: lower::PaidWith,
+        count: u32,
+        legal: Vec<CardId>,
+        unsure: usize,
     },
     /// CR 601.2h: return exactly `count` of `legal`, the permanents
     /// `player` controls that the cost names, to their owner's hand to pay
@@ -2536,6 +2557,22 @@ impl Game {
                 count: *count,
                 legal: self.sacrificable(*player, filter),
             },
+            Waiting::PayCards {
+                player,
+                source,
+                cards,
+                ..
+            } => {
+                let (legal, unsure) = self.payable_cards(*player, cards);
+                Decision::PayCards {
+                    player: *player,
+                    source: *source,
+                    how: cards.how,
+                    count: cards.count,
+                    legal,
+                    unsure,
+                }
+            }
             Waiting::PayLifeOr { player, life, at } => Decision::PayLifeOr {
                 player: *player,
                 card: at.what.card(),
@@ -2617,6 +2654,27 @@ impl Game {
 
     /// The cards of `p`'s hand `filter` matches, which they may discard
     /// (CR 701.9a), and how many cards of it are hidden.
+    /// The cards of `p`'s a cost may take, and the hidden cards of a hand
+    /// that might be among them.
+    fn payable_cards(&self, p: PlayerId, cards: &lower::CardsPaid) -> (Vec<CardId>, usize) {
+        match cards.how {
+            lower::PaidWith::Discard => self.discardable(p, &cards.filter),
+            lower::PaidWith::ExileFromGraveyard => (
+                self.player(p)
+                    .graveyard
+                    .iter()
+                    .copied()
+                    .filter(|c| {
+                        self.known(*c)
+                            .and_then(|k| k.printed.as_ref())
+                            .is_some_and(|ch| cards.filter.matches(ch))
+                    })
+                    .collect(),
+                0,
+            ),
+        }
+    }
+
     fn discardable(&self, p: PlayerId, filter: &CardFilter) -> (Vec<CardId>, usize) {
         let hand = &self.player(p).hand;
         let legal = hand
@@ -2823,14 +2881,14 @@ impl Game {
                     return Err(Rejected::Illegal(answer));
                 }
                 match choosing {
-                    Choosing::Ability { owed, .. } => {
+                    Choosing::Ability { cards, owed, .. } => {
                         if let Some(StackObject::Ability {
                             targets, source, ..
                         }) = self.stack.back_mut()
                         {
                             *targets = chosen.clone();
                             let spell = *source;
-                            self.pay_ability(player, spell, owed);
+                            self.pay_ability(player, spell, cards, owed);
                         }
                     }
                     Choosing::Spell { owed, from_command } => {
@@ -3272,6 +3330,34 @@ impl Game {
                 }
                 self.cast_done(player, spell);
             }
+            (
+                Waiting::PayCards {
+                    player,
+                    source,
+                    cards,
+                    owed,
+                },
+                Answer::Choose(chosen),
+            ) => {
+                let (legal, _) = self.payable_cards(player, &cards);
+                let distinct: BTreeSet<&CardId> = chosen.iter().collect();
+                if chosen.len() != cards.count as usize
+                    || distinct.len() != chosen.len()
+                    || !chosen.iter().all(|c| legal.contains(c))
+                {
+                    return Err(Rejected::Illegal(answer));
+                }
+                match cards.how {
+                    // CR 701.9a.
+                    lower::PaidWith::Discard => self.discard(player, chosen),
+                    lower::PaidWith::ExileFromGraveyard => {
+                        let p = &mut self.players[player.0 as usize];
+                        p.graveyard.retain(|c| !chosen.contains(c));
+                        self.exile.extend(chosen.iter().copied());
+                    }
+                }
+                self.pay_mana_for_ability(player, source, owed);
+            }
             (Waiting::PayLifeOr { player, life, at }, Answer::PayLife(pay)) => {
                 let mut at = at;
                 if *pay {
@@ -3610,7 +3696,12 @@ impl Game {
                     .iter()
                     .enumerate()
                     .any(|(q, pl)| q != p.0 as usize && pl.lost_life);
+                let cards_short = def.cost.cards.as_ref().is_some_and(|c| {
+                    let (legal, unsure) = self.payable_cards(p, c);
+                    legal.len() + unsure < c.count as usize
+                });
                 if def.cost.tap && (perm.tapped || sick)
+                    || cards_short
                     || def.cost.life > 0 && player.life < def.cost.life as i32
                     || def.limits.once_per_turn && self.used.contains(&(id, *k))
                     || def.limits.opponent_lost_life && !opponent_lost
@@ -4037,7 +4128,7 @@ impl Game {
                         ordered: false,
                     });
                 }
-                self.pay_ability(p, card, def.cost.mana);
+                self.pay_ability(p, card, None, def.cost.mana);
             }
             Action::Activate(a) => {
                 let card = self.permanents[&a.source].card;
@@ -4078,7 +4169,7 @@ impl Game {
                     self.put_in_graveyard(a.source);
                 }
                 if slots.is_empty() {
-                    self.pay_ability(p, card, cost.mana);
+                    self.pay_ability(p, card, cost.cards, cost.mana);
                 } else {
                     self.waiting = Waiting::Targets {
                         player: p,
@@ -4086,6 +4177,7 @@ impl Game {
                         slots,
                         choosing: Choosing::Ability {
                             object: a.source,
+                            cards: cost.cards,
                             owed: cost.mana,
                         },
                     };
@@ -4095,10 +4187,32 @@ impl Game {
         Ok(())
     }
 
+    /// An activated ability's cards paid, if its cost names any (CR
+    /// 602.2b, 601.2h), then its mana.
+    fn pay_ability(
+        &mut self,
+        p: PlayerId,
+        card: CardId,
+        cards: Option<lower::CardsPaid>,
+        owed: Option<ManaCost>,
+    ) {
+        match cards {
+            Some(cards) => {
+                self.waiting = Waiting::PayCards {
+                    player: p,
+                    source: card,
+                    cards,
+                    owed,
+                }
+            }
+            None => self.pay_mana_for_ability(p, card, owed),
+        }
+    }
+
     /// An activated ability's mana cost paid, if it has one (CR 602.2b,
     /// 601.2g–h), or the ability is activated and its activator gets
     /// priority (CR 117.3c).
-    fn pay_ability(&mut self, p: PlayerId, card: CardId, owed: Option<ManaCost>) {
+    fn pay_mana_for_ability(&mut self, p: PlayerId, card: CardId, owed: Option<ManaCost>) {
         match owed {
             Some(owed) => {
                 self.waiting = Waiting::Paying {
@@ -4374,6 +4488,14 @@ impl Game {
             Some(Via::Alternative(n)) => self.runs_of(spell).alternatives[&n].other.clone(),
             _ => lower::OtherCosts::default(),
         }
+    }
+
+    /// The permanents `player` could sacrifice for the spell on the stack
+    /// that is `spell`, and how many its cost sacrifices (Fireblast's two
+    /// Mountains), if it sacrifices any.
+    pub fn sacrificed_for(&self, player: PlayerId, spell: CardId) -> Option<(u32, Vec<ObjectId>)> {
+        let (count, filter) = self.other_costs(spell).sacrifice?;
+        Some((count, self.sacrificable(player, &filter)))
     }
 
     /// CR 601.2i: the spell becomes cast, what waits for a spell cast

@@ -27,7 +27,7 @@ use crate::game::{
     ManaCost, ManaPool, Outcome, Payment, Rejected, Setup, StackObject, Step, Target, HAND_SIZE,
 };
 use crate::log::{self, Entry, Event, Object};
-use crate::lower::CastFrom;
+use crate::lower::{CastFrom, PaidWith};
 use crate::mana::short;
 use crate::model::{Ability, Counter, ObjectId, PlayerId};
 
@@ -137,6 +137,8 @@ pub enum Divergence {
     Turn { log: u32, engine: u32 },
     /// The player has no card in hand that is, or could be, the one named.
     NotInHand { card: String },
+    /// A cost exiles a card from a graveyard that isn't in it.
+    NotInGraveyard { card: String },
     /// The engine never offers the play before the turn ends.
     NeverOffered { what: String },
     /// No way to pay for the spell with what the player has.
@@ -192,6 +194,7 @@ impl Stop {
             Stop::Unfollowed { card, .. } => card.as_deref(),
             Stop::Diverged(
                 Divergence::NotInHand { card }
+                | Divergence::NotInGraveyard { card }
                 | Divergence::Unpayable { card }
                 | Divergence::Targets { card }
                 | Divergence::UnloggedTrigger { card }
@@ -536,14 +539,16 @@ impl Driver<'_> {
                 Ok(Next::Done) => return End::Finished,
                 Err(stop) => {
                     // What resolving first would show and the log doesn't:
-                    // a trigger, or a choice (Duress's, answered with a
-                    // Lightning Bolt).
+                    // a trigger, a choice (Duress's, answered with a
+                    // Lightning Bolt), or a discard (Gerrard's Verdict's,
+                    // answered with Survival of the Fittest's).
                     let triggers = matches!(
                         stop,
                         Stop::Diverged(
                             Divergence::UnloggedTrigger { .. }
                                 | Divergence::Untriggered { .. }
                                 | Divergence::Unlogged { .. }
+                                | Divergence::UnloggedDiscard { .. }
                         )
                     );
                     let tapped_trigger = matches!(
@@ -563,6 +568,9 @@ impl Driver<'_> {
                                 | Divergence::NeverOffered { .. }
                                 // A target named for what a search found.
                                 | Divergence::Targets { .. }
+                                // A card a cost exiles that an earlier
+                                // choice put elsewhere.
+                                | Divergence::NotInGraveyard { .. }
                         )
                     );
                     // Of two stops at one line, a card refused or a line
@@ -1217,10 +1225,12 @@ impl Driver<'_> {
                         None => false,
                     };
                     if paid_by {
-                        return Err(Stop::Unfollowed {
-                            event: "Discards as an activated ability's cost".into(),
-                            card: Some(c.name().to_string()),
-                        });
+                        // Paid as the next line activates it (`pay_cards`).
+                        self.did(
+                            i,
+                            "discarded to pay for the ability the next line activates",
+                        );
+                        return Ok(Next::Line(i + 1));
                     }
                 }
                 // A discard instead of a permanent entering, read ahead
@@ -1320,17 +1330,50 @@ impl Driver<'_> {
                         && game.activation_targets_spells(perm.card)
                 });
                 let on_stack = at_spells && a.targets.iter().any(|t| self.targets_stack(&t.target))
-                    || self.targeted_on_stack(&log::Target::Object(a.card.clone()));
+                    || self.targeted_on_stack(&log::Target::Object(a.card.clone()))
+                    || self.respond == Some(i);
+                // Or in response to what is on the stack, as a spell may
+                // be, if what follows says so: a cost that can't be paid
+                // once it has resolved (Grim Lavamancer's mana, after
+                // Rishadan Port's ability taps the land).
+                if !on_stack && !self.game().stack().is_empty() {
+                    let game = self.game().clone();
+                    self.checkpoints.push(Checkpoint {
+                        game,
+                        entry: i,
+                        trace: self.trace.len(),
+                        resume: i,
+                        others: vec![Retry::Respond],
+                        knew: self.knew(),
+                        back: Back::Triggers,
+                    });
+                }
                 // The ability's text, which the log may print after its
                 // last target, where it reads as that target's note.
+                // And the cost the line before shows paid, which tells
+                // Psychatog's two "+1/+1" abilities apart.
+                let quiet = |e: &Entry| matches!(e.event, Chat { .. } | Watching { .. });
+                let paid = match (0..i)
+                    .rev()
+                    .find(|j| !quiet(&self.entries[*j]))
+                    .map(|j| &self.entries[j].event)
+                {
+                    Some(Exiles {
+                        by: Some(log::ExiledBy::Source(log::Source::Card(s))),
+                        ..
+                    }) if s.name() == card.name() => Some("Exile cards from your graveyard"),
+                    Some(Discards { player, .. }) if *player == a.player => Some("Discard a card"),
+                    _ => None,
+                };
                 let said = std::iter::once(a.ability.as_str())
                     .chain(a.targets.iter().filter_map(|t| t.note.as_deref()))
                     .collect::<Vec<_>>()
                     .join(" ");
-                let activation = self.activation(p, card.name(), &said, on_stack)?;
+                self.resolve_what_its_cost_exiles(i, card.name())?;
+                let activation = self.activation(p, card.name(), &said, paid, on_stack)?;
                 self.act(Answer::Act(Action::Activate(activation)))?;
                 let paid = match self.game().decision() {
-                    Decision::Targets { .. } | Decision::Pay { .. } => {
+                    Decision::Targets { .. } | Decision::Pay { .. } | Decision::PayCards { .. } => {
                         format!(", {}", self.aim_and_pay(i, &a.targets, card.name())?)
                     }
                     _ if !a.targets.is_empty() => {
@@ -1597,6 +1640,17 @@ impl Driver<'_> {
                     return Err(unfollowed(None));
                 }
                 self.did(i, "answered a \"pay life or\" (CR 119.4)");
+            }
+            // Cards exiled from a graveyard to pay for the ability the
+            // next line activates (Grim Lavamancer's), named as it is paid
+            // (`pay_cards`).
+            // Magic Online sometimes names the activator's opponent as
+            // the one exiling, so the activation's line says whose.
+            Exiles {
+                by: Some(log::ExiledBy::Source(log::Source::Card(c))),
+                ..
+            } if self.activates_next(i, c.name()) => {
+                self.did(i, "exiled to pay for the ability the next line activates");
             }
             // Permanents returned to a hand by a cost or an instruction,
             // which the engine must have returned this turn, each in its
@@ -2214,6 +2268,10 @@ impl Driver<'_> {
             } => self.choose_mana(player, options),
             Decision::Sacrifice { .. } => self.sacrifice(),
             Decision::ReturnToHand { .. } => self.return_to_hand(),
+            Decision::PayCards { .. } => {
+                let at = self.at;
+                self.pay_cards(at)
+            }
             Decision::Reveal { player, cards } => self.reveal(player, &cards),
             // Cards looked at are hidden alike to the log: which is chosen,
             // and the order they go back in, is nothing it can tell.
@@ -2542,10 +2600,14 @@ impl Driver<'_> {
                 card: name.to_string(),
             }));
         }
+        if let Decision::PayCards { .. } = self.game().decision() {
+            self.pay_cards(i)?;
+        }
         if !matches!(self.game().decision(), Decision::Pay { .. }) {
             return Ok("no mana to pay".into());
         }
         self.tap_what_returns(i, name)?;
+        self.tap_what_is_sacrificed()?;
         let payments = self.payments()?;
         let Some((first, rest)) = payments.split_first() else {
             return Err(Stop::Diverged(Divergence::Unpayable {
@@ -2636,6 +2698,192 @@ impl Driver<'_> {
             };
             self.act(Answer::Pay(tap))?;
             wanted -= 1;
+        }
+        Ok(())
+    }
+
+    /// Whether the line after `i`, chat aside, activates an ability of
+    /// the card called `name`.
+    fn activates_next(&self, i: usize, name: &str) -> bool {
+        self.entries[i + 1..]
+            .iter()
+            .find(|e| !matches!(e.event, Event::Chat { .. } | Event::Watching { .. }))
+            .is_some_and(|e| {
+                matches!(&e.event, Event::Activates(a)
+                    if matches!(&a.card, Object::Card(c) if c.name() == name))
+            })
+    }
+
+    /// A spell on the stack that the line before line `i` exiles from a
+    /// graveyard to pay for `source`'s ability resolves first: Shock, then
+    /// Grim Lavamancer exiling it, while what Shock answered (Rishadan
+    /// Port's ability) may still wait beneath.
+    fn resolve_what_its_cost_exiles(&mut self, i: usize, source: &str) -> Followed {
+        let before = (0..i).rev().find(|j| {
+            !matches!(
+                self.entries[*j].event,
+                Event::Chat { .. } | Event::Watching { .. }
+            )
+        });
+        let Some(Event::Exiles {
+            cards,
+            by: Some(log::ExiledBy::Source(log::Source::Card(s))),
+            ..
+        }) = before.map(|j| &self.entries[j].event)
+        else {
+            return Ok(());
+        };
+        if s.name() != source {
+            return Ok(());
+        }
+        let names: Vec<String> = cards.iter().map(|c| c.name().to_string()).collect();
+        let turn = self.game().turn();
+        loop {
+            let game = self.game();
+            let waiting = game.stack().iter().any(|o| {
+                matches!(o, StackObject::Spell { card, .. }
+                    if game.card(*card).is_some_and(|t| names.iter().any(|n| t.is_called(n))))
+            });
+            if !waiting || game.turn() != turn {
+                return Ok(());
+            }
+            self.pass()?;
+        }
+    }
+
+    /// The cards an activated ability's cost takes (CR 602.2b, 601.2h):
+    /// those the line before line `i`, which activates it, names, "discards
+    /// [Anger]." or "exiles [Bloodstained Mire] and [Shock] with [Grim
+    /// Lavamancer]'s ability.", a hidden card in hand named as one; the
+    /// first legal ones with no such line, which a hidden hand can't give.
+    fn pay_cards(&mut self, i: usize) -> Followed {
+        let Decision::PayCards {
+            player,
+            source,
+            how,
+            count,
+            legal,
+            ..
+        } = self.game().decision()
+        else {
+            unreachable!("paying cards")
+        };
+        let source = self.name_of(source);
+        let q = self.player_of(player);
+        let before = (0..i).rev().find(|j| {
+            !matches!(
+                self.entries[*j].event,
+                Event::Chat { .. } | Event::Watching { .. }
+            )
+        });
+        let named: Option<Vec<String>> = before.and_then(|j| match (&self.entries[j].event, how) {
+            (Event::Discards { player: p, cards }, PaidWith::Discard) if Some(*p) == q => cards
+                .iter()
+                .map(|c| match c {
+                    Object::Card(c) => Some(c.name().to_string()),
+                    _ => None,
+                })
+                .collect(),
+            // Whoever the line names (`Exiles` in `follow`).
+            (
+                Event::Exiles {
+                    cards,
+                    by: Some(log::ExiledBy::Source(log::Source::Card(s))),
+                    ..
+                },
+                PaidWith::ExileFromGraveyard,
+            ) if s.name() == source => Some(cards.iter().map(|c| c.name().to_string()).collect()),
+            _ => None,
+        });
+        let chosen = match named {
+            Some(names) => {
+                let mut chosen = Vec::new();
+                for n in &names {
+                    let c = match how {
+                        PaidWith::Discard => {
+                            let text = self.text(n)?;
+                            let game = self.game();
+                            let hand = game.player(player).hand().clone();
+                            let c = hand
+                                .iter()
+                                .find(|c| {
+                                    !chosen.contains(*c)
+                                        && game.card(**c).is_some_and(|t| t.name == text.name)
+                                })
+                                .or_else(|| hand.iter().find(|c| game.card(**c).is_none()))
+                                .copied();
+                            if let Some(c) = c {
+                                if game.card(c).is_none() {
+                                    game.reveal(c, text).expect("a hidden card");
+                                }
+                            }
+                            c
+                        }
+                        PaidWith::ExileFromGraveyard => {
+                            let game = self.game();
+                            game.player(player)
+                                .graveyard()
+                                .iter()
+                                .find(|c| {
+                                    !chosen.contains(*c)
+                                        && game.card(**c).is_some_and(|t| t.is_called(n))
+                                })
+                                .copied()
+                        }
+                    };
+                    let Some(c) = c else {
+                        let card = n.clone();
+                        return Err(Stop::Diverged(match how {
+                            PaidWith::Discard => Divergence::NotInHand { card },
+                            PaidWith::ExileFromGraveyard => Divergence::NotInGraveyard { card },
+                        }));
+                    };
+                    chosen.push(c);
+                }
+                chosen
+            }
+            None if legal.len() >= count as usize => legal[..count as usize].to_vec(),
+            None => {
+                return Err(Stop::Unfollowed {
+                    event: "a cost's cards the log never names".into(),
+                    card: Some(source),
+                })
+            }
+        };
+        self.act(Answer::Choose(chosen))
+    }
+
+    /// A spell whose cost sacrifices permanents the player has no more of
+    /// than it takes, Fireblast's two Mountains: those untapped are tapped
+    /// for mana first, the mana floating (CR 601.2g–h), which a later line
+    /// may spend (Grim Lavamancer's {R}, activated in response too). The
+    /// log never shows a mana ability, and a land sacrificed untapped would
+    /// have made nothing. A land whose tapping triggers is left alone.
+    fn tap_what_is_sacrificed(&mut self) -> Followed {
+        let Decision::Pay { player, spell, .. } = self.game().decision() else {
+            return Ok(());
+        };
+        let Some((count, legal)) = self.game().sacrificed_for(player, spell) else {
+            return Ok(());
+        };
+        if legal.len() != count as usize {
+            return Ok(());
+        }
+        for o in legal {
+            let Decision::Pay { actions, .. } = self.game().decision() else {
+                return Ok(());
+            };
+            let game = self.game();
+            if game.permanents()[&o].tapped || game.triggers_on_tapping(o) {
+                continue;
+            }
+            let tap = actions.iter().find(|a| {
+                matches!(a, Payment::Mana(m)
+                    if m.source == o && m.pays.is_empty() && m.sacrifices.is_none())
+            });
+            if let Some(tap) = tap.copied() {
+                self.act(Answer::Pay(tap))?;
+            }
         }
         Ok(())
     }
@@ -3863,6 +4111,7 @@ impl Driver<'_> {
         p: PlayerId,
         name: &str,
         said: &str,
+        paid: Option<&str>,
         respond: bool,
     ) -> Result<Activation, Stop> {
         let text = self.text(name)?;
@@ -3881,6 +4130,20 @@ impl Driver<'_> {
                 event: "Activates of a card not on the battlefield".into(),
                 card: Some(name.to_string()),
             });
+        }
+        // A permanent spell of its name resolves first: its ability's
+        // own later line ("draws a card with [Insolent Neonate]'s
+        // ability") isn't the spell's.
+        loop {
+            let game = self.game();
+            let cast = game.stack().iter().any(|o| {
+                matches!(o, StackObject::Spell { card, .. }
+                    if game.card(*card).is_some_and(|t| t.name == text.name))
+            });
+            if !cast || game.turn() != turn {
+                break;
+            }
+            self.pass()?;
         }
         if !respond {
             while !self.game().stack().is_empty() && !self.resolves_later() {
@@ -3944,8 +4207,22 @@ impl Driver<'_> {
                                 .map_or(0, |t| shared_words(said, t))
                         };
                         let best = offered.iter().map(score).max().unwrap_or(0);
-                        let top: Vec<&Activation> =
+                        let mut top: Vec<&Activation> =
                             offered.iter().filter(|a| score(a) == best).collect();
+                        // Of those, the one whose cost is the one paid.
+                        if let Some(paid) = paid {
+                            let costs = |a: &&Activation| {
+                                let Ability::Unread(n) = a.ability else {
+                                    return 0;
+                                };
+                                let card = game.permanents()[&a.source].card;
+                                game.ability_text(card, n)
+                                    .and_then(|t| t.split_once(": "))
+                                    .map_or(0, |(cost, _)| shared_words(paid, cost))
+                            };
+                            let most = top.iter().map(costs).max().unwrap_or(0);
+                            top.retain(|a| costs(a) == most);
+                        }
                         if best == 0 || top.iter().any(|a| a.ability != top[0].ability) {
                             return Err(Stop::Unfollowed {
                                 event: "Activates one of several abilities".into(),
@@ -4281,17 +4558,50 @@ impl Driver<'_> {
         let Some(((first, did), rest)) = legal.split_first() else {
             return Err(refused.unwrap_or(Stop::Diverged(Divergence::Unfound)));
         };
-        if !rest.is_empty() {
+        // A land the log never names is the last explanation: tried only
+        // once every other choice this turn has been, a spell or ability
+        // made in response among them (Bloodstained Mire's Mountain, Grim
+        // Lavamancer activated while Rishadan Port's ability waits).
+        let is_hypothesis =
+            |a: &Answer| matches!(a, Answer::Find(Found::Hidden(_, t)) if self.hypothesis(&t.name));
+        let (named, unnamed): (Vec<_>, Vec<_>) = rest.iter().partition(|(a, _)| !is_hypothesis(a));
+        let retries = |r: Vec<&(Answer, String)>| -> Vec<Retry> {
+            r.into_iter()
+                .map(|(a, d)| Retry::Answer(a.clone(), d.clone()))
+                .collect()
+        };
+        if !unnamed.is_empty() {
+            let turn_began = self.entries[..self.at]
+                .iter()
+                .rposition(|e| matches!(e.event, Event::TurnBegins(_)))
+                .unwrap_or(0);
+            let below = self
+                .checkpoints
+                .iter()
+                .position(|cp| cp.entry >= turn_began)
+                .unwrap_or(self.checkpoints.len());
+            let game = self.game().clone();
+            self.checkpoints.insert(
+                below,
+                Checkpoint {
+                    game,
+                    entry: self.at,
+                    trace: self.trace.len(),
+                    resume: self.at,
+                    others: retries(unnamed),
+                    knew: self.knew(),
+                    back: Back::Unplayable,
+                },
+            );
+        }
+        if !named.is_empty() {
             let game = self.game().clone();
             self.checkpoints.push(Checkpoint {
                 game,
                 entry: self.at,
                 trace: self.trace.len(),
                 resume: self.at,
-                others: rest
-                    .iter()
-                    .map(|(a, d)| Retry::Answer(a.clone(), d.clone()))
-                    .collect(),
+                others: retries(named),
                 knew: self.knew(),
                 back: Back::Unplayable,
             });

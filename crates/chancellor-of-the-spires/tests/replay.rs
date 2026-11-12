@@ -167,6 +167,11 @@ const INDEXED: &[&str] = &[
     "Cloudpost",
     "Vesuva",
     "Bronze Sable",
+    "Grim Lavamancer",
+    "Fireblast",
+    "Survival of the Fittest",
+    "Rishadan Port",
+    "Psychatog",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1633,4 +1638,186 @@ fn vesuva_copies_what_a_later_spell_needs_it_to_have_copied() {
     let game = r.game.expect("set up");
     assert_eq!(on_battlefield(&game, "Cloudpost"), 2);
     assert_eq!(on_battlefield(&game, "Bronze Sable"), 3);
+}
+
+/// CR 118.9, 601.2g–h, 602.2b: Fireblast cast by sacrificing alice's two
+/// Mountains, tapped for mana first since the log never shows them
+/// tapped, and Grim Lavamancer activated by exiling those Mountains from
+/// her graveyard, its {R} that mana. Magic Online names bob as the one
+/// exiling; the activation's line says it is alice's.
+#[test]
+fn grim_lavamancer_exiles_the_cards_its_line_names_and_spends_what_fireblast_floated() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        alice casts [Grim Lavamancer].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Fireblast] targeting bob.
+        bob exiles [Mountain] and [Mountain] with with [Grim Lavamancer]'s ability.
+        alice activates an ability of [Grim Lavamancer] targeting bob ( Grim Lavamancer deals 2 damage to any target.).
+        Turn 2: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(game.player(BOB).life(), 20 - 4 - 2);
+    assert!(game
+        .player(ALICE)
+        .graveyard()
+        .iter()
+        .all(|c| game.card(*c).is_some_and(|t| t.name != "Mountain")));
+    assert_eq!(on_battlefield(&game, "Mountain"), 0);
+}
+
+/// CR 602.2b, 701.9a: "discards [Llanowar Elves]." then Survival of the
+/// Fittest's activation: the discard is its cost, the card the line names.
+#[test]
+fn survival_of_the_fittest_discards_the_card_the_line_before_names() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Survival of the Fittest].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        alice discards [Llanowar Elves].
+        alice activates an ability of [Survival of the Fittest] ( Search your library for a creature card, reveal that card, put it into your hand, then shuffle.).
+        alice reveals [Wall of Roots].
+        Turn 3: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    let named = |cards: &imbl::Vector<chancellor_of_the_spires::game::CardId>, n: &str| {
+        cards
+            .iter()
+            .filter(|c| game.card(**c).is_some_and(|t| t.name == n))
+            .count()
+    };
+    assert_eq!(named(game.player(ALICE).graveyard(), "Llanowar Elves"), 1);
+    assert_eq!(named(game.player(ALICE).hand(), "Wall of Roots"), 1);
+}
+
+/// CR 117.7, 602.2: Rishadan Port's ability targets alice's Mountain in
+/// her upkeep, and she answers it: Wooded Foothills finds a Mountain,
+/// Lightning Bolt is cast with it, and Grim Lavamancer, exiling Wooded
+/// Foothills and Bolt once Bolt has resolved, is paid by the first
+/// Mountain before the Port taps it. A land the log never names
+/// (Stomping Ground, which can enter untapped) is tried only once the
+/// replay has tried answering the Port.
+#[test]
+fn grim_lavamancer_answers_rishadan_port_before_a_land_the_log_never_names() {
+    let unseen = [UnseenLand {
+        name: "Stomping Ground".into(),
+        makes: [false, false, false, true, true],
+    }];
+    let (_, r) = run_with(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        alice casts [Grim Lavamancer].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Rishadan Port].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Wooded Foothills].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        bob activates an ability of [Rishadan Port] targeting [Mountain] ( Tap target land.).
+        alice activates an ability of [Wooded Foothills] ( Search your library for a Mountain or Forest card, put it onto the battlefield, then shuffle.).
+        alice casts [Lightning Bolt] targeting bob.
+        alice exiles [Wooded Foothills] and [Lightning Bolt] with with [Grim Lavamancer]'s ability.
+        alice activates an ability of [Grim Lavamancer] targeting bob ( Grim Lavamancer deals 2 damage to any target.).
+        Turn 3: bob
+        bob draws a card.
+        bob has conceded from the game.
+    ",
+        &mut cards,
+        &unseen,
+    );
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    assert!(r.unseen.is_empty(), "{:?}", r.unseen);
+    let game = r.game.expect("set up");
+    assert_eq!(game.player(BOB).life(), 20 - 3 - 2);
+    assert_eq!(on_battlefield(&game, "Mountain"), 2);
+}
+
+/// Psychatog has two abilities the log prints alike, "Psychatog gets
+/// +1/+1 until end of turn."; the one activated is the one whose cost the
+/// line before shows paid, an exile from the graveyard or a discard.
+#[test]
+fn psychatog_s_ability_is_the_one_whose_cost_the_line_before_paid() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Swamp].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Mountain].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Mountain].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Island].
+        alice casts [Psychatog].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Mountain].
+        bob casts [Lightning Bolt] targeting alice.
+        bob casts [Lightning Bolt] targeting alice.
+        Turn 4: alice
+        alice draws a card.
+        alice discards [Grizzly Bears].
+        alice activates an ability of [Psychatog] ( Psychatog gets +1/+1 until end of turn.).
+        alice discards [Island].
+        alice activates an ability of [Psychatog] ( Psychatog gets +1/+1 until end of turn.).
+        alice exiles [Island] and [Grizzly Bears] with with [Psychatog]'s ability.
+        alice activates an ability of [Psychatog] ( Psychatog gets +1/+1 until end of turn.).
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    let game = r.game.expect("set up");
+    // The Bears and the Island discarded, then exiled.
+    assert!(game.player(ALICE).graveyard().is_empty());
 }

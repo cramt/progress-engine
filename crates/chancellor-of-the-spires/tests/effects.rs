@@ -4085,3 +4085,140 @@ fn thespians_stage_becomes_a_copy_of_cloudpost_and_keeps_its_ability() {
         "it still has the ability that made it a copy"
     );
 }
+
+/// CR 602.2b, 601.2h, 701.9a: Survival of the Fittest's "{G}, Discard a
+/// creature card" discards one chosen among the creature cards in hand as
+/// it is paid, then its mana; the search finds a creature card into hand.
+#[test]
+fn survival_of_the_fittest_discards_a_creature_card_to_search_for_one() {
+    let mut game = deal(
+        &[
+            ("Forest", 30),
+            ("Survival of the Fittest", 10),
+            ("Llanowar Elves", 20),
+        ],
+        &[("Swamp", 60)],
+        &[
+            ("Forest", 2),
+            ("Survival of the Fittest", 1),
+            ("Llanowar Elves", 1),
+        ],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Survival of the Fittest", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    let survival = creature(&game, "Survival of the Fittest").expect("on the battlefield");
+    let elves = in_hand(&game, ME, "Llanowar Elves").expect("dealt");
+    let Decision::PayCards {
+        count, legal, how, ..
+    } = activate(&mut game, survival)
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(
+        (count, how),
+        (1, chancellor_of_the_spires::lower::PaidWith::Discard)
+    );
+    // Only creature cards: no Forest.
+    assert!(legal
+        .iter()
+        .all(|c| game.card(*c).is_some_and(|t| t.name == "Llanowar Elves")));
+    let mut d = step(&mut game, Answer::Choose(vec![elves]));
+    assert!(game.player(ME).graveyard().contains(&elves));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a Forest");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    let hand = game.player(ME).hand().len();
+    let Decision::Search { known, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    let found = known
+        .iter()
+        .copied()
+        .find(|c| game.card(*c).is_some_and(|t| t.name == "Llanowar Elves"))
+        .expect("an Elves in the library");
+    step(&mut game, Answer::Find(Found::Card(found)));
+    assert_eq!(game.player(ME).hand().len(), hand + 1);
+    assert!(game.player(ME).hand().contains(&found));
+}
+
+/// CR 602.2b, 601.2h: Grim Lavamancer's "{R}, {T}, Exile two cards from
+/// your graveyard" isn't offered with one card there; with two it exiles
+/// them as it is paid and deals 2 damage to its target.
+#[test]
+fn grim_lavamancer_exiles_two_cards_from_the_graveyard_to_deal_two_damage() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Grim Lavamancer", 10),
+            ("Lightning Bolt", 20),
+        ],
+        &[("Swamp", 60)],
+        &[
+            ("Mountain", 2),
+            ("Grim Lavamancer", 1),
+            ("Lightning Bolt", 2),
+        ],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Grim Lavamancer", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    let lavamancer = creature(&game, "Grim Lavamancer").expect("on the battlefield");
+    let offered = |game: &Game| {
+        let Decision::Priority { actions, .. } = game.decision() else {
+            panic!("{:?}", game.decision())
+        };
+        actions
+            .iter()
+            .any(|a| matches!(a, Action::Activate(x) if x.source == lavamancer))
+    };
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Player(THEM)]),
+    );
+    resolve(&mut game);
+    assert_eq!(game.player(ME).graveyard().len(), 1);
+    assert!(!offered(&game), "one card in the graveyard isn't two");
+    my_next_main(&mut game);
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Player(THEM)]),
+    );
+    resolve(&mut game);
+    assert!(offered(&game));
+    let Decision::Targets { .. } = activate(&mut game, lavamancer) else {
+        panic!("{:?}", game.decision())
+    };
+    let Decision::PayCards { count, legal, .. } =
+        step(&mut game, Answer::Targets(vec![Target::Player(THEM)]))
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((count, legal.len()), (2, 2));
+    let mut d = step(&mut game, Answer::Choose(legal));
+    assert!(game.player(ME).graveyard().is_empty());
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a Mountain");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 20 - 3 - 3 - 2);
+}

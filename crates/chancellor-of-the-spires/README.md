@@ -254,7 +254,12 @@ creature's only once it has been yours since your turn began (CR 302.6)
 or has haste; other activated abilities any time you have priority (CR
 117.1b), or only once each turn or if an opponent lost life this turn
 (CR 602.5, 602.5b: Hired Claw), costing a tap, life, sacrificing their source and mana, paid
-as a spell's is (CR 602.2, 602.2b, 701.21a), their targets chosen as
+as a spell's is (CR 602.2, 602.2b, 701.21a), or cards: a discard of a
+card a filter matches (Survival of the Fittest's "Discard a creature
+card", CR 701.9a) or cards exiled from their activator's graveyard
+(Grim Lavamancer's "Exile two cards from your graveyard"), chosen as the
+cost is paid after the targets, before the mana (CR 601.2h), and
+offered only with as many cards to take, their targets chosen as
 they are activated (Mogg Fanatic, Wasteland, Rishadan Port's "Tap target
 land", CR 701.26a), "becomes a 2/2 Assembly-Worker artifact creature
 until end of turn. It's still a land", which keeps every type it had (CR
@@ -413,7 +418,7 @@ offered. A non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**41 of Loam's 90 distinct cards are played or cast and resolved, 29 of
+**41 of Loam's 90 distinct cards are played or cast and resolved, 30 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
@@ -425,7 +430,9 @@ since cycling runs: Coastal Peak, Desert of the Fervent, Forgotten Cave,
 Ketria Triome, Lonely Sandbar and Sheltered Thicket, Deep Analysis,
 whose flashback runs, and Lotus Cobra, whose landfall adds mana of a
 colour chosen, and Cultivate, Kodama's Reach and Flare of Cultivation,
-since a search can find up to two, measured 2026-11-04), Blast Zone played too since it
+since a search can find up to two, measured 2026-11-04, and Trade Routes,
+since an activated ability can cost a discard, 30 of them from
+2026-11-12), Blast Zone played too since it
 enters with its counter, its abilities carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
@@ -436,8 +443,9 @@ Loam against a goldfish for six turns, casting what it can.
 
 Not yet: most instructions (modal spells, "if", a predefined token or
 one with abilities beyond keywords), X,
-activated abilities with limits or costs beyond a tap, life, mana and
-sacrificing their source, triggers on any other event (leaving the battlefield other than dying), an "intervening if" other than "if you control …" (CR 603.4), a card that triggers from a
+activated abilities with limits or costs beyond a tap, life, mana,
+sacrificing their source and a discard or an exile from a graveyard,
+triggers on any other event (leaving the battlefield other than dying), an "intervening if" other than "if you control …" (CR 603.4), a card that triggers from a
 graveyard, attacking a planeswalker or battle, requirements and
 restrictions on attacking and blocking beyond flying, reach, menace and
 defender, a creature blocking two, an Aura put onto the battlefield
@@ -754,8 +762,25 @@ next, as a land returned untapped would have made nothing. Any other
 "returns … to its owner's hand" line must match as many permanents the
 engine returned to a hand that turn, each in a hand now. A "discards [X]"
 line just before its player activates an ability whose cost discards
-(Survival of the Fittest) is that cost, which isn't followed yet, never a
-resolving instruction's discard; and a spell cast in its caster's combat
+(Survival of the Fittest) is that cost, never a resolving instruction's
+discard, and an "exiles [Bloodstained Mire] and [Shock] with [Grim
+Lavamancer]'s ability" line just before an activation of that card is
+its cost, whichever player the line names (Magic Online sometimes names
+the activator's opponent); the cards paid are those the line names, a
+hidden card in hand named as one, a spell named that is still on the
+stack resolving first, and the line tells apart two abilities the log
+prints alike (Psychatog's "+1/+1", one costing a discard, one an exile).
+An activation is made after what is on the stack resolves, or in
+response to it if what follows says so, as a spell is (Grim Lavamancer
+activated while Rishadan Port's ability waits to tap the land that pays
+for it), and a discard the log doesn't show is reason to go back to it
+(Gerrard's Verdict resolving before Survival of the Fittest answers it).
+A spell's cost sacrificing as many permanents as its caster has that it
+takes (Fireblast's two Mountains) taps the untapped ones for mana first,
+as Gush's does. A search's land the log never names is tried only after
+every other choice of that turn, a response among them; and a spell
+of the name an activation is of resolves before it, though a later line
+draws "with" it (Insolent Neonate's ability); and a spell cast in its caster's combat
 with nothing to answer is cast in their postcombat main phase instead if
 what follows needs it (the Dark Ritual for the Phyrexian Arena cast
 next), as one cast in the beginning phase is cast in the first.
@@ -820,12 +845,13 @@ the log never names it relied on, one game a row, to diff for a game a
 change made follow fewer; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 72 replay to the end** (69 to the log's winner
-line), 54 of them past the first turn, and **30.14% of their lines are
-followed** (23,565 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 78 replay to the end** (75 to the log's winner
+line), 60 of them past the first turn, and **30.62% of their lines are
+followed** (23,942 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-12, and 8 games rely on a land the log never names (1
-of them to the end); it was 71 games and 30.05% before copies, 29.95%
+of them to the end); it was 72 games and 30.14% before activated
+abilities' cards costs, 71 games and 30.05% before copies, 29.95%
 before transforming cards, 70 games
 and 29.56% before modal double-faced and adventurer cards, 65 games and 29.39% before the "unless" costs
 other than mana, 57 games and 28.75% before morph, 20 games and 20.96% before the milestone's
@@ -833,7 +859,7 @@ work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
 no turn in them (empty logs, concessions during the mulligans). 283 stop
-in the first turn, 341 in the second, 194 in the third, 118 later, and 53
+in the first turn, 339 in the second, 187 in the third, 121 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -850,12 +876,13 @@ bounce, counter and dying 20.72%; search as an instruction 20.81%;
 responses 20.84%; tokens 20.96%; then the milestone's work took it to
 23.99% and on to 27.27% (below). Games to the end barely moved: a game
 that gets past one stop meets the next, most in its first two turns. The
-stops now, by games: an exile line not followed (76: suspend's Rift Bolt,
-Grim Lavamancer's cost), `Trigger::When(Event::Or)` (43: Stitcher's
-Supplier), a restriction (30), modifying by an amount (26), looking at a
-hand (23: Gitaxian Probe), modal spells and Cavern of Souls's "spend
-this mana only" (22 each), "with" (21), one player named (21), and
-moving cards a search found (20). Of the 55 games two faces stopped, one
+stops now, by games: an exile line not followed (63: suspend's Search
+for Tomorrow and Rift Bolt, the Shoals' and Force of Virtue's
+alternative costs, Simian Spirit Guide), `Trigger::When(Event::Or)` (43:
+Stitcher's Supplier), a restriction (31), modifying by an amount (26),
+looking at a hand (23: Gitaxian Probe) and modal spells (23), Cavern of
+Souls's "spend this mana only" (22), "with" (21), one player named (21),
+and moving cards a search found (21). Of the 55 games two faces stopped, one
 replays to the end and 32 stop at other cards; 15 stop at a
 transforming card's other text (Invasion of Ixalan's "With" in 4, Thing
 in the Ice's "remove an ice counter", Search for Azcanta's surveil, a
@@ -948,8 +975,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-12 70 of the 500 replay to
-the end and 43.69% of their lines are followed** (13,832 of 31,659), 2
+Worked card by card from there, **on 2026-11-12 76 of the 500 replay to
+the end and 44.84% of their lines are followed** (14,195 of 31,659), 2
 of them relying on a land the log never names (1 to the end), and 83
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -1013,7 +1040,9 @@ target nonland permanent" (Scalding Viper // Steam Clean); transforming,
 an ability on the face it is printed on, and a card looked at then
 revealed (Delver of Secrets); a copy's copiable values as layer 1,
 entering as a copy and becoming one (Vesuva, Thespian's Stage), and "1
-life for each Locus" (Glimmerpost). And
+life for each Locus" (Glimmerpost); an activated ability costing a
+discard of a card a filter matches or cards exiled from a graveyard
+(Survival of the Fittest, Grim Lavamancer, Psychatog). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1026,13 +1055,24 @@ cast face down, from the line revealing it or the card with morph a line
 names once it is turned face up, the discard paying an "unless"
 from the next discard line, and which face of a two-faced card a line
 names and which copy of an adventurer card it casts, and what Vesuva
-entered as a copy of. One divergence was the engine's own, found by the full
+entered as a copy of, and the cards an activation's cost takes from the
+line before it, an activation made in response to what is on the stack
+(Grim Lavamancer's, while Rishadan Port's ability waits), Fireblast's
+Mountains tapped for mana before they are sacrificed, and a land the
+log never names tried only after the turn's other choices. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
 top of the worklist now: Stifle countering Phyrexian Dreadnought's
-trigger (9: six of the Dreadnought games stop there), and Grim
-Lavamancer's exile line, Goblin Cadets, Quicksilver and Veteran Survivor
-(6 each); of the 8 games Vesuva stopped and the 2 Thespian's Stage did,
+trigger (9: six of the Dreadnought games stop there), and Goblin Cadets,
+Quicksilver, Veteran Survivor and a counter removed from Triskelion (6
+each); of the 11 games Grim Lavamancer's exile line stopped, four replay
+to the end and the rest stop at other cards (Triskelion, Recurring
+Nightmare, Smother, Tarmogoyf, Red Elemental Blast among them), of
+Psychatog's two one does and the other stops at Fact or Fiction, and of
+the 12 a discard paying an ability stopped (Survival of the Fittest's
+mostly) one does, the rest stopping at Squee, Goblin Nabob (4), Wirewood
+Symbiote's return (3), Basking Rootwalla's madness (2), Goblin
+Piledriver and Goblin Sharpshooter; of the 8 games Vesuva stopped and the 2 Thespian's Stage did,
 one of the Stage's replays to the end and the rest stop at other cards
 (Harmonic Prodigy's additional trigger, Pithing Needle's card name,
 Search for Tomorrow's suspend, Trading Post's counters, Price of
@@ -1058,7 +1098,7 @@ own Mox Diamond rather than its opponent's, a winner line after an
 attack that never dealt its combat damage, a Dark Ritual cast in combat
 for a Phyrexian Arena that waits for the second main phase, and the
 discard paying Survival of the Fittest taken for Gerrard's Verdict's,
-now a stop of its own; and, once Masticore let a game run on, a Goblin
+until the cost ran, as an activation in response; and, once Masticore let a game run on, a Goblin
 Lackey "may" guessed taken reported as a divergence where declining it
 reached the same line and stopped at Eternal Dragon's landcycling, now
 the stop reported, since a line not followed yet says more than a
