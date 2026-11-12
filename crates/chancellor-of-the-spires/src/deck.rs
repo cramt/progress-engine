@@ -57,6 +57,10 @@ pub enum TwoFaced {
     /// the face chosen is up on the stack and the battlefield (CR 712.3,
     /// 712.11b, 712.12).
     Modal,
+    /// A nonmodal double-faced card: cast and put onto the battlefield
+    /// front face up, its back face up only once it transforms (CR 712.2,
+    /// 712.11, 712.14, 701.27a).
+    Transforming,
     /// An adventurer card: its back is the Adventure, whose alternative
     /// characteristics it has only on the stack cast as one (CR 715.2,
     /// 715.3b).
@@ -285,6 +289,7 @@ pub fn text(card: &Card) -> CardText {
     };
     let layout = match card.layout.as_str() {
         "modal_dfc" => TwoFaced::Modal,
+        "transform" => TwoFaced::Transforming,
         "adventure" => TwoFaced::Adventure,
         _ => {
             return one(Oracle::Faces {
@@ -313,13 +318,16 @@ pub fn text(card: &Card) -> CardText {
         pt: pt_of(f),
         identity: identity.clone(),
     };
-    CardText::two_faced(
-        card.name.clone(),
-        layout,
-        face(front, front_text),
-        face(back, back_text),
-    )
-    .expect("faces of one face each")
+    let back = match layout {
+        // Its back face's mana value is its front's (CR 712.8e, 202.3b).
+        TwoFaced::Transforming => CardText {
+            mana_value: mana_value(&front.mana_cost),
+            ..face(back, back_text)
+        },
+        _ => face(back, back_text),
+    };
+    CardText::two_faced(card.name.clone(), layout, face(front, front_text), back)
+        .expect("faces of one face each")
 }
 
 /// The mana value of a printed mana cost (CR 202.3): each symbol 1, a

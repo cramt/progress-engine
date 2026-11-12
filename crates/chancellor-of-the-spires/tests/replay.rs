@@ -70,6 +70,37 @@ fn pelakka() -> CardText {
     .unwrap()
 }
 
+/// A transforming double-faced card, likewise; its back face's mana
+/// value is its front's (CR 712.8e).
+fn delver() -> CardText {
+    CardText::two_faced(
+        "Delver of Secrets // Insectile Aberration".into(),
+        TwoFaced::Transforming,
+        CardText {
+            pt: Some(pt(1, 1)),
+            ..face(
+                "Delver of Secrets",
+                "Creature — Human Wizard",
+                "{U}",
+                "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform this creature.",
+                &[Color::Blue],
+            )
+        },
+        CardText {
+            pt: Some(pt(3, 2)),
+            mana_value: 1,
+            ..face(
+                "Insectile Aberration",
+                "Creature — Human Insect",
+                "",
+                "Flying",
+                &[Color::Blue],
+            )
+        },
+    )
+    .unwrap()
+}
+
 /// An adventurer card, likewise.
 fn scalding_viper() -> CardText {
     CardText::two_faced(
@@ -149,6 +180,7 @@ fn cards(name: &str) -> Option<CardText> {
         "Grizzly Bears" => Some(bears()),
         "Pelakka Predation" | "Pelakka Caverns" => Some(pelakka()),
         "Scalding Viper" | "Steam Clean" => Some(scalding_viper()),
+        "Delver of Secrets" | "Insectile Aberration" => Some(delver()),
         n if INDEXED.contains(&n) => Some(deck::card(n, index()).unwrap()),
         _ => None,
     }
@@ -1490,4 +1522,59 @@ fn a_log_names_the_face_played_or_cast_and_an_adventure_is_cast_from_exile() {
     assert_eq!(on_battlefield(&game, "Scalding Viper // Steam Clean"), 1);
     assert!(game.exile().is_empty());
     assert_eq!(on_battlefield(&game, "Grizzly Bears"), 1);
+}
+
+/// CR 701.20a, 701.27a, 701.27f: Delver of Secrets's upkeep trigger,
+/// declined where no line reveals the card, and taken where "reveals
+/// [Lightning Bolt]." names the top card; the "transforms into" line is
+/// the engine's transform, and the attack after it is by Insectile
+/// Aberration, the same permanent.
+#[test]
+fn delver_of_secrets_reveals_the_card_its_line_names_and_transforms() {
+    let trigger = "puts triggered ability from [Delver of Secrets] onto the stack \
+        (At the beginning of your upkeep, look at the top card of your library. You may reveal that card. I...).";
+    let (_, r) = run(&format!(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        alice casts [Delver of Secrets].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice {trigger}
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 3: alice
+        alice {trigger}
+        alice reveals [Lightning Bolt].
+        [Delver of Secrets] transforms into [Insectile Aberration].
+        alice draws a card.
+        bob is being attacked by [Insectile Aberration]
+        Turn 3: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    "
+    ));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(game.player(BOB).life(), 17);
+    let (_, delver) = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| game.face_name(p.card) == Some("Insectile Aberration"))
+        .expect("transformed");
+    assert_eq!(
+        game.side_up(delver.card),
+        chancellor_of_the_spires::deck::Side::Back
+    );
 }

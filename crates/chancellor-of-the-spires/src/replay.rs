@@ -261,6 +261,7 @@ pub fn replay(
         shuffled: (0, 0),
         discarded: (0, 0),
         returned: (0, 0),
+        transformed: (0, 0),
         face_down: BTreeMap::new(),
         entries: g.entries.clone(),
         respond: None,
@@ -315,6 +316,7 @@ struct Knew {
     shuffled: (u32, u32),
     discarded: (u32, u32),
     returned: (u32, u32),
+    transformed: (u32, u32),
     respond: Option<usize>,
     unseen: Vec<String>,
     activated: (u32, Vec<ObjectId>),
@@ -413,6 +415,9 @@ struct Driver<'a> {
     /// The turn, and how many permanents the log has shown returned to a
     /// hand in it.
     returned: (u32, u32),
+    /// The turn, and how many permanents the log has shown transform in
+    /// it.
+    transformed: (u32, u32),
     /// The card cast as each "face-down creature #N", by N. Following the
     /// cast line again after going back to before it casts it again, so
     /// this is never put back.
@@ -443,6 +448,7 @@ impl Driver<'_> {
             shuffled: self.shuffled,
             discarded: self.discarded,
             returned: self.returned,
+            transformed: self.transformed,
             respond: self.respond,
             unseen: self.unseen.clone(),
             activated: self.activated.clone(),
@@ -465,6 +471,7 @@ impl Driver<'_> {
         self.created = knew.created;
         self.discarded = knew.discarded;
         self.returned = knew.returned;
+        self.transformed = knew.transformed;
         self.respond = knew.respond;
         self.unseen = knew.unseen;
         self.activated = knew.activated;
@@ -1345,6 +1352,12 @@ impl Driver<'_> {
                 let p = self.seat(*player);
                 let turn = self.game().turn();
                 let known = loop {
+                    // A card looked at and revealed by a resolving
+                    // instruction (Delver of Secrets's), named as the
+                    // engine asks (`reveal`), which read this line ahead.
+                    if self.consumed.contains(&i) {
+                        break None;
+                    }
                     let game = self.game();
                     match game.decision() {
                         Decision::Search {
@@ -1352,7 +1365,11 @@ impl Driver<'_> {
                             known,
                             reveals: true,
                             ..
-                        } if player == p => break known,
+                        } if player == p => break Some(known),
+                        Decision::May { card, .. } if game.reveals_looked_at(card) => {
+                            self.pass()?
+                        }
+                        Decision::Reveal { .. } if game.looked_at_revealed() => self.pass()?,
                         Decision::Search {
                             player,
                             filter,
@@ -1368,24 +1385,29 @@ impl Driver<'_> {
                         _ => return Err(unfollowed(Some(cards[0].name()))),
                     }
                 };
-                let text = self.text(cards[0].name())?;
-                let game = self.game();
-                let library = game.player(p).library().clone();
-                let found = match known
-                    .iter()
-                    .find(|c| game.card(**c).is_some_and(|t| t.name == text.name))
-                {
-                    Some(c) => Found::Card(*c),
-                    None => match library.iter().find(|c| game.card(**c).is_none()) {
-                        Some(c) => Found::Hidden(*c, Box::new(text)),
-                        None => return Err(Stop::Diverged(Divergence::Unfound)),
-                    },
-                };
-                self.act(Answer::Find(found))?;
-                self.did(
-                    i,
-                    format!("found {}, revealed (CR 701.23a)", cards[0].name()),
-                );
+                match known {
+                    None => self.did(i, "the card revealed (CR 701.20a)"),
+                    Some(known) => {
+                        let text = self.text(cards[0].name())?;
+                        let game = self.game();
+                        let library = game.player(p).library().clone();
+                        let found = match known
+                            .iter()
+                            .find(|c| game.card(**c).is_some_and(|t| t.name == text.name))
+                        {
+                            Some(c) => Found::Card(*c),
+                            None => match library.iter().find(|c| game.card(**c).is_none()) {
+                                Some(c) => Found::Hidden(*c, Box::new(text)),
+                                None => return Err(Stop::Diverged(Divergence::Unfound)),
+                            },
+                        };
+                        self.act(Answer::Find(found))?;
+                        self.did(
+                            i,
+                            format!("found {}, revealed (CR 701.23a)", cards[0].name()),
+                        );
+                    }
+                }
             }
             // CR 701.23b: the search the ability on the stack makes finds
             // nothing.
@@ -1599,6 +1621,45 @@ impl Driver<'_> {
                 // cast (Gush).
                 let _ = cards;
                 self.did(i, "returned to pay for the spell the next line casts");
+            }
+            // "[Delver of Secrets] transforms into [Insectile
+            // Aberration].": what resolves until the engine has transformed
+            // one more permanent this turn, which is the one the line
+            // names, its other face up (CR 701.27a).
+            Transforms { to, .. } => {
+                let turn = self.game().turn();
+                let seen = if self.transformed.0 == turn {
+                    self.transformed.1
+                } else {
+                    0
+                } + 1;
+                while self.game().transformed() < seen {
+                    let game = self.game();
+                    let passing = game.turn() == turn
+                        && match game.decision() {
+                            Decision::Priority { .. } => !game.stack().is_empty(),
+                            Decision::May { .. }
+                            | Decision::Reveal { .. }
+                            | Decision::Targets { .. }
+                            | Decision::Order { .. }
+                            | Decision::PayUnless { .. } => true,
+                            _ => false,
+                        };
+                    if !passing {
+                        return Err(unfollowed(Some(to.name())));
+                    }
+                    self.pass()?;
+                }
+                let game = self.game();
+                if !game
+                    .permanents()
+                    .values()
+                    .any(|perm| game.face_name(perm.card) == Some(to.name()))
+                {
+                    return Err(unfollowed(Some(to.name())));
+                }
+                self.transformed = (turn, seen);
+                self.did(i, format!("transformed into {} (CR 701.27a)", to.name()));
             }
             ReturnsToHand { cards, .. } if !cards.is_empty() => {
                 self.until_choice()?;
@@ -2243,9 +2304,10 @@ impl Driver<'_> {
         Ok(out)
     }
 
+    /// The name a log gives a card: a two-faced card's by the face up.
     fn name_of(&self, c: CardId) -> String {
         let game = self.game.as_ref().expect("set up");
-        game.card(c).map(|t| t.name.clone()).unwrap_or_default()
+        game.face_name(c).map(str::to_string).unwrap_or_default()
     }
 
     /// The triggered abilities the log shows from the line being followed
@@ -4451,6 +4513,7 @@ impl Driver<'_> {
             .resolving()
             .map(|c| self.name_of(c))
             .unwrap_or_default();
+        let looked = game.looked_at_revealed();
         let mut names = Vec::new();
         for (k, e) in self.entries.iter().enumerate().skip(self.at) {
             if names.len() == count || k > self.at && matches!(e.event, Event::TurnBegins(_)) {
@@ -4468,6 +4531,19 @@ impl Driver<'_> {
             } = &e.event
             {
                 if self.seat(*player) == p && s.name() == by && !self.consumed.contains(&k) {
+                    self.consumed.insert(k);
+                    names.extend(cards.iter().map(|c| c.name().to_string()));
+                }
+            }
+            // "reveals [Remand].": a card looked at and then revealed,
+            // which the log doesn't say what by (Delver of Secrets's).
+            if let Event::Reveals {
+                player,
+                cards,
+                how: log::Reveal::Plain,
+            } = &e.event
+            {
+                if self.seat(*player) == p && looked && !self.consumed.contains(&k) {
                     self.consumed.insert(k);
                     names.extend(cards.iter().map(|c| c.name().to_string()));
                 }

@@ -1287,6 +1287,16 @@ pub enum Effect {
         top: bool,
         from: FoundIn,
     },
+    /// "You may reveal that card": the cards bound to `cards`, looked at
+    /// by their controller alone, are revealed to everyone (CR 701.20a)
+    /// and bound to `into`, which a "revealed this way" reads.
+    Reveal {
+        cards: Slot,
+        into: Slot,
+    },
+    /// "Transform this creature": the ability's own permanent turns over
+    /// to its other face (CR 701.27a).
+    Transform,
     /// "If it's a land card, …": these instructions, only if the card
     /// bound to `card` matches.
     IfCard {
@@ -1592,6 +1602,10 @@ pub enum TriggerEvent {
     /// "When this creature is turned face up": a permanent the filter
     /// matches is turned face up (CR 702.37e).
     TurnedFaceUp(Filter),
+    /// "When this creature transforms into ~": a permanent the filter
+    /// matches transforms, the ability on the face it transformed into
+    /// (CR 701.27e).
+    TransformsInto(Filter),
     /// "At the beginning of your upkeep": a step begins in a turn whose
     /// active player `whose` names, relative to the ability's controller
     /// (CR 503.1a, 504.2, 513.1a).
@@ -1708,6 +1722,11 @@ pub fn triggered(
             i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
             i::Event::DealsDamage(what) => TriggerEvent::DealsDamage(entering(what)?),
             i::Event::TurnedFaceUp(what) => TriggerEvent::TurnedFaceUp(entering(what)?),
+            i::Event::TransformsInto { what, into }
+                if into.quant == Quant::SelfRef && into.filter == i::Filter::default() =>
+            {
+                TriggerEvent::TransformsInto(entering(what)?)
+            }
             i::Event::BecomesTapped(what) => TriggerEvent::BecomesTapped(entering(what)?),
             i::Event::Cycles {
                 who: i::Player::You,
@@ -2049,6 +2068,11 @@ struct Scope<'a> {
     described: BTreeMap<Slot, (Objects, bool)>,
     /// The slots whose cards an instruction after the search reveals.
     revealing: BTreeSet<Slot>,
+    /// The slots of cards looked at, which a reveal shows everyone.
+    looked: BTreeSet<Slot>,
+    /// The slot the last cards revealed are bound to, "revealed this
+    /// way".
+    revealed: Option<Slot>,
     /// Whether an instruction before has chosen a card name, "that name".
     named: bool,
     /// What X is, "where X is the number of Goblins on the battlefield".
@@ -2076,6 +2100,8 @@ impl<'a> Scope<'a> {
             in_hand: BTreeSet::new(),
             described: BTreeMap::new(),
             revealing: BTreeSet::new(),
+            looked: BTreeSet::new(),
+            revealed: None,
             named: false,
             x: None,
             discarded: None,
@@ -2703,6 +2729,17 @@ impl<'a> Scope<'a> {
                     reveals: self.revealing.contains(&into),
                 }
             }
+            // A card looked at is hidden to all but its controller until
+            // revealed (CR 400.2, 701.20a).
+            i::Effect::Reveal { what, .. } if matches!(self.cards(what), Ok(Cards::Bound(s)) if self.looked.contains(&s)) =>
+            {
+                let Ok(Cards::Bound(cards)) = self.cards(what) else {
+                    unreachable!("matched")
+                };
+                let into = self.new_slot();
+                self.revealed = Some(into);
+                Effect::Reveal { cards, into }
+            }
             // A card found is named as it is found, so revealing it shows
             // no one anything the engine doesn't know.
             i::Effect::Reveal { what, .. } if self.cards(what).is_ok() => return Ok(vec![]),
@@ -2731,6 +2768,7 @@ impl<'a> Scope<'a> {
                 let whose = self.library_of(who, whose)?;
                 let into = self.made();
                 self.whose.insert(into, whose);
+                self.looked.insert(into);
                 Effect::LookAtTop {
                     whose,
                     n: n(k)?,
@@ -2815,6 +2853,22 @@ impl<'a> Scope<'a> {
                 control: you_control(o)?,
                 then: self.effects(then)?,
             },
+            // "If an instant or sorcery card is revealed this way": the
+            // card the reveal before bound, if it matches.
+            i::Effect::If {
+                cond:
+                    i::Condition::DoneThisWay {
+                        what,
+                        how: i::Marked::Revealed,
+                    },
+                then,
+                ..
+            } if self.revealed.is_some() => Effect::IfCard {
+                card: self.revealed.expect("checked"),
+                filter: card_filter(what)?,
+                then: self.effects(then)?,
+            },
+            i::Effect::Transform(o) if itself(o) => Effect::Transform,
             i::Effect::If {
                 cond: i::Condition::Is { what, filter },
                 then,

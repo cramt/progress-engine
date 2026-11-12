@@ -136,7 +136,8 @@ on. Turn-based and state-based actions are never decisions.
   answered `Keep(id)`), and `Over`.
 
 A card can have **two faces** (`deck::Oracle::TwoFaces`): a modal
-double-faced card (CR 712.3) or an adventurer card (CR 715.1). Each face
+double-faced card (CR 712.3), a transforming one (CR 712.2) or an
+adventurer card (CR 715.1). Each face
 is read through Insight as a card of its own, its own name, cost, type
 line and text, and which is up is the card's state in the game, a
 `deck::Side` that only a card with two faces has (the game's `Face::Two`): its
@@ -150,10 +151,22 @@ adventurer card is cast as its Adventure (`CastBack`, CR 715.3), with
 only the Adventure's characteristics on the stack (CR 715.3a–b); as it
 resolves it is exiled, and its caster may then cast the creature from
 exile, though not as an Adventure again (CR 715.3d); countered, or with
-its targets gone, it goes to the graveyard as any spell does. A card of
-another layout with more than one face (transforming, split, flip,
-prepare …) is refused by name, "a multi-faced card (transform)", and
-`Side` grows a case where a layout needs one. The card index keeps a
+its targets gone, it goes to the graveyard as any spell does. A
+transforming card is cast and put onto the battlefield front face up
+(CR 712.11, 712.14) and turns over only as an instruction transforms it:
+"transform this creature", the same permanent with its other face's
+characteristics and a new timestamp, its back face's mana value its
+front's (CR 701.27a, 712.8e, 712.18, 613.7g), and what waits for it to
+transform into a face triggers (CR 701.27e). An ability names the face
+it is printed on, so one on the stack when its permanent transforms is
+still its own, and its "transform" does nothing then (CR 701.27f); one
+whose back face the engine can't run is refused whole. Delver of
+Secrets's "look at the top card … You may reveal that card. If an
+instant or sorcery card is revealed this way" reveals the card looked at,
+naming it if it is hidden (CR 701.20a), and reads it. A card of another
+layout with more than one face (split, flip, prepare …) is refused by
+name, "a multi-faced card (split)", and `Side` grows a case where a
+layout needs one. The card index keeps a
 face's own text only for a card with more than one
 (`chip_scryfall::index::Face::oracle`), so an index built before it
 plays none of them.
@@ -720,7 +733,12 @@ uses. A cast of an adventurer card whose player has one on an adventure
 is of the one in exile, which the line never says, before one in hand;
 and a return-to-hand line beside a cast is the cast's cost, as Gush's
 is, only for a card with an alternative cost from a hand, Steam Clean's
-being its own instruction.
+being its own instruction. Delver of Secrets's "may" is taken when a
+"reveals [Lightning Bolt]." line, which says nothing of what revealed
+it, names the card it looked at, and declined otherwise; a "[Delver of
+Secrets] transforms into [Insectile Aberration]." line resolves the
+stack until the engine has transformed one more permanent that turn,
+which must have that face up.
 
 A card cast face down ("casts a card face down.", "Cast face-down with
 Morph.") is one the log hides, and each is "face-down creature #N"
@@ -756,18 +774,18 @@ diff against a run before a change for a finished game it broke; the report rank
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 71 replay to the end** (68 to the log's winner
-line), 53 of them past the first turn, and **29.95% of their lines are
-followed** (23,417 of 78,183: the lines before each game's stop, all of a
+line), 53 of them past the first turn, and **30.05% of their lines are
+followed** (23,496 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-12, and 15 games rely on a land the log never names (1
-of them to the end); it was 70 games and 29.56% before modal
-double-faced and adventurer cards, 65 games and 29.39% before the "unless" costs
+of them to the end); it was 29.95% before transforming cards, 70 games
+and 29.56% before modal double-faced and adventurer cards, 65 games and 29.39% before the "unless" costs
 other than mana, 57 games and 28.75% before morph, 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 290 stop
-in the first turn, 339 in the second, 190 in the third, 118 later, and 53
+no turn in them (empty logs, concessions during the mulligans). 283 stop
+in the first turn, 344 in the second, 192 in the third, 118 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -786,13 +804,15 @@ responses 20.84%; tokens 20.96%; then the milestone's work took it to
 that gets past one stop meets the next, most in its first two turns. The
 stops now, by games: an exile line not followed (76: suspend's Rift Bolt,
 Grim Lavamancer's cost), `Trigger::When(Event::Or)` (43: Stitcher's
-Supplier), a restriction (30), modifying by an amount (24), a
-transforming double-faced card (23: Delver of Secrets in 8, Invasion of
-Ixalan in 4; of the 55 games two faces stopped, those at modal and
-adventurer cards play on, one to the end and 24 to other cards, and
-split and prepare cards stop 7), looking at a hand (22: Gitaxian Probe), modal spells
-(22), Cavern of Souls's "spend this mana only" (22), one player named
-(21), and moving cards a search found (20). None is the engine disagreeing with Magic Online; those that
+Supplier), a restriction (30), modifying by an amount (26), looking at a
+hand (23: Gitaxian Probe), modal spells and Cavern of Souls's "spend
+this mana only" (22 each), "with" (21), one player named (21), and
+moving cards a search found (20). Of the 55 games two faces stopped, one
+replays to the end and 32 stop at other cards; 15 stop at a
+transforming card's other text (Invasion of Ixalan's "With" in 4, Thing
+in the Ice's "remove an ice counter", Search for Azcanta's surveil, a
+back face refused: Ashling, Revealing Eye) and 7 at a split or prepare
+card. None is the engine disagreeing with Magic Online; those that
 were are fixed: Gaea's Cradle's "Add {G} for each creature" not read as a
 mana ability (CR 605.1a), and Champion of the Parish's "another Human"
 missing a Human, since a creature type said with no card type was read
@@ -818,7 +838,8 @@ other by the Exalted Angel attacking once a line turned it face up; and
 a Solitary Confinement kept by a discard line, its controller's draw
 step skipped, then sacrificed with none; and Pelakka Caverns played by
 its face's name, Steam Clean cast as an Adventure and the Scalding Viper
-cast after it from exile. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
+cast after it from exile; and Delver of Secrets declining to reveal,
+then revealing a Lightning Bolt and attacking as Insectile Aberration. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
 player, at a creature, and at one already gone), Preordain, Champion of
 the Parish, Temple of Deceit, and combat: an unblocked attacker,
 flying against a block, a trade, first strike, exalted, prowess,
@@ -845,7 +866,8 @@ them shroud and preventing a Jackal Pup's damage to them, and Pelakka
 Predation // Pelakka Caverns played by its land face, a land alone on the
 battlefield, and cast by its sorcery face, and Steam Clean cast as an
 Adventure, bouncing Grizzly Bears into exile and the Scalding Viper cast
-from there.
+from there, and Delver of Secrets transforming into a 3/2 of mana value
+1 when the card it reveals is an instant and staying a 1/1 otherwise.
 
 ### The milestone
 
@@ -933,7 +955,9 @@ and all damage to them prevented (Solitary Confinement); a card's faces
 read apart, the one up the card's state, a modal double-faced card
 played or cast by either (Hagra Broodpit, Pelakka Caverns), an Adventure
 exiled as it resolves and its creature cast from exile, and "return
-target nonland permanent" (Scalding Viper // Steam Clean). And
+target nonland permanent" (Scalding Viper // Steam Clean); transforming,
+an ability on the face it is printed on, and a card looked at then
+revealed (Delver of Secrets). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -954,8 +978,8 @@ trigger (9: six of the Dreadnought games stop there), Vesuva's copy
 Veteran Survivor (6 each); of the 34 games two faces stopped, Hagra
 Broodpit's and Scalding Viper's among them, one replays to the end and
 18 stop at other cards (Stomp, Lizard Blades, Ayara), 10 at a
-transforming card (Invasion of Ixalan in 4) and 5 at a split or prepare
-card; of the
+transforming card's other text (Invasion of Ixalan's "With" in 4) and 5
+at a split or prepare card; of the
 Solitary Confinement and Masticore games, five now replay to the end
 and the rest stop at other cards (Elephant Grass's cumulative upkeep,
 Replenish, Goblin King, Eternal Dragon's landcycling). No

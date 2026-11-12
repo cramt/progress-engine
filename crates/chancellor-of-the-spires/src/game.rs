@@ -92,15 +92,32 @@ impl Face {
     /// What the game knows of a card's text.
     fn of(text: CardText) -> Face {
         match (text.face(Side::Front), text.face(Side::Back)) {
-            (Some(front), Some(back)) => Face::Two(
-                Arc::new(TwoFaces {
-                    layout: text.layout().expect("two faces"),
-                    text,
-                    front: known(front),
-                    back: known(back),
-                }),
-                Side::Front,
-            ),
+            (Some(front), Some(back)) => {
+                let layout = text.layout().expect("two faces");
+                let back = known(back);
+                let front = match (&back.runs, layout) {
+                    // A card whose front transforms into a back the
+                    // engine can't run is refused whole, or the back
+                    // would be up with nothing run of it.
+                    (Err(why), TwoFaced::Transforming) => Arc::new(Known::refused(
+                        front,
+                        Unrunnable::new(
+                            format!("its back face: {}", why.node),
+                            format!("it transforms into a face the engine can't run: {why}"),
+                        ),
+                    )),
+                    _ => known(front),
+                };
+                Face::Two(
+                    Arc::new(TwoFaces {
+                        layout,
+                        text,
+                        front,
+                        back,
+                    }),
+                    Side::Front,
+                )
+            }
             _ => Face::One(known(text)),
         }
     }
@@ -210,6 +227,19 @@ impl Known {
             runs,
             cost,
             morph,
+        }
+    }
+
+    /// A card the engine refuses for a reason beyond its own text, its
+    /// printed characteristics still read.
+    fn refused(text: CardText, why: Unrunnable) -> Known {
+        let read = known(text);
+        Known {
+            text: read.text.clone(),
+            printed: read.printed.clone(),
+            runs: Err(why.clone()),
+            cost: read.cost.clone(),
+            morph: read.morph.clone(),
         }
     }
 
@@ -577,6 +607,8 @@ pub enum StackObject {
         /// The permanent it was activated from, "this artifact", or none
         /// for one activated from a hand (cycling, CR 702.29a).
         object: Option<ObjectId>,
+        /// The face the ability is printed on (CR 701.27f).
+        side: Side,
         ability: u16,
         controller: PlayerId,
         /// Chosen as it was activated (CR 602.2b, 601.2c), by slot.
@@ -604,16 +636,19 @@ enum Instructions {
         via: Via,
         kicked: bool,
     },
-    Activated(CardId, u16),
+    /// An activated ability, of the face it is printed on.
+    Activated(CardId, Side, u16),
     Triggered(CardId, TriggerOf),
 }
 
-/// Which triggered ability: one a card prints, by its index among the
-/// card's unread abilities, or a delayed one a resolving spell or ability
-/// created (CR 603.7a), by its place in `Game::delayed`.
+/// Which triggered ability: one a card prints, by the face it is printed
+/// on and its index among that face's unread abilities, or a delayed one
+/// a resolving spell or ability created (CR 603.7a), by its place in
+/// `Game::delayed`. The face stays the one it triggered from when the
+/// permanent transforms (CR 701.27f).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TriggerOf {
-    Printed(u16),
+    Printed(Side, u16),
     Delayed(u32),
 }
 
@@ -636,7 +671,7 @@ impl Instructions {
     fn card(self) -> CardId {
         match self {
             Instructions::Spell { card: c, .. }
-            | Instructions::Activated(c, _)
+            | Instructions::Activated(c, ..)
             | Instructions::Triggered(c, _) => c,
         }
     }
@@ -716,6 +751,8 @@ enum Event {
     DealtBy { source: ObjectId, amount: u32 },
     /// This permanent was turned face up (CR 702.37e).
     TurnedFaceUp(ObjectId),
+    /// A permanent transformed (CR 701.27a).
+    Transformed(ObjectId),
     /// A source this player controls dealt damage to that player, a spell
     /// or a permanent (CR 120.3).
     PlayerDamaged {
@@ -886,6 +923,9 @@ enum Waiting {
     Reveal {
         player: PlayerId,
         cards: Vec<CardId>,
+        /// Looked at before, and revealed by an instruction of its own
+        /// ("You may reveal that card").
+        looked: bool,
         resume: Resuming,
     },
     /// `player` chooses `n` of `cards`, bound to `into`.
@@ -1537,6 +1577,8 @@ pub struct Game {
     /// Permanents returned to a hand this turn, by a cost or an
     /// instruction.
     returned: u32,
+    /// Permanents transformed this turn.
+    transformed: u32,
     /// Tokens created this turn.
     created: u32,
     /// Cards discarded this turn by an instruction that chose none of
@@ -1720,6 +1762,7 @@ impl Game {
             last_known: OrdMap::new(),
             bottomed: 0,
             returned: 0,
+            transformed: 0,
             shuffled: 0,
             created: 0,
             discarded: 0,
@@ -2007,6 +2050,36 @@ impl Game {
         self.returned
     }
 
+    /// Whether the cards the game asks to be named were looked at and are
+    /// revealed by an instruction of their own (Delver of Secrets's).
+    pub fn looked_at_revealed(&self) -> bool {
+        matches!(self.waiting, Waiting::Reveal { looked: true, .. })
+    }
+
+    /// Whether a triggered ability of the card's face up reveals cards it
+    /// looked at ("You may reveal that card", Delver of Secrets's).
+    pub fn reveals_looked_at(&self, c: CardId) -> bool {
+        fn reveals(effects: &[Effect]) -> bool {
+            effects
+                .iter()
+                .any(|e| matches!(e, Effect::Reveal { .. }) || e.inner().is_some_and(reveals))
+        }
+        self.known(c)
+            .and_then(|k| k.runs.as_ref().ok())
+            .is_some_and(|r| r.triggered.values().any(|t| reveals(&t.program.effects)))
+    }
+
+    /// How many permanents have transformed this turn.
+    pub fn transformed(&self) -> u32 {
+        self.transformed
+    }
+
+    /// The name of the face a permanent's card has up: a two-faced
+    /// card's face's, any other card's own.
+    pub fn face_name(&self, c: CardId) -> Option<&str> {
+        self.known(c).map(|k| k.text.name.as_str())
+    }
+
     /// How many libraries an instruction has shuffled this turn.
     pub fn shuffled(&self) -> u32 {
         self.shuffled
@@ -2090,11 +2163,20 @@ impl Game {
     /// A card with two faces is refused if either face is, its front's
     /// refusal first.
     pub fn reads(text: &CardText) -> (Option<Unrunnable>, Vec<String>) {
-        let faces = match Face::of(text.clone()) {
-            Face::Two(two, _) => vec![Arc::clone(&two.front), Arc::clone(&two.back)],
-            face => vec![Arc::clone(face.up().expect("known"))],
+        let (faces, cast_back) = match Face::of(text.clone()) {
+            Face::Two(two, _) => (
+                vec![Arc::clone(&two.front), Arc::clone(&two.back)],
+                two.layout != TwoFaced::Transforming,
+            ),
+            face => (vec![Arc::clone(face.up().expect("known"))], true),
         };
-        let refused = faces.iter().find_map(|k| Game::face_refusal(k));
+        // A transforming card's back face is never cast or played, only
+        // turned up (CR 712.11, 701.27a): it need only run.
+        let refused = faces.iter().enumerate().find_map(|(k, known)| match k {
+            0 => Game::face_refusal(known),
+            _ if cast_back => Game::face_refusal(known),
+            _ => known.runs.as_ref().err().cloned(),
+        });
         let dormant = faces
             .iter()
             .filter_map(|k| k.runs.as_ref().ok())
@@ -3240,7 +3322,10 @@ impl Game {
             // only that face evaluated (CR 712.11c); CR 715.3: an
             // adventurer card as an Adventure, only its alternative
             // characteristics (CR 715.3a).
-            if self.two_faces(*c).is_some_and(|two| castable(&two.back)) {
+            if self
+                .two_faces(*c)
+                .is_some_and(|two| two.layout != TwoFaced::Transforming && castable(&two.back))
+            {
                 actions.push(Action::CastBack(*c));
             }
         }
@@ -3800,6 +3885,7 @@ impl Game {
                 self.stack.push_back(StackObject::Ability {
                     source: card,
                     object: None,
+                    side: Side::Front,
                     ability: n,
                     controller: p,
                     targets: Vec::new(),
@@ -3818,7 +3904,7 @@ impl Game {
                     self.pending.push_back(Pending {
                         source: card,
                         object: None,
-                        ability: TriggerOf::Printed(k),
+                        ability: TriggerOf::Printed(Side::Front, k),
                         controller: p,
                         triggering: None,
                         amount: None,
@@ -3848,9 +3934,11 @@ impl Game {
                 self.before_cast = Some(Box::new(self.clone()));
                 // CR 602.2a: on the stack first, then its targets chosen
                 // and its costs paid (CR 602.2b, 601.2c, 601.2h).
+                let side = self.side_up(card);
                 self.stack.push_back(StackObject::Ability {
                     source: card,
                     object: Some(a.source),
+                    side,
                     ability: n,
                     controller: p,
                     targets: Vec::new(),
@@ -4328,11 +4416,12 @@ impl Game {
             Some(StackObject::Ability {
                 source,
                 object,
+                side,
                 ability,
                 controller,
                 targets,
             }) => self.begin_resolving(
-                Instructions::Activated(source, ability),
+                Instructions::Activated(source, side, ability),
                 controller,
                 (object, None, None, None),
                 targets,
@@ -4400,8 +4489,8 @@ impl Game {
         }
         // CR 603.4: an intervening "if" checked again as it resolves, from
         // its source as it is now or last existed.
-        if let Instructions::Triggered(card, TriggerOf::Printed(n)) = what {
-            if let Some(c) = self.runs_of(card).triggered[&n].condition.clone() {
+        if let Instructions::Triggered(card, TriggerOf::Printed(side, n)) = what {
+            if let Some(c) = self.face_runs(card, side).triggered[&n].condition.clone() {
                 let all = self.characteristics();
                 let holds = source.as_ref().is_some_and(|sc| {
                     self.intervening(
@@ -4428,17 +4517,19 @@ impl Game {
         };
         match what {
             Instructions::Spell { card: c, .. } => self.runs_of(c).spell.as_ref().unwrap_or(&NONE),
-            Instructions::Triggered(c, TriggerOf::Printed(n)) => {
-                &self.runs_of(c).triggered[&n].program
+            Instructions::Triggered(c, TriggerOf::Printed(side, n)) => {
+                &self.face_runs(c, side).triggered[&n].program
             }
             Instructions::Triggered(_, TriggerOf::Delayed(k)) => &self.delayed[k as usize].program,
-            Instructions::Activated(c, n) => match self.runs_of(c).activated.get(&n) {
-                Some(Ok(def)) => &def.program,
-                _ => match &self.runs_of(c).cycling {
-                    Some((k, def)) if *k == n => &def.program,
-                    _ => &NONE,
-                },
-            },
+            Instructions::Activated(c, side, n) => {
+                match self.face_runs(c, side).activated.get(&n) {
+                    Some(Ok(def)) => &def.program,
+                    _ => match &self.face_runs(c, side).cycling {
+                        Some((k, def)) if *k == n => &def.program,
+                        _ => &NONE,
+                    },
+                }
+            }
         }
     }
 
@@ -4840,6 +4931,7 @@ impl Game {
                         self.waiting = Waiting::Reveal {
                             player: q,
                             cards: hidden,
+                            looked: false,
                             resume: at,
                         };
                         return;
@@ -5029,6 +5121,7 @@ impl Game {
                         self.waiting = Waiting::Reveal {
                             player: q,
                             cards: hidden,
+                            looked: false,
                             resume,
                         };
                         return;
@@ -5056,6 +5149,40 @@ impl Game {
                     if kicked == was {
                         at = here;
                         at.next.push(0);
+                    }
+                }
+                Effect::Reveal { cards, into } => {
+                    let cards = at.found.get(&cards).cloned().unwrap_or_default();
+                    at.found.insert(into, cards.clone());
+                    let hidden: Vec<CardId> = cards
+                        .into_iter()
+                        .filter(|c| self.known(*c).is_none())
+                        .collect();
+                    // Seen by all, so a hidden one is named (CR 701.20a).
+                    if let Some(&c) = hidden.first() {
+                        self.waiting = Waiting::Reveal {
+                            player: self.owner(c),
+                            cards: hidden,
+                            looked: true,
+                            resume: at,
+                        };
+                        return;
+                    }
+                }
+                // CR 701.27f: only if it hasn't transformed since the
+                // ability was put on the stack.
+                Effect::Transform => {
+                    let side = match at.what {
+                        Instructions::Activated(_, side, _)
+                        | Instructions::Triggered(_, TriggerOf::Printed(side, _)) => Some(side),
+                        _ => None,
+                    };
+                    if let Some(id) = at.object.filter(|id| {
+                        self.permanents
+                            .get(id)
+                            .is_some_and(|perm| side.is_none_or(|s| self.side_up(perm.card) == s))
+                    }) {
+                        self.transform(id);
                     }
                 }
                 Effect::IfCard { card, filter, .. } => {
@@ -5647,7 +5774,8 @@ impl Game {
                             .into_iter()
                             .collect()
                     }
-                    (TriggerEvent::TurnedFaceUp(f), Event::TurnedFaceUp(id)) => f
+                    (TriggerEvent::TransformsInto(f), Event::Transformed(id))
+                    | (TriggerEvent::TurnedFaceUp(f), Event::TurnedFaceUp(id)) => f
                         .matches(&seen(*id))
                         .then_some((Some(*id), None))
                         .into_iter()
@@ -5771,7 +5899,7 @@ impl Game {
                     triggered.push(Pending {
                         source: card,
                         object: Some(*src),
-                        ability: TriggerOf::Printed(*n),
+                        ability: TriggerOf::Printed(self.side_up(card), *n),
                         controller: chars.controller,
                         triggering,
                         amount,
@@ -5785,7 +5913,7 @@ impl Game {
         // back at it as it last existed.
         if let Event::Died(id) = &event {
             let l = self.last_known[id].clone();
-            if let Some(runs) = self.known(l.card).and_then(|k| k.runs.as_ref().ok()) {
+            if let Ok(runs) = &self.face(l.card, l.side).runs {
                 for (n, t) in &runs.triggered {
                     let TriggerEvent::Dies(f) = &t.event else {
                         continue;
@@ -5804,7 +5932,7 @@ impl Game {
                         triggered.push(Pending {
                             source: l.card,
                             object: Some(*id),
-                            ability: TriggerOf::Printed(*n),
+                            ability: TriggerOf::Printed(l.side, *n),
                             controller: l.chars.controller,
                             triggering: None,
                             amount: None,
@@ -6264,6 +6392,14 @@ impl Game {
         })
     }
 
+    /// What the engine runs of one face of a card that runs.
+    fn face_runs(&self, card: CardId, side: Side) -> &Runnable {
+        self.face(card, side)
+            .runs
+            .as_ref()
+            .expect("only a card that runs has abilities")
+    }
+
     fn runs_of(&self, card: CardId) -> &Runnable {
         match self.cards[card.0 as usize].face.up() {
             Some(k) => k.runs.as_ref().expect("only a card that runs enters"),
@@ -6398,8 +6534,40 @@ impl Game {
         let mut chars = runs.lowered.chars.clone();
         chars.controller = controller;
         let statics = runs.lowered.statics.clone();
-        self.battlefield.turn_face_up(id, chars, statics);
+        self.battlefield.turn_over(id, chars, statics);
         self.trigger_on(Event::TurnedFaceUp(id));
+    }
+
+    /// A permanent transforms, turned over to its other face, the same
+    /// object with a new timestamp (CR 701.27a, 712.18, 613.7g); one that
+    /// isn't a transforming double-faced card, or would transform into
+    /// an instant or sorcery face, doesn't (CR 701.27c–d). What waits for
+    /// it to transform triggers (CR 701.27e).
+    fn transform(&mut self, id: ObjectId) {
+        let card = self.permanents[&id].card;
+        let Some(two) = self
+            .two_faces(card)
+            .filter(|t| t.layout == TwoFaced::Transforming)
+        else {
+            return;
+        };
+        let to = match self.side_up(card) {
+            Side::Front => Side::Back,
+            Side::Back => Side::Front,
+        };
+        let face = &two.face(to).text.type_line;
+        if type_words(face).any(|w| w == "Instant" || w == "Sorcery") {
+            return;
+        }
+        self.turn_up(card, to);
+        let controller = self.battlefield.objects[&id].printed.controller;
+        let runs = self.runs_of(card);
+        let mut chars = runs.lowered.chars.clone();
+        chars.controller = controller;
+        let statics = runs.lowered.statics.clone();
+        self.battlefield.turn_over(id, chars, statics);
+        self.transformed += 1;
+        self.trigger_on(Event::Transformed(id));
     }
 
     /// Exactly `count` distinct cards of `p`'s hand.
@@ -6453,6 +6621,7 @@ impl Game {
         self.battlefield.active = Some(p);
         self.bottomed = 0;
         self.returned = 0;
+        self.transformed = 0;
         self.shuffled = 0;
         self.created = 0;
         self.discarded = 0;
@@ -6910,6 +7079,7 @@ impl Game {
                 chars: chars.clone(),
                 counters: object.map(|o| o.counters).unwrap_or_default(),
                 card: perm.card,
+                side: self.side_up(perm.card),
                 token,
             },
         );
@@ -7376,6 +7546,8 @@ struct LastKnown {
     chars: Chars,
     counters: OrdMap<Counter, u32>,
     card: CardId,
+    /// The face it had up (CR 712.8d–e).
+    side: Side,
     token: bool,
 }
 

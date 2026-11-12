@@ -82,6 +82,28 @@ fn two_faced(name: &str) -> Option<CardText> {
                 None,
             ),
         ),
+        "Delver of Secrets // Insectile Aberration" => (
+            TwoFaced::Transforming,
+            face(
+                "Delver of Secrets",
+                "Creature — Human Wizard",
+                "{U}",
+                "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform this creature.",
+                1,
+                Some(Color::Blue),
+                Some(pt(1, 1)),
+            ),
+            // Its back face's mana value is its front's (CR 712.8e).
+            face(
+                "Insectile Aberration",
+                "Creature — Human Insect",
+                "",
+                "Flying",
+                1,
+                Some(Color::Blue),
+                Some(pt(3, 2)),
+            ),
+        ),
         _ => return None,
     };
     CardText::two_faced(name.into(), layout, front, back)
@@ -3822,4 +3844,79 @@ fn an_adventure_resolves_into_exile_and_the_creature_is_cast_from_there() {
     assert_eq!(game.characteristics()[&id].pt, Some(pt(2, 1)));
     assert_eq!(game.exile().len(), 0);
     assert_eq!(game.adventuring(ME).count(), 0);
+}
+
+/// CR 701.27a, 712.8d–e, 712.18, 613.7g, 701.20a: Delver of Secrets
+/// looks at the top card in its controller's upkeep and may reveal it;
+/// an instant revealed transforms it into Insectile Aberration, the same
+/// permanent with only its back face's characteristics but its front's
+/// mana value. A land revealed, or nothing revealed, leaves it as it is.
+#[test]
+fn delver_of_secrets_transforms_when_it_reveals_an_instant() {
+    const DELVER: &str = "Delver of Secrets // Insectile Aberration";
+    let mut transformed = 0;
+    let mut stayed = 0;
+    for seed in 0..16 {
+        let Ok(mut game) = Game::start(Setup {
+            format: Format::Constructed,
+            decks: vec![
+                deck(&[("Island", 30), (DELVER, 10), ("Lightning Bolt", 20)]),
+                deck(&[("Forest", 60)]),
+            ],
+            mulligans: false,
+            seed,
+        }) else {
+            continue;
+        };
+        let hand = game.player(ME).hand().clone();
+        if named(&game, &hand, DELVER) == 0 || named(&game, &hand, "Island") == 0 {
+            continue;
+        }
+        pass_until(&mut game, ME, Step::PrecombatMain);
+        play(&mut game, "Island");
+        cast(&mut game, DELVER, None);
+        resolve(&mut game);
+        let id = creature(&game, DELVER).unwrap();
+        let card = game.permanents()[&id].card;
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        let mut top = None;
+        loop {
+            match game.decision() {
+                Decision::May { player, .. } => {
+                    assert_eq!(player, ME);
+                    top = game.player(ME).library().front().copied();
+                    step(&mut game, Answer::May(true));
+                }
+                Decision::Priority { .. } if game.step_now() == Step::Draw => break,
+                Decision::Discard { count, hand, .. } => {
+                    step(&mut game, Answer::Discard(hand[..count].to_vec()));
+                }
+                Decision::Attackers { .. } => {
+                    step(&mut game, Answer::Attack(vec![]));
+                }
+                Decision::Blockers { .. } => {
+                    step(&mut game, Answer::Block(vec![]));
+                }
+                _ => {
+                    step(&mut game, Answer::Act(Action::Pass));
+                }
+            }
+        }
+        let top = top.expect("its upkeep trigger asked");
+        let instant = game.card(top).unwrap().name == "Lightning Bolt";
+        let now = &game.characteristics()[&id];
+        if instant {
+            transformed += 1;
+            assert_eq!(game.side_up(card), Side::Back);
+            assert_eq!(game.face_name(card), Some("Insectile Aberration"));
+            assert_eq!(now.pt, Some(pt(3, 2)));
+            assert_eq!(now.mana_value, 1);
+            assert!(game.permanents().contains_key(&id), "the same object");
+        } else {
+            stayed += 1;
+            assert_eq!(game.side_up(card), Side::Front);
+            assert_eq!(now.pt, Some(pt(1, 1)));
+        }
+    }
+    assert!(transformed > 0 && stayed > 0, "{transformed} {stayed}");
 }

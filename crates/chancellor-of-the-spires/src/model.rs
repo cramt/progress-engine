@@ -579,13 +579,19 @@ impl State {
         id
     }
 
-    /// A face-down permanent is turned face up: its copiable values become
-    /// its card's, with its static abilities, and it gets a new timestamp
-    /// (CR 708.8, 613.7f). It stays the same object, so what applied to it
-    /// still does.
-    pub fn turn_face_up(&mut self, id: ObjectId, mut printed: Chars, statics: Vec<StaticAbility>) {
-        if !self.objects.contains_key(&id) {
+    /// A permanent is turned over, face up or to its other face: its
+    /// copiable values become those of the face now up, with that face's
+    /// static abilities and none of the other's, and it gets a new
+    /// timestamp (CR 708.8, 613.7f, 613.7g). It stays the same object, so
+    /// what applied to it still does (CR 712.18).
+    pub fn turn_over(&mut self, id: ObjectId, mut printed: Chars, statics: Vec<StaticAbility>) {
+        let Some(o) = self.objects.get(&id) else {
             return;
+        };
+        for a in &o.printed.abilities {
+            if let Ability::Static(s) = a {
+                self.statics.remove(s);
+            }
         }
         for s in statics {
             let sid = StaticId(self.tick());
