@@ -564,7 +564,7 @@ Lage), dungeons, and digital-only cards.
 
 ### Replay
 
-`chancellor-logs replay [--top N] [--game ID] [--finished F]` plays the cached games
+`chancellor-logs replay [--top N] [--game ID] [--finished F] [--lines F]` plays the cached games
 through the engine with `replay::replay`: a two-player constructed game,
 20 life, the starting player from "chooses to play first" (or a skipped
 first draw, or turn 1's player), the London mulligans the log shows, and
@@ -601,7 +601,8 @@ engine refuses any find that doesn't match what was searched for, the
 hypothesis included; and if a later spell can't be paid for, it goes
 back and finds the next. The report counts the games whose replay, as it
 ended, relies on a land the log never names, apart from games to the
-end. A shock
+end: the way it reports, the one that got furthest, not the last it
+tried (which counted 7 more games until 2026-11-12). A shock
 land's life is the same: no line says it was paid and life totals aren't
 printed, so the replay doesn't pay and the land enters tapped, unless that
 leaves a later spell unpaid for, when it goes back and pays. Life is paid
@@ -813,14 +814,17 @@ never offers that turn, a spell it can't pay for, a turn out of step), or
 a kind of line not followed yet (an exile, a creature put onto the
 battlefield). `--game ID` prints one game line by line with what the engine
 did and each player's life as it ended; `--finished F` writes the ids of the games replayed to the end, to
-diff against a run before a change for a finished game it broke; the report ranks stops by games, with an example line, players
+diff against a run before a change for a finished game it broke, and
+`--lines F` each game's lines followed, its lines, its stop and the lands
+the log never names it relied on, one game a row, to diff for a game a
+change made follow fewer; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
 **Of 1,061 games replayed, 72 replay to the end** (69 to the log's winner
 line), 54 of them past the first turn, and **30.14% of their lines are
 followed** (23,565 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-12, and 15 games rely on a land the log never names (1
+measured 2026-11-12, and 8 games rely on a land the log never names (1
 of them to the end); it was 71 games and 30.05% before copies, 29.95%
 before transforming cards, 70 games
 and 29.56% before modal double-faced and adventurer cards, 65 games and 29.39% before the "unless" costs
@@ -945,7 +949,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-12 70 of the 500 replay to
-the end and 43.69% of their lines are followed** (13,832 of 31,659), 5
+the end and 43.69% of their lines are followed** (13,832 of 31,659), 2
 of them relying on a land the log never names (1 to the end), and 83
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:

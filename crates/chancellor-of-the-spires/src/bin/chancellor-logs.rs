@@ -44,7 +44,7 @@ mod native {
     /// The margin keeps it under that whatever the clock does.
     const GAP: Duration = Duration::from_millis(1050);
 
-    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID] [--finished F] | chancellor-logs milestone [--bulk F] [--games N] | chancellor-logs card NAME...";
+    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID] [--finished F] [--lines F] | chancellor-logs milestone [--bulk F] [--games N] | chancellor-logs card NAME...";
 
     pub fn main() -> Result<()> {
         let args: Vec<String> = std::env::args().skip(1).collect();
@@ -648,6 +648,9 @@ mod native {
         // Where to write the ids of the games replayed to the end, so two
         // runs can be diffed for a finished game a change broke.
         let mut finished_to: Option<String> = None;
+        // Where to write each game's lines followed and its stop, so two
+        // runs can be diffed for a game a change made follow fewer.
+        let mut lines_to: Option<String> = None;
         let mut it = args.iter();
         while let Some(a) = it.next() {
             match a.as_str() {
@@ -657,12 +660,14 @@ mod native {
                 "--finished" => {
                     finished_to = Some(it.next().context("--finished needs a path")?.clone())
                 }
+                "--lines" => lines_to = Some(it.next().context("--lines needs a path")?.clone()),
                 other => bail!("unknown argument {other}\n{USAGE}"),
             }
         }
         let mut names = Names::load(&bulk)?;
         let (texts, modern) = cards_and_lands(&bulk)?;
         let milestones = read_milestones()?;
+        let mut per_game: Vec<(u64, usize, String, usize, String)> = Vec::new();
 
         let mut eligible = 0;
         let mut turnless = 0;
@@ -706,6 +711,21 @@ mod native {
                     End::Stopped { entry, .. } => (Some(*entry), turn_at(g, *entry)),
                 };
                 let these = stop_at.unwrap_or(g.entries.len());
+                per_game.push((
+                    g.id,
+                    these,
+                    replayed.unseen.join(","),
+                    g.entries.len(),
+                    match &replayed.end {
+                        End::Finished => "finished".into(),
+                        End::Stopped { stop, .. } => format!(
+                            "{stop}\t{}",
+                            g.entries
+                                .get(these)
+                                .map_or(String::new(), |e| anonymise(&e.text, &m.players))
+                        ),
+                    },
+                ));
                 lines += g.entries.len();
                 followed += these;
                 let example = |at: usize| {
@@ -789,6 +809,19 @@ mod native {
             finished_ids.sort();
             let ids: String = finished_ids.iter().map(|id| format!("{id}\n")).collect();
             std::fs::write(&path, ids).with_context(|| format!("writing {path}"))?;
+        }
+        if let Some(path) = lines_to {
+            per_game.sort();
+            let rows: String = per_game
+                .iter()
+                .map(|(id, these, unseen, all, stop)| {
+                    format!(
+                        "{id}\t{these}\t{all}\t{}\t{unseen}\n",
+                        stop.replace('\n', " ")
+                    )
+                })
+                .collect();
+            std::fs::write(&path, rows).with_context(|| format!("writing {path}"))?;
         }
         println!(
             "{eligible} of {games} games replayed: those that parse into events whole, whose every card Insight reads whole, and that reach a first turn ({turnless} more don't: empty logs and concessions during the mulligans)"

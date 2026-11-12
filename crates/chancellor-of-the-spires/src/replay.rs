@@ -525,7 +525,8 @@ impl Driver<'_> {
         let mut backtracks = 0;
         // The failure that got furthest, which is the one reported if no
         // other payment gets past it.
-        let mut furthest: Option<(usize, Stop, Vec<Traced>)> = None;
+        // With the lands the log never names that its way relied on.
+        let mut furthest: Option<(usize, Stop, Vec<Traced>, Vec<String>)> = None;
         let mut i = 0;
         while i < g.entries.len() {
             let entry = &g.entries[i];
@@ -572,7 +573,7 @@ impl Driver<'_> {
                     if furthest.as_ref().is_none_or(|f| {
                         i > f.0 || i == f.0 && refused && matches!(f.1, Stop::Diverged(_))
                     }) {
-                        furthest = Some((i, stop.clone(), self.trace.clone()));
+                        furthest = Some((i, stop.clone(), self.trace.clone(), self.unseen.clone()));
                     }
                     // Only a choice made earlier can make a later payment
                     // or play impossible, or lose the game early, so only
@@ -658,8 +659,9 @@ impl Driver<'_> {
                             }
                         }
                         None => {
-                            let (at, stop, trace) = furthest.take().expect("recorded");
+                            let (at, stop, trace, unseen) = furthest.take().expect("recorded");
                             self.trace = trace;
+                            self.unseen = unseen;
                             return End::Stopped { entry: at, stop };
                         }
                     }
