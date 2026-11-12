@@ -1156,6 +1156,12 @@ impl CardFilter {
 /// was put on the stack (CR 601.2c, 603.3d).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Effect {
+    /// Suspend's "remove a time counter from it", of the suspended card
+    /// whose ability this is (CR 702.62a).
+    RemoveTimeCounter,
+    /// Suspend's "you may play it without paying its mana cost": the
+    /// exiled card whose ability this is is cast (CR 702.62a, 702.62d).
+    CastSuspended,
     /// "Search your library for a Mountain or Forest card": `who`
     /// searches their library and may find a card the filter matches (CR
     /// 701.23a–b), bound to `into`. `enters` if an instruction after puts
@@ -3740,6 +3746,48 @@ pub fn flashback(k: &i::Keyword) -> Option<Result<Alternative, String>> {
         other,
         exiled: true,
         instant_or_sorcery: true,
+    }))
+}
+
+/// Suspend's number of time counters and its cost (CR 702.62a), and the
+/// instructions of its two triggered abilities: at its owner's upkeep,
+/// "remove a time counter", and when the last is removed, "you may cast
+/// it without paying its mana cost".
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Suspend {
+    pub counters: u32,
+    pub cost: crate::mana::ManaCost,
+    pub upkeep: Program,
+    pub last: Program,
+}
+
+/// "Suspend 4—{U}": `None` if the keyword isn't suspend, the node it can't
+/// lower if its number or cost is more than a number and mana.
+pub fn suspend(k: &i::Keyword) -> Option<Result<Suspend, String>> {
+    if !k.name.eq_ignore_ascii_case("suspend") {
+        return None;
+    }
+    let Some(i::KeywordParam::NCost { n, cost }) = &k.param else {
+        return Some(Err("suspend without a number and a cost".into()));
+    };
+    let i::Amount::N(counters) = n else {
+        return Some(Err(format!("suspend {}", short(n))));
+    };
+    let cost = match cost.as_slice() {
+        [i::Cost::Mana(m)] => crate::mana::ManaCost::from_symbols(m),
+        _ => Err("suspend with a cost other than mana".into()),
+    };
+    Some(cost.map(|cost| Suspend {
+        counters: *counters,
+        cost,
+        upkeep: Program {
+            targets: Vec::new(),
+            effects: vec![Effect::RemoveTimeCounter],
+        },
+        last: Program {
+            targets: Vec::new(),
+            effects: vec![Effect::May(Who::You, vec![Effect::CastSuspended])],
+        },
     }))
 }
 

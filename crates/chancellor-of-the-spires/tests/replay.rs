@@ -172,6 +172,8 @@ const INDEXED: &[&str] = &[
     "Survival of the Fittest",
     "Rishadan Port",
     "Psychatog",
+    "Rift Bolt",
+    "Search for Tomorrow",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1820,4 +1822,58 @@ fn psychatog_s_ability_is_the_one_whose_cost_the_line_before_paid() {
     let game = r.game.expect("set up");
     // The Bears and the Island discarded, then exiled.
     assert!(game.player(ALICE).graveyard().is_empty());
+}
+
+/// CR 702.62a, 116.2f: Rift Bolt suspended for {R}, its time counter put
+/// on it, then at alice's next upkeep its trigger removes the counter and
+/// the last one's trigger casts it, its target the line's; Search for
+/// Tomorrow's two counters come off over two upkeeps, the second casting
+/// it, its "without paying its mana cost with suspend" said or not.
+#[test]
+fn suspended_cards_lose_a_time_counter_each_upkeep_and_are_cast_as_the_last_goes() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        alice exiles [Rift Bolt] with 1 time counter.
+        alice puts a time counter on [Rift Bolt].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice puts triggered ability from [Rift Bolt] onto the stack (Suspend 1{R} (At the beginning of your upkeep, remove a time counter.)).
+        alice removes a time counter from [Rift Bolt].
+        alice puts triggered ability from [Rift Bolt] onto the stack (Suspend 1{R} (When the last time counter is removed from the suspended card, you may cast it w...).
+        alice casts [Rift Bolt] targeting bob.
+        alice draws a card.
+        alice plays [Forest].
+        alice exiles [Search for Tomorrow] with 2 time counters.
+        alice puts two time counters on [Search for Tomorrow].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice puts triggered ability from [Search for Tomorrow] onto the stack (Suspend 2{G} (At the beginning of your upkeep, remove a time counter.)).
+        alice removes a time counter from [Search for Tomorrow].
+        alice draws a card.
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 4: alice
+        alice puts triggered ability from [Search for Tomorrow] onto the stack (Suspend 2{G} (At the beginning of your upkeep, remove a time counter.)).
+        alice removes a time counter from [Search for Tomorrow].
+        alice puts triggered ability from [Search for Tomorrow] onto the stack (Suspend 2{G} (When the last time counter is removed from the suspended card, you may cast it w...).
+        alice casts [Search for Tomorrow] without paying its mana cost with suspend.
+        alice draws a card.
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(game.player(BOB).life(), 17);
+    assert!(game.suspended().is_empty());
+    // Mountain, Forest and the basic Search for Tomorrow found.
+    assert_eq!(game.permanents().len(), 3 + 3);
 }

@@ -397,7 +397,8 @@ resolve to a target or its source, a static that isn't
 an Aura enchanting a player (CR 702.5d) or with two enchant abilities, a
 triggered mana ability other than one adding fixed mana to the
 controller of a permanent tapped for mana, and a keyword other than
-flash, cycling, transmute, enchant, flashback, kicker (a kicker whose cost is more than mana is carried and
+flash, cycling, transmute, enchant, flashback, suspend (one whose cost
+is more than mana is refused), kicker (a kicker whose cost is more than mana is carried and
 never paid; two kickers are refused), morph (a morph cost that isn't
 mana is carried and never paid; megamorph is refused), partner, exalted, prowess, training and the layers' own (flying, reach,
 menace, first and double strike, defender, haste, vigilance, trample,
@@ -414,7 +415,14 @@ like any (CR 118.9d), the rest of it (life, sacrificing permanents a
 filter matches) paid after the mana (CR 601.2h), offered only when it
 can be, and a spell cast for flashback exiled whenever it would leave the
 stack; one whose cost isn't mana, life or a sacrifice is carried, never
-offered. A non-mana activated ability
+offered. Suspend is a special action whenever the card could begin to
+be cast from hand, a card with no mana cost too (Lotus Bloom, Ancestral
+Vision): its cost paid, it is exiled with its time counters without the
+stack (CR 702.62a, 116.2f); at its owner's upkeep its trigger removes
+one, and when the last is removed its other trigger lets its owner cast
+it without paying its mana cost, its targets chosen then, a creature
+cast this way having haste while it stays on the battlefield. A
+non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
@@ -845,12 +853,13 @@ the log never names it relied on, one game a row, to diff for a game a
 change made follow fewer; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 78 replay to the end** (75 to the log's winner
-line), 60 of them past the first turn, and **30.62% of their lines are
-followed** (23,942 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 79 replay to the end** (76 to the log's winner
+line), 61 of them past the first turn, and **31.40% of their lines are
+followed** (24,547 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-12, and 8 games rely on a land the log never names (1
-of them to the end); it was 72 games and 30.14% before activated
+measured 2026-11-13, and 8 games rely on a land the log never names (1
+of them to the end); it was 78 games and 30.62% before suspend, 72
+games and 30.14% before activated
 abilities' cards costs, 71 games and 30.05% before copies, 29.95%
 before transforming cards, 70 games
 and 29.56% before modal double-faced and adventurer cards, 65 games and 29.39% before the "unless" costs
@@ -858,8 +867,8 @@ other than mana, 57 games and 28.75% before morph, 20 games and 20.96% before th
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 283 stop
-in the first turn, 339 in the second, 187 in the third, 121 later, and 53
+no turn in them (empty logs, concessions during the mulligans). 260 stop
+in the first turn, 344 in the second, 199 in the third, 126 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -876,13 +885,15 @@ bounce, counter and dying 20.72%; search as an instruction 20.81%;
 responses 20.84%; tokens 20.96%; then the milestone's work took it to
 23.99% and on to 27.27% (below). Games to the end barely moved: a game
 that gets past one stop meets the next, most in its first two turns. The
-stops now, by games: an exile line not followed (63: suspend's Search
-for Tomorrow and Rift Bolt, the Shoals' and Force of Virtue's
-alternative costs, Simian Spirit Guide), `Trigger::When(Event::Or)` (43:
-Stitcher's Supplier), a restriction (31), modifying by an amount (26),
-looking at a hand (23: Gitaxian Probe) and modal spells (23), Cavern of
-Souls's "spend this mana only" (22), "with" (21), one player named (21),
-and moving cards a search found (21). Of the 55 games two faces stopped, one
+stops now, by games: `Trigger::When(Event::Or)` (45:
+Stitcher's Supplier), a restriction (32), modifying by an amount (26),
+looking at a hand (25: Gitaxian Probe) and modal spells (25), Cavern of
+Souls's "spend this mana only" (24), "with" (21), one player named (21),
+moving cards a search found (21), and a power set (20: Tarmogoyf); an
+exile line not followed, the top stop at 77 games before suspend and
+activated abilities' cards costs ran, stops 15: an alternative cost
+exiling a card from hand (the Shoals, Force of Virtue, Reverent Mantra,
+Commandeer: 10) and Simian Spirit Guide's mana ability (5). Of the 55 games two faces stopped, one
 replays to the end and 32 stop at other cards; 15 stop at a
 transforming card's other text (Invasion of Ixalan's "With" in 4, Thing
 in the Ice's "remove an ice counter", Search for Azcanta's surveil, a
@@ -975,8 +986,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-12 76 of the 500 replay to
-the end and 44.84% of their lines are followed** (14,195 of 31,659), 2
+Worked card by card from there, **on 2026-11-13 77 of the 500 replay to
+the end and 45.31% of their lines are followed** (14,346 of 31,659), 2
 of them relying on a land the log never names (1 to the end), and 83
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -1042,7 +1053,9 @@ revealed (Delver of Secrets); a copy's copiable values as layer 1,
 entering as a copy and becoming one (Vesuva, Thespian's Stage), and "1
 life for each Locus" (Glimmerpost); an activated ability costing a
 discard of a card a filter matches or cards exiled from a graveyard
-(Survival of the Fittest, Grim Lavamancer, Psychatog). And
+(Survival of the Fittest, Grim Lavamancer, Psychatog); suspend, its time
+counters and the cast as the last goes (Rift Bolt, Search for Tomorrow,
+Ancestral Vision, Profane Tutor). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1059,7 +1072,9 @@ entered as a copy of, and the cards an activation's cost takes from the
 line before it, an activation made in response to what is on the stack
 (Grim Lavamancer's, while Rishadan Port's ability waits), Fireblast's
 Mountains tapped for mana before they are sacrificed, and a land the
-log never names tried only after the turn's other choices. One divergence was the engine's own, found by the full
+log never names tried only after the turn's other choices, and a
+suspended card's time counter lines and the cast its last trigger's
+"may" reads ahead. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
 top of the worklist now: Stifle countering Phyrexian Dreadnought's
@@ -1072,7 +1087,13 @@ Psychatog's two one does and the other stops at Fact or Fiction, and of
 the 12 a discard paying an ability stopped (Survival of the Fittest's
 mostly) one does, the rest stopping at Squee, Goblin Nabob (4), Wirewood
 Symbiote's return (3), Basking Rootwalla's madness (2), Goblin
-Piledriver and Goblin Sharpshooter; of the 8 games Vesuva stopped and the 2 Thespian's Stage did,
+Piledriver and Goblin Sharpshooter; of the 15 games a suspend line
+stopped, one of Ancestral Vision's two replays to the end, Lotus
+Bloom's 2 stop at its mana ability ("three mana of any one color"),
+Greater Gargadon's 4 at its own ability from exile (2) and other cards
+(Escape to the Wilds, Wayward Guide-Beast), and the rest at other cards
+(Boros Charm in 2, Kozilek, Elite Spellbinder, Prismatic Omen,
+Scavenging Ooze, Kinscaer Sentry, Sea-Dasher Octopus's mutate); of the 8 games Vesuva stopped and the 2 Thespian's Stage did,
 one of the Stage's replays to the end and the rest stop at other cards
 (Harmonic Prodigy's additional trigger, Pithing Needle's card name,
 Search for Tomorrow's suspend, Trading Post's counters, Price of

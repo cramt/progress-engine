@@ -1002,6 +1002,18 @@ impl Driver<'_> {
                 let Object::Card(card) = &cast.card else {
                     return Err(unfollowed(None));
                 };
+                // A suspended card cast as its last time counter is
+                // removed, which its trigger's "may" read ahead (`may`).
+                if self.consumed.contains(&i) || self.cast_suspended_later(cast) {
+                    if !self.until_consumed(i)? {
+                        return Err(Stop::Unfollowed {
+                            event: "Casts a suspended card no trigger offers".into(),
+                            card: Some(card.name().to_string()),
+                        });
+                    }
+                    self.did(i, "cast without paying its mana cost (CR 702.62a)");
+                    return Ok(Next::Line(i + 1));
+                }
                 // Flashback, suspend, kicker, an alternative cost: the line
                 // shows which, though older logs print nothing for
                 // Fireblast's sacrifice. Of these, an alternative cost from
@@ -1569,6 +1581,13 @@ impl Driver<'_> {
                 }
                 self.did(i, format!("named {name} (CR 201.4)"));
             }
+            // Suspend's upkeep trigger resolving: the time counter comes off (CR
+            // 702.62a).
+            RemovesCounters { player, counters } if self.time_counters(*player, counters) => {
+                let p = self.seat(*player);
+                let did = self.remove_time_counter(p, counters)?;
+                self.did(i, did);
+            }
             // A counter taken off as a mana ability's cost (Gemstone Mine),
             // which the log prints as it is activated.
             RemovesCounters { player, counters } => {
@@ -1644,6 +1663,20 @@ impl Driver<'_> {
             // Cards exiled from a graveyard to pay for the ability the
             // next line activates (Grim Lavamancer's), named as it is paid
             // (`pay_cards`).
+            // CR 702.62a, 116.2f: suspend, a special action.
+            Exiles {
+                player,
+                cards,
+                by: Some(log::ExiledBy::Suspend(n)),
+            } if cards.len() == 1 => {
+                let p = self.seat(*player);
+                let did = self.suspend(i, p, cards[0].name(), *n)?;
+                self.did(i, did);
+            }
+            // The time counters suspend put on the card it exiled.
+            PutsCounters { player, counters } if self.time_counters(*player, counters) => {
+                self.did(i, "the time counters suspend put on it (CR 702.62a)");
+            }
             // Magic Online sometimes names the activator's opponent as
             // the one exiling, so the activation's line says whose.
             Exiles {
@@ -2749,6 +2782,145 @@ impl Driver<'_> {
             }
             self.pass()?;
         }
+    }
+
+    /// Suspend `name` from `p`'s hand (CR 702.62a, 116.2f): offered when
+    /// it could be cast, within this turn, its cost paid as a spell's.
+    fn suspend(&mut self, i: usize, p: PlayerId, name: &str, n: u32) -> Result<String, Stop> {
+        let turn = self.game().turn();
+        let Some(card) = self.in_hand(p, name)? else {
+            return Err(Stop::Diverged(Divergence::NotInHand {
+                card: name.to_string(),
+            }));
+        };
+        if let Some(r) = self.game().refusal(card) {
+            return Err(Stop::Refused {
+                card: name.to_string(),
+                node: r.node,
+                why: r.why,
+            });
+        }
+        loop {
+            let game = self.game();
+            if game.turn() != turn {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("suspend {name}"),
+                }));
+            }
+            if let Decision::Priority { player, actions } = game.decision() {
+                if player == p && actions.contains(&Action::Suspend(card)) {
+                    break;
+                }
+            }
+            self.pass()?;
+        }
+        self.act(Answer::Act(Action::Suspend(card)))?;
+        let paid = self.aim_and_pay(i, &[], name)?;
+        match self.game().suspended().get(&card) {
+            Some(k) if *k == n => Ok(format!(
+                "suspended {name} with {n} time counter{} (CR 702.62a), {paid}",
+                if n == 1 { "" } else { "s" }
+            )),
+            _ => Err(Stop::Unfollowed {
+                event: "Exiles with as many time counters as suspend doesn't put".into(),
+                card: Some(name.to_string()),
+            }),
+        }
+    }
+
+    /// Whether a counters line's are time counters on a card of
+    /// `player`'s the engine has exiled by suspend (CR 702.62a).
+    fn time_counters(&self, player: log::Player, counters: &[log::Counted]) -> bool {
+        let [c] = counters else { return false };
+        let log::Target::Object(Object::Card(card)) = &c.on else {
+            return false;
+        };
+        let Some(game) = self.game.as_ref() else {
+            return false;
+        };
+        let p = self.seat(player);
+        c.kind == "time"
+            && game.exile().iter().any(|x| {
+                game.owner(*x) == p
+                    && game.has_suspend(*x)
+                    && game.card(*x).is_some_and(|t| t.name == card.name())
+            })
+    }
+
+    /// The time counter suspend's upkeep trigger removes from `p`'s card,
+    /// that trigger resolving first (CR 702.62a).
+    fn remove_time_counter(
+        &mut self,
+        p: PlayerId,
+        counters: &[log::Counted],
+    ) -> Result<String, Stop> {
+        let [c] = counters else {
+            unreachable!("one counted")
+        };
+        let log::Target::Object(Object::Card(card)) = &c.on else {
+            unreachable!("a card")
+        };
+        let name = card.name().to_string();
+        let count = |game: &Game| -> u32 {
+            game.suspended()
+                .iter()
+                .filter(|(x, _)| {
+                    game.owner(**x) == p && game.card(**x).is_some_and(|t| t.name == name)
+                })
+                .map(|(_, k)| *k)
+                .sum()
+        };
+        let before = count(self.game());
+        if before == 0 {
+            return Err(Stop::Unfollowed {
+                event: "RemovesCounters from a card not suspended".into(),
+                card: Some(name),
+            });
+        }
+        let turn = self.game().turn();
+        while count(self.game()) + c.count > before {
+            if self.game().turn() != turn {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("remove a time counter from {name}"),
+                }));
+            }
+            self.pass()?;
+        }
+        Ok(format!("a time counter removed from {name} (CR 702.62a)"))
+    }
+
+    /// Whether a line casts a card by suspend: it says so, or names a
+    /// card of its player's the engine holds exiled by suspend and none in
+    /// their hand.
+    fn cast_suspended_later(&self, cast: &log::Cast) -> bool {
+        let Object::Card(card) = &cast.card else {
+            return false;
+        };
+        if cast
+            .via
+            .as_deref()
+            .is_some_and(|v| v.contains("with suspend"))
+        {
+            return true;
+        }
+        if cast.via.is_some() {
+            return false;
+        }
+        let game = self.game.as_ref().expect("set up");
+        let p = self.seat(cast.player);
+        // Exiled by suspend and its counters all gone, or its trigger
+        // still to come.
+        let waiting = game.exile().iter().any(|x| {
+            game.owner(*x) == p
+                && game.card(*x).is_some_and(|t| t.name == card.name())
+                && game.has_suspend(*x)
+        });
+        let in_hand = game
+            .player(p)
+            .hand()
+            .iter()
+            .any(|x| game.card(*x).is_some_and(|t| t.name == card.name()));
+        waiting && !in_hand
     }
 
     /// The cards an activated ability's cost takes (CR 602.2b, 601.2h):
@@ -4807,6 +4979,39 @@ impl Driver<'_> {
     /// nothing at all (Goblin Lackey's).
     fn may(&mut self, card: CardId) -> Followed {
         let name = self.name_of(card);
+        // CR 702.62a: a suspended card is cast if a line this turn casts
+        // it, its targets that line's; otherwise it stays exiled.
+        if self.game().may_cast_suspended() {
+            let p = self.game().owner(card);
+            let q = self.player_of(p);
+            let cast = self
+                .entries
+                .iter()
+                .enumerate()
+                .skip(self.at)
+                .take_while(|(k, e)| *k == self.at || !matches!(e.event, Event::TurnBegins(_)))
+                .find_map(|(k, e)| match &e.event {
+                    Event::Casts(c)
+                        if Some(c.player) == q
+                            && !self.consumed.contains(&k)
+                            && matches!(&c.card, Object::Card(x) if x.name() == name) =>
+                    {
+                        Some((k, c.targets.clone()))
+                    }
+                    _ => None,
+                });
+            let Some((k, targets)) = cast else {
+                self.act(Answer::May(false))?;
+                let at = self.at;
+                self.did(at, format!("left {name} exiled, which no line casts"));
+                return Ok(());
+            };
+            self.consumed.insert(k);
+            self.act(Answer::May(true))?;
+            let paid = self.aim_and_pay(k, &targets, &name)?;
+            self.did(k, format!("cast {name} by suspend, {paid}"));
+            return Ok(());
+        }
         let said = self
             .entries
             .iter()

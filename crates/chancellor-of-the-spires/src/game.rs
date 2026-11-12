@@ -348,6 +348,9 @@ struct Runnable {
     opening: Option<Opening>,
     /// Cycling (CR 702.29a), by its index, and its cost and instruction.
     cycling: Option<(u16, Activated)>,
+    /// Suspend (CR 702.62a): its time counters, cost and triggered
+    /// abilities.
+    suspend: Option<lower::Suspend>,
     /// What its statics say of its controller ("you have hexproof", "skip
     /// your draw step"), by the ability's index, so each works only while
     /// the permanent has it.
@@ -657,6 +660,9 @@ pub enum StackObject {
 pub enum Via {
     ManaCost,
     Alternative(u16),
+    /// Without paying its mana cost, as its suspend's last time counter
+    /// was removed (CR 702.62a).
+    Suspend,
     /// Face down for {3} by its morph ability, a 2/2 with no text, name,
     /// subtypes or mana cost (CR 702.37c, 708.4).
     FaceDown,
@@ -684,6 +690,9 @@ enum Instructions {
 pub enum TriggerOf {
     Printed(Printed, u16),
     Delayed(u32),
+    /// A suspended card's in exile (CR 702.62a): `false` its upkeep's
+    /// "remove a time counter", `true` "when the last is removed".
+    Suspend(bool),
 }
 
 /// A delayed triggered ability (CR 603.7a): whose, and what it waits for,
@@ -767,6 +776,9 @@ enum Paying {
     /// The morph cost of this face-down permanent, turning it face up, a
     /// special action (CR 702.37e, 116.2b).
     FaceUp(ObjectId),
+    /// Suspend's cost, exiling the card with its time counters, a special
+    /// action (CR 702.62a, 116.2f).
+    Suspend,
 }
 
 /// What happened that a triggered ability may be waiting for (CR 603.2).
@@ -1497,6 +1509,10 @@ pub enum Action {
     /// Turn a face-down permanent face up by paying its morph cost, a
     /// special action (CR 702.37e, 116.2b).
     TurnFaceUp(ObjectId),
+    /// Pay a card's suspend cost and exile it from hand with its time
+    /// counters, a special action when it could begin to be cast (CR
+    /// 702.62a, 116.2f).
+    Suspend(CardId),
 }
 
 /// What a player paying a spell's cost can do.
@@ -1679,6 +1695,12 @@ pub struct Game {
     /// Adventurer cards exiled as their Adventure resolved, each with the
     /// player who may cast it from exile while it stays there (CR 715.3d).
     adventuring: OrdMap<CardId, PlayerId>,
+    /// Suspended cards, in exile, and the time counters on each (CR
+    /// 702.62b).
+    suspended: OrdMap<CardId, u32>,
+    /// Creature spells cast by suspend, which have haste as permanents
+    /// (CR 702.62a).
+    hasty: OrdSet<CardId>,
     command: Vector<CardId>,
     /// How many times each commander has been cast from the command zone
     /// (CR 903.8).
@@ -1856,6 +1878,8 @@ impl Game {
             used: OrdSet::new(),
             exile: Vector::new(),
             adventuring: OrdMap::new(),
+            suspended: OrdMap::new(),
+            hasty: OrdSet::new(),
             command,
             commander_casts: OrdMap::new(),
             commanders_moved: Vector::new(),
@@ -2085,6 +2109,23 @@ impl Game {
     pub fn exile(&self) -> &Vector<CardId> {
         &self.exile
     }
+    /// The suspended cards in exile and the time counters on each (CR
+    /// 702.62b).
+    pub fn suspended(&self) -> &OrdMap<CardId, u32> {
+        &self.suspended
+    }
+    /// Whether the card has suspend (CR 702.62a).
+    pub fn has_suspend(&self, c: CardId) -> bool {
+        self.known(c)
+            .and_then(|k| k.runs.as_ref().ok())
+            .is_some_and(|r| r.suspend.is_some())
+    }
+    /// Whether the "may" waiting is a suspended card's, cast as its last
+    /// time counter was removed (CR 702.62a).
+    pub fn may_cast_suspended(&self) -> bool {
+        matches!(&self.waiting, Waiting::May { at, .. }
+            if matches!(at.what, Instructions::Triggered(_, TriggerOf::Suspend(true))))
+    }
     /// The adventurer cards in exile `p` may cast, their Adventure having
     /// resolved (CR 715.3d).
     pub fn adventuring(&self, p: PlayerId) -> impl Iterator<Item = CardId> + '_ {
@@ -2257,10 +2298,10 @@ impl Game {
     }
 
     /// Why a card can be cast no way at all: for its mana cost, or for an
-    /// alternative cost when it has one.
+    /// alternative cost or by suspend when it has one.
     fn spell_refusal_any(known: &Known, runs: &Runnable) -> Option<Unrunnable> {
         let refused = Game::cast_refusal(known, runs).err()?;
-        if runs.alternatives.is_empty() {
+        if runs.alternatives.is_empty() && runs.suspend.is_none() {
             return Some(refused);
         }
         Game::spell_refusal(runs).err()
@@ -2807,6 +2848,23 @@ impl Game {
                     *pool = pool.minus(&spent);
                     self.before_cast = None;
                     self.turn_face_up(id);
+                    self.give_priority(player, 0);
+                }
+                // CR 702.62a, 116.3: exiled with its time counters
+                // without the stack, and its owner gets priority again.
+                (Payment::Spend(spent), Paying::Suspend) => {
+                    let pool = &mut self.players[player.0 as usize].pool;
+                    *pool = pool.minus(&spent);
+                    self.before_cast = None;
+                    let counters = self
+                        .runs_of(spell)
+                        .suspend
+                        .as_ref()
+                        .expect("only a card with suspend is offered")
+                        .counters;
+                    self.players[player.0 as usize].hand.retain(|c| *c != spell);
+                    self.exile.push_back(spell);
+                    self.suspended.insert(spell, counters);
                     self.give_priority(player, 0);
                 }
                 (Payment::Spend(spent), Paying::Spell { from_command }) => {
@@ -3540,6 +3598,18 @@ impl Game {
                 actions.push(Action::CastBack(*c));
             }
         }
+        // CR 702.62a, 116.2f: suspend, when the card could begin to be
+        // cast from hand, whatever its mana cost (Lotus Bloom has none).
+        for c in player.hand.iter() {
+            let Some(known) = self.known(*c) else {
+                continue;
+            };
+            if let Ok(runs) = &known.runs {
+                if runs.suspend.is_some() && (sorcery_speed || self.instant_speed(known)) {
+                    actions.push(Action::Suspend(*c));
+                }
+            }
+        }
         // CR 715.3d: an adventurer card cast from exile, though not as an
         // Adventure.
         for c in self.adventuring(p) {
@@ -3686,6 +3756,7 @@ impl Game {
                 // CR 602.5a.
                 let sick = chars.is(CardType::Creature)
                     && !chars.abilities.contains(&Ability::Keyword(Keyword::Haste))
+                    && !self.hasty.contains(&perm.card)
                     && player.turn_began.is_none_or(|t| perm.since >= t);
                 // CR 602.5, 602.5b.
                 let Ability::Unread(k) = ability else {
@@ -3833,6 +3904,7 @@ impl Game {
             // controlled since its controller's most recent turn began.
             let sick = chars.is(CardType::Creature)
                 && !chars.abilities.contains(&Ability::Keyword(Keyword::Haste))
+                && !self.hasty.contains(&perm.card)
                 && began.is_none_or(|t| perm.since >= t);
             let runs = self.known(perm.card).and_then(|k| k.runs.as_ref().ok());
             for ability in &chars.abilities {
@@ -4069,6 +4141,22 @@ impl Game {
                     paying: Paying::Spell {
                         from_command: false,
                     },
+                };
+            }
+            Action::Suspend(card) => {
+                let owed = self
+                    .runs_of(card)
+                    .suspend
+                    .as_ref()
+                    .expect("only a card with suspend is offered")
+                    .cost
+                    .clone();
+                self.before_cast = Some(Box::new(self.clone()));
+                self.waiting = Waiting::Paying {
+                    player: p,
+                    spell: card,
+                    owed,
+                    paying: Paying::Suspend,
                 };
             }
             // CR 702.37e: show the morph cost, pay it, then turn it face up.
@@ -4320,16 +4408,25 @@ impl Game {
                 Game::spell_refusal(runs).map_err(refused)?;
                 runs.alternatives[&n].mana.clone()
             }
+            // CR 702.62d: an alternative cost of none.
+            Via::Suspend => {
+                Game::spell_refusal(runs).map_err(refused)?;
+                ManaCost::default()
+            }
             Via::FaceDown => unreachable!("cast face down by its own action"),
         };
         let from_command = via == Via::ManaCost && self.command.contains(&card);
+        let creature = runs.lowered.chars.is(CardType::Creature);
         let kicker = runs.kicker.is_some();
         let before = self.clone();
         self.turn_up(card, side);
         // CR 601.2a: from wherever it is.
         self.command.retain(|c| *c != card);
-        if self.adventuring.remove(&card).is_some() {
+        if self.adventuring.remove(&card).is_some() || via == Via::Suspend {
             self.exile.retain(|c| *c != card);
+        }
+        if via == Via::Suspend && creature {
+            self.hasty.insert(card);
         }
         let player = &mut self.players[p.0 as usize];
         player.hand.retain(|c| *c != card);
@@ -4526,10 +4623,11 @@ impl Game {
             self.adventuring.insert(card, controller);
             return;
         }
+        self.hasty.remove(&card);
         let exiled = match via {
             Via::Alternative(n) => self.runs_of(card).alternatives[&n].exiled,
             // CR 708.9: revealed as it leaves the stack.
-            Via::ManaCost | Via::FaceDown => false,
+            Via::ManaCost | Via::FaceDown | Via::Suspend => false,
         };
         if exiled {
             self.exile.push_back(card);
@@ -4777,6 +4875,13 @@ impl Game {
                 &self.face_runs(c, side).triggered[&n].program
             }
             Instructions::Triggered(_, TriggerOf::Delayed(k)) => &self.delayed[k as usize].program,
+            Instructions::Triggered(c, TriggerOf::Suspend(last)) => {
+                match &self.runs_of(c).suspend {
+                    Some(s) if last => &s.last,
+                    Some(s) => &s.upkeep,
+                    None => &NONE,
+                }
+            }
             Instructions::Activated(c, side, n) => {
                 match self.face_runs(c, side).activated.get(&n) {
                     Some(Ok(def)) => &def.program,
@@ -4854,6 +4959,38 @@ impl Game {
                 },
             };
             match e {
+                // CR 702.62a: "if this card is suspended"; the last
+                // counter removed triggers its other ability.
+                Effect::RemoveTimeCounter => {
+                    let card = at.what.card();
+                    if let Some(k) = self.suspended.get(&card).copied() {
+                        if k <= 1 {
+                            self.suspended.remove(&card);
+                            self.pending.push_back(Pending {
+                                source: card,
+                                object: None,
+                                ability: TriggerOf::Suspend(true),
+                                controller: p,
+                                triggering: None,
+                                amount: None,
+                                player: None,
+                                ordered: false,
+                            });
+                        } else {
+                            self.suspended.insert(card, k - 1);
+                        }
+                    }
+                }
+                // CR 702.62a, 702.62d: "if it's exiled", cast from exile
+                // without paying its mana cost; the ability is done.
+                Effect::CastSuspended => {
+                    let card = at.what.card();
+                    if self.exile.contains(&card)
+                        && self.cast(p, card, Via::Suspend, Side::Front).is_ok()
+                    {
+                        return;
+                    }
+                }
                 Effect::Search {
                     who: w,
                     filter,
@@ -6221,6 +6358,25 @@ impl Game {
                 }
             }
         }
+        // CR 702.62a: each suspended card of the active player's, at the
+        // beginning of their upkeep.
+        if let Event::Begins(TurnStep::Upkeep) = &event {
+            for (c, _) in self.suspended.iter() {
+                let owner = self.owner(*c);
+                if owner == self.active {
+                    triggered.push(Pending {
+                        source: *c,
+                        object: None,
+                        ability: TriggerOf::Suspend(false),
+                        controller: owner,
+                        triggering: None,
+                        amount: None,
+                        player: None,
+                        ordered: false,
+                    });
+                }
+            }
+        }
         // CR 603.7b–c: a delayed trigger waiting for this step, of a
         // later turn than the one it was created in, triggers once.
         if let Event::Begins(step) = &event {
@@ -6308,7 +6464,9 @@ impl Game {
                 c.controller == p
                     && c.is(CardType::Creature)
                     && !perm.tapped
-                    && (began.is_some_and(|t| perm.since < t) || c.has(Keyword::Haste))
+                    && (began.is_some_and(|t| perm.since < t)
+                        || c.has(Keyword::Haste)
+                        || self.hasty.contains(&perm.card))
                     && !c.has(Keyword::Defender)
             })
             .map(|(id, _)| *id)
@@ -7482,6 +7640,7 @@ impl Game {
         let Some(perm) = self.permanents.remove(&id) else {
             return;
         };
+        self.hasty.remove(&perm.card);
         let object = self.battlefield.objects.get(&id).cloned();
         let token = object.as_ref().is_some_and(|o| o.token);
         self.last_known.insert(
@@ -7645,6 +7804,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         opening: None,
         for_you: BTreeMap::new(),
         cycling: None,
+        suspend: None,
         cost_changes: BTreeMap::new(),
         alternatives: BTreeMap::new(),
         kicker: None,
@@ -7730,6 +7890,10 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                                 limits: Default::default(),
                             },
                         ));
+                    } else if let Some(suspend) = lower::suspend(k) {
+                        runs.suspend = Some(suspend.map_err(|node| {
+                            Unrunnable::new(node.clone(), format!("the game can't run {node} yet"))
+                        })?);
                     } else if let Some(t) = lower::keyword_trigger(k) {
                         runs.triggered.insert(n, t);
                     } else if let Some(alt) = lower::flashback(k) {

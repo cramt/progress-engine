@@ -4222,3 +4222,74 @@ fn grim_lavamancer_exiles_two_cards_from_the_graveyard_to_deal_two_damage() {
     resolve(&mut game);
     assert_eq!(game.player(THEM).life(), 20 - 3 - 3 - 2);
 }
+
+/// CR 702.62a, 116.2f: Rift Bolt suspended for {R} is exiled with a time
+/// counter, without the stack; at my next upkeep the counter comes off,
+/// and as the last does I may cast it without paying its mana cost,
+/// choosing its target then.
+#[test]
+fn rift_bolt_suspended_is_cast_free_at_my_next_upkeep() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Rift Bolt", 20)],
+        &[("Swamp", 60)],
+        &[("Mountain", 1), ("Rift Bolt", 1)],
+    );
+    play(&mut game, "Mountain");
+    let bolt = in_hand(&game, ME, "Rift Bolt").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(actions.contains(&Action::Suspend(bolt)));
+    let mut d = step(&mut game, Answer::Act(Action::Suspend(bolt)));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a Mountain");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    assert!(game.stack().is_empty(), "a special action");
+    assert_eq!(game.suspended().get(&bolt), Some(&1));
+    assert!(game.exile().contains(&bolt));
+    pass_until(&mut game, THEM, Step::Upkeep);
+    // My upkeep: the counter's trigger, then the last one's "may".
+    for _ in 0..40 {
+        match game.decision() {
+            Decision::May { card, .. } => {
+                assert_eq!(card, bolt);
+                break;
+            }
+            Decision::Discard { count, hand, .. } => {
+                step(&mut game, Answer::Discard(hand[..count].to_vec()));
+            }
+            Decision::Attackers { .. } => {
+                step(&mut game, Answer::Attack(vec![]));
+            }
+            Decision::Blockers { .. } => {
+                step(&mut game, Answer::Block(vec![]));
+            }
+            _ => {
+                step(&mut game, Answer::Act(Action::Pass));
+            }
+        }
+    }
+    assert!(game.may_cast_suspended());
+    let Decision::Targets { .. } = step(&mut game, Answer::May(true)) else {
+        panic!("{:?}", game.decision())
+    };
+    let mut d = step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .copied()
+            .expect("nothing to pay");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    assert!(game.suspended().is_empty());
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 17);
+    assert!(game.player(ME).graveyard().contains(&bolt));
+}
