@@ -21,7 +21,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 
-use crate::deck::{CardText, DeckCards};
+use crate::deck::{CardText, DeckCards, Side};
 use crate::game::{
     Action, Activation, Answer, CardId, Decision, Format, Found, Game, Mana, ManaActivation,
     ManaCost, ManaPool, Outcome, Payment, Rejected, Setup, StackObject, Step, Target, HAND_SIZE,
@@ -1005,10 +1005,19 @@ impl Driver<'_> {
                     }
                     v => (v.map(str::to_string), false),
                 };
+                let text = self.text(card.name())?;
+                let zones = self
+                    .alternatives
+                    .entry(text.name.clone())
+                    .or_insert_with(|| Game::alternatives_of(&text))
+                    .clone();
                 let routes = match via.as_deref() {
                     // Most logs print nothing for Gush's alternative cost,
-                    // but a line beside the cast shows what it returned.
-                    None if self.returned_for(i, cast.player, card.name()).is_some() => {
+                    // but a line beside the cast shows what it returned;
+                    // Steam Clean's return line is its own instruction.
+                    None if zones.contains(&CastFrom::Hand)
+                        && self.returned_for(i, cast.player, card.name()).is_some() =>
+                    {
                         vec![Route::Alternative(CastFrom::Hand)]
                     }
                     None => vec![Route::ManaCost, Route::Alternative(CastFrom::Hand)],
@@ -1088,12 +1097,6 @@ impl Driver<'_> {
                 // The first route that can be paid for; a line that names
                 // none is cast for its mana cost if it can be, and for an
                 // alternative cost the card has otherwise.
-                let text = self.text(card.name())?;
-                let zones = self
-                    .alternatives
-                    .entry(text.name.clone())
-                    .or_insert_with(|| Game::alternatives_of(&text))
-                    .clone();
                 let routes: Vec<Route> = routes
                     .into_iter()
                     .filter(|r| match r {
@@ -1194,9 +1197,11 @@ impl Driver<'_> {
                             _ => None,
                         });
                     let costs_a_discard = |t: &CardText| {
-                        matches!(&t.oracle, crate::deck::Oracle::OneFace(o)
-                            if o.lines().any(|l| l.split_once(':')
-                                .is_some_and(|(cost, _)| cost.contains("Discard"))))
+                        matches!(&t.oracle, crate::deck::Oracle::OneFace(_))
+                            && t.rules_text().lines().any(|l| {
+                                l.split_once(':')
+                                    .is_some_and(|(cost, _)| cost.contains("Discard"))
+                            })
                     };
                     let paid_by = match next {
                         Some(n) => self.text(&n).is_ok_and(|t| costs_a_discard(&t)),
@@ -1611,7 +1616,7 @@ impl Driver<'_> {
                         .map(|p| {
                             p.hand()
                                 .iter()
-                                .filter(|h| game.card(**h).is_some_and(|t| t.name == c.name()))
+                                .filter(|h| game.card(**h).is_some_and(|t| t.is_called(c.name())))
                                 .count()
                         })
                         .sum::<usize>()
@@ -1711,7 +1716,7 @@ impl Driver<'_> {
                     let there = game.stack().iter().any(|o| match o {
                         StackObject::Spell { card, .. }
                         | StackObject::Trigger { source: card, .. } => {
-                            game.card(*card).is_some_and(|t| t.name == name)
+                            game.card(*card).is_some_and(|t| t.is_called(&name))
                         }
                         StackObject::Ability { .. } => false,
                     });
@@ -1853,7 +1858,7 @@ impl Driver<'_> {
                         let game = self.game.as_ref().expect("set up");
                         let resolved = game
                             .last_resolved()
-                            .is_some_and(|c| game.card(c).is_some_and(|t| t.name == by.name()));
+                            .is_some_and(|c| game.card(c).is_some_and(|t| t.is_called(by.name())));
                         let turn = game.turn();
                         let unmatched = game.discarded()
                             - if self.discarded.0 == turn {
@@ -1889,7 +1894,7 @@ impl Driver<'_> {
                 for c in cards {
                     let Some(k) = left
                         .iter()
-                        .position(|x| game.card(*x).is_some_and(|t| t.name == c.name()))
+                        .position(|x| game.card(*x).is_some_and(|t| t.is_called(c.name())))
                     else {
                         return Err(unfollowed(Some(c.name())));
                     };
@@ -1965,7 +1970,7 @@ impl Driver<'_> {
             StackObject::Spell { card, .. }
             | StackObject::Ability { source: card, .. }
             | StackObject::Trigger { source: card, .. } => {
-                game.card(*card).is_some_and(|t| t.name == c.name())
+                game.card(*card).is_some_and(|t| t.is_called(c.name()))
             }
         })
     }
@@ -2304,7 +2309,7 @@ impl Driver<'_> {
                             (Target::Object(o), _) => is_called(game, o, &called),
                             (Target::Spell(c), Called::Name(name)) => {
                                 !game.face_down_on_stack(*c)
-                                    && game.card(*c).is_some_and(|t| &t.name == name)
+                                    && game.card(*c).is_some_and(|t| t.is_called(name))
                             }
                             (Target::Spell(c), Called::FaceDown(d)) => {
                                 c == d && game.face_down_on_stack(*c)
@@ -2816,7 +2821,7 @@ impl Driver<'_> {
                 Action::Mana(m)
                     if game
                         .card(game.permanents()[&m.source].card)
-                        .is_some_and(|t| t.name == name)
+                        .is_some_and(|t| t.is_called(name))
                         && game.triggers_on_tapping(m.source) =>
                 {
                     Some(*m)
@@ -2895,10 +2900,9 @@ impl Driver<'_> {
             return Ok(());
         }
         // Echo paid says so, so an echo with no line wasn't.
-        let echo = self.text(&name).is_ok_and(|t| {
-            let (crate::deck::Oracle::OneFace(o) | crate::deck::Oracle::JoinedFaces(o)) = &t.oracle;
-            o.lines().any(|l| l.starts_with("Echo"))
-        });
+        let echo = self
+            .text(&name)
+            .is_ok_and(|t| t.rules_text().lines().any(|l| l.starts_with("Echo")));
         if !echo {
             if let Some(first) = payments.first() {
                 let mut paid = self.game().clone();
@@ -2938,11 +2942,15 @@ impl Driver<'_> {
                 },
                 _ => None,
             });
-        let Some(text) = next.and_then(|n| self.text(&n).ok()) else {
+        // The face the line names: an Adventure's is its own (CR 715.3b).
+        let Some(text) = next.and_then(|n| {
+            let t = self.text(&n).ok()?;
+            Some(t.face(t.side_named(&n)).unwrap_or(t))
+        }) else {
             return Ok(());
         };
-        let (crate::deck::Oracle::OneFace(o) | crate::deck::Oracle::JoinedFaces(o)) = &text.oracle;
-        let fast = text.type_line.contains("Instant") || o.lines().any(|l| l.starts_with("Flash"));
+        let fast = text.type_line.contains("Instant")
+            || text.rules_text().lines().any(|l| l.starts_with("Flash"));
         let turn = self.game().turn();
         while !fast
             && self.game().active() == p
@@ -3529,10 +3537,10 @@ impl Driver<'_> {
             | StackObject::Ability { source: card, .. }
             | StackObject::Trigger { source: card, .. } => *card,
         };
-        let Some(name) = game.card(card).map(|t| t.name.clone()) else {
+        let Some(text) = game.card(card) else {
             return false;
         };
-        let is = |s: &log::Source| matches!(s, log::Source::Card(c) if c.name() == name);
+        let is = |s: &log::Source| matches!(s, log::Source::Card(c) if text.is_called(c.name()));
         self.entries
             .iter()
             .skip(self.at + 1)
@@ -3564,7 +3572,8 @@ impl Driver<'_> {
         respond: bool,
         answers: bool,
     ) -> Result<Action, Stop> {
-        self.text(name)?;
+        // The face the line names, a two-faced card's back by its name.
+        let side = self.text(name)?.side_named(name);
         let turn = self.game().turn();
         // A card the engine runs that names a card on the stack targets
         // that spell if it can target spells, and otherwise names the
@@ -3647,7 +3656,7 @@ impl Driver<'_> {
                 };
                 // A card the engine never offers may be one it refuses by
                 // name, such as one with no mana cost (CR 118.6).
-                if let Some(r) = game.refusal(c) {
+                if let Some(r) = game.refusal_of(c, side) {
                     return Err(Stop::Refused {
                         card: name.to_string(),
                         node: r.node,
@@ -3666,22 +3675,24 @@ impl Driver<'_> {
                         let Decision::Priority { actions, .. } = self.game().decision() else {
                             unreachable!("naming a card changes no decision")
                         };
-                        let wanted =
-                            actions.iter().copied().find(|a| match (kind, a) {
-                                (Kind::Land, Action::PlayLand(x))
-                                | (Kind::Cast(Route::ManaCost), Action::Cast(x))
-                                | (
-                                    Kind::Cast(Route::Alternative(_)),
-                                    Action::CastAlternative(x, _),
-                                ) => *x == c,
-                                _ => false,
-                            });
+                        let wanted = actions.iter().copied().find(|a| match (kind, side, a) {
+                            (Kind::Land, Side::Front, Action::PlayLand(x))
+                            | (Kind::Land, Side::Back, Action::PlayBack(x))
+                            | (Kind::Cast(Route::ManaCost), Side::Front, Action::Cast(x))
+                            | (Kind::Cast(Route::ManaCost), Side::Back, Action::CastBack(x))
+                            | (
+                                Kind::Cast(Route::Alternative(_)),
+                                Side::Front,
+                                Action::CastAlternative(x, _),
+                            ) => *x == c,
+                            _ => false,
+                        });
                         if let Some(a) = wanted {
                             return Ok(a);
                         }
                         // One it refuses is never offered: no waiting for
                         // the turn to end.
-                        if let Some(r) = self.game().refusal(c) {
+                        if let Some(r) = self.game().refusal_of(c, side) {
                             return Err(Stop::Refused {
                                 card: name.to_string(),
                                 node: r.node,
@@ -3742,6 +3753,21 @@ impl Driver<'_> {
     /// their graveyard for flashback, otherwise their hand, naming a
     /// hidden card of it if none is known to be.
     fn find(&mut self, p: PlayerId, name: &str, kind: Kind) -> Result<Option<CardId>, Stop> {
+        // An adventurer card on an adventure is cast from exile before one
+        // in hand: the log doesn't say which, and a player who sent it on
+        // one cast it from there (CR 715.3d).
+        if kind == Kind::Cast(Route::ManaCost) {
+            let text = self.text(name)?;
+            let game = self.game();
+            if text.side_named(name) == Side::Front {
+                if let Some(c) = game
+                    .adventuring(p)
+                    .find(|c| game.card(*c).is_some_and(|t| t.name == text.name))
+                {
+                    return Ok(Some(c));
+                }
+            }
+        }
         if kind != Kind::Cast(Route::Alternative(CastFrom::Graveyard)) {
             return self.in_hand(p, name);
         }
@@ -3881,7 +3907,7 @@ impl Driver<'_> {
         Ok(game
             .permanents()
             .iter()
-            .filter(|(_, p)| game.card(p.card).is_some_and(|t| t.name == name))
+            .filter(|(_, p)| game.card(p.card).is_some_and(|t| t.is_called(&name)))
             .map(|(id, _)| (*id, kind.clone()))
             .find(|key| {
                 let shown = self.counted.get(key).copied().unwrap_or(0);
@@ -3951,7 +3977,7 @@ impl Driver<'_> {
                         (cost.as_ref() == Some(&kind)
                             && game
                                 .card(game.permanents()[&m.source].card)
-                                .is_some_and(|t| t.name == name))
+                                .is_some_and(|t| t.is_called(&name)))
                         .then_some(m)
                     }
                     _ => None,

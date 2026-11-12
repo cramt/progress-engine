@@ -2405,7 +2405,9 @@ impl<'a> Scope<'a> {
                 transformed: false,
                 under: None,
                 order: None,
-            } if !matches!(what.quant, Quant::Rest { .. }) && what.filter.kind.is_none() => {
+            } if !matches!(what.quant, Quant::Rest { .. })
+                && matches!(what.filter.kind, None | Some(i::Noun::Permanent)) =>
+            {
                 Effect::ToOwnersHand(self.on(what)?)
             }
             i::Effect::Counter { what, unless: None }

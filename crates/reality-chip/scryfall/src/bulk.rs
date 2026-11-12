@@ -373,7 +373,14 @@ impl BulkCard {
     /// another, and every reader of it would need the same three-case match.
     fn faces(&self) -> Vec<Face> {
         match self.card_faces.as_ref().filter(|f| !f.is_empty()) {
-            Some(faces) => faces.iter().map(|f| self.face(f)).collect(),
+            Some(faces) => faces
+                .iter()
+                .map(|f| Face {
+                    oracle: (faces.len() > 1)
+                        .then(|| strip_reminder_text(f.oracle_text.as_deref().unwrap_or(""))),
+                    ..self.face(f)
+                })
+                .collect(),
             None => vec![Face {
                 name: self.name.clone(),
                 type_line: self.type_line.clone().unwrap_or_default(),
@@ -383,6 +390,7 @@ impl BulkCard {
                 toughness: self.toughness.clone(),
                 loyalty: self.loyalty.clone(),
                 defense: self.defense.clone(),
+                oracle: None,
             }],
         }
     }
@@ -416,6 +424,7 @@ impl BulkCard {
             toughness: f.toughness.clone(),
             loyalty: f.loyalty.clone(),
             defense: f.defense.clone(),
+            oracle: None,
         }
     }
 

@@ -6,9 +6,9 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use chancellor_of_the_spires::deck::{self, CardText, DeckCards};
+use chancellor_of_the_spires::deck::{self, CardText, DeckCards, Oracle, Side, TwoFaced};
 use chancellor_of_the_spires::game::*;
-use chancellor_of_the_spires::model::{pt, PlayerId};
+use chancellor_of_the_spires::model::{pt, CardType, Color, PlayerId};
 use chip_scryfall::index::IndexFile;
 
 const ME: PlayerId = PlayerId(0);
@@ -23,7 +23,68 @@ fn index() -> &'static IndexFile {
 }
 
 fn card(name: &str) -> CardText {
-    deck::card(name, index()).unwrap_or_else(|e| panic!("{e}"))
+    two_faced(name).unwrap_or_else(|| deck::card(name, index()).unwrap_or_else(|e| panic!("{e}")))
+}
+
+/// Cards with two faces, whose faces' own text the committed index,
+/// built before faces kept it, joins; as Scryfall has them.
+fn two_faced(name: &str) -> Option<CardText> {
+    let face = |name: &str, type_line: &str, cost: &str, text: &str, mv, color, pt| CardText {
+        name: name.into(),
+        type_line: type_line.into(),
+        mana_cost: cost.into(),
+        oracle: Oracle::OneFace(text.into()),
+        mana_value: mv,
+        colors: Vec::from_iter(color),
+        pt,
+        identity: Vec::from_iter(color),
+    };
+    let (layout, front, back) = match name {
+        "Pelakka Predation // Pelakka Caverns" => (
+            TwoFaced::Modal,
+            face(
+                "Pelakka Predation",
+                "Sorcery",
+                "{2}{B}",
+                "Target opponent reveals their hand. You choose a card from it with mana value 3 or greater. That player discards that card.",
+                3,
+                Some(Color::Black),
+                None,
+            ),
+            face(
+                "Pelakka Caverns",
+                "Land",
+                "",
+                "This land enters tapped.\n{T}: Add {B}.",
+                0,
+                None,
+                None,
+            ),
+        ),
+        "Scalding Viper // Steam Clean" => (
+            TwoFaced::Adventure,
+            face(
+                "Scalding Viper",
+                "Creature — Elemental Snake",
+                "{1}{R}",
+                "Whenever an opponent casts a spell with mana value 3 or less, this creature deals 1 damage to that player.",
+                2,
+                Some(Color::Red),
+                Some(pt(2, 1)),
+            ),
+            face(
+                "Steam Clean",
+                "Sorcery — Adventure",
+                "{1}{U}",
+                "Return target nonland permanent to its owner's hand.",
+                2,
+                Some(Color::Blue),
+                None,
+            ),
+        ),
+        _ => return None,
+    };
+    CardText::two_faced(name.into(), layout, front, back)
 }
 
 /// A 60-card library of these cards, in these numbers.
@@ -3628,4 +3689,137 @@ fn nantuko_vigilante_turned_face_up_destroys_an_artifact() {
     resolve(&mut game);
     assert!(creature(&game, "Sol Ring").is_none());
     assert_eq!(pt_of(&game, id), pt(3, 2));
+}
+
+/// Pay for the spell being cast with the first payment offered that
+/// spends or taps, until it is paid.
+fn pay(game: &mut Game, mut d: Decision) {
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        d = step(game, Answer::Pay(pay));
+    }
+}
+
+fn offered(game: &Game) -> Vec<Action> {
+    match game.decision() {
+        Decision::Priority { actions, .. } => actions,
+        d => panic!("{d:?}"),
+    }
+}
+
+/// CR 712.12, 712.8f, 712.11b–c, 712.8a: a modal double-faced card is
+/// played as a land by its land face, which is up on the battlefield
+/// and alone has characteristics there; its other face, a sorcery, is
+/// cast by itself, and back in a graveyard the card is its front face.
+#[test]
+fn a_modal_double_faced_card_is_played_or_cast_by_either_face() {
+    const PELAKKA: &str = "Pelakka Predation // Pelakka Caverns";
+    let mut game = deal_both(
+        &[("Swamp", 30), (PELAKKA, 30)],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Swamp", 2), (PELAKKA, 2)],
+        &[("Grizzly Bears", 1)],
+    );
+    let first = in_hand(&game, ME, PELAKKA).unwrap();
+    let actions = offered(&game);
+    // A sorcery face is no land, and a land face is never cast.
+    assert!(actions.contains(&Action::PlayBack(first)));
+    assert!(!actions.contains(&Action::PlayLand(first)));
+    assert!(!actions.contains(&Action::CastBack(first)));
+    step(&mut game, Answer::Act(Action::PlayBack(first)));
+    let (id, perm) = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| p.card == first)
+        .map(|(id, p)| (*id, p.clone()))
+        .unwrap();
+    assert!(perm.tapped, "Pelakka Caverns enters tapped");
+    assert_eq!(game.side_up(first), Side::Back);
+    let now = &game.characteristics()[&id];
+    assert!(now.is(CardType::Land) && !now.is(CardType::Sorcery));
+    assert_eq!(now.mana_value, 0);
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    let second = in_hand(&game, ME, PELAKKA).unwrap();
+    assert!(offered(&game).contains(&Action::Cast(second)));
+    let d = step(&mut game, Answer::Act(Action::Cast(second)));
+    assert!(matches!(d, Decision::Targets { .. }), "{d:?}");
+    let d = step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    pay(&mut game, d);
+    let Decision::ChooseFromHand { legal, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    // Mana value 3 or greater: a Forest and Grizzly Bears are neither.
+    assert!(legal.is_empty());
+    step(&mut game, Answer::Pick(None));
+    assert_eq!(named(&game, game.player(ME).graveyard(), PELAKKA), 1);
+    assert_eq!(game.side_up(second), Side::Front);
+}
+
+/// CR 715.3, 715.3b, 715.3d, 715.4: an adventurer card cast as its
+/// Adventure has only the Adventure's characteristics and instructions,
+/// is exiled as it resolves rather than put into a graveyard, and its
+/// caster may cast the creature from exile afterwards, its normal
+/// characteristics.
+#[test]
+fn an_adventure_resolves_into_exile_and_the_creature_is_cast_from_there() {
+    const VIPER: &str = "Scalding Viper // Steam Clean";
+    let mut game = deal_both(
+        &[("Island", 20), ("Mountain", 20), (VIPER, 20)],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Island", 2), ("Mountain", 2), (VIPER, 1)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Island");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    let held = named(&game, game.player(THEM).hand(), "Grizzly Bears");
+    let viper = in_hand(&game, ME, VIPER).unwrap();
+    assert!(offered(&game).contains(&Action::CastBack(viper)));
+    let d = step(&mut game, Answer::Act(Action::CastBack(viper)));
+    // On the stack it is Steam Clean, a sorcery of mana value 2.
+    assert_eq!(game.side_up(viper), Side::Back);
+    let d = match d {
+        Decision::Targets { .. } => step(&mut game, Answer::Targets(vec![Target::Object(bears)])),
+        d => panic!("{d:?}"),
+    };
+    pay(&mut game, d);
+    resolve(&mut game);
+    assert!(creature(&game, "Grizzly Bears").is_none());
+    assert_eq!(
+        named(&game, game.player(THEM).hand(), "Grizzly Bears"),
+        held + 1
+    );
+    assert_eq!(named(&game, game.exile(), VIPER), 1);
+    assert_eq!(game.adventuring(ME).collect::<Vec<_>>(), vec![viper]);
+    assert_eq!(game.side_up(viper), Side::Front);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    let actions = offered(&game);
+    assert!(actions.contains(&Action::Cast(viper)));
+    // Not as an Adventure again from exile (CR 715.3d).
+    assert!(!actions.contains(&Action::CastBack(viper)));
+    let d = step(&mut game, Answer::Act(Action::Cast(viper)));
+    pay(&mut game, d);
+    resolve(&mut game);
+    let id = creature(&game, VIPER).expect("Scalding Viper on the battlefield");
+    assert_eq!(game.characteristics()[&id].pt, Some(pt(2, 1)));
+    assert_eq!(game.exile().len(), 0);
+    assert_eq!(game.adventuring(ME).count(), 0);
 }

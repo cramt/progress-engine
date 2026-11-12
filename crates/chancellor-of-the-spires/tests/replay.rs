@@ -5,7 +5,7 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use chancellor_of_the_spires::deck::{self, CardText, Oracle};
+use chancellor_of_the_spires::deck::{self, CardText, Oracle, TwoFaced};
 use chancellor_of_the_spires::log;
 use chancellor_of_the_spires::model::{pt, Color, PlayerId};
 use chancellor_of_the_spires::replay::{
@@ -27,6 +27,73 @@ fn bears() -> CardText {
         pt: Some(pt(2, 2)),
         identity: vec![Color::Green],
     }
+}
+
+/// A face of a two-faced card, as Scryfall has it.
+fn face(name: &str, type_line: &str, cost: &str, text: &str, colors: &[Color]) -> CardText {
+    CardText {
+        name: name.into(),
+        type_line: type_line.into(),
+        mana_cost: cost.into(),
+        oracle: Oracle::OneFace(text.into()),
+        mana_value: cost.matches('{').count() as u32,
+        colors: colors.to_vec(),
+        pt: None,
+        identity: colors.to_vec(),
+    }
+}
+
+/// A modal double-faced card, whose faces the committed index, built
+/// before faces kept their text, joins.
+fn pelakka() -> CardText {
+    CardText::two_faced(
+        "Pelakka Predation // Pelakka Caverns".into(),
+        TwoFaced::Modal,
+        CardText {
+            mana_value: 3,
+            ..face(
+                "Pelakka Predation",
+                "Sorcery",
+                "{2}{B}",
+                "Target opponent reveals their hand. You choose a card from it with mana value 3 or greater. That player discards that card.",
+                &[Color::Black],
+            )
+        },
+        face(
+            "Pelakka Caverns",
+            "Land",
+            "",
+            "This land enters tapped.\n{T}: Add {B}.",
+            &[],
+        ),
+    )
+    .unwrap()
+}
+
+/// An adventurer card, likewise.
+fn scalding_viper() -> CardText {
+    CardText::two_faced(
+        "Scalding Viper // Steam Clean".into(),
+        TwoFaced::Adventure,
+        CardText {
+            pt: Some(pt(2, 1)),
+            ..face(
+                "Scalding Viper",
+                "Creature — Elemental Snake",
+                "{1}{R}",
+                "Whenever an opponent casts a spell with mana value 3 or less, this creature deals 1 damage to that player.",
+                &[Color::Red],
+            )
+        },
+        face(
+            "Steam Clean",
+            "Sorcery — Adventure",
+            "{1}{U}",
+            "Return target nonland permanent to its owner's hand.",
+            &[Color::Blue],
+        ),
+    )
+    .unwrap()
 }
 
 /// The real cards the logs here name beyond these, from the card index.
@@ -80,6 +147,8 @@ fn cards(name: &str) -> Option<CardText> {
     match name {
         "Forest" | "Island" | "Plains" => Some(CardText::basic(name)),
         "Grizzly Bears" => Some(bears()),
+        "Pelakka Predation" | "Pelakka Caverns" => Some(pelakka()),
+        "Scalding Viper" | "Steam Clean" => Some(scalding_viper()),
         n if INDEXED.contains(&n) => Some(deck::card(n, index()).unwrap()),
         _ => None,
     }
@@ -1368,4 +1437,57 @@ fn solitary_confinement_is_kept_by_the_discard_line_and_skips_the_draw() {
         .map(|c| game.card(*c).unwrap().name.clone())
         .collect();
     assert_eq!(graveyard, ["Forest", "Solitary Confinement"]);
+}
+
+/// CR 712.12, 715.3, 715.3d: a log names the face of a two-faced card it
+/// shows. Pelakka Caverns is played by its land face; Steam Clean is cast
+/// as an Adventure, bounces the Bears and goes to exile, and the Scalding
+/// Viper a later line casts is that card, cast from exile.
+#[test]
+fn a_log_names_the_face_played_or_cast_and_an_adventure_is_cast_from_exile() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Pelakka Caverns].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        bob casts [Grizzly Bears].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Steam Clean] targeting [Grizzly Bears].
+        alice returns [Grizzly Bears] to its owner's hand with [Steam Clean].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Forest].
+        bob casts [Grizzly Bears].
+        Turn 4: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Scalding Viper].
+        Turn 4: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(
+        on_battlefield(&game, "Pelakka Predation // Pelakka Caverns"),
+        1
+    );
+    assert_eq!(on_battlefield(&game, "Scalding Viper // Steam Clean"), 1);
+    assert!(game.exile().is_empty());
+    assert_eq!(on_battlefield(&game, "Grizzly Bears"), 1);
 }

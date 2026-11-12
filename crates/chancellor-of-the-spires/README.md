@@ -60,7 +60,8 @@ on. Turn-based and state-based actions are never decisions.
   lets them "begin the game with it on the battlefield" puts any of
   those there (CR 103.6, 103.6a), answered `Begin`.
 - `Priority { player, actions }`: pass, play a land, `Cast(card)` from
-  hand or a commander from the command zone, `CastFaceDown(card)` and
+  hand or a commander from the command zone, `PlayBack(card)` and
+  `CastBack(card)`, a card's other face (below), `CastFaceDown(card)` and
   `TurnFaceUp(permanent)` (below), activate a mana ability
   (`Mana(ManaActivation { source, ability, adds })`, one action for each
   mana its text lets it add), or activate another activated ability
@@ -133,6 +134,29 @@ on. Turn-based and state-based actions are never decisions.
   `ReturnCommander { player, card }` (CR 903.9a, answered
   `CommandZone(bool)`), `LegendRule { player, among }` (CR 704.5j,
   answered `Keep(id)`), and `Over`.
+
+A card can have **two faces** (`deck::Oracle::TwoFaces`): a modal
+double-faced card (CR 712.3) or an adventurer card (CR 715.1). Each face
+is read through Insight as a card of its own, its own name, cost, type
+line and text, and which is up is the card's state in the game, a
+`deck::Side` that only a card with two faces has (the game's `Face::Two`): its
+front in every zone but the stack and the battlefield, where it has only
+the front's characteristics (CR 712.8a, 715.4), and the face cast or
+played on them (CR 712.8f, 715.3b), turned back to the front as it
+leaves. The layers then read the face up like any card. A modal card is
+played as a land by its land face (`PlayBack`, CR 712.12) or cast by
+either face, only that face evaluated (`CastBack`, CR 712.11b–c). An
+adventurer card is cast as its Adventure (`CastBack`, CR 715.3), with
+only the Adventure's characteristics on the stack (CR 715.3a–b); as it
+resolves it is exiled, and its caster may then cast the creature from
+exile, though not as an Adventure again (CR 715.3d); countered, or with
+its targets gone, it goes to the graveyard as any spell does. A card of
+another layout with more than one face (transforming, split, flip,
+prepare …) is refused by name, "a multi-faced card (transform)", and
+`Side` grows a case where a layout needs one. The card index keeps a
+face's own text only for a card with more than one
+(`chip_scryfall::index::Face::oracle`), so an index built before it
+plays none of them.
 
 Covered: every step of the turn with priority, all players passing with
 the stack empty ending the step (CR 117.4, 500.2) and with it non-empty
@@ -688,6 +712,16 @@ with nothing to answer is cast in their postcombat main phase instead if
 what follows needs it (the Dark Ritual for the Phyrexian Arena cast
 next), as one cast in the beginning phase is cast in the first.
 
+A line names a two-faced card by the face it shows: "plays [Hagra
+Broodpit]" is Hagra Mauling // Hagra Broodpit played by its land face,
+"casts [Steam Clean]" Scalding Viper cast as its Adventure, "is being
+attacked by [Scalding Viper]" the permanent whichever face's name a line
+uses. A cast of an adventurer card whose player has one on an adventure
+is of the one in exile, which the line never says, before one in hand;
+and a return-to-hand line beside a cast is the cast's cost, as Gush's
+is, only for a card with an alternative cost from a hand, Steam Clean's
+being its own instruction.
+
 A card cast face down ("casts a card face down.", "Cast face-down with
 Morph.") is one the log hides, and each is "face-down creature #N"
 after, numbered by the casts. A later line names it: "reveals face-down
@@ -721,18 +755,19 @@ did and each player's life as it ended; `--finished F` writes the ids of the gam
 diff against a run before a change for a finished game it broke; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 70 replay to the end** (67 to the log's winner
-line), 52 of them past the first turn, and **29.56% of their lines are
-followed** (23,111 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 71 replay to the end** (68 to the log's winner
+line), 53 of them past the first turn, and **29.95% of their lines are
+followed** (23,417 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-12, and 15 games rely on a land the log never names (1
-of them to the end); it was 65 games and 29.39% before the "unless" costs
+of them to the end); it was 70 games and 29.56% before modal
+double-faced and adventurer cards, 65 games and 29.39% before the "unless" costs
 other than mana, 57 games and 28.75% before morph, 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 302 stop
-in the first turn, 338 in the second, 184 in the third, 114 later, and 53
+no turn in them (empty logs, concessions during the mulligans). 290 stop
+in the first turn, 339 in the second, 190 in the third, 118 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -749,14 +784,15 @@ bounce, counter and dying 20.72%; search as an instruction 20.81%;
 responses 20.84%; tokens 20.96%; then the milestone's work took it to
 23.99% and on to 27.27% (below). Games to the end barely moved: a game
 that gets past one stop meets the next, most in its first two turns. The
-stops now, by games: an exile line not followed (75: suspend's Rift Bolt,
-Grim Lavamancer's cost), a card with two faces (55), `Trigger::When(Event::Or)`
-(43: Stitcher's Supplier), a restriction (27), modifying by an amount
-(23), looking at a hand (22: Gitaxian Probe), Cavern of Souls's "spend
-this mana only" (21), one player named (21), and modal spells, moving
-cards a search found and a cast other than from hand for its mana cost
-or an alternative cost the engine runs (20 each: Green Sun's Zenith's
-X). None is the engine disagreeing with Magic Online; those that
+stops now, by games: an exile line not followed (76: suspend's Rift Bolt,
+Grim Lavamancer's cost), `Trigger::When(Event::Or)` (43: Stitcher's
+Supplier), a restriction (30), modifying by an amount (24), a
+transforming double-faced card (23: Delver of Secrets in 8, Invasion of
+Ixalan in 4; of the 55 games two faces stopped, those at modal and
+adventurer cards play on, one to the end and 24 to other cards, and
+split and prepare cards stop 7), looking at a hand (22: Gitaxian Probe), modal spells
+(22), Cavern of Souls's "spend this mana only" (22), one player named
+(21), and moving cards a search found (20). None is the engine disagreeing with Magic Online; those that
 were are fixed: Gaea's Cradle's "Add {G} for each creature" not read as a
 mana ability (CR 605.1a), and Champion of the Parish's "another Human"
 missing a Human, since a creature type said with no card type was read
@@ -780,7 +816,9 @@ of its cost, its Islands' floating mana paying for what follows; and two
 cards cast face down, one named by the line revealing it as it dies, the
 other by the Exalted Angel attacking once a line turned it face up; and
 a Solitary Confinement kept by a discard line, its controller's draw
-step skipped, then sacrificed with none. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
+step skipped, then sacrificed with none; and Pelakka Caverns played by
+its face's name, Steam Clean cast as an Adventure and the Scalding Viper
+cast after it from exile. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
 player, at a creature, and at one already gone), Preordain, Champion of
 the Parish, Temple of Deceit, and combat: an unblocked attacker,
 flying against a block, a trade, first strike, exalted, prowess,
@@ -803,7 +841,11 @@ its morph cost, gaining the life it deals, and Nantuko Vigilante turned
 face up destroying an artifact, and Masticore kept by a discard or
 sacrificed, Phyrexian Dreadnought sacrificed unless twelve power is,
 and Solitary Confinement skipping its controller's draw step, giving
-them shroud and preventing a Jackal Pup's damage to them.
+them shroud and preventing a Jackal Pup's damage to them, and Pelakka
+Predation // Pelakka Caverns played by its land face, a land alone on the
+battlefield, and cast by its sorcery face, and Steam Clean cast as an
+Adventure, bouncing Grizzly Bears into exile and the Scalding Viper cast
+from there.
 
 ### The milestone
 
@@ -830,9 +872,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-12 68 of the 500 replay to
-the end and 42.77% of their lines are followed** (13,540 of 31,659), 5
-of them relying on a land the log never names (1 to the end), and 82
+Worked card by card from there, **on 2026-11-12 69 of the 500 replay to
+the end and 43.55% of their lines are followed** (13,788 of 31,659), 5
+of them relying on a land the log never names (1 to the end), and 83
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -887,7 +929,11 @@ several types, "artifact or enchantment" (Nantuko Vigilante, which
 Naturalize and Disenchant read through too); an "unless" paid by
 discarding a card or sacrificing creatures of a total power (Masticore,
 Phyrexian Dreadnought), and a player's draw step skipped, their shroud
-and all damage to them prevented (Solitary Confinement). And
+and all damage to them prevented (Solitary Confinement); a card's faces
+read apart, the one up the card's state, a modal double-faced card
+played or cast by either (Hagra Broodpit, Pelakka Caverns), an Adventure
+exiled as it resolves and its creature cast from exile, and "return
+target nonland permanent" (Scalding Viper // Steam Clean). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -897,14 +943,19 @@ activation is of, a winner line resolving what ended the game, and
 which of the cards drawn this turn Sylvan Library chooses, which
 land Flare of Cultivation puts onto the battlefield, and which card was
 cast face down, from the line revealing it or the card with morph a line
-names once it is turned face up, and the discard paying an "unless"
-from the next discard line. One divergence was the engine's own, found by the full
+names once it is turned face up, the discard paying an "unless"
+from the next discard line, and which face of a two-faced card a line
+names and which copy of an adventurer card it casts. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
 top of the worklist now: Stifle countering Phyrexian Dreadnought's
 trigger (9: six of the Dreadnought games stop there), Vesuva's copy
-(8), and Grim Lavamancer's exile line, Goblin Cadets, Quicksilver,
-Scalding Viper's two faces and Veteran Survivor (6 each); of the
+(8), and Grim Lavamancer's exile line, Goblin Cadets, Quicksilver and
+Veteran Survivor (6 each); of the 34 games two faces stopped, Hagra
+Broodpit's and Scalding Viper's among them, one replays to the end and
+18 stop at other cards (Stomp, Lizard Blades, Ayara), 10 at a
+transforming card (Invasion of Ixalan in 4) and 5 at a split or prepare
+card; of the
 Solitary Confinement and Masticore games, five now replay to the end
 and the rest stop at other cards (Elephant Grass's cumulative upkeep,
 Replenish, Goblin King, Eternal Dragon's landcycling). No

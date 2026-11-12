@@ -120,9 +120,10 @@ pub enum IndexError {
 /// downstream has to branch on how many there are.
 ///
 /// A face carries the *typed* data a query reads per face — its cost, its
-/// power and toughness — and not its oracle text. The joined text at card level
-/// is what `o:` and `fo:` search, and storing it again per face was six
-/// megabytes answering a question no query can currently ask. Scryfall's own shape makes
+/// power and toughness — and its oracle text only when the card has more than
+/// one face. The joined text at card level is what `o:` and `fo:` search, and
+/// storing it again for every single-faced card was six megabytes answering a
+/// question no query asks. Scryfall's own shape makes
 /// `power` mean the card's power on one layout and nothing at all on another,
 /// and flattening that three-case match into one uniform list here is what lets
 /// `pow>=3` be written once and be right about Delver of Secrets.
@@ -149,6 +150,12 @@ pub struct Face {
     pub loyalty: Option<String>,
     #[facet(default, skip_serializing_if = Option::is_none)]
     pub defense: Option<String>,
+    /// This face's own Oracle text, reminder text removed, kept only for a
+    /// card with more than one face: a rules engine reads each face apart
+    /// (Chancellor of the Spires, CR 712.8), and one face's text is the
+    /// card's. `None` in an index built before faces kept it.
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub oracle: Option<String>,
 }
 
 /// One card, as the index stores it.

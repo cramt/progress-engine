@@ -35,7 +35,7 @@ use std::sync::Arc;
 use imbl::{OrdMap, OrdSet, Vector};
 use vivisurgeons_insight::ast as i;
 
-use crate::deck::{CardText, DeckCards};
+use crate::deck::{CardText, DeckCards, Oracle, Side, TwoFaced};
 use crate::layers::characteristics;
 use crate::lower::{
     self, Activated, CardFilter, Cards, DamageTo, Effect, Lowered, Obj, Program, Refusal, Slot,
@@ -75,11 +75,62 @@ struct CardEntry {
     face: Face,
 }
 
-/// What the game knows a card to be (the module's "Hidden cards").
+/// What the game knows a card to be (the module's "Hidden cards"), and of
+/// a card with two faces which is up.
 #[derive(Clone)]
 enum Face {
     Hidden,
-    Known(Arc<Known>),
+    One(Arc<Known>),
+    /// A card with two faces the engine plays (CR 712, 715), each read as
+    /// a card of its own, and the side up: its front in every zone but the
+    /// stack and the battlefield (CR 712.8a, 715.4), the face cast or
+    /// played on them (CR 712.8f, 715.3b).
+    Two(Arc<TwoFaces>, Side),
+}
+
+impl Face {
+    /// What the game knows of a card's text.
+    fn of(text: CardText) -> Face {
+        match (text.face(Side::Front), text.face(Side::Back)) {
+            (Some(front), Some(back)) => Face::Two(
+                Arc::new(TwoFaces {
+                    layout: text.layout().expect("two faces"),
+                    text,
+                    front: known(front),
+                    back: known(back),
+                }),
+                Side::Front,
+            ),
+            _ => Face::One(known(text)),
+        }
+    }
+
+    /// The face up, as what the engine makes of it; `None` while hidden.
+    fn up(&self) -> Option<&Arc<Known>> {
+        match self {
+            Face::Hidden => None,
+            Face::One(k) => Some(k),
+            Face::Two(two, side) => Some(two.face(*side)),
+        }
+    }
+}
+
+/// A card with two faces: the card's text, and what the engine makes of
+/// each face.
+struct TwoFaces {
+    layout: TwoFaced,
+    text: CardText,
+    front: Arc<Known>,
+    back: Arc<Known>,
+}
+
+impl TwoFaces {
+    fn face(&self, side: Side) -> &Arc<Known> {
+        match side {
+            Side::Front => &self.front,
+            Side::Back => &self.back,
+        }
+    }
 }
 
 /// A card whose identity is known: its text, and what the engine makes of
@@ -116,11 +167,17 @@ impl Known {
     fn read(text: CardText) -> Known {
         let lowered = text
             .as_card()
-            .map_err(|why| Unrunnable::new("a multi-faced card", why))
+            .map_err(|why| match &text.oracle {
+                Oracle::Faces { layout, .. } => {
+                    Unrunnable::new(format!("a multi-faced card ({layout})"), why)
+                }
+                _ => Unrunnable::new("a multi-faced card", why),
+            })
             .and_then(|c| lower::card(&c).map_err(unlowered));
         // A card the engine can't run still has a type line, mana value and
         // colours, which is all a card outside the battlefield is matched
-        // by: a multi-faced card by its front face (CR 712.8a).
+        // by: a multi-faced card of a layout not played yet by its front
+        // face (CR 712.8a).
         let printed = match &lowered {
             Ok(l) => Some(l.chars.clone()),
             Err(_) => lower::printed(&text).ok(),
@@ -1293,7 +1350,14 @@ pub enum Action {
     PlayLand(CardId),
     /// Begin casting a spell from hand, or a commander from the command
     /// zone (CR 601.2, 903.8). Listed when its timing allows (CR 117.1a).
+    /// A two-faced card is cast by its front (CR 712.11).
     Cast(CardId),
+    /// Play a modal double-faced card by its back face, a land (CR
+    /// 712.12, 305.1).
+    PlayBack(CardId),
+    /// Cast a modal double-faced card by its back face (CR 712.11b), or
+    /// an adventurer card as its Adventure (CR 715.3).
+    CastBack(CardId),
     /// Begin casting a spell for its card's alternative cost `n` (the
     /// index of the ability that allows it), from the zone that cost
     /// allows: flashback from a graveyard (CR 118.9a, 601.2b, 702.34a).
@@ -1485,6 +1549,9 @@ pub struct Game {
     /// an ability of its that counts them (CR 608.2h, 113.7a).
     last_known: OrdMap<ObjectId, LastKnown>,
     exile: Vector<CardId>,
+    /// Adventurer cards exiled as their Adventure resolved, each with the
+    /// player who may cast it from exile while it stays there (CR 715.3d).
+    adventuring: OrdMap<CardId, PlayerId>,
     command: Vector<CardId>,
     /// How many times each commander has been cast from the command zone
     /// (CR 903.8).
@@ -1603,7 +1670,7 @@ impl Game {
                 });
                 CardId(cards.len() as u32 - 1)
             };
-            let known = |text| Face::Known(known(text));
+            let known = Face::of;
             for c in deck.commander {
                 command.push_back(add(known(c), true));
             }
@@ -1658,6 +1725,7 @@ impl Game {
             discarded: 0,
             used: OrdSet::new(),
             exile: Vector::new(),
+            adventuring: OrdMap::new(),
             command,
             commander_casts: OrdMap::new(),
             commanders_moved: Vector::new(),
@@ -1801,12 +1869,36 @@ impl Game {
     }
     /// The card's text, or `None` while it is hidden.
     pub fn card(&self, c: CardId) -> Option<&CardText> {
-        self.known(c).map(|k| &k.text)
-    }
-    fn known(&self, c: CardId) -> Option<&Known> {
         match &self.cards[c.0 as usize].face {
-            Face::Known(k) => Some(k),
-            Face::Hidden => None,
+            Face::Two(two, _) => Some(&two.text),
+            face => face.up().map(|k| &k.text),
+        }
+    }
+    /// The face of the card that is up (CR 712.8).
+    fn known(&self, c: CardId) -> Option<&Known> {
+        self.cards[c.0 as usize].face.up().map(|k| &**k)
+    }
+    /// A two-faced card's faces.
+    fn two_faces(&self, c: CardId) -> Option<&TwoFaces> {
+        match &self.cards[c.0 as usize].face {
+            Face::Two(two, _) => Some(two),
+            _ => None,
+        }
+    }
+    /// Which side of a two-faced card is up; a card with one face's is
+    /// its front.
+    pub fn side_up(&self, c: CardId) -> Side {
+        match &self.cards[c.0 as usize].face {
+            Face::Two(_, side) => *side,
+            _ => Side::Front,
+        }
+    }
+    /// Turn a two-faced card's `side` up, as it is cast or played (CR
+    /// 712.11b, 712.12), or its front as it leaves the stack or the
+    /// battlefield (CR 712.8a). A card with one face has only its front.
+    fn turn_up(&mut self, c: CardId, side: Side) {
+        if let Face::Two(_, up) = &mut self.cards[c.0 as usize].face {
+            *up = side;
         }
     }
     /// Name a hidden card (the module's "Hidden cards"). A card already
@@ -1820,11 +1912,12 @@ impl Game {
             || self.stack.iter().any(
                 |o| matches!(o, StackObject::Spell { card, via: Via::FaceDown, .. } if *card == c),
             );
-        let k = known(text);
+        let face = Face::of(text);
+        let k = face.up().expect("named");
         if face_down && k.morph.is_none() {
             return Err(Unnameable::NotMorph(k.text.name.clone()));
         }
-        self.cards[c.0 as usize].face = Face::Known(k);
+        self.cards[c.0 as usize].face = face;
         Ok(())
     }
     /// How many cards the game has, every `CardId` below it.
@@ -1839,6 +1932,14 @@ impl Game {
     }
     pub fn exile(&self) -> &Vector<CardId> {
         &self.exile
+    }
+    /// The adventurer cards in exile `p` may cast, their Adventure having
+    /// resolved (CR 715.3d).
+    pub fn adventuring(&self, p: PlayerId) -> impl Iterator<Item = CardId> + '_ {
+        self.adventuring
+            .iter()
+            .filter(move |(c, q)| **q == p && self.exile.contains(c))
+            .map(|(c, _)| *c)
     }
     pub fn stack(&self) -> &Vector<StackObject> {
         &self.stack
@@ -1946,12 +2047,26 @@ impl Game {
     /// land is checked as it would be played, any other card as it would
     /// be cast.
     pub fn refusal(&self, c: CardId) -> Option<Unrunnable> {
-        let Some(known) = self.known(c) else {
+        self.refusal_of(c, self.side_up(c))
+    }
+
+    /// As `refusal`, of one side of a card: a two-faced card's face (CR
+    /// 712.11c, 715.3a), a card with one face's only one.
+    pub fn refusal_of(&self, c: CardId, side: Side) -> Option<Unrunnable> {
+        let face = match &self.cards[c.0 as usize].face {
+            Face::Two(two, _) => Some(&**two.face(side)),
+            _ => self.known(c),
+        };
+        let Some(known) = face else {
             return Some(Unrunnable::new(
                 "a hidden card",
                 "no one has said what it is",
             ));
         };
+        Game::face_refusal(known)
+    }
+
+    fn face_refusal(known: &Known) -> Option<Unrunnable> {
         match &known.runs {
             Err(r) => Some(r.clone()),
             Ok(_) if is_land(&known.text.type_line) => None,
@@ -1972,13 +2087,20 @@ impl Game {
     /// What the engine makes of a card before any game: why it refuses
     /// it, as `refusal` would once it is known, and the abilities it
     /// carries that nothing offers (`dormant`).
+    /// A card with two faces is refused if either face is, its front's
+    /// refusal first.
     pub fn reads(text: &CardText) -> (Option<Unrunnable>, Vec<String>) {
-        let known = known(text.clone());
-        match &known.runs {
-            Err(r) => (Some(r.clone()), Vec::new()),
-            Ok(runs) if is_land(&known.text.type_line) => (None, runs.dormant.clone()),
-            Ok(runs) => (Game::spell_refusal_any(&known, runs), runs.dormant.clone()),
-        }
+        let faces = match Face::of(text.clone()) {
+            Face::Two(two, _) => vec![Arc::clone(&two.front), Arc::clone(&two.back)],
+            face => vec![Arc::clone(face.up().expect("known"))],
+        };
+        let refused = faces.iter().find_map(|k| Game::face_refusal(k));
+        let dormant = faces
+            .iter()
+            .filter_map(|k| k.runs.as_ref().ok())
+            .flat_map(|r| r.dormant.iter().cloned())
+            .collect();
+        (refused, dormant)
     }
 
     /// The abilities a card the engine runs carries that nothing offers
@@ -2581,7 +2703,7 @@ impl Game {
                 if named.len() == cards.len() =>
             {
                 for (c, text) in cards.iter().zip(named) {
-                    self.cards[c.0 as usize].face = Face::Known(known(text.clone()));
+                    self.cards[c.0 as usize].face = Face::of(text.clone());
                 }
                 self.follow(resume);
             }
@@ -2868,20 +2990,17 @@ impl Game {
                         None => return Err(Rejected::Illegal(answer)),
                     },
                     Found::Hidden(c, text) if library.contains(c) && self.known(*c).is_none() => {
-                        Some((*c, Some(known((**text).clone()))))
+                        Some((*c, Some(Face::of((**text).clone()))))
                     }
                     _ => return Err(Rejected::Illegal(answer)),
                 };
                 let card = match read {
                     None => None,
                     Some((c, named)) => {
-                        let known =
-                            named
-                                .clone()
-                                .unwrap_or_else(|| match &self.cards[c.0 as usize].face {
-                                    Face::Known(k) => Arc::clone(k),
-                                    Face::Hidden => unreachable!("checked known"),
-                                });
+                        let face = named
+                            .clone()
+                            .unwrap_or_else(|| self.cards[c.0 as usize].face.clone());
+                        let known = Arc::clone(face.up().expect("checked known"));
                         match known.found_by(&filter, enters) {
                             Ok(true) => {}
                             Ok(false) => return Err(Rejected::Illegal(answer)),
@@ -2893,7 +3012,7 @@ impl Game {
                             }
                         }
                         if let Some(named) = named {
-                            self.cards[c.0 as usize].face = Face::Known(named);
+                            self.cards[c.0 as usize].face = named;
                         }
                         Some(c)
                     }
@@ -3060,6 +3179,18 @@ impl Game {
                     .filter(|c| self.card(**c).is_some_and(|t| is_land(&t.type_line)))
                     .map(|c| Action::PlayLand(*c)),
             );
+            // CR 712.12: a modal double-faced card played by its land face.
+            actions.extend(
+                player
+                    .hand
+                    .iter()
+                    .filter(|c| {
+                        self.two_faces(**c).is_some_and(|two| {
+                            two.layout == TwoFaced::Modal && is_land(&two.back.text.type_line)
+                        })
+                    })
+                    .map(|c| Action::PlayBack(*c)),
+            );
         }
         // CR 702.29a: cycling any time its owner has priority.
         actions.extend(
@@ -3077,15 +3208,11 @@ impl Game {
             .command
             .iter()
             .filter(|c| self.owner(**c) == p && self.cards[c.0 as usize].commander);
-        for c in player.hand.iter().chain(from_command) {
-            // A hidden card can't be cast: nothing says what it is.
-            let Some(known) = self.known(*c) else {
-                continue;
-            };
+        let castable = |known: &Known| {
             // CR 305.9; a card with no mana cost can't be paid for, and
             // alternative costs aren't modelled (CR 118.6).
             if is_land(&known.text.type_line) || matches!(known.cost, Ok(None)) {
-                continue;
+                return false;
             }
             // CR 601.2c: a spell with a target slot nothing can fill can't
             // be cast.
@@ -3099,8 +3226,29 @@ impl Game {
                     .all(|t| !self.legal_targets(t, p, known.printed.as_ref()).is_empty()),
                 _ => true,
             };
-            if (sorcery_speed || self.instant_speed(known)) && targetable {
+            (sorcery_speed || self.instant_speed(known)) && targetable
+        };
+        for c in player.hand.iter().chain(from_command) {
+            // A hidden card can't be cast: nothing says what it is.
+            let Some(known) = self.known(*c) else {
+                continue;
+            };
+            if castable(known) {
                 actions.push(Action::Cast(*c));
+            }
+            // CR 712.11b: a modal double-faced card cast by its back face,
+            // only that face evaluated (CR 712.11c); CR 715.3: an
+            // adventurer card as an Adventure, only its alternative
+            // characteristics (CR 715.3a).
+            if self.two_faces(*c).is_some_and(|two| castable(&two.back)) {
+                actions.push(Action::CastBack(*c));
+            }
+        }
+        // CR 715.3d: an adventurer card cast from exile, though not as an
+        // Adventure.
+        for c in self.adventuring(p) {
+            if self.known(c).is_some_and(castable) {
+                actions.push(Action::Cast(c));
             }
         }
         // CR 118.9, 601.2b: a card cast for an alternative cost, from the
@@ -3592,16 +3740,13 @@ impl Game {
                     self.resolve_top();
                 }
             }
-            Action::PlayLand(card) => {
-                self.runs(card)?;
-                let player = &mut self.players[p.0 as usize];
-                player.hand.retain(|c| *c != card);
-                player.lands_played += 1;
-                // CR 117.3c.
-                self.enter(card, p, false, Then::Priority(p));
+            Action::PlayLand(card) => self.play_land(p, card, Side::Front)?,
+            Action::PlayBack(card) => self.play_land(p, card, Side::Back)?,
+            Action::Cast(card) => self.cast(p, card, Via::ManaCost, Side::Front)?,
+            Action::CastBack(card) => self.cast(p, card, Via::ManaCost, Side::Back)?,
+            Action::CastAlternative(card, n) => {
+                self.cast(p, card, Via::Alternative(n), Side::Front)?
             }
-            Action::Cast(card) => self.cast(p, card, Via::ManaCost)?,
-            Action::CastAlternative(card, n) => self.cast(p, card, Via::Alternative(n))?,
             // CR 702.37c: turned face down, put on the stack, and {3} paid
             // rather than its mana cost, with the cost changes that apply
             // to a face-down spell (CR 708.4, 601.2f).
@@ -3757,13 +3902,30 @@ impl Game {
         }
     }
 
-    /// Only a known card is ever offered to play or cast.
-    fn runs(&self, card: CardId) -> Result<&Runnable, Rejected> {
-        let known = self.known(card).expect("only a known card is offered");
+    /// CR 305.1: a land played by `side`, which is up as it enters (CR
+    /// 712.12).
+    fn play_land(&mut self, p: PlayerId, card: CardId, side: Side) -> Result<(), Rejected> {
+        let known = self.face(card, side);
         known.runs.as_ref().map_err(|r| Rejected::Refused {
             card: known.text.name.clone(),
             refusal: r.clone(),
-        })
+        })?;
+        self.turn_up(card, side);
+        let player = &mut self.players[p.0 as usize];
+        player.hand.retain(|c| *c != card);
+        player.lands_played += 1;
+        // CR 117.3c.
+        self.enter(card, p, false, Then::Priority(p));
+        Ok(())
+    }
+
+    /// One side of a known card: a two-faced card's face, a card with one
+    /// face's only one.
+    fn face(&self, card: CardId, side: Side) -> &Known {
+        match &self.cards[card.0 as usize].face {
+            Face::Two(two, _) => two.face(side),
+            face => face.up().expect("only a known card is offered"),
+        }
     }
 
     /// What this engine can't cast yet for its mana cost, beyond the
@@ -3807,13 +3969,15 @@ impl Game {
     /// cost and wait for it to be paid. The card has no modes, targets, X
     /// or additional costs to announce, since one that has any is refused
     /// when read.
-    fn cast(&mut self, p: PlayerId, card: CardId, via: Via) -> Result<(), Rejected> {
-        let entry = self.known(card).expect("only a known card is offered");
-        let runs = self.runs(card)?;
+    /// A two-faced card is cast by `side`, only that face evaluated and
+    /// put on the stack (CR 712.11b–c).
+    fn cast(&mut self, p: PlayerId, card: CardId, via: Via, side: Side) -> Result<(), Rejected> {
+        let entry = self.face(card, side);
         let refused = |refusal| Rejected::Refused {
             card: entry.text.name.clone(),
             refusal,
         };
+        let runs = entry.runs.as_ref().map_err(|r| refused(r.clone()))?;
         let cost = match via {
             Via::ManaCost => Game::cast_refusal(entry, runs).map_err(refused)?,
             Via::Alternative(n) => {
@@ -3825,8 +3989,12 @@ impl Game {
         let from_command = via == Via::ManaCost && self.command.contains(&card);
         let kicker = runs.kicker.is_some();
         let before = self.clone();
+        self.turn_up(card, side);
         // CR 601.2a: from wherever it is.
         self.command.retain(|c| *c != card);
+        if self.adventuring.remove(&card).is_some() {
+            self.exile.retain(|c| *c != card);
+        }
         let player = &mut self.players[p.0 as usize];
         player.hand.retain(|c| *c != card);
         player.graveyard.retain(|c| *c != card);
@@ -3998,8 +4166,22 @@ impl Game {
     }
 
     /// A spell leaves the stack for its owner's graveyard, or exile if it
-    /// was cast for flashback (CR 702.34a).
-    fn off_the_stack(&mut self, card: CardId, via: Via) {
+    /// was cast for flashback (CR 702.34a), or, `resolved` with its
+    /// controller, as an Adventure: exiled, and that player may cast it
+    /// from there (CR 715.3d).
+    fn off_the_stack(&mut self, card: CardId, via: Via, resolved: Option<PlayerId>) {
+        let adventure = self.side_up(card) == Side::Back
+            && self
+                .two_faces(card)
+                .is_some_and(|t| t.layout == TwoFaced::Adventure);
+        // CR 712.8a, 715.4: its front face, its normal characteristics, in
+        // any other zone.
+        self.turn_up(card, Side::Front);
+        if let (true, Some(controller)) = (adventure, resolved) {
+            self.exile.push_back(card);
+            self.adventuring.insert(card, controller);
+            return;
+        }
         let exiled = match via {
             Via::Alternative(n) => self.runs_of(card).alternatives[&n].exiled,
             // CR 708.9: revealed as it leaves the stack.
@@ -4127,7 +4309,7 @@ impl Game {
                             self.proceed(then);
                         }
                         _ => {
-                            self.off_the_stack(card, via);
+                            self.off_the_stack(card, via, None);
                             self.give_priority(self.active, 0);
                         }
                     }
@@ -4265,7 +4447,9 @@ impl Game {
     fn done(&mut self, at: &Resuming) {
         self.last_resolved = Some(at.what.card());
         if let Instructions::Spell { card, via, .. } = at.what {
-            self.off_the_stack(card, via);
+            // CR 608.2b: one whose targets are all illegal doesn't resolve.
+            let resolved = at.targets.is_empty() || at.targets.iter().any(Option::is_some);
+            self.off_the_stack(card, via, resolved.then_some(at.controller));
         }
         self.give_priority(self.active, 0);
     }
@@ -4471,7 +4655,7 @@ impl Game {
                             owner: p,
                             commander: false,
                             token: true,
-                            face: Face::Known(known((*token).clone())),
+                            face: Face::of((*token).clone()),
                         });
                         let card = CardId(self.cards.len() as u32 - 1);
                         self.arrive(card, p, tapped);
@@ -4486,7 +4670,7 @@ impl Game {
                         );
                         if let Some(k) = on_stack {
                             if let StackObject::Spell { via, .. } = self.stack.remove(k) {
-                                self.off_the_stack(c, via);
+                                self.off_the_stack(c, via, None);
                             }
                         }
                     }
@@ -6081,9 +6265,9 @@ impl Game {
     }
 
     fn runs_of(&self, card: CardId) -> &Runnable {
-        match &self.cards[card.0 as usize].face {
-            Face::Known(k) => k.runs.as_ref().expect("only a card that runs enters"),
-            Face::Hidden => unreachable!("only a known card enters"),
+        match self.cards[card.0 as usize].face.up() {
+            Some(k) => k.runs.as_ref().expect("only a card that runs enters"),
+            None => unreachable!("only a known card enters"),
         }
     }
 
@@ -6730,6 +6914,8 @@ impl Game {
             },
         );
         self.battlefield.leave(id);
+        // CR 712.8a: its front face in any other zone.
+        self.turn_up(perm.card, Side::Front);
         let owner = self.owner(perm.card);
         let player = &mut self.players[owner.0 as usize];
         match to {
