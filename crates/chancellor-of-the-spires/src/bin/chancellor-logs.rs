@@ -933,6 +933,15 @@ mod native {
                 println!("       -> {}", t.did);
             }
         }
+        if let Some(game) = &replayed.game {
+            let life: Vec<String> = game
+                .players()
+                .iter()
+                .enumerate()
+                .map(|(k, p)| format!("P{} {}", k + 1, p.life()))
+                .collect();
+            println!("  life as it ended: {}", life.join(", "));
+        }
         match &replayed.end {
             End::Finished => println!("replayed to the end"),
             End::Stopped { entry, stop } => println!("stopped at line {entry}: {stop}"),

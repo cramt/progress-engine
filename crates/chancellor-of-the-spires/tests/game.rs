@@ -1043,21 +1043,24 @@ fn constructed(decks: Vec<DeckCards>, mulligans: bool) -> Game {
 }
 
 /// A hidden card has no text to read, so it can't be played or cast and
-/// isn't offered; named, it is an ordinary card, and it is named once.
+/// isn't offered, but face down, which is the same 2/2 whatever the card
+/// (CR 708.2a); named, it is an ordinary card, and it is named once.
 /// CR 103.4: a constructed game starts at 20 life.
 #[test]
 fn a_hidden_card_is_offered_only_once_it_is_named() {
     let mut game = constructed(vec![hidden(20), hidden(20)], false);
     assert_eq!(game.player(ME).life(), 20);
     let d = pass_until(&mut game, ME, Step::PrecombatMain);
-    assert_eq!(priority(&d).1, [Action::Pass]);
+    let hand = game.player(ME).hand().clone();
+    let face_down: Vec<Action> = hand.iter().map(|c| Action::CastFaceDown(*c)).collect();
+    assert_eq!(priority(&d).1, [vec![Action::Pass], face_down].concat());
     let c = game.player(ME).hand()[0];
     assert!(game.card(c).is_none());
     assert_eq!(game.refusal(c).unwrap().node, "a hidden card");
     game.reveal(c, CardText::basic("Forest")).unwrap();
     assert_eq!(
         game.reveal(c, CardText::basic("Island")),
-        Err(AlreadyKnown("Forest".into()))
+        Err(Unnameable::AlreadyKnown("Forest".into()))
     );
     assert!(actions(&game).contains(&Action::PlayLand(c)));
     act(&mut game, Action::PlayLand(c));

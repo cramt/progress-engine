@@ -978,11 +978,12 @@ fn cards_in_graveyards(o: &Objects) -> Option<Result<Amount, String>> {
             })?,
             _ => unreachable!("one alternative at most"),
         };
-        if filter
-            .0
-            .iter()
-            .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_) | Pred::ManaValue(..)))
-        {
+        if filter.0.iter().any(|p| {
+            !matches!(
+                p,
+                Pred::Is(_) | Pred::IsNot(_) | Pred::IsAny(_) | Pred::ManaValue(..)
+            )
+        }) {
             return Err("a card filter relative to its source".into());
         }
         Ok(Amount::CardsInGraveyards {
@@ -1008,6 +1009,33 @@ fn objects(o: &Objects) -> Result<Filter, String> {
         _ => return Err(format!("quantity {}", short(&o.quant))),
     };
     let f = &o.filter;
+    // "Artifact or enchantment": any of single types, supertypes or
+    // colours.
+    if f.alts.len() > 1 {
+        let any: Option<Vec<Prop>> = f
+            .alts
+            .iter()
+            .map(|alt| match alt.as_slice() {
+                [Adj::Type(t)] => card_type(t).map(Prop::Type),
+                [Adj::Supertype(t)] => supertype(t).map(Prop::Supertype),
+                [Adj::Color(c)] => color_prop(c),
+                _ => None,
+            })
+            .collect();
+        let Some(any) = any else {
+            return Err("a filter with alternatives".into());
+        };
+        preds.push(Pred::IsAny(any));
+        let rest = Objects {
+            quant: Quant::All,
+            filter: i::Filter {
+                alts: vec![vec![]],
+                ..f.clone()
+            },
+        };
+        preds.extend(objects(&rest)?.0);
+        return Ok(Filter(preds));
+    }
     let [alt] = f.alts.as_slice() else {
         return Err("a filter with alternatives".into());
     };
@@ -1542,6 +1570,13 @@ pub enum TriggerEvent {
     /// a player, once for each player dealt damage at once (CR 120.3,
     /// 510.2), only combat damage if `combat`.
     DealsDamageToPlayer { what: Filter, combat: bool },
+    /// "Whenever this creature deals damage": a permanent the filter
+    /// matches deals damage to anything, the amount all it dealt at once
+    /// (CR 120.3, 510.2).
+    DealsDamage(Filter),
+    /// "When this creature is turned face up": a permanent the filter
+    /// matches is turned face up (CR 702.37e).
+    TurnedFaceUp(Filter),
     /// "At the beginning of your upkeep": a step begins in a turn whose
     /// active player `whose` names, relative to the ability's controller
     /// (CR 503.1a, 504.2, 513.1a).
@@ -1656,6 +1691,8 @@ pub fn triggered(
                 },
             },
             i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
+            i::Event::DealsDamage(what) => TriggerEvent::DealsDamage(entering(what)?),
+            i::Event::TurnedFaceUp(what) => TriggerEvent::TurnedFaceUp(entering(what)?),
             i::Event::BecomesTapped(what) => TriggerEvent::BecomesTapped(entering(what)?),
             i::Event::Cycles {
                 who: i::Player::You,
@@ -1732,7 +1769,10 @@ pub fn triggered(
         _ => return Err(trigger_node(trigger)),
     };
     let mut scope = Scope::new(bind);
-    scope.amount = matches!(event, TriggerEvent::DealtDamage(_));
+    scope.amount = matches!(
+        event,
+        TriggerEvent::DealtDamage(_) | TriggerEvent::DealsDamage(_)
+    );
     scope.caster = matches!(
         event,
         TriggerEvent::Casts { .. } | TriggerEvent::Draws { .. }
@@ -2320,6 +2360,8 @@ impl<'a> Scope<'a> {
                 who: self.who(who)?,
                 n: match k {
                     i::Amount::PowerOf(o) => Amount::PowerOf(self.obj(o)?),
+                    // "You gain that much life": the event's amount.
+                    i::Amount::ThatMany if self.amount => Amount::ThatMuch,
                     k => Amount::N(n(k)?),
                 },
             },
@@ -3130,10 +3172,12 @@ fn target_filter(o: &Objects) -> Result<Filter, String> {
         quant: Quant::All,
         filter,
     })?;
-    if f.0
-        .iter()
-        .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_) | Pred::YouControl))
-    {
+    if f.0.iter().any(|p| {
+        !matches!(
+            p,
+            Pred::Is(_) | Pred::IsNot(_) | Pred::IsAny(_) | Pred::YouControl
+        )
+    }) {
         return Err("a target relative to its source".into());
     }
     Ok(f)
@@ -3624,11 +3668,12 @@ fn card_filter(o: &Objects) -> Result<CardFilter, String> {
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    if alts
-        .iter()
-        .flat_map(|f| &f.0)
-        .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_) | Pred::ManaValue(..)))
-    {
+    if alts.iter().flat_map(|f| &f.0).any(|p| {
+        !matches!(
+            p,
+            Pred::Is(_) | Pred::IsNot(_) | Pred::IsAny(_) | Pred::ManaValue(..)
+        )
+    }) {
         return Err("a card filter relative to its source".into());
     }
     Ok(CardFilter(alts))

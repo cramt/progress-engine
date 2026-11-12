@@ -64,6 +64,7 @@ const INDEXED: &[&str] = &[
     "Burst Lightning",
     "Gush",
     "Coral Eel",
+    "Exalted Angel",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1244,4 +1245,69 @@ fn gush_returns_the_islands_its_line_names_after_tapping_them_for_mana() {
     };
     assert_eq!(islands(game.player(ALICE).hand()), 1);
     assert_eq!(islands(game.player(ALICE).graveyard()), 1);
+}
+
+/// CR 702.37c, 708.9, 702.37e: the log hides the card cast face down and
+/// names it later. The first is named by the line revealing it as Lightning
+/// Bolt kills it; the second, never revealed, by the Exalted Angel that
+/// attacks once a line has turned it face up, whose damage trigger the log
+/// shows.
+#[test]
+fn a_card_cast_face_down_is_the_one_a_later_line_names() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Plains].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Mountain].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Plains].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Mountain].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Plains].
+        alice casts a card face down.
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Mountain].
+        bob casts [Lightning Bolt] targeting face-down creature #1.
+        alice reveals face-down creature #1 as Exalted Angel.
+        Turn 4: alice
+        alice draws a card.
+        alice plays [Plains].
+        alice casts a card face down.
+        Turn 4: bob
+        bob draws a card.
+        bob plays [Mountain].
+        Turn 5: alice
+        alice draws a card.
+        alice plays [Plains].
+        alice turns face-down creature #2 face up.
+        bob is being attacked by [Exalted Angel]
+        alice puts triggered ability from [Exalted Angel] onto the stack (Whenever Exalted Angel deals damage, you gain that much life.).
+        Turn 5: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Exalted Angel"), 1);
+    let angels = game
+        .player(ALICE)
+        .graveyard()
+        .iter()
+        .filter(|c| game.card(**c).is_some_and(|t| t.name == "Exalted Angel"))
+        .count();
+    assert_eq!(angels, 1);
+    assert_eq!(game.player(BOB).life(), 16);
+    assert_eq!(game.player(ALICE).life(), 24);
 }

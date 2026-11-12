@@ -21,7 +21,9 @@
 //! cards. A hidden card is a [`CardEntry`] whose [`Face`] is `Hidden`, and
 //! its text, its cost and what the engine runs of it live only in the
 //! `Known` face, so a hidden card can't be played, cast, discarded or have
-//! a characteristic read: there is nothing to read. [`Game::reveal`] names
+//! a characteristic read: there is nothing to read. It can be cast face
+//! down, since a face-down spell is the same 2/2 whatever its card (CR
+//! 708.2a), and it is then a card with morph whenever it is named. [`Game::reveal`] names
 //! it, once, which is sound because nothing in the game could have told
 //! the difference before; the cards a deck file builds are known from the
 //! start, so a goldfish never has one.
@@ -89,6 +91,18 @@ struct Known {
     printed: Option<Chars>,
     runs: Result<Runnable, Unrunnable>,
     cost: Result<Option<ManaCost>, Unrunnable>,
+    /// Its morph ability, read whether or not the game runs the rest: a
+    /// face-down spell is the same 2/2 whatever its card (CR 702.37c).
+    morph: Option<Morph>,
+}
+
+/// A card's morph ability (CR 702.37a).
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Morph {
+    /// Turned face up for this mana.
+    Mana(ManaCost),
+    /// A cost other than mana, which the engine never pays.
+    Other,
 }
 
 /// What the engine makes of a card's text, read once per text: a game
@@ -111,6 +125,13 @@ impl Known {
             Ok(l) => Some(l.chars.clone()),
             Err(_) => lower::printed(&text).ok(),
         };
+        let morph = lowered.as_ref().ok().and_then(|l| {
+            l.unread.iter().find_map(|a| match a {
+                i::Ability::Keywords(ks) => ks.iter().find_map(morph_cost),
+                _ => None,
+            })
+        });
+        let morph = morph.map(|cost| cost.map_or(Morph::Other, Morph::Mana));
         let runs = lowered.and_then(runnable).and_then(|r| {
             // A token it creates must run too, or it couldn't enter.
             let refused = r
@@ -131,6 +152,7 @@ impl Known {
             printed,
             runs,
             cost,
+            morph,
         }
     }
 
@@ -398,6 +420,9 @@ pub struct Permanent {
     /// with deathtouch dealt any (CR 704.5h).
     pub damage: u32,
     pub deathtouched: bool,
+    /// Face down (CR 708.2): its card may be hidden, and nothing of it but
+    /// a 2/2 creature with no name is seen until it is turned face up.
+    pub face_down: bool,
 }
 
 /// What a target is (CR 115.1): a player, or a permanent, which is a new
@@ -470,6 +495,9 @@ pub enum StackObject {
 pub enum Via {
     ManaCost,
     Alternative(u16),
+    /// Face down for {3} by its morph ability, a 2/2 with no text, name,
+    /// subtypes or mana cost (CR 702.37c, 708.4).
+    FaceDown,
 }
 
 /// Whose instructions are resolving.
@@ -564,6 +592,18 @@ pub struct Pending {
     ordered: bool,
 }
 
+/// What a mana cost being paid is for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Paying {
+    /// A spell, from the command zone or not (CR 601.2g–h).
+    Spell { from_command: bool },
+    /// An activated ability of the card's (CR 602.2b).
+    Ability,
+    /// The morph cost of this face-down permanent, turning it face up, a
+    /// special action (CR 702.37e, 116.2b).
+    FaceUp(ObjectId),
+}
+
 /// What happened that a triggered ability may be waiting for (CR 603.2).
 enum Event {
     /// A permanent entered the battlefield (CR 603.6a).
@@ -576,6 +616,10 @@ enum Event {
     Damaged(BTreeMap<ObjectId, u32>),
     /// This permanent dealt damage to a player, combat damage or not.
     DamagedPlayer { source: ObjectId, combat: bool },
+    /// This permanent dealt this much damage, to anything, at once.
+    DealtBy { source: ObjectId, amount: u32 },
+    /// This permanent was turned face up (CR 702.37e).
+    TurnedFaceUp(ObjectId),
     /// A source this player controls dealt damage to that player, a spell
     /// or a permanent (CR 120.3).
     PlayerDamaged {
@@ -690,10 +734,7 @@ enum Waiting {
         player: PlayerId,
         spell: CardId,
         owed: ManaCost,
-        /// A spell, from the command zone or not, or an activated
-        /// ability of `spell`'s (CR 602.2b).
-        ability: bool,
-        from_command: bool,
+        paying: Paying,
     },
     /// CR 601.2b: `player` casting `card`, whose cost so far is `base`,
     /// announces whether they pay its kicker.
@@ -1192,6 +1233,13 @@ pub enum Action {
     /// A card's cycling from its owner's hand: "[Cost], Discard this card:
     /// Draw a card" (CR 702.29a).
     Cycle(CardId),
+    /// Begin casting a card from hand face down by its morph ability, at
+    /// a creature's timing (CR 702.37c, 708.4). A hidden card is offered
+    /// too: nothing in the game can tell which card is cast face down.
+    CastFaceDown(CardId),
+    /// Turn a face-down permanent face up by paying its morph cost, a
+    /// special action (CR 702.37e, 116.2b).
+    TurnFaceUp(ObjectId),
 }
 
 /// What a player paying a spell's cost can do.
@@ -1424,9 +1472,15 @@ impl fmt::Display for SetupError {
     }
 }
 
-/// Naming a card that isn't hidden.
+/// Why a card can't be named.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AlreadyKnown(pub String);
+pub enum Unnameable {
+    /// It isn't hidden: it is this card.
+    AlreadyKnown(String),
+    /// It was cast face down, so it is a card with a morph ability the
+    /// engine runs, and this card isn't (CR 702.37c).
+    NotMorph(String),
+}
 
 impl Game {
     /// A game of Commander between these decks, the first starting, every
@@ -1676,12 +1730,21 @@ impl Game {
         }
     }
     /// Name a hidden card (the module's "Hidden cards"). A card already
-    /// known keeps what it is.
-    pub fn reveal(&mut self, c: CardId, text: CardText) -> Result<(), AlreadyKnown> {
+    /// known keeps what it is, and one cast face down is a card with
+    /// morph.
+    pub fn reveal(&mut self, c: CardId, text: CardText) -> Result<(), Unnameable> {
         if let Some(k) = self.known(c) {
-            return Err(AlreadyKnown(k.text.name.clone()));
+            return Err(Unnameable::AlreadyKnown(k.text.name.clone()));
         }
-        self.cards[c.0 as usize].face = Face::Known(known(text));
+        let face_down = self.permanents.values().any(|p| p.card == c && p.face_down)
+            || self.stack.iter().any(
+                |o| matches!(o, StackObject::Spell { card, via: Via::FaceDown, .. } if *card == c),
+            );
+        let k = known(text);
+        if face_down && k.morph.is_none() {
+            return Err(Unnameable::NotMorph(k.text.name.clone()));
+        }
+        self.cards[c.0 as usize].face = Face::Known(k);
         Ok(())
     }
     /// How many cards the game has, every `CardId` below it.
@@ -1707,6 +1770,12 @@ impl Game {
 
     pub fn permanents(&self) -> &OrdMap<ObjectId, Permanent> {
         &self.permanents
+    }
+    /// Whether the card is a face-down spell on the stack (CR 708.4).
+    pub fn face_down_on_stack(&self, c: CardId) -> bool {
+        self.stack
+            .iter()
+            .any(|o| matches!(o, StackObject::Spell { card, via: Via::FaceDown, .. } if *card == c))
     }
     /// How many times this commander has been cast from the command zone.
     pub fn commander_casts(&self, c: CardId) -> u32 {
@@ -2237,21 +2306,29 @@ impl Game {
                     player,
                     spell,
                     owed,
-                    ability,
-                    from_command,
+                    paying,
                 },
                 Answer::Pay(pay),
-            ) if self.payments(player, &owed).contains(pay) => match *pay {
-                Payment::Mana(a) => self.activate(player, a),
+            ) if self.payments(player, &owed).contains(pay) => match (*pay, paying) {
+                (Payment::Mana(a), _) => self.activate(player, a),
                 // CR 602.2b: an ability activated, its activator gets
                 // priority again (CR 117.3c).
-                Payment::Spend(spent) if ability => {
+                (Payment::Spend(spent), Paying::Ability) => {
                     let pool = &mut self.players[player.0 as usize].pool;
                     *pool = pool.minus(&spent);
                     self.before_cast = None;
                     self.give_priority(player, 0);
                 }
-                Payment::Spend(spent) => {
+                // CR 702.37e, 116.3: turned face up without the stack, and
+                // its controller gets priority again.
+                (Payment::Spend(spent), Paying::FaceUp(id)) => {
+                    let pool = &mut self.players[player.0 as usize].pool;
+                    *pool = pool.minus(&spent);
+                    self.before_cast = None;
+                    self.turn_face_up(id);
+                    self.give_priority(player, 0);
+                }
+                (Payment::Spend(spent), Paying::Spell { from_command }) => {
                     let pool = &mut self.players[player.0 as usize].pool;
                     *pool = pool.minus(&spent);
                     if from_command {
@@ -2273,7 +2350,7 @@ impl Game {
                         None => self.return_or_cast(player, spell),
                     }
                 }
-                Payment::Cancel => {
+                (Payment::Cancel, _) => {
                     let before = self.before_cast.take().expect("a cast to cancel");
                     *self = *before;
                 }
@@ -2345,8 +2422,7 @@ impl Game {
                                 _ => unreachable!("the spell is on top"),
                             },
                             owed,
-                            ability: false,
-                            from_command,
+                            paying: Paying::Spell { from_command },
                         };
                     }
                     Choosing::Trigger { pending, then } => {
@@ -2913,9 +2989,48 @@ impl Game {
                 }
             }
         }
+        // CR 702.37c, 708.4: a face-down spell is a creature spell, cast
+        // at sorcery speed; a hidden card may be one with morph.
+        if sorcery_speed {
+            actions.extend(
+                player
+                    .hand
+                    .iter()
+                    .filter(|c| match self.known(**c) {
+                        None => true,
+                        Some(k) => k.morph.is_some(),
+                    })
+                    .map(|c| Action::CastFaceDown(*c)),
+            );
+        }
+        // CR 702.37e, 116.2b: any time its controller has priority, if it
+        // would have a morph cost face up.
+        if self.permanents.values().any(|perm| perm.face_down) {
+            let all = self.characteristics();
+            actions.extend(
+                self.permanents
+                    .iter()
+                    .filter(|(id, perm)| {
+                        perm.face_down
+                            && all.get(*id).is_some_and(|c| c.controller == p)
+                            && self.face_up_cost(perm.card).is_some()
+                    })
+                    .map(|(id, _)| Action::TurnFaceUp(*id)),
+            );
+        }
         actions.extend(self.mana_activations(p).into_iter().map(Action::Mana));
         actions.extend(self.activations(p).into_iter().map(Action::Activate));
         actions
+    }
+
+    /// The morph cost turning a card face up costs, if the engine runs
+    /// the card and the cost.
+    fn face_up_cost(&self, card: CardId) -> Option<ManaCost> {
+        let k = self.known(card)?;
+        match (&k.morph, &k.runs) {
+            (Some(Morph::Mana(cost)), Ok(_)) => Some(cost.clone()),
+            _ => None,
+        }
     }
 
     /// How many more lands than one `p` may play this turn (CR 305.2a).
@@ -3324,6 +3439,43 @@ impl Game {
             }
             Action::Cast(card) => self.cast(p, card, Via::ManaCost)?,
             Action::CastAlternative(card, n) => self.cast(p, card, Via::Alternative(n))?,
+            // CR 702.37c: turned face down, put on the stack, and {3} paid
+            // rather than its mana cost, with the cost changes that apply
+            // to a face-down spell (CR 708.4, 601.2f).
+            Action::CastFaceDown(card) => {
+                self.before_cast = Some(Box::new(self.clone()));
+                self.players[p.0 as usize].hand.retain(|c| *c != card);
+                self.stack.push_back(StackObject::Spell {
+                    card,
+                    controller: p,
+                    targets: Vec::new(),
+                    via: Via::FaceDown,
+                    kicked: false,
+                });
+                let owed = self.total_cost(p, card, ManaCost::default().plus_generic(3));
+                self.waiting = Waiting::Paying {
+                    player: p,
+                    spell: card,
+                    owed,
+                    paying: Paying::Spell {
+                        from_command: false,
+                    },
+                };
+            }
+            // CR 702.37e: show the morph cost, pay it, then turn it face up.
+            Action::TurnFaceUp(id) => {
+                let card = self.permanents[&id].card;
+                let owed = self
+                    .face_up_cost(card)
+                    .expect("only one with a morph cost is offered");
+                self.before_cast = Some(Box::new(self.clone()));
+                self.waiting = Waiting::Paying {
+                    player: p,
+                    spell: card,
+                    owed,
+                    paying: Paying::FaceUp(id),
+                };
+            }
             Action::Mana(a) => {
                 self.activate(p, a);
                 // CR 117.3c.
@@ -3432,8 +3584,7 @@ impl Game {
                     player: p,
                     spell: card,
                     owed,
-                    ability: true,
-                    from_command: false,
+                    paying: Paying::Ability,
                 }
             }
             None => {
@@ -3506,6 +3657,7 @@ impl Game {
                 Game::spell_refusal(runs).map_err(refused)?;
                 runs.alternatives[&n].mana.clone()
             }
+            Via::FaceDown => unreachable!("cast face down by its own action"),
         };
         let from_command = via == Via::ManaCost && self.command.contains(&card);
         let kicker = runs.kicker.is_some();
@@ -3561,8 +3713,7 @@ impl Game {
                 player: p,
                 spell: card,
                 owed,
-                ability: false,
-                from_command,
+                paying: Paying::Spell { from_command },
             },
         };
     }
@@ -3581,9 +3732,10 @@ impl Game {
     /// battlefield that applies to it, increases added and reductions
     /// taken from the generic component, never below {0} (CR 118.7a).
     fn total_cost(&self, p: PlayerId, card: CardId, cost: ManaCost) -> ManaCost {
-        let Some(spell) = self.known(card).and_then(|k| k.printed.as_ref()) else {
+        let Some(spell) = self.spell_chars(card) else {
             return cost;
         };
+        let spell = &spell;
         let (mut more, mut less) = (0, 0);
         let all = self.characteristics();
         for (id, chars) in all.clone() {
@@ -3620,6 +3772,25 @@ impl Game {
         ManaCost {
             generic: (cost.generic + more).saturating_sub(less),
             shards: cost.shards,
+        }
+    }
+
+    /// What a spell on the stack, or a card about to be one, is to what
+    /// looks at spells: a face-down spell's characteristics (CR 708.4), or
+    /// its card's printed ones; `None` for a hidden card.
+    fn spell_chars(&self, card: CardId) -> Option<Chars> {
+        let face_down = self.stack.iter().find_map(|o| match o {
+            StackObject::Spell {
+                card: c,
+                controller,
+                via: Via::FaceDown,
+                ..
+            } if *c == card => Some(*controller),
+            _ => None,
+        });
+        match face_down {
+            Some(controller) => Some(face_down_chars(controller)),
+            None => self.known(card)?.printed.clone(),
         }
     }
 
@@ -3668,7 +3839,8 @@ impl Game {
     fn off_the_stack(&mut self, card: CardId, via: Via) {
         let exiled = match via {
             Via::Alternative(n) => self.runs_of(card).alternatives[&n].exiled,
-            Via::ManaCost => false,
+            // CR 708.9: revealed as it leaves the stack.
+            Via::ManaCost | Via::FaceDown => false,
         };
         if exiled {
             self.exile.push_back(card);
@@ -3747,6 +3919,17 @@ impl Game {
     fn resolve_top(&mut self) {
         let then = Then::Priority(self.active);
         match self.stack.pop_back() {
+            // CR 702.37c: it enters with the face-down spell's
+            // characteristics.
+            Some(StackObject::Spell {
+                card,
+                controller,
+                via: Via::FaceDown,
+                ..
+            }) => {
+                self.arrive_face_down(card, controller);
+                self.proceed(then);
+            }
             Some(StackObject::Spell {
                 card,
                 controller,
@@ -4781,6 +4964,7 @@ impl Game {
             let controller = source.map_or(controller, |c| c.controller);
             self.players[controller.0 as usize].life += total as i32;
         }
+        dealt.total = total;
         dealt
     }
 
@@ -4793,6 +4977,12 @@ impl Game {
         combat: bool,
         controller: PlayerId,
     ) {
+        if let Some(source) = by.filter(|_| hit.total > 0) {
+            self.trigger_on(Event::DealtBy {
+                source,
+                amount: hit.total,
+            });
+        }
         if !hit.objects.is_empty() {
             self.trigger_on(Event::Damaged(hit.objects));
         }
@@ -4870,10 +5060,7 @@ impl Game {
                     .filter_map(|o| match o {
                         StackObject::Spell { card, .. }
                             if Some(*card) != casting
-                                && self
-                                    .known(*card)
-                                    .and_then(|k| k.printed.as_ref())
-                                    .is_some_and(|c| filter.matches(c)) =>
+                                && self.spell_chars(*card).is_some_and(|c| filter.matches(&c)) =>
                         {
                             Some(Target::Spell(*card))
                         }
@@ -5058,6 +5245,17 @@ impl Game {
                         .then_some((None, None))
                         .into_iter()
                         .collect(),
+                    (TriggerEvent::DealsDamage(f), Event::DealtBy { source, amount }) => {
+                        (all.contains_key(source) && f.matches(&seen(*source)))
+                            .then_some((None, Some(*amount)))
+                            .into_iter()
+                            .collect()
+                    }
+                    (TriggerEvent::TurnedFaceUp(f), Event::TurnedFaceUp(id)) => f
+                        .matches(&seen(*id))
+                        .then_some((Some(*id), None))
+                        .into_iter()
+                        .collect(),
                     (TriggerEvent::Dies(f), Event::Died(id)) => {
                         let l = &self.last_known[id];
                         f.matches(&Seen {
@@ -5147,13 +5345,13 @@ impl Game {
                         drew.then_some((None, None)).into_iter().collect()
                     }
                     (TriggerEvent::Casts { by, spells }, Event::Cast { card, controller }) => {
-                        let printed = self.known(*card).and_then(|k| k.printed.as_ref());
+                        let printed = self.spell_chars(*card);
                         let caster = match by {
                             lower::CastBy::Anyone => true,
                             lower::CastBy::You => *controller == chars.controller,
                             lower::CastBy::Opponents => *controller != chars.controller,
                         };
-                        (caster && printed.is_some_and(|c| spells.matches(c)))
+                        (caster && printed.is_some_and(|c| spells.matches(&c)))
                             .then_some((None, None))
                             .into_iter()
                             .collect()
@@ -5505,6 +5703,7 @@ impl Game {
         let sources: BTreeSet<ObjectId> = assigned.iter().map(|(s, _, _)| *s).collect();
         let mut dealt: BTreeMap<ObjectId, u32> = BTreeMap::new();
         let mut hit_players: Vec<(ObjectId, PlayerId, PlayerId)> = Vec::new();
+        let mut dealt_by: Vec<(ObjectId, u32)> = Vec::new();
         for s in &sources {
             let hits: Vec<(Target, u32)> = assigned
                 .iter()
@@ -5514,6 +5713,9 @@ impl Game {
             let source = chars.get(s).cloned();
             let controller = source.as_ref().map_or(self.active, |c| c.controller);
             let hit = self.deal(source.as_ref(), controller, &hits);
+            if hit.total > 0 {
+                dealt_by.push((*s, hit.total));
+            }
             for (o, n) in hit.objects {
                 *dealt.entry(o).or_insert(0) += n;
             }
@@ -5527,11 +5729,15 @@ impl Game {
             Dealt {
                 objects: dealt,
                 players: BTreeSet::new(),
+                total: 0,
             },
             None,
             true,
             self.active,
         );
+        for (source, amount) in dealt_by {
+            self.trigger_on(Event::DealtBy { source, amount });
+        }
         for (s, controller, player) in hit_players {
             self.trigger_on(Event::DamagedPlayer {
                 source: s,
@@ -5734,6 +5940,7 @@ impl Game {
                 since: self.turn,
                 damage: 0,
                 deathtouched: false,
+                face_down: false,
             },
         );
         // CR 614.1c, 122.6: with its counters as it enters, before what
@@ -5757,6 +5964,46 @@ impl Game {
             o.chosen_type = chosen;
         }
         self.trigger_on(Event::Entered(id));
+    }
+
+    /// A face-down spell becomes a face-down permanent: a 2/2 with no
+    /// abilities, so nothing of its own applies as it enters (CR 708.3),
+    /// what waits for a creature to enter triggering.
+    fn arrive_face_down(&mut self, card: CardId, controller: PlayerId) {
+        let id = self
+            .battlefield
+            .enter(face_down_chars(controller), Vec::new());
+        self.permanents.insert(
+            id,
+            Permanent {
+                card,
+                tapped: false,
+                since: self.turn,
+                damage: 0,
+                deathtouched: false,
+                face_down: true,
+            },
+        );
+        self.trigger_on(Event::Entered(id));
+    }
+
+    /// A face-down permanent turns face up: its card's characteristics and
+    /// abilities, the same object, and abilities relating to it entering
+    /// neither trigger nor apply (CR 708.8, 702.37e). What waits for it to
+    /// be turned face up triggers.
+    fn turn_face_up(&mut self, id: ObjectId) {
+        let Some(perm) = self.permanents.get_mut(&id) else {
+            return;
+        };
+        perm.face_down = false;
+        let card = perm.card;
+        let controller = self.battlefield.objects[&id].printed.controller;
+        let runs = self.runs_of(card);
+        let mut chars = runs.lowered.chars.clone();
+        chars.controller = controller;
+        let statics = runs.lowered.statics.clone();
+        self.battlefield.turn_face_up(id, chars, statics);
+        self.trigger_on(Event::TurnedFaceUp(id));
     }
 
     /// Exactly `count` distinct cards of `p`'s hand.
@@ -6336,6 +6583,37 @@ fn before_the_game(k: &i::Keyword) -> bool {
     k.name.eq_ignore_ascii_case("partner") && k.param.is_none()
 }
 
+/// "Morph {2}{W}{W}": `None` if the keyword isn't morph, and its cost if
+/// that is all mana (CR 702.37a). Megamorph's counter isn't run, so it
+/// stays refused.
+fn morph_cost(k: &i::Keyword) -> Option<Option<ManaCost>> {
+    if !k.name.eq_ignore_ascii_case("morph") {
+        return None;
+    }
+    Some(match k.param.as_ref() {
+        Some(i::KeywordParam::Cost(c)) => match c.as_slice() {
+            [i::Cost::Mana(m)] => ManaCost::from_symbols(m).ok(),
+            _ => None,
+        },
+        _ => None,
+    })
+}
+
+/// The characteristics of a face-down spell or permanent: a 2/2 creature
+/// with no text, name, subtypes or mana cost (CR 702.37c, 708.2a).
+fn face_down_chars(controller: PlayerId) -> Chars {
+    Chars {
+        types: BTreeSet::from([CardType::Creature]),
+        supertypes: BTreeSet::new(),
+        subtypes: BTreeSet::new(),
+        colors: BTreeSet::new(),
+        abilities: BTreeSet::new(),
+        pt: Some(model::pt(2, 2)),
+        mana_value: 0,
+        controller,
+    }
+}
+
 /// Abilities that work only from a hand or a graveyard, which nothing
 /// offers yet (CR 702.29a, 702.29e, 702.53a; eternalize, embalm, unearth,
 /// scavenge and plot, CR 702.129a, 702.128a, 702.84a, 702.97a, 702.170a),
@@ -6507,6 +6785,12 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                             }
                             Ok(cost) => runs.kicker = Some(cost),
                             Err(node) => runs.dormant.push(format!("kicker: {node}")),
+                        }
+                    } else if let Some(cost) = morph_cost(k) {
+                        // Read with the card (`Known::morph`); one the
+                        // engine can't pay is never turned face up.
+                        if cost.is_none() {
+                            runs.dormant.push("morph: a cost other than mana".into());
                         }
                     } else if hand_keyword(k) {
                         runs.dormant.push(k.name.to_lowercase());
@@ -6701,6 +6985,8 @@ struct LastKnown {
 struct Dealt {
     objects: BTreeMap<ObjectId, u32>,
     players: BTreeSet<PlayerId>,
+    /// All the damage dealt, to players and permanents.
+    total: u32,
 }
 
 /// What putting triggered abilities on the stack did.

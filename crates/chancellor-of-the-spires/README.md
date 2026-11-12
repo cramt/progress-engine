@@ -43,7 +43,9 @@ A card can be **hidden**: in a library or a hand, with no one having said
 what it is, as a replayed log's draws are (below). Its text, cost and
 what the engine runs of it exist only on a known card, so a hidden card
 can't be played, cast or discarded or have a characteristic read, and
-`Game::card` is `None` for it. `Game::reveal` names it once, which is
+`Game::card` is `None` for it; it can only be cast face down, a 2/2 that
+is the same whatever its card (CR 708.2a), and is then named only as a
+card with morph. `Game::reveal` names it once, which is
 sound because nothing in the game could have told the difference before.
 A deck's `hidden` count is how many it brings; a deck file's cards are all
 known, so a goldfish never has one. `deck::read` makes a
@@ -58,7 +60,8 @@ on. Turn-based and state-based actions are never decisions.
   lets them "begin the game with it on the battlefield" puts any of
   those there (CR 103.6, 103.6a), answered `Begin`.
 - `Priority { player, actions }`: pass, play a land, `Cast(card)` from
-  hand or a commander from the command zone, activate a mana ability
+  hand or a commander from the command zone, `CastFaceDown(card)` and
+  `TurnFaceUp(permanent)` (below), activate a mana ability
   (`Mana(ManaActivation { source, ability, adds })`, one action for each
   mana its text lets it add), or activate another activated ability
   (`Activate(Activation { source, ability })`), whose costs the engine
@@ -140,6 +143,16 @@ first draw in a two-player game and no one in a larger one (CR 103.8a,
 stack empty, and another for each "You may play an additional land on
 each of your turns" its player controls (CR 305.1–305.2a: Exploration); casting (CR 601.2) at sorcery speed, or any
 time you have priority for an instant or a card with flash (CR 117.1a);
+morph: a card cast face down from hand for {3} at sorcery speed, a 2/2
+creature spell and permanent with no name, text, subtypes, colour or
+mana cost, which is what cost changes, targets and triggers on spells see
+(CR 702.37c, 708.2a, 708.4), and which enters with nothing of its own
+applying (CR 708.3); turned face up as a special action any time its
+controller has priority by paying its morph cost, without the stack,
+the same object with its card's characteristics and a new timestamp, its
+controller getting priority again (CR 702.37e, 116.2b, 116.3, 708.8,
+613.7f); a card whose text the engine can't run is still cast face down,
+and only turning it face up is refused;
 mana costs of generic, coloured, colourless and hybrid symbols (CR 107.4,
 202.1a); commander tax (CR 903.8); kicker's mana added to the cost before
 cost changes (CR 601.2f, 702.33a), and "if this spell was kicked", alone
@@ -242,7 +255,10 @@ the graveyard it went to (Gempalm Incinerator, CR 702.29a), a permanent being de
 amount for "that much" (CR 120.3; combat damage dealt at once is one
 event, CR 510.2), a permanent dealing damage, or combat damage, to a
 player, a creature dying, its own "when this creature dies" looking back
-at it as it last existed (CR 700.4, 603.6c, 603.10a), its controller
+at it as it last existed (CR 700.4, 603.6c, 603.10a), a permanent
+dealing damage to anything, with all it dealt at once for "that much"
+(Exalted Angel, CR 120.3, 510.2), a permanent turned face up (Nantuko
+Vigilante, CR 702.37e), its controller
 attacking with one or more creatures a filter matches (Hired Claw's
 Lizards, CR 508.3a), and the beginning
 of an upkeep, draw step or end step, yours,
@@ -305,7 +321,8 @@ an Aura enchanting a player (CR 702.5d) or with two enchant abilities, a
 triggered mana ability other than one adding fixed mana to the
 controller of a permanent tapped for mana, and a keyword other than
 flash, cycling, transmute, enchant, flashback, kicker (a kicker whose cost is more than mana is carried and
-never paid; two kickers are refused), partner, exalted, prowess, training and the layers' own (flying, reach,
+never paid; two kickers are refused), morph (a morph cost that isn't
+mana is carried and never paid; megamorph is refused), partner, exalted, prowess, training and the layers' own (flying, reach,
 menace, first and double strike, defender, haste, vigilance, trample,
 deathtouch, lifelink, shroud, hexproof, indestructible, shadow, and
 protection from a colour, from multicolored or from everything); cycling
@@ -369,7 +386,9 @@ change whether the condition holds is one it depends on (CR 613.8a).
 Layers 4 (adding types and subtypes, setting a basic land type, CR 305.7),
 5 (colour), 6 (granting, removing, removing all) and 7b–7d (setting,
 modifying, switching), counters in 7c, filters over type, supertype,
-subtype, colour, controller, "nontoken", "other", "this" and "enchanted".
+subtype, colour, controller, "nontoken", "other", "this" and "enchanted",
+and alternatives of one type, supertype or colour each ("artifact or
+enchantment").
 `tests/layers.rs` has CR 613.4d, 613.5, 613.6 and 613.9's worked
 examples, built by hand since their cards are hypothetical. `tests/oracle.rs`
 reads real cards from their Oracle text: Glorious Anthem with counters,
@@ -523,8 +542,11 @@ text the line prints of it (Mishra's Factory's "becomes a 2/2" or its
 "+1/+1"), and stops if two tie. A play never offered goes back to an
 earlier payment as a spell no land pays for does, since a permanent
 tapped for mana can't then block or tap again. A spell's targets are the log's: a player by their seat, a card by a
-permanent of that name among the legal targets, the first when two share
-the name, since nothing the log says tells them apart. A hand revealed to
+permanent of that name among the legal targets; when two share the name,
+which nothing the log says tells apart, an opponent's first (most spells
+aimed at a permanent are removal: Naturalize on one of two Mox Diamonds),
+the caster's own first for an Aura, and the other if a later play can't
+be made. A hand revealed to
 Duress or Thoughtseize names its hidden cards: the log prints the hand,
 after the discard in older logs and all of it in newer ones, and the card
 discarded, and the engine's hand must have as many cards or the replay
@@ -549,9 +571,10 @@ line can't then be followed, since the log either shows what the
 instruction did or nothing at all. Goblin Lackey's is the second: the card
 it puts onto the battlefield is never named as it happens, so the replay
 names the first card of the player's a later line shows on the
-battlefield (a trigger's source, an ability activated, an attacker) that
-no line cast or played first and that they have no permanent of already;
-with none, it declines.
+battlefield (a trigger's source, an ability activated, an attacker) more
+times than they have permanents of it and lines have cast or played it
+since (a second Goblin Warchief attacking beside one cast after the
+trigger); with none, it declines.
 A triggered ability goes on the stack because the rules put it there,
 never because a line says so, and each "puts triggered ability from [X]
 onto the stack" line is matched to one of the engine's: a trigger the
@@ -646,14 +669,36 @@ first; since the log never shows a mana ability, those not tapped already
 are tapped for mana before they go, the mana floating for what is cast
 next, as a land returned untapped would have made nothing. Any other
 "returns … to its owner's hand" line must match as many permanents the
-engine returned to a hand that turn, each in a hand now.
+engine returned to a hand that turn, each in a hand now. A "discards [X]"
+line just before its player activates an ability whose cost discards
+(Survival of the Fittest) is that cost, which isn't followed yet, never a
+resolving instruction's discard; and a spell cast in its caster's combat
+with nothing to answer is cast in their postcombat main phase instead if
+what follows needs it (the Dark Ritual for the Phyrexian Arena cast
+next), as one cast in the beginning phase is cast in the first.
+
+A card cast face down ("casts a card face down.", "Cast face-down with
+Morph.") is one the log hides, and each is "face-down creature #N"
+after, numbered by the casts. A later line names it: "reveals face-down
+creature #1 as Exalted Angel." as it leaves the battlefield or the stack
+(CR 708.9), or, once a "turns face-down creature #1 face up." line, the
+first card with morph a line after that names (the trigger from [Nantuko
+Vigilante], an attack by [Exalted Angel]). The replay reads that ahead
+and casts that card of the hand face down, a hidden one named as it; with
+no line naming it, a hidden card is cast face down unnamed, the 2/2
+being the same whatever it is. Targets, attackers and blockers named
+"face-down creature #N" are that permanent, which no line naming a card
+matches while it is face down; the reveal line resolves the stack until
+it has left; and the turn face up line is the special action, taken in
+response to what is on the stack.
 
 The log stops printing as the game ends, so what was on the stack and
 ended it is never shown resolving (the second of two Razorkin Needlehead
 triggers on a draw): a "wins the game" line resolves the stack, passing
 as a line with nothing to show does, and the game replays to the end
 when that ends it with the log's winner (CR 104.2a), and diverges
-(`LogOver`) when it doesn't.
+(`LogOver`) when it doesn't; an attack the log shows last deals its
+combat damage first.
 
 The first line the engine won't follow ends the game's replay with a
 typed `Stop`: a card refused by the node of its text the engine can't run,
@@ -661,21 +706,21 @@ an answer it calls illegal, a state that disagrees with the log (a play it
 never offers that turn, a spell it can't pay for, a turn out of step), or
 a kind of line not followed yet (an exile, a creature put onto the
 battlefield). `--game ID` prints one game line by line with what the engine
-did; `--finished F` writes the ids of the games replayed to the end, to
+did and each player's life as it ended; `--finished F` writes the ids of the games replayed to the end, to
 diff against a run before a change for a finished game it broke; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 57 replay to the end** (54 to the log's winner
-line), 39 of them past the first turn, and **28.75% of their lines are
-followed** (22,476 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 65 replay to the end** (62 to the log's winner
+line), 47 of them past the first turn, and **29.39% of their lines are
+followed** (22,976 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
-measured 2026-11-04, and 17 games rely on a land the log never names (1
-of them to the end); it was 20 games and 20.96% before the milestone's
+measured 2026-11-12, and 16 games rely on a land the log never names (1
+of them to the end); it was 57 games and 28.75% before morph, 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 304 stop
-in the first turn, 346 in the second, 188 in the third, 113 later, and 53
+no turn in them (empty logs, concessions during the mulligans). 302 stop
+in the first turn, 338 in the second, 185 in the third, 118 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -692,13 +737,14 @@ bounce, counter and dying 20.72%; search as an instruction 20.81%;
 responses 20.84%; tokens 20.96%; then the milestone's work took it to
 23.99% and on to 27.27% (below). Games to the end barely moved: a game
 that gets past one stop meets the next, most in its first two turns. The
-stops now, by games: an exile line not followed (60: suspend's Rift Bolt,
-Grim Lavamancer's cost), a card with two faces (50), `Trigger::When(Event::Or)`
-(42: Stitcher's Supplier), "as this enters" (29: Cavern of Souls), a
-restriction (27), looking at a hand (22: Gitaxian Probe), modifying by
-an amount (21), a cast other than from hand for its mana cost or an
-alternative cost the engine runs (21: Green Sun's Zenith's X), and one
-player named (21). None is the engine disagreeing with Magic Online; those that
+stops now, by games: an exile line not followed (74: suspend's Rift Bolt,
+Grim Lavamancer's cost), a card with two faces (55), `Trigger::When(Event::Or)`
+(43: Stitcher's Supplier), a restriction (27), modifying by an amount
+(23), looking at a hand (22: Gitaxian Probe), Cavern of Souls's "spend
+this mana only" (21), one player named (21), and modal spells, moving
+cards a search found and a cast other than from hand for its mana cost
+or an alternative cost the engine runs (20 each: Green Sun's Zenith's
+X). None is the engine disagreeing with Magic Online; those that
 were are fixed: Gaea's Cradle's "Add {G} for each creature" not read as a
 mana ability (CR 605.1a), and Champion of the Parish's "another Human"
 missing a Human, since a creature type said with no card type was read
@@ -718,7 +764,9 @@ a block; Goblin Lackey's "may" read from the lines after it, Aether
 Vial's upkeep trigger, a Leyline from the opening hand, and a Swords to
 Plowshares cast in response to a Lightning Bolt at the same creature;
 and a Gush whose return line comes before a cast line that says nothing
-of its cost, its Islands' floating mana paying for what follows. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
+of its cost, its Islands' floating mana paying for what follows; and two
+cards cast face down, one named by the line revealing it as it dies, the
+other by the Exalted Angel attacking once a line turned it face up. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
 player, at a creature, and at one already gone), Preordain, Champion of
 the Parish, Temple of Deceit, and combat: an unblocked attacker,
 flying against a block, a trade, first strike, exalted, prowess,
@@ -736,7 +784,9 @@ Accumulated Knowledge drawing one more for each in a graveyard, and
 Nimble Mongoose growing from the seventh card in its graveyard, and Gush
 returning two Islands rather than paying its mana cost, and Engineered
 Plague and Plague Engineer shrinking the creature type chosen as they
-enter.
+enter, and Exalted Angel cast face down as a 2/2 and turned face up for
+its morph cost, gaining the life it deals, and Nantuko Vigilante turned
+face up destroying an artifact.
 
 ### The milestone
 
@@ -763,9 +813,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-04 55 of the 500 replay to
-the end and 40.81% of their lines are followed** (12,919 of 31,659), 7
-of them relying on a land the log never names (1 to the end), and 66
+Worked card by card from there, **on 2026-11-12 63 of the 500 replay to
+the end and 42.34% of their lines are followed** (13,405 of 31,659), 6
+of them relying on a land the log never names (1 to the end), and 75
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -813,20 +863,28 @@ graveyard", the layers reading each graveyard's size (Nimble Mongoose);
 returning permanents to hand as an alternative cost (Gush); a creature
 type chosen as a permanent enters, which "the chosen type" in its
 abilities reads, and "your opponents control" (Engineered Plague, Plague
-Engineer). And
+Engineer); morph, cast face down as a nameless 2/2 and turned face up as
+a special action, "whenever this creature deals damage" (Exalted Angel),
+"when this creature is turned face up" and a target that is any of
+several types, "artifact or enchantment" (Nantuko Vigilante, which
+Naturalize and Disenchant read through too). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
 instruction's, the creature sacrificed for flashback, a land the log never
 names as a hypothesis, which of two permanents of one name an
 activation is of, a winner line resolving what ended the game, and
-which of the cards drawn this turn Sylvan Library chooses, and which
-land Flare of Cultivation puts onto the battlefield. One divergence was the engine's own, found by the full
+which of the cards drawn this turn Sylvan Library chooses, which
+land Flare of Cultivation puts onto the battlefield, and which card was
+cast face down, from the line revealing it or the card with morph a line
+names once it is turned face up. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: morph's face-down casting (10), Vesuva's copy
-(8), and Accumulated Knowledge, Goblin Cadets, Scalding Viper's two
-faces and Veteran Survivor (6 each), and no
+top of the worklist now: Vesuva's copy (8), and Grim Lavamancer's exile
+line, Goblin Cadets, Phyrexian Dreadnought's "unless", Quicksilver,
+Scalding Viper's two faces and Veteran Survivor (6 each); five of the ten
+games morph stopped now stop at a discard paying Survival of the
+Fittest's cost. No
 divergence is left: those the run found were the replay's (the game's
 last trigger never shown resolving, a payment search that stopped adding
 sources once it had as much mana as the cost, of the wrong colour from
@@ -834,7 +892,14 @@ Wild Growth's Forest, a block or
 an activation of the wrong one of two permanents of one name, a ritual's
 mana cast away in the draw step, a filter land's floating mana never
 tried, a fetchland's find behind more than the 64 later choices the
-replay went back through, now 512), each fixed; and one was the engine's
+replay went back through, now 512; and, once morph and "artifact or
+enchantment" let games run further, Goblin Lackey's card taken for one
+cast because another of its name was, Naturalize aimed at its caster's
+own Mox Diamond rather than its opponent's, a winner line after an
+attack that never dealt its combat damage, a Dark Ritual cast in combat
+for a Phyrexian Arena that waits for the second main phase, and the
+discard paying Survival of the Fittest taken for Gerrard's Verdict's,
+now a stop of its own), each fixed; and one was the engine's
 reading, Cavern of Souls's mana ability, whose "spend this mana only"
 binds a description and no target, taken for an ability that isn't a
 mana ability and carried, where now the card is refused by name (CR

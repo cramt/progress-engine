@@ -3336,3 +3336,143 @@ fn plague_engineer_shrinks_only_the_opponents_creatures_of_the_chosen_type() {
     assert_eq!(pt_of(&game, theirs), pt(1, 1));
     assert_eq!(pt_of(&game, mine), pt(2, 2));
 }
+
+/// Cast `name` from my hand face down by its morph ability, paying with
+/// the first payment as `cast` does: a face-down spell on the stack.
+fn cast_face_down(game: &mut Game, name: &str) -> CardId {
+    let c = in_hand(game, ME, name).expect("in hand");
+    let mut d = step(game, Answer::Act(Action::CastFaceDown(c)));
+    while let Decision::Pay { actions, owed, .. } = d {
+        assert_eq!(
+            owed.to_string(),
+            "{3}",
+            "CR 702.37c: {{3}} rather than its mana cost"
+        );
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        d = step(game, Answer::Pay(pay));
+    }
+    c
+}
+
+/// Turn the face-down permanent face up for its morph cost, paying as
+/// `cast` does.
+fn turn_face_up(game: &mut Game, id: chancellor_of_the_spires::model::ObjectId) -> Decision {
+    let mut d = step(game, Answer::Act(Action::TurnFaceUp(id)));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        d = step(game, Answer::Pay(pay));
+    }
+    d
+}
+
+fn face_down_of(game: &Game, card: CardId) -> chancellor_of_the_spires::model::ObjectId {
+    game.permanents()
+        .iter()
+        .find(|(_, p)| p.card == card)
+        .map(|(id, _)| *id)
+        .expect("on the battlefield")
+}
+
+/// CR 702.37c, 708.2a, 702.37e, 708.8: Exalted Angel cast face down for
+/// {3} is a 2/2 creature with no abilities or mana value, which attacks
+/// without its lifelink-like trigger; turned face up for {2}{W}{W} without
+/// the stack, it is the same creature, a 4/5 flier that can still attack,
+/// and "Whenever this creature deals damage, you gain that much life"
+/// gains me the 4 it deals.
+#[test]
+fn exalted_angel_face_down_is_a_2_2_until_turned_face_up_for_its_morph_cost() {
+    let mut game = deal(
+        &[("Plains", 40), ("Exalted Angel", 20)],
+        &[("Forest", 60)],
+        &[("Plains", 4), ("Exalted Angel", 1)],
+    );
+    play(&mut game, "Plains");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    let angel = cast_face_down(&mut game, "Exalted Angel");
+    assert!(game.face_down_on_stack(angel));
+    resolve(&mut game);
+    let id = face_down_of(&game, angel);
+    assert!(game.permanents()[&id].face_down);
+    let chars = &game.characteristics()[&id];
+    assert_eq!(chars.pt, Some(pt(2, 2)));
+    assert!(chars.abilities.is_empty() && chars.colors.is_empty() && chars.subtypes.is_empty());
+    assert_eq!(chars.mana_value, 0);
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    let (can, _) = to_attackers(&mut game);
+    assert_eq!(can, vec![id]);
+    step(&mut game, Answer::Attack(vec![(id, THEM)]));
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+    assert_eq!(game.player(ME).life(), 20, "face down it has no trigger");
+    // Postcombat, with four untapped Plains.
+    let d = turn_face_up(&mut game, id);
+    assert!(matches!(d, Decision::Priority { player: ME, .. }), "{d:?}");
+    assert!(
+        game.stack().is_empty(),
+        "CR 702.37e: it doesn't use the stack"
+    );
+    assert!(!game.permanents()[&id].face_down);
+    assert_eq!(pt_of(&game, id), pt(4, 5));
+    my_next_main(&mut game);
+    let (can, _) = to_attackers(&mut game);
+    assert_eq!(
+        can,
+        vec![id],
+        "the same object, under my control since before"
+    );
+    step(&mut game, Answer::Attack(vec![(id, THEM)]));
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 14);
+    assert_eq!(game.player(ME).life(), 24);
+}
+
+/// CR 702.37e, 603.2: Nantuko Vigilante's "When this creature is turned
+/// face up, destroy target artifact or enchantment" triggers as it is
+/// turned face up, and only an artifact or an enchantment is a legal
+/// target: Sol Ring is, a Forest isn't.
+#[test]
+fn nantuko_vigilante_turned_face_up_destroys_an_artifact() {
+    let mut game = deal_both(
+        &[("Forest", 40), ("Nantuko Vigilante", 20)],
+        &[("Forest", 40), ("Sol Ring", 20)],
+        &[("Forest", 4), ("Nantuko Vigilante", 1)],
+        &[("Forest", 1), ("Sol Ring", 1)],
+    );
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Sol Ring", None);
+    resolve(&mut game);
+    let ring = creature(&game, "Sol Ring").expect("Sol Ring");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    let vigilante = cast_face_down(&mut game, "Nantuko Vigilante");
+    resolve(&mut game);
+    let id = face_down_of(&game, vigilante);
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    let Decision::Targets { slots, .. } = turn_face_up(&mut game, id) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(slots, vec![vec![Target::Object(ring)]]);
+    step(&mut game, Answer::Targets(vec![Target::Object(ring)]));
+    resolve(&mut game);
+    assert!(creature(&game, "Sol Ring").is_none());
+    assert_eq!(pt_of(&game, id), pt(3, 2));
+}

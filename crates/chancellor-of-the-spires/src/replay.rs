@@ -241,7 +241,9 @@ pub fn replay(
         unseen: Vec::new(),
         activated: (0, Vec::new()),
         pick: None,
+        aim_pick: None,
         early: None,
+        late: None,
         counted: BTreeMap::new(),
         named: HashMap::new(),
         trace: Vec::new(),
@@ -259,6 +261,7 @@ pub fn replay(
         shuffled: (0, 0),
         discarded: (0, 0),
         returned: (0, 0),
+        face_down: BTreeMap::new(),
         entries: g.entries.clone(),
         respond: None,
     };
@@ -316,7 +319,9 @@ struct Knew {
     unseen: Vec<String>,
     activated: (u32, Vec<ObjectId>),
     pick: Option<(usize, usize)>,
+    aim_pick: Option<(usize, usize)>,
     early: Option<usize>,
+    late: Option<usize>,
     counted: BTreeMap<(ObjectId, Counter), u32>,
 }
 
@@ -330,9 +335,15 @@ enum Retry {
     /// Follow the line again, activating the ability of this one of the
     /// permanents of its name (`which_source`).
     Pick(usize),
+    /// Follow the line again, its spell targeting this one of the
+    /// permanents of the name it targets (`aim`).
+    Aim(usize),
     /// Follow the line again, casting its spell in its caster's beginning
     /// phase rather than their main phase.
     Early,
+    /// Follow the line again, casting its spell in its caster's postcombat
+    /// main phase rather than in combat.
+    Late,
     /// Go on from the checkpoint's game as it is, the choice made there
     /// already: what it was.
     Take(String),
@@ -355,9 +366,15 @@ struct Driver<'a> {
     /// The line, and which of the permanents of its name to activate, when
     /// it is followed again (`Retry::Pick`).
     pick: Option<(usize, usize)>,
+    /// The line, and which of the permanents of a name its spell targets,
+    /// when it is followed again (`Retry::Aim`).
+    aim_pick: Option<(usize, usize)>,
     /// The line whose spell is cast in its caster's beginning phase
     /// (`Retry::Early`).
     early: Option<usize>,
+    /// The line whose spell is cast in its caster's postcombat main phase
+    /// rather than in combat (`Retry::Late`).
+    late: Option<usize>,
     /// The counters the log has shown put on each permanent, by kind.
     counted: BTreeMap<(ObjectId, Counter), u32>,
     named: HashMap<String, Option<CardText>>,
@@ -396,6 +413,10 @@ struct Driver<'a> {
     /// The turn, and how many permanents the log has shown returned to a
     /// hand in it.
     returned: (u32, u32),
+    /// The card cast as each "face-down creature #N", by N. Following the
+    /// cast line again after going back to before it casts it again, so
+    /// this is never put back.
+    face_down: BTreeMap<u32, CardId>,
     /// The game's lines, for the choices a later line shows (a trigger's
     /// targets, the order triggers go on the stack).
     entries: Vec<Entry>,
@@ -426,7 +447,9 @@ impl Driver<'_> {
             unseen: self.unseen.clone(),
             activated: self.activated.clone(),
             pick: self.pick,
+            aim_pick: self.aim_pick,
             early: self.early,
+            late: self.late,
             counted: self.counted.clone(),
         }
     }
@@ -446,7 +469,9 @@ impl Driver<'_> {
         self.unseen = knew.unseen;
         self.activated = knew.activated;
         self.pick = knew.pick;
+        self.aim_pick = knew.aim_pick;
         self.early = knew.early;
+        self.late = knew.late;
         self.counted = knew.counted;
     }
 
@@ -584,8 +609,20 @@ impl Driver<'_> {
                                     i = resume;
                                     continue;
                                 }
+                                Retry::Late => {
+                                    self.late = Some(entry);
+                                    self.game = Some(game);
+                                    i = resume;
+                                    continue;
+                                }
                                 Retry::Pick(k) => {
                                     self.pick = Some((entry, k));
+                                    self.game = Some(game);
+                                    i = resume;
+                                    continue;
+                                }
+                                Retry::Aim(k) => {
+                                    self.aim_pick = Some((entry, k));
                                     self.game = Some(game);
                                     i = resume;
                                     continue;
@@ -1011,6 +1048,35 @@ impl Driver<'_> {
                         back: Back::Triggers,
                     });
                 }
+                // A target named by a name two permanents share is either:
+                // nothing the log says tells them apart (Naturalize on one
+                // of two Mox Diamonds), so the other is tried if a later
+                // play can't be made.
+                let mut alike = 0;
+                for a in &cast.targets {
+                    if let log::Target::Object(Object::Card(c)) = &a.target {
+                        let called = Called::Name(self.permanent_name(c)?);
+                        let game = self.game.as_ref().expect("set up");
+                        let n = game
+                            .permanents()
+                            .keys()
+                            .filter(|id| is_called(game, id, &called))
+                            .count();
+                        alike = alike.max(n);
+                    }
+                }
+                if alike > 1 && self.aim_pick.is_none_or(|(at, _)| at != i) {
+                    let game = self.game().clone();
+                    self.checkpoints.push(Checkpoint {
+                        game,
+                        entry: i,
+                        trace: self.trace.len(),
+                        resume: i,
+                        others: (1..alike).map(Retry::Aim).collect(),
+                        knew: self.knew(),
+                        back: Back::Unplayable,
+                    });
+                }
                 // The first route that can be paid for; a line that names
                 // none is cast for its mana cost if it can be, and for an
                 // alternative cost the card has otherwise.
@@ -1063,6 +1129,27 @@ impl Driver<'_> {
                 };
                 self.did(i, format!("cast {}, {paid}", card.name()));
             }
+            CastsFaceDown { player, .. } => {
+                let p = self.seat(*player);
+                let did = self.cast_face_down(i, p)?;
+                self.did(i, did);
+            }
+            RevealsHidden {
+                object: log::Hidden::FaceDown(n),
+                card,
+                ..
+            } => {
+                let did = self.reveal_face_down(*n, card.name())?;
+                self.did(i, did);
+            }
+            TurnsFaceUp {
+                player,
+                object: log::Hidden::FaceDown(n),
+            } => {
+                let p = self.seat(*player);
+                let did = self.turn_face_up(i, p, *n)?;
+                self.did(i, did);
+            }
             Discards { player, cards } => {
                 let p = self.seat(*player);
                 // "discards [X]." then "cycles [X].": the discard is the
@@ -1083,6 +1170,35 @@ impl Driver<'_> {
                             self.did(k, format!("cycled {} (CR 702.29a)", c.name()));
                         }
                         return Ok(Next::Line(j + 1));
+                    }
+                    // "discards [Masticore]." then "activates an ability of
+                    // [Survival of the Fittest]": the discard is that
+                    // ability's cost, which the engine doesn't pay yet, and
+                    // never what is resolving.
+                    let next = self.entries[i + 1..]
+                        .iter()
+                        .find(|e| !matches!(e.event, Chat { .. } | Watching { .. }))
+                        .and_then(|e| match &e.event {
+                            Activates(a) if a.player == *player => match &a.card {
+                                Object::Card(x) => Some(x.name().to_string()),
+                                _ => None,
+                            },
+                            _ => None,
+                        });
+                    let costs_a_discard = |t: &CardText| {
+                        matches!(&t.oracle, crate::deck::Oracle::OneFace(o)
+                            if o.lines().any(|l| l.split_once(':')
+                                .is_some_and(|(cost, _)| cost.contains("Discard"))))
+                    };
+                    let paid_by = match next {
+                        Some(n) => self.text(&n).is_ok_and(|t| costs_a_discard(&t)),
+                        None => false,
+                    };
+                    if paid_by {
+                        return Err(Stop::Unfollowed {
+                            event: "Discards as an activated ability's cost".into(),
+                            card: Some(c.name().to_string()),
+                        });
                     }
                 }
                 // A discard instead of a permanent entering, read ahead
@@ -1140,10 +1256,13 @@ impl Driver<'_> {
                 // The log stops printing as the game ends, so what was on
                 // the stack and ended it is never shown resolving (the
                 // last of two Razorkin Needlehead triggers): it resolves
-                // now, down to the game's end or an empty stack.
+                // now, down to the game's end or an empty stack, and an
+                // attack the log shows deals its combat damage.
                 let turn = self.game().turn();
                 loop {
                     let game = self.game();
+                    let fighting =
+                        !game.attacks().is_empty() && game.step_now() < Step::EndOfCombat;
                     match game.decision() {
                         Decision::Over(Outcome::Won(p)) if p == won => {
                             self.did(i, "the game ends by the rules (CR 104.2a)");
@@ -1151,7 +1270,7 @@ impl Driver<'_> {
                         }
                         Decision::Over(_) => break,
                         Decision::Priority { .. }
-                            if game.stack().is_empty() || game.turn() != turn =>
+                            if game.stack().is_empty() && !fighting || game.turn() != turn =>
                         {
                             break
                         }
@@ -1282,10 +1401,7 @@ impl Driver<'_> {
                 let defender = self.seat(*d);
                 let mut names = Vec::new();
                 for a in attackers {
-                    let Object::Card(c) = a else {
-                        return Err(unfollowed(None));
-                    };
-                    names.push(self.permanent_name(c)?);
+                    names.push(self.called(a)?);
                 }
                 let turn = self.game().turn();
                 let can = loop {
@@ -1305,10 +1421,7 @@ impl Driver<'_> {
                 let mut declared: Vec<(ObjectId, PlayerId)> = Vec::new();
                 for n in &names {
                     let Some(a) = can.iter().find(|id| {
-                        !declared.iter().any(|(x, _)| x == *id)
-                            && game
-                                .card(game.permanents()[*id].card)
-                                .is_some_and(|t| &t.name == n)
+                        !declared.iter().any(|(x, _)| x == *id) && is_called(game, id, n)
                     }) else {
                         return Err(Stop::Diverged(Divergence::NeverOffered {
                             what: format!("attack with {n}"),
@@ -1317,11 +1430,12 @@ impl Driver<'_> {
                     declared.push((*a, defender));
                 }
                 self.act(Answer::Attack(declared))?;
+                let names: Vec<String> = names.iter().map(ToString::to_string).collect();
                 self.did(i, format!("attacked with {}", names.join(", ")));
             }
             Blocks {
-                blocker: Object::Card(b),
-                attacker: Object::Card(a),
+                blocker: b @ (Object::Card(_) | Object::Hidden(_)),
+                attacker: a @ (Object::Card(_) | Object::Hidden(_)),
             } => {
                 let turn = self.game().turn();
                 loop {
@@ -1338,18 +1452,12 @@ impl Driver<'_> {
                     }
                     self.pass()?;
                 }
-                let (bn, an) = (self.permanent_name(b)?, self.permanent_name(a)?);
+                let (bn, an) = (self.called(b)?, self.called(a)?);
                 let game = self.game();
-                let named = |id: &ObjectId, n: &str| {
-                    game.permanents()
-                        .get(id)
-                        .and_then(|p| game.card(p.card))
-                        .is_some_and(|t| t.name == n)
-                };
                 if !game
                     .blocks()
                     .iter()
-                    .any(|(x, y)| named(x, &bn) && named(y, &an))
+                    .any(|(x, y)| is_called(game, x, &bn) && is_called(game, y, &an))
                 {
                     return Err(Stop::Diverged(Divergence::NeverOffered {
                         what: format!("{bn} blocking {an}"),
@@ -1809,8 +1917,15 @@ impl Driver<'_> {
     /// Whether the log's target is a permanent a spell or ability on the
     /// stack targets.
     fn targeted_on_stack(&self, t: &log::Target) -> bool {
-        let log::Target::Object(Object::Card(c)) = t else {
-            return false;
+        let called = match t {
+            log::Target::Object(Object::Card(c)) => Called::Name(c.name().to_string()),
+            log::Target::Object(Object::Hidden(log::Hidden::FaceDown(n))) => {
+                match self.face_down.get(n) {
+                    Some(c) => Called::FaceDown(*c),
+                    None => return false,
+                }
+            }
+            _ => return false,
         };
         let game = self.game.as_ref().expect("set up");
         game.stack().iter().any(|o| {
@@ -1818,11 +1933,7 @@ impl Driver<'_> {
             | StackObject::Trigger { targets, .. }
             | StackObject::Ability { targets, .. }) = o;
             targets.iter().any(|t| match t {
-                Target::Object(id) => game
-                    .permanents()
-                    .get(id)
-                    .and_then(|p| game.card(p.card))
-                    .is_some_and(|t| t.name == c.name()),
+                Target::Object(id) => is_called(game, id, &called),
                 _ => false,
             })
         })
@@ -1830,10 +1941,16 @@ impl Driver<'_> {
 
     /// Whether the log's target is a spell on the stack.
     fn targets_stack(&self, t: &log::Target) -> bool {
+        let game = self.game.as_ref().expect("set up");
+        if let log::Target::Object(Object::Hidden(log::Hidden::FaceDown(n))) = t {
+            return self
+                .face_down
+                .get(n)
+                .is_some_and(|c| game.face_down_on_stack(*c));
+        }
         let log::Target::Object(Object::Card(c)) = t else {
             return false;
         };
-        let game = self.game.as_ref().expect("set up");
         game.stack().iter().any(|o| match o {
             StackObject::Spell { card, .. }
             | StackObject::Ability { source: card, .. }
@@ -2060,27 +2177,24 @@ impl Driver<'_> {
         can: &[ObjectId],
         attackers: &[ObjectId],
     ) -> Result<Vec<(ObjectId, ObjectId)>, Stop> {
-        let lines: Vec<(String, String)> = self
+        let lines: Vec<(Object, Object)> = self
             .entries
             .iter()
             .skip(self.at)
             .take_while(|e| !matches!(e.event, Event::TurnBegins(_)))
             .filter_map(|e| match &e.event {
                 Event::Blocks {
-                    blocker: Object::Card(b),
-                    attacker: Object::Card(a),
-                } => Some((b.name().to_string(), a.name().to_string())),
+                    blocker: b @ (Object::Card(_) | Object::Hidden(_)),
+                    attacker: a @ (Object::Card(_) | Object::Hidden(_)),
+                } => Some((b.clone(), a.clone())),
                 _ => None,
             })
             .collect();
         let mut out = Vec::new();
         for (b, a) in lines {
-            let (b, a) = (self.text(&b)?.name, self.text(&a)?.name);
+            let (b, a) = (self.called(&b)?, self.called(&a)?);
             let game = self.game.as_ref().expect("set up");
-            let named = |id: &ObjectId, n: &str| {
-                game.card(game.permanents()[id].card)
-                    .is_some_and(|t| t.name == n)
-            };
+            let named = |id: &ObjectId, n: &Called| is_called(game, id, n);
             let Some(blocker) = can
                 .iter()
                 .find(|id| named(id, &b) && !out.iter().any(|(x, _)| x == *id))
@@ -2145,19 +2259,47 @@ impl Driver<'_> {
         for (aim, legal) in aims.iter().zip(slots) {
             let t = match &aim.target {
                 log::Target::Player(p) => Target::Player(self.seat(*p)),
-                log::Target::Object(Object::Card(c)) => {
-                    let name = self.permanent_name(c)?;
+                log::Target::Object(o @ (Object::Card(_) | Object::Hidden(_))) => {
+                    let called = self.called(o)?;
+                    let k = match self.aim_pick {
+                        Some((at, k)) if at == self.at => k,
+                        _ => 0,
+                    };
                     let game = self.game.as_ref().expect("set up");
-                    *legal
+                    // Of permanents of one name, an opponent's first, as
+                    // most spells aimed at one are removal; an Aura's
+                    // caster's own first.
+                    let (caster, aura) = match game.decision() {
+                        Decision::Targets { player, card, .. } => (
+                            Some(player),
+                            game.card(card)
+                                .is_some_and(|t| t.type_line.contains("Aura")),
+                        ),
+                        _ => (None, false),
+                    };
+                    let chars = game.characteristics();
+                    let mut matching: Vec<&Target> = legal
                         .iter()
-                        .find(|t| match t {
-                            Target::Object(o) => game
-                                .card(game.permanents()[o].card)
-                                .is_some_and(|t| t.name == name),
-                            Target::Spell(c) => game.card(*c).is_some_and(|t| t.name == name),
-                            Target::Player(_) => false,
+                        .filter(|t| match (t, &called) {
+                            (Target::Object(o), _) => is_called(game, o, &called),
+                            (Target::Spell(c), Called::Name(name)) => {
+                                !game.face_down_on_stack(*c)
+                                    && game.card(*c).is_some_and(|t| &t.name == name)
+                            }
+                            (Target::Spell(c), Called::FaceDown(d)) => {
+                                c == d && game.face_down_on_stack(*c)
+                            }
+                            (Target::Player(_), _) => false,
                         })
-                        .ok_or_else(wrong)?
+                        .collect();
+                    matching.sort_by_key(|t| match t {
+                        Target::Object(o) => {
+                            let mine = chars.get(o).map(|c| c.controller) == caster;
+                            mine != aura
+                        }
+                        _ => false,
+                    });
+                    **matching.get(k).or(matching.first()).ok_or_else(wrong)?
                 }
                 _ => return Err(wrong()),
             };
@@ -3075,6 +3217,220 @@ impl Driver<'_> {
         Ok(Next::Line(j))
     }
 
+    /// Line `i` casts a card face down (CR 702.37c): which is the log's to
+    /// hide, and a later line names it, as it is revealed leaving the
+    /// battlefield or the stack (CR 708.9) or once it is turned face up.
+    /// That card of the hand is cast, a hidden one named as it; with no
+    /// line naming it, a hidden card stays hidden, the 2/2 being the same
+    /// whatever it is.
+    fn cast_face_down(&mut self, i: usize, p: PlayerId) -> Result<String, Stop> {
+        let n = self.entries[..=i]
+            .iter()
+            .filter(|e| matches!(e.event, Event::CastsFaceDown { .. }))
+            .count() as u32;
+        let name = self.face_down_name(i, n)?;
+        let card = match &name {
+            Some(name) => self.in_hand(p, name)?,
+            None => {
+                let game = self.game();
+                let hand = game.player(p).hand();
+                hand.iter().find(|c| game.card(**c).is_none()).copied()
+            }
+        };
+        let Some(card) = card else {
+            return Err(Stop::Diverged(Divergence::NotInHand {
+                card: name.unwrap_or_else(|| "a card to cast face down".into()),
+            }));
+        };
+        let what = name.clone().unwrap_or_else(|| "a hidden card".into());
+        let turn = self.game().turn();
+        while !self.game().stack().is_empty() && !self.resolves_later() {
+            self.pass()?;
+            if self.game().turn() != turn {
+                break;
+            }
+        }
+        loop {
+            let game = self.game();
+            if game.turn() != turn {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("cast {what} face down"),
+                }));
+            }
+            if let Decision::Priority { player, actions } = game.decision() {
+                if player == p && actions.contains(&Action::CastFaceDown(card)) {
+                    break;
+                }
+                // One the engine runs no morph of is never offered.
+                if player == p && game.card(card).is_some() {
+                    if let Some(r) = game.refusal(card) {
+                        return Err(Stop::Refused {
+                            card: what,
+                            node: r.node,
+                            why: r.why,
+                        });
+                    }
+                }
+            }
+            self.pass()?;
+        }
+        self.act(Answer::Act(Action::CastFaceDown(card)))?;
+        let paid = self.aim_and_pay(i, &[], &what)?;
+        self.face_down.insert(n, card);
+        Ok(format!(
+            "cast {what} face down as face-down creature #{n} (CR 702.37c), {paid}"
+        ))
+    }
+
+    /// The card a later line names "face-down creature #`n`", cast face
+    /// down at line `i`: the one it is revealed as, or once a line turns
+    /// it face up, the first card with morph a line after that names.
+    fn face_down_name(&mut self, i: usize, n: u32) -> Result<Option<String>, Stop> {
+        let it = log::Hidden::FaceDown(n);
+        let mut up = None;
+        for (j, e) in self.entries.iter().enumerate().skip(i + 1) {
+            match &e.event {
+                Event::RevealsHidden { object, card, .. } if *object == it => {
+                    return Ok(Some(card.name().to_string()));
+                }
+                Event::TurnsFaceUp { object, .. } if *object == it => {
+                    up = Some(j);
+                    break;
+                }
+                _ => {}
+            }
+        }
+        let Some(j) = up else {
+            return Ok(None);
+        };
+        let named: Vec<String> = self.entries[j + 1..]
+            .iter()
+            .flat_map(|e| e.event.cards())
+            .filter(|c| !c.is_token())
+            .map(|c| c.name().to_string())
+            .collect();
+        for name in named {
+            if self.text(&name).is_ok_and(|t| has_morph(&t)) {
+                return Ok(Some(name));
+            }
+        }
+        Ok(None)
+    }
+
+    /// The face-down permanent cast as "face-down creature #`n`" is revealed
+    /// as `name` (CR 708.9): it is leaving the battlefield, so the stack
+    /// resolves until it has.
+    fn reveal_face_down(&mut self, n: u32, name: &str) -> Result<String, Stop> {
+        let text = self.text(name)?;
+        let Some(&card) = self.face_down.get(&n) else {
+            return Err(Stop::Unfollowed {
+                event: "RevealsHidden of a card not cast face down".into(),
+                card: Some(name.to_string()),
+            });
+        };
+        let turn = self.game().turn();
+        let face_down = |game: &Game| {
+            game.permanents()
+                .values()
+                .any(|p| p.card == card && p.face_down)
+        };
+        while face_down(self.game()) && !self.game().stack().is_empty() {
+            self.pass()?;
+            if self.game().turn() != turn {
+                break;
+            }
+        }
+        let game = self.game();
+        if face_down(game) {
+            return Err(Stop::Unfollowed {
+                event: "RevealsHidden of a permanent still face down".into(),
+                card: Some(name.to_string()),
+            });
+        }
+        if game.card(card).is_none() {
+            game.reveal(card, text.clone())
+                .map_err(|_| Stop::Diverged(Divergence::NotInHand { card: name.into() }))?;
+        }
+        if game.card(card).is_none_or(|t| t.name != text.name) {
+            return Err(Stop::Diverged(Divergence::NotInHand {
+                card: name.to_string(),
+            }));
+        }
+        Ok(format!(
+            "face-down creature #{n} revealed as {name} as it left (CR 708.9)"
+        ))
+    }
+
+    /// `p` turns "face-down creature #`n`" face up, any time they have
+    /// priority (CR 702.37e, 116.2b): in response to what is on the stack,
+    /// since the log shows it before what it answers resolves.
+    fn turn_face_up(&mut self, i: usize, p: PlayerId, n: u32) -> Result<String, Stop> {
+        let Some(&card) = self.face_down.get(&n) else {
+            return Err(Stop::Unfollowed {
+                event: "TurnsFaceUp of a card not cast face down".into(),
+                card: None,
+            });
+        };
+        let name = self.name_of(card);
+        if name.is_empty() {
+            return Err(Stop::Unfollowed {
+                event: "TurnsFaceUp of a card no line names".into(),
+                card: None,
+            });
+        }
+        let turn = self.game().turn();
+        let id = loop {
+            let game = self.game();
+            let id = game
+                .permanents()
+                .iter()
+                .find(|(_, perm)| perm.card == card && perm.face_down)
+                .map(|(id, _)| *id);
+            let Some(id) = id.filter(|_| game.turn() == turn) else {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("turn {name} face up"),
+                }));
+            };
+            if let Decision::Priority { player, actions } = game.decision() {
+                if player == p && actions.contains(&Action::TurnFaceUp(id)) {
+                    break id;
+                }
+                if player == p {
+                    if let Some(r) = game.refusal(card) {
+                        return Err(Stop::Refused {
+                            card: name,
+                            node: r.node,
+                            why: r.why,
+                        });
+                    }
+                }
+            }
+            self.pass()?;
+        };
+        self.act(Answer::Act(Action::TurnFaceUp(id)))?;
+        let paid = self.aim_and_pay(i, &[], &name)?;
+        Ok(format!("turned {name} face up (CR 702.37e), {paid}"))
+    }
+
+    /// What a line calls a permanent: a name, or the card cast face down
+    /// as a "face-down creature #N".
+    fn called(&mut self, o: &Object) -> Result<Called, Stop> {
+        match o {
+            Object::Card(c) => Ok(Called::Name(self.permanent_name(c)?)),
+            Object::Hidden(log::Hidden::FaceDown(n)) => match self.face_down.get(n) {
+                Some(c) => Ok(Called::FaceDown(*c)),
+                None => Err(Stop::Unfollowed {
+                    event: format!("face-down creature #{n} not cast face down"),
+                    card: None,
+                }),
+            },
+            _ => Err(Stop::Unfollowed {
+                event: short(o),
+                card: None,
+            }),
+        }
+    }
+
     /// The card in `p`'s hand that is `name`, naming a hidden one if none
     /// is known to be.
     fn in_hand(&mut self, p: PlayerId, name: &str) -> Result<Option<CardId>, Stop> {
@@ -3185,6 +3541,33 @@ impl Driver<'_> {
             });
             while self.game().step_now() < Step::PrecombatMain && self.game().turn() == turn {
                 self.pass()?;
+            }
+        }
+        // Likewise one cast in combat with nothing to answer may have been
+        // cast after it, the log never saying the turn got to its second
+        // main phase: Dark Ritual for the Phyrexian Arena cast next.
+        let game = self.game.as_ref().expect("set up");
+        let fighting = (Step::BeginningOfCombat..=Step::EndOfCombat).contains(&game.step_now());
+        if matches!(kind, Kind::Cast(_))
+            && game.active() == p
+            && fighting
+            && game.stack().is_empty()
+        {
+            if self.late == Some(self.at) {
+                while self.game().step_now() < Step::PostcombatMain && self.game().turn() == turn {
+                    self.pass()?;
+                }
+            } else {
+                let game = self.game().clone();
+                self.checkpoints.push(Checkpoint {
+                    game,
+                    entry: self.at,
+                    trace: self.trace.len(),
+                    resume: self.at,
+                    others: vec![Retry::Late],
+                    knew: self.knew(),
+                    back: Back::Unplayable,
+                });
             }
         }
         let mut seen = None;
@@ -4087,18 +4470,29 @@ impl Driver<'_> {
     /// A card `p` puts onto the battlefield from their hand, which the log
     /// never names as it happens: the first card of theirs a later line
     /// shows on the battlefield (a trigger's source, an ability activated,
-    /// an attacker or blocker) that no line casts or plays first and that
-    /// they have no permanent of already. None is an error, so a "may"
-    /// that put it goes back and declines.
+    /// an attacker or blocker) more times than they have permanents of it
+    /// already and lines have cast or played it since: a second Goblin
+    /// Warchief attacking beside the one cast after the trigger. None is an
+    /// error, so a "may" that put it goes back and declines.
     fn put_from_hand(&mut self, p: PlayerId) -> Followed {
-        let mut explained: BTreeSet<String> = BTreeSet::new();
+        let game = self.game.as_ref().expect("set up");
+        let chars = game.characteristics();
+        let on_battlefield = |n: &str| {
+            game.permanents()
+                .iter()
+                .filter(|(id, perm)| {
+                    chars[id].controller == p && game.card(perm.card).is_some_and(|t| t.name == n)
+                })
+                .count()
+        };
+        let mut explained: BTreeMap<String, usize> = BTreeMap::new();
         let mut candidates: Vec<String> = Vec::new();
         for e in self.entries.iter().skip(self.at) {
             let mine = |q: &log::Player| self.seat(*q) == p;
             let named: Vec<String> = match &e.event {
                 Event::Casts(c) if mine(&c.player) => {
                     if let Object::Card(c) = &c.card {
-                        explained.insert(c.name().to_string());
+                        *explained.entry(c.name().to_string()).or_default() += 1;
                     }
                     continue;
                 }
@@ -4106,7 +4500,7 @@ impl Driver<'_> {
                     player,
                     card: Object::Card(c),
                 } if mine(player) => {
-                    explained.insert(c.name().to_string());
+                    *explained.entry(c.name().to_string()).or_default() += 1;
                     continue;
                 }
                 Event::Trigger(t) if mine(&t.player) => {
@@ -4128,23 +4522,14 @@ impl Driver<'_> {
                     .collect(),
                 _ => vec![],
             };
-            for n in named {
-                if !explained.contains(&n) && !candidates.contains(&n) {
-                    candidates.push(n);
+            for n in &named {
+                let shown = named.iter().filter(|m| *m == n).count();
+                let had = on_battlefield(n) + explained.get(n).copied().unwrap_or(0);
+                if shown > had && !candidates.contains(n) {
+                    candidates.push(n.clone());
                 }
             }
         }
-        let game = self.game.as_ref().expect("set up");
-        let chars = game.characteristics();
-        let on_battlefield = |n: &str| {
-            game.permanents().iter().any(|(id, perm)| {
-                chars[id].controller == p && game.card(perm.card).is_some_and(|t| t.name == n)
-            })
-        };
-        let candidates: Vec<String> = candidates
-            .into_iter()
-            .filter(|n| !on_battlefield(n))
-            .collect();
         for n in candidates {
             let Ok(text) = self.text(&n) else { continue };
             let mut tried = self.game().clone();
@@ -4315,6 +4700,40 @@ fn source_name(t: &log::Trigger) -> Option<&str> {
         log::Source::Card(c) => Some(c.name()),
         log::Source::Named(_) => None,
     }
+}
+
+/// A permanent as a line calls it: by its name, or a face-down one by the
+/// card the replay cast face down as it, since it has no name (CR 708.2a).
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Called {
+    Name(String),
+    FaceDown(CardId),
+}
+
+impl fmt::Display for Called {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Called::Name(n) => f.write_str(n),
+            Called::FaceDown(_) => f.write_str("a face-down creature"),
+        }
+    }
+}
+
+/// Whether the permanent is the one a line calls so.
+fn is_called(game: &Game, id: &ObjectId, called: &Called) -> bool {
+    let Some(perm) = game.permanents().get(id) else {
+        return false;
+    };
+    match called {
+        Called::Name(n) => !perm.face_down && game.card(perm.card).is_some_and(|t| &t.name == n),
+        Called::FaceDown(c) => perm.face_down && perm.card == *c,
+    }
+}
+
+/// "Morph {2}{W}{W}": a card that can be cast face down.
+fn has_morph(text: &CardText) -> bool {
+    matches!(&text.oracle, crate::deck::Oracle::OneFace(t)
+        if t.lines().any(|l| l.starts_with("Morph {") || l.starts_with("Morph\u{2014}")))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

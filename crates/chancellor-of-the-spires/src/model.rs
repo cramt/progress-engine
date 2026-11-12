@@ -218,6 +218,8 @@ impl Prop {
 pub enum Pred {
     Is(Prop),
     IsNot(Prop),
+    /// "Artifact or enchantment": any of these.
+    IsAny(Vec<Prop>),
     /// "other": not the ability's own object.
     Other,
     /// "this creature": only the ability's own object.
@@ -296,6 +298,7 @@ impl Filter {
         self.0.iter().all(|p| match p {
             Pred::Is(prop) => prop.of(c),
             Pred::IsNot(prop) => !prop.of(c),
+            Pred::IsAny(props) => props.iter().any(|p| p.of(c)),
             Pred::ManaValue(cmp, n) => cmp.holds(c.mana_value, *n),
             _ => false,
         })
@@ -305,6 +308,7 @@ impl Filter {
         self.0.iter().all(|p| match p {
             Pred::Is(prop) => prop.of(s.chars),
             Pred::IsNot(prop) => !prop.of(s.chars),
+            Pred::IsAny(props) => props.iter().any(|p| p.of(s.chars)),
             Pred::Other => s.id != s.source,
             Pred::Itself => s.id == s.source,
             Pred::YouControl => s.chars.controller == s.source_chars.controller,
@@ -573,6 +577,26 @@ impl State {
             },
         );
         id
+    }
+
+    /// A face-down permanent is turned face up: its copiable values become
+    /// its card's, with its static abilities, and it gets a new timestamp
+    /// (CR 708.8, 613.7f). It stays the same object, so what applied to it
+    /// still does.
+    pub fn turn_face_up(&mut self, id: ObjectId, mut printed: Chars, statics: Vec<StaticAbility>) {
+        if !self.objects.contains_key(&id) {
+            return;
+        }
+        for s in statics {
+            let sid = StaticId(self.tick());
+            self.statics.insert(sid, s);
+            printed.abilities.insert(Ability::Static(sid));
+        }
+        let timestamp = Timestamp(self.tick());
+        if let Some(o) = self.objects.get_mut(&id) {
+            o.printed = printed;
+            o.timestamp = timestamp;
+        }
     }
 
     /// An object leaves the battlefield, and its static abilities stop
