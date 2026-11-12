@@ -230,6 +230,10 @@ fn not_characteristics(s: &i::Static) -> bool {
             what.quant == Quant::SelfRef
                 && (pays_life_or_tapped(then).is_some() || chooses_creature_type(then))
         }
+        // "You may have this land enter tapped as a copy of any land on
+        // the battlefield": a replacement effect on its own entering (CR
+        // 614.1c, 707.5), whose copy the state machine makes.
+        EntersAsCopy { what, .. } => what.quant == Quant::SelfRef,
         // "If you control two or more other lands, this land enters
         // tapped."
         If { then, .. } => !then.is_empty() && then.iter().all(not_characteristics),
@@ -1102,6 +1106,38 @@ fn objects(o: &Objects) -> Result<Filter, String> {
     Ok(Filter(preds))
 }
 
+/// "Any land on the battlefield": what an object entering as a copy may
+/// copy, a permanent the filter matches (CR 707.5).
+pub fn copy_of(o: &Objects) -> Result<Filter, String> {
+    if o.quant != Quant::One {
+        return Err(format!("a copy of {}", short(&o.quant)));
+    }
+    objects(&Objects {
+        quant: Quant::All,
+        filter: o.filter.clone(),
+    })
+}
+
+/// A copy effect's exception (CR 707.9), as far as the engine makes one.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Except {
+    /// "Except it has this ability": the ability making the copy is part
+    /// of the copy's copiable values (CR 707.9a).
+    HasThisAbility,
+}
+
+/// A copy effect's exceptions, each one the engine makes or refused by
+/// name.
+pub fn excepts(except: &[i::Exception]) -> Result<Vec<Except>, String> {
+    except
+        .iter()
+        .map(|e| match e {
+            i::Exception::HasThisAbility => Ok(Except::HasThisAbility),
+            other => Err(format!("a copy except {}", short(other))),
+        })
+        .collect()
+}
+
 /// "a Mountain or Forest card", "a basic land card": a card outside the
 /// battlefield matched by its own characteristics, any one of the
 /// alternatives (CR 701.23a).
@@ -1297,6 +1333,13 @@ pub enum Effect {
     /// "Transform this creature": the ability's own permanent turns over
     /// to its other face (CR 701.27a).
     Transform,
+    /// Thespian's Stage's "This land becomes a copy of target land, except
+    /// it has this ability": the ability's own permanent takes the copiable
+    /// values of `of` for as long as it stays (CR 707.2, 707.4, 613.2a).
+    BecomeCopy {
+        of: Obj,
+        except: Vec<Except>,
+    },
     /// "If it's a land card, …": these instructions, only if the card
     /// bound to `card` matches.
     IfCard {
@@ -2656,6 +2699,16 @@ impl<'a> Scope<'a> {
                         per: Some(counted(each)?),
                     }
                 }
+                // Glimmerpost's "you gain 1 life for each Locus on the
+                // battlefield": as many as are counted as it resolves (CR
+                // 608.2h).
+                [i::Effect::GainLife {
+                    who,
+                    n: i::Amount::N(1),
+                }] => Effect::GainLife {
+                    who: self.who(who)?,
+                    n: Amount::CountOf(counted(each)?),
+                },
                 _ => return Err(node()),
             },
             i::Effect::RevealHand(p) => Effect::RevealHand(self.who(p)?),
@@ -2869,6 +2922,15 @@ impl<'a> Scope<'a> {
                 then: self.effects(then)?,
             },
             i::Effect::Transform(o) if itself(o) => Effect::Transform,
+            i::Effect::BecomesCopy {
+                what,
+                of,
+                dur: i::Duration::Permanent,
+                except,
+            } if itself(what) => Effect::BecomeCopy {
+                of: self.obj(of)?,
+                except: excepts(except)?,
+            },
             i::Effect::If {
                 cond: i::Condition::Is { what, filter },
                 then,

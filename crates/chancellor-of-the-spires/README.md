@@ -75,6 +75,11 @@ on. Turn-based and state-based actions are never decisions.
   this artifact would enter, you may discard a land card instead",
   answered `Pick`: it enters for the card discarded, and goes to its
   owner's graveyard for `None` (CR 614.1a).
+- `EnterAsCopy { player, card, of, may }`: Vesuva's "You may have this
+  land enter tapped as a copy of any land on the battlefield", asked
+  before it enters and before anything else of how it enters is read,
+  since that is read from the copy (CR 707.5, 614.12a, 616.1), answered
+  `Copy` with one of `of`, or `None` to enter as itself when `may`.
 - `Kicker { player, card, cost }`: a spell with kicker is being cast,
   and its caster announces whether they pay `cost` more (CR 601.2b,
   702.33a), before its targets, answered `Kick(bool)`.
@@ -171,6 +176,27 @@ face's own text only for a card with more than one
 (`chip_scryfall::index::Face::oracle`), so an index built before it
 plays none of them.
 
+A permanent can be a **copy** (CR 707): its copiable values are then
+another object's, the text the game runs of it and the name a line calls
+it by, in place of its card's face (`Game::card`). They are layer 1 (CR
+613.2a): the layers start every object from its copiable values
+(`model::Object::printed`), written as a copy effect begins, the latest
+being the one that shows. A permanent entering as a copy is one from the
+start (CR 707.5), so the copied text's own "enters tapped", choices and
+enters triggers apply (Vesuva as Glimmerpost gains the life), and it is
+its own card again in any other zone (CR 400.7). One that becomes a copy
+where it is stays the same permanent, nothing entering, its timestamp,
+counters and the effects on it kept (CR 707.4): Thespian's Stage's "This
+land becomes a copy of target land, except it has this ability", whose
+exception adds the ability's own line to the copied rules text (CR
+707.9a). Copiable values are kept for the game (`Printed::Copy`), so an
+ability of them on the stack is still the copy's once its permanent has
+left (CR 113.7a), as one of a face is the face's when it transforms. A
+face-down permanent is never copied, a copy effect that ends (Cytoshape's
+"until end of turn") isn't lowered, and an exception other than "it has
+this ability" is refused by name ("a copy except AlsoIs", Glasspool
+Mimic's Shapeshifter Rogue): each is one more case of the same copy.
+
 Covered: every step of the turn with priority, all players passing with
 the stack empty ending the step (CR 117.4, 500.2) and with it non-empty
 resolving the top (CR 405.5, 608.1), after which the active player gets
@@ -258,7 +284,9 @@ searcher's control), into a hand or on top, and a shuffle of any
 player's library (CR 701.24a), a "may" being anyone's (Path to Exile's
 is its target's controller's), creating a token whose text the
 instruction gives, its creator its owner and controller, named for its
-subtypes (CR 111.1–111.4), a card refused if a token it makes can't run, gain and lose life, damage to any target, a player, a player or
+subtypes (CR 111.1–111.4), a card refused if a token it makes can't run, gain and lose life, 1 life
+"for each Locus on the battlefield" counted as it resolves (Glimmerpost,
+CR 608.2h), damage to any target, a player, a player or
 planeswalker or a creature (CR 120.3, lethal damage and deathtouch as
 state-based actions, CR 704.5g–h, removed in cleanup, CR 514.2, with
 lifelink, CR 702.15b), scry and +1/+1, other power and toughness
@@ -443,7 +471,10 @@ both timestamp orders against their Gatherer rulings, March of the Machines
 including Toph's own earthbend (CR 701.66a) on a Forest and on a Sol Ring
 Toph made a land.
 
-Not yet: layers 1–3 (copy, control, text), 7a (characteristic-defining
+Layer 1 is each object's copiable values, the game's to write as a copy
+effect begins (above, *The game*).
+
+Not yet: a copy effect that ends, layers 2–3 (control, text), 7a (characteristic-defining
 abilities, and so CDAs first, CR 613.3), dependency through "what it does"
 (CR 613.8a), counters' own timestamps (CR 613.7c), abilities granted with a
 later timestamp (CR 613.7a), effects on players and rules (CR 613.10–11),
@@ -468,10 +499,13 @@ bound for the state machine. Any other node is
 refused by name, never dropped. `insight card <name>` shows what a card
 reads as.
 
-**528 of the 574 cards in the Modern metagame lower whole** (554 of 600
-faces), measured 2026-11-04 against the Scryfall bulk file:
+**531 of the 574 cards in the Modern metagame lower whole** (557 of 600
+faces), measured 2026-11-12 against the Scryfall bulk file:
 `cargo test --release -p chancellor-of-the-spires --test coverage -- --ignored --nocapture`
-prints the number and the refusals by node. It was 526 until "as this
+prints the number and the refusals by node. It was 528 until a card
+entering as a copy ("You may have this land enter tapped as a copy of
+any land on the battlefield") was carried for the state machine, and 526
+until "as this
 enters, choose a creature type" was carried for the state machine, its
 "the chosen type" read off the permanent, and "your opponents control"
 lowered, and 524 until a rule that
@@ -485,8 +519,8 @@ land's "As this land enters, you may pay 2 life" (19 cards) and a static
 "if" over rules alone ("If you control two or more other lands, this land
 enters tapped", 8) were carried, since neither changes a characteristic.
 The most refused are modifying by an amount (8), "as this enters" (5, other choices, or a copiable effect if
-it sets a size, CR 613.2a), 7a's characteristic-defining abilities
-(`SetPt`), copy effects, and "as long as" over an amount (3 or 4 each). Karn Liberated and two others don't parse:
+it sets a size, CR 613.2a), "as long as" over an amount (4) and 7a's
+characteristic-defining abilities (`SetPt`, 3). Karn Liberated and two others don't parse:
 they are cards with a rule of their
 own, which Insight's headline leaves out.
 
@@ -740,6 +774,15 @@ Secrets] transforms into [Insectile Aberration]." line resolves the
 stack until the engine has transformed one more permanent that turn,
 which must have that face up.
 
+What a card entering as a copy copied is never printed either: the log
+shows only what the copy does after, by the name it then has ("targeting
+[Cloudpost]" for a Vesuva that copied one, "returns [Vesuva] to its
+owner's hand" once it has left). So the replay tries one permanent of
+each name it may copy, those a later line of the game names first, then
+its player's own, then entering as itself, and goes back to the next if
+any later line can't be followed: a Vesuva that copied a Forest leaves
+too little mana for a later spell that two Cloudposts pay for.
+
 A card cast face down ("casts a card face down.", "Cast face-down with
 Morph.") is one the log hides, and each is "face-down creature #N"
 after, numbered by the casts. A later line names it: "reveals face-down
@@ -773,19 +816,20 @@ did and each player's life as it ended; `--finished F` writes the ids of the gam
 diff against a run before a change for a finished game it broke; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 71 replay to the end** (68 to the log's winner
-line), 53 of them past the first turn, and **30.05% of their lines are
-followed** (23,496 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 72 replay to the end** (69 to the log's winner
+line), 54 of them past the first turn, and **30.14% of their lines are
+followed** (23,565 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-12, and 15 games rely on a land the log never names (1
-of them to the end); it was 29.95% before transforming cards, 70 games
+of them to the end); it was 71 games and 30.05% before copies, 29.95%
+before transforming cards, 70 games
 and 29.56% before modal double-faced and adventurer cards, 65 games and 29.39% before the "unless" costs
 other than mana, 57 games and 28.75% before morph, 20 games and 20.96% before the milestone's
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
 no turn in them (empty logs, concessions during the mulligans). 283 stop
-in the first turn, 344 in the second, 192 in the third, 118 later, and 53
+in the first turn, 341 in the second, 194 in the third, 118 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -839,7 +883,9 @@ a Solitary Confinement kept by a discard line, its controller's draw
 step skipped, then sacrificed with none; and Pelakka Caverns played by
 its face's name, Steam Clean cast as an Adventure and the Scalding Viper
 cast after it from exile; and Delver of Secrets declining to reveal,
-then revealing a Lightning Bolt and attacking as Insectile Aberration. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
+then revealing a Lightning Bolt and attacking as Insectile Aberration;
+and a Vesuva gone back to and copied as Cloudpost when its copy of a
+Forest can't pay for two Bronze Sables. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
 player, at a creature, and at one already gone), Preordain, Champion of
 the Parish, Temple of Deceit, and combat: an unblocked attacker,
 flying against a block, a trade, first strike, exalted, prowess,
@@ -867,7 +913,11 @@ Predation // Pelakka Caverns played by its land face, a land alone on the
 battlefield, and cast by its sorcery face, and Steam Clean cast as an
 Adventure, bouncing Grizzly Bears into exile and the Scalding Viper cast
 from there, and Delver of Secrets transforming into a 3/2 of mana value
-1 when the card it reveals is an instant and staying a 1/1 otherwise.
+1 when the card it reveals is an instant and staying a 1/1 otherwise,
+and Vesuva entering tapped as a Cloudpost, a Locus each Cloudpost
+counts, or untapped as itself, and as a Glimmerpost gaining the life
+its trigger counts, and Thespian's Stage becoming a Cloudpost that keeps
+its copy ability.
 
 ### The milestone
 
@@ -894,8 +944,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-12 69 of the 500 replay to
-the end and 43.55% of their lines are followed** (13,788 of 31,659), 5
+Worked card by card from there, **on 2026-11-12 70 of the 500 replay to
+the end and 43.69% of their lines are followed** (13,832 of 31,659), 5
 of them relying on a land the log never names (1 to the end), and 83
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -957,7 +1007,9 @@ played or cast by either (Hagra Broodpit, Pelakka Caverns), an Adventure
 exiled as it resolves and its creature cast from exile, and "return
 target nonland permanent" (Scalding Viper // Steam Clean); transforming,
 an ability on the face it is printed on, and a card looked at then
-revealed (Delver of Secrets). And
+revealed (Delver of Secrets); a copy's copiable values as layer 1,
+entering as a copy and becoming one (Vesuva, Thespian's Stage), and "1
+life for each Locus" (Glimmerpost). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -969,13 +1021,18 @@ land Flare of Cultivation puts onto the battlefield, and which card was
 cast face down, from the line revealing it or the card with morph a line
 names once it is turned face up, the discard paying an "unless"
 from the next discard line, and which face of a two-faced card a line
-names and which copy of an adventurer card it casts. One divergence was the engine's own, found by the full
+names and which copy of an adventurer card it casts, and what Vesuva
+entered as a copy of. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
 top of the worklist now: Stifle countering Phyrexian Dreadnought's
-trigger (9: six of the Dreadnought games stop there), Vesuva's copy
-(8), and Grim Lavamancer's exile line, Goblin Cadets, Quicksilver and
-Veteran Survivor (6 each); of the 34 games two faces stopped, Hagra
+trigger (9: six of the Dreadnought games stop there), and Grim
+Lavamancer's exile line, Goblin Cadets, Quicksilver and Veteran Survivor
+(6 each); of the 8 games Vesuva stopped and the 2 Thespian's Stage did,
+one of the Stage's replays to the end and the rest stop at other cards
+(Harmonic Prodigy's additional trigger, Pithing Needle's card name,
+Search for Tomorrow's suspend, Trading Post's counters, Price of
+Progress's "each player" among them); of the 34 games two faces stopped, Hagra
 Broodpit's and Scalding Viper's among them, one replays to the end and
 18 stop at other cards (Stomp, Lizard Blades, Ayara), 10 at a
 transforming card's other text (Invasion of Ixalan's "With" in 4) and 5

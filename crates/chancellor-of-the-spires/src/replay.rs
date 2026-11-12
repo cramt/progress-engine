@@ -1743,7 +1743,8 @@ impl Driver<'_> {
                                 | Decision::Targets { .. }
                                 | Decision::Order { .. }
                                 | Decision::Search { .. }
-                                | Decision::PayOrEnterTapped { .. } => true,
+                                | Decision::PayOrEnterTapped { .. }
+                                | Decision::EnterAsCopy { .. } => true,
                                 _ => false,
                             };
                         if !passing {
@@ -2229,6 +2230,12 @@ impl Driver<'_> {
                 Ok(())
             }
             Decision::PayOrEnterTapped { card, life, .. } => self.pay_or_tap(card, life),
+            Decision::EnterAsCopy {
+                player,
+                card,
+                of,
+                may,
+            } => self.enter_as_copy(player, card, &of, may),
             d @ (Decision::Pay { .. }
             | Decision::Kicker { .. }
             | Decision::Mulligan { .. }
@@ -3097,6 +3104,7 @@ impl Driver<'_> {
                 }
                 Decision::Search { .. }
                 | Decision::PayOrEnterTapped { .. }
+                | Decision::EnterAsCopy { .. }
                 | Decision::May { .. }
                 | Decision::ChooseName { .. }
                 | Decision::ChooseCreatureType { .. }
@@ -3163,6 +3171,7 @@ impl Driver<'_> {
                 | Decision::ChooseAmong { .. }
                 | Decision::Arrange { .. }
                 | Decision::PayOrEnterTapped { .. }
+                | Decision::EnterAsCopy { .. }
                     if game.turn() == turn =>
                 {
                     self.pass()?
@@ -4378,6 +4387,68 @@ impl Driver<'_> {
         Ok(())
     }
 
+    /// Which permanent a card entering as a copy copies (Vesuva's "You may
+    /// have this land enter tapped as a copy of any land on the
+    /// battlefield"), which the log never says: it shows only what the
+    /// copy does after, by the name it then has, so one of each name is
+    /// tried, the names a later line of the game shows first, then the
+    /// player's own permanents first, and entering as itself last, each
+    /// gone back to if a later line can't be followed.
+    fn enter_as_copy(&mut self, p: PlayerId, card: CardId, of: &[ObjectId], may: bool) -> Followed {
+        let game = self.game().clone();
+        let chars = game.characteristics();
+        let later: HashSet<&str> = self
+            .entries
+            .iter()
+            .skip(self.at + 1)
+            .flat_map(|e| e.event.cards())
+            .map(|c| c.name())
+            .collect();
+        let mut seen = HashSet::new();
+        let mut options: Vec<(bool, bool, ObjectId, String)> = of
+            .iter()
+            .filter_map(|o| {
+                let name = game.card(game.permanents()[o].card)?.name.clone();
+                let theirs = chars[o].controller != p;
+                Some((!later.contains(name.as_str()), theirs, *o, name))
+            })
+            .collect();
+        options.sort();
+        options.retain(|(.., name)| seen.insert(name.clone()));
+        let own = self.name_of(card);
+        let mut answers: Vec<(Answer, String)> = options
+            .into_iter()
+            .map(|(.., o, name)| {
+                (
+                    Answer::Copy(Some(o)),
+                    format!("{own} entered as a copy of {name} (CR 707.5)"),
+                )
+            })
+            .collect();
+        if may || answers.is_empty() {
+            answers.push((Answer::Copy(None), format!("{own} entered as itself")));
+        }
+        let (first, said) = answers.remove(0);
+        if !answers.is_empty() {
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others: answers
+                    .into_iter()
+                    .map(|(a, why)| Retry::Answer(a, why))
+                    .collect(),
+                knew: self.knew(),
+                back: Back::Any,
+            });
+        }
+        self.act(first)?;
+        let at = self.at;
+        self.did(at, said);
+        Ok(())
+    }
+
     /// "Pay 4 life or put the card on top of your library": the next line
     /// of `p`'s this turn not yet read that answers one, "kept a card."
     /// for the life paid or "put a card on top of …'s library." for not.
@@ -4488,7 +4559,8 @@ impl Driver<'_> {
                     | Decision::DiscardToEnter { .. }
                     | Decision::DiscardUnless { .. }
                     | Decision::SacrificeUnless { .. }
-                    | Decision::PayOrEnterTapped { .. } => true,
+                    | Decision::PayOrEnterTapped { .. }
+                    | Decision::EnterAsCopy { .. } => true,
                     _ => false,
                 };
             if !passing {
@@ -4791,7 +4863,8 @@ impl Driver<'_> {
                 Decision::Discard { player, count, .. } if player == p => break count,
                 Decision::Priority { .. }
                 | Decision::Search { .. }
-                | Decision::PayOrEnterTapped { .. } => self.pass()?,
+                | Decision::PayOrEnterTapped { .. }
+                | Decision::EnterAsCopy { .. } => self.pass()?,
                 _ => {
                     return Err(Stop::Diverged(Divergence::NeverOffered {
                         what: "a discard".into(),

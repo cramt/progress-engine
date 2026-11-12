@@ -3920,3 +3920,168 @@ fn delver_of_secrets_transforms_when_it_reveals_an_instant() {
     }
     assert!(transformed > 0 && stayed > 0, "{transformed} {stayed}");
 }
+
+/// The mana abilities offered to me now, by what each adds.
+fn mana_offered(game: &Game) -> Vec<ManaPool> {
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("priority")
+    };
+    actions
+        .iter()
+        .filter_map(|a| match a {
+            Action::Mana(m) => Some(m.adds),
+            _ => None,
+        })
+        .collect()
+}
+
+fn permanent_of(game: &Game, card: CardId) -> chancellor_of_the_spires::model::ObjectId {
+    game.permanents()
+        .iter()
+        .find(|(_, p)| p.card == card)
+        .map(|(id, _)| *id)
+        .expect("on the battlefield")
+}
+
+/// CR 707.5, 614.1c, 614.12a: Vesuva may enter tapped as a copy of any
+/// land on the battlefield, chosen before it enters; as a copy of
+/// Cloudpost it is a Locus named Cloudpost, so each Cloudpost counts two
+/// Loci. Declined, it enters untapped as itself, with nothing to tap for.
+#[test]
+fn vesuva_enters_tapped_as_a_copy_of_cloudpost_or_as_itself() {
+    for copies in [true, false] {
+        let mut game = deal(
+            &[("Cloudpost", 20), ("Vesuva", 20), ("Forest", 20)],
+            &[("Forest", 60)],
+            &[("Cloudpost", 1), ("Vesuva", 1)],
+        );
+        play(&mut game, "Cloudpost");
+        let cloudpost = creature(&game, "Cloudpost").unwrap();
+        my_next_main(&mut game);
+        let vesuva = in_hand(&game, ME, "Vesuva").unwrap();
+        let d = step(&mut game, Answer::Act(Action::PlayLand(vesuva)));
+        let Decision::EnterAsCopy {
+            player, of, may, ..
+        } = d
+        else {
+            panic!("{d:?}")
+        };
+        assert_eq!((player, may), (ME, true));
+        assert_eq!(of, vec![cloudpost], "only a land, and not itself");
+        step(&mut game, Answer::Copy(copies.then_some(cloudpost)));
+        let id = permanent_of(&game, vesuva);
+        assert_eq!(game.permanents()[&id].tapped, copies);
+        let now = &game.characteristics()[&id];
+        let locus = now
+            .subtypes
+            .iter()
+            .any(|s| format!("{s:?}").contains("Locus"));
+        assert_eq!(locus, copies);
+        let name = game.card(vesuva).unwrap().name.clone();
+        assert_eq!(name, if copies { "Cloudpost" } else { "Vesuva" });
+        my_next_main(&mut game);
+        let two = ManaPool::of([Mana::Colorless, Mana::Colorless]);
+        let one = ManaPool::of([Mana::Colorless]);
+        if copies {
+            assert_eq!(mana_offered(&game), vec![two, two], "two Loci");
+        } else {
+            assert_eq!(mana_offered(&game), vec![one], "Vesuva adds nothing");
+        }
+    }
+}
+
+/// CR 707.5: Vesuva entering as a copy of Glimmerpost has its "When this
+/// land enters" trigger, which counts both Loci.
+#[test]
+fn vesuva_as_glimmerpost_triggers_as_it_enters() {
+    let mut game = deal(
+        &[("Glimmerpost", 20), ("Vesuva", 20), ("Forest", 20)],
+        &[("Forest", 60)],
+        &[("Glimmerpost", 1), ("Vesuva", 1)],
+    );
+    play(&mut game, "Glimmerpost");
+    resolve(&mut game);
+    my_next_main(&mut game);
+    let life = game.player(ME).life();
+    let glimmerpost = creature(&game, "Glimmerpost").unwrap();
+    let vesuva = in_hand(&game, ME, "Vesuva").unwrap();
+    step(&mut game, Answer::Act(Action::PlayLand(vesuva)));
+    step(&mut game, Answer::Copy(Some(glimmerpost)));
+    resolve(&mut game);
+    assert_eq!(game.player(ME).life(), life + 2, "two Loci");
+    assert_eq!(game.card(vesuva).unwrap().name, "Glimmerpost");
+}
+
+/// CR 707.4, 707.9a, 613.2a: Thespian's Stage becomes a copy of target
+/// land, except it has that ability: a Cloudpost, the same permanent, that
+/// can still become a copy of something else.
+#[test]
+fn thespians_stage_becomes_a_copy_of_cloudpost_and_keeps_its_ability() {
+    let mut game = deal(
+        &[("Cloudpost", 15), ("Thespian's Stage", 15), ("Forest", 30)],
+        &[("Forest", 60)],
+        &[("Cloudpost", 1), ("Thespian's Stage", 1), ("Forest", 2)],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Cloudpost");
+    my_next_main(&mut game);
+    play(&mut game, "Thespian's Stage");
+    let stage = creature(&game, "Thespian's Stage").unwrap();
+    let card = game.permanents()[&stage].card;
+    let cloudpost = creature(&game, "Cloudpost").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!()
+    };
+    let becomes = actions
+        .iter()
+        .find(|a| matches!(a, Action::Activate(x) if x.source == stage))
+        .copied()
+        .expect("its copy ability");
+    let d = step(&mut game, Answer::Act(becomes));
+    let Decision::Targets { slots, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert!(slots[0].contains(&Target::Object(cloudpost)));
+    let mut d = step(&mut game, Answer::Targets(vec![Target::Object(cloudpost)]));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| {
+                actions.iter().find(
+                    |a| matches!(a, Payment::Mana(m) if m.source != stage && m.source != cloudpost),
+                )
+            })
+            .copied()
+            .expect("a way to pay");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    assert!(game.permanents().contains_key(&stage), "the same permanent");
+    let text = game.card(card).unwrap();
+    assert_eq!(text.name, "Cloudpost");
+    let Oracle::OneFace(rules) = &text.oracle else {
+        panic!()
+    };
+    assert!(rules.contains("becomes a copy of target land"), "{rules}");
+    my_next_main(&mut game);
+    let two = ManaPool::of([Mana::Colorless, Mana::Colorless]);
+    let offered = mana_offered(&game);
+    assert_eq!(
+        offered.iter().filter(|m| **m == two).count(),
+        2,
+        "{offered:?}"
+    );
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!()
+    };
+    assert!(
+        actions
+            .iter()
+            .any(|a| matches!(a, Action::Activate(x) if x.source == stage)),
+        "it still has the ability that made it a copy"
+    );
+}

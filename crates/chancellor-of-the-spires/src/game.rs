@@ -73,6 +73,25 @@ struct CardEntry {
     /// battlefield (CR 111.7).
     token: bool,
     face: Face,
+    /// The copiable values a copy effect gave its permanent (CR 707.2),
+    /// which are what it is in place of its face; set only while it is on
+    /// the battlefield, or entering it as a copy (CR 707.5).
+    copy: Option<CopyId>,
+}
+
+/// Copiable values a copy effect made, by their place in `Game::copies`:
+/// kept for the whole game, so an ability of them on the stack is still
+/// read after its permanent has left or copied something else (CR 113.7a).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CopyId(u32);
+
+/// The text an ability is printed on: a face of its card, which stays the
+/// ability's when its permanent transforms (CR 701.27f), or the copiable
+/// values a copy effect gave its permanent (CR 707.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Printed {
+    Face(Side),
+    Copy(CopyId),
 }
 
 /// What the game knows a card to be (the module's "Hidden cards"), and of
@@ -403,6 +422,21 @@ enum Enters {
     WithCounters(Counter, u32),
     /// "As this enchantment enters, choose a creature type" (CR 614.12a).
     ChooseCreatureType,
+    /// Vesuva's "You may have this land enter tapped as a copy of any land
+    /// on the battlefield" (CR 614.1c, 707.5).
+    AsCopy(AsCopy),
+}
+
+/// "You may have this land enter tapped as a copy of any land on the
+/// battlefield": what it may copy and how it enters if it does.
+#[derive(PartialEq)]
+struct AsCopy {
+    /// "You may have": whether its controller may have it not copy.
+    may: bool,
+    /// "Enter tapped as a copy": tapped only if it copies.
+    tapped: bool,
+    of: Filter,
+    except: Vec<lower::Except>,
 }
 
 /// Why the engine refuses a card: the node of Insight's tree (or the rule)
@@ -607,8 +641,8 @@ pub enum StackObject {
         /// The permanent it was activated from, "this artifact", or none
         /// for one activated from a hand (cycling, CR 702.29a).
         object: Option<ObjectId>,
-        /// The face the ability is printed on (CR 701.27f).
-        side: Side,
+        /// The text the ability is printed on (CR 701.27f, 113.7a).
+        printed: Printed,
         ability: u16,
         controller: PlayerId,
         /// Chosen as it was activated (CR 602.2b, 601.2c), by slot.
@@ -636,8 +670,8 @@ enum Instructions {
         via: Via,
         kicked: bool,
     },
-    /// An activated ability, of the face it is printed on.
-    Activated(CardId, Side, u16),
+    /// An activated ability, of the text it is printed on.
+    Activated(CardId, Printed, u16),
     Triggered(CardId, TriggerOf),
 }
 
@@ -648,7 +682,7 @@ enum Instructions {
 /// permanent transforms (CR 701.27f).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TriggerOf {
-    Printed(Side, u16),
+    Printed(Printed, u16),
     Delayed(u32),
 }
 
@@ -994,6 +1028,22 @@ enum Waiting {
         tapped: bool,
         then: Then,
     },
+    /// CR 614.12a, 707.5: `card` is about to enter under `player`'s
+    /// control, who chooses which of `of` it enters as a copy of, if any,
+    /// before anything else of how it enters is read; then `then`.
+    EnterAsCopy {
+        player: PlayerId,
+        card: CardId,
+        of: Vec<ObjectId>,
+        /// Whether it may enter as itself.
+        may: bool,
+        /// Whether it enters tapped whatever is chosen.
+        tapped: bool,
+        /// Whether it enters tapped if it copies.
+        copy_tapped: bool,
+        except: Vec<lower::Except>,
+        then: Then,
+    },
     /// CR 614.1c, 614.12a: `card` is about to enter under `player`'s
     /// control, who may pay `life` or have it enter tapped; then `then`.
     PayOrEnterTapped {
@@ -1159,6 +1209,15 @@ pub enum Decision {
     ChooseCreatureType {
         player: PlayerId,
         card: CardId,
+    },
+    /// CR 614.1c, 707.5: `card` may enter as a copy of a permanent of
+    /// `of`, answered `Answer::Copy`: `None` has it enter as itself, which
+    /// only `may` allows.
+    EnterAsCopy {
+        player: PlayerId,
+        card: CardId,
+        of: Vec<ObjectId>,
+        may: bool,
     },
     /// CR 614.1c, 614.12a: as `card` enters, `player` may pay `life`
     /// (`Answer::PayLife(true)`); if they don't, it enters tapped. A shock
@@ -1488,6 +1547,8 @@ pub enum Answer {
     ReturnToHand(Vec<ObjectId>),
     /// A creature type, as the Oracle text names it: "Beast" (CR 205.3m).
     CreatureType(String),
+    /// Which permanent a card entering as a copy copies, if any.
+    Copy(Option<ObjectId>),
     /// CR 201.4: the card named, as the Oracle card reference has it.
     Name(Box<CardText>),
     /// CR 106.3: the mana added.
@@ -1579,6 +1640,9 @@ pub struct Game {
     returned: u32,
     /// Permanents transformed this turn.
     transformed: u32,
+    /// Every set of copiable values a copy effect made this game, which
+    /// `Printed::Copy` and `CardEntry::copy` name.
+    copies: Vector<Arc<Known>>,
     /// Tokens created this turn.
     created: u32,
     /// Cards discarded this turn by an instruction that chose none of
@@ -1709,6 +1773,7 @@ impl Game {
                     commander,
                     token: false,
                     face,
+                    copy: None,
                 });
                 CardId(cards.len() as u32 - 1)
             };
@@ -1763,6 +1828,7 @@ impl Game {
             bottomed: 0,
             returned: 0,
             transformed: 0,
+            copies: Vector::new(),
             shuffled: 0,
             created: 0,
             discarded: 0,
@@ -1910,16 +1976,38 @@ impl Game {
     pub fn player(&self, p: PlayerId) -> &Player {
         &self.players[p.0 as usize]
     }
-    /// The card's text, or `None` while it is hidden.
+    /// The card's text, or `None` while it is hidden; of a permanent that
+    /// is a copy, the copiable values it has (CR 707.2), whose name is
+    /// what it is called.
     pub fn card(&self, c: CardId) -> Option<&CardText> {
-        match &self.cards[c.0 as usize].face {
+        let entry = &self.cards[c.0 as usize];
+        if let Some(k) = entry.copy {
+            return Some(&self.copies[k.0 as usize].text);
+        }
+        match &entry.face {
             Face::Two(two, _) => Some(&two.text),
             face => face.up().map(|k| &k.text),
         }
     }
-    /// The face of the card that is up (CR 712.8).
+    /// What the card is now: the copiable values a copy effect gave its
+    /// permanent, or else the face of the card that is up (CR 707.2,
+    /// 712.8).
     fn known(&self, c: CardId) -> Option<&Known> {
-        self.cards[c.0 as usize].face.up().map(|k| &**k)
+        self.known_arc(c).map(|k| &**k)
+    }
+    fn known_arc(&self, c: CardId) -> Option<&Arc<Known>> {
+        let entry = &self.cards[c.0 as usize];
+        match entry.copy {
+            Some(k) => Some(&self.copies[k.0 as usize]),
+            None => entry.face.up(),
+        }
+    }
+    /// The text the card's abilities are printed on now.
+    pub fn printed_up(&self, c: CardId) -> Printed {
+        match self.cards[c.0 as usize].copy {
+            Some(k) => Printed::Copy(k),
+            None => Printed::Face(self.side_up(c)),
+        }
     }
     /// A two-faced card's faces.
     fn two_faces(&self, c: CardId) -> Option<&TwoFaces> {
@@ -2406,6 +2494,18 @@ impl Game {
             Waiting::ChooseCreatureType { player, card, .. } => Decision::ChooseCreatureType {
                 player: *player,
                 card: *card,
+            },
+            Waiting::EnterAsCopy {
+                player,
+                card,
+                of,
+                may,
+                ..
+            } => Decision::EnterAsCopy {
+                player: *player,
+                card: *card,
+                of: of.clone(),
+                may: *may,
             },
             Waiting::PayOrEnterTapped {
                 player, card, life, ..
@@ -2988,6 +3088,8 @@ impl Game {
                     }
                     None => {
                         let owner = self.owner(card);
+                        // It never entered, so it is no copy (CR 707.5).
+                        self.cards[card.0 as usize].copy = None;
                         self.players[owner.0 as usize].graveyard.push_back(card);
                         self.proceed(then);
                     }
@@ -3029,6 +3131,29 @@ impl Game {
                 self.arrive_chosen(card, player, tapped, chosen);
                 self.proceed(then);
             }
+            (
+                Waiting::EnterAsCopy {
+                    player,
+                    card,
+                    of,
+                    may,
+                    tapped,
+                    copy_tapped,
+                    except,
+                    then,
+                },
+                Answer::Copy(choice),
+            ) => match choice {
+                Some(o) if of.contains(o) => {
+                    let copied = self.copiable(*o).expect("offered");
+                    self.make_copy(card, &copied, &except, None);
+                    self.enter_as_itself(card, player, tapped || copy_tapped, then);
+                }
+                None if may || of.is_empty() => {
+                    self.enter_as_itself(card, player, tapped, then);
+                }
+                _ => return Err(Rejected::Illegal(answer)),
+            },
             (
                 Waiting::PayOrEnterTapped {
                     player,
@@ -3885,7 +4010,7 @@ impl Game {
                 self.stack.push_back(StackObject::Ability {
                     source: card,
                     object: None,
-                    side: Side::Front,
+                    printed: Printed::Face(Side::Front),
                     ability: n,
                     controller: p,
                     targets: Vec::new(),
@@ -3904,7 +4029,7 @@ impl Game {
                     self.pending.push_back(Pending {
                         source: card,
                         object: None,
-                        ability: TriggerOf::Printed(Side::Front, k),
+                        ability: TriggerOf::Printed(Printed::Face(Side::Front), k),
                         controller: p,
                         triggering: None,
                         amount: None,
@@ -3934,11 +4059,11 @@ impl Game {
                 self.before_cast = Some(Box::new(self.clone()));
                 // CR 602.2a: on the stack first, then its targets chosen
                 // and its costs paid (CR 602.2b, 601.2c, 601.2h).
-                let side = self.side_up(card);
+                let printed = self.printed_up(card);
                 self.stack.push_back(StackObject::Ability {
                     source: card,
                     object: Some(a.source),
-                    side,
+                    printed,
                     ability: n,
                     controller: p,
                     targets: Vec::new(),
@@ -4013,6 +4138,15 @@ impl Game {
         match &self.cards[card.0 as usize].face {
             Face::Two(two, _) => two.face(side),
             face => face.up().expect("only a known card is offered"),
+        }
+    }
+
+    /// The text an ability of the card is printed on: one of its faces,
+    /// or copiable values a copy effect gave its permanent.
+    fn printed(&self, card: CardId, printed: Printed) -> &Known {
+        match printed {
+            Printed::Face(side) => self.face(card, side),
+            Printed::Copy(k) => &self.copies[k.0 as usize],
         }
     }
 
@@ -4416,12 +4550,12 @@ impl Game {
             Some(StackObject::Ability {
                 source,
                 object,
-                side,
+                printed,
                 ability,
                 controller,
                 targets,
             }) => self.begin_resolving(
-                Instructions::Activated(source, side, ability),
+                Instructions::Activated(source, printed, ability),
                 controller,
                 (object, None, None, None),
                 targets,
@@ -4747,6 +4881,7 @@ impl Game {
                             commander: false,
                             token: true,
                             face: Face::of((*token).clone()),
+                            copy: None,
                         });
                         let card = CardId(self.cards.len() as u32 - 1);
                         self.arrive(card, p, tapped);
@@ -5173,16 +5308,37 @@ impl Game {
                 // ability was put on the stack.
                 Effect::Transform => {
                     let side = match at.what {
-                        Instructions::Activated(_, side, _)
-                        | Instructions::Triggered(_, TriggerOf::Printed(side, _)) => Some(side),
+                        Instructions::Activated(_, printed, _)
+                        | Instructions::Triggered(_, TriggerOf::Printed(printed, _)) => {
+                            Some(printed)
+                        }
                         _ => None,
                     };
                     if let Some(id) = at.object.filter(|id| {
-                        self.permanents
-                            .get(id)
-                            .is_some_and(|perm| side.is_none_or(|s| self.side_up(perm.card) == s))
+                        self.permanents.get(id).is_some_and(|perm| {
+                            side.is_none_or(|s| self.printed_up(perm.card) == s)
+                        })
                     }) {
                         self.transform(id);
+                    }
+                }
+                // CR 707.4: it copies the target while staying the same
+                // permanent, nothing entering or leaving.
+                Effect::BecomeCopy { of, except } => {
+                    let me = at.object.filter(|id| self.permanents.contains_key(id));
+                    let copied = self.object(&at, of).and_then(|o| self.copiable(o));
+                    if let (Some(id), Some(copied)) = (me, copied) {
+                        let this = match at.what {
+                            Instructions::Activated(c, printed, n) => self
+                                .printed(c, printed)
+                                .runs
+                                .as_ref()
+                                .ok()
+                                .and_then(|r| r.lowered.unread_text.get(n as usize))
+                                .cloned(),
+                            _ => None,
+                        };
+                        self.become_copy(id, &copied, &except, this.as_deref());
                     }
                 }
                 Effect::IfCard { card, filter, .. } => {
@@ -5899,7 +6055,7 @@ impl Game {
                     triggered.push(Pending {
                         source: card,
                         object: Some(*src),
-                        ability: TriggerOf::Printed(self.side_up(card), *n),
+                        ability: TriggerOf::Printed(self.printed_up(card), *n),
                         controller: chars.controller,
                         triggering,
                         amount,
@@ -5913,7 +6069,7 @@ impl Game {
         // back at it as it last existed.
         if let Event::Died(id) = &event {
             let l = self.last_known[id].clone();
-            if let Ok(runs) = &self.face(l.card, l.side).runs {
+            if let Ok(runs) = &self.printed(l.card, l.printed).runs {
                 for (n, t) in &runs.triggered {
                     let TriggerEvent::Dies(f) = &t.event else {
                         continue;
@@ -5932,7 +6088,7 @@ impl Game {
                         triggered.push(Pending {
                             source: l.card,
                             object: Some(*id),
-                            ability: TriggerOf::Printed(l.side, *n),
+                            ability: TriggerOf::Printed(l.printed, *n),
                             controller: l.chars.controller,
                             triggering: None,
                             amount: None,
@@ -6290,6 +6446,37 @@ impl Game {
     /// off the permanent as it would exist on the battlefield (CR 614.12),
     /// so a land that enters having lost its abilities enters untapped.
     fn enter(&mut self, card: CardId, controller: PlayerId, put_tapped: bool, then: Then) {
+        // CR 707.5, 614.12: entering as a copy is chosen first, since the
+        // copy's text is what the rest of how it enters is read from; the
+        // order is its controller's to choose (CR 616.1), and this is the
+        // one the copy's own replacement effects need.
+        if let Some((a, of)) = self.as_copy(card, controller) {
+            let (may, copy_tapped, except) = (a.may, a.tapped, a.except.clone());
+            if !of.is_empty() {
+                self.waiting = Waiting::EnterAsCopy {
+                    player: controller,
+                    card,
+                    of,
+                    may,
+                    tapped: put_tapped,
+                    copy_tapped,
+                    except,
+                    then,
+                };
+                return;
+            }
+        }
+        self.enter_as_itself(card, controller, put_tapped, then);
+    }
+
+    /// `enter`, once whether it enters as a copy is settled.
+    fn enter_as_itself(
+        &mut self,
+        card: CardId,
+        controller: PlayerId,
+        put_tapped: bool,
+        then: Then,
+    ) {
         let (tapped, pays, discard) = self.entering(card, controller);
         let tapped = tapped || put_tapped;
         if let Some(filter) = discard {
@@ -6372,7 +6559,7 @@ impl Game {
                 Enters::TappedIf(cond) => tapped |= holds(cond),
                 Enters::TappedUnlessPaysLife(life) => pays = Some(*life),
                 Enters::DiscardOrGraveyard(f) => discard = Some(f.clone()),
-                Enters::WithCounters(..) | Enters::ChooseCreatureType => {}
+                Enters::WithCounters(..) | Enters::ChooseCreatureType | Enters::AsCopy(_) => {}
             }
         }
         (tapped, pays, discard)
@@ -6392,16 +6579,118 @@ impl Game {
         })
     }
 
-    /// What the engine runs of one face of a card that runs.
-    fn face_runs(&self, card: CardId, side: Side) -> &Runnable {
-        self.face(card, side)
+    /// The card's own "enter as a copy of", if it applies as it would
+    /// enter (CR 614.12), and the permanents it may copy: those its filter
+    /// matches but face-down ones, whose copiable values no text gives
+    /// (CR 707.2) and which nothing here copies.
+    fn as_copy(&self, card: CardId, controller: PlayerId) -> Option<(&AsCopy, Vec<ObjectId>)> {
+        let runs = self.runs_of(card);
+        let mut chars = runs.lowered.chars.clone();
+        chars.controller = controller;
+        let mut would = self.layer_state();
+        let id = would.enter(chars, runs.lowered.statics.clone());
+        let now = characteristics(&would);
+        let me = &now[&id];
+        let a = runs.enters.iter().find_map(|(n, e)| match e {
+            Enters::AsCopy(a) if me.abilities.contains(&Ability::Unread(*n)) => Some(a),
+            _ => None,
+        })?;
+        let of = now
+            .iter()
+            .filter(|(o, c)| {
+                **o != id
+                    && self.permanents.get(*o).is_some_and(|p| !p.face_down)
+                    && a.of.matches(&Seen {
+                        id: **o,
+                        chars: c,
+                        source: id,
+                        source_chars: me,
+                        source_attached_to: None,
+                        source_chosen: None,
+                        token: would.objects[*o].token,
+                        attacking: would.attacking.contains(*o),
+                    })
+            })
+            .map(|(o, _)| *o)
+            .collect();
+        Some((a, of))
+    }
+
+    /// A permanent's copiable values (CR 707.2): those a copy effect gave
+    /// it, or its card's face up (CR 707.8); `None` for a face-down one.
+    fn copiable(&self, o: ObjectId) -> Option<Arc<Known>> {
+        let perm = self.permanents.get(&o).filter(|p| !p.face_down)?;
+        self.known_arc(perm.card).cloned()
+    }
+
+    /// The card becomes a copy of `copied`, with the exceptions (CR 707.9):
+    /// "except it has this ability" adds the line of the ability making
+    /// the copy, `this`, to the copied rules text (CR 707.9a). A copy of a
+    /// copy has what the copy has (CR 707.3).
+    fn make_copy(
+        &mut self,
+        card: CardId,
+        copied: &Arc<Known>,
+        except: &[lower::Except],
+        this: Option<&str>,
+    ) {
+        let mut text = copied.text.clone();
+        for e in except {
+            match (e, this, &mut text.oracle) {
+                (lower::Except::HasThisAbility, Some(line), Oracle::OneFace(rules)) => {
+                    if !rules.is_empty() {
+                        rules.push('\n');
+                    }
+                    rules.push_str(line);
+                }
+                // Only a face of one text is ever on the battlefield, and
+                // only an ability has a "this ability".
+                (lower::Except::HasThisAbility, ..) => {}
+            }
+        }
+        let values = if text == copied.text {
+            Arc::clone(copied)
+        } else {
+            known(text)
+        };
+        self.copies.push_back(values);
+        self.cards[card.0 as usize].copy = Some(CopyId(self.copies.len() as u32 - 1));
+    }
+
+    /// A permanent becomes a copy where it is (CR 707.4), its layer 1
+    /// values the copy's from now on (CR 613.2a). Copiable values the
+    /// engine can't run, which an exception's line could make of a copy
+    /// that runs, are no copy it makes.
+    fn become_copy(
+        &mut self,
+        id: ObjectId,
+        copied: &Arc<Known>,
+        except: &[lower::Except],
+        this: Option<&str>,
+    ) {
+        let card = self.permanents[&id].card;
+        let before = self.cards[card.0 as usize].copy;
+        self.make_copy(card, copied, except, this);
+        let Ok(runs) = &self.known(card).expect("a copy is known").runs else {
+            self.cards[card.0 as usize].copy = before;
+            return;
+        };
+        let mut chars = runs.lowered.chars.clone();
+        chars.controller = self.battlefield.objects[&id].printed.controller;
+        let statics = runs.lowered.statics.clone();
+        self.battlefield.become_copy(id, chars, statics);
+    }
+
+    /// What the engine runs of the text an ability is printed on.
+    fn face_runs(&self, card: CardId, printed: Printed) -> &Runnable {
+        self.printed(card, printed)
             .runs
             .as_ref()
             .expect("only a card that runs has abilities")
     }
 
     fn runs_of(&self, card: CardId) -> &Runnable {
-        match self.cards[card.0 as usize].face.up() {
+        match self.known(card) {
             Some(k) => k.runs.as_ref().expect("only a card that runs enters"),
             None => unreachable!("only a known card enters"),
         }
@@ -7079,13 +7368,15 @@ impl Game {
                 chars: chars.clone(),
                 counters: object.map(|o| o.counters).unwrap_or_default(),
                 card: perm.card,
-                side: self.side_up(perm.card),
+                printed: self.printed_up(perm.card),
                 token,
             },
         );
         self.battlefield.leave(id);
-        // CR 712.8a: its front face in any other zone.
+        // CR 712.8a: its front face in any other zone, and no copy: the
+        // copy effect applied to the object, which is gone (CR 400.7).
         self.turn_up(perm.card, Side::Front);
+        self.cards[perm.card.0 as usize].copy = None;
         let owner = self.owner(perm.card);
         let player = &mut self.players[owner.0 as usize];
         match to {
@@ -7134,7 +7425,9 @@ impl Game {
             .map(|(id, _)| *id)
             .collect();
         for id in gone {
-            self.permanents.remove(&id);
+            if let Some(perm) = self.permanents.remove(&id) {
+                self.cards[perm.card.0 as usize].copy = None;
+            }
             self.battlefield.leave(id);
         }
     }
@@ -7519,6 +7812,18 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
         }] if itself(what) => lower::counter(kind)
             .map(|c| Enters::WithCounters(c, *n))
             .ok_or_else(|| "EntersWithCounters".to_string()),
+        [i::Static::EntersAsCopy {
+            may,
+            tapped,
+            what,
+            of,
+            except,
+        }] if itself(what) => Ok(Enters::AsCopy(AsCopy {
+            may: *may,
+            tapped: *tapped,
+            of: lower::copy_of(of)?,
+            except: lower::excepts(except)?,
+        })),
         [i::Static::AsEnters { what, then }]
             if itself(what) && lower::chooses_creature_type(then) =>
         {
@@ -7546,8 +7851,9 @@ struct LastKnown {
     chars: Chars,
     counters: OrdMap<Counter, u32>,
     card: CardId,
-    /// The face it had up (CR 712.8d–e).
-    side: Side,
+    /// The text it had up: its face (CR 712.8d–e), or the copiable values
+    /// it had as a copy (CR 707.2).
+    printed: Printed,
     token: bool,
 }
 

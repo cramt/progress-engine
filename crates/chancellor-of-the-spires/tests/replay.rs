@@ -164,6 +164,9 @@ const INDEXED: &[&str] = &[
     "Coral Eel",
     "Exalted Angel",
     "Solitary Confinement",
+    "Cloudpost",
+    "Vesuva",
+    "Bronze Sable",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1577,4 +1580,57 @@ fn delver_of_secrets_reveals_the_card_its_line_names_and_transforms() {
         game.side_up(delver.card),
         chancellor_of_the_spires::deck::Side::Back
     );
+}
+
+/// CR 707.5: the log never says what Vesuva copied. A copy of alice's
+/// Forest, tried first since no line names either land again, pays for
+/// the first Bronze Sable but leaves three mana for the next two; the
+/// replay goes back and has it enter as a copy of Cloudpost, each of the
+/// two Cloudposts then adding {C}{C}.
+#[test]
+fn vesuva_copies_what_a_later_spell_needs_it_to_have_copied() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Cloudpost].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Vesuva].
+        alice casts [Bronze Sable].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 4: alice
+        alice draws a card.
+        alice casts [Bronze Sable].
+        alice casts [Bronze Sable].
+        Turn 4: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    assert!(
+        r.trace
+            .iter()
+            .any(|t| t.did == "chose again: Vesuva entered as a copy of Cloudpost (CR 707.5)"),
+        "{:?}",
+        r.trace
+    );
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Cloudpost"), 2);
+    assert_eq!(on_battlefield(&game, "Bronze Sable"), 3);
 }

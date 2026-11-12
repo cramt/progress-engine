@@ -328,7 +328,9 @@ impl Filter {
     }
 }
 
-/// CR 613.1, 613.4. Layers 1–3 and 7a aren't modelled yet.
+/// CR 613.1, 613.4. Layer 1 is each object's copiable values
+/// (`Object::printed`), where every other layer starts; layers 2–3 and 7a
+/// aren't modelled yet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Layer {
     Type,
@@ -511,6 +513,12 @@ pub enum Counter {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Object {
+    /// Its copiable values (CR 707.2, 613.2c): its card's face up or a
+    /// token's, or what the copy effect on it made them. Layer 1 is
+    /// applied by writing them here as a copy effect begins: the latest
+    /// copy effect is the one that shows (CR 613.2, 613.7), and nothing in
+    /// a later layer changes them. A copy effect that ends would need the
+    /// values before it, and none does yet.
     pub printed: Chars,
     pub timestamp: Timestamp,
     pub counters: OrdMap<Counter, u32>,
@@ -584,9 +592,33 @@ impl State {
     /// static abilities and none of the other's, and it gets a new
     /// timestamp (CR 708.8, 613.7f, 613.7g). It stays the same object, so
     /// what applied to it still does (CR 712.18).
-    pub fn turn_over(&mut self, id: ObjectId, mut printed: Chars, statics: Vec<StaticAbility>) {
+    pub fn turn_over(&mut self, id: ObjectId, printed: Chars, statics: Vec<StaticAbility>) {
+        if self.set_copiable(id, printed, statics) {
+            let timestamp = Timestamp(self.tick());
+            if let Some(o) = self.objects.get_mut(&id) {
+                o.timestamp = timestamp;
+            }
+        }
+    }
+
+    /// A copy effect begins to apply to a permanent already on the
+    /// battlefield (layer 1, CR 613.2a): its copiable values become the
+    /// copied ones, with their static abilities and none of its own (CR
+    /// 707.2–707.3). Nothing else of it changes, its timestamp, counters
+    /// and the other effects on it included (CR 707.4).
+    pub fn become_copy(&mut self, id: ObjectId, printed: Chars, statics: Vec<StaticAbility>) {
+        self.set_copiable(id, printed, statics);
+    }
+
+    /// Whether the object is here to take them.
+    fn set_copiable(
+        &mut self,
+        id: ObjectId,
+        mut printed: Chars,
+        statics: Vec<StaticAbility>,
+    ) -> bool {
         let Some(o) = self.objects.get(&id) else {
-            return;
+            return false;
         };
         for a in &o.printed.abilities {
             if let Ability::Static(s) = a {
@@ -598,11 +630,10 @@ impl State {
             self.statics.insert(sid, s);
             printed.abilities.insert(Ability::Static(sid));
         }
-        let timestamp = Timestamp(self.tick());
         if let Some(o) = self.objects.get_mut(&id) {
             o.printed = printed;
-            o.timestamp = timestamp;
         }
+        true
     }
 
     /// An object leaves the battlefield, and its static abilities stop
