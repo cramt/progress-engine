@@ -359,3 +359,25 @@ fn a_resolved_effect_skips_an_object_that_left() {
     assert!(!now.contains_key(&a));
     assert_eq!(now[&b].pt, Some(pt(4, 4)));
 }
+
+// CR 613.7c: a counter's timestamp is when it was put on, and a keyword
+// counter applies in layer 6 in that order (CR 613.1f, 122.1b).
+
+#[test]
+fn cr_613_7c_a_double_strike_counter_after_losing_all_abilities_grants_double_strike() {
+    let mut s = State::default();
+    let c = s.enter(creature(pt(2, 2), 1, Color::Red), vec![]);
+    s.resolve([c], vec![Op::LoseAll]);
+    s.put_counters(c, Counter::Keyword(Keyword::DoubleStrike), 1);
+    assert!(has(&s, c, Ability::Keyword(Keyword::DoubleStrike)));
+}
+
+#[test]
+fn cr_613_7c_losing_all_abilities_after_a_double_strike_counter_removes_it() {
+    let mut s = State::default();
+    let c = s.enter(creature(pt(2, 2), 1, Color::Red), vec![]);
+    s.put_counters(c, Counter::Keyword(Keyword::DoubleStrike), 1);
+    assert!(has(&s, c, Ability::Keyword(Keyword::DoubleStrike)));
+    s.resolve([c], vec![Op::LoseAll]);
+    assert!(!has(&s, c, Ability::Keyword(Keyword::DoubleStrike)));
+}

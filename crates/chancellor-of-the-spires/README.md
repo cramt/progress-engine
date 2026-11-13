@@ -286,7 +286,9 @@ this way", Goblin Ringleader) and the rest, one chosen among them, put back on t
 any order, "if it's a land card" and "its mana value", destroy (CR
 701.8a), exile (CR 701.13a), return to its owner's hand, sacrifice
 (CR 701.21a), counters put on, a keyword counter giving its keyword
-(Quicksilver's "a double strike counter", CR 122.1b, 613.1f), counter
+(Quicksilver's "a double strike counter", CR 122.1b, 613.1f) in layer 6
+in the order of its kind's last counter put on, so one put on after an
+effect removing all abilities still gives it (CR 613.7c), counter
 target spell (CR 701.6a; a spell is never its own
 target, CR 115.5) or target activated or triggered ability, an object on
 the stack of its own (CR 113.1c; never a mana ability, which doesn't go
@@ -502,7 +504,7 @@ effect begins (above, *The game*).
 
 Not yet: a copy effect that ends, layers 2–3 (control, text), 7a (characteristic-defining
 abilities, and so CDAs first, CR 613.3), dependency through "what it does"
-(CR 613.8a), counters' own timestamps (CR 613.7c), abilities granted with a
+(CR 613.8a), abilities granted with a
 later timestamp (CR 613.7a), effects on players and rules (CR 613.10–11),
 and conditional statics other than "as long as you control …" and "as
 long as it's your turn" (life totals, cards in hand, "if").

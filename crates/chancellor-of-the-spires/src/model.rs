@@ -560,6 +560,10 @@ pub struct Object {
     pub printed: Chars,
     pub timestamp: Timestamp,
     pub counters: OrdMap<Counter, u32>,
+    /// Each kind of counter's timestamp, that of the last one put on, which
+    /// every counter of the kind shares (CR 613.7c). A keyword counter
+    /// applies in layer 6 in this order among the other effects there.
+    pub counter_stamps: OrdMap<Counter, Timestamp>,
     pub attached_to: Option<ObjectId>,
     pub token: bool,
     /// The creature type chosen as it entered (CR 614.12), which its
@@ -617,6 +621,7 @@ impl State {
                 printed,
                 timestamp,
                 counters: OrdMap::new(),
+                counter_stamps: OrdMap::new(),
                 attached_to: None,
                 token,
                 chosen_type: None,
@@ -709,8 +714,13 @@ impl State {
     }
 
     pub fn put_counters(&mut self, on: ObjectId, kind: Counter, n: u32) {
+        if !self.objects.contains_key(&on) {
+            return;
+        }
+        let stamp = Timestamp(self.tick());
         if let Some(o) = self.objects.get_mut(&on) {
-            *o.counters.entry(kind).or_insert(0) += n;
+            *o.counters.entry(kind.clone()).or_insert(0) += n;
+            o.counter_stamps.insert(kind, stamp);
         }
     }
 
@@ -721,6 +731,7 @@ impl State {
                 *k = k.saturating_sub(n);
                 if *k == 0 {
                     o.counters.remove(kind);
+                    o.counter_stamps.remove(kind);
                 }
             }
         }

@@ -51,18 +51,23 @@ fn memoized(state: State) -> BTreeMap<ObjectId, Chars> {
     };
     for layer in Layer::ALL {
         let mut pending = run.candidates(layer);
+        // CR 613.1f, 613.7c: keyword counters are layer 6, each kind in the
+        // order of its last counter's timestamp among the effects there, so
+        // a double strike counter put on after an effect removing all
+        // abilities still grants double strike.
+        let mut counted = BTreeSet::new();
         while let Some(next) = run.next(layer, &pending) {
             pending.remove(&next);
+            if layer == Layer::Ability {
+                run.keyword_counters(Some(run.timestamp(next)), &mut counted);
+            }
             run.apply(layer, next);
+        }
+        if layer == Layer::Ability {
+            run.keyword_counters(None, &mut counted);
         }
         if layer == Layer::Type {
             run.intrinsic();
-        }
-        // CR 613.1f: keyword counters are layer 6. Counters carry no
-        // timestamp here (CR 613.7c), so they apply before every layer 6
-        // effect, and one removing all abilities removes theirs too.
-        if layer == Layer::Color {
-            run.keyword_counters();
         }
         if layer == Layer::ModifyPt {
             run.counters();
@@ -370,10 +375,21 @@ impl Run<'_> {
     }
 
     /// Each keyword counter gives its object that keyword (CR 122.1b).
-    fn keyword_counters(&mut self) {
+    /// The keyword counters not applied yet whose timestamp is before
+    /// `before`, every one left with none.
+    fn keyword_counters(
+        &mut self,
+        before: Option<Timestamp>,
+        counted: &mut BTreeSet<(ObjectId, Counter)>,
+    ) {
         for (id, o) in &self.state.objects {
-            for k in o.counters.keys() {
-                if let (Counter::Keyword(k), Some(c)) = (k, self.now.get_mut(id)) {
+            for (kind, stamp) in &o.counter_stamps {
+                let Counter::Keyword(k) = kind else { continue };
+                if before.is_some_and(|b| *stamp >= b) || counted.contains(&(*id, kind.clone())) {
+                    continue;
+                }
+                counted.insert((*id, kind.clone()));
+                if let Some(c) = self.now.get_mut(id) {
                     c.abilities.insert(Ability::Keyword(*k));
                 }
             }
