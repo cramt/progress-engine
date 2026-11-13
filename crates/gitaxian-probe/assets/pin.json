@@ -1,17 +1,17 @@
 {
-  "version": "1.90.beta",
+  "version": "1.92.beta",
   "engine": [
     {
       "name": "version.txt",
-      "sha256": "0b197c29cab5fb6b9706021423f538d22ac5c30c5e465355e2ddd7438d113758"
+      "sha256": "3d07bc3f701c1b04c49d356ce814d084a63377082ff59d28ccfbc2ad4451af2c"
     },
     {
       "name": "core.js",
-      "sha256": "b7df7f20309c1b01ed969ee0e33848e2f8675c7a6244aae4fa7db70c8ed1acec"
+      "sha256": "12e5c74dd4f08c8c3841b6ace427a11467674ba9bea90bc20cf0ed087daf1e42"
     },
     {
       "name": "core.wasm",
-      "sha256": "db596f260fdce390368bed5b85dd79b754ba7551b577095a4d6f930e98b72b77"
+      "sha256": "8002aac66a3d59e38f6dd399a536e49b348d6d3194ec5df8c9913482c06687f7"
     },
     {
       "name": "data.7z",
@@ -28,7 +28,7 @@
   ],
   "tiers": {
     "alpha": {
-      "tag": "delver-1.90.beta-alpha-aba617be6a6b",
+      "tag": "delver-1.92.beta-alpha-ee62ac66fb62",
       "model": [
         {
           "name": "model-alpha.7z",
@@ -41,7 +41,7 @@
       ]
     },
     "lambda": {
-      "tag": "delver-1.90.beta-lambda-1017bbb1e563",
+      "tag": "delver-1.92.beta-lambda-16635d4eb35c",
       "model": [
         {
           "name": "model-lambda.7z",
@@ -54,7 +54,7 @@
       ]
     },
     "gamma": {
-      "tag": "delver-1.90.beta-gamma-2f539de2567f",
+      "tag": "delver-1.92.beta-gamma-ea362c411148",
       "model": [
         {
           "name": "model-gamma.7z",
