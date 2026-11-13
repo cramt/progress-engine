@@ -596,6 +596,9 @@ pub enum Target {
     Object(ObjectId),
     /// A spell on the stack, by its card.
     Spell(CardId),
+    /// An activated or triggered ability on the stack (CR 113.1b-c), by
+    /// its `seq`: an object of its own, not its source (CR 113.7a).
+    Ability(u32),
 }
 
 /// What can be on the stack (CR 405.1): spells, activated abilities other
@@ -618,8 +621,8 @@ pub enum StackObject {
     /// A triggered ability (CR 603.3): the card whose ability it is, by
     /// its index among that card's unread abilities, the permanent it
     /// triggered from (CR 113.7a), and the targets chosen as it was put on
-    /// the stack (CR 603.3d). `seq` counts the triggered abilities put on
-    /// the stack this game, so each is told apart.
+    /// the stack (CR 603.3d). `seq` counts the abilities put on the stack
+    /// this game, so each is told apart.
     Trigger {
         source: CardId,
         /// The permanent it triggered from; none for a delayed trigger.
@@ -650,6 +653,8 @@ pub enum StackObject {
         controller: PlayerId,
         /// Chosen as it was activated (CR 602.2b, 601.2c), by slot.
         targets: Vec<Target>,
+        /// As a trigger's: which ability on the stack this is.
+        seq: u32,
     },
 }
 
@@ -1657,8 +1662,9 @@ pub struct Game {
     stack: Vector<StackObject>,
     /// Triggered abilities waiting to be put on the stack (CR 603.3).
     pending: Vector<Pending>,
-    /// How many triggered abilities have been put on the stack.
-    triggers: u32,
+    /// How many activated and triggered abilities have been put on the
+    /// stack, each one's `seq`.
+    abilities: u32,
     /// Every delayed triggered ability created this game (CR 603.7a).
     delayed: Vector<Delayed>,
     /// The card whose spell or ability most recently finished resolving.
@@ -1862,7 +1868,7 @@ impl Game {
             permanents: OrdMap::new(),
             stack: Vector::new(),
             pending: Vector::new(),
-            triggers: 0,
+            abilities: 0,
             last_resolved: None,
             combat: None,
             until_end_of_turn: Vec::new(),
@@ -2155,26 +2161,25 @@ impl Game {
     pub fn commander_casts(&self, c: CardId) -> u32 {
         self.commander_casts.get(&c).copied().unwrap_or(0)
     }
-    /// Whether a known card's spell has a target slot a spell fills.
-    pub fn targets_spells(&self, c: CardId) -> bool {
+    /// Whether a known card's spell has a target slot a spell or an
+    /// ability on the stack fills.
+    pub fn targets_the_stack(&self, c: CardId) -> bool {
         self.known(c)
             .and_then(|k| k.runs.as_ref().ok())
             .and_then(|r| r.spell.as_ref())
-            .is_some_and(|p| p.targets.iter().any(|t| matches!(t, TargetSpec::Spell(_))))
+            .is_some_and(|p| p.targets.iter().any(on_the_stack))
     }
 
     /// Whether an activated ability of a known card has a target slot a
-    /// spell fills.
-    pub fn activation_targets_spells(&self, c: CardId) -> bool {
+    /// spell or an ability on the stack fills.
+    pub fn activation_targets_the_stack(&self, c: CardId) -> bool {
         self.known(c)
             .and_then(|k| k.runs.as_ref().ok())
             .is_some_and(|r| {
-                r.activated.values().flatten().any(|a| {
-                    a.program
-                        .targets
-                        .iter()
-                        .any(|t| matches!(t, TargetSpec::Spell(_)))
-                })
+                r.activated
+                    .values()
+                    .flatten()
+                    .any(|a| a.program.targets.iter().any(on_the_stack))
             })
     }
 
@@ -4186,6 +4191,7 @@ impl Game {
                 };
                 self.before_cast = Some(Box::new(self.clone()));
                 self.discard(p, &[card]);
+                self.abilities += 1;
                 self.stack.push_back(StackObject::Ability {
                     source: card,
                     object: None,
@@ -4193,6 +4199,7 @@ impl Game {
                     ability: n,
                     controller: p,
                     targets: Vec::new(),
+                    seq: self.abilities,
                 });
                 // "When you cycle this card": from the graveyard it went
                 // to, put on the stack the next time a player would get
@@ -4239,6 +4246,7 @@ impl Game {
                 // CR 602.2a: on the stack first, then its targets chosen
                 // and its costs paid (CR 602.2b, 601.2c, 601.2h).
                 let printed = self.printed_up(card);
+                self.abilities += 1;
                 self.stack.push_back(StackObject::Ability {
                     source: card,
                     object: Some(a.source),
@@ -4246,6 +4254,7 @@ impl Game {
                     ability: n,
                     controller: p,
                     targets: Vec::new(),
+                    seq: self.abilities,
                 });
                 if cost.tap {
                     self.tap(a.source);
@@ -4774,6 +4783,7 @@ impl Game {
                 ability,
                 controller,
                 targets,
+                ..
             }) => self.begin_resolving(
                 Instructions::Activated(source, printed, ability),
                 controller,
@@ -5147,9 +5157,10 @@ impl Game {
                         self.created += 1;
                     }
                 }
-                // CR 701.6a.
-                Effect::Counter(slot) => {
-                    if let Some(Target::Spell(c)) = at.targets[slot] {
+                // CR 701.6a: a countered spell goes to its owner's
+                // graveyard; an ability only leaves the stack.
+                Effect::Counter(slot) => match at.targets[slot] {
+                    Some(Target::Spell(c)) => {
                         let on_stack = self.stack.iter().position(
                             |x| matches!(x, StackObject::Spell { card, .. } if *card == c),
                         );
@@ -5159,7 +5170,17 @@ impl Game {
                             }
                         }
                     }
-                }
+                    Some(Target::Ability(n)) => {
+                        let on_stack = self.stack.iter().position(|x| {
+                            matches!(x, StackObject::Ability { seq, .. }
+                                | StackObject::Trigger { seq, .. } if *seq == n)
+                        });
+                        if let Some(k) = on_stack {
+                            self.stack.remove(k);
+                        }
+                    }
+                    _ => {}
+                },
                 Effect::Damage {
                     to: DamageTo::Each(f),
                     n,
@@ -5887,8 +5908,8 @@ impl Game {
                         *dealt.objects.entry(*o).or_insert(0) += n;
                     }
                 }
-                // No instruction deals damage to a spell.
-                Target::Spell(_) => {}
+                // No instruction deals damage to a spell or an ability.
+                Target::Spell(_) | Target::Ability(_) => {}
             }
         }
         if has(Keyword::Lifelink) {
@@ -6004,6 +6025,33 @@ impl Game {
                     })
                     .collect()
             }
+            // CR 115.5: an ability choosing its targets is on the stack
+            // already, and can't be its own.
+            TargetSpec::Ability {
+                activated,
+                triggered,
+            } => {
+                let choosing = match &self.waiting {
+                    Waiting::Targets {
+                        choosing: Choosing::Ability { .. },
+                        ..
+                    } => match self.stack.back() {
+                        Some(StackObject::Ability { seq, .. }) => Some(*seq),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                self.stack
+                    .iter()
+                    .filter_map(|o| match o {
+                        StackObject::Ability { seq, .. } if *activated => Some(*seq),
+                        StackObject::Trigger { seq, .. } if *triggered => Some(*seq),
+                        _ => None,
+                    })
+                    .filter(|seq| Some(*seq) != choosing)
+                    .map(Target::Ability)
+                    .collect()
+            }
         }
     }
 
@@ -6075,7 +6123,7 @@ impl Game {
     }
 
     fn push_trigger(&mut self, t: Pending, targets: Vec<Target>) {
-        self.triggers += 1;
+        self.abilities += 1;
         self.stack.push_back(StackObject::Trigger {
             source: t.source,
             object: t.object,
@@ -6085,7 +6133,7 @@ impl Game {
             triggering: t.triggering,
             amount: t.amount,
             player: t.player,
-            seq: self.triggers,
+            seq: self.abilities,
         });
     }
 
@@ -8187,6 +8235,11 @@ fn is_land(type_line: &str) -> bool {
 /// CR 110.4b; a kindred card is the other type it has (CR 308.1).
 fn is_permanent(chars: &Chars) -> bool {
     lower::PERMANENT_TYPES.iter().any(|t| chars.is(*t))
+}
+
+/// A target slot something on the stack fills.
+fn on_the_stack(t: &TargetSpec) -> bool {
+    matches!(t, TargetSpec::Spell(_) | TargetSpec::Ability { .. })
 }
 
 #[cfg(test)]

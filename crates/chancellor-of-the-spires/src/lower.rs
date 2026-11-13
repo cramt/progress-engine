@@ -1230,7 +1230,8 @@ pub enum Effect {
     /// "Sacrifice this creature" (CR 701.21a): only a permanent its
     /// controller controls.
     Sacrifice(Obj),
-    /// "Counter target spell" (CR 701.6a): the spell in this target slot.
+    /// "Counter target spell", "counter target activated or triggered
+    /// ability" (CR 701.6a): the spell or ability in this target slot.
     Counter(usize),
     /// "Create a 0/1 green Plant creature token", "create X … tokens,
     /// where X is the number of creatures you control": `n` tokens with
@@ -1585,6 +1586,10 @@ pub enum TargetSpec {
     /// matches, by its card's characteristics, other than itself (CR
     /// 115.5).
     Spell(CardFilter),
+    /// "target activated or triggered ability": an ability on the stack of
+    /// the kinds named (CR 113.1c), never a mana ability, which doesn't go
+    /// on the stack (CR 605.3b).
+    Ability { activated: bool, triggered: bool },
 }
 
 /// A spell's or ability's instructions and the targets they name, by slot.
@@ -2495,6 +2500,18 @@ impl<'a> Scope<'a> {
             {
                 Effect::Counter(self.slot(TargetSpec::Spell(spell_filter(what)?)))
             }
+            // Stifle's "counter target activated or triggered ability"
+            // (CR 701.6a).
+            i::Effect::Counter { what, unless: None }
+                if what.quant
+                    == (Quant::Target {
+                        n: i::Amount::N(1),
+                        up_to: false,
+                    })
+                    && what.filter.kind == Some(i::Noun::Ability) =>
+            {
+                Effect::Counter(self.slot(ability_spec(what)?))
+            }
             // "Counter target spell unless its controller pays {3}" (CR
             // 118.12a), the spell a `Let` binds.
             i::Effect::Counter {
@@ -3399,6 +3416,31 @@ fn token_text(t: &i::Token) -> Result<crate::deck::CardText, String> {
 
 /// "target spell with mana value 2", "target noncreature spell": by the
 /// card's types and mana value.
+/// "activated or triggered ability", and no more said of it.
+fn ability_spec(o: &Objects) -> Result<TargetSpec, String> {
+    if let Some(post) = o.filter.posts.first() {
+        return Err(format!("a target ability {}", short(post)));
+    }
+    if o.filter.or.is_some() {
+        return Err("a target ability or another kind of object".into());
+    }
+    let (mut activated, mut triggered) = (false, false);
+    for alt in &o.filter.alts {
+        match alt.as_slice() {
+            [i::Adj::Ability(i::AbilityKind::Activated)] => activated = true,
+            [i::Adj::Ability(i::AbilityKind::Triggered)] => triggered = true,
+            other => return Err(format!("a target ability {other:?}")),
+        }
+    }
+    if o.filter.alts.is_empty() {
+        (activated, triggered) = (true, true);
+    }
+    Ok(TargetSpec::Ability {
+        activated,
+        triggered,
+    })
+}
+
 fn spell_filter(o: &Objects) -> Result<CardFilter, String> {
     let mut mana_value = None;
     for post in &o.filter.posts {

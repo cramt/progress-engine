@@ -1067,11 +1067,14 @@ impl Driver<'_> {
                 // spell on the stack targets, answers it: it is cast
                 // before what it answers resolves.
                 let on_stack = cast.targets.iter().any(|a| self.targets_stack(&a.target));
-                // "targeting Triggered ability from Goblin Lackey": an
-                // ability on the stack.
+                // "targeting Triggered ability from Goblin Lackey", or an
+                // activated ability by its source's name unbracketed,
+                // "targeting Rishadan Port": an ability on the stack.
                 let at_ability = cast.targets.iter().any(|a| {
                     matches!(&a.target, log::Target::Named(n)
-                        if n.starts_with("Triggered ability") || n.starts_with("Activated ability"))
+                        if n.starts_with("Triggered ability")
+                            || n.starts_with("Activated ability")
+                            || self.ability_on_stack(n))
                 });
                 let answers = cast
                     .targets
@@ -1339,7 +1342,7 @@ impl Driver<'_> {
                 let game = self.game.as_ref().expect("set up");
                 let at_spells = game.permanents().values().any(|perm| {
                     game.card(perm.card).is_some_and(|t| t.name == card.name())
-                        && game.activation_targets_spells(perm.card)
+                        && game.activation_targets_the_stack(perm.card)
                 });
                 let on_stack = at_spells && a.targets.iter().any(|t| self.targets_stack(&t.target))
                     || self.targeted_on_stack(&log::Target::Object(a.card.clone()))
@@ -2237,7 +2240,7 @@ impl Driver<'_> {
                     .iter()
                     .zip(&to)
                     .map(|(l, t)| match t {
-                        Target::Player(_) | Target::Spell(_) => 0,
+                        Target::Player(_) | Target::Spell(_) | Target::Ability(_) => 0,
                         Target::Object(_) => {
                             let n = (*l).min(left);
                             left -= n;
@@ -2445,6 +2448,11 @@ impl Driver<'_> {
         let mut out = Vec::new();
         for (aim, legal) in aims.iter().zip(slots) {
             let t = match &aim.target {
+                // An ability on the stack: "Triggered ability from Phyrexian
+                // Dreadnought", or an activated one by its source's name.
+                _ if legal.iter().any(|t| matches!(t, Target::Ability(_))) => {
+                    self.aimed_ability(&aim.target, legal).ok_or_else(wrong)?
+                }
                 log::Target::Player(p) => Target::Player(self.seat(*p)),
                 log::Target::Object(o @ (Object::Card(_) | Object::Hidden(_))) => {
                     let called = self.called(o)?;
@@ -2476,7 +2484,7 @@ impl Driver<'_> {
                             (Target::Spell(c), Called::FaceDown(d)) => {
                                 c == d && game.face_down_on_stack(*c)
                             }
-                            (Target::Player(_), _) => false,
+                            (Target::Player(_) | Target::Ability(_), _) => false,
                         })
                         .collect();
                     matching.sort_by_key(|t| match t {
@@ -2496,6 +2504,46 @@ impl Driver<'_> {
             out.push(t);
         }
         Ok(out)
+    }
+
+    /// Whether an ability on the stack is of a source called `name`.
+    fn ability_on_stack(&self, name: &str) -> bool {
+        let game = self.game.as_ref().expect("set up");
+        game.stack().iter().any(|o| match o {
+            StackObject::Trigger { source, .. } | StackObject::Ability { source, .. } => {
+                game.card(*source).is_some_and(|t| t.is_called(name))
+            }
+            StackObject::Spell { .. } => false,
+        })
+    }
+
+    /// The ability on the stack among `legal` a log's target names, by its
+    /// source: the topmost of that name, the one just put there being what
+    /// is answered.
+    fn aimed_ability(&self, target: &log::Target, legal: &[Target]) -> Option<Target> {
+        let (name, trigger) = match target {
+            log::Target::Named(n) => match n.strip_prefix("Triggered ability from ") {
+                Some(n) => (n, Some(true)),
+                None => match n.strip_prefix("Activated ability from ") {
+                    Some(n) => (n, Some(false)),
+                    None => (n.as_str(), None),
+                },
+            },
+            log::Target::Object(Object::Card(c)) => (c.name(), None),
+            _ => return None,
+        };
+        let game = self.game.as_ref().expect("set up");
+        game.stack().iter().rev().find_map(|o| {
+            let (source, seq, is_trigger) = match o {
+                StackObject::Trigger { source, seq, .. } => (*source, *seq, true),
+                StackObject::Ability { source, seq, .. } => (*source, *seq, false),
+                StackObject::Spell { .. } => return None,
+            };
+            (trigger.is_none_or(|t| t == is_trigger)
+                && legal.contains(&Target::Ability(seq))
+                && game.card(source).is_some_and(|t| t.is_called(name)))
+            .then_some(Target::Ability(seq))
+        })
     }
 
     /// Mox Diamond would enter, and `p` may discard a land card instead:
@@ -4074,7 +4122,7 @@ impl Driver<'_> {
         let respond = answers
             || respond
                 && match self.find(p, name, kind)? {
-                    Some(c) => self.game().refusal(c).is_some() || self.game().targets_spells(c),
+                    Some(c) => self.game().refusal(c).is_some() || self.game().targets_the_stack(c),
                     None => true,
                 };
         if !respond {

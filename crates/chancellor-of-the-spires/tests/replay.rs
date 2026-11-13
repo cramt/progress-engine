@@ -174,6 +174,8 @@ const INDEXED: &[&str] = &[
     "Psychatog",
     "Rift Bolt",
     "Search for Tomorrow",
+    "Phyrexian Dreadnought",
+    "Stifle",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1876,4 +1878,36 @@ fn suspended_cards_lose_a_time_counter_each_upkeep_and_are_cast_as_the_last_goes
     assert!(game.suspended().is_empty());
     // Mountain, Forest and the basic Search for Tomorrow found.
     assert_eq!(game.permanents().len(), 3 + 3);
+}
+
+/// CR 701.6a, 113.1c: "casts [Stifle] targeting Triggered ability from
+/// Phyrexian Dreadnought." aims at the trigger on the stack, which is
+/// countered, so the Dreadnought stays without anything sacrificed.
+#[test]
+fn stifle_counters_the_trigger_its_line_names() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Island].
+        alice casts [Phyrexian Dreadnought].
+        alice puts triggered ability from [Phyrexian Dreadnought] onto the stack (When Phyrexian Dreadnought enters the battlefield, sacrifice it unless you sacrifice any number of...).
+        alice casts [Stifle] targeting Triggered ability from Phyrexian Dreadnought.
+        Turn 2: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Phyrexian Dreadnought"), 1);
 }

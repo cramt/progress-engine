@@ -280,7 +280,9 @@ this way", Goblin Ringleader) and the rest, one chosen among them, put back on t
 any order, "if it's a land card" and "its mana value", destroy (CR
 701.8a), exile (CR 701.13a), return to its owner's hand, sacrifice
 (CR 701.21a), counter target spell (CR 701.6a; a spell is never its own
-target, CR 115.5), and "its controller" and "its power" of a permanent
+target, CR 115.5) or target activated or triggered ability, an object on
+the stack of its own (CR 113.1c; never a mana ability, which doesn't go
+on the stack, CR 605.3b), which only leaves the stack (Stifle), and "its controller" and "its power" of a permanent
 gone, as it last existed (CR 608.2h), a search of the searching player's own
 library for a card a filter matches, bound for what follows (CR 701.23a,
 701.23b: it may find nothing), only a card the engine runs if it is put
@@ -735,7 +737,10 @@ otherwise, and anything else, Mana Leak's {3}, isn't paid unless a later
 line can't be followed then; a discard paying an "unless" is the
 player's next "discards [X]" line that turn, and with none it isn't
 paid; Phyrexian Dreadnought's sacrifice is never paid, which no log
-shows; a "skips their draw step." line past the first turn is a
+shows; a target "Triggered ability from Phyrexian Dreadnought", or a
+source's name unbracketed ("casts [Stifle] targeting Rishadan Port.",
+where a permanent's would be bracketed), is the topmost ability on the
+stack of that source, and the spell is cast in response to it; a "skips their draw step." line past the first turn is a
 permanent's skip the engine made too (CR 614.10); a payment never activates a mana ability
 whose counter the log would print (Wall of Roots); a "draws two cards
 with [Sylvan Library]'s ability" line is its "may" taken, the "kept a
@@ -853,12 +858,13 @@ the log never names it relied on, one game a row, to diff for a game a
 change made follow fewer; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 79 replay to the end** (76 to the log's winner
-line), 61 of them past the first turn, and **31.40% of their lines are
-followed** (24,547 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 83 replay to the end** (80 to the log's winner
+line), 65 of them past the first turn, and **31.50% of their lines are
+followed** (24,627 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-13, and 8 games rely on a land the log never names (1
-of them to the end); it was 78 games and 30.62% before suspend, 72
+of them to the end); it was 79 games and 31.40% before Stifle, 78 games
+and 30.62% before suspend, 72
 games and 30.14% before activated
 abilities' cards costs, 71 games and 30.05% before copies, 29.95%
 before transforming cards, 70 games
@@ -867,8 +873,8 @@ other than mana, 57 games and 28.75% before morph, 20 games and 20.96% before th
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 260 stop
-in the first turn, 344 in the second, 199 in the third, 126 later, and 53
+no turn in them (empty logs, concessions during the mulligans). 259 stop
+in the first turn, 341 in the second, 199 in the third, 126 later, and 53
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
@@ -886,8 +892,9 @@ responses 20.84%; tokens 20.96%; then the milestone's work took it to
 23.99% and on to 27.27% (below). Games to the end barely moved: a game
 that gets past one stop meets the next, most in its first two turns. The
 stops now, by games: `Trigger::When(Event::Or)` (45:
-Stitcher's Supplier), a restriction (32), modifying by an amount (26),
-looking at a hand (25: Gitaxian Probe) and modal spells (25), Cavern of
+Stitcher's Supplier), a restriction (32), modal spells (28: Pyroblast,
+Hydroblast, Red Elemental Blast), modifying by an amount (26), looking at
+a hand (25: Gitaxian Probe), Cavern of
 Souls's "spend this mana only" (24), "with" (21), one player named (21),
 moving cards a search found (21), and a power set (20: Tarmogoyf); an
 exile line not followed, the top stop at 77 games before suspend and
@@ -986,9 +993,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-13 77 of the 500 replay to
-the end and 45.31% of their lines are followed** (14,346 of 31,659), 2
-of them relying on a land the log never names (1 to the end), and 83
+Worked card by card from there, **on 2026-11-13 81 of the 500 replay to
+the end and 45.57% of their lines are followed** (14,426 of 31,659), 2
+of them relying on a land the log never names (1 to the end), and 89
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1055,7 +1062,8 @@ life for each Locus" (Glimmerpost); an activated ability costing a
 discard of a card a filter matches or cards exiled from a graveyard
 (Survival of the Fittest, Grim Lavamancer, Psychatog); suspend, its time
 counters and the cast as the last goes (Rift Bolt, Search for Tomorrow,
-Ancestral Vision, Profane Tutor). And
+Ancestral Vision, Profane Tutor); an ability on the stack as a target,
+countered (Stifle). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1074,13 +1082,16 @@ line before it, an activation made in response to what is on the stack
 Mountains tapped for mana before they are sacrificed, and a land the
 log never names tried only after the turn's other choices, and a
 suspended card's time counter lines and the cast its last trigger's
-"may" reads ahead. One divergence was the engine's own, found by the full
+"may" reads ahead, and the ability a target names by its source, a
+trigger's "Triggered ability from" or an activated one's source
+unbracketed. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Stifle countering Phyrexian Dreadnought's
-trigger (9: six of the Dreadnought games stop there), and Goblin Cadets,
-Quicksilver, Veteran Survivor and a counter removed from Triskelion (6
-each); of the 11 games Grim Lavamancer's exile line stopped, four replay
+top of the worklist now: a counter removed from Triskelion (7), and
+Goblin Cadets, Prismatic Omen, Quicksilver and Veteran Survivor (6
+each); of the 9 games Stifle stopped, four replay to the end and the
+rest stop at Hydroblast (2) and Red Elemental Blast, modal spells, at
+Overload's "if" and at Goblin Tinkerer's damage; of the 11 games Grim Lavamancer's exile line stopped, four replay
 to the end and the rest stop at other cards (Triskelion, Recurring
 Nightmare, Smother, Tarmogoyf, Red Elemental Blast among them), of
 Psychatog's two one does and the other stops at Fact or Fiction, and of

@@ -2727,6 +2727,50 @@ fn phyrexian_dreadnought_is_sacrificed_unless_twelve_power_is() {
     }
 }
 
+/// CR 701.6a, 113.1c: Stifle counters Phyrexian Dreadnought's enters
+/// trigger, an ability on the stack, so it is never sacrificed; with
+/// nothing on the stack it has nothing to target and isn't offered (CR
+/// 601.2c).
+#[test]
+fn stifle_counters_phyrexian_dreadnoughts_trigger() {
+    let mut game = deal(
+        &[
+            ("Island", 30),
+            ("Phyrexian Dreadnought", 15),
+            ("Stifle", 15),
+        ],
+        &[("Mountain", 60)],
+        &[("Island", 2), ("Phyrexian Dreadnought", 1), ("Stifle", 1)],
+    );
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    let stifle = in_hand(&game, ME, "Stifle").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(
+        !actions.contains(&Action::Cast(stifle)),
+        "nothing to target"
+    );
+    cast(&mut game, "Phyrexian Dreadnought", None);
+    resolve(&mut game);
+    let Some(StackObject::Trigger { seq, .. }) = game.stack().back().cloned() else {
+        panic!("its enters trigger: {:?}", game.stack())
+    };
+    let Decision::Targets { slots, .. } =
+        step(&mut game.clone(), Answer::Act(Action::Cast(stifle)))
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(slots, vec![vec![Target::Ability(seq)]]);
+    cast(&mut game, "Stifle", Some(vec![Target::Ability(seq)]));
+    resolve(&mut game);
+    assert!(game.stack().is_empty(), "the trigger is countered");
+    assert!(game.player(ME).graveyard().contains(&stifle));
+    assert!(creature(&game, "Phyrexian Dreadnought").is_some());
+}
+
 /// Solitary Confinement: its upkeep trigger asks for a discard (CR
 /// 118.12a); while it is on the battlefield its controller skips their
 /// draw step (CR 614.10), can't be targeted (CR 702.18a) and is dealt no
