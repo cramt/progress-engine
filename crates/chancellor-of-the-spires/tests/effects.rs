@@ -1606,6 +1606,47 @@ fn mogg_fanatic_sacrifices_itself_to_deal_one_damage_to_a_target() {
     assert_eq!(game.player(THEM).life(), 19);
 }
 
+/// CR 602.2b, 118.3: Triskelion enters with three +1/+1 counters (CR
+/// 614.1c), and "Remove a +1/+1 counter from this creature: It deals 1
+/// damage to any target" takes one off as each activation is paid; with
+/// none left it can't be activated.
+#[test]
+fn triskelion_removes_a_counter_for_each_damage() {
+    use chancellor_of_the_spires::model::Counter;
+    let mut game = deal(
+        &[("Mountain", 40), ("Triskelion", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 6), ("Triskelion", 1)],
+    );
+    play(&mut game, "Mountain");
+    for _ in 0..5 {
+        my_next_main(&mut game);
+        play(&mut game, "Mountain");
+    }
+    cast(&mut game, "Triskelion", None);
+    resolve(&mut game);
+    let trisk = creature(&game, "Triskelion").unwrap();
+    assert_eq!(game.counters_on(trisk, &Counter::PlusOne), 3);
+    for left in [2, 1, 0] {
+        let Decision::Targets { .. } = activate(&mut game, trisk) else {
+            panic!("a target: {:?}", game.decision())
+        };
+        assert_eq!(game.counters_on(trisk, &Counter::PlusOne), left, "paid");
+        step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+        resolve(&mut game);
+    }
+    assert_eq!(game.player(THEM).life(), 17);
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(
+        !actions
+            .iter()
+            .any(|a| matches!(a, Action::Activate(x) if x.source == trisk)),
+        "no counter left to remove"
+    );
+}
+
 /// CR 602.2b, 601.2g–h, 701.26a: Rishadan Port's "{1}, {T}: Tap target
 /// land" has its target chosen, then its {1} paid from another land.
 #[test]

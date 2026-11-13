@@ -176,6 +176,7 @@ const INDEXED: &[&str] = &[
     "Search for Tomorrow",
     "Phyrexian Dreadnought",
     "Stifle",
+    "Triskelion",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1910,4 +1911,59 @@ fn stifle_counters_the_trigger_its_line_names() {
     assert_eq!(r.end, End::Finished, "{:?}", r.trace);
     let game = r.game.expect("set up");
     assert_eq!(on_battlefield(&game, "Phyrexian Dreadnought"), 1);
+}
+
+/// CR 602.2b: "removes a +1/+1 counter from [Triskelion]." is the cost of
+/// the activation the next line shows, taken off as it is paid.
+#[test]
+fn triskelion_removes_the_counter_its_activation_line_pays() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 4: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 4: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 5: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 5: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 6: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Triskelion].
+        alice removes a +1/+1 counter from [Triskelion].
+        alice activates an ability of [Triskelion] targeting bob ( Triskelion deals 1 damage to any target.).
+        Turn 6: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(game.player(BOB).life(), 19);
 }

@@ -3509,6 +3509,10 @@ pub struct ActivationCost {
     pub mana: Option<crate::mana::ManaCost>,
     /// "Discard a creature card", "exile two cards from your graveyard".
     pub cards: Option<CardsPaid>,
+    /// Triskelion's "Remove a +1/+1 counter from this creature": counters
+    /// taken off its source as it is activated, so one without as many
+    /// can't be (CR 602.2b, 118.3).
+    pub remove_counters: Option<(Counter, u32)>,
 }
 
 /// Cards an activated ability's cost moves out of a zone of its
@@ -3602,6 +3606,14 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
                     && o.filter.posts == [Post::In(i::Zone::Graveyard(i::Player::You))] =>
             {
                 paid.cards = Some(cards_paid(PaidWith::ExileFromGraveyard, o, &[])?)
+            }
+            i::Cost::RemoveCounters {
+                n: i::Amount::N(n),
+                kind,
+                from,
+            } if paid.remove_counters.is_none() && itself(from) => {
+                let kind = counter(kind).ok_or("an activation cost of a counter")?;
+                paid.remove_counters = Some((kind, *n));
             }
             other => return Err(format!("an activation cost of {}", short(other))),
         }

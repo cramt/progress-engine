@@ -3776,8 +3776,14 @@ impl Game {
                     let (legal, unsure) = self.payable_cards(p, c);
                     legal.len() + unsure < c.count as usize
                 });
+                let counters_short = def
+                    .cost
+                    .remove_counters
+                    .as_ref()
+                    .is_some_and(|(kind, n)| self.counters_on(id, kind) < *n);
                 if def.cost.tap && (perm.tapped || sick)
                     || cards_short
+                    || counters_short
                     || def.cost.life > 0 && player.life < def.cost.life as i32
                     || def.limits.once_per_turn && self.used.contains(&(id, *k))
                     || def.limits.opponent_lost_life && !opponent_lost
@@ -4261,6 +4267,9 @@ impl Game {
                 }
                 // CR 119.4.
                 self.lose_life(p, cost.life);
+                if let Some((kind, n)) = &cost.remove_counters {
+                    self.battlefield.remove_counters(a.source, kind, *n);
+                }
                 if cost.sacrifice {
                     // CR 701.21a.
                     self.put_in_graveyard(a.source);

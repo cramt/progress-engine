@@ -1591,6 +1591,17 @@ impl Driver<'_> {
                 let did = self.remove_time_counter(p, counters)?;
                 self.did(i, did);
             }
+            // Counters taken off to pay for the ability the next line
+            // activates of the card they are on (Triskelion's), taken off
+            // as it is paid (CR 602.2b).
+            RemovesCounters { counters, .. }
+                if counters.iter().all(|c| {
+                    matches!(&c.on, log::Target::Object(Object::Card(card))
+                        if self.activates_next(i, card.name()))
+                }) && !counters.is_empty() =>
+            {
+                self.did(i, "removed to pay for the ability the next line activates");
+            }
             // A counter taken off as a mana ability's cost (Gemstone Mine),
             // which the log prints as it is activated.
             RemovesCounters { player, counters } => {
