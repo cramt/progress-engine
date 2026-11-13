@@ -193,6 +193,11 @@ fn carried(a: &i::Ability) -> bool {
         | i::Ability::OpeningHandAction(_) => true,
         i::Ability::Static(parts) => parts.iter().all(not_characteristics),
         i::Ability::Let { ability, .. } | i::Ability::Labelled { ability, .. } => carried(ability),
+        // Power-up's rules ride on the activated ability (CR 702.193a).
+        i::Ability::KeywordOn {
+            keyword: i::Prefix::PowerUp,
+            ability,
+        } => carried(ability),
         _ => false,
     }
 }
@@ -2610,6 +2615,20 @@ impl<'a> Scope<'a> {
                 counter: counter(kind).ok_or_else(node)?,
                 n: n(k)?,
             },
+            // "Put a +1/+1 counter and a double strike counter on ~": each
+            // kind put on in turn.
+            i::Effect::PutCountersEach { counters, on } if itself(on) => {
+                let on = self.on(on)?;
+                let mut each = Vec::new();
+                for (k, kind) in counters {
+                    each.push(Effect::PutCounters {
+                        on: on.clone(),
+                        counter: counter(kind).ok_or_else(node)?,
+                        n: n(k)?,
+                    });
+                }
+                return Ok(each);
+            }
             i::Effect::Modify {
                 what,
                 dur: i::Duration::UntilEndOfTurn,
@@ -3491,7 +3510,7 @@ pub fn counter(kind: &i::CounterKind) -> Option<Counter> {
             (PtPart::N(a), PtPart::N(b)) => Some(Counter::Pt(a, b)),
             _ => None,
         },
-        i::CounterKind::Named(n) => Some(Counter::Named(n.clone())),
+        i::CounterKind::Named(n) => Some(Counter::named(n)),
         _ => None,
     }
 }
@@ -3556,6 +3575,10 @@ pub struct ActivationLimits {
     /// "Activate only as a sorcery": in its controller's main phase with
     /// the stack empty (CR 602.5d, 307.1).
     pub sorcery_speed: bool,
+    /// Power-up's "Activate this ability only once", of this object (CR
+    /// 702.193a), and its cost reduced by the permanent's mana cost if it
+    /// entered this turn.
+    pub power_up: bool,
 }
 
 /// An activated ability's cost and effect, with the `Let` that binds its

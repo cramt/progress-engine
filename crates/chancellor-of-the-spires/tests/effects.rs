@@ -194,6 +194,11 @@ fn pass_until(game: &mut Game, who: PlayerId, s: Step) {
             Decision::Blockers { .. } => {
                 step(game, Answer::Block(vec![]));
             }
+            // Nothing begins the game on the battlefield unless a test
+            // says so (CR 103.6).
+            Decision::OpeningHand { .. } => {
+                step(game, Answer::Begin(vec![]));
+            }
             _ => {
                 step(game, Answer::Act(Action::Pass));
             }
@@ -1644,6 +1649,61 @@ fn triskelion_removes_a_counter_for_each_damage() {
             .iter()
             .any(|a| matches!(a, Action::Activate(x) if x.source == trisk)),
         "no counter left to remove"
+    );
+}
+
+/// CR 702.193a, 702.193b: Quicksilver's power-up costs {4}{R} less its
+/// {R} the turn it entered, so {4}; its "+1/+1 counter and a double
+/// strike counter" give it double strike (CR 122.1b, 613.1f), and it is
+/// activated only once.
+#[test]
+fn quicksilver_powers_up_once_for_less_the_turn_it_entered() {
+    use chancellor_of_the_spires::model::{Counter, Keyword};
+    let mut game = deal(
+        &[("Mountain", 40), ("Quicksilver, Brash Blur", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 5), ("Quicksilver, Brash Blur", 1)],
+    );
+    play(&mut game, "Mountain");
+    for _ in 0..4 {
+        my_next_main(&mut game);
+        play(&mut game, "Mountain");
+    }
+    cast(&mut game, "Quicksilver, Brash Blur", None);
+    resolve(&mut game);
+    let qs = creature(&game, "Quicksilver, Brash Blur").unwrap();
+    let mut d = activate(&mut game, qs);
+    let Decision::Pay { owed, .. } = &d else {
+        panic!("{d:?}")
+    };
+    assert_eq!((owed.generic, owed.shards.len()), (4, 0), "{owed:?}");
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .unwrap();
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    assert_eq!(game.counters_on(qs, &Counter::PlusOne), 1);
+    assert_eq!(
+        game.counters_on(qs, &Counter::Keyword(Keyword::DoubleStrike)),
+        1
+    );
+    let chars = &game.characteristics()[&qs];
+    assert!(chars.has(Keyword::DoubleStrike));
+    assert_eq!((pt_of(&game, qs).power, pt_of(&game, qs).toughness), (2, 2));
+    my_next_main(&mut game);
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(
+        !actions
+            .iter()
+            .any(|a| matches!(a, Action::Activate(x) if x.source == qs)),
+        "only once"
     );
 }
 

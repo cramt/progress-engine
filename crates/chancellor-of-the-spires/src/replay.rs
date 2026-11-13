@@ -5633,16 +5633,7 @@ fn split_halves_once(names: Vec<String>) -> Vec<String> {
 
 /// A counter as the log names its kind: "+1/+1", "-0/-1", or a name.
 fn counter_kind(kind: &str) -> Counter {
-    let pt = kind.split_once('/').and_then(|(a, b)| {
-        let n = |s: &str| s.trim_start_matches('+').parse::<i32>().ok();
-        Some((n(a)?, n(b)?))
-    });
-    match pt {
-        Some((1, 1)) => Counter::PlusOne,
-        Some((-1, -1)) => Counter::MinusOne,
-        Some((a, b)) => Counter::Pt(a, b),
-        None => Counter::Named(kind.to_string()),
-    }
+    Counter::named(kind)
 }
 
 /// How many of the words a log prints of an ability, cut off at "...",

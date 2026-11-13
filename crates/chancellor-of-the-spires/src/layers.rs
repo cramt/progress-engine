@@ -58,6 +58,12 @@ fn memoized(state: State) -> BTreeMap<ObjectId, Chars> {
         if layer == Layer::Type {
             run.intrinsic();
         }
+        // CR 613.1f: keyword counters are layer 6. Counters carry no
+        // timestamp here (CR 613.7c), so they apply before every layer 6
+        // effect, and one removing all abilities removes theirs too.
+        if layer == Layer::Color {
+            run.keyword_counters();
+        }
         if layer == Layer::ModifyPt {
             run.counters();
         }
@@ -363,6 +369,17 @@ impl Run<'_> {
         }
     }
 
+    /// Each keyword counter gives its object that keyword (CR 122.1b).
+    fn keyword_counters(&mut self) {
+        for (id, o) in &self.state.objects {
+            for k in o.counters.keys() {
+                if let (Counter::Keyword(k), Some(c)) = (k, self.now.get_mut(id)) {
+                    c.abilities.insert(Ability::Keyword(*k));
+                }
+            }
+        }
+    }
+
     /// Counters are layer 7c too (CR 613.4c), and adding commutes, so
     /// where they fall among 7c's effects doesn't matter.
     fn counters(&mut self) {
@@ -373,7 +390,7 @@ impl Run<'_> {
                     Counter::PlusOne => (1, 1),
                     Counter::MinusOne => (-1, -1),
                     Counter::Pt(p, t) => (*p, *t),
-                    Counter::Named(_) => (0, 0),
+                    Counter::Keyword(_) | Counter::Named(_) => (0, 0),
                 };
                 power += dp * *n as i32;
                 toughness += dt * *n as i32;

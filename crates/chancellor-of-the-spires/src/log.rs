@@ -1358,11 +1358,21 @@ fn counted(reader: &Reader, s: &str, prep: &str) -> Option<Vec<Counted>> {
             return None;
         }
         let (aims, r) = reader.aims(r)?;
-        out.extend(aims.into_iter().map(|a| Counted {
-            count: n,
-            kind: kind.to_string(),
-            on: a.target,
-        }));
+        // "a +1/+1 and a double strike counter on [X]": one of each kind.
+        let kinds: Vec<(u32, &str)> = match kind.split_once(" and ") {
+            Some((first, second)) => {
+                let (m, second) = second.split_once(' ')?;
+                vec![(n, first), (count(m)?, second)]
+            }
+            None => vec![(n, kind)],
+        };
+        for a in aims {
+            out.extend(kinds.iter().map(|(n, kind)| Counted {
+                count: *n,
+                kind: kind.to_string(),
+                on: a.target.clone(),
+            }));
+        }
         match separator(r) {
             None if r.is_empty() => return Some(out),
             Some(r) => rest = r,
@@ -2968,6 +2978,18 @@ mod tests {
         assert_eq!(
             counters.iter().map(|c| c.kind.as_str()).collect::<Vec<_>>(),
             ["+1/+1", "loyalty", "loyalty"]
+        );
+        let Event::PutsCounters { counters, .. } =
+            one("alice puts a +1/+1 and a double strike counter on [Quicksilver, Brash Blur].")
+        else {
+            panic!()
+        };
+        assert_eq!(
+            counters
+                .iter()
+                .map(|c| (c.count, c.kind.as_str()))
+                .collect::<Vec<_>>(),
+            [(1, "+1/+1"), (1, "double strike")]
         );
         assert_eq!(
             one("bob removes a +1/+1 counter from [Walking Ballista]."),

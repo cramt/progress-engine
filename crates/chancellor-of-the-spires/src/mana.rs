@@ -215,6 +215,24 @@ impl ManaCost {
         }
     }
 
+    /// This cost less `by` (CR 702.193b, 118.7): generic mana reduces
+    /// generic, a coloured or colourless symbol one of its type, and any
+    /// it finds none of that much generic.
+    pub fn reduced_by(&self, by: &ManaCost) -> ManaCost {
+        let mut out = self.clone();
+        let mut excess = by.generic;
+        for s in &by.shards {
+            match out.shards.iter().position(|x| x == s) {
+                Some(k) => {
+                    out.shards.remove(k);
+                }
+                None => excess += 1,
+            }
+        }
+        out.generic = out.generic.saturating_sub(excess);
+        out
+    }
+
     /// This cost and `other` together, as an additional cost adds to a
     /// spell's (CR 601.2f).
     pub fn plus(&self, other: &ManaCost) -> ManaCost {

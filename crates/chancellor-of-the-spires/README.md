@@ -262,7 +262,9 @@ cost is paid after the targets, before the mana (CR 601.2h), and
 offered only with as many cards to take, or counters removed from their
 source (Triskelion's "Remove a +1/+1 counter from this creature",
 Khalni Heart Expedition's three quest counters), taken off as it is
-activated and offered only while it has as many (CR 602.2b, 118.3),
+activated and offered only while it has as many (CR 602.2b, 118.3), or once only
+for less the turn their permanent entered (power-up, CR 702.193a,
+702.193b: Quicksilver's {4}{R} less its {R}),
 their targets chosen as
 they are activated (Mogg Fanatic, Wasteland, Rishadan Port's "Tap target
 land", CR 701.26a), "becomes a 2/2 Assembly-Worker artifact creature
@@ -283,7 +285,9 @@ into a hand, those of them a filter matches ("all Goblin cards revealed
 this way", Goblin Ringleader) and the rest, one chosen among them, put back on top or the bottom in
 any order, "if it's a land card" and "its mana value", destroy (CR
 701.8a), exile (CR 701.13a), return to its owner's hand, sacrifice
-(CR 701.21a), counter target spell (CR 701.6a; a spell is never its own
+(CR 701.21a), counters put on, a keyword counter giving its keyword
+(Quicksilver's "a double strike counter", CR 122.1b, 613.1f), counter
+target spell (CR 701.6a; a spell is never its own
 target, CR 115.5) or target activated or triggered ability, an object on
 the stack of its own (CR 113.1c; never a mana ability, which doesn't go
 on the stack, CR 605.3b), which only leaves the stack (Stifle), and "its controller" and "its power" of a permanent
@@ -865,12 +869,13 @@ the log never names it relied on, one game a row, to diff for a game a
 change made follow fewer; the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-**Of 1,061 games replayed, 84 replay to the end** (81 to the log's winner
-line), 66 of them past the first turn, and **31.55% of their lines are
-followed** (24,670 of 78,183: the lines before each game's stop, all of a
+**Of 1,061 games replayed, 85 replay to the end** (82 to the log's winner
+line), 66 of them past the first turn, and **31.62% of their lines are
+followed** (24,723 of 78,183: the lines before each game's stop, all of a
 finished game's, a measure that moves before a game's last stop goes),
 measured 2026-11-13, and 8 games rely on a land the log never names (1
-of them to the end); it was 83 games and 31.50% before counters as
+of them to the end); it was 84 games and 31.55% before power-up and
+keyword counters, 83 games and 31.50% before counters as
 activation costs, 79 games and 31.40% before Stifle, 78 games
 and 30.62% before suspend, 72
 games and 30.14% before activated
@@ -881,12 +886,12 @@ other than mana, 57 games and 28.75% before morph, 20 games and 20.96% before th
 work (below), and 15 games before spells' effects, triggers and combat
 ran. They are the
 1,299 games that parse whole and that Insight reads whole, less 238 with
-no turn in them (empty logs, concessions during the mulligans). 259 stop
-in the first turn, 341 in the second, 199 in the third, 125 later, and 53
+no turn in them (empty logs, concessions during the mulligans). 265 stop
+in the first turn, 341 in the second, 199 in the third, 125 later, and 46
 at the setup (21 logs name one player, 6 begin mid-game, 3 aren't London
 mulligans, 2 disagree on who started, the rest mostly a card begun on
 the battlefield that the engine refuses: Leyline Axe, Leyline of the
-Void, Gemstone Caverns, Quicksilver). Lands stop few games now: fetchlands, shock, fast, battle and
+Void, Gemstone Caverns). Lands stop few games now: fetchlands, shock, fast, battle and
 check lands all run, Cloudpost's "for each Locus on the battlefield" too,
 and the most a land stops is Fabled Passage's "then if you control four
 or more lands, untap that land" (12). A refused spell or trigger is
@@ -906,9 +911,9 @@ a hand (25: Gitaxian Probe) and "with" (25), Cavern of
 Souls's "spend this mana only" (24), one player named (21),
 moving cards a search found (21), and a power set (20: Tarmogoyf); an
 exile line not followed, the top stop at 77 games before suspend and
-activated abilities' cards costs ran, stops 15: an alternative cost
+activated abilities' cards costs ran, stops 19: an alternative cost
 exiling a card from hand (the Shoals, Force of Virtue, Reverent Mantra,
-Commandeer: 10) and Simian Spirit Guide's mana ability (5). Of the 55 games two faces stopped, one
+Commandeer: 14, four of them Blazing Shoal in Quicksilver's games) and Simian Spirit Guide's mana ability (5). Of the 55 games two faces stopped, one
 replays to the end and 32 stop at other cards; 15 stop at a
 transforming card's other text (Invasion of Ixalan's "With" in 4, Thing
 in the Ice's "remove an ice counter", Search for Azcanta's surveil, a
@@ -1001,9 +1006,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-13 82 of the 500 replay to
-the end and 45.68% of their lines are followed** (14,463 of 31,659), 2
-of them relying on a land the log never names (1 to the end), and 89
+Worked card by card from there, **on 2026-11-13 83 of the 500 replay to
+the end and 45.82% of their lines are followed** (14,506 of 31,659), 2
+of them relying on a land the log never names (1 to the end), and 90
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1072,7 +1077,8 @@ discard of a card a filter matches or cards exiled from a graveyard
 counters and the cast as the last goes (Rift Bolt, Search for Tomorrow,
 Ancestral Vision, Profane Tutor); an ability on the stack as a target,
 countered (Stifle); counters removed from its source as an activated
-ability's cost (Triskelion). And
+ability's cost (Triskelion); power-up and keyword counters
+(Quicksilver). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1093,11 +1099,15 @@ log never names tried only after the turn's other choices, and a
 suspended card's time counter lines and the cast its last trigger's
 "may" reads ahead, and the ability a target names by its source, a
 trigger's "Triggered ability from" or an activated one's source
-unbracketed, and the counter line before an activation as its cost. One divergence was the engine's own, found by the full
+unbracketed, the counter line before an activation as its cost, and a
+counters line naming two kinds ("puts a +1/+1 and a double strike
+counter on [Quicksilver, Brash Blur].") as one of each. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Goblin Cadets, Prismatic Omen, Quicksilver
-and Veteran Survivor (6 each); of the 9 games a counter line before an
+top of the worklist now: Goblin Cadets, Prismatic Omen and Veteran
+Survivor (6 each); of the 7 games Quicksilver stopped, one replays to
+the end, four stop at Blazing Shoal's exile from hand, one at Wayward
+Guide-Beast and one at Frostboil Snarl; of the 9 games a counter line before an
 activation stopped, Triskelion's replays to the end, Quest for Pure
 Flame's four stop at its own "With", and the rest at other cards'
 abilities (Shriekhorn's mill, Barbarian Ring's threshold, Wishclaw

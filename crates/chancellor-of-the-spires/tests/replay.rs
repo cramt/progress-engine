@@ -177,6 +177,7 @@ const INDEXED: &[&str] = &[
     "Phyrexian Dreadnought",
     "Stifle",
     "Triskelion",
+    "Quicksilver, Brash Blur",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1966,4 +1967,56 @@ fn triskelion_removes_the_counter_its_activation_line_pays() {
     assert_eq!(r.end, End::Finished, "{:?}", r.trace);
     let game = r.game.expect("set up");
     assert_eq!(game.player(BOB).life(), 19);
+}
+
+/// CR 702.193a, 122.1b: Quicksilver cast and powered up for {4} the turn
+/// it entered, after it is declared as an attacker, and "puts a +1/+1 and
+/// a double strike counter on [Quicksilver, Brash Blur]." is its ability
+/// resolving: double strike, 2/2, deals 4.
+#[test]
+fn quicksilver_powers_up_in_combat_and_strikes_twice() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 4: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 4: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 5: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Quicksilver, Brash Blur].
+        bob is being attacked by [Quicksilver, Brash Blur]
+        alice activates an ability of [Quicksilver, Brash Blur] (Put a +1/+1 counter and a double strike counter on Quicksilver.)
+        alice puts a +1/+1 and a double strike counter on [Quicksilver, Brash Blur].
+        Turn 5: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(game.player(BOB).life(), 16);
 }

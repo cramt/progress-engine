@@ -1694,6 +1694,10 @@ pub struct Game {
     /// The abilities limited to once each turn activated this turn, by
     /// their permanent and index (CR 602.5b).
     used: OrdSet<(ObjectId, u16)>,
+    /// The power-up abilities activated this game, each of its object (CR
+    /// 702.193a), which a permanent that enters again is a new one of
+    /// (CR 400.7).
+    powered_up: OrdSet<(ObjectId, u16)>,
     /// The counters each permanent that left had as it last existed, for
     /// an ability of its that counts them (CR 608.2h, 113.7a).
     last_known: OrdMap<ObjectId, LastKnown>,
@@ -1882,6 +1886,7 @@ impl Game {
             created: 0,
             discarded: 0,
             used: OrdSet::new(),
+            powered_up: OrdSet::new(),
             exile: Vector::new(),
             adventuring: OrdMap::new(),
             suspended: OrdMap::new(),
@@ -3786,6 +3791,7 @@ impl Game {
                     || counters_short
                     || def.cost.life > 0 && player.life < def.cost.life as i32
                     || def.limits.once_per_turn && self.used.contains(&(id, *k))
+                    || def.limits.power_up && self.powered_up.contains(&(id, *k))
                     || def.limits.opponent_lost_life && !opponent_lost
                     || def.limits.sorcery_speed
                         && !(p == self.active && self.step.is_main() && self.stack.is_empty())
@@ -4243,10 +4249,25 @@ impl Game {
                 else {
                     unreachable!("only an ability that runs is offered")
                 };
-                let cost = def.cost.clone();
+                let mut cost = def.cost.clone();
+                // CR 702.193a, 702.193b: power-up costs its permanent's mana cost
+                // less the turn it entered.
+                let entered = self.permanents[&a.source].since == self.turn;
+                if let (true, true, Some(Ok(Some(printed))), Some(mana)) = (
+                    def.limits.power_up,
+                    entered,
+                    self.known(card).map(|k| k.cost.as_ref()),
+                    cost.mana.as_ref(),
+                ) {
+                    cost.mana = Some(mana.reduced_by(printed));
+                }
                 let slots = def.program.targets.clone();
-                if def.limits.once_per_turn {
+                let limits = def.limits.clone();
+                if limits.once_per_turn {
                     self.used.insert((a.source, n));
+                }
+                if limits.power_up {
+                    self.powered_up.insert((a.source, n));
                 }
                 self.before_cast = Some(Box::new(self.clone()));
                 // CR 602.2a: on the stack first, then its targets chosen
@@ -7925,6 +7946,40 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     ))
                 }
             },
+            // CR 702.193a: "Power-up — [Cost]: [Effect]" is that ability,
+            // activated only once and costing less the turn its permanent
+            // entered.
+            i::Ability::KeywordOn {
+                keyword: i::Prefix::PowerUp,
+                ability,
+            } if matches!(&**ability, i::Ability::Activated { .. })
+                && m::mana_ability(ability).is_none() =>
+            {
+                let i::Ability::Activated {
+                    cost,
+                    effect,
+                    limits,
+                } = &**ability
+                else {
+                    unreachable!("matched above")
+                };
+                let def = lower::activated(bind, cost, effect, limits)
+                    .map(|mut def| {
+                        def.limits.power_up = true;
+                        def
+                    })
+                    .map_err(|node| {
+                        Unrunnable::new(
+                            node.clone(),
+                            format!("the game can't run its power-up ability: {node}"),
+                        )
+                    });
+                if let Err(r) = &def {
+                    runs.dormant
+                        .push(format!("an activated ability: {}", r.node));
+                }
+                runs.activated.insert(n, def);
+            }
             i::Ability::Keywords(ks) => {
                 for k in ks {
                     if k.name.eq_ignore_ascii_case("flash") {

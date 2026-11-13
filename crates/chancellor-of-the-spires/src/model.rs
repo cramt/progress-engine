@@ -508,7 +508,45 @@ pub enum Counter {
     MinusOne,
     /// Any other power and toughness counter, "-0/-1" (CR 122.1a).
     Pt(i32, i32),
+    /// A keyword counter, "a double strike counter": the object has that
+    /// keyword (CR 122.1b).
+    Keyword(Keyword),
     Named(String),
+}
+
+impl Counter {
+    /// A counter by the name its kind is printed with: "+1/+1", "-0/-1",
+    /// a keyword counter's keyword (CR 122.1b), or any other name.
+    pub fn named(kind: &str) -> Counter {
+        let pt = kind.split_once('/').and_then(|(a, b)| {
+            let n = |s: &str| s.trim_start_matches('+').parse::<i32>().ok();
+            Some((n(a)?, n(b)?))
+        });
+        match pt {
+            Some((1, 1)) => return Counter::PlusOne,
+            Some((-1, -1)) => return Counter::MinusOne,
+            Some((a, b)) => return Counter::Pt(a, b),
+            None => {}
+        }
+        // The keywords CR 122.1b lets a counter be that the layers name.
+        let keyword = match kind.to_lowercase().as_str() {
+            "flying" => Keyword::Flying,
+            "first strike" => Keyword::FirstStrike,
+            "double strike" => Keyword::DoubleStrike,
+            "deathtouch" => Keyword::Deathtouch,
+            "haste" => Keyword::Haste,
+            "hexproof" => Keyword::Hexproof,
+            "indestructible" => Keyword::Indestructible,
+            "lifelink" => Keyword::Lifelink,
+            "menace" => Keyword::Menace,
+            "reach" => Keyword::Reach,
+            "shadow" => Keyword::Shadow,
+            "trample" => Keyword::Trample,
+            "vigilance" => Keyword::Vigilance,
+            _ => return Counter::Named(kind.to_string()),
+        };
+        Counter::Keyword(keyword)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
