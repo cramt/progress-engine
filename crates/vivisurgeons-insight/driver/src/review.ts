@@ -1,13 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Finding, SnapDiff } from "./types.ts";
-
-export type ReviewInput = {
-  label: string;
-  kind: "new" | "changed";
-  path: string;
-  trees: number;
-};
+import type { Finding, ReviewInput, SnapDiff } from "./types.ts";
 
 function chunks<T>(xs: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -90,25 +83,4 @@ export function findingsMarkdown(
     ...(minor.length ? minor.map((f) => `- ${line(f)}`) : ["None."]),
     "",
   ].join("\n");
-}
-
-/** Runs `work` over `items` with at most `limit` in flight, keeping order. */
-export async function pool<T, R>(
-  items: T[],
-  limit: number,
-  work: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let next = 0;
-  const lanes = Array.from(
-    { length: Math.min(limit, items.length) },
-    async () => {
-      while (next < items.length) {
-        const i = next++;
-        out[i] = await work(items[i] as T);
-      }
-    },
-  );
-  await Promise.all(lanes);
-  return out;
 }

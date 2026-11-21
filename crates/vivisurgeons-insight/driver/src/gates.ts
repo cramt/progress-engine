@@ -1,4 +1,6 @@
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   batchCommitOnOrigin,
   branchName,
@@ -14,7 +16,44 @@ import type {
   GateFailure,
   GateReport,
   Measurement,
+  Milestone,
 } from "./types.ts";
+
+/** What the gates hold the writer to beyond the code: the human's files. */
+export type Guarded = {
+  decisionsPath: string;
+  /** decisions.md's sha256 when the batch started. */
+  decisionsSha: string;
+  milestones: Milestone[];
+};
+
+export const sha256 = (path: string): string =>
+  existsSync(path)
+    ? createHash("sha256").update(readFileSync(path)).digest("hex")
+    : "missing";
+
+/**
+ * The cards a golden file pins: `insight pin` writes one `## ` line per card.
+ * A count that moves means someone pinned, which is the human's step;
+ * blessing trees (UPDATE_GOLDEN=1) leaves it alone.
+ */
+export function pinnedCards(text: string | null): number | null {
+  if (text === null) return null;
+  return new Set(text.split("\n").filter((l) => l.startsWith("## "))).size;
+}
+
+async function goldenAt(
+  repo: string,
+  rev: string,
+  name: string,
+): Promise<string | null> {
+  const r = await run(
+    "git",
+    ["show", `${rev}:crates/vivisurgeons-insight/golden/${name}.txt`],
+    { cwd: repo },
+  );
+  return r.code === 0 ? r.stdout : null;
+}
 
 const COMMANDS: { name: string; args: string[] }[] = [
   { name: "cargo fmt --all --check", args: ["fmt", "--all", "--check"] },
@@ -35,6 +74,7 @@ const ATTRIBUTION =
 async function gitFailures(
   paths: Paths,
   baseline: Measurement,
+  guarded: Guarded,
 ): Promise<GateFailure[]> {
   const failures: GateFailure[] = [];
   const b = await gitBranch(paths.repo);
@@ -60,6 +100,27 @@ async function gitFailures(
       failures.push({
         gate: "commits",
         reason: `${c.sha.slice(0, 7)} carries AI attribution`,
+      });
+    }
+  }
+  if (sha256(guarded.decisionsPath) !== guarded.decisionsSha) {
+    failures.push({
+      gate: "git",
+      reason: `${guarded.decisionsPath} changed during the batch; it is the human's. Put it back as it was and report the decision in report.json instead`,
+    });
+  }
+  for (const m of guarded.milestones) {
+    const before = pinnedCards(
+      await goldenAt(paths.repo, baseline.head, m.name),
+    );
+    const file = join(paths.crate, "golden", `${m.name}.txt`);
+    const now = pinnedCards(
+      existsSync(file) ? readFileSync(file, "utf8") : null,
+    );
+    if (before !== now) {
+      failures.push({
+        gate: "git",
+        reason: `golden/${m.name}.txt went from ${before ?? "absent"} to ${now ?? "absent"} pinned cards; pinning is the human's step`,
       });
     }
   }
@@ -111,20 +172,16 @@ function ratchets(
 }
 
 /**
- * Every gate, in order: git hygiene, fmt/clippy/test, then the ratchets
- * against the baseline. `strictGit` is off only for a dry run, whose tree
- * holds whatever is being worked on.
+ * Every gate, in order: git hygiene and the human's files, fmt/clippy/test,
+ * then the ratchets against the baseline.
  */
 export async function runGates(
   paths: Paths,
   baseline: Measurement,
   snapshotPath: string,
-  strictGit: boolean,
+  guarded: Guarded,
 ): Promise<GateReport> {
-  const failures: GateFailure[] = [];
-  const g = await gitFailures(paths, baseline);
-  if (strictGit) failures.push(...g);
-  else for (const f of g) log("gate", `ignored in a dry run: ${describe(f)}`);
+  const failures: GateFailure[] = await gitFailures(paths, baseline, guarded);
   failures.push(...(await commandFailures(paths)));
   const [first, ...rest] = failures;
   if (first) return { kind: "fail", failures: [first, ...rest] };
@@ -175,7 +232,7 @@ export function describe(f: GateFailure): string {
   }
 }
 
-/** The gate output a fix-up writer is given. */
+/** The gate output, as `gate` prints it for the fix-up. */
 export function gateReport(failures: GateFailure[]): string {
   return failures
     .map((f) => {

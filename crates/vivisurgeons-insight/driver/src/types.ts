@@ -1,5 +1,5 @@
-// The driver's domain. Each union is closed: a state the loop cannot be in
-// has no spelling here.
+// The batch's domain. Each union is closed: a state a batch cannot be in has
+// no spelling here.
 
 import type { Unpushed } from "./git.ts";
 
@@ -66,45 +66,14 @@ export type Escalation = {
   question: string;
 };
 
-export type WriterOutput = {
+/** What the writer leaves in batches/<n>/report.json before `finish`. */
+export type Report = {
   summary: string;
   resolved: Resolution[];
   escalations: Escalation[];
-  handoff_updated: boolean;
 };
-
-export type MethodOutput = { method_notes: string; rationale: string };
 
 export type ReviewOutput = { findings: Finding[] };
-
-export type AgentRole = "writer" | "fixup" | "reviewer" | "method";
-
-/** The SDK result message, reduced to what metrics keep. */
-export type ResultSummary = {
-  subtype: string;
-  isError: boolean;
-  costUsd: number;
-  durationMs: number;
-  numTurns: number;
-  usage: Record<string, unknown>;
-  modelUsage: Record<string, unknown>;
-};
-
-export type AgentRun<T> =
-  | { kind: "completed"; output: T; result: ResultSummary }
-  /** A result arrived but carried no valid structured output. */
-  | { kind: "no-output"; reason: string; result: ResultSummary }
-  /** Stopped by the hard wall clock: the CLI never sent a result, so no cost. */
-  | { kind: "aborted"; reason: string }
-  | { kind: "crashed"; error: string };
-
-/** What metrics.jsonl keeps per agent call. */
-export type AgentRecord = {
-  role: AgentRole;
-  label: string;
-  run: AgentRun<unknown>["kind"];
-  result: ResultSummary | null;
-};
 
 export type CommandFailure = {
   gate: "command";
@@ -140,6 +109,13 @@ export type GateReport =
   | { kind: "pass"; after: Measurement; diff: SnapDiff }
   | { kind: "fail"; failures: NonEmpty<GateFailure> };
 
+export type ReviewInput = {
+  label: string;
+  kind: "new" | "changed";
+  path: string;
+  trees: number;
+};
+
 export type BatchOutcome =
   | {
       kind: "pushed";
@@ -147,6 +123,7 @@ export type BatchOutcome =
       commits: number;
       fixedUp: boolean;
       after: Measurement;
+      review: ReviewInput[];
     }
   | {
       kind: "failed";
@@ -155,8 +132,8 @@ export type BatchOutcome =
       failures: NonEmpty<GateFailure>;
     }
   /**
-   * Passed against its own baseline, but main moved under it and the rebase
-   * conflicted or failed the gates again; parked, main reset to origin/main.
+   * Passed against its own baseline, but the branch moved under it and the
+   * rebase conflicted or failed the gates again; parked, reset to origin.
    */
   | {
       kind: "unpushed";
@@ -165,55 +142,54 @@ export type BatchOutcome =
       cause: Unpushed<NonEmpty<GateFailure>>;
     }
   /** The writer finished without a commit; nothing to gate or review. */
-  | { kind: "empty" };
+  | { kind: "empty" }
+  /** Its thread died: found in flight past STALE_MS, commits parked. */
+  | { kind: "abandoned"; branch: string | null; commits: number }
+  /** Git refused to park or reset it; the batch stopped the driver. */
+  | { kind: "refused"; reason: string };
 
-export type StopReason =
-  | { kind: "max-batches"; batches: number }
-  | { kind: "max-cost"; spentUsd: number }
-  | { kind: "consecutive-failures"; count: number }
-  | { kind: "milestone-ready"; milestone: string }
-  | { kind: "all-pinned" }
-  | { kind: "unsafe-git"; reason: string }
-  | { kind: "driver-updated"; from: string; to: string };
+/** The gates' last run, so `finish` needn't run them again at the same HEAD. */
+export type GateRun =
+  | { head: string; kind: "pass"; baseline: Measurement; after: Measurement }
+  | { head: string; kind: "fail"; failures: NonEmpty<GateFailure> };
 
-/** A batch interrupted mid-way, so a rerun picks it up where it stopped. */
+/**
+ * The batch between `start` and `triage`. A trigger skips while it is set; a
+ * start that finds one older than STALE_MS takes its thread for dead.
+ */
 export type InFlight =
+  /** Preflight and baseline still running. */
+  | { step: "start"; batch: number; startedAt: string }
   | {
       step: "write";
       batch: number;
+      startedAt: string;
       baseline: Measurement;
-      agents: AgentRecord[];
+      /** decisions.md as the batch started; the gates hold it to that. */
+      decisionsSha: string;
+      failedGates: number;
+      lastGate: GateRun | null;
     }
+  /** Pushed, parked or empty: what is left is review, handoff and triage. */
   | {
-      step: "gate";
+      step: "finished";
       batch: number;
+      startedAt: string;
       baseline: Measurement;
-      agents: AgentRecord[];
-      writer: WriterOutput | null;
-      fixupTried: boolean;
-    }
-  | {
-      step: "review";
-      batch: number;
-      baseline: Measurement;
-      agents: AgentRecord[];
-      writer: WriterOutput | null;
-      outcome: Extract<BatchOutcome, { kind: "pushed" }>;
-    }
-  | {
-      step: "record";
-      batch: number;
-      baseline: Measurement;
-      agents: AgentRecord[];
-      writer: WriterOutput | null;
       outcome: BatchOutcome;
-      findings: Queued[];
+      report: Report | null;
     };
 
 export type State = {
   version: 1;
   nextBatch: number;
   consecutiveFailures: number;
+  /** No longer counted (agents run in T3 Code); kept for the metrics. */
   lifetimeCostUsd: number;
   inFlight: InFlight | null;
+  /**
+   * A stop only a human can clear. Triggers skip while it is set, `start`
+   * exits 3, and `resume` clears it.
+   */
+  stopped: { reason: string; at: string } | null;
 };

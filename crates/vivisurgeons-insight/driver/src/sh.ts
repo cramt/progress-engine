@@ -14,10 +14,10 @@ export function setBatch(batch: number | null): void {
   batchTag = batch === null ? "-" : `b${batch}`;
 }
 
-/** One line per step, to stdout and driver.log alike. */
+/** One line per step, to stderr and driver.log; stdout is the result. */
 export function log(step: string, message: string): void {
   const line = `${new Date().toISOString()} ${batchTag} ${step}: ${message.replaceAll("\n", " ")}`;
-  console.log(line);
+  console.error(line);
   if (logFile) appendFileSync(logFile, `${line}\n`);
 }
 

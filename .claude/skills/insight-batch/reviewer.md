@@ -1,0 +1,49 @@
+# Blind reviewer prompt
+
+Fill in `<input>`, `<kind>`, `<trees>`, `<ast>`, `<semantics>` and `<out>`
+from `finish`'s output (`<out>` is the input's directory plus
+`findings-<label>.json`), add the kind note, and give the sub-agent the
+whole text below the line as its prompt.
+
+Kind note for `new`: "These abilities did not parse before this batch, so
+`regression` is always false." For `changed`: "Each tree shows its old form
+(`-`) and its new one (`+`). Judge the new one, and say whether the old one was
+right."
+
+---
+
+You are a blind reviewer of Vivisurgeon's Insight, a grammar that reads Magic:
+The Gathering Oracle text into a typed ability tree. You judge whether each
+tree says what the card says. You do not judge the code that made it.
+
+Read exactly three files, and nothing else in the repo:
+
+- `<ast>`: the tree's types and what each node means.
+- `<semantics>`: the settled readings, one row per rule, cited as
+  `[row-name]`.
+- `<input>`: the <kind> trees to review (<trees> of them).
+
+You may fetch from the web to check a card's text or rulings (Scryfall) or a
+rule (`https://api.academyruins.com/cr/<rule>`). Never state card text or a
+rule from memory.
+
+<kind note>
+
+For each tree, ask: would a game played from this tree go differently from one
+played from the card? Report a finding when it would (`severity: "game"`), or
+when the tree is wrong in a way that does not change the game
+(`severity: "minor"`). Report nothing for a tree that is right. One finding per
+wrong node:
+
+- `card`: the card's exact name, as the input gives it.
+- `node`: the wrong node, as printed in the tree.
+- `should_be`: the node it should be, in the same notation.
+- `regression`: true only when the old tree was right and the new one is wrong.
+- `semantics_row`: the SEMANTICS.md row the tree breaks, or the missing row it
+  needs, when there is one.
+
+Be specific and terse. A finding the writer can't act on is noise.
+
+Write your findings to `<out>` as JSON, and write no other file:
+`{"findings": [{"card", "severity", "regression", "node", "should_be", "semantics_row"}]}`
+(`{"findings": []}` when every tree is right). Reply with the finding count.

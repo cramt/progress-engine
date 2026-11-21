@@ -4,8 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { HookCallback } from "@anthropic-ai/claude-agent-sdk";
-import { PIN, PUSH, touches, writerGuard } from "./agents.ts";
+import { pinnedCards } from "./gates.ts";
 import {
   batchCommitOnOrigin,
   preflight,
@@ -21,6 +20,7 @@ import {
 } from "./parse.ts";
 import { triage } from "./queue.ts";
 import { sample } from "./review.ts";
+import { parseReport, parseReview } from "./schemas.ts";
 import type { Queued } from "./types.ts";
 
 test("coverage rows, as insight prints them", () => {
@@ -82,28 +82,6 @@ test("snapshot diff: lost, new and changed by card and text", () => {
   ]);
 });
 
-test("the writer guard denies push and pin, not commits that mention them", () => {
-  for (const c of [
-    "git push",
-    "git push origin main",
-    "git -C /pool/dev/progress-engine push",
-    "cargo fmt --all && git push --force",
-  ]) {
-    assert.ok(PUSH.test(c), c);
-  }
-  for (const c of [
-    'git commit -m "insight: a push effect parses"',
-    "git log --oneline",
-  ]) {
-    assert.ok(!PUSH.test(c), c);
-  }
-  assert.ok(PIN.test("./target/release/insight pin my-decks"));
-  assert.ok(
-    PIN.test("cargo run --release -p vivisurgeons-insight -- pin 2000"),
-  );
-  assert.ok(!PIN.test('git commit -m "insight: pin counters on it"'));
-});
-
 test("sampling is even and deterministic", () => {
   const xs = Array.from({ length: 10 }, (_, i) => i);
   assert.deepEqual(sample(xs, 5), [0, 2, 4, 6, 8]);
@@ -145,64 +123,49 @@ test("triage: urgent to the queue head, minor to the backlog, no duplicates", ()
   );
 });
 
-// ---------- decisions.md is read-only to writers ----------
+// ---------- what the thread leaves in files ----------
 
-const DECISIONS = "/tmp/insight/driver/decisions.md";
-
-test("a writer may read decisions.md but nothing may change it", () => {
-  assert.ok(touches("Edit", { file_path: DECISIONS }, DECISIONS));
-  assert.ok(touches("Write", { file_path: DECISIONS }, DECISIONS));
-  assert.ok(touches("MultiEdit", { file_path: DECISIONS }, DECISIONS));
+test("report.json: resolutions and escalations, or a reason it is refused", () => {
+  const r = parseReport({
+    summary: "abilities +12",
+    resolved: [{ card: "Sol Ring", node: "Add", verdict: "fixed" }],
+    escalations: [{ kind: "exclusion", cards: ["Ante Up"], question: "ante?" }],
+  });
+  assert.ok(r.ok);
+  assert.equal(r.value.resolved[0]?.verdict, "fixed");
+  assert.ok(!parseReport({ summary: "x", resolved: [] }).ok);
   assert.ok(
-    touches(
-      "Edit",
-      { file_path: "/tmp/insight/driver/../driver/decisions.md" },
-      DECISIONS,
-    ),
+    !parseReport({
+      summary: "x",
+      resolved: [{ card: "A", node: "B", verdict: "maybe" }],
+      escalations: [],
+    }).ok,
   );
-  for (const c of [
-    `echo done >> ${DECISIONS}`,
-    "cd /tmp/insight/driver && sed -i 's/x/y/' decisions.md",
-    `cp /tmp/x ${DECISIONS}`,
-  ]) {
-    assert.ok(touches("Bash", { command: c }, DECISIONS), c);
-  }
-  assert.ok(!touches("Read", { file_path: DECISIONS }, DECISIONS));
-  assert.ok(
-    !touches(
-      "Edit",
-      { file_path: "/tmp/insight/driver/handoff.md" },
-      DECISIONS,
-    ),
-  );
-  assert.ok(!touches("Bash", { command: "cargo test" }, DECISIONS));
 });
 
-test("the writer guard denies writing decisions.md before anything else", async () => {
-  const guard = writerGuard({
-    repo: "/nonexistent",
-    baseline: "HEAD",
-    commitLimit: 15,
-    softDeadline: Date.now() + 60_000,
-    handoffPath: "/tmp/insight/driver/handoff.md",
-    decisionsPath: DECISIONS,
-  });
-  const call = (tool_name: string, tool_input: unknown) =>
-    guard(
+test("findings files: the reviewer shape, nothing looser", () => {
+  const ok = parseReview({
+    findings: [
       {
-        hook_event_name: "PreToolUse",
-        tool_name,
-        tool_input,
-      } as unknown as Parameters<HookCallback>[0],
-      undefined,
-      { signal: new AbortController().signal },
-    );
-  const out = await call("Write", { file_path: DECISIONS, content: "" });
-  assert.equal(
-    (out as { hookSpecificOutput?: { permissionDecision?: string } })
-      .hookSpecificOutput?.permissionDecision,
-    "deny",
-  );
+        card: "A",
+        severity: "game",
+        regression: false,
+        node: "N",
+        should_be: "M",
+        semantics_row: "",
+      },
+    ],
+  });
+  assert.ok(ok.ok);
+  assert.equal(ok.value.findings[0]?.semantics_row, undefined);
+  assert.ok(!parseReview({ findings: [{ card: "A", severity: "major" }] }).ok);
+  assert.ok(!parseReview([]).ok);
+});
+
+test("pinned cards count each card once, and absent is not zero", () => {
+  assert.equal(pinnedCards("## A\nx\n## B\ny\n## A\n"), 2);
+  assert.equal(pinnedCards(""), 0);
+  assert.equal(pinnedCards(null), null);
 });
 
 // ---------- push races against a human committing to main ----------

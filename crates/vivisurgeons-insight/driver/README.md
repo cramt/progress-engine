@@ -1,131 +1,128 @@
 # insight driver
 
-A deterministic loop that improves Vivisurgeon's Insight with Claude agents
-run through the Claude Agent SDK. It replaces the LLM supervisor of
-`/tmp/insight/supervisor.md`: every decision that a script can make
-(measuring, gating, pushing, resetting, triage, stopping) is made here in code.
-The agents only write grammar, review trees and revise the method notes.
-
-## Run it
-
-From the repo root, inside the flake devshell (node and pnpm come from it):
+Improves Vivisurgeon's Insight one batch at a time. A batch is one Claude Code
+thread, run by a T3 Code scheduled task, following the project skill
+`.claude/skills/insight-batch/`. The thread is the writer; it also dispatches
+the blind reviewers. Everything a script can decide (measuring, gating,
+pushing or parking, triage, metrics, stopping) is decided here, in
+subcommands the thread calls in order:
 
 ```sh
-nix develop --command pnpm install
-nix develop --command node crates/vivisurgeons-insight/driver/src/main.ts --dry-run
-nix develop --command node crates/vivisurgeons-insight/driver/src/main.ts --max-batches 3 --max-cost-usd 50
+nix develop --command node crates/vivisurgeons-insight/driver/src/main.ts <subcommand> --state-dir <dir>
 ```
 
-Node runs the TypeScript directly (type stripping), so there is no build step.
-`--dry-run` takes the baseline, renders the writer prompt, runs every gate and
-builds the review inputs, then stops. It calls no agent, pushes and resets
-nothing, and leaves `state.json` alone. Add
-`--compare-snapshot <old snapshot>` to build review inputs from a real diff.
+Node runs the TypeScript directly (type stripping), so there is no build step
+and no runtime dependency.
 
-A real run refuses to start unless the branch (`--branch`, default `main`) is
-checked out, clean, and equal to its origin. On any branch but `main` it then
-merges `origin/main` in and pushes that before the baseline, so batches build
-on whatever the human has merged or pushed to main, and merging the branch
-back into main stays a fast-forward until main moves on its own. A merge
-conflict stops the run. Merge the branch with a merge or a fast-forward, not a
-squash: a squash leaves the branch's commits off main, and the next merge
-conflicts with them.
+## How a batch runs
 
-## One batch
+A T3 Code webhook task, whose project root is the driver's worktree
+`/pool/dev/progress-engine-insight` (branch `insight`), opens a Claude Code
+thread (Opus, full access) with the prompt:
 
-1. **Baseline.** A release build, then `insight coverage`, `roundtrip`,
-   `lint --counts` and `snapshot`, recorded in `batches/<n>/baseline.json`.
-   The current milestone is the first one in `milestones.json` not both at
-   100% and pinned, where pinned means `golden/<name>.txt` holds as many cards
-   as the milestone has. A list that grows (new decks in `my-decks`) reopens
-   its milestone. At 100% it is escalated for a human to review and pin (or
-   re-pin), and the loop stops.
-2. **Writer.** One `query()` with `prompts/writer.md`, filled in with the
-   handoff, the supervisor's `decisions.md`, the queued findings, the
-   milestone's `insight failing` list and `method-notes.md`. A `PreToolUse`
-   hook denies `git push`, `insight pin`, any edit, write or shell command that
-   touches `decisions.md` and, once the wall clock (`--writer-hours`) or the
-   commit cap (`--commit-cap`) is reached, every tool except reading and
-   editing the handoff. The AbortController stops the call 20 minutes after
-   that. Writers report a decision they carried out in their summary, not in
-   the file.
-3. **Gates.** Git hygiene (on main, clean, none of the batch's commits
-   already on `origin/main`, `insight: ` subjects, no AI attribution);
-   `origin/main` moving past the baseline by itself is a human's push, left
-   to the push's rebase below. Then `cargo fmt --all --check`,
-   `cargo clippy --all-targets -- -D warnings`,
-   `cargo test -p vivisurgeons-insight`, which holds every tree in `golden/`
-   and `snapshot/`, so a batch that moves trees must commit them blessed
-   (`UPDATE_GOLDEN=1`, as the writer prompt says), then the ratchets against the
-   baseline: round-trip failures, abilities parsed, lint per kind, and no lost
-   tree in the snapshot diff. If the Scryfall bulk changed mid-batch, the
-   baseline is measured again in a worktree at the baseline commit. On a pass
-   the commits are pushed. On a fail, one fix-up `query()` gets the gate
-   output (and `decisions.md`). If the gates still fail, the commits are parked on
-   `insight/failed-<n>` and main is reset to the baseline. The reset runs only
-   if the baseline is an ancestor of HEAD and `origin/main` still equals it.
+> Run one insight batch with the insight-batch skill, state dir /pool/dev/progress-engine-insight-state
 
-   A push rejected because someone else pushed to main first (the human
-   commits by hand) fetches and runs `git rebase origin/main`. A clean rebase
-   is gated again: a fresh baseline is measured at `origin/main` in a
-   worktree, and the round trip, coverage and lint may not regress against
-   it, nor may any tree it parses be lost. Then the push is retried, up to
-   three rebases. A conflicted rebase (aborted), a failed re-gate, a fourth
-   rejection or a git error parks the commits on `insight/unpushed-<n>`,
-   resets main to `origin/main`, writes an escalation and records the batch as
-   `unpushed`, a failed batch. None of it stops the loop. After a rebase, the
-   review and the metrics compare against the `origin/main` baseline, so the
-   human's commits are not counted as the batch's.
-4. **Review.** Every new tree and an even sample of up to 300 changed trees,
-   with their Oracle text, in files of about 90. Reviewers run three at a
-   time. A hook lets each one read only `src/ast.rs`, `SEMANTICS.md` and its
-   own input. Each reviewer returns structured findings.
-5. **Triage.** Regressions and game-changing findings go to the head of
-   `queue.jsonl`, minor ones to `backlog.jsonl`, deduplicated by card and node.
-   Findings the writer of a pushed batch reports as resolved leave the queue.
-6. **Metrics.** One line in `metrics.jsonl`.
-7. **Method review**, every `--method-every` batches: one `query()` reads the
-   metrics and the latest findings and returns the new `method-notes.md`. The
-   driver writes that file; the agent has no write tools.
+The worktree is made once, by hand:
 
-Stops: `--max-batches` and `--max-cost-usd` for this run, two failed or empty
-batches in a row (failed, unpushed or empty; rerun with `--reset-failures` after looking), a milestone
-ready to pin, or a git state the driver won't reset. A stop that needs a human
-(the failures, a milestone to pin, every milestone pinned, git) exits 3, so a
-scheduler can tell it from a run that just used up its batches or budget.
-Taking in main before a batch can change the driver itself, which node loaded
-before the merge; then it stops before any work and exits 75, and the
-scheduler starts it again at once, on the new code.
+```sh
+git -C /pool/dev/progress-engine worktree add -B insight /pool/dev/progress-engine-insight origin/insight
+```
 
-## State (`--state-dir`, default `/tmp/insight/driver/`)
+An external quota gate fires the webhook every 30 minutes while the Claude
+pool has surplus, and skips while `state.json` has `inFlight` set (unless its
+`startedAt` is over 6 hours old) or `stopped` set. The contract it relies on:
+
+- `start` sets `inFlight` (with `startedAt`) before anything slow.
+- `triage`, the batch's last command, clears it. So does every exit 3 after
+  `start` set it.
+- A stop only a human can clear sets `stopped: {reason, at}` and writes the
+  reason to `escalations.md`. Every `start` then exits 3 until the human runs
+  `resume`.
+
+## Subcommands
+
+| Subcommand | Does | Exit |
+|---|---|---|
+| `start` | Preflight: on `--branch` (default `insight`), clean, equal to origin; merges `origin/main` in and pushes that, so batches build on what the human merged to main. A conflict stops. Then a release build and the baseline (`insight coverage`, `roundtrip`, `lint --counts`, `snapshot`) in `batches/<n>/`, and prints the writer's brief (`brief.md` rendered with the decisions, method notes, queue, the milestone's failing list and the handoff; also saved as `batches/<n>/brief.md`). | 0 brief printed; 3 stop |
+| `start --dry-run` | Baseline and brief into `<state>/dry-run/`. No git changes; `state.json` untouched. | 0 |
+| `gate` | The gates against the batch's baseline; prints the report and where the batch stands against its commit cap and hours. Saves the run, so `finish` needn't repeat it at the same HEAD. | 0 pass; 1 fail |
+| `finish` | Reads `batches/<n>/report.json` (summary, resolved findings, escalations). No commits: empty. Gates passed at HEAD: pushes, rebasing and re-gating if origin moved, then builds the review inputs and prints their paths. Otherwise parks the commits on `insight/failed-<n>` and resets. Says when the method review is due. | 0; 2 bad report.json; 3 git stop |
+| `triage <findings-*.json ...>` | Validates each reviewer's findings, updates the queue and backlog, appends the `metrics.jsonl` line, bumps `state.json` and clears `inFlight`. | 0; 2 bad file |
+| `resume` | Clears `stopped` and the consecutive-failure count. The human's step. | 0 |
+
+A subcommand that finds the batch at the wrong step exits 2; anything thrown
+exits 70.
+
+Stops (exit 3, `stopped` set): two failed, unpushed, empty or abandoned
+batches in a row; a milestone at 100% waiting to be pinned; every milestone
+pinned; a preflight git refusal; git refusing to park or reset a batch. Also
+exit 3 without touching state: `stopped` already set, or a batch in flight
+younger than 6 hours (another thread has it).
+
+A batch found in flight past 6 hours lost its thread. The next `start`
+records it: at the write step its commits are parked on
+`insight/abandoned-<n>` and it counts as a failure; past `finish` it is
+recorded without findings.
+
+## The gates
+
+Git: on the branch, clean, none of the batch's commits already on origin,
+`insight: ` subjects, no AI attribution, `decisions.md` byte for byte as the
+batch started, and no milestone's golden file pinning a different number of
+cards (`insight pin` is the human's step; blessing trees leaves the count
+alone). Then `cargo fmt --all --check`, `cargo clippy --all-targets -- -D
+warnings`, `cargo test -p vivisurgeons-insight` (which holds every tree in
+`golden/` and `snapshot/`), and the ratchets against the baseline: round-trip
+failures, abilities parsed, lint per kind, and no lost tree in the snapshot
+diff. If the Scryfall bulk changed mid-batch, the baseline is measured again
+in a worktree at the baseline commit.
+
+A push rejected because the branch moved fetches and rebases. A clean rebase
+is gated again against a fresh baseline measured at origin in a worktree,
+then pushed, up to three rebases. A conflict, a failed re-gate, a fourth
+rejection or a git error parks the commits on `insight/unpushed-<n>`, resets
+to origin and escalates. After a rebase, review and metrics compare against
+origin's baseline, so the human's commits are not counted as the batch's.
+
+The current milestone is the first in `milestones.json` not both at 100% and
+pinned, where pinned means `golden/<name>.txt` holds as many cards as the
+milestone has. A list that grows reopens its milestone.
+
+## Review and triage
+
+Review inputs are every new tree and an even sample of up to 300 changed
+trees, with their Oracle text, in files of about 90. The skill gives each to
+a sub-agent, three at a time, told to read only `src/ast.rs`, `SEMANTICS.md`
+and its input, and to write `findings-<label>.json`. Triage sends regressions
+and game-changing findings to the head of `queue.jsonl`, minor ones to
+`backlog.jsonl`, deduplicated by card and node; findings the writer of a
+pushed batch reports as resolved leave the queue first. Every 3 batches the
+skill runs a method review sub-agent that rewrites `method-notes.md`.
+
+## State (`--state-dir`)
 
 | File | What |
 |---|---|
-| `state.json` | Next batch, consecutive failures, lifetime cost, and the batch in flight with its step. A rerun resumes from it. |
-| `driver.log` | One line per step, the same lines as stdout. |
-| `handoff.md` | Copied from `--handoff-source` on first run. The writers keep it up to date. |
-| `decisions.md` | The supervisor's decisions, part of every writer and fix-up prompt. Only the human edits it; the writer hook denies any change. |
-| `method-notes.md` | Written by the method review; part of every writer prompt. |
+| `state.json` | `nextBatch`, `consecutiveFailures`, `lifetimeCostUsd` (frozen, see below), `inFlight` (the batch's step, `startedAt`, baseline and last gate run) and `stopped`. |
+| `driver.log` | Every subcommand's log lines, the same ones it prints to stderr. |
+| `handoff.md` | The writer's notes to the next one; the thread updates it every batch. |
+| `decisions.md` | The supervisor's decisions, in every brief. Only the human edits it. |
+| `method-notes.md` | Written by the method review; in every brief. |
 | `queue.jsonl`, `backlog.jsonl` | Findings waiting for a writer. |
-| `escalations.md` | Decisions for the human: card exclusions, milestones ready to pin, unpushed batches, git refusals. |
-| `metrics.jsonl` | One line per batch (`outcome`: `pushed`, `failed`, `unpushed`, `empty`, or `pushed-manually` for one a human pushed after a crash), and one per method review. |
-| `batches/<n>/` | Baseline and after snapshots, prompts, gate output, agent transcripts (`*.jsonl`), and `review/` with the inputs and `findings-*.md`. |
+| `escalations.md` | Decisions for the human: card exclusions, milestones to pin, unpushed or abandoned batches, git refusals, stops. |
+| `metrics.jsonl` | One line per batch: `batch`, `outcome` (`pushed`, `failed`, `unpushed`, `empty`, `abandoned`, `refused`), `startedAt`, `endedAt`, `commits`, `overall`, `milestone`, round-trip, lint, findings, queue, `costUsd`. |
+| `batches/<n>/` | Baseline and after snapshots, `brief.md`, `gates-<sha>.md`, `report.json`, and `review/` with the inputs and findings. |
 
-## Flags
+## What the loop driver did that this one doesn't
 
-`--writer-hours 3`, `--commit-cap 15`, `--fixup-minutes 45`,
-`--method-every 3`, `--review-chunk 90`, `--review-changed-cap 300`,
-`--review-parallel 3`, `--failing-shown 120`, `--model`, `--review-model`,
-`--claude-path` (defaults to the CLI binary bundled with the SDK),
-`--handoff-source`, `--branch`.
-
-## Agent settings
-
-Writers load the repo's project settings (CLAUDE.md) and run with
-`bypassPermissions`, because nobody is there to answer a prompt. Reviewers and
-the method review load no settings and run with `dontAsk` and read-only tools.
-Every call removes the sub-agent tools (`Agent`, `Task`, `Workflow`), sets
-`attribution: false`, and caps `maxBudgetUsd` at what is left of
-`--max-cost-usd`. A call that hits the hard wall clock returns no result
-message, so its cost is not counted; the soft limit in the hook exists so that
-calls normally end before that.
+- **Cost.** A thread can't read its own spend, so `costUsd` is `null` from
+  this driver on and `lifetimeCostUsd` stays where the loop driver left it.
+  There is no per-batch cost cap either; the quota gate is what bounds spend.
+- **Hooks.** Pushing, pinning and editing `decisions.md` were denied as the
+  writer tried; now they are rules in the skill, and the gates catch each
+  after the fact. The reviewers' read-only-three-files rule is the prompt's
+  alone. Past the commit cap or the hours nothing stops the writer;
+  `gate` prints both.
+- **Restarts.** Each subcommand is a fresh process, so a `start` that takes
+  in a main changing the driver needs no restart: later subcommands run the
+  new code, and `start` tells the thread to re-read the skill.
