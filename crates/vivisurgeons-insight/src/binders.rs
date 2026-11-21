@@ -307,6 +307,7 @@ fn run(lines: &mut [crate::Line], type_line: &str, said: bool) {
                 .collect(),
             lifted: BTreeMap::new(),
             performers: Vec::new(),
+            digs: Vec::new(),
         };
         a.walk(&mut lift);
         let lifted = lift.lifted;
@@ -340,6 +341,7 @@ fn run(lines: &mut [crate::Line], type_line: &str, said: bool) {
             skip: false,
             sites: &mut sites,
         });
+        a.walk(&mut IntoLoops);
         let mut scope = Scope::default();
         a.walk(&mut scope);
         ordinals[l] = scope.ordinal;
@@ -411,6 +413,8 @@ struct Lift<'a> {
     /// For each effect the walk is in, the players a `Performed` over
     /// each of them names.
     performers: Vec<Option<Player>>,
+    /// For each effect the walk is in, whether it is each player's dig.
+    digs: Vec<bool>,
 }
 
 /// The players a `Performed` over each of them names.
@@ -421,6 +425,33 @@ fn performer(e: &Effect) -> Option<Player> {
             ..
         } => Some(by.clone()),
         _ => None,
+    }
+}
+
+/// "Each opponent exiles cards from the top of their library until they
+/// exile an instant or sorcery card" (Wand of Wonder): each player's own
+/// dig, so as many found cards as players ([n-from-each]).
+fn digs_each(e: &Effect) -> bool {
+    matches!(
+        e,
+        Effect::UntilFound {
+            who: Player::Each | Player::EachOpponent,
+            ..
+        }
+    )
+}
+
+/// One card found in each library, bound outside the dig.
+fn dig_each(o: &mut Objects) {
+    if o.quant == Quant::One {
+        o.quant = Quant::NFromEach(Amount::N(1));
+    }
+}
+
+/// `dig_each` undone, where the dig says it.
+fn undig_each(o: &mut Objects) {
+    if o.quant == Quant::NFromEach(Amount::N(1)) {
+        o.quant = Quant::One;
     }
 }
 
@@ -478,17 +509,115 @@ impl Visitor for Lift<'_> {
         if let [.., Some(each), _] = &self.performers[..] {
             distribute(&mut lifted, each);
         }
+        if self.digs.last() == Some(&true) {
+            dig_each(&mut lifted);
+        }
         mark(&mut lifted, id);
         self.lifted.insert(id, lifted);
         false
     }
     fn effect(&mut self, e: &mut Effect) {
         self.performers.push(performer(e));
+        self.digs.push(digs_each(e));
     }
     fn effect_done(&mut self, _: &mut Effect) {
         self.performers.pop();
+        self.digs.pop();
     }
     fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+}
+
+/// The temporary ids a `bind` list's entries are marked with.
+fn bind_ids(bind: &[Objects]) -> BTreeSet<usize> {
+    bind.iter()
+        .filter_map(|o| {
+            o.filter.posts.iter().find_map(|p| match p {
+                Post::Named(PrintedName(s)) if s.starts_with(MARK) => s[MARK.len()..].parse().ok(),
+                _ => None,
+            })
+        })
+        .collect()
+}
+
+/// Whether `x` says a binder of `ids` (temporary ids, before `Scope`).
+fn says<T: Walk + Clone>(x: &T, ids: &BTreeSet<usize>, first_only: bool) -> bool {
+    struct Says<'a>(&'a BTreeSet<usize>, bool, bool);
+    impl Visitor for Says<'_> {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            let id = |i: &u8| self.0.contains(&usize::from(*i));
+            self.2 |= match &o.quant {
+                Quant::Introduced(i) => id(i),
+                Quant::Bound(i) | Quant::Rest { of: i } if !self.1 => id(i),
+                Quant::Bounds(ps) if !self.1 => {
+                    ps.iter().any(|p| matches!(p, Pointer::Bound(i) if id(i)))
+                }
+                _ => false,
+            };
+            true
+        }
+        fn ability(&mut self, _: &mut Ability) -> bool {
+            true
+        }
+    }
+    let mut s = Says(ids, first_only, false);
+    x.clone().walk(&mut s);
+    s.2
+}
+
+/// "For each of them, reveal cards … until you reveal a nonland card, ~
+/// deals damage equal to that card's mana value …" (Kaboom!): what each
+/// pass of a loop finds is bound in the pass, so every pass has its own.
+/// A `With` whose `then` starts with the loop, whose binders the loop's
+/// first effect says first and nothing outside the loop's body says,
+/// goes inside the body.
+fn into_loops(es: &mut Vec<Effect>) {
+    let Some(Effect::With { then, .. }) = es.last_mut() else {
+        return;
+    };
+    into_loops(then);
+    let Some(Effect::With { bind, then }) = es.last() else {
+        unreachable!("matched above");
+    };
+    let ids = bind_ids(bind);
+    let movable = ids.len() == bind.len()
+        && matches!(then.first(), Some(Effect::ForEach { each, then: body, .. })
+            if !says(each, &ids, false)
+                && body.first().is_some_and(|f| says(f, &ids, true))
+                && then[1..].iter().all(|e| !says(e, &ids, false)));
+    if !movable {
+        return;
+    }
+    let Some(Effect::With { bind, mut then }) = es.pop() else {
+        unreachable!("matched above");
+    };
+    let Effect::ForEach {
+        order,
+        each,
+        then: body,
+    } = then.remove(0)
+    else {
+        unreachable!("checked above");
+    };
+    es.push(Effect::ForEach {
+        order,
+        each,
+        then: vec![Effect::With { bind, then: body }],
+    });
+    es.extend(then);
+}
+/// Runs `into_loops` on every ability's own list of effects.
+struct IntoLoops;
+
+impl Visitor for IntoLoops {
+    fn enter(&mut self, _: &mut Objects) -> bool {
+        true
+    }
+    fn ability(&mut self, a: &mut Ability) -> bool {
+        if let Some(es) = effects_of(a) {
+            into_loops(es);
+        }
         true
     }
 }
@@ -901,6 +1030,7 @@ pub fn inline(a: &Ability) -> Ability {
         decl: 0,
         subst,
         performers: Vec::new(),
+        digs: Vec::new(),
     });
     a.walk(&mut Unwrap);
     a
@@ -929,6 +1059,7 @@ struct Subst {
     decl: usize,
     subst: BTreeMap<usize, Objects>,
     performers: Vec<Option<Player>>,
+    digs: Vec<bool>,
 }
 
 impl Visitor for Subst {
@@ -940,6 +1071,9 @@ impl Visitor for Subst {
             if let [.., Some(each), _] = &self.performers[..] {
                 undistribute(&mut w, each);
             }
+            if self.digs.last() == Some(&true) {
+                undig_each(&mut w);
+            }
             *o = w;
             return false;
         }
@@ -950,9 +1084,11 @@ impl Visitor for Subst {
     }
     fn effect(&mut self, e: &mut Effect) {
         self.performers.push(performer(e));
+        self.digs.push(digs_each(e));
     }
     fn effect_done(&mut self, _: &mut Effect) {
         self.performers.pop();
+        self.digs.pop();
     }
 }
 
@@ -970,6 +1106,11 @@ fn splice(es: &mut Vec<Effect>) {
 impl Visitor for Unwrap {
     fn enter(&mut self, _: &mut Objects) -> bool {
         true
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        if let Effect::ForEach { then, .. } = e {
+            splice(then);
+        }
     }
     fn ability(&mut self, a: &mut Ability) -> bool {
         while let Ability::Let { ability, .. } = a {

@@ -367,7 +367,7 @@ cost: {1}{U}
 > Flying
 > Whenever you investigate for the first time each turn, investigate an additional time.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "each" after: whenever you investigate for the first time
+= Triggered { trigger: When(FirstTimeEachTurn(Performs { who: You, action: "investigate" })), effect: [Action { by: None, name: "investigate", n: None }], limits: [] }
 
 ## Erebos's Emissary
 face: Erebos's Emissary

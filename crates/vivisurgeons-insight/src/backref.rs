@@ -127,10 +127,13 @@ fn targeted(o: &Objects) -> bool {
 }
 
 fn not_object(f: &Filter) -> bool {
+    // "any number of target players or planeswalkers" (Kaboom!): objects
+    // too, which "for each of them" goes over.
+    let or_object = f.or.as_ref().is_some_and(|o| !not_object(o));
     matches!(
         f.kind,
         Some(Noun::Player | Noun::Opponent | Noun::Counter(_))
-    )
+    ) && !or_object
 }
 
 /// The verb of the objects an effect makes that no `Objects` names.
@@ -251,6 +254,8 @@ struct Ev {
     each_of_loop: bool,
     /// It is the source of a `Damage`, the subject of "deals".
     subject: bool,
+    /// It is the object of a `ControllerOf`: "its controller".
+    controller_of: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -312,6 +317,8 @@ struct Collect {
     next_root: usize,
     /// The `Damage` frame whose source is the next object entered.
     subject_of: Option<usize>,
+    /// The next object entered is a `ControllerOf`'s.
+    controller_next: bool,
 }
 
 const EXISTENTIAL: [&str; 18] = [
@@ -357,6 +364,7 @@ impl Collect {
             roots: Vec::new(),
             next_root: 0,
             subject_of: None,
+            controller_next: false,
         }
     }
 
@@ -467,6 +475,7 @@ impl Collect {
             top_effect,
             each_of_loop,
             subject: false,
+            controller_of: false,
         });
         id
     }
@@ -514,6 +523,7 @@ impl Visitor for Collect {
         if let Some(d) = self.subject_of.take() {
             self.evs[id].subject = d == self.here();
         }
+        self.evs[id].controller_of = std::mem::take(&mut self.controller_next);
         if matches!(role, Role::Ref(_) | Role::SelfMention | Role::OutOfScope) {
             let parent = self.here();
             self.frames[parent].items.push(Item::Ev(id));
@@ -677,6 +687,9 @@ impl Visitor for Collect {
     }
     fn cost_done(&mut self, _c: &mut Cost) {
         self.pop_frame();
+    }
+    fn player(&mut self, p: &mut Player) {
+        self.controller_next = matches!(p, Player::ControllerOf(_));
     }
 }
 
@@ -885,6 +898,71 @@ fn compat(r: &Objects, e: &Ev) -> bool {
         return false;
     }
     true
+}
+
+/// "That permanent or player", "that creature": a reference whose words
+/// name what is on the battlefield (or a player), not a card.
+fn names_permanent(r: &Objects) -> bool {
+    const PERMANENT_TYPES: [&str; 6] = [
+        "artifact",
+        "battle",
+        "creature",
+        "enchantment",
+        "land",
+        "planeswalker",
+    ];
+    let rf = &r.filter;
+    if marked_how(rf).is_some() {
+        return false;
+    }
+    match rf.kind {
+        Some(Noun::Permanent) => true,
+        None => {
+            let (t, _) = type_words(rf);
+            !t.is_empty() && t.iter().all(|w| PERMANENT_TYPES.contains(&w.as_str()))
+        }
+        _ => false,
+    }
+}
+
+/// Whether a reference said with `r` takes up what an earlier reference
+/// said with `prev` settled on. "Put the nonland card into your hand"
+/// after "that permanent or player" (Explosive Revelation) and "from among
+/// them" after "that creature" (Conjurer's Mantle) do not: a card is not
+/// what names a permanent, and a pool is never one object said again.
+fn chain_agrees(k: Kind, r: &Objects, prev: &Objects) -> bool {
+    if matches!(k, Kind::Text(Hint::Pool | Hint::Rest)) {
+        return false;
+    }
+    let card = |o: &Objects| o.filter.kind == Some(Noun::Card);
+    !(card(r) && names_permanent(prev) || card(prev) && names_permanent(r))
+}
+
+/// A card an effect found, revealed, drew, exiled or discarded, or one
+/// said as a card: in a library, hand, graveyard or exile, unless the
+/// effect put it onto the battlefield.
+fn card_off_battlefield(x: &Ev) -> bool {
+    if x.verb.contains("Battlefield") || x.verb.contains("PutOnto") {
+        return false;
+    }
+    match x.role {
+        Role::Made => {
+            matches!(
+                x.verb.as_str(),
+                "RevealTop"
+                    | "LookAtTop"
+                    | "Mill"
+                    | "Draw"
+                    | "ExileZone"
+                    | "DiscardHand"
+                    | "RevealHand"
+            ) || x.verb.starts_with("UntilFound")
+        }
+        _ => x
+            .obj
+            .as_ref()
+            .is_some_and(|o| o.filter.kind == Some(Noun::Card)),
+    }
 }
 
 /// Whether a reference can be the card itself: only a bare "it"/"its"
@@ -1118,7 +1196,7 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                 None
             };
             // References said so far, at their position, with their pick.
-            let mut earlier: Vec<(f64, Vec<Target>)> = Vec::new();
+            let mut earlier: Vec<(f64, Vec<Target>, Objects)> = Vec::new();
             // Every object said so far as what it settled on.
             let mut mentions: Vec<((usize, usize), Target)> = Vec::new();
             for &ei in scope {
@@ -1160,7 +1238,14 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                         if *k != Kind::Text(Hint::Pool) {
                             // Only what it settled on chains on: "its owner"
                             // after "the exiled card" is that card.
-                            earlier.push((at, pick.iter().cloned().collect()));
+                            // "its controller … puts that card onto the
+                            // battlefield" (Divergent Transformations): a
+                            // controller named after a bare "it" leaves the
+                            // nearest object where it was; "the spell's
+                            // controller … for it" names the spell again.
+                            if !(e.controller_of && r.filter == Filter::default()) {
+                                earlier.push((at, pick.iter().cloned().collect(), r.clone()));
+                            }
                             if let Some(p) = &pick {
                                 mentions.push(((li, ei), p.clone()));
                             }
@@ -1271,7 +1356,7 @@ fn resolve_one(
     scope: &[usize],
     intros: &[(usize, usize)],
     self_at: Option<f64>,
-    earlier: &[(f64, Vec<Target>)],
+    earlier: &[(f64, Vec<Target>, Objects)],
     mentions: &[((usize, usize), Target)],
     intros_per_line: &[Vec<usize>],
     type_line: &str,
@@ -1550,7 +1635,7 @@ fn resolve_one(
             }
             // A reference back to a reference: the same object, when it
             // fits.
-            for (_, ts) in earlier.iter() {
+            for (_, ts, _) in earlier.iter() {
                 for t in ts {
                     let ok = match t {
                         Target::Linked(l, i) => compat(r, &lds[*l].c.evs[*i]),
@@ -1664,6 +1749,65 @@ fn resolve_one(
             }
         }
     }
+    // "Choose any target. Reveal cards … until you reveal a nonland card.
+    // ~ deals damage equal to that card's mana value to that permanent or
+    // player" (Erratic Explosion): a reference that names a permanent or a
+    // player is never a card still in a library, hand or graveyard, and
+    // "each creature you control deals damage equal to its power to that
+    // creature" (Moonlight Hunt) never deals it to itself, so neither is
+    // picked over another candidate ([permanent-not-card]).
+    if cands.len() > 1 && names_permanent(r) {
+        // Its recipient, not "equal to its power": outside the amount.
+        let recipient = !e.subject && !e.frames.iter().any(|&f| ld.c.frames[f].kind == Fk::Amount);
+        let keep = |t: &Target| match t {
+            Target::Intro(l, i) => {
+                let x = get((*l, *i));
+                !(card_off_battlefield(x)
+                    || recipient && x.subject && *l == li && x.effect_frame == e.effect_frame)
+            }
+            _ => true,
+        };
+        if cands.iter().any(keep) && !cands.iter().all(keep) {
+            cands.retain(keep);
+            note = "a permanent, not a card off the battlefield or the damage's source".into();
+        }
+    }
+    // "For each of those creatures, its controller reveals cards … until
+    // they reveal a creature card, puts that card onto the battlefield,
+    // then shuffles the rest" (Divergent Transformations): a card in a
+    // library has no controller (CR 108.4), so "its controller" is not
+    // that card's.
+    if cands.len() > 1 && e.controller_of {
+        let keep =
+            |t: &Target| !matches!(t, Target::Intro(l, i) if card_off_battlefield(get((*l, *i))));
+        if cands.iter().any(keep) && !cands.iter().all(keep) {
+            cands.retain(keep);
+            note = "a controller's object, not a card off the battlefield".into();
+        }
+    }
+    // "… target artifact a player controls and target artifact card in that
+    // player's graveyard. … sacrifices the artifact and returns the
+    // artifact card" (Goblin Welder): said as a card, the card.
+    if cands.len() > 1 && r.filter.kind == Some(Noun::Card) && marked_how(&r.filter).is_none() {
+        let card =
+            |t: &Target| matches!(t, Target::Intro(l, i) if card_off_battlefield(get((*l, *i))));
+        // Only chosen so far: "exile target creature. … return that card"
+        // is the creature, now a card in exile.
+        let permanent_target = |t: &Target| match t {
+            Target::Intro(l, i) => {
+                let x = get((*l, *i));
+                x.verb.starts_with("Choose")
+                    && x.obj.as_ref().is_some_and(|o| {
+                        targeted(o) && o.filter.kind.is_none() && names_permanent(o)
+                    })
+            }
+            _ => false,
+        };
+        if cands.iter().any(card) && cands.iter().any(permanent_target) {
+            cands.retain(|t| !permanent_target(t));
+            note = "a card, not a permanent".into();
+        }
+    }
     let class = match cands.len() {
         0 => Class::None,
         1 => Class::Determined,
@@ -1678,8 +1822,8 @@ fn resolve_one(
             let rec = |t: &Target| -> f64 {
                 let chained = earlier
                     .iter()
-                    .filter(|(_, ts)| ts.contains(t))
-                    .map(|(p, _)| *p)
+                    .filter(|(_, ts, w)| ts.contains(t) && chain_agrees(k, r, w))
+                    .map(|(p, _, _)| *p)
                     .fold(f64::MIN, f64::max);
                 // Another line's object, said again here, as it always did:
                 // ahead of the card at the same place (Oblivion Ring's "its
@@ -2136,6 +2280,7 @@ pub fn fits(r: &Objects, b: &Objects) -> bool {
         top_effect: None,
         each_of_loop: false,
         subject: false,
+        controller_of: false,
     };
     // "cast target nonland permanent card …, and mana … to cast that
     // spell": a card cast is the spell.

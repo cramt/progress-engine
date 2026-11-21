@@ -1935,6 +1935,14 @@ mod syn {
         alt(o, vec![of("of them"), Out::default()]);
     }
 
+    /// Named rewrite [an-additional-time]: "Whenever you investigate for
+    /// the first time each turn, investigate an additional time" (Erdwal
+    /// Illuminator) is "…, investigate": the action once more, said only
+    /// after a trigger on that same action.
+    pub fn an_additional_time(o: &mut Out) {
+        alt(o, vec![Out::default(), of("an additional time")]);
+    }
+
     /// Named rewrite [at-end-of-combat]: "at end of combat" (Fortune, Loyal
     /// Steed; Dorothea) is "at the beginning of the end of combat step":
     /// abilities that trigger "at end of combat" trigger as that step
@@ -2434,7 +2442,14 @@ fn ability_into(o: &mut Out, a: &Ability) {
         } => {
             trigger(o, t);
             o.w(",");
-            sentences(o, effect, &cx);
+            match again(t, effect) {
+                Some(name) => {
+                    o.w(name);
+                    syn::an_additional_time(o);
+                    o.tok(Tok::Period);
+                }
+                None => sentences(o, effect, &cx),
+            }
             limits(o, ls, true);
         }
         Ability::Static(ss) => statics(o, ss),
@@ -3411,6 +3426,7 @@ fn measure_said(o: &mut Out, a: &Amount) {
             whose(o, p);
             o.w("starting life total");
         }
+        Amount::MinimumDeckSize => o.w("the minimum deck size"),
         Amount::NumberOfBasicLandTypes(x) => {
             o.w("the number of basic land types among");
             objects(o, x);
@@ -6051,6 +6067,26 @@ fn regen_in_branch(e: &Effect) -> Option<(Effect, Vec<Objects>)> {
     let mut found = Vec::new();
     clear(&mut plain, &mut found);
     (!found.is_empty()).then_some((plain, found))
+}
+
+/// The keyword action a trigger on its own first time each turn does once
+/// more ([an-additional-time]): Erdwal Illuminator's "investigate".
+fn again<'a>(t: &Trigger, effect: &'a [Effect]) -> Option<&'a str> {
+    let Trigger::When(w) = t else { return None };
+    let Event::FirstTimeEachTurn(e) = w.as_ref() else {
+        return None;
+    };
+    let Event::Performs { action, .. } = e.as_ref() else {
+        return None;
+    };
+    match effect {
+        [Effect::Action {
+            by: None,
+            name,
+            n: None,
+        }] if name == action => Some(name),
+        _ => None,
+    }
 }
 
 fn sentences(o: &mut Out, es: &[Effect], cx: &Cx) {
@@ -12853,6 +12889,17 @@ fn amount_is(o: &mut Out, n: &Amount, op: Op, value: &Amount) {
             o.w("you have at least");
             syn::number(o, *k);
             o.w("life more than your starting life total");
+        }
+        // "your starting deck contains at least twenty cards more than the
+        // minimum deck size" (Yorion).
+        Amount::CountOf(_)
+            if op == Op::Ge
+                && matches!(value, Amount::Plus(b, _) if **b == Amount::MinimumDeckSize) =>
+        {
+            let Amount::Plus(_, k) = value else { return };
+            o.w("your starting deck contains at least");
+            syn::number(o, *k);
+            o.w("cards more than the minimum deck size");
         }
         Amount::CardsDrawnThisTurn(Player::You) if op == Op::Ge => {
             o.w("you've drawn");
