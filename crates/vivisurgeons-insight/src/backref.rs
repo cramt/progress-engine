@@ -925,6 +925,19 @@ fn names_permanent(r: &Objects) -> bool {
     }
 }
 
+/// Whether a reference said with `r` takes up what an earlier reference
+/// said with `prev` settled on. "Put the nonland card into your hand"
+/// after "that permanent or player" (Explosive Revelation) and "from among
+/// them" after "that creature" (Conjurer's Mantle) do not: a card is not
+/// what names a permanent, and a pool is never one object said again.
+fn chain_agrees(k: Kind, r: &Objects, prev: &Objects) -> bool {
+    if matches!(k, Kind::Text(Hint::Pool | Hint::Rest)) {
+        return false;
+    }
+    let card = |o: &Objects| o.filter.kind == Some(Noun::Card);
+    !(card(r) && names_permanent(prev) || card(prev) && names_permanent(r))
+}
+
 /// A card an effect found, revealed, drew, exiled or discarded, or one
 /// said as a card: in a library, hand, graveyard or exile, unless the
 /// effect put it onto the battlefield.
@@ -1183,7 +1196,7 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                 None
             };
             // References said so far, at their position, with their pick.
-            let mut earlier: Vec<(f64, Vec<Target>)> = Vec::new();
+            let mut earlier: Vec<(f64, Vec<Target>, Objects)> = Vec::new();
             // Every object said so far as what it settled on.
             let mut mentions: Vec<((usize, usize), Target)> = Vec::new();
             for &ei in scope {
@@ -1231,7 +1244,7 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                             // nearest object where it was; "the spell's
                             // controller … for it" names the spell again.
                             if !(e.controller_of && r.filter == Filter::default()) {
-                                earlier.push((at, pick.iter().cloned().collect()));
+                                earlier.push((at, pick.iter().cloned().collect(), r.clone()));
                             }
                             if let Some(p) = &pick {
                                 mentions.push(((li, ei), p.clone()));
@@ -1343,7 +1356,7 @@ fn resolve_one(
     scope: &[usize],
     intros: &[(usize, usize)],
     self_at: Option<f64>,
-    earlier: &[(f64, Vec<Target>)],
+    earlier: &[(f64, Vec<Target>, Objects)],
     mentions: &[((usize, usize), Target)],
     intros_per_line: &[Vec<usize>],
     type_line: &str,
@@ -1622,7 +1635,7 @@ fn resolve_one(
             }
             // A reference back to a reference: the same object, when it
             // fits.
-            for (_, ts) in earlier.iter() {
+            for (_, ts, _) in earlier.iter() {
                 for t in ts {
                     let ok = match t {
                         Target::Linked(l, i) => compat(r, &lds[*l].c.evs[*i]),
@@ -1809,8 +1822,8 @@ fn resolve_one(
             let rec = |t: &Target| -> f64 {
                 let chained = earlier
                     .iter()
-                    .filter(|(_, ts)| ts.contains(t))
-                    .map(|(p, _)| *p)
+                    .filter(|(_, ts, w)| ts.contains(t) && chain_agrees(k, r, w))
+                    .map(|(p, _, _)| *p)
                     .fold(f64::MIN, f64::max);
                 // Another line's object, said again here, as it always did:
                 // ahead of the card at the same place (Oblivion Ring's "its
