@@ -897,7 +897,7 @@ face: Telekinetic Bonds
 type: Enchantment
 cost: {2}{U}{U}{U}
 > Whenever a player discards a card, you may pay {1}{U}. If you do, you may tap or untap target permanent.
-= BROKE at "untap" after: whenever a player discards a card , you may pay {1} {U} . if you do , you may tap or
+= Triggered { trigger: When(Discards { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1", "U"]))] }] }, IfYouDo([May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }])], limits: [] }
 
 ## The Masters of Evil
 face: The Masters of Evil

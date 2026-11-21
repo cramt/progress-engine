@@ -1084,7 +1084,7 @@ face: Thassa's Ire
 type: Enchantment
 cost: {U}
 > {3}{U}: You may tap or untap target creature.
-= BROKE at "untap" after: {3} {U} : you may tap or
+= Activated { cost: [Mana(Mana(["3", "U"]))], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## The Animus
 face: The Animus

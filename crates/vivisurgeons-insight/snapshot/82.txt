@@ -131,7 +131,7 @@ cost: {1}{G}{U}
 > Flash (You may cast this spell any time you could cast an instant.)
 > When this creature enters, you may tap or untap target creature.
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "untap" after: when this creature enters , you may tap or
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Brushfire Elemental
 face: Brushfire Elemental
@@ -1192,7 +1192,7 @@ face: Toils of Night and Day
 type: Instant — Arcane
 cost: {2}{U}
 > You may tap or untap target permanent, then you may tap or untap another target permanent.
-= BROKE at "," after: you may tap or untap target permanent
+= Spell([May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }, May { who: You, then: [TapOrUntap(Objects { quant: AnotherTarget, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }])
 
 ## Tomik, Wielder of Law
 face: Tomik, Wielder of Law

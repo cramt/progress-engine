@@ -739,7 +739,7 @@ cost: {U}
 > When this artifact enters or leaves the battlefield, you may tap or untap target creature.
 > {3}{U}, Sacrifice this artifact: Draw two cards.
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "untap" after: when this artifact enters or leaves the battlefield , you may tap or
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }])), effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 = Activated { cost: [Mana(Mana(["3", "U"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(2) }], limits: [] }
 
 ## Shadow of the Grave

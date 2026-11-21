@@ -1112,7 +1112,7 @@ cost: {1}{U}
 > You may return an Island you control to its owner's hand rather than pay this spell's mana cost.
 > You may tap or untap target creature.
 = Static([AlternativeCost([ReturnToHand(Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [Controller(You)], or: None } })])])
-= BROKE at "." after: you may tap or untap target creature
+= Spell([May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
 
 ## Tidal Kraken
 face: Tidal Kraken

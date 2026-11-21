@@ -962,7 +962,7 @@ face: Stonybrook Angler
 type: Creature — Merfolk Wizard
 cost: {1}{U}
 > {1}{U}, {T}: You may tap or untap target creature.
-= BROKE at "untap" after: {1} {U} , {T} : you may tap or
+= Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Storm Fleet Aerialist
 face: Storm Fleet Aerialist

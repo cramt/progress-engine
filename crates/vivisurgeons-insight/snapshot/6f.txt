@@ -215,7 +215,7 @@ face: Elder Druid
 type: Creature — Elf Cleric Druid
 cost: {3}{G}
 > {3}{G}, {T}: You may tap or untap target artifact, creature, or land.
-= BROKE at "untap" after: {3} {G} , {T} : you may tap or
+= Activated { cost: [Mana(Mana(["3", "G"])), Tap], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("land")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Essence Capture
 face: Essence Capture

@@ -858,7 +858,7 @@ face: Tolarian Kraken
 type: Creature — Kraken
 cost: {4}{U}{U}
 > Whenever you draw a card, you may pay {1}. When you do, you may tap or untap target creature.
-= BROKE at "untap" after: whenever you draw a card , you may pay {1} . when you do , you may tap or
+= Triggered { trigger: When(Draws(You)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1"]))] }] }, WhenYouDo([May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])], limits: [] }
 
 ## Tranquility
 face: Tranquility

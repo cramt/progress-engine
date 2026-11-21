@@ -431,7 +431,7 @@ face: Hyperion Blacksmith
 type: Creature — Human Artificer
 cost: {1}{R}{R}
 > {T}: You may tap or untap target artifact an opponent controls.
-= BROKE at "untap" after: {T} : you may tap or
+= Activated { cost: [Tap], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(AnOpponent)], or: None } })] }], limits: [] }
 
 ## Ich-Tekik, Salvage Splicer
 face: Ich-Tekik, Salvage Splicer

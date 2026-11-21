@@ -1033,7 +1033,7 @@ face: Twiddle
 type: Instant
 cost: {U}
 > You may tap or untap target artifact, creature, or land.
-= BROKE at "," after: you may tap or untap target artifact
+= Spell([May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("land")]], kind: None, posts: [], or: None } })] }])
 
 ## Twisted Fealty
 face: Twisted Fealty

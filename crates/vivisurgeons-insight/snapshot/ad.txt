@@ -316,7 +316,7 @@ type: Creature — Zombie Wizard
 cost: {3}{U}
 > {T}: You may tap or untap another target permanent.
 > Unearth {U} ({U}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)
-= BROKE at "untap" after: {T} : you may tap or
+= Activated { cost: [Tap], effect: [May { who: You, then: [TapOrUntap(Objects { quant: AnotherTarget, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }], limits: [] }
 = Keywords([Keyword { name: "unearth", param: Some(Cost([Mana(Mana(["U"]))])) }])
 
 ## Flash Counter

@@ -764,7 +764,7 @@ face: Rimewind Taskmage
 type: Creature — Human Wizard
 cost: {1}{U}
 > {1}, {T}: You may tap or untap target permanent. Activate only if you control four or more snow permanents.
-= BROKE at "untap" after: {1} , {T} : you may tap or
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }], limits: [OnlyIf(YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Supertype("snow")]], kind: Some(Permanent), posts: [], or: None } }))] }
 
 ## Rolling Earthquake
 face: Rolling Earthquake

@@ -328,7 +328,7 @@ type: Sorcery
 cost: {1}{U}
 > You may tap or untap target permanent, then you may tap or untap another target permanent.
 > Cipher (Then you may exile this spell card encoded on a creature you control. Whenever that creature deals combat damage to a player, its controller may cast a copy of the encoded card without paying its mana cost.)
-= BROKE at "," after: you may tap or untap target permanent
+= Spell([May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }, May { who: You, then: [TapOrUntap(Objects { quant: AnotherTarget, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }])
 = Keywords([Keyword { name: "cipher", param: None }])
 
 ## Hunger of the Howlpack

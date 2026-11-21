@@ -354,7 +354,7 @@ cost: {1}{U}
 > Enchant creature
 > Enchanted creature has "Whenever this creature attacks, you may tap or untap target permanent."
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "untap" after: enchanted creature has " whenever this creature attacks , you may tap or
+= Static([HasAbility { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }], limits: [] } }])
 
 ## Ghoulraiser
 face: Ghoulraiser

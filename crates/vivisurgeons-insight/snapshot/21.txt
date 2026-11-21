@@ -531,7 +531,7 @@ cost: {2}{U}
 > When this creature enters, you get {E}{E} (two energy counters).
 > {T}, Pay {E}{E}: You may tap or untap target artifact or creature.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [GetEnergy(2)], limits: [] }
-= BROKE at "untap" after: {T} , pay {E} {E} : you may tap or
+= Activated { cost: [Tap, Energy(2)], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Kasmina, Enigmatic Mentor
 face: Kasmina, Enigmatic Mentor

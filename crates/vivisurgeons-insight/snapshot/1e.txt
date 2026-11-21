@@ -1150,7 +1150,7 @@ face: Trickster Mage
 type: Creature — Human Spellshaper
 cost: {U}
 > {U}, {T}, Discard a card: You may tap or untap target artifact, creature, or land.
-= BROKE at "untap" after: {U} , {T} , discard a card : you may tap or
+= Activated { cost: [Mana(Mana(["U"])), Tap, Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("land")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Twinflame Travelers
 face: Twinflame Travelers

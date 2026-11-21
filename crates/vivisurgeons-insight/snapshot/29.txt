@@ -784,7 +784,7 @@ face: Puppeteer
 type: Creature — Human Wizard
 cost: {2}{U}
 > {U}, {T}: You may tap or untap target creature.
-= BROKE at "untap" after: {U} , {T} : you may tap or
+= Activated { cost: [Mana(Mana(["U"])), Tap], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Razorgrass Ambush // Razorgrass Field
 face: Razorgrass Ambush

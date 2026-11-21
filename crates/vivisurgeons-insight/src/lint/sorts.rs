@@ -470,6 +470,7 @@ fn effect(e: &Effect) -> Says<'_> {
         | Effect::Surveil(_)
         | Effect::Tap(_)
         | Effect::Untap(_)
+        | Effect::TapOrUntap(_)
         | Effect::Fight { .. }
         | Effect::FightEachOther(_)
         | Effect::Shuffle(_)

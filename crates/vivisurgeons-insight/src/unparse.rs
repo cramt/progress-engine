@@ -7002,6 +7002,7 @@ fn says_no_player(e: &Effect) -> bool {
     matches!(
         e,
         Effect::Untap(_)
+            | Effect::TapOrUntap(_)
             | Effect::AddMana(_)
             | Effect::Tap(_)
             | Effect::Exile(_)
@@ -7906,6 +7907,10 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
         }
         Effect::Untap(x) => {
             o.w("untap");
+            objects(o, x);
+        }
+        Effect::TapOrUntap(x) => {
+            o.w("tap or untap");
             objects(o, x);
         }
         Effect::Sacrifice { who, what } => {

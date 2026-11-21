@@ -1589,6 +1589,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         // permanents
         |p| { p.word("tap")?; objects(p).map(Effect::Tap) },
         |p| { p.word("untap")?; objects(p).map(Effect::Untap) },
+        |p| { p.words("tap or untap")?; objects(p).map(Effect::TapOrUntap) },
         |p| { let who = subject_player(p); p.verb("sacrifice")?; let what = objects(p)?; Some(Effect::Sacrifice { who, what }) },
         |p| { let a = objects(p)?; p.verb("fight")?; p.words("each other")?; Some(Effect::FightEachOther(a)) },
         |p| { let a = objects(p)?; p.verb("fight")?; let b = objects(p)?; Some(Effect::Fight { a, b }) },

@@ -531,7 +531,7 @@ cost: {2}{U}
 > Other Merfolk creatures you control get +1/+1.
 > Whenever you cast a Merfolk spell, you may tap or untap target permanent.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("merfolk"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
-= BROKE at "untap" after: whenever you cast a merfolk spell , you may tap or
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("merfolk")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }], limits: [] }
 
 ## Might of Alara
 face: Might of Alara

@@ -272,7 +272,7 @@ type: Sorcery
 cost: {1}{W}
 > You may tap or untap target creature.
 > Draw a card.
-= BROKE at "." after: you may tap or untap target creature
+= Spell([May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Favor of the Mighty

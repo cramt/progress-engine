@@ -899,7 +899,7 @@ cost: {3}{U}{U}
 > Flying
 > Whenever you cast a Spirit or Arcane spell, you may tap or untap target creature.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "untap" after: whenever you cast a spirit or arcane spell , you may tap or
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("spirit")], [Subtype("arcane")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Terisiare's Devastation
 face: Terisiare's Devastation

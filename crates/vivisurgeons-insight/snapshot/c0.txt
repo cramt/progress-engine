@@ -216,7 +216,7 @@ cost: {2}{U}
 > Enchant player
 > Whenever a player attacks enchanted player with one or more creatures, that attacking player may tap or untap target permanent of their choice.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "untap" after: whenever a player attacks enchanted player with one or more creatures , that attacking player may tap or
+= Triggered { trigger: When(AttacksWith { who: APlayer, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, at: Some(Enchanted) }), effect: [May { who: AttackingPlayer, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [ChosenBy(That)], or: None } })] }], limits: [] }
 
 ## Deeproot Pilgrimage
 face: Deeproot Pilgrimage

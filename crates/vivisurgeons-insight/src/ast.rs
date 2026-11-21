@@ -1611,6 +1611,9 @@ pub enum Effect {
     },
     Tap(Objects),
     Untap(Objects),
+    /// "tap or untap target permanent": one or the other, as the player
+    /// applying it picks (CR 608.2d).
+    TapOrUntap(Objects),
     Sacrifice {
         who: Player,
         what: Objects,

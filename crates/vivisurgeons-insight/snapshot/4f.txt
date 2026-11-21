@@ -798,7 +798,7 @@ face: Vedalken Anatomist
 type: Creature — Phyrexian Vedalken Wizard
 cost: {2}{U}
 > {2}{U}, {T}: Put a -1/-1 counter on target creature. You may tap or untap that creature.
-= BROKE at "untap" after: {2} {U} , {T} : put a <pt> counter on target creature . you may tap or
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Mana(Mana(["2", "U"])), Tap], effect: [PutCounters { n: N(1), kind: "-1/-1", on: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, May { who: You, then: [TapOrUntap(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] } }
 
 ## Walk the Plank
 face: Walk the Plank

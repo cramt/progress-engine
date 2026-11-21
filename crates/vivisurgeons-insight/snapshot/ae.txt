@@ -621,7 +621,7 @@ type: Instant
 cost: {2}{U}
 > You may tap or untap target artifact, creature, or land.
 > Draw a card at the beginning of the next turn's upkeep.
-= BROKE at "," after: you may tap or untap target artifact
+= Spell([May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("land")]], kind: None, posts: [], or: None } })] }])
 = Spell([Delayed { step: Upkeep(NextTurns), then: [Draw { who: You, n: N(1) }] }])
 
 ## Jousting Dummy

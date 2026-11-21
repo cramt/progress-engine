@@ -494,7 +494,7 @@ cost: {1}{U}
 face: Iceberg Titan
 type: Artifact Creature — Golem
 > Whenever this creature attacks, you may tap or untap target artifact or creature.
-= BROKE at "untap" after: whenever this creature attacks , you may tap or
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Journey to Oblivion
 face: Journey to Oblivion

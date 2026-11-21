@@ -400,7 +400,7 @@ cost: {2}{W}{U}
 > When this creature is turned face up, you may tap or untap target creature.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["W/U", "W/U"]))])) }])
-= BROKE at "untap" after: when this creature is turned face up , you may tap or
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Great Teacher's Decree
 face: Great Teacher's Decree

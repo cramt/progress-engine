@@ -805,7 +805,7 @@ type: Creature — Elemental
 cost: {2}{U}
 > {U}, {T}: You may tap or untap another target creature.
 > Landfall — Whenever a land you control enters, you may untap this creature.
-= BROKE at "untap" after: {U} , {T} : you may tap or
+= Activated { cost: [Mana(Mana(["U"])), Tap], effect: [May { who: You, then: [TapOrUntap(Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 = Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }
 
 ## Torsten Von Ursus

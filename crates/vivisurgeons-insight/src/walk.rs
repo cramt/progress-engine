@@ -841,6 +841,9 @@ impl Walk for Effect {
             Effect::Untap(f0) => {
                 Walk::walk(f0, v);
             }
+            Effect::TapOrUntap(f0) => {
+                Walk::walk(f0, v);
+            }
             Effect::Sacrifice { who, what } => {
                 Walk::walk(who, v);
                 Walk::walk(what, v);

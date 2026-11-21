@@ -515,7 +515,7 @@ face: Mind Over Matter
 type: Enchantment
 cost: {2}{U}{U}{U}{U}
 > Discard a card: You may tap or untap target artifact, creature, or land.
-= BROKE at "untap" after: discard a card : you may tap or
+= Activated { cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("land")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Mysterious Egg
 face: Mysterious Egg
@@ -810,7 +810,7 @@ face: Teardrop Kami
 type: Creature — Spirit
 cost: {U}
 > Sacrifice this creature: You may tap or untap target creature.
-= BROKE at "untap" after: sacrifice this creature : you may tap or
+= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## The Crystal's Chosen
 face: The Crystal's Chosen

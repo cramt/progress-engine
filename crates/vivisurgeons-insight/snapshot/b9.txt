@@ -649,7 +649,7 @@ face: Puppet Strings
 type: Artifact
 cost: {3}
 > {2}, {T}: You may tap or untap target creature.
-= BROKE at "untap" after: {2} , {T} : you may tap or
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Quakebringer
 face: Quakebringer

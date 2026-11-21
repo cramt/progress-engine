@@ -785,7 +785,7 @@ cost: {2}{U}
 > Landfall — Whenever a land you control enters, choose one —
 > • You may tap or untap target creature.
 > • Scry 1. (Look at the top card of your library. You may put that card on the bottom.)
-= BROKE at "." after: landfall — whenever a land you control enters , choose one — • you may tap or untap target creature
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], [Scry(N(1))]] }], limits: [] } }
 
 ## Reviving Dose
 face: Reviving Dose

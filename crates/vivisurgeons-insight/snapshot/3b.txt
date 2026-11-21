@@ -213,7 +213,7 @@ cost: {G}{W}{U}
 > When Derevi enters and whenever a creature you control deals combat damage to a player, you may tap or untap target permanent.
 > {1}{G}{W}{U}: Put Derevi onto the battlefield from the command zone.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "untap" after: when ~ enters and whenever a creature you control deals combat damage to a player , you may tap or
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })])), effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "G", "W", "U"]))], effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Some(CommandZone), to: Battlefield, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Ebon Stronghold

@@ -89,12 +89,12 @@ reports every one. The lists in `milestones/` say where they came from, and
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1800/1801 (99.9%) | pinned; Saw in Half was outside the old corpus |
 | My decks: every card in the 20 decks of cramt/mtg | 1194/1207 (98.9%) | 2491/2504 (99.5%) | reopened by 3 new decks; 1023 cards pinned |
-| Standard after the early-2027 rotation | 3072/3517 (87.3%) | 6585/7055 (93.3%) | |
+| Standard after the early-2027 rotation | 3074/3517 (87.4%) | 6587/7055 (93.4%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4277/5157 (82.9%) | 9466/10421 (90.8%) | |
-| EDHREC top 2000 | 1819/1987 (91.5%) | 3650/3847 (94.9%) | |
-| EDHREC top 5000 | 4160/4977 (83.6%) | 9174/10111 (90.7%) | |
-| Commander precons | 4764/6151 (77.5%) | 10695/12228 (87.5%) | |
+| All of Standard | 4281/5157 (83.0%) | 9470/10421 (90.9%) | |
+| EDHREC top 2000 | 1820/1987 (91.6%) | 3651/3847 (94.9%) | |
+| EDHREC top 5000 | 4164/4977 (83.7%) | 9178/10111 (90.8%) | |
+| Commander precons | 4770/6151 (77.5%) | 10701/12228 (87.5%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.

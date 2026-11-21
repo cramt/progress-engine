@@ -909,7 +909,7 @@ face: Stinging Lionfish
 type: Enchantment Creature — Fish
 cost: {1}{U}
 > Whenever you cast your first spell during each opponent's turn, you may tap or untap target nonland permanent.
-= BROKE at "untap" after: whenever you cast your first spell during each opponent 's turn , you may tap or
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: NthDuringTurns { n: 1, of: You, turns: EachOpponent }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } })] }], limits: [] }
 
 ## Strength of the Coalition
 face: Strength of the Coalition

@@ -1041,7 +1041,7 @@ face: Tidal Force
 type: Creature — Elemental
 cost: {5}{U}{U}{U}
 > At the beginning of each upkeep, you may tap or untap target permanent.
-= BROKE at "untap" after: at the beginning of each upkeep , you may tap or
+= Triggered { trigger: At(Upkeep(Each)), effect: [May { who: You, then: [TapOrUntap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }], limits: [] }
 
 ## Time Vault
 face: Time Vault
