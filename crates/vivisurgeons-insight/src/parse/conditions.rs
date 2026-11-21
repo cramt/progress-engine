@@ -575,6 +575,19 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             let value = Amount::Plus(Box::new(Amount::StartingLifeTotal(Player::You)), n);
             Some(Condition::AmountIs { n: Amount::LifeTotal(Player::You), op: Op::Ge, value })
         },
+        // "Companion — Your starting deck contains at least twenty cards more
+        // than the minimum deck size" (Yorion, Sky Nomad).
+        |p| {
+            p.words("your starting deck contains at least")?;
+            let n = number(p)?;
+            p.words("cards more than the minimum deck size")?;
+            let cards = Objects {
+                quant: Quant::Plural,
+                filter: Filter { kind: Some(Noun::Card), posts: vec![Post::In(Zone::StartingDeck(Player::You))], ..Filter::default() },
+            };
+            let value = Amount::Plus(Box::new(Amount::MinimumDeckSize), n);
+            Some(Condition::AmountIs { n: Amount::CountOf(Box::new(cards)), op: Op::Ge, value })
+        },
         |p| { p.words("you have")?; let n = number(p)?; p.words("or less life")?; Some(Condition::LifeAtMost(n)) },
         |p| { p.one_of(&["this spell was kicked", "~ was kicked", "it was kicked"]).map(|_| Condition::WasKicked) },
         |p| p.words("you attacked this turn").map(|_| Condition::YouAttackedThisTurn),

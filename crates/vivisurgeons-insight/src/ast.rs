@@ -425,6 +425,9 @@ pub enum Parity {
 pub enum Amount {
     /// "your starting life total" (CR 119.1).
     StartingLifeTotal(Player),
+    /// "the minimum deck size" (CR 100.2a): 60 in constructed play, which
+    /// a companion condition counts from.
+    MinimumDeckSize,
     /// "with mana value 4, 5, or 6", "2 or 3": any one of the values, in a
     /// comparison for equality.
     AnyOf(Vec<Amount>),

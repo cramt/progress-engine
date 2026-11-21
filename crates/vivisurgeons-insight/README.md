@@ -88,12 +88,12 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1800/1801 (99.9%) | pinned; Saw in Half was outside the old corpus |
-| My decks: every card in the 20 decks of cramt/mtg | 1185/1207 (98.2%) | 2482/2504 (99.1%) | reopened by 3 new decks; 1023 cards pinned |
+| My decks: every card in the 20 decks of cramt/mtg | 1186/1207 (98.3%) | 2483/2504 (99.2%) | reopened by 3 new decks; 1023 cards pinned |
 | Standard after the early-2027 rotation | 3069/3517 (87.3%) | 6582/7055 (93.3%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
 | All of Standard | 4272/5157 (82.8%) | 9460/10421 (90.8%) | |
 | EDHREC top 2000 | 1819/1987 (91.5%) | 3650/3847 (94.9%) | |
-| EDHREC top 5000 | 4153/4977 (83.4%) | 9166/10111 (90.7%) | |
+| EDHREC top 5000 | 4154/4977 (83.5%) | 9167/10111 (90.7%) | |
 | Commander precons | 4757/6151 (77.3%) | 10684/12228 (87.4%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
@@ -240,7 +240,7 @@ each in text order (`src/walk.rs`):
 
 | Kind | What it finds | Corpus |
 |---|---|---|
-| unresolved-reference | "it", "that creature" that no object said before it fits, so the tree points it at nothing (`Quant::Unresolved`). Every other reference names the binder of the object it means ([binders]): a target, a card drawn, milled or looked at, an earlier paragraph's object (CR 608.2c), a linked ability's (CR 607.2a). "Those players" and "those counters" are no objects and are not counted | 54 |
+| unresolved-reference | "it", "that creature" that no object said before it fits, so the tree points it at nothing (`Quant::Unresolved`). Every other reference names the binder of the object it means ([binders]): a target, a card drawn, milled or looked at, an earlier paragraph's object (CR 608.2c), a linked ability's (CR 607.2a). "Those players" and "those counters" are no objects and are not counted | 53 |
 | dangling-that-player | "that player" with no player before it. A player named by the trigger ("deals combat damage to a player", "each player's upkeep") or by an owner's zone counts, and the player of the same effect does ([that-player-in-effect]) | 2 |
 | self-comparison | both sides of a comparison the same expression | 0 |
 | spell-in-zone | a spell in a zone other than the stack (CR 112.1) | 0 |

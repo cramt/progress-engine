@@ -3426,6 +3426,7 @@ fn measure_said(o: &mut Out, a: &Amount) {
             whose(o, p);
             o.w("starting life total");
         }
+        Amount::MinimumDeckSize => o.w("the minimum deck size"),
         Amount::NumberOfBasicLandTypes(x) => {
             o.w("the number of basic land types among");
             objects(o, x);
@@ -12888,6 +12889,17 @@ fn amount_is(o: &mut Out, n: &Amount, op: Op, value: &Amount) {
             o.w("you have at least");
             syn::number(o, *k);
             o.w("life more than your starting life total");
+        }
+        // "your starting deck contains at least twenty cards more than the
+        // minimum deck size" (Yorion).
+        Amount::CountOf(_)
+            if op == Op::Ge
+                && matches!(value, Amount::Plus(b, _) if **b == Amount::MinimumDeckSize) =>
+        {
+            let Amount::Plus(_, k) = value else { return };
+            o.w("your starting deck contains at least");
+            syn::number(o, *k);
+            o.w("cards more than the minimum deck size");
         }
         Amount::CardsDrawnThisTurn(Player::You) if op == Op::Ge => {
             o.w("you've drawn");
