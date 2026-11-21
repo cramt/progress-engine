@@ -1229,6 +1229,21 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             p.words("spend mana as though it were mana of any type")?;
             spend_uses(p).map(|uses| Effect::SpendAsAnyType { uses, dur: Duration::Permanent })
         },
+        // "Mana of any type can be spent to cast a spell this way" (Gonti,
+        // Night Minister): "If you cast a spell this way, mana of any type
+        // can be spent to cast it", which `permission_rules` folds into the
+        // play permission before it ([spent-this-way]).
+        |p| {
+            p.words("mana of any type can be spent to cast")?;
+            let spell = objects(p)?;
+            p.words("this way")?;
+            let it = Objects { quant: Quant::Unresolved(Hint::Antecedent), filter: Filter::default() };
+            Some(Effect::If {
+                order: ClauseOrder::Leading,
+                cond: Condition::ThisWay(Box::new(Event::Casts { who: Player::You, what: spell })),
+                then: vec![Effect::SpendAsAnyType { uses: vec![SpendUse::Cast(it)], dur: Duration::Permanent }],
+            })
+        },
         // "and mana of any type can be spent to cast that spell": the same
         // permission (CR 609.4b), said in the passive.
         |p| {

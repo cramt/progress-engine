@@ -1234,9 +1234,11 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         // mana as though it were mana of any color" (Curse of Hospitality):
         // "they" after a player named by an object's controller or owner is
         // that player, not one named before it ([they-continues]).
-        if they {
-            if let Some(prev @ (Player::ControllerOf(_) | Player::OwnerOf(_))) =
-                v.last().and_then(subject_of)
+        if they && matches!(c.first(), Some(Effect::May { .. })) {
+            if let Some(prev @ (Player::ControllerOf(_) | Player::OwnerOf(_))) = v
+                .last()
+                .and_then(subject_of)
+                .filter(|w| continued_player(w.clone()) != Player::That)
             {
                 if let Some(w) = c
                     .first_mut()
@@ -1499,9 +1501,29 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
             Some(each) => p.attempt(|p| those_players(p, each)),
             None => None,
         };
+        let they = p.peek_word() == Some("they");
         let Some(mut s) = s.or_else(|| p.attempt(sentence)) else {
             break;
         };
+        // "its controller looks at the top card of that opponent's library
+        // and exiles it face down. They may play that card" (Gonti, Night
+        // Minister): "they" is the player the sentence before ended on
+        // ([they-continues]).
+        if they && matches!(s.first(), Some(Effect::May { .. })) {
+            if let Some(prev @ (Player::ControllerOf(_) | Player::OwnerOf(_))) = v
+                .last()
+                .and_then(subject_of)
+                .filter(|w| continued_player(w.clone()) != Player::That)
+            {
+                if let Some(w) = s
+                    .first_mut()
+                    .and_then(subject_mut)
+                    .filter(|w| **w == Player::That)
+                {
+                    *w = prev;
+                }
+            }
+        }
         // "You may cast the exiled card without paying its mana cost if it's
         // an instant spell …. If you don't, put that card into your hand"
         // (Discover the Impossible): the card goes to hand whether the "if"

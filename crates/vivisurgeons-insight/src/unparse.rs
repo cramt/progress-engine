@@ -1236,6 +1236,14 @@ mod syn {
         );
     }
 
+    /// Named rewrite [spent-this-way]: "Mana of any type can be spent to
+    /// cast a spell this way" (Gonti, Night Minister) is "If you cast a
+    /// spell this way, mana of any type can be spent to cast it" (Bloodsoaked
+    /// Insight): the same rule for a spell the permission casts (CR 609.4b).
+    pub fn spent_this_way(o: &mut Out, iff: Out, passive: Out) {
+        alt(o, vec![iff, passive]);
+    }
+
     /// Named rewrite [they-continues]: "that creature's controller may play
     /// that card and they may spend mana …" (Curse of Hospitality) is "…
     /// and that creature's controller may spend mana …": "they" names the
@@ -6341,14 +6349,20 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
         };
         // "that creature's controller may play that card and they may spend
         // mana …" (Curse of Hospitality): the same player again, by pronoun.
-        let named_or_it = match (prev.and_then(subject_of), e) {
-            (Some(w), Effect::May { who, then })
+        let mut again = e.clone();
+        let may_who = match &mut again {
+            Effect::May { who, .. } => Some(who),
+            Effect::PermissionRules { permission, .. } => match &mut **permission {
+                Effect::May { who, .. } => Some(who),
+                _ => None,
+            },
+            _ => None,
+        };
+        let named_or_it = match (prev.and_then(subject_of), may_who) {
+            (Some(w), Some(who))
                 if w == *who && matches!(who, Player::ControllerOf(_) | Player::OwnerOf(_)) =>
             {
-                let again = Effect::May {
-                    who: Player::That,
-                    then: then.clone(),
-                };
+                *who = Player::That;
                 let they = out(|o| effect(o, &again, &cx));
                 out(|o| syn::they_continues(o, named_or_it.clone(), they))
             }
@@ -8506,15 +8520,30 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                 who: Player::You,
                 what: spell.clone(),
             }));
-            effect(
-                o,
-                &Effect::If {
-                    order: ClauseOrder::Leading,
-                    cond,
-                    then: rules.clone(),
-                },
-                cx,
-            );
+            let iff = out(|o| {
+                effect(
+                    o,
+                    &Effect::If {
+                        order: ClauseOrder::Leading,
+                        cond,
+                        then: rules.clone(),
+                    },
+                    cx,
+                )
+            });
+            match &rules[..] {
+                [Effect::SpendAsAnyType { uses, .. }]
+                    if matches!(&uses[..], [SpendUse::Cast(_)]) =>
+                {
+                    let passive = out(|o| {
+                        o.w("mana of any type can be spent to cast");
+                        objects(o, spell);
+                        o.w("this way");
+                    });
+                    syn::spent_this_way(o, iff, passive);
+                }
+                _ => o.add(iff),
+            }
         }
         Effect::Unless {
             effect: inner,
