@@ -31,7 +31,17 @@ git or the module. Write the evidence in your notes first.
   `just deploy luna` from a nixconf checkout. Alex's own nixconf checkout may
   be dirty or behind, so work in a `git worktree` off `origin/main`, push to
   main, then remove the worktree.
-- **The batch** is the `insight-batch` skill (`.claude/skills/insight-batch/`) in
+- **Products:** the gate offers `products` in turn (nixconf, default Insight
+  then Chancellor), recording the last in `gate-last-product` in the Insight
+  state dir. A Chancellor batch follows `.claude/skills/chancellor-batch/` with
+  state in `/pool/dev/progress-engine-chancellor-state/` (`batches/<n>/baseline.txt`
+  and `after.txt` replay reports, `handoff.md`). Its gate is the replay: the
+  milestone's games to the end and lines followed never fall, divergences 0.
+  Judging it means rerunning the replay yourself and checking each new rule
+  against the CR, not trusting the summary. Alex asked to try both the
+  alternation and Chancellor alone (`products = ["chancellor"]`); compare
+  milestone movement per batch and keep what works.
+- **The Insight batch** is the `insight-batch` skill (`.claude/skills/insight-batch/`) in
   the runner's own clone `/pool/dev/progress-engine-insight`, on main, driven by
   `crates/vivisurgeons-insight/driver/` (its README is the contract).
 - **State:** `/pool/dev/progress-engine-insight-state/`: `state.json`
