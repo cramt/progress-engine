@@ -420,3 +420,22 @@ test("a claim is held only by another top-level thread T3 calls live", async () 
     ["bg"],
   );
 });
+
+test("preflight: a clean main behind origin is fast-forwarded to what the human pushed", async () => {
+  const r = repos();
+  const human = humanPushes(r, "c.txt", "human\n");
+  const pf = await preflight(r.driver);
+  assert.ok(pf.kind === "ready");
+  assert.equal(pf.head, human);
+  assert.equal(git(r.driver, "rev-parse", "HEAD"), human);
+});
+
+test("preflight: a main with a commit origin lacks is refused and left alone", async () => {
+  const r = repos();
+  commit(r.driver, "b.txt", "stray\n", "insight: stray");
+  const mine = git(r.driver, "rev-parse", "HEAD");
+  humanPushes(r, "c.txt", "human\n");
+  const pf = await preflight(r.driver);
+  assert.equal(pf.kind, "refused");
+  assert.equal(git(r.driver, "rev-parse", "HEAD"), mine);
+});

@@ -95,6 +95,8 @@ export type Preflight =
 /**
  * A batch may only start on a clean main that matches origin/main, so every
  * commit past the baseline is the writer's and resetting can lose nothing else.
+ * A clone merely behind origin (someone else pushed since the last batch) is
+ * fast-forwarded; one holding a commit origin lacks is refused.
  */
 export async function preflight(repo: string): Promise<Preflight> {
   const b = await branch(repo);
@@ -103,8 +105,15 @@ export async function preflight(repo: string): Promise<Preflight> {
   const d = await dirty(repo);
   if (d) return { kind: "refused", reason: `working tree is dirty:\n${d}` };
   await must("git", ["fetch", "origin", BRANCH], { cwd: repo });
-  const h = await head(repo);
+  let h = await head(repo);
   const o = await originMain(repo);
+  if (h !== o && (await isAncestor(repo, h, o))) {
+    await must("git", ["merge", "--ff-only", "-q", `origin/${BRANCH}`], {
+      cwd: repo,
+    });
+    log("git", `fast-forwarded ${BRANCH} ${h.slice(0, 7)} to ${o.slice(0, 7)}`);
+    h = o;
+  }
   if (h !== o) {
     return {
       kind: "refused",
