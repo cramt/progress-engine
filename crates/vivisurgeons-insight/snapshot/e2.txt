@@ -89,7 +89,7 @@ face: Bloodfire Enforcers
 type: Creature — Human Monk
 cost: {3}{R}
 > This creature has first strike and trample as long as an instant card and a sorcery card are in your graveyard.
-= BROKE at "and" after: this creature has first strike and trample as long as an instant card
+= BROKE at "are" after: this creature has first strike and trample as long as an instant card and a sorcery card
 
 ## Brass Man
 face: Brass Man

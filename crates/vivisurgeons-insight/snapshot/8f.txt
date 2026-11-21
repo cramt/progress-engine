@@ -516,7 +516,7 @@ face: Mishra, Claimed by Gix
 type: Legendary Creature — Phyrexian Human Artificer
 cost: {2}{B}{R}
 > Whenever you attack, each opponent loses X life and you gain X life, where X is the number of attacking creatures. If Mishra, Claimed by Gix and a creature named Phyrexian Dragon Engine are attacking, and you both own and control them, exile them, then meld them into Mishra, Lost to Phyrexia. It enters tapped and attacking.
-= BROKE at "a" after: whenever you attack , each opponent loses x life and you gain x life , where x is the number of attacking creatures . if ~ and
+= BROKE at "," after: whenever you attack , each opponent loses x life and you gain x life , where x is the number of attacking creatures . if ~ and a creature named phyrexian dragon engine are attacking
 
 ## Mona Lisa, Ever Adaptable
 face: Mona Lisa, Ever Adaptable

@@ -12021,6 +12021,24 @@ fn condition_said(o: &mut Out, c: &Condition) {
         }
         Condition::Not(c) => not_condition(o, c),
         Condition::And(v) => {
+            // "a Pirate and a Vehicle attacked this combat" ([attacked-each]).
+            if let [Condition::Attacked {
+                what: a,
+                this_combat: t1,
+            }, Condition::Attacked {
+                what: b,
+                this_combat: t2,
+            }] = &v[..]
+            {
+                if t1 == t2 {
+                    objects(o, a);
+                    o.w("and");
+                    objects(o, b);
+                    o.w("attacked");
+                    o.w(if *t1 { "this combat" } else { "this turn" });
+                    return;
+                }
+            }
             // "this card is exiled with an egg counter on it" (Darigaaz
             // Reincarnated): in exile, with the counter ([exiled-with-counter]).
             if let [c @ Condition::In {

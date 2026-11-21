@@ -88,10 +88,10 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1800/1801 (99.9%) | pinned; Saw in Half was outside the old corpus |
-| My decks: every card in the 20 decks of cramt/mtg | 1192/1207 (98.8%) | 2489/2504 (99.4%) | reopened by 3 new decks; 1023 cards pinned |
-| Standard after the early-2027 rotation | 3071/3517 (87.3%) | 6584/7055 (93.3%) | |
+| My decks: every card in the 20 decks of cramt/mtg | 1193/1207 (98.8%) | 2490/2504 (99.4%) | reopened by 3 new decks; 1023 cards pinned |
+| Standard after the early-2027 rotation | 3072/3517 (87.3%) | 6585/7055 (93.3%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4276/5157 (82.9%) | 9465/10421 (90.8%) | |
+| All of Standard | 4277/5157 (82.9%) | 9466/10421 (90.8%) | |
 | EDHREC top 2000 | 1819/1987 (91.5%) | 3650/3847 (94.9%) | |
 | EDHREC top 5000 | 4158/4977 (83.5%) | 9172/10111 (90.7%) | |
 | Commander precons | 4763/6151 (77.4%) | 10694/12228 (87.5%) | |

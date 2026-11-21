@@ -721,6 +721,19 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| p.words("wasn't cast").map(|_| Condition::Not(Box::new(Condition::WasCast(what.clone())))),
                 |p| p.word("escaped").map(|_| Condition::Escaped(what.clone())),
                 |p| p.words("wasn't cycled").map(|_| Condition::Not(Box::new(Condition::WasCycled(what.clone())))),
+                // "if a Pirate and a Vehicle attacked this combat" (Fearless
+                // Swashbuckler): each attacked, one object may be both
+                // ([attacked-each]).
+                |p| {
+                    p.word("and")?;
+                    let b = objects(p)?;
+                    p.word("attacked")?;
+                    let this_combat = p.one_of(&["this combat", "this turn"])? == "this combat";
+                    Some(Condition::And(vec![
+                        Condition::Attacked { what: what.clone(), this_combat },
+                        Condition::Attacked { what: b, this_combat },
+                    ]))
+                },
                 |p| {
                     p.words("attacked or blocked")?;
                     let this_combat = p.one_of(&["this combat", "this turn"])? == "this combat";
