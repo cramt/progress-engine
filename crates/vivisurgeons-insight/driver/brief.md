@@ -40,9 +40,14 @@ they read is the commits, `{{handoffPath}}` and `{{batchDir}}/report.json`.
   Never state card text or a rule from memory.
 - When a tracked number moves, update the crate's README.md (and any doc that
   states it) in the same commit.
-- A decision you cannot make, such as excluding a card (Un-cards, ante, acorn)
-  or a SEMANTICS question with no row, goes in report.json's `escalations`.
-  Carry on with other work.
+- A SEMANTICS question with no row is yours to settle: decide it by the
+  card's Oracle text, the CR and SEMANTICS.md's principles (a tree holds the
+  meaning, Oracle's shorthand undone), add the settled row to SEMANTICS.md in
+  the commit that carries it out, and name it in report.json's `summary`. The
+  `decision` escalations in the state dir's `escalations.md` that no row
+  settles yet are yours too: settle one whenever your work touches it.
+- Escalate only what is not a question of meaning: excluding a card (Un-cards,
+  ante, acorn), or what the tool is for. Carry on with other work.
 
 ## The gates your commits must pass
 

@@ -32,7 +32,9 @@ breach after the fact:
 - Leave pinning to the human: `insight pin` moves a golden file's card count,
   which fails the gates.
 - `decisions.md` is the human's file: read it, report against it in
-  report.json, and leave its bytes as they were.
+  report.json, and leave its bytes as they were. Grammar questions are yours
+  to settle in SEMANTICS.md (the brief says how); escalate only exclusions and
+  what the tool is for.
 - No AI attribution in any commit (Co-Authored-By, "Generated with").
 - You are the only writer. Sub-agents are for blind review and the method
   review alone: a nested writer measured ~3% of trees wrong in game-changing
