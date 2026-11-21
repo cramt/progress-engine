@@ -207,7 +207,7 @@ face: Expensive Taste
 type: Instant — Adventure
 cost: {2}{B}
 > Exile the top two cards of target opponent's library face down. You may look at and play those cards for as long as they remain exiled.
-= BROKE at "play" after: exile the top two cards of target opponent 's library face down . you may look at and
+= Spell([With { bind: [/* exiled */ Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(TargetOpponent))], or: None } }], then: [ExileFaceDown(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), May { who: You, then: [LookAt { who: You, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, dur: ForAsLongAs(In { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }) }, Cast { verb: Play, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ForAsLongAs(In { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }) }] }] }])
 
 ## Deepwood Legate
 face: Deepwood Legate

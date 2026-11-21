@@ -88,13 +88,13 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1800/1801 (99.9%) | pinned; Saw in Half was outside the old corpus |
-| My decks: every card in the 20 decks of cramt/mtg | 1188/1207 (98.4%) | 2485/2504 (99.2%) | reopened by 3 new decks; 1023 cards pinned |
+| My decks: every card in the 20 decks of cramt/mtg | 1189/1207 (98.5%) | 2486/2504 (99.3%) | reopened by 3 new decks; 1023 cards pinned |
 | Standard after the early-2027 rotation | 3071/3517 (87.3%) | 6584/7055 (93.3%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4274/5157 (82.9%) | 9462/10421 (90.8%) | |
+| All of Standard | 4276/5157 (82.9%) | 9464/10421 (90.8%) | |
 | EDHREC top 2000 | 1819/1987 (91.5%) | 3650/3847 (94.9%) | |
-| EDHREC top 5000 | 4155/4977 (83.5%) | 9168/10111 (90.7%) | |
-| Commander precons | 4757/6151 (77.3%) | 10685/12228 (87.4%) | |
+| EDHREC top 5000 | 4157/4977 (83.5%) | 9170/10111 (90.7%) | |
+| Commander precons | 4758/6151 (77.4%) | 10686/12228 (87.4%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.

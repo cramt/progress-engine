@@ -741,15 +741,20 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             // has the same subject, not an unstated "you".
             let outer = p.implied.replace(who.clone());
             let e = p.attempt(|p| {
-                let e = effect(p)?;
-                let e = suffixed(p, e);
-                // "You may reveal an artifact card … or choose a face-up
-                // artifact card …": one option of two, each said in full.
-                let e = match p.attempt(|p| { p.word("or")?; let e = effect(p)?; Some(suffixed(p, e)) }) {
-                    Some(other) => Effect::Or(vec![e, other]),
-                    None => e,
+                let mut then = match p.attempt(look_at_and_play) {
+                    Some(both) => both,
+                    None => {
+                        let e = effect(p)?;
+                        let e = suffixed(p, e);
+                        // "You may reveal an artifact card … or choose a face-up
+                        // artifact card …": one option of two, each said in full.
+                        let e = match p.attempt(|p| { p.word("or")?; let e = effect(p)?; Some(suffixed(p, e)) }) {
+                            Some(other) => Effect::Or(vec![e, other]),
+                            None => e,
+                        };
+                        vec![e]
+                    }
                 };
-                let mut then = vec![e];
                 // "That player may search their library …, put it onto the
                 // battlefield, then shuffle": the steps after the first are
                 // the same optional action, by the same player.
@@ -1183,6 +1188,29 @@ fn play_and_cast_from(a: &mut Effect, b: &Effect) {
     if *dur_a == Duration::Permanent {
         *dur_a = dur_b.clone();
     }
+}
+
+/// "You may look at and play those cards for as long as they remain
+/// exiled" (Outrageous Robbery): two permissions over the same cards for
+/// the same duration, to look at them and to play them ([look-at-and-play]).
+fn look_at_and_play(p: &mut P) -> Option<Vec<Effect>> {
+    let who = p.implied.clone().unwrap_or(Player::You);
+    p.words("look at and play")?;
+    let what = objects(p)?;
+    let dur = duration(p)?;
+    Some(vec![
+        Effect::LookAt {
+            who,
+            what: what.clone(),
+            dur: dur.clone(),
+        },
+        Effect::Cast {
+            verb: CastVerb::Play,
+            what,
+            payment: Payment::ManaCost,
+            dur,
+        },
+    ])
 }
 
 pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {

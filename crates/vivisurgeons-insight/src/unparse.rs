@@ -1236,6 +1236,15 @@ mod syn {
         );
     }
 
+    /// Named rewrite [look-at-and-play]: "You may look at and play those
+    /// cards for as long as they remain exiled" (Outrageous Robbery) is "You
+    /// may look at those cards for as long as they remain exiled and play
+    /// them for as long as they remain exiled": two permissions, one verb
+    /// phrase for both.
+    pub fn look_at_and_play(o: &mut Out, apart: Out, joined: Out) {
+        alt(o, vec![apart, joined]);
+    }
+
     /// Named rewrite [spent-this-way]: "Mana of any type can be spent to
     /// cast a spell this way" (Gonti, Night Minister) is "If you cast a
     /// spell this way, mana of any type can be spent to cast it" (Bloodsoaked
@@ -6403,6 +6412,40 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                     dur(o, d2);
                 });
                 syn::gapped(o, apart, joined);
+                last = Out(o.0[start..].to_vec());
+                i += 2;
+                continue;
+            }
+        }
+        // "You may look at and play those cards for as long as they remain
+        // exiled": two permissions, one verb phrase ([look-at-and-play]).
+        if let (
+            Effect::LookAt {
+                who,
+                what: w1,
+                dur: d1,
+            },
+            Some(Effect::Cast {
+                verb: CastVerb::Play,
+                what: w2,
+                payment: Payment::ManaCost,
+                dur: d2,
+            }),
+        ) = (e, es.get(i + 1))
+        {
+            if w1 == w2 && d1 == d2 && cx.implied.as_ref() == Some(who) {
+                let next = out(|o| effect(o, &es[i + 1], &cx));
+                let apart = out(|o| {
+                    o.add(full.clone());
+                    syn::joiner(o, false);
+                    o.add(next);
+                });
+                let joined = out(|o| {
+                    o.w("look at and play");
+                    objects(o, w1);
+                    dur(o, d1);
+                });
+                syn::look_at_and_play(o, apart, joined);
                 last = Out(o.0[start..].to_vec());
                 i += 2;
                 continue;
