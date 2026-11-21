@@ -1236,6 +1236,14 @@ mod syn {
         );
     }
 
+    /// Named rewrite [they-continues]: "that creature's controller may play
+    /// that card and they may spend mana …" (Curse of Hospitality) is "…
+    /// and that creature's controller may spend mana …": "they" names the
+    /// player the clause before named, as the tree says it again.
+    pub fn they_continues(o: &mut Out, named: Out, they: Out) {
+        alt(o, vec![named, they]);
+    }
+
     /// Named rewrite [rather-than-paying]: "rather than paying its mana
     /// cost" (Nashi, Moon Sage's Scion) is "rather than pay its mana cost"
     /// (Inside Information): the same alternative cost (CR 118.9).
@@ -6330,6 +6338,21 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                 out(|o| syn::it_self(o, full.clone(), pronoun))
             }
             _ => full.clone(),
+        };
+        // "that creature's controller may play that card and they may spend
+        // mana …" (Curse of Hospitality): the same player again, by pronoun.
+        let named_or_it = match (prev.and_then(subject_of), e) {
+            (Some(w), Effect::May { who, then })
+                if w == *who && matches!(who, Player::ControllerOf(_) | Player::OwnerOf(_)) =>
+            {
+                let again = Effect::May {
+                    who: Player::That,
+                    then: then.clone(),
+                };
+                let they = out(|o| effect(o, &again, &cx));
+                out(|o| syn::they_continues(o, named_or_it.clone(), they))
+            }
+            _ => named_or_it,
         };
         if i > 0 {
             syn::joiner(o, ends_in_quote(&last));
