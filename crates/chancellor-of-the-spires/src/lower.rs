@@ -1287,6 +1287,13 @@ pub enum Effect {
         /// source and counted as it resolves (CR 608.2h).
         per: Option<Filter>,
     },
+    /// "Target opponent gains control of it": from now on, `who` controls
+    /// the permanent (CR 613.1b), a control change that removes it from
+    /// combat (CR 506.4).
+    GainControl {
+        who: Who,
+        of: Obj,
+    },
     /// "You may …": the controller chooses, as the instruction is
     /// reached, whether to follow these (CR 608.2d; a triggered ability's
     /// "may" is chosen as it resolves, CR 603.5).
@@ -1673,6 +1680,26 @@ pub enum TriggerEvent {
     /// dies": a creature the filter matches, as it last existed, is put
     /// into a graveyard from the battlefield (CR 700.4, 603.6c, 603.10a).
     Dies(Filter),
+    /// "Whenever this creature blocks": a creature the filter matches is
+    /// declared as a blocker, once however many it blocks (CR 509.3a).
+    Blocks(Filter),
+    /// "Whenever this creature becomes blocked": an attacking creature the
+    /// filter matches becomes blocked as blockers are declared, once
+    /// however many block it (CR 509.1h, 509.3c).
+    BecomesBlocked(Filter),
+    /// "When this creature enters or dies": any of these, once for an
+    /// event that is more than one of them (CR 603.2c).
+    Or(Vec<TriggerEvent>),
+}
+
+impl TriggerEvent {
+    /// The events it triggers on, each of an "or".
+    pub fn parts(&self) -> Vec<&TriggerEvent> {
+        match self {
+            TriggerEvent::Or(v) => v.iter().flat_map(|e| e.parts()).collect(),
+            e => vec![e],
+        }
+    }
 }
 
 /// The steps a triggered ability can wait for the beginning of.
@@ -1756,93 +1783,7 @@ pub fn triggered(
         }
     };
     let event = match trigger {
-        i::Trigger::When(e) => match &**e {
-            i::Event::Enters {
-                what,
-                under: None,
-                state: None,
-            } => TriggerEvent::Enters(entering(&bound(what))?),
-            i::Event::Attacks(what) => TriggerEvent::Attacks(entering(what)?),
-            i::Event::AttacksWith {
-                who: i::Player::You,
-                what,
-                at: None,
-            } => TriggerEvent::AttacksWith {
-                filter: objects(&Objects {
-                    quant: Quant::All,
-                    filter: what.filter.clone(),
-                })?,
-                n: match what.quant {
-                    Quant::One => 1,
-                    Quant::AtLeast(i::Amount::N(n)) => n,
-                    ref q => return Err(format!("attacking with {}", short(q))),
-                },
-            },
-            i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
-            i::Event::DealsDamage(what) => TriggerEvent::DealsDamage(entering(what)?),
-            i::Event::TurnedFaceUp(what) => TriggerEvent::TurnedFaceUp(entering(what)?),
-            i::Event::TransformsInto { what, into }
-                if into.quant == Quant::SelfRef && into.filter == i::Filter::default() =>
-            {
-                TriggerEvent::TransformsInto(entering(what)?)
-            }
-            i::Event::BecomesTapped(what) => TriggerEvent::BecomesTapped(entering(what)?),
-            i::Event::Cycles {
-                who: i::Player::You,
-                what: Some(o),
-            } if itself(o) => TriggerEvent::CyclesItself,
-            i::Event::Draws(who) => TriggerEvent::Draws {
-                by: match who {
-                    i::Player::You => CastBy::You,
-                    i::Player::APlayer | i::Player::Each => CastBy::Anyone,
-                    i::Player::AnOpponent | i::Player::EachOpponent => CastBy::Opponents,
-                    _ => return Err(trigger_node(trigger)),
-                },
-            },
-            i::Event::Dies(what) => TriggerEvent::Dies(entering(what)?),
-            i::Event::DealsDamageTo { what, to }
-                if matches!(to.as_slice(), [i::Recipient::Player(i::Player::APlayer)])
-                    && what.filter.kind != Some(i::Noun::Source) =>
-            {
-                TriggerEvent::DealsDamageToPlayer {
-                    what: entering(what)?,
-                    combat: false,
-                }
-            }
-            i::Event::DealsDamageTo { what, to }
-                if what.quant == Quant::One
-                    && what.filter
-                        == (i::Filter {
-                            kind: Some(i::Noun::Source),
-                            posts: vec![Post::Controller(i::Player::You)],
-                            ..i::Filter::default()
-                        }) =>
-            {
-                TriggerEvent::YourSourceDamages {
-                    opponent: match to.as_slice() {
-                        [i::Recipient::Player(i::Player::AnOpponent)] => true,
-                        [i::Recipient::Player(i::Player::APlayer)] => false,
-                        _ => return Err(trigger_node(trigger)),
-                    },
-                }
-            }
-            i::Event::DealsCombatDamageToPlayer(what) => TriggerEvent::DealsDamageToPlayer {
-                what: entering(what)?,
-                combat: true,
-            },
-            // A spell cast by itself triggers from the stack, where
-            // nothing looks for triggers yet.
-            i::Event::Casts { who, what } if what.quant != Quant::SelfRef => TriggerEvent::Casts {
-                by: match who {
-                    i::Player::You => CastBy::You,
-                    i::Player::APlayer | i::Player::Each => CastBy::Anyone,
-                    i::Player::AnOpponent | i::Player::EachOpponent => CastBy::Opponents,
-                    _ => return Err(trigger_node(trigger)),
-                },
-                spells: spell_filter(what)?,
-            },
-            _ => return Err(trigger_node(trigger)),
-        },
+        i::Trigger::When(e) => when(e, &bound)?,
         i::Trigger::At(step) => {
             let (step, whose) = match step {
                 i::Step::Upkeep(w) => (TurnStep::Upkeep, w),
@@ -1876,6 +1817,108 @@ pub fn triggered(
         event,
         program: scope.program,
         condition,
+    })
+}
+
+/// What a "when" trigger's event lowers to, an "or" to each of its
+/// events (CR 603.2).
+fn when(e: &i::Event, bound: &dyn Fn(&Objects) -> Objects) -> Result<TriggerEvent, String> {
+    Ok(match e {
+        // "Whenever this creature blocks or becomes blocked": one ability
+        // that triggers on either event, once if both happen at once.
+        i::Event::Or(events) => TriggerEvent::Or(
+            events
+                .iter()
+                .map(|e| when(e, bound))
+                .collect::<Result<_, _>>()?,
+        ),
+        i::Event::Enters {
+            what,
+            under: None,
+            state: None,
+        } => TriggerEvent::Enters(entering(&bound(what))?),
+        i::Event::Attacks(what) => TriggerEvent::Attacks(entering(what)?),
+        i::Event::AttacksWith {
+            who: i::Player::You,
+            what,
+            at: None,
+        } => TriggerEvent::AttacksWith {
+            filter: objects(&Objects {
+                quant: Quant::All,
+                filter: what.filter.clone(),
+            })?,
+            n: match what.quant {
+                Quant::One => 1,
+                Quant::AtLeast(i::Amount::N(n)) => n,
+                ref q => return Err(format!("attacking with {}", short(q))),
+            },
+        },
+        i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
+        i::Event::DealsDamage(what) => TriggerEvent::DealsDamage(entering(what)?),
+        i::Event::TurnedFaceUp(what) => TriggerEvent::TurnedFaceUp(entering(what)?),
+        i::Event::TransformsInto { what, into }
+            if into.quant == Quant::SelfRef && into.filter == i::Filter::default() =>
+        {
+            TriggerEvent::TransformsInto(entering(what)?)
+        }
+        i::Event::BecomesTapped(what) => TriggerEvent::BecomesTapped(entering(what)?),
+        i::Event::Cycles {
+            who: i::Player::You,
+            what: Some(o),
+        } if itself(o) => TriggerEvent::CyclesItself,
+        i::Event::Draws(who) => TriggerEvent::Draws {
+            by: match who {
+                i::Player::You => CastBy::You,
+                i::Player::APlayer | i::Player::Each => CastBy::Anyone,
+                i::Player::AnOpponent | i::Player::EachOpponent => CastBy::Opponents,
+                _ => return Err(format!("Trigger::When(Event::{})", short(e))),
+            },
+        },
+        i::Event::Dies(what) => TriggerEvent::Dies(entering(what)?),
+        i::Event::Blocks(what) => TriggerEvent::Blocks(entering(what)?),
+        i::Event::BecomesBlocked(what) => TriggerEvent::BecomesBlocked(entering(what)?),
+        i::Event::DealsDamageTo { what, to }
+            if matches!(to.as_slice(), [i::Recipient::Player(i::Player::APlayer)])
+                && what.filter.kind != Some(i::Noun::Source) =>
+        {
+            TriggerEvent::DealsDamageToPlayer {
+                what: entering(what)?,
+                combat: false,
+            }
+        }
+        i::Event::DealsDamageTo { what, to }
+            if what.quant == Quant::One
+                && what.filter
+                    == (i::Filter {
+                        kind: Some(i::Noun::Source),
+                        posts: vec![Post::Controller(i::Player::You)],
+                        ..i::Filter::default()
+                    }) =>
+        {
+            TriggerEvent::YourSourceDamages {
+                opponent: match to.as_slice() {
+                    [i::Recipient::Player(i::Player::AnOpponent)] => true,
+                    [i::Recipient::Player(i::Player::APlayer)] => false,
+                    _ => return Err(format!("Trigger::When(Event::{})", short(e))),
+                },
+            }
+        }
+        i::Event::DealsCombatDamageToPlayer(what) => TriggerEvent::DealsDamageToPlayer {
+            what: entering(what)?,
+            combat: true,
+        },
+        // A spell cast by itself triggers from the stack, where
+        // nothing looks for triggers yet.
+        i::Event::Casts { who, what } if what.quant != Quant::SelfRef => TriggerEvent::Casts {
+            by: match who {
+                i::Player::You => CastBy::You,
+                i::Player::APlayer | i::Player::Each => CastBy::Anyone,
+                i::Player::AnOpponent | i::Player::EachOpponent => CastBy::Opponents,
+                _ => return Err(format!("Trigger::When(Event::{})", short(e))),
+            },
+            spells: spell_filter(what)?,
+        },
+        _ => return Err(format!("Trigger::When(Event::{})", short(e))),
     })
 }
 
@@ -2872,7 +2915,16 @@ impl<'a> Scope<'a> {
             }
             // "that player puts it into their hand": the instruction is
             // theirs to follow, and no choice is in it.
-            i::Effect::Performed { effect, .. } => return self.effect(effect),
+            i::Effect::Performed { by, effect } => match &**effect {
+                i::Effect::GainControl {
+                    what,
+                    dur: i::Duration::Permanent,
+                } => Effect::GainControl {
+                    who: self.who(by)?,
+                    of: self.obj(what)?,
+                },
+                _ => return self.effect(effect),
+            },
             i::Effect::Move {
                 what,
                 from: None,

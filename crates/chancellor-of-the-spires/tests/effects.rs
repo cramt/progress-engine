@@ -669,6 +669,61 @@ fn blocks_obey_flying_and_blocked_creatures_trade() {
     assert_eq!(game.player(THEM).life(), 18);
 }
 
+/// CR 509.3c, 603.2c, 613.1b, 506.4, 302.6: Goblin Cadets' "Whenever this
+/// creature blocks or becomes blocked, target opponent gains control of
+/// it" triggers once as Grizzly Bears block it; resolving, its controller's
+/// opponent controls it, it leaves combat, so neither deals the other
+/// damage, and it is sick under its new controller.
+#[test]
+fn goblin_cadets_changes_control_when_it_becomes_blocked() {
+    let mut game = deal_both(
+        &[("Mountain", 40), ("Goblin Cadets", 20)],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Mountain", 1), ("Goblin Cadets", 1)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Goblin Cadets", None);
+    resolve(&mut game);
+    let cadets = creature(&game, "Goblin Cadets").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    pass_until(&mut game, THEM, Step::Upkeep);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(cadets, THEM)]));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    let d = step(&mut game, Answer::Block(vec![(bears, cadets)]));
+    let Decision::Targets { player, .. } = d else {
+        panic!("a target opponent: {d:?}")
+    };
+    assert_eq!(player, ME);
+    step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    assert_eq!(
+        game.pending().len() + game.stack().len(),
+        1,
+        "it triggers once"
+    );
+    resolve(&mut game);
+    assert_eq!(game.characteristics()[&cadets].controller, THEM);
+    assert!(game.attacks().is_empty(), "removed from combat");
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 20);
+    assert!(game.permanents().contains_key(&bears));
+    assert!(game.permanents().contains_key(&cadets));
+    assert_eq!(game.permanents()[&cadets].since, game.turn());
+}
+
 /// CR 510.4, 702.7b: Youthful Knight's first strike deals its damage in a
 /// step of its own, so the Grizzly Bears blocking it die before they deal
 /// theirs.

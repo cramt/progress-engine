@@ -705,7 +705,7 @@ casting after the stack resolved leaves a trigger the log doesn't show,
 or misses one it does (Warmth's on an opponent's red spell, cast in
 response to Warmth): the replay goes back and casts it so. A "removed from the
 stack because it has no legal targets" line must match the engine's
-spell leaving the stack unresolved (CR 608.2b).
+spell or ability leaving the stack unresolved (CR 608.2b).
 
 A cast line says how the spell was cast when it wasn't plainly from
 hand for its mana cost ("from the graveyard", "with Flashback{1U}, Pay 3
@@ -981,7 +981,8 @@ from there, and Delver of Secrets transforming into a 3/2 of mana value
 and Vesuva entering tapped as a Cloudpost, a Locus each Cloudpost
 counts, or untapped as itself, and as a Glimmerpost gaining the life
 its trigger counts, and Thespian's Stage becoming a Cloudpost that keeps
-its copy ability.
+its copy ability, and Goblin Cadets, blocked, triggering once and going
+to its attacker's opponent, out of combat.
 
 ### The milestone
 
@@ -1008,9 +1009,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-13 83 of the 500 replay to
-the end and 45.82% of their lines are followed** (14,506 of 31,659), 2
-of them relying on a land the log never names (1 to the end), and 90
+Worked card by card from there, **on 2026-11-21 86 of the 500 replay to
+the end and 46.32% of their lines are followed** (14,665 of 31,659), 2
+of them relying on a land the log never names (1 to the end), and 92
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1080,7 +1081,9 @@ counters and the cast as the last goes (Rift Bolt, Search for Tomorrow,
 Ancestral Vision, Profane Tutor); an ability on the stack as a target,
 countered (Stifle); counters removed from its source as an activated
 ability's cost (Triskelion); power-up and keyword counters
-(Quicksilver). And
+(Quicksilver); a trigger on either of two events, once for an event
+that is both, blocking and becoming blocked, and control changed in
+layer 2, which removes a creature from combat (Goblin Cadets). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1103,11 +1106,12 @@ suspended card's time counter lines and the cast its last trigger's
 trigger's "Triggered ability from" or an activated one's source
 unbracketed, the counter line before an activation as its cost, and a
 counters line naming two kinds ("puts a +1/+1 and a double strike
-counter on [Quicksilver, Brash Blur].") as one of each. One divergence was the engine's own, found by the full
+counter on [Quicksilver, Brash Blur].") as one of each, and an
+ability, not only a spell, removed from the stack for want of a legal
+target (Mogg Fanatic's, its target sacrificed in response). One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Goblin Cadets, Prismatic Omen and Veteran
-Survivor (6 each); of the 7 games Quicksilver stopped, one replays to
+top of the worklist now: Prismatic Omen and Veteran Survivor (6 each); of the 7 games Quicksilver stopped, one replays to
 the end, four stop at Blazing Shoal's exile from hand, one at Wayward
 Guide-Beast and one at Frostboil Snarl; of the 9 games a counter line before an
 activation stopped, Triskelion's replays to the end, Quest for Pure

@@ -329,10 +329,11 @@ impl Filter {
 }
 
 /// CR 613.1, 613.4. Layer 1 is each object's copiable values
-/// (`Object::printed`), where every other layer starts; layers 2–3 and 7a
+/// (`Object::printed`), where every other layer starts; layers 3 and 7a
 /// aren't modelled yet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Layer {
+    Control,
     Type,
     Color,
     Ability,
@@ -348,10 +349,14 @@ impl Layer {
     /// toughness, and no `Pred` reads them: one that does makes this true
     /// for layer 7 too.
     pub fn has_dependencies(self) -> bool {
-        matches!(self, Layer::Type | Layer::Color | Layer::Ability)
+        matches!(
+            self,
+            Layer::Control | Layer::Type | Layer::Color | Layer::Ability
+        )
     }
 
-    pub const ALL: [Layer; 6] = [
+    pub const ALL: [Layer; 7] = [
+        Layer::Control,
         Layer::Type,
         Layer::Color,
         Layer::Ability,
@@ -365,6 +370,8 @@ impl Layer {
 /// a part can't be filed in the wrong one (ADR-0037).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Op {
+    /// Layer 2: "target opponent gains control of it" (CR 613.1b).
+    SetController(PlayerId),
     /// Layer 4: "is a creature in addition to its other types".
     AddTypes(BTreeSet<CardType>),
     /// Layer 4: "is a Swamp in addition to its other land types".
@@ -396,6 +403,7 @@ pub enum PtValue {
 impl Op {
     pub fn layer(&self) -> Layer {
         match self {
+            Op::SetController(_) => Layer::Control,
             Op::AddTypes(_) | Op::AddSubtypes(_) | Op::SetBasicLandType(_) => Layer::Type,
             Op::SetColors(_) => Layer::Color,
             Op::Grant(_) | Op::Lose(_) | Op::LoseAll => Layer::Ability,
@@ -408,6 +416,7 @@ impl Op {
     /// `printed` is the object as printed, for what its rules text gives it.
     pub fn apply(&self, c: &mut Chars, printed: &Chars) {
         match self {
+            Op::SetController(p) => c.controller = *p,
             Op::AddTypes(t) => c.types.extend(t.iter().copied()),
             Op::AddSubtypes(t) => c.subtypes.extend(t.iter().cloned()),
             Op::SetBasicLandType(t) => {

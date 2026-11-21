@@ -1868,8 +1868,9 @@ impl Driver<'_> {
                 }
                 self.did(i, "the counters are on it");
             }
-            // CR 608.2b: a spell whose targets are all illegal doesn't
-            // resolve; the engine's leaves the stack as it would resolve.
+            // CR 608.2b: a spell or ability whose targets are all illegal
+            // doesn't resolve; the engine's leaves the stack as it would
+            // resolve.
             RemovedForNoTargets { spell, .. } => {
                 let name = match spell {
                     log::Source::Card(c) => c.name().to_string(),
@@ -1880,10 +1881,10 @@ impl Driver<'_> {
                     let game = self.game();
                     let there = game.stack().iter().any(|o| match o {
                         StackObject::Spell { card, .. }
-                        | StackObject::Trigger { source: card, .. } => {
+                        | StackObject::Trigger { source: card, .. }
+                        | StackObject::Ability { source: card, .. } => {
                             game.card(*card).is_some_and(|t| t.is_called(&name))
                         }
-                        StackObject::Ability { .. } => false,
                     });
                     if !there {
                         break;

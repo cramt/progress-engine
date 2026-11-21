@@ -818,6 +818,12 @@ enum Event {
     Drew(PlayerId),
     /// This permanent became tapped (CR 701.26a).
     BecameTapped(ObjectId),
+    /// These creatures were declared as blockers, and these attackers
+    /// became blocked (CR 509.1h, 509.1i).
+    Blocked {
+        blockers: Vec<ObjectId>,
+        blocked: Vec<ObjectId>,
+    },
 }
 
 /// The combat phase's state (CR 506): who attacks whom, who blocks what.
@@ -3099,9 +3105,18 @@ impl Game {
                     return Err(Rejected::Illegal(answer));
                 }
                 let combat = self.combat.get_or_insert_with(Combat::default);
+                let mut blocked = Vec::new();
                 for (b, a) in declared {
                     combat.blockers.insert(*b, *a);
-                    combat.blocked.insert(*a);
+                    if combat.blocked.insert(*a).is_none() {
+                        blocked.push(*a);
+                    }
+                }
+                if !declared.is_empty() {
+                    self.trigger_on(Event::Blocked {
+                        blockers: declared.iter().map(|(b, _)| *b).collect(),
+                        blocked,
+                    });
                 }
                 self.declare_blockers(rest);
             }
@@ -3824,10 +3839,12 @@ impl Game {
             return false;
         };
         match self.known(perm.card).map(|k| &k.runs) {
-            Some(Ok(r)) => r
-                .triggered
-                .values()
-                .any(|t| matches!(t.event, TriggerEvent::BecomesTapped(_))),
+            Some(Ok(r)) => r.triggered.values().any(|t| {
+                t.event
+                    .parts()
+                    .iter()
+                    .any(|e| matches!(e, TriggerEvent::BecomesTapped(_)))
+            }),
             _ => false,
         }
     }
@@ -4220,7 +4237,7 @@ impl Game {
                     .runs_of(card)
                     .triggered
                     .iter()
-                    .filter(|(_, t)| t.event == TriggerEvent::CyclesItself)
+                    .filter(|(_, t)| t.event.parts().contains(&&TriggerEvent::CyclesItself))
                     .map(|(n, _)| *n)
                     .collect();
                 for k in cycled {
@@ -5316,6 +5333,18 @@ impl Game {
                         self.until_end_of_turn.push(t);
                     }
                 }
+                Effect::GainControl { who: w, of } => {
+                    let Some(q) = who(w) else { continue };
+                    for o in self.objects_on(&at, &lower::On::One(of)) {
+                        self.battlefield
+                            .resolve([o], vec![model::Op::SetController(q)]);
+                        // CR 302.6: sick again under its new controller.
+                        if let Some(perm) = self.permanents.get_mut(&o) {
+                            perm.since = self.turn;
+                        }
+                        self.remove_from_combat(o);
+                    }
+                }
                 Effect::May(w, _) => {
                     let Some(q) = who(w) else { continue };
                     self.waiting = Waiting::May {
@@ -6247,134 +6276,160 @@ impl Game {
                 if !chars.abilities.contains(&Ability::Unread(*n)) {
                     continue;
                 }
-                let objects: Vec<(Option<ObjectId>, Option<u32>)> = match (&t.event, &event) {
-                    (TriggerEvent::DealtDamage(f), Event::Damaged(hit)) => hit
-                        .iter()
-                        .filter(|(id, _)| all.contains_key(*id) && f.matches(&seen(**id)))
-                        .map(|(id, n)| (Some(*id), Some(*n)))
-                        .collect(),
-                    (
-                        TriggerEvent::DealsDamageToPlayer { what, combat },
-                        Event::DamagedPlayer { source, combat: c },
-                    ) if all.contains_key(source) && (*c || !combat) => what
-                        .matches(&seen(*source))
-                        .then_some((None, None))
-                        .into_iter()
-                        .collect(),
-                    (TriggerEvent::DealsDamage(f), Event::DealtBy { source, amount }) => {
-                        (all.contains_key(source) && f.matches(&seen(*source)))
-                            .then_some((None, Some(*amount)))
-                            .into_iter()
-                            .collect()
-                    }
-                    (TriggerEvent::TransformsInto(f), Event::Transformed(id))
-                    | (TriggerEvent::TurnedFaceUp(f), Event::TurnedFaceUp(id)) => f
-                        .matches(&seen(*id))
-                        .then_some((Some(*id), None))
-                        .into_iter()
-                        .collect(),
-                    (TriggerEvent::Dies(f), Event::Died(id)) => {
-                        let l = &self.last_known[id];
-                        f.matches(&Seen {
-                            id: *id,
-                            chars: &l.chars,
-                            source: *src,
-                            source_chars: chars,
-                            source_attached_to: self.battlefield.objects[src].attached_to,
-                            source_chosen: self.battlefield.objects[src].chosen_type.as_ref(),
-                            token: l.token,
-                            attacking: false,
-                        })
-                        .then_some((None, None))
-                        .into_iter()
-                        .collect()
-                    }
-                    (TriggerEvent::Begins { step, whose }, Event::Begins(s)) => {
-                        let mine = chars.controller == self.active;
-                        let holds = match whose {
-                            lower::Whose::Yours => mine,
-                            lower::Whose::Each => true,
-                            lower::Whose::Opponents => !mine,
-                        };
-                        (step == s && holds)
-                            .then_some((None, None))
-                            .into_iter()
-                            .collect()
-                    }
-                    (TriggerEvent::Enters(f), Event::Entered(id)) => f
-                        .matches(&seen(*id))
-                        .then_some((Some(*id), None))
-                        .into_iter()
-                        .collect(),
-                    (TriggerEvent::Attacks(f), Event::Attacked(ids)) => ids
-                        .iter()
-                        .filter(|id| f.matches(&seen(**id)))
-                        .map(|id| (Some(*id), None))
-                        .collect(),
-                    (TriggerEvent::AttacksWith { filter, n }, Event::Attacked(ids)) => {
-                        let with = ids
+                let fired = |e: &TriggerEvent| -> Vec<(Option<ObjectId>, Option<u32>)> {
+                    match (e, &event) {
+                        (TriggerEvent::DealtDamage(f), Event::Damaged(hit)) => hit
                             .iter()
-                            .filter(|id| {
-                                all.get(id)
-                                    .is_some_and(|c| c.controller == chars.controller)
-                                    && filter.matches(&seen(**id))
+                            .filter(|(id, _)| all.contains_key(*id) && f.matches(&seen(**id)))
+                            .map(|(id, n)| (Some(*id), Some(*n)))
+                            .collect(),
+                        (
+                            TriggerEvent::DealsDamageToPlayer { what, combat },
+                            Event::DamagedPlayer { source, combat: c },
+                        ) if all.contains_key(source) && (*c || !combat) => what
+                            .matches(&seen(*source))
+                            .then_some((None, None))
+                            .into_iter()
+                            .collect(),
+                        (TriggerEvent::DealsDamage(f), Event::DealtBy { source, amount }) => {
+                            (all.contains_key(source) && f.matches(&seen(*source)))
+                                .then_some((None, Some(*amount)))
+                                .into_iter()
+                                .collect()
+                        }
+                        (TriggerEvent::TransformsInto(f), Event::Transformed(id))
+                        | (TriggerEvent::TurnedFaceUp(f), Event::TurnedFaceUp(id)) => f
+                            .matches(&seen(*id))
+                            .then_some((Some(*id), None))
+                            .into_iter()
+                            .collect(),
+                        (TriggerEvent::Dies(f), Event::Died(id)) => {
+                            let l = &self.last_known[id];
+                            f.matches(&Seen {
+                                id: *id,
+                                chars: &l.chars,
+                                source: *src,
+                                source_chars: chars,
+                                source_attached_to: self.battlefield.objects[src].attached_to,
+                                source_chosen: self.battlefield.objects[src].chosen_type.as_ref(),
+                                token: l.token,
+                                attacking: false,
                             })
-                            .count();
-                        (with >= *n as usize)
                             .then_some((None, None))
                             .into_iter()
                             .collect()
-                    }
-                    // CR 702.149a: power as the layers have it now.
-                    (TriggerEvent::Trains, Event::Attacked(ids)) => {
-                        let power = |id: &ObjectId| {
-                            all.get(id).and_then(|c| c.pt).map_or(i32::MIN, |p| p.power)
-                        };
-                        let mine = power(src);
-                        (ids.contains(src) && ids.iter().any(|id| id != src && power(id) > mine))
+                        }
+                        (TriggerEvent::Begins { step, whose }, Event::Begins(s)) => {
+                            let mine = chars.controller == self.active;
+                            let holds = match whose {
+                                lower::Whose::Yours => mine,
+                                lower::Whose::Each => true,
+                                lower::Whose::Opponents => !mine,
+                            };
+                            (step == s && holds)
+                                .then_some((None, None))
+                                .into_iter()
+                                .collect()
+                        }
+                        (TriggerEvent::Enters(f), Event::Entered(id)) => f
+                            .matches(&seen(*id))
+                            .then_some((Some(*id), None))
+                            .into_iter()
+                            .collect(),
+                        (TriggerEvent::Attacks(f), Event::Attacked(ids)) => ids
+                            .iter()
+                            .filter(|id| f.matches(&seen(**id)))
+                            .map(|id| (Some(*id), None))
+                            .collect(),
+                        (TriggerEvent::AttacksWith { filter, n }, Event::Attacked(ids)) => {
+                            let with = ids
+                                .iter()
+                                .filter(|id| {
+                                    all.get(id)
+                                        .is_some_and(|c| c.controller == chars.controller)
+                                        && filter.matches(&seen(**id))
+                                })
+                                .count();
+                            (with >= *n as usize)
+                                .then_some((None, None))
+                                .into_iter()
+                                .collect()
+                        }
+                        // CR 702.149a: power as the layers have it now.
+                        (TriggerEvent::Trains, Event::Attacked(ids)) => {
+                            let power = |id: &ObjectId| {
+                                all.get(id).and_then(|c| c.pt).map_or(i32::MIN, |p| p.power)
+                            };
+                            let mine = power(src);
+                            (ids.contains(src)
+                                && ids.iter().any(|id| id != src && power(id) > mine))
                             .then_some((None, None))
                             .into_iter()
                             .collect()
-                    }
-                    (TriggerEvent::AttacksAlone(f), Event::Attacked(ids)) => match ids.as_slice() {
-                        [id] if f.matches(&seen(*id)) => vec![(Some(*id), None)],
+                        }
+                        (TriggerEvent::AttacksAlone(f), Event::Attacked(ids)) => {
+                            match ids.as_slice() {
+                                [id] if f.matches(&seen(*id)) => vec![(Some(*id), None)],
+                                _ => vec![],
+                            }
+                        }
+                        (
+                            TriggerEvent::YourSourceDamages { opponent },
+                            Event::PlayerDamaged { player, controller },
+                        ) => (*controller == chars.controller
+                            && (!opponent || *player != chars.controller))
+                            .then_some((None, None))
+                            .into_iter()
+                            .collect(),
+                        (TriggerEvent::BecomesTapped(f), Event::BecameTapped(id)) => f
+                            .matches(&seen(*id))
+                            .then_some((Some(*id), None))
+                            .into_iter()
+                            .collect(),
+                        (TriggerEvent::Draws { by }, Event::Drew(q)) => {
+                            let drew = match by {
+                                lower::CastBy::Anyone => true,
+                                lower::CastBy::You => *q == chars.controller,
+                                lower::CastBy::Opponents => *q != chars.controller,
+                            };
+                            drew.then_some((None, None)).into_iter().collect()
+                        }
+                        (TriggerEvent::Casts { by, spells }, Event::Cast { card, controller }) => {
+                            let printed = self.spell_chars(*card);
+                            let caster = match by {
+                                lower::CastBy::Anyone => true,
+                                lower::CastBy::You => *controller == chars.controller,
+                                lower::CastBy::Opponents => *controller != chars.controller,
+                            };
+                            (caster && printed.is_some_and(|c| spells.matches(&c)))
+                                .then_some((None, None))
+                                .into_iter()
+                                .collect()
+                        }
+                        (TriggerEvent::Blocks(f), Event::Blocked { blockers, .. }) => blockers
+                            .iter()
+                            .filter(|id| all.contains_key(*id) && f.matches(&seen(**id)))
+                            .map(|id| (Some(*id), None))
+                            .collect(),
+                        (TriggerEvent::BecomesBlocked(f), Event::Blocked { blocked, .. }) => {
+                            blocked
+                                .iter()
+                                .filter(|id| all.contains_key(*id) && f.matches(&seen(**id)))
+                                .map(|id| (Some(*id), None))
+                                .collect()
+                        }
                         _ => vec![],
-                    },
-                    (
-                        TriggerEvent::YourSourceDamages { opponent },
-                        Event::PlayerDamaged { player, controller },
-                    ) => (*controller == chars.controller
-                        && (!opponent || *player != chars.controller))
-                        .then_some((None, None))
-                        .into_iter()
-                        .collect(),
-                    (TriggerEvent::BecomesTapped(f), Event::BecameTapped(id)) => f
-                        .matches(&seen(*id))
-                        .then_some((Some(*id), None))
-                        .into_iter()
-                        .collect(),
-                    (TriggerEvent::Draws { by }, Event::Drew(q)) => {
-                        let drew = match by {
-                            lower::CastBy::Anyone => true,
-                            lower::CastBy::You => *q == chars.controller,
-                            lower::CastBy::Opponents => *q != chars.controller,
-                        };
-                        drew.then_some((None, None)).into_iter().collect()
                     }
-                    (TriggerEvent::Casts { by, spells }, Event::Cast { card, controller }) => {
-                        let printed = self.spell_chars(*card);
-                        let caster = match by {
-                            lower::CastBy::Anyone => true,
-                            lower::CastBy::You => *controller == chars.controller,
-                            lower::CastBy::Opponents => *controller != chars.controller,
-                        };
-                        (caster && printed.is_some_and(|c| spells.matches(&c)))
-                            .then_some((None, None))
-                            .into_iter()
-                            .collect()
-                    }
-                    _ => vec![],
                 };
+                // CR 603.2c: an "or" triggers once for the event, by the
+                // first of its parts that it is.
+                let objects = t
+                    .event
+                    .parts()
+                    .into_iter()
+                    .map(fired)
+                    .find(|o| !o.is_empty())
+                    .unwrap_or_default();
                 // A spell cast names its caster, "that player", and a draw
                 // who drew.
                 let player = match &event {
@@ -6408,7 +6463,10 @@ impl Game {
             let l = self.last_known[id].clone();
             if let Ok(runs) = &self.printed(l.card, l.printed).runs {
                 for (n, t) in &runs.triggered {
-                    let TriggerEvent::Dies(f) = &t.event else {
+                    let Some(f) = t.event.parts().into_iter().find_map(|e| match e {
+                        TriggerEvent::Dies(f) => Some(f),
+                        _ => None,
+                    }) else {
                         continue;
                     };
                     let seen = Seen {
@@ -6617,6 +6675,18 @@ impl Game {
             self.trigger_on(Event::Attacked(declared.iter().map(|(a, _)| *a).collect()));
         }
         self.give_priority(p, 0);
+    }
+
+    /// CR 506.4: a permanent removed from combat stops being an
+    /// attacking, blocking, blocked or unblocked creature; a creature it
+    /// blocked stays blocked (CR 509.1h).
+    fn remove_from_combat(&mut self, o: ObjectId) {
+        if let Some(combat) = self.combat.as_mut() {
+            combat.attackers.remove(&o);
+            combat.blockers.remove(&o);
+            combat.blocked.remove(&o);
+        }
+        self.battlefield.attacking.remove(&o);
     }
 
     /// CR 509.1: each defending player in turn order from the active
