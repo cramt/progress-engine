@@ -371,7 +371,7 @@ face: Illuminated Folio
 type: Artifact — Book
 cost: {5}
 > {1}, {T}, Reveal two cards from your hand that share a color: Draw a card.
-= BROKE at "color" after: {1} , {T} , reveal two cards from your hand that share a
+= Activated { cost: [Mana(Mana(["1"])), Tap, Reveal(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You)), SharesColor(None)], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Invasion of Belenon // Belenon War Anthem
 face: Invasion of Belenon

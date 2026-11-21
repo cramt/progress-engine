@@ -1020,7 +1020,7 @@ face: Spreading Plague
 type: Enchantment
 cost: {4}{B}
 > Whenever a creature enters, destroy all other creatures that share a color with it. They can't be regenerated.
-= BROKE at "color" after: whenever a creature enters , destroy all other creatures that share a
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Enters { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[OtherThan(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Type("creature")]], kind: None, posts: [SharesColor(Some(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))], or: None } }, no_regen: true }], limits: [] } }
 
 ## Staff of the Death Magus
 face: Staff of the Death Magus

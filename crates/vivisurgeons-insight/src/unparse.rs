@@ -5544,6 +5544,15 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 objects(o, x);
             }
         }
+        Post::SharesColor(with) => {
+            o.w("that");
+            o.verb("share", n);
+            o.w("a color");
+            if let Some(x) = with {
+                o.w("with");
+                objects(o, x);
+            }
+        }
         // Only said as "the token" (`objects`), where it is the first post.
         Post::CreatedWith(x) => {
             o.w("created with");

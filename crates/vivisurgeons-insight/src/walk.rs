@@ -2325,6 +2325,11 @@ impl Walk for Post {
                     Walk::walk(&mut **x0, v);
                 }
             }
+            Post::SharesColor(f0) => {
+                if let Some(x0) = (f0).as_mut() {
+                    Walk::walk(&mut **x0, v);
+                }
+            }
             Post::ChosenBy(f0) => {
                 Walk::walk(f0, v);
             }

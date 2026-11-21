@@ -1220,6 +1220,10 @@ pub enum Post {
         card_type: String,
         with: Option<Box<Objects>>,
     },
+    /// "that share a color with it": a color both have (CR 105.2; a
+    /// colorless object shares none, CR 105.2c); with
+    /// no object, with each other.
+    SharesColor(Option<Box<Objects>>),
     WithBasicLandType,
     /// "with a single target".
     WithSingleTarget,

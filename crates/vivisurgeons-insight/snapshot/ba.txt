@@ -831,7 +831,7 @@ face: Rally the Righteous
 type: Instant
 cost: {1}{R}{W}
 > Radiance — Untap target creature and each other creature that shares a color with it. Those creatures get +2/+0 until end of turn.
-= BROKE at "color" after: radiance — untap target creature and each other creature that shares a
+= Labelled { label: "radiance", ability: Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Untap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), With { bind: [/* it */ Objects { quant: Each, filter: Filter { alts: [[OtherThan(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Type("creature")]], kind: None, posts: [SharesColor(Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))], or: None } }], then: [Untap(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Modify { what: Objects { quant: Bounds([Bound(1), Bound(0)]) /* target, it */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }]) } }
 
 ## Rasputin, the Oneiromancer
 face: Rasputin, the Oneiromancer

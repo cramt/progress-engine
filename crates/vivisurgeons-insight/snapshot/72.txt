@@ -942,7 +942,7 @@ face: Surge of Zeal
 type: Instant
 cost: {R}
 > Radiance — Target creature and each other creature that shares a color with it gain haste until end of turn.
-= BROKE at "color" after: radiance — target creature and each other creature that shares a
+= BROKE at "gain" after: radiance — target creature and each other creature that shares a color with it
 
 ## Tainted Pact
 face: Tainted Pact

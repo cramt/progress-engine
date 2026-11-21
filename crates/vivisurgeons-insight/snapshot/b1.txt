@@ -849,7 +849,7 @@ cost: {5}
 > Imprint — When this artifact enters, you may have target player reveal their hand. If you do, choose a nonland card from it and exile that card.
 > Whenever a player casts a spell that shares a color or mana value with the exiled card, this artifact deals 2 damage to that player.
 = Labelled { label: "imprint", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [RevealHand(Target)] }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [IfYouDo([Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Exile(Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])] }], limits: [] } }
-= BROKE at "color" after: whenever a player casts a spell that shares a
+= BROKE at "value" after: whenever a player casts a spell that shares a color or mana
 
 ## Thundering Rebuke
 face: Thundering Rebuke

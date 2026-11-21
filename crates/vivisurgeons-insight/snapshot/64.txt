@@ -516,7 +516,7 @@ cost: {1}{G}{U}
 = BROKE at "loyalty" after: each other planeswalker you control has the
 = Loyalty { change: N(2), effect: [Scry(N(1))] }
 = Loyalty { change: MinusX, effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(0), signed: false }), colors: [Green, Blue], types: ["fractal", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, PutCounters { n: X, kind: "+1/+1", on: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }
-= BROKE at "color" after: N(-8) : search your library for an instant or sorcery card that shares a
+= Loyalty { change: N(-8), effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [SharesColor(Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }))], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), Shuffle(You), May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }] }] }
 
 ## Knight of the Reliquary
 face: Knight of the Reliquary

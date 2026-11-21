@@ -428,7 +428,7 @@ face: Grindstone
 type: Artifact
 cost: {1}
 > {3}, {T}: Target player mills two cards. If two cards that share a color were milled this way, repeat this process.
-= BROKE at "color" after: {3} , {T} : target player mills two cards . if two cards that share a
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Process([Mill { who: Target, n: N(2) }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [SharesColor(None)], or: None } }, how: Milled }, then: [RepeatProcess] }])], limits: [] }
 
 ## Hammer of Nazahn
 face: Hammer of Nazahn

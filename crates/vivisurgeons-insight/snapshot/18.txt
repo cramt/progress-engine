@@ -223,7 +223,7 @@ cost: {2}
 > As long as the top card of your library is a creature card, creatures you control that share a color with that card get +1/+1.
 > {G}{W}: Put the top card of your library on the bottom of your library.
 = Static([PlayWithTopRevealed(You)])
-= BROKE at "color" after: as long as the top card of your library is a creature card , creatures you control that share a
+= Let { bind: [/* it */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }], ability: Static([AsLongAs { order: Leading, cond: Is { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), SharesColor(Some(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }))], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }]) }
 = Activated { cost: [Mana(Mana(["G", "W"]))], effect: [Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Culling the Weak

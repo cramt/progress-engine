@@ -671,7 +671,7 @@ face: Leave No Trace
 type: Instant
 cost: {1}{W}
 > Radiance — Destroy target enchantment and each other enchantment that shares a color with it.
-= BROKE at "color" after: radiance — destroy target enchantment and each other enchantment that shares a
+= Labelled { label: "radiance", ability: Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }], ability: Spell([Destroy { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }, Destroy { what: Objects { quant: Each, filter: Filter { alts: [[OtherThan(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Type("enchantment")]], kind: None, posts: [SharesColor(Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))], or: None } }, no_regen: false }]) } }
 
 ## Lingering Tormentor
 face: Lingering Tormentor

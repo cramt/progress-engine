@@ -959,6 +959,11 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             let with = p.attempt(|p| { p.word("with")?; objects(p) }).map(Box::new);
             Some(Post::SharesType { card_type, with })
         },
+        |p| {
+            p.one_of(&["that shares a color", "that share a color"])?;
+            let with = p.attempt(|p| { p.word("with")?; objects(p) }).map(Box::new);
+            Some(Post::SharesColor(with))
+        },
         |p| p.words("with a basic land type").map(|_| Post::WithBasicLandType),
         |p| p.words("with a single target").map(|_| Post::WithSingleTarget),
         |p| p.words("of their choice").map(|_| Post::ChosenBy(Player::That)),

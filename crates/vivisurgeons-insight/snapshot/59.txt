@@ -639,7 +639,7 @@ face: Mana Maze
 type: Enchantment
 cost: {1}{U}
 > Players can't cast spells that share a color with the spell most recently cast this turn.
-= BROKE at "color" after: players can't cast spells that share a
+= BROKE at "most" after: players can't cast spells that share a color with the spell
 
 ## Marauding Boneslasher
 face: Marauding Boneslasher
