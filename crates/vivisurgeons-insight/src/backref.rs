@@ -256,6 +256,8 @@ struct Ev {
     subject: bool,
     /// It is the object of a `ControllerOf`: "its controller".
     controller_of: bool,
+    /// It is what an `Attach` attaches, the object before "to".
+    attached: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -317,6 +319,8 @@ struct Collect {
     next_root: usize,
     /// The `Damage` frame whose source is the next object entered.
     subject_of: Option<usize>,
+    /// The `Attach` frame whose attached object is the next one entered.
+    attach_of: Option<usize>,
     /// The next object entered is a `ControllerOf`'s.
     controller_next: bool,
 }
@@ -364,6 +368,7 @@ impl Collect {
             roots: Vec::new(),
             next_root: 0,
             subject_of: None,
+            attach_of: None,
             controller_next: false,
         }
     }
@@ -476,6 +481,7 @@ impl Collect {
             each_of_loop,
             subject: false,
             controller_of: false,
+            attached: false,
         });
         id
     }
@@ -522,6 +528,9 @@ impl Visitor for Collect {
         let id = self.new_ev(Some(decl), role.clone(), Some(o.clone()));
         if let Some(d) = self.subject_of.take() {
             self.evs[id].subject = d == self.here();
+        }
+        if let Some(d) = self.attach_of.take() {
+            self.evs[id].attached = d == self.here();
         }
         self.evs[id].controller_of = std::mem::take(&mut self.controller_next);
         if matches!(role, Role::Ref(_) | Role::SelfMention | Role::OutOfScope) {
@@ -619,6 +628,7 @@ impl Visitor for Collect {
             }
         )
         .then(|| self.here());
+        self.attach_of = matches!(e, Effect::Attach { .. }).then(|| self.here());
     }
 
     fn effect_done(&mut self, e: &mut Effect) {
@@ -1772,6 +1782,25 @@ fn resolve_one(
             note = "a permanent, not a card off the battlefield or the damage's source".into();
         }
     }
+    // "you may attach an Equipment you control to it" (Goldwardens'
+    // Gambit, Nahiri), "return enchanted creature card to the battlefield
+    // and attach this Aura to it" (Animate Dead): an Equipment or Aura can't
+    // be attached to itself (CR 301.5c, 303.4d), so what an `Attach` says
+    // after "to" is never what it attaches ([attach-not-itself]).
+    if cands.len() > 1 && !e.attached {
+        if let Some(f) = e.effect_frame.filter(|&f| ld.c.frames[f].verb == "Attach") {
+            let attached = mentions.iter().find_map(|((l, i), t)| {
+                let x = &ld.c.evs[*i];
+                (*l == li && x.attached && x.effect_frame == Some(f)).then(|| t.clone())
+            });
+            if let Some(a) = attached {
+                if cands.iter().any(|t| *t != a) && cands.contains(&a) {
+                    cands.retain(|t| *t != a);
+                    note = "where it is attached, not what it attaches".into();
+                }
+            }
+        }
+    }
     // "For each of those creatures, its controller reveals cards … until
     // they reveal a creature card, puts that card onto the battlefield,
     // then shuffles the rest" (Divergent Transformations): a card in a
@@ -2281,6 +2310,7 @@ pub fn fits(r: &Objects, b: &Objects) -> bool {
         each_of_loop: false,
         subject: false,
         controller_of: false,
+        attached: false,
     };
     // "cast target nonland permanent card …, and mana … to cast that
     // spell": a card cast is the spell.

@@ -1119,7 +1119,7 @@ cost: {4}{R}
 > Haste
 > When this creature enters, attach all Equipment on the battlefield to it. (Control of the Equipment doesn't change.)
 = Keywords([Keyword { name: "haste", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [With { bind: [/* it */ Objects { quant: All, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [In(Battlefield)], or: None } }], then: [Attach { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Attach { what: Objects { quant: All, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [In(Battlefield)], or: None } }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Warmonger Hellkite
 face: Warmonger Hellkite

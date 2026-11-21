@@ -382,7 +382,7 @@ cost: {5}{W}
 > When this creature enters, you may attach any number of Auras and Equipment you control to it.
 > Other creatures you control get +1/+1 for each Aura and Equipment attached to this creature.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "double strike", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [With { bind: [/* it */ Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("aura")], [Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }], then: [May { who: You, then: [Attach { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Attach { what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("aura")], [Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = BROKE at "this" after: other creatures you control get <pt> for each aura and equipment attached to
 
 ## Hollowborn Barghest
