@@ -887,6 +887,58 @@ fn compat(r: &Objects, e: &Ev) -> bool {
     true
 }
 
+/// "That permanent or player", "that creature": a reference whose words
+/// name what is on the battlefield (or a player), not a card.
+fn names_permanent(r: &Objects) -> bool {
+    const PERMANENT_TYPES: [&str; 6] = [
+        "artifact",
+        "battle",
+        "creature",
+        "enchantment",
+        "land",
+        "planeswalker",
+    ];
+    let rf = &r.filter;
+    if marked_how(rf).is_some() {
+        return false;
+    }
+    match rf.kind {
+        Some(Noun::Permanent) => true,
+        None => {
+            let (t, _) = type_words(rf);
+            !t.is_empty() && t.iter().all(|w| PERMANENT_TYPES.contains(&w.as_str()))
+        }
+        _ => false,
+    }
+}
+
+/// A card an effect found, revealed, drew, exiled or discarded, or one
+/// said as a card: in a library, hand, graveyard or exile, unless the
+/// effect put it onto the battlefield.
+fn card_off_battlefield(x: &Ev) -> bool {
+    if x.verb.contains("Battlefield") || x.verb.contains("PutOnto") {
+        return false;
+    }
+    match x.role {
+        Role::Made => {
+            matches!(
+                x.verb.as_str(),
+                "RevealTop"
+                    | "LookAtTop"
+                    | "Mill"
+                    | "Draw"
+                    | "ExileZone"
+                    | "DiscardHand"
+                    | "RevealHand"
+            ) || x.verb.starts_with("UntilFound")
+        }
+        _ => x
+            .obj
+            .as_ref()
+            .is_some_and(|o| o.filter.kind == Some(Noun::Card)),
+    }
+}
+
 /// Whether a reference can be the card itself: only a bare "it"/"its"
 /// (Oracle calls the card "this creature", "~", CR 700.7), whose types the
 /// type line has.
@@ -1662,6 +1714,52 @@ fn resolve_one(
                 cands.retain(|t| *t == Target::Intro(li, i));
                 note = "the restricted subject".into();
             }
+        }
+    }
+    // "Choose any target. Reveal cards … until you reveal a nonland card.
+    // ~ deals damage equal to that card's mana value to that permanent or
+    // player" (Erratic Explosion): a reference that names a permanent or a
+    // player is never a card still in a library, hand or graveyard, and
+    // "each creature you control deals damage equal to its power to that
+    // creature" (Moonlight Hunt) never deals it to itself, so neither is
+    // picked over another candidate ([permanent-not-card]).
+    if cands.len() > 1 && names_permanent(r) {
+        // Its recipient, not "equal to its power": outside the amount.
+        let recipient = !e.subject && !e.frames.iter().any(|&f| ld.c.frames[f].kind == Fk::Amount);
+        let keep = |t: &Target| match t {
+            Target::Intro(l, i) => {
+                let x = get((*l, *i));
+                !(card_off_battlefield(x)
+                    || recipient && x.subject && *l == li && x.effect_frame == e.effect_frame)
+            }
+            _ => true,
+        };
+        if cands.iter().any(keep) && !cands.iter().all(keep) {
+            cands.retain(keep);
+            note = "a permanent, not a card off the battlefield or the damage's source".into();
+        }
+    }
+    // "… target artifact a player controls and target artifact card in that
+    // player's graveyard. … sacrifices the artifact and returns the
+    // artifact card" (Goblin Welder): said as a card, the card.
+    if cands.len() > 1 && r.filter.kind == Some(Noun::Card) && marked_how(&r.filter).is_none() {
+        let card =
+            |t: &Target| matches!(t, Target::Intro(l, i) if card_off_battlefield(get((*l, *i))));
+        // Only chosen so far: "exile target creature. … return that card"
+        // is the creature, now a card in exile.
+        let permanent_target = |t: &Target| match t {
+            Target::Intro(l, i) => {
+                let x = get((*l, *i));
+                x.verb.starts_with("Choose")
+                    && x.obj.as_ref().is_some_and(|o| {
+                        targeted(o) && o.filter.kind.is_none() && names_permanent(o)
+                    })
+            }
+            _ => false,
+        };
+        if cands.iter().any(card) && cands.iter().any(permanent_target) {
+            cands.retain(|t| !permanent_target(t));
+            note = "a card, not a permanent".into();
         }
     }
     let class = match cands.len() {

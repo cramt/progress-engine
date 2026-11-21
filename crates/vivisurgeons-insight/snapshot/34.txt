@@ -373,7 +373,7 @@ face: Fateful Handoff
 type: Sorcery
 cost: {3}{B}
 > Draw cards equal to the mana value of target artifact or creature you control. An opponent gains control of that permanent.
-= Spell([With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Draw { who: You, n: ManaValueOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } }) }, Performed { by: AnOpponent, effect: GainControl { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, dur: Permanent } }] }])
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } }], ability: Spell([Draw { who: You, n: ManaValueOf(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }, Performed { by: AnOpponent, effect: GainControl { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, dur: Permanent } }]) }
 
 ## Feeling of Dread
 face: Feeling of Dread
