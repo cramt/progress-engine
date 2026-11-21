@@ -1801,6 +1801,35 @@ fn resolve_one(
             }
         }
     }
+    // "Destroy target artifact, enchantment, or land. If a land was
+    // destroyed this way, its controller … Otherwise, its controller …"
+    // (Dire-Strain Rampage): the other branch happens only where the `If`
+    // didn't, so nothing its condition or its effects introduced exists
+    // there ([otherwise-not-if]).
+    if cands.len() > 1 {
+        let frames = &ld.c.frames;
+        let alt_if = e.frames.windows(2).rev().find_map(|w| {
+            if frames[w[1]].kind != Fk::Effect || frames[w[1]].verb != "Otherwise" {
+                return None;
+            }
+            let items = &frames[w[0]].items;
+            let at = items
+                .iter()
+                .position(|it| matches!(it, Item::Fr(f) if *f == w[1]))?;
+            let before = items[..at].iter().rev().find_map(|it| match it {
+                Item::Fr(f) if frames[*f].kind == Fk::Effect => Some(*f),
+                _ => None,
+            })?;
+            (frames[before].verb == "If").then_some(before)
+        });
+        if let Some(f) = alt_if {
+            let keep = |t: &Target| !matches!(t, Target::Intro(l, i) if *l == li && get((*l, *i)).frames.contains(&f));
+            if cands.iter().any(keep) && !cands.iter().all(keep) {
+                cands.retain(keep);
+                note = "not what the branch it is the alternative to introduced".into();
+            }
+        }
+    }
     // "For each of those creatures, its controller reveals cards … until
     // they reveal a creature card, puts that card onto the battlefield,
     // then shuffles the rest" (Divergent Transformations): a card in a
