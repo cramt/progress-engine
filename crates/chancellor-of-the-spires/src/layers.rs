@@ -150,6 +150,15 @@ impl Run<'_> {
         let cond = match cond {
             Condition::YouControl(c) => c,
             Condition::YourTurn => return self.state.active == Some(source_chars.controller),
+            Condition::CountersOnItself(kind, count) => {
+                return count.holds(
+                    self.state.objects[&source]
+                        .counters
+                        .get(kind)
+                        .copied()
+                        .unwrap_or(0),
+                )
+            }
             Condition::CardsInYourGraveyard(count) => {
                 return count.holds(
                     self.state

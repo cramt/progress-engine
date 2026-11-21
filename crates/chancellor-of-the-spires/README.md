@@ -984,7 +984,8 @@ its trigger counts, and Thespian's Stage becoming a Cloudpost that keeps
 its copy ability, and Goblin Cadets, blocked, triggering once and going
 to its attacker's opponent, out of combat, and Prismatic Omen making
 Forests Mountains and Islands, and two Valakuts entering at once
-triggering four times.
+triggering four times. `tests/oracle.rs` reads Skyknight Squire flying
+and a Knight from its third +1/+1 counter.
 
 ### The milestone
 
@@ -1011,9 +1012,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 86 of the 500 replay to
-the end and 46.56% of their lines are followed** (14,741 of 31,659), 2
-of them relying on a land the log never names (1 to the end), and 92
+Worked card by card from there, **on 2026-11-22 87 of the 500 replay to
+the end and 46.69% of their lines are followed** (14,781 of 31,659), 2
+of them relying on a land the log never names (1 to the end), and 93
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1089,7 +1090,8 @@ layer 2, which removes a creature from combat (Goblin Cadets); every
 basic land type added in layer 4, with each one's mana ability, and the
 permanents one instruction puts onto the battlefield entering at once,
 each seeing the others enter (Prismatic Omen, and two Valakuts Hour of
-Promise finds triggering four times). And
+Promise finds triggering four times); a static ability existing as long
+as its permanent has so many counters of a kind (Skyknight Squire). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1121,8 +1123,8 @@ unmatched when the turn reaches an attack the log shows after it taken
 for a trigger that never came, so an earlier choice is gone back to. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Veteran Survivor (6), Prismatic Omen's games
-past it to Skyknight Squire's counters; of the 7 games Quicksilver stopped, one replays to
+top of the worklist now: Veteran Survivor (6), Adeline, Elephant Grass,
+Eternal Dragon's landcycling and Fact or Fiction (5 each); of the 7 games Quicksilver stopped, one replays to
 the end, four stop at Blazing Shoal's exile from hand, one at Wayward
 Guide-Beast and one at Frostboil Snarl; of the 9 games a counter line before an
 activation stopped, Triskelion's replays to the end, Quest for Pure

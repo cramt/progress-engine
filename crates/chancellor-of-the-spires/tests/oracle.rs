@@ -503,6 +503,31 @@ fn wild_nacatl_reads_as_two_conditional_statics() {
         && s.filter == Filter(vec![Pred::Itself])));
 }
 
+/// CR 611.3a, 122.1: Skyknight Squire's "As long as this creature has
+/// three or more +1/+1 counters on it, it has flying and is a Knight in
+/// addition to its other types" exists from the third counter on.
+#[test]
+fn skyknight_squire_flies_from_its_third_counter() {
+    const SQUIRE: Card = card(
+        "Skyknight Squire",
+        "Creature — Cat Scout",
+        "Whenever another creature you control enters, put a +1/+1 counter on this creature.\nAs long as this creature has three or more +1/+1 counters on it, it has flying and is a Knight in addition to its other types.",
+        2,
+        &[Color::White],
+        Some(pt(1, 1)),
+    );
+    let mut s = State::default();
+    let squire = enter(&mut s, &SQUIRE);
+    let knight = Subtype::Creature("Knight".into());
+    for n in 1..=3 {
+        s.put_counters(squire, Counter::PlusOne, 1);
+        let now = &characteristics(&s)[&squire];
+        assert_eq!(now.has(Keyword::Flying), n >= 3, "{n} counters");
+        assert_eq!(now.subtypes.contains(&knight), n >= 3, "{n} counters");
+        assert_eq!(now.pt, Some(pt(1 + n, 1 + n)));
+    }
+}
+
 #[test]
 fn a_line_the_engine_cant_lower_is_refused_by_name() {
     // A characteristic-defining ability, layer 7a, isn't modelled.

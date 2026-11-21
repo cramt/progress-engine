@@ -708,6 +708,26 @@ fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbilit
                 Condition::YouControl(c)
             }
             i::Condition::ItsYourTurn => Condition::YourTurn,
+            // "As long as this creature has three or more +1/+1 counters
+            // on it".
+            i::Condition::AmountIs {
+                n: i::Amount::CountOf(o),
+                op,
+                value: i::Amount::N(v),
+            } if matches!(
+                (&o.quant, &o.filter),
+                (Quant::Plural, i::Filter { kind: Some(i::Noun::Counter(Some(_))), posts, alts, or: None })
+                    if alts.is_empty() && matches!(posts.as_slice(), [Post::On(on)] if itself(on))
+            ) =>
+            {
+                let Some(i::Noun::Counter(Some(kind))) = &o.filter.kind else {
+                    unreachable!("matched above")
+                };
+                Condition::CountersOnItself(
+                    counter(kind).ok_or("AsLongAs(AmountIs) of a counter")?,
+                    count_of(*op, *v)?,
+                )
+            }
             // Threshold: "seven or more cards in your graveyard".
             i::Condition::AmountIs {
                 n: i::Amount::CountOf(o),

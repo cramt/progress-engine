@@ -474,6 +474,9 @@ pub enum Condition {
     /// Threshold's "as long as there are seven or more cards in your
     /// graveyard": how many cards its controller's graveyard holds.
     CardsInYourGraveyard(Count),
+    /// "As long as this creature has three or more +1/+1 counters on it":
+    /// how many of that kind its source has.
+    CountersOnItself(Counter, Count),
 }
 
 /// "You control a Mountain or a Plains", "you control two or fewer other
