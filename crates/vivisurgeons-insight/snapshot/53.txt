@@ -622,7 +622,7 @@ face: Invoke the Ancients
 type: Sorcery
 cost: {1}{G}{G}{G}{G}
 > Create two 4/5 green Spirit creature tokens. For each of them, put your choice of a reach counter, a vigilance counter, or a trample counter on it.
-= BROKE at "of" after: create two <pt> green spirit creature tokens . for each of them , put your choice
+= BROKE at "," after: create two <pt> green spirit creature tokens . for each of them , put your choice of a reach counter
 
 ## Item Shopkeep
 face: Item Shopkeep

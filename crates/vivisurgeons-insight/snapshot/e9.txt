@@ -98,7 +98,7 @@ face: Boot Nipper
 type: Creature — Beast
 cost: {1}{B}
 > This creature enters with your choice of a deathtouch counter or a lifelink counter on it.
-= BROKE at "a" after: this creature enters with your choice of
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: OneOf(["deathtouch", "lifelink"]) }])
 
 ## Bringer of the Green Dawn
 face: Bringer of the Green Dawn

@@ -459,7 +459,7 @@ face: Helica Glider
 type: Creature — Nightmare Squirrel
 cost: {2}{W}
 > This creature enters with your choice of a flying counter or a first strike counter on it.
-= BROKE at "a" after: this creature enters with your choice of
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: OneOf(["flying", "first strike"]) }])
 
 ## Hive of the Eye Tyrant
 face: Hive of the Eye Tyrant

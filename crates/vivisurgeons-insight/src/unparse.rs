@@ -2130,6 +2130,16 @@ mod syn {
     /// "enters" and "enters the battlefield": the phrase "has been
     /// shortened to simply 'enters' in rules text" (CR glossary, "Enters
     /// the Battlefield").
+    /// Named rewrite [counter-choice]: "put your choice of a +1/+1, first
+    /// strike, or trample counter on that creature" (Assaultron Dominator)
+    /// is "put a +1/+1, first strike, or trample counter on that creature"
+    /// (Reluctant Role Model): CR 608.2d gives the choice an effect offers
+    /// to the player applying it either way, so the tree holds only the
+    /// kinds.
+    pub fn your_choice_of(o: &mut Out) {
+        alt(o, vec![Out::default(), of("your choice of")]);
+    }
+
     pub fn the_battlefield(o: &mut Out) {
         alt(o, vec![Out::default(), of("the battlefield")]);
     }
@@ -3234,6 +3244,33 @@ fn counter_noun(o: &mut Out, kind: &CounterKind, n: Num) {
         o.w("of that kind");
         return;
     }
+    if let CounterKind::OneOf(v) = kind {
+        // "a +1/+1, first strike, or trample counter": three or more say
+        // the noun once.
+        if v.len() > 2 {
+            for (i, k) in v.iter().enumerate() {
+                if i > 0 {
+                    o.tok(Tok::Comma);
+                }
+                if i + 1 == v.len() {
+                    o.w("or");
+                }
+                counter_kind(o, k);
+            }
+            o.noun("counter", n);
+            return;
+        }
+        // One counter: the article is already said before the first.
+        for (i, k) in v.iter().enumerate() {
+            if i > 0 {
+                o.w("or");
+                syn::one(o);
+            }
+            counter_kind(o, k);
+            o.noun("counter", n);
+        }
+        return;
+    }
     counter_kind(o, kind);
     o.noun("counter", n);
 }
@@ -3243,6 +3280,14 @@ fn counter_kind(o: &mut Out, kind: &CounterKind) {
         CounterKind::Pt(pt) => o.tok(Tok::Pt(*pt)),
         CounterKind::Named(w) => o.w(w),
         CounterKind::Chosen => o.w("of that kind"),
+        CounterKind::OneOf(v) => {
+            for (i, k) in v.iter().enumerate() {
+                if i > 0 {
+                    o.w("or");
+                }
+                counter_kind(o, k);
+            }
+        }
     }
 }
 
@@ -7686,6 +7731,9 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
         }
         Effect::PutCounters { n, kind, on } => {
             o.w("put");
+            if matches!(kind, CounterKind::OneOf(_)) {
+                syn::your_choice_of(o);
+            }
             amount_a(o, n);
             counter_noun(o, kind, amount_num(n));
             o.w("on");
@@ -10152,6 +10200,9 @@ fn performed_said(o: &mut Out, e: &Effect, n: Num) {
         }
         Effect::PutCounters { n: k, kind, on } => {
             o.verb("put", n);
+            if matches!(kind, CounterKind::OneOf(_)) {
+                syn::your_choice_of(o);
+            }
             amount_a(o, k);
             counter_noun(o, kind, amount_num(k));
             o.w("on");
@@ -10222,6 +10273,9 @@ fn performed_said(o: &mut Out, e: &Effect, n: Num) {
         } => {
             performed(o, inner, n);
             o.w("with");
+            if matches!(kind, CounterKind::OneOf(_)) {
+                o.w("your choice of");
+            }
             enters_counters(o, k, kind);
         }
         Effect::EntersAttacking(inner) => {
@@ -13573,11 +13627,17 @@ fn static_predicate(o: &mut Out, s: &Static) {
             o.verb("enter", n);
             syn::the_battlefield(o);
             o.w("with");
+            if matches!(kind, CounterKind::OneOf(_)) {
+                o.w("your choice of");
+            }
             enters_counters(o, k, kind);
         }
         Static::EscapesWithCounters { n: k, kind, .. } => {
             o.verb("escape", n);
             o.w("with");
+            if matches!(kind, CounterKind::OneOf(_)) {
+                o.w("your choice of");
+            }
             enters_counters(o, k, kind);
         }
         Static::AlsoIs { types, .. } => {

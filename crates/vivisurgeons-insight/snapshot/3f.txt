@@ -1045,7 +1045,7 @@ cost: {2}
 > Equip {3}
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [GetEnergy(2)], limits: [] }
 = Let { bind: [/* equipped */ Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: Introduced(0) /* equipped */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: DoesntUntap(ControllerOf(Objects { quant: Bound(0) /* equipped */, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }]) }
-= BROKE at "of" after: at the beginning of your upkeep , you may pay {E} . if you do , untap equipped creature , then put your choice
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Energy(1)] }] }, With { bind: [/* equipped */ Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [IfYouDo([Untap(Objects { quant: Introduced(0) /* equipped */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), PutCounters { n: N(1), kind: OneOf(["menace", "trample", "lifelink"]), on: Objects { quant: Bound(0) /* equipped */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])] }], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["3"]))])) }])
 
 ## Terror Ballista

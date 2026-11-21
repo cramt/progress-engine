@@ -602,7 +602,7 @@ cost: {2}{G}{U}{R}
 > At the beginning of combat on your turn, put your choice of a +1/+1, first strike, vigilance, or menace counter on Me.
 > Counters remain on Me as it moves to any zone other than a player's hand or library.
 > You may cast this card from your graveyard by discarding two cards in addition to paying its other costs.
-= BROKE at "of" after: at the beginning of combat on your turn , put your choice
+= Triggered { trigger: At(Combat(Yours)), effect: [PutCounters { n: N(1), kind: OneOf(["+1/+1", "first strike", "vigilance", "menace"]), on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = BROKE at "to" after: counters remain on ~ as it moves
 = Static([CastPaying { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Some(Graveyard(You)), cost: [Discard(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], rather: false }])
 

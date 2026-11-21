@@ -960,7 +960,7 @@ cost: {2}{B}
 > Escape—{4}{B}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)
 > This creature escapes with your choice of a +1/+1 counter or a flying counter on it.
 = Keywords([Keyword { name: "escape", param: Some(Cost([Mana(Mana(["4", "B"])), Exile(Objects { quant: N(N(5)), filter: Filter { alts: [[State(Other)]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })])) }])
-= BROKE at "a" after: this creature escapes with your choice of
+= Static([EscapesWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: OneOf(["+1/+1", "flying"]) }])
 
 ## Tomb Blade
 face: Tomb Blade

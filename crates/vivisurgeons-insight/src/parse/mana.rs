@@ -260,6 +260,53 @@ pub(super) fn counter_kind(p: &mut P) -> Option<CounterKind> {
     }
 }
 
+/// "a +1/+1 counter or a loyalty counter", "your choice of a trample
+/// counter or a menace counter", up to the last "counter": one counter of
+/// a kind picked from these ([counter-choice]).
+pub(super) fn counter_choice(p: &mut P) -> Option<CounterKind> {
+    // "first strike", "double strike": a kind of two words.
+    fn kind(p: &mut P) -> Option<CounterKind> {
+        let k = counter_kind(p)?;
+        if matches!(&k, CounterKind::Named(w) if w == "first" || w == "double")
+            && p.attempt(|p| p.word("strike")).is_some()
+        {
+            if let CounterKind::Named(w) = k {
+                return Some(CounterKind::Named(format!("{w} strike")));
+            }
+        }
+        Some(k)
+    }
+    p.attempt(|p| p.words("your choice of"));
+    p.one_of(&["a", "an"])?;
+    let first = kind(p)?;
+    let v = alt!(p;
+        // "a +1/+1 counter or a loyalty counter".
+        |p| {
+            p.words("counter or")?;
+            p.one_of(&["a", "an"])?;
+            Some(vec![first.clone(), kind(p)?])
+        },
+        // "a +1/+1, first strike, or trample counter": the noun said once.
+        |p| {
+            let mut v = vec![first.clone()];
+            while let Some(k) = p.attempt(|p| {
+                p.tok(&Tok::Comma)?;
+                if p.attempt(|p| p.word("or")).is_some() {
+                    return None;
+                }
+                kind(p)
+            }) {
+                v.push(k);
+            }
+            p.tok(&Tok::Comma)?;
+            p.word("or")?;
+            v.push(kind(p)?);
+            (v.len() > 2).then_some(v)
+        },
+    )?;
+    matches!(p.peek(), Some(Tok::Word(w)) if w == "counter").then_some(CounterKind::OneOf(v))
+}
+
 pub(super) fn mana_add(p: &mut P) -> Option<ManaAdd> {
     alt!(p;
         |p| {

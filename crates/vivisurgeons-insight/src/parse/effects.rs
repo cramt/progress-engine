@@ -1461,8 +1461,10 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         // counters
         |p| {
             p.word("put")?;
-            let n = amount_a(p)?;
-            let kind = counter_kind(p)?;
+            let (n, kind) = match p.attempt(counter_choice) {
+                Some(k) => (Amount::N(1), k),
+                None => (amount_a(p)?, counter_kind(p)?),
+            };
             p.one_of(&["counters", "counter"])?;
             p.word("on")?;
             let on = objects(p)?;

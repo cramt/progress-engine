@@ -14,6 +14,11 @@ pub enum CounterKind {
     /// kind" after "choose a counter on target permanent" (Clockspinning):
     /// the kind of the counter chosen. Printed `Chosen`, unquoted.
     Chosen,
+    /// "a +1/+1 counter or a loyalty counter" (Elspeth Conquers Death),
+    /// "your choice of a trample counter or a menace counter": one counter
+    /// of whichever of these kinds the player who puts it picks
+    /// ([counter-choice]).
+    OneOf(Vec<CounterKind>),
 }
 
 impl CounterKind {
@@ -22,6 +27,11 @@ impl CounterKind {
         match self {
             CounterKind::Named(w) => w.clone(),
             CounterKind::Chosen => "of that kind".into(),
+            CounterKind::OneOf(v) => v
+                .iter()
+                .map(CounterKind::text)
+                .collect::<Vec<_>>()
+                .join(" or "),
             CounterKind::Pt(pt) => {
                 let part = |p: PtPart| match (p, pt.signed) {
                     (PtPart::N(n), true) if n < 0 => format!("-{}", -n),
@@ -46,6 +56,9 @@ impl std::fmt::Debug for CounterKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if *self == CounterKind::Chosen {
             return write!(f, "Chosen");
+        }
+        if let CounterKind::OneOf(v) = self {
+            return write!(f, "OneOf({v:?})");
         }
         write!(f, "{:?}", self.text())
     }

@@ -279,7 +279,7 @@ type: Legendary Creature — Cat Advisor
 cost: {2}{W}{U}
 > Denry Klin enters with your choice of a +1/+1, first strike, or vigilance counter on it.
 > Whenever a nontoken creature you control enters, if Denry Klin has counters on it, put the same number of each kind of counter on that creature.
-= BROKE at "<pt>" after: ~ enters with your choice of a
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: OneOf(["+1/+1", "first strike", "vigilance"]) }])
 = BROKE at "number" after: whenever a nontoken creature you control enters , if ~ has counters on it , put the same
 
 ## Divine Congregation

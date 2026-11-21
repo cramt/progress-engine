@@ -892,7 +892,7 @@ type: Creature — Human Survivor
 cost: {1}{W}
 > Survival — At the beginning of your second main phase, if this creature is tapped, put a flying, lifelink, or +1/+1 counter on it.
 > Whenever this creature or another creature you control dies, if it had counters on it, put those counters on up to one target creature.
-= BROKE at "," after: survival — at the beginning of your second main phase , if this creature is tapped , put a flying
+= Labelled { label: "survival", ability: Triggered { trigger: InterveningIf(At(SecondMain(Yours)), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }), effect: [PutCounters { n: N(1), kind: OneOf(["flying", "lifelink", "+1/+1"]), on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
 = BROKE at "." after: whenever this creature or another creature you control dies , if it had counters on it , put those counters on up to one target creature
 
 ## Resentful Revelation

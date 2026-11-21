@@ -1069,7 +1069,7 @@ face: Wingfold Pteron
 type: Creature — Dinosaur
 cost: {5}{U}
 > This creature enters with your choice of a flying counter or a hexproof counter on it. (A creature with hexproof can't be the target of spells or abilities your opponents control.)
-= BROKE at "a" after: this creature enters with your choice of
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: OneOf(["flying", "hexproof"]) }])
 
 ## Zndrsplt, Eye of Wisdom
 face: Zndrsplt, Eye of Wisdom

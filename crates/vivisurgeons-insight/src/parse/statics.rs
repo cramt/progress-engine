@@ -1238,8 +1238,10 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
         |p| {
             p.verb("escape")?;
             p.word("with")?;
-            let n = amount_a(p)?;
-            let kind = counter_kind(p)?;
+            let (n, kind) = match p.attempt(counter_choice) {
+                Some(k) => (Amount::N(1), k),
+                None => (amount_a(p)?, counter_kind(p)?),
+            };
             p.one_of(&["counters", "counter"])?;
             p.one_of(&["on it", "on him", "on her"])?;
             Some(vec![Static::EscapesWithCounters { what: what.clone(), n, kind }])
@@ -1286,13 +1288,18 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             p.word("with")?;
             // "with a number of +1/+1 counters on it equal to …".
             let counted = p.attempt(|p| p.words("a number of")).is_some();
-            let n = if counted { Amount::X } else { amount_a(p)? };
+            let choice = if counted { None } else { p.attempt(counter_choice) };
+            let n = match (&choice, counted) {
+                (Some(_), _) => Amount::N(1),
+                (None, true) => Amount::X,
+                (None, false) => amount_a(p)?,
+            };
             // "an additional +1/+1 counter": one more than it would have.
             let n = match p.attempt(|p| p.word("additional")) {
                 Some(_) => Amount::Additional(Box::new(n)),
                 None => n,
             };
-            let kind = counter_kind(p)?;
+            let kind = match choice { Some(k) => k, None => counter_kind(p)? };
             p.one_of(&["counters", "counter"])?;
             p.one_of(&["on it", "on them", "on him", "on her"])?;
             // "with X +1/+1 counters on it, where X is …": the measure.

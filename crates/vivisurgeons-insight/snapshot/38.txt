@@ -61,7 +61,7 @@ cost: {1}{R}
 > When this creature enters, you get {E}{E} (two energy counters).
 > Whenever an artifact creature you control attacks, you may pay {E}. If you do, put your choice of a +1/+1, first strike, or trample counter on that creature.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [GetEnergy(2)], limits: [] }
-= BROKE at "of" after: whenever an artifact creature you control attacks , you may pay {E} . if you do , put your choice
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }], ability: Triggered { trigger: When(Attacks(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Energy(1)] }] }, IfYouDo([PutCounters { n: N(1), kind: OneOf(["+1/+1", "first strike", "trample"]), on: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }])], limits: [] } }
 
 ## Atalya, Samite Master
 face: Atalya, Samite Master

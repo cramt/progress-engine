@@ -238,7 +238,7 @@ cost: {3}{W}{W}
 > III — Return target creature or planeswalker card from your graveyard to the battlefield. Put a +1/+1 counter or a loyalty counter on it.
 = Chapter { chapters: [1], effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent), With(Compare { stat: ManaValue, op: Ge, value: N(3) })], or: None } })] }
 = Chapter { chapters: [2], effect: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [Cast(EachOpponent)], or: None } }, by: Mana(["2"]), less: false, dur: UntilYourNextTurn }] }
-= BROKE at "." after: iii — return target creature or planeswalker card from your graveyard to the battlefield . put a <pt> counter or a loyalty counter on it
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }], ability: Chapter { chapters: [3], effect: [Move { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, PutCounters { n: N(1), kind: OneOf(["+1/+1", "loyalty"]), on: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] } }
 
 ## Elvish Archers
 face: Elvish Archers

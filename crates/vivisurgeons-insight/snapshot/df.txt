@@ -1101,7 +1101,7 @@ cost: {3}{G}{G}
 > −2: When you next cast a creature spell this turn, search your library for a creature card with lesser mana value, put it onto the battlefield, then shuffle.
 = Static([LookAtTopAnyTime])
 = Static([PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }, zone: TopOfLibrary(You) }])
-= BROKE at "of" after: N(1) : create a <pt> green beast creature token . put your choice
+= BROKE at "," after: N(1) : create a <pt> green beast creature token . put your choice of a reach counter
 = Loyalty { change: N(-2), effect: [With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }, /* found */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Lt, value: ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } }], then: [DelayedNext { event: Casts { who: You, what: Objects { quant: Introduced(1) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, dur: ThisTurn, then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You)] }] }] }
 
 ## Volrath's Shapeshifter

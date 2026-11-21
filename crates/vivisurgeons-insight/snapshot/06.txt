@@ -477,7 +477,7 @@ face: Flycatcher Giraffid
 type: Creature — Antelope Lizard
 cost: {4}{G}
 > This creature enters with your choice of a reach counter or a vigilance counter on it.
-= BROKE at "a" after: this creature enters with your choice of
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: OneOf(["reach", "vigilance"]) }])
 
 ## Foster
 face: Foster

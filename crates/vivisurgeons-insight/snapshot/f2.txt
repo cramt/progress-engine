@@ -684,7 +684,7 @@ cost: {1}{R}{G}
 > Partner with Blue, Loyal Raptor
 > {T}: Put your choice of a reach, menace, trample, or haste counter on target Dinosaur. Activate only as a sorcery.
 = Keywords([Keyword { name: "partner with", param: Some(PartnerWith("blue, loyal raptor")) }])
-= BROKE at "of" after: {T} : put your choice
+= Activated { cost: [Tap], effect: [PutCounters { n: N(1), kind: OneOf(["reach", "menace", "trample", "haste"]), on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("dinosaur")]], kind: None, posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Pentagram of the Ages
 face: Pentagram of the Ages

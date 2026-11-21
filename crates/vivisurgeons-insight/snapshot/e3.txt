@@ -300,7 +300,7 @@ face: Ferocious Tigorilla
 type: Creature — Cat Ape
 cost: {3}{R}
 > This creature enters with your choice of a trample counter or a menace counter on it. (A creature with menace can't be blocked except by two or more creatures.)
-= BROKE at "a" after: this creature enters with your choice of
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: OneOf(["trample", "menace"]) }])
 
 ## Forsaken Monument
 face: Forsaken Monument
