@@ -724,6 +724,119 @@ fn goblin_cadets_changes_control_when_it_becomes_blocked() {
     assert_eq!(game.permanents()[&cadets].since, game.turn());
 }
 
+/// CR 305.6, 613.1d: Prismatic Omen's "Lands you control are every basic
+/// land type in addition to their other types" makes my Forests Mountains
+/// and Islands too, with each type's mana ability, and leaves their lands
+/// alone.
+#[test]
+fn prismatic_omen_makes_my_lands_every_basic_land_type() {
+    use chancellor_of_the_spires::model::{Ability, BasicLandType, Subtype};
+    let mut game = deal_both(
+        &[("Forest", 40), ("Prismatic Omen", 20)],
+        &[("Forest", 60)],
+        &[("Forest", 2), ("Prismatic Omen", 1)],
+        &[("Forest", 1)],
+    );
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Prismatic Omen", None);
+    resolve(&mut game);
+    let chars = game.characteristics();
+    let lands: Vec<_> = game
+        .permanents()
+        .iter()
+        .filter(|(_, p)| game.card(p.card).unwrap().name == "Forest")
+        .map(|(id, _)| (*id, chars[id].controller))
+        .collect();
+    assert_eq!(lands.len(), 3);
+    for (id, controller) in lands {
+        let c = &chars[&id];
+        let mine = controller == ME;
+        for t in [BasicLandType::Mountain, BasicLandType::Island] {
+            assert_eq!(c.subtypes.contains(&Subtype::BasicLand(t)), mine);
+            assert_eq!(c.abilities.contains(&Ability::Intrinsic(t)), mine);
+        }
+        assert!(c
+            .abilities
+            .contains(&Ability::Intrinsic(BasicLandType::Forest)));
+    }
+}
+
+/// CR 603.6a: Hour of Promise puts two Valakuts onto the battlefield at
+/// once, Mountains under Prismatic Omen, so each sees both enter: four
+/// triggers, with five Forests and the other Valakut each time.
+#[test]
+fn two_permanents_entering_at_once_each_see_the_other() {
+    let valakut = "Valakut, the Molten Pinnacle";
+    let mut game = deal(
+        &[
+            ("Forest", 30),
+            ("Prismatic Omen", 10),
+            ("Hour of Promise", 10),
+            (valakut, 10),
+        ],
+        &[("Forest", 60)],
+        &[("Forest", 5), ("Prismatic Omen", 1), ("Hour of Promise", 1)],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Prismatic Omen", None);
+    resolve(&mut game);
+    for _ in 0..3 {
+        my_next_main(&mut game);
+        play(&mut game, "Forest");
+    }
+    // Each Forest taps for any colour now; green pays all of it.
+    let hour = in_hand(&game, ME, "Hour of Promise").unwrap();
+    let mut d = step(&mut game, Answer::Act(Action::Cast(hour)));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| {
+                actions.iter().find(|a| {
+                    matches!(a, Payment::Mana(m)
+                        if m.ability == chancellor_of_the_spires::model::Ability::Intrinsic(
+                            chancellor_of_the_spires::model::BasicLandType::Forest))
+                })
+            })
+            .copied()
+            .expect("a way to pay");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    let mut d = resolve(&mut game);
+    for _ in 0..2 {
+        let Decision::Search { known, .. } = d else {
+            panic!("{d:?}")
+        };
+        let v = known
+            .iter()
+            .copied()
+            .find(|c| game.card(*c).is_some_and(|t| t.name == valakut))
+            .expect("a Valakut in the library");
+        d = step(&mut game, Answer::Find(Found::Card(v)));
+    }
+    let mut triggers = 0;
+    loop {
+        d = match game.decision() {
+            Decision::Targets { .. } => {
+                triggers += 1;
+                step(&mut game, Answer::Targets(vec![Target::Player(THEM)]))
+            }
+            Decision::Order { triggers: t, .. } => {
+                step(&mut game, Answer::Order((0..t.len()).collect()))
+            }
+            _ => break,
+        };
+    }
+    let _ = d;
+    assert_eq!(triggers, 4);
+}
+
 /// CR 510.4, 702.7b: Youthful Knight's first strike deals its damage in a
 /// step of its own, so the Grizzly Bears blocking it die before they deal
 /// theirs.

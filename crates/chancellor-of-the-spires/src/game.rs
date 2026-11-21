@@ -1675,6 +1675,9 @@ pub struct Game {
     delayed: Vector<Delayed>,
     /// The card whose spell or ability most recently finished resolving.
     last_resolved: Option<CardId>,
+    /// The permanents one instruction has put onto the battlefield so far,
+    /// while it puts more: each enters before any looks (CR 603.6a).
+    entering: Option<Vec<ObjectId>>,
     /// The combat this turn, from the declaration of attackers to the end
     /// of combat (CR 506, 511.3).
     combat: Option<Combat>,
@@ -1880,6 +1883,7 @@ impl Game {
             pending: Vector::new(),
             abilities: 0,
             last_resolved: None,
+            entering: None,
             combat: None,
             until_end_of_turn: Vec::new(),
             delayed: Vector::new(),
@@ -5077,9 +5081,11 @@ impl Game {
                     if let Some(c) = self.still_in_library(&at, cards).first().copied() {
                         let owner = self.owner(c);
                         self.players[owner.0 as usize].library.retain(|x| *x != c);
+                        self.entering.get_or_insert_with(Vec::new);
                         self.enter(c, q, tapped, Then::Resume(here));
                         return;
                     }
+                    self.entered();
                 }
                 // CR 701.24a.
                 Effect::Shuffle(w) => {
@@ -5191,6 +5197,7 @@ impl Game {
                 }
                 // CR 111.2: its creator owns and controls it.
                 Effect::Create { n, token, tapped } => {
+                    self.entering.get_or_insert_with(Vec::new);
                     for _ in 0..self.amount(&at, n) {
                         self.cards.push_back(CardEntry {
                             owner: p,
@@ -5203,6 +5210,7 @@ impl Game {
                         self.arrive(card, p, tapped);
                         self.created += 1;
                     }
+                    self.entered();
                 }
                 // CR 701.6a: a countered spell goes to its owner's
                 // graveyard; an ability only leaves the stack.
@@ -7212,7 +7220,20 @@ impl Game {
         if let Some(o) = self.battlefield.objects.get_mut(&id) {
             o.chosen_type = chosen;
         }
-        self.trigger_on(Event::Entered(id));
+        match self.entering.as_mut() {
+            Some(batch) => batch.push(id),
+            None => self.trigger_on(Event::Entered(id)),
+        }
+    }
+
+    /// CR 603.6a: the permanents one instruction put onto the battlefield
+    /// all entered at once, so each one's enters triggers see the others.
+    fn entered(&mut self) {
+        for id in self.entering.take().unwrap_or_default() {
+            if self.permanents.contains_key(&id) {
+                self.trigger_on(Event::Entered(id));
+            }
+        }
     }
 
     /// A face-down spell becomes a face-down permanent: a 2/2 with no

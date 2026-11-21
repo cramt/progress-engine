@@ -3633,6 +3633,14 @@ impl Driver<'_> {
                 // What is on the stack resolves, or the turn goes on to
                 // what triggers it, combat damage.
                 Decision::Priority { .. } if game.turn() == turn => self.pass()?,
+                // An attack the log shows after this line can't come
+                // before it: the trigger never came, which an earlier
+                // choice may explain (a search finding Valakut).
+                Decision::Attackers { .. } if game.turn() == turn && self.attack_ahead() => {
+                    return Err(Stop::Diverged(Divergence::Untriggered {
+                        card: name.to_string(),
+                    }))
+                }
                 // And what resolving it asks: Goblin Lackey's "may" puts
                 // the creature whose trigger this is.
                 Decision::Targets { .. }
@@ -4666,7 +4674,7 @@ impl Driver<'_> {
     /// as each basic land, the colours the player's spells this game need
     /// most first, then each land the log shows the player playing in the
     /// match, then each card it shows them casting or playing later this
-    /// game. Last, as a hypothesis, a real land the log never names that
+    /// game, or a permanent of theirs triggering or activated. Last, as a hypothesis, a real land the log never names that
     /// the filter matches, of those legal in the game's format
     /// (`UnseenLand`), the ones making the colours the player's spells
     /// need most first, at most `UNSEEN_TRIES` of them. The engine checks
@@ -4717,6 +4725,17 @@ impl Driver<'_> {
                         player,
                         card: Object::Card(c),
                     } if self.seat(*player) == p => Some(c.name().to_string()),
+                    // A permanent of theirs that triggers or is activated
+                    // later and was never cast or played: Valakut, found
+                    // by Hour of Promise, shown only by its triggers.
+                    Event::Trigger(t) if self.seat(t.player) == p => match &t.source {
+                        log::Source::Card(c) => Some(c.name().to_string()),
+                        log::Source::Named(_) => None,
+                    },
+                    Event::Activates(a) if self.seat(a.player) == p => match &a.card {
+                        Object::Card(c) => Some(c.name().to_string()),
+                        _ => None,
+                    },
                     _ => None,
                 })
                 .collect();

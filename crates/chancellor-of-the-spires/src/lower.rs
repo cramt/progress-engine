@@ -677,6 +677,17 @@ fn keyword(k: &i::Keyword) -> Option<Vec<Keyword>> {
     }])
 }
 
+/// "Three or more": a comparison with a number as a count.
+fn count_of(op: i::Op, v: u32) -> Result<Count, String> {
+    Ok(match op {
+        i::Op::Ge => Count::AtLeast(v),
+        i::Op::Gt => Count::AtLeast(v + 1),
+        i::Op::Le => Count::AtMost(v),
+        i::Op::Lt if v > 0 => Count::AtMost(v - 1),
+        _ => return Err("AsLongAs(AmountIs) of exactly a number".into()),
+    })
+}
+
 /// A static ability is one ability however many sentences it has: each
 /// part is an `Op` over one filter. Parts over different objects would be
 /// two effects, and nothing needs that yet.
@@ -708,13 +719,7 @@ fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbilit
                     named: None,
                     filter,
                 })) if filter == CardFilter(vec![Filter::default()]) => {
-                    Condition::CardsInYourGraveyard(match op {
-                        i::Op::Ge => Count::AtLeast(*v),
-                        i::Op::Gt => Count::AtLeast(v + 1),
-                        i::Op::Le => Count::AtMost(*v),
-                        i::Op::Lt if *v > 0 => Count::AtMost(v - 1),
-                        _ => return Err("AsLongAs(AmountIs) of exactly a number".into()),
-                    })
+                    Condition::CardsInYourGraveyard(count_of(*op, *v)?)
                 }
                 Some(Err(node)) => return Err(node),
                 _ => return Err("AsLongAs(AmountIs)".into()),
@@ -828,6 +833,27 @@ fn static_part<'a>(
             }
             (what, ops)
         }
+        // "Lands you control are every basic land type in addition to
+        // their other types": each has every basic land type's mana
+        // ability too (CR 305.6).
+        i::Static::AlsoIs {
+            what,
+            types: TypeSet::EveryBasicLandType,
+        } => (
+            what,
+            vec![Op::AddSubtypes(
+                [
+                    BasicLandType::Plains,
+                    BasicLandType::Island,
+                    BasicLandType::Swamp,
+                    BasicLandType::Mountain,
+                    BasicLandType::Forest,
+                ]
+                .into_iter()
+                .map(Subtype::BasicLand)
+                .collect(),
+            )],
+        ),
         // "Nonbasic lands are Mountains" (CR 305.7).
         i::Static::Is {
             what,
