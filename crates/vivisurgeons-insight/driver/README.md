@@ -22,15 +22,12 @@ thread (Opus, full access) with the prompt:
 
 > Run one insight batch with the insight-batch skill, state dir /pool/dev/progress-engine-insight-state
 
-The worktree is made once, by hand:
-
-```sh
-git -C /pool/dev/progress-engine worktree add -B insight /pool/dev/progress-engine-insight origin/insight
-```
-
-An external quota gate fires the webhook every 30 minutes while the Claude
-pool has surplus, and skips while `state.json` has `inFlight` set (unless its
-`startedAt` is over 6 hours old) or `stopped` set. The contract it relies on:
+nixconf's `services.insight-driver` makes the worktree if it is missing and
+fires the webhook every 30 minutes while the Claude pool has surplus. It
+skips while `state.json` has `stopped` set or T3 Code lists a live thread in
+the worktree's project. Whether a batch is alive is T3's thread status, never
+a timeout: a claim outlives a dead thread, and a slow batch outlives any fixed
+limit. The contract it relies on:
 
 - `start` sets `inFlight` (with `startedAt`) before anything slow.
 - `triage`, the batch's last command, clears it. So does every exit 3 after
@@ -57,10 +54,11 @@ Stops (exit 3, `stopped` set): two failed, unpushed, empty or abandoned
 batches in a row; a milestone at 100% waiting to be pinned; every milestone
 pinned; a preflight git refusal; git refusing to park or reset a batch. Also
 exit 3 without touching state: `stopped` already set, or a batch in flight
-younger than 6 hours (another thread has it).
+while another top-level thread in the project is live in `t3 thread list`
+(the caller's own, `T3CODE_THREAD_ID`, and sub-agents aside).
 
-A batch found in flight past 6 hours lost its thread. The next `start`
-records it: at the write step its commits are parked on
+A batch found in flight with no such thread lost its thread. The next
+`start` records it: at the write step its commits are parked on
 `insight/abandoned-<n>` and it counts as a failure; past `finish` it is
 recorded without findings.
 

@@ -389,3 +389,34 @@ test("preflight: a branch main conflicts with is left alone and refused", async 
   assert.equal(git(r.driver, "status", "--porcelain"), "");
   assert.equal(git(r.origin, "rev-parse", "insight"), mine);
 });
+
+test("a claim is held only by another top-level thread T3 calls live", async () => {
+  const { liveOthers } = await import("./t3.ts");
+  const row = (threadId: string, status: string, extra = {}) => ({
+    threadId,
+    status,
+    parentThreadId: null,
+    pendingBackgroundTasks: [],
+    ...extra,
+  });
+  assert.deepEqual(
+    liveOthers(
+      [
+        row("me", "running"),
+        row("dead", "completed"),
+        row("crashed", "failed"),
+        row("reviewer", "running", { parentThreadId: "me" }),
+      ],
+      "me",
+    ),
+    [],
+  );
+  assert.deepEqual(liveOthers([row("other", "waiting")], "me"), ["other"]);
+  assert.deepEqual(
+    liveOthers(
+      [row("bg", "completed", { pendingBackgroundTasks: [{}] })],
+      undefined,
+    ),
+    ["bg"],
+  );
+});

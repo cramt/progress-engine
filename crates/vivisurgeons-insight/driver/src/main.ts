@@ -52,6 +52,7 @@ import {
 import { buildInputs, findingsMarkdown } from "./review.ts";
 import { parseReport, parseReview } from "./schemas.ts";
 import { log, must, openLog, run, setBatch } from "./sh.ts";
+import { otherLiveThreads } from "./t3.ts";
 import type {
   BatchOutcome,
   Escalation,
@@ -77,9 +78,6 @@ const GATES_FAILED = 1;
 const USAGE = 2;
 /** A stop: nothing more to do in this run. */
 const STOP = 3;
-
-/** A batch in flight this long has lost its thread: a writer gets ~3h. */
-const STALE_MS = 6 * 3_600_000;
 
 const { values: args, positionals } = parseArgs({
   allowPositionals: true,
@@ -580,11 +578,11 @@ async function start(): Promise<number> {
     );
   }
   if (state.inFlight) {
-    const age = Date.now() - Date.parse(state.inFlight.startedAt);
-    if (age < STALE_MS) {
+    const live = await otherLiveThreads(REPO);
+    if (live.length > 0) {
       throw new Exit(
         STOP,
-        `batch ${state.inFlight.batch} is in flight (${state.inFlight.step}, since ${state.inFlight.startedAt}); another thread has it`,
+        `batch ${state.inFlight.batch} is in flight (${state.inFlight.step}, since ${state.inFlight.startedAt}); thread ${live.join(", ")} still has it`,
       );
     }
     state = await recover(state, state.inFlight);

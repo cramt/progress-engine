@@ -143,7 +143,7 @@ export type BatchOutcome =
     }
   /** The writer finished without a commit; nothing to gate or review. */
   | { kind: "empty" }
-  /** Its thread died: found in flight past STALE_MS, commits parked. */
+  /** Its thread died: found in flight with no live thread in T3, commits parked. */
   | { kind: "abandoned"; branch: string | null; commits: number }
   /** Git refused to park or reset it; the batch stopped the driver. */
   | { kind: "refused"; reason: string };
@@ -155,7 +155,8 @@ export type GateRun =
 
 /**
  * The batch between `start` and `triage`. A trigger skips while it is set; a
- * start that finds one older than STALE_MS takes its thread for dead.
+ * start that finds one with no other live thread in the project (T3 Code's
+ * `thread list`) takes its thread for dead, whatever its age.
  */
 export type InFlight =
   /** Preflight and baseline still running. */
