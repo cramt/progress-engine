@@ -16,16 +16,16 @@ and no runtime dependency.
 
 ## How a batch runs
 
-A T3 Code webhook task, whose project root is the driver's worktree
-`/pool/dev/progress-engine-insight` (branch `insight`), opens a Claude Code
+A T3 Code webhook task, whose project root is the runner's own clone
+`/pool/dev/progress-engine-insight` (on main), opens a Claude Code
 thread (Opus, full access) with the prompt:
 
 > Run one insight batch with the insight-batch skill, state dir /pool/dev/progress-engine-insight-state
 
-nixconf's `services.insight-driver` makes the worktree if it is missing and
+nixconf's `services.insight-driver` clones it if it is missing and
 fires the webhook every 30 minutes while the Claude pool has surplus. It
 skips while `state.json` has `stopped` set or T3 Code lists a live thread in
-the worktree's project. Whether a batch is alive is T3's thread status, never
+the clone's project. Whether a batch is alive is T3's thread status, never
 a timeout: a claim outlives a dead thread, and a slow batch outlives any fixed
 limit. The contract it relies on:
 
@@ -40,7 +40,7 @@ limit. The contract it relies on:
 
 | Subcommand | Does | Exit |
 |---|---|---|
-| `start` | Preflight: on `--branch` (default `insight`), clean, equal to origin; merges `origin/main` in and pushes that, so batches build on what the human merged to main. A conflict stops. Then a release build and the baseline (`insight coverage`, `roundtrip`, `lint --counts`, `snapshot`) in `batches/<n>/`, and prints the writer's brief (`brief.md` rendered with the decisions, method notes, queue, the milestone's failing list and the handoff; also saved as `batches/<n>/brief.md`). | 0 brief printed; 3 stop |
+| `start` | Preflight: on `--branch` (default `main`; any other branch also takes `origin/main` in and pushes that), clean, equal to origin. A conflict stops. Then a release build and the baseline (`insight coverage`, `roundtrip`, `lint --counts`, `snapshot`) in `batches/<n>/`, and prints the writer's brief (`brief.md` rendered with the decisions, method notes, queue, the milestone's failing list and the handoff; also saved as `batches/<n>/brief.md`). | 0 brief printed; 3 stop |
 | `start --dry-run` | Baseline and brief into `<state>/dry-run/`. No git changes; `state.json` untouched. | 0 |
 | `gate` | The gates against the batch's baseline; prints the report and where the batch stands against its commit cap and hours. Saves the run, so `finish` needn't repeat it at the same HEAD. | 0 pass; 1 fail |
 | `finish` | Reads `batches/<n>/report.json` (summary, resolved findings, escalations). No commits: empty. Gates passed at HEAD: pushes, rebasing and re-gating if origin moved, then builds the review inputs and prints their paths. Otherwise parks the commits on `insight/failed-<n>` and resets. Says when the method review is due. | 0; 2 bad report.json; 3 git stop |

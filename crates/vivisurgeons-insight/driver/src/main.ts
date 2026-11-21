@@ -83,7 +83,7 @@ const { values: args, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     "state-dir": { type: "string" },
-    branch: { type: "string", default: "insight" },
+    branch: { type: "string", default: "main" },
     "dry-run": { type: "boolean", default: false },
     "writer-hours": { type: "string", default: "3" },
     "commit-cap": { type: "string", default: "15" },

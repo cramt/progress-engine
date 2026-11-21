@@ -12,7 +12,7 @@ keep the handoff. A batch ends when `triage` says nothing is in flight.
 
 ## Running the subcommands
 
-Every subcommand is, from the repo root (your cwd, the `insight` worktree):
+Every subcommand is, from the repo root (your cwd, the runner's clone, on main):
 
 ```sh
 nix develop --command node crates/vivisurgeons-insight/driver/src/main.ts <subcommand> --state-dir <state dir>
