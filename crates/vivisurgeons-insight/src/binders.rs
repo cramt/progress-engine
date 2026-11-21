@@ -430,11 +430,16 @@ fn performer(e: &Effect) -> Option<Player> {
 
 /// "Each opponent exiles cards from the top of their library until they
 /// exile an instant or sorcery card" (Wand of Wonder): each player's own
-/// dig, so as many found cards as players ([n-from-each]).
+/// dig, so as many found cards as players ([n-from-each]). "Each opponent
+/// may search their library for a land card" (Tempt with Discovery) is
+/// each one's own search the same way.
 fn digs_each(e: &Effect) -> bool {
     matches!(
         e,
         Effect::UntilFound {
+            who: Player::Each | Player::EachOpponent,
+            ..
+        } | Effect::Search {
             who: Player::Each | Player::EachOpponent,
             ..
         }
