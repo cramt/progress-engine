@@ -127,10 +127,13 @@ fn targeted(o: &Objects) -> bool {
 }
 
 fn not_object(f: &Filter) -> bool {
+    // "any number of target players or planeswalkers" (Kaboom!): objects
+    // too, which "for each of them" goes over.
+    let or_object = f.or.as_ref().is_some_and(|o| !not_object(o));
     matches!(
         f.kind,
         Some(Noun::Player | Noun::Opponent | Noun::Counter(_))
-    )
+    ) && !or_object
 }
 
 /// The verb of the objects an effect makes that no `Objects` names.
@@ -251,6 +254,8 @@ struct Ev {
     each_of_loop: bool,
     /// It is the source of a `Damage`, the subject of "deals".
     subject: bool,
+    /// It is the object of a `ControllerOf`: "its controller".
+    controller_of: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -312,6 +317,8 @@ struct Collect {
     next_root: usize,
     /// The `Damage` frame whose source is the next object entered.
     subject_of: Option<usize>,
+    /// The next object entered is a `ControllerOf`'s.
+    controller_next: bool,
 }
 
 const EXISTENTIAL: [&str; 18] = [
@@ -357,6 +364,7 @@ impl Collect {
             roots: Vec::new(),
             next_root: 0,
             subject_of: None,
+            controller_next: false,
         }
     }
 
@@ -467,6 +475,7 @@ impl Collect {
             top_effect,
             each_of_loop,
             subject: false,
+            controller_of: false,
         });
         id
     }
@@ -514,6 +523,7 @@ impl Visitor for Collect {
         if let Some(d) = self.subject_of.take() {
             self.evs[id].subject = d == self.here();
         }
+        self.evs[id].controller_of = std::mem::take(&mut self.controller_next);
         if matches!(role, Role::Ref(_) | Role::SelfMention | Role::OutOfScope) {
             let parent = self.here();
             self.frames[parent].items.push(Item::Ev(id));
@@ -677,6 +687,9 @@ impl Visitor for Collect {
     }
     fn cost_done(&mut self, _c: &mut Cost) {
         self.pop_frame();
+    }
+    fn player(&mut self, p: &mut Player) {
+        self.controller_next = matches!(p, Player::ControllerOf(_));
     }
 }
 
@@ -1212,7 +1225,14 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                         if *k != Kind::Text(Hint::Pool) {
                             // Only what it settled on chains on: "its owner"
                             // after "the exiled card" is that card.
-                            earlier.push((at, pick.iter().cloned().collect()));
+                            // "its controller … puts that card onto the
+                            // battlefield" (Divergent Transformations): a
+                            // controller named after a bare "it" leaves the
+                            // nearest object where it was; "the spell's
+                            // controller … for it" names the spell again.
+                            if !(e.controller_of && r.filter == Filter::default()) {
+                                earlier.push((at, pick.iter().cloned().collect()));
+                            }
                             if let Some(p) = &pick {
                                 mentions.push(((li, ei), p.clone()));
                             }
@@ -1739,6 +1759,19 @@ fn resolve_one(
             note = "a permanent, not a card off the battlefield or the damage's source".into();
         }
     }
+    // "For each of those creatures, its controller reveals cards … until
+    // they reveal a creature card, puts that card onto the battlefield,
+    // then shuffles the rest" (Divergent Transformations): a card in a
+    // library has no controller (CR 108.4), so "its controller" is not
+    // that card's.
+    if cands.len() > 1 && e.controller_of {
+        let keep =
+            |t: &Target| !matches!(t, Target::Intro(l, i) if card_off_battlefield(get((*l, *i))));
+        if cands.iter().any(keep) && !cands.iter().all(keep) {
+            cands.retain(keep);
+            note = "a controller's object, not a card off the battlefield".into();
+        }
+    }
     // "… target artifact a player controls and target artifact card in that
     // player's graveyard. … sacrifices the artifact and returns the
     // artifact card" (Goblin Welder): said as a card, the card.
@@ -2234,6 +2267,7 @@ pub fn fits(r: &Objects, b: &Objects) -> bool {
         top_effect: None,
         each_of_loop: false,
         subject: false,
+        controller_of: false,
     };
     // "cast target nonland permanent card …, and mana … to cast that
     // spell": a card cast is the spell.
