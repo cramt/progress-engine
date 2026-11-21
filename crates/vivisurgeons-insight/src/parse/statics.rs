@@ -1253,7 +1253,17 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             let unless = condition(p)?;
             Some(vec![Static::EntersTappedUnless { what: what.clone(), unless }])
         },
-        |p| { p.verb("have")?; let a = quoted(p)?; Some(vec![Static::HasAbility { what: what.clone(), ability: Box::new(a) }]) },
+        |p| {
+            p.verb("have")?;
+            let a = quoted(p)?;
+            let mut v = vec![Static::HasAbility { what: what.clone(), ability: Box::new(a) }];
+            // "have "Equipped creature gets +2/+0" and equip {2}" (Armed
+            // with Proof): the keyword after the ability, "have" said once.
+            if let Some(has) = p.attempt(|p| { p.one_of(&[", and", "and"])?; keyword_list(p) }) {
+                v.push(Static::Modify { what: what.clone(), pt: None, has, per: None });
+            }
+            Some(v)
+        },
         // "can't block or be blocked by non-Spirit creatures": two rules.
         |p| {
             p.words("can't block or be blocked by")?;

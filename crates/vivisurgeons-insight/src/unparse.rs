@@ -13399,8 +13399,12 @@ fn statics(o: &mut Out, ss: &[Static]) {
             } else {
                 // "gets +1/+1 and has trample and "Whenever …"": "has"
                 // said once for both.
+                // "have "Equipped creature gets +2/+0" and equip {2}": the
+                // keyword after the ability, the same way.
                 let pred = if matches!(ss[j - 1], Static::Modify { .. })
                     && matches!(next, Static::HasAbility { .. })
+                    || matches!(ss[j - 1], Static::HasAbility { .. })
+                        && matches!(next, Static::Modify { pt: None, per: None, has, .. } if !has.is_empty())
                 {
                     let without = out(|o| o.0.extend(pred.0.iter().skip(1).cloned()));
                     out(|o| syn::gapped(o, pred, without))

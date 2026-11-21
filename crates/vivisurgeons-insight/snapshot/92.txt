@@ -14,7 +14,7 @@ cost: {2}{R}
 > When this enchantment enters, create a Blood token for each opponent you have. (It's an artifact with "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.")
 > Blood tokens you control are Equipment in addition to their other types and have "Equipped creature gets +2/+0" and equip {2}.
 = BROKE at "have" after: when this enchantment enters , create a blood token for each opponent you
-= BROKE at "{2}" after: blood tokens you control are equipment in addition to their other types and have " equipped creature gets <pt> " and equip
+= Static([AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("blood")]], kind: Some(Token), posts: [Controller(You)], or: None } }, types: Listed([Subtype("equipment")]) }, HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("blood")]], kind: Some(Token), posts: [Controller(You)], or: None } }, ability: Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }]) }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("blood")]], kind: Some(Token), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }], per: None }])
 
 ## Astrolabe
 face: Astrolabe

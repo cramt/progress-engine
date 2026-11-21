@@ -233,7 +233,7 @@ type: Legendary Creature — Human
 cost: {1}{R}
 > Noncreature, non-Equipment artifacts you control are Equipment in addition to their other types and have "Equipped creature gets +1/+0" and equip {1}.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
-= BROKE at "{1}" after: noncreature , non-equipment artifacts you control are equipment in addition to their other types and have " equipped creature gets <pt> " and equip
+= Static([AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Non("creature"), Non("equipment"), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, types: Listed([Subtype("equipment")]) }, HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Non("creature"), Non("equipment"), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, ability: Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }]) }, Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Non("creature"), Non("equipment"), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }], per: None }])
 = Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Darkmoss Bridge
