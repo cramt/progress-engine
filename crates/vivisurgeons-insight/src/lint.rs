@@ -11,6 +11,8 @@ use crate::ast::*;
 use crate::golden::Entry;
 use crate::walk::{Visitor, Walk};
 
+pub mod sorts;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Kind {
     /// "it", "that creature" that no object said before it fits, so it
@@ -40,10 +42,14 @@ pub enum Kind {
     /// A type-setting effect whose types are no card type: "is a black
     /// Dragon" sets the color and subtype only (CR 205.1).
     TypesWithoutCardType,
+    /// A reference bound to an object its words can't name ("the nonland
+    /// card" bound to any target), or one effect whose two sides are the
+    /// same binder (an Equipment attached to itself) ([sorts]).
+    SortMismatch,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 11] = [
+    pub const ALL: [Kind; 12] = [
         Kind::UnresolvedReference,
         Kind::DanglingThatPlayer,
         Kind::SelfComparison,
@@ -55,6 +61,7 @@ impl Kind {
         Kind::UnboundX,
         Kind::FightOneObject,
         Kind::TypesWithoutCardType,
+        Kind::SortMismatch,
     ];
 
     pub fn name(self) -> &'static str {
@@ -70,6 +77,7 @@ impl Kind {
             Kind::UnboundX => "unbound-x",
             Kind::FightOneObject => "fight-one-object",
             Kind::TypesWithoutCardType => "types-without-card-type",
+            Kind::SortMismatch => "sort-mismatch",
         }
     }
 
@@ -630,12 +638,19 @@ fn core(a: &Ability) -> &Ability {
 pub fn face(e: &Entry) -> Vec<(Kind, String)> {
     let lines = e.lines();
     let cx = face_context(&lines, &e.mana_cost);
-    lines
+    let mut out: Vec<(Kind, String)> = lines
         .iter()
         .zip(cx)
         .filter_map(|(l, cx)| Some((l.parsed.as_ref().ok()?, cx, &l.text)))
         .flat_map(|(a, cx, text)| lint(a, cx).into_iter().map(|k| (k, text.clone())))
-        .collect()
+        .collect();
+    // A reference may name another line's binder, so this reads the face.
+    out.extend(
+        sorts::face(&lines)
+            .into_iter()
+            .map(|f| (Kind::SortMismatch, lines[f.line].text.clone())),
+    );
+    out
 }
 
 /// Every violation on the faces, each with its card and line, in the

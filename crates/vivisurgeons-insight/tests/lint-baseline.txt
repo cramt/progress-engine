@@ -11,3 +11,4 @@ bare-other 0
 unbound-x 2
 fight-one-object 0
 types-without-card-type 0
+sort-mismatch 4
