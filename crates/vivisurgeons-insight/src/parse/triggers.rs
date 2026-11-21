@@ -151,9 +151,10 @@ fn player_predicate(p: &mut P, who: &Player) -> Option<Event> {
         |p| { p.verb("exile")?; let what = objects(p)?; Some(Event::Exiles { who: who.clone(), what }) },
         |p| { p.verb("exert")?; let what = objects(p)?; Some(Event::Exerts { who: who.clone(), what }) },
         |p| { p.verb("become")?; p.words("the monarch")?; Some(Event::BecomesMonarch(who.clone())) },
-        // "Whenever you scry or surveil": a keyword action with no object.
+        // "Whenever you scry or surveil", "Whenever you investigate": a
+        // keyword action with no object.
         |p| {
-            let action = ["scry", "surveil"].into_iter().find(|a| p.verb(a).is_some())?;
+            let action = ["scry", "surveil", "investigate"].into_iter().find(|a| p.verb(a).is_some())?;
             Some(Event::Performs { who: who.clone(), action: action.into() })
         },
         |p| { let v = player_verb(p, who)?; objects(p).map(v) },

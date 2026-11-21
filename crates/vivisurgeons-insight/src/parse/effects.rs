@@ -1964,6 +1964,16 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             )?;
             Some(Effect::Repeat { times, then: vec![Effect::Action { by: None, name, n: None }] })
         },
+        // "Whenever you investigate for the first time each turn,
+        // investigate an additional time" (Erdwal Illuminator): the action
+        // once more, said plainly ([an-additional-time]).
+        |p| {
+            let name = p.peek_word()?.to_string();
+            if !vocab().keyword_actions.contains(&name) { return None; }
+            p.bump();
+            p.words("an additional time")?;
+            Some(Effect::Action { by: None, name, n: None })
+        },
         |p| {
             let by = p.attempt(objects);
             let w = p.peek_word()?;
