@@ -341,7 +341,9 @@ fn run(lines: &mut [crate::Line], type_line: &str, said: bool) {
             skip: false,
             sites: &mut sites,
         });
-        a.walk(&mut IntoLoops);
+        a.walk(&mut IntoLoops {
+            fresh: binders[l].len(),
+        });
         let mut scope = Scope::default();
         a.walk(&mut scope);
         ordinals[l] = scope.ordinal;
@@ -577,11 +579,16 @@ fn says<T: Walk + Clone>(x: &T, ids: &BTreeSet<usize>, first_only: bool) -> bool
 /// A `With` whose `then` starts with the loop, whose binders the loop's
 /// first effect says first and nothing outside the loop's body says,
 /// goes inside the body.
-fn into_loops(es: &mut Vec<Effect>) {
+///
+/// One said again after the loop ("You may play the exiled cards",
+/// Soulfire Eruption) means what every pass made, not one pass's card: it
+/// names a `Made` binder around the loop, what the loop makes
+/// ([pass-pile]). `fresh` is the next temporary id free in the line.
+fn into_loops(es: &mut Vec<Effect>, fresh: &mut usize) {
     let Some(Effect::With { then, .. }) = es.last_mut() else {
         return;
     };
-    into_loops(then);
+    into_loops(then, fresh);
     let Some(Effect::With { bind, then }) = es.last() else {
         unreachable!("matched above");
     };
@@ -589,9 +596,28 @@ fn into_loops(es: &mut Vec<Effect>) {
     let movable = ids.len() == bind.len()
         && matches!(then.first(), Some(Effect::ForEach { each, then: body, .. })
             if !says(each, &ids, false)
-                && body.first().is_some_and(|f| says(f, &ids, true))
-                && then[1..].iter().all(|e| !says(e, &ids, false)));
+                && body.first().is_some_and(|f| says(f, &ids, true)));
     if !movable {
+        return;
+    }
+    let after = then[1..].iter().any(|e| says(e, &ids, false));
+    // "When you do" after the loop answers the last pass's action
+    // (Nihiloor), so its references are one pass's object, not the pile;
+    // a reading this rule can't give.
+    let reflexive = |e: &Effect| {
+        matches!(
+            e,
+            Effect::WhenYouDo(_)
+                | Effect::WhenYouDoIf { .. }
+                | Effect::IfYouDo(_)
+                | Effect::IfYouDont(_)
+        )
+    };
+    if after
+        && !then[1..]
+            .iter()
+            .all(|e| only_bound(e, &ids) && !reflexive(e))
+    {
         return;
     }
     let Some(Effect::With { bind, mut then }) = es.pop() else {
@@ -605,15 +631,84 @@ fn into_loops(es: &mut Vec<Effect>) {
     else {
         unreachable!("checked above");
     };
-    es.push(Effect::ForEach {
+    let looped = Effect::ForEach {
         order,
         each,
         then: vec![Effect::With { bind, then: body }],
+    };
+    if !after {
+        es.push(looped);
+        es.extend(then);
+        return;
+    }
+    let pile = *fresh;
+    *fresh += 1;
+    let mut made = Objects {
+        quant: Quant::Made,
+        filter: Filter::default(),
+    };
+    mark(&mut made, pile);
+    let mut rest = vec![looped];
+    for mut e in then {
+        e.walk(&mut Repoint {
+            ids: &ids,
+            to: u8::try_from(pile).unwrap_or(u8::MAX),
+        });
+        rest.push(e);
+    }
+    es.push(Effect::With {
+        bind: vec![made],
+        then: rest,
     });
-    es.extend(then);
 }
+
+/// Whether every reference `x` makes to a binder of `ids` is a plain
+/// `Bound` (never its place, the rest of it, or one of several).
+fn only_bound<T: Walk + Clone>(x: &T, ids: &BTreeSet<usize>) -> bool {
+    struct Only<'a>(&'a BTreeSet<usize>, bool);
+    impl Visitor for Only<'_> {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            let id = |i: &u8| self.0.contains(&usize::from(*i));
+            self.1 &= match &o.quant {
+                Quant::Introduced(i) | Quant::Rest { of: i } => !id(i),
+                Quant::Bounds(ps) => !ps.iter().any(|p| matches!(p, Pointer::Bound(i) if id(i))),
+                _ => true,
+            };
+            true
+        }
+        fn ability(&mut self, _: &mut Ability) -> bool {
+            true
+        }
+    }
+    let mut s = Only(ids, true);
+    x.clone().walk(&mut s);
+    s.1
+}
+
+/// Points every `Bound` reference to a binder of `ids` at `to`.
+struct Repoint<'a> {
+    ids: &'a BTreeSet<usize>,
+    to: u8,
+}
+
+impl Visitor for Repoint<'_> {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if let Quant::Bound(i) = o.quant {
+            if self.ids.contains(&usize::from(i)) {
+                o.quant = Quant::Bound(self.to);
+            }
+        }
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+}
+
 /// Runs `into_loops` on every ability's own list of effects.
-struct IntoLoops;
+struct IntoLoops {
+    fresh: usize,
+}
 
 impl Visitor for IntoLoops {
     fn enter(&mut self, _: &mut Objects) -> bool {
@@ -621,7 +716,7 @@ impl Visitor for IntoLoops {
     }
     fn ability(&mut self, a: &mut Ability) -> bool {
         if let Some(es) = effects_of(a) {
-            into_loops(es);
+            into_loops(es, &mut self.fresh);
         }
         true
     }
