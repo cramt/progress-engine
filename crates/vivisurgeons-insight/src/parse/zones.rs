@@ -124,9 +124,13 @@ pub(super) fn destination(p: &mut P) -> Option<Dest> {
 /// bottom of" say which end of a library, so they are read with it.
 pub(super) fn put_to(p: &mut P) -> Option<Dest> {
     alt!(p;
-        // "on their choice of the top or bottom of their library".
+        // "on their choice of the top or bottom of their library"; "on your
+        // choice of …" when you put it (Hinder): the choice is always the
+        // putting player's, so the possessive only agrees with them.
         |p| {
-            p.words("on their choice of the top or bottom of")?;
+            p.word("on")?;
+            p.one_of(&["their", "your"])?;
+            p.words("choice of the top or bottom of")?;
             let w = whose(p)?;
             p.word("library")?;
             Some(Dest::to(Zone::TopOrBottomOfLibrary(w)))

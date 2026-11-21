@@ -55,7 +55,7 @@ cost: {5}{G}{W}
 > Flying
 > When this creature dies, you may put it on your choice of the top or bottom of its owner's library.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "choice" after: when this creature dies , you may put it on your
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: TopOrBottomOfLibrary(OwnerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Ashiok's Skulker
 face: Ashiok's Skulker

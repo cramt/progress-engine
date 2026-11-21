@@ -5953,12 +5953,25 @@ fn ordinal_word(n: u32) -> &'static str {
 
 /// Where "put" sends something: "onto the battlefield", "into your hand",
 /// "on top of your library".
-fn put_to(o: &mut Out, z: &Zone, tapped: bool, transformed: bool, under: &Option<Player>) {
+/// `yours`: you put it, so a choice of where is "your choice".
+fn put_to(
+    o: &mut Out,
+    z: &Zone,
+    tapped: bool,
+    transformed: bool,
+    under: &Option<Player>,
+    yours: bool,
+) {
     match z {
         Zone::TopOfLibrary(w) => {
             syn::back(o);
             o.w("on top of");
             library_of(o, w);
+        }
+        Zone::TopOrBottomOfLibrary(w) if yours => {
+            o.w("on your choice of the top or bottom of");
+            whose(o, w);
+            o.w("library");
         }
         Zone::TopOrBottomOfLibrary(_) => {
             o.w("on");
@@ -6827,7 +6840,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                 },
             ) => {
                 let without = match e {
-                    Effect::Move { .. } => out(|o| move_put_rest(o, e)),
+                    Effect::Move { .. } => out(|o| move_put_rest(o, e, false)),
                     _ => out(|o| o.0.extend(full.0.iter().skip(1).cloned())),
                 };
                 syn::gapped(o, full, without);
@@ -9054,7 +9067,7 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                 if w1 == w2 && !matches!(z, Zone::AnywhereOtherThan(_)) {
                     let full = out(|o| {
                         o.w("instead of putting");
-                        move_put_rest(o, of);
+                        move_put_rest(o, of, false);
                     });
                     let elided = out(|o| {
                         o.w("instead of into");
@@ -9074,7 +9087,7 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                     objects(o, what);
                     o.w("anywhere else");
                 }
-                m @ Effect::Move { .. } => move_put_rest(o, m),
+                m @ Effect::Move { .. } => move_put_rest(o, m, false),
                 e => effect(o, e, cx),
             }
         }
@@ -9956,7 +9969,7 @@ fn move_effect(o: &mut Out, e: &Effect, n: Num) {
     };
     let put = out(|o| {
         o.verb("put", n);
-        move_put_rest(o, e);
+        move_put_rest(o, e, n == Num::Pl);
     });
     let ret = out(|o| {
         o.verb("return", n);
@@ -9977,7 +9990,7 @@ fn move_effect(o: &mut Out, e: &Effect, n: Num) {
 }
 
 /// A move after "put": what, from where, to where.
-fn move_put_rest(o: &mut Out, e: &Effect) {
+fn move_put_rest(o: &mut Out, e: &Effect, yours: bool) {
     let Effect::Move {
         what,
         from,
@@ -9992,7 +10005,7 @@ fn move_put_rest(o: &mut Out, e: &Effect) {
     };
     objects(o, what);
     // "Put your commander into your hand from the command zone".
-    let place = out(|o| put_to(o, to, *tapped, *transformed, under));
+    let place = out(|o| put_to(o, to, *tapped, *transformed, under, yours));
     let from_words = out(|o| {
         if let Some(z) = from {
             o.w("from");
@@ -11372,7 +11385,7 @@ fn event(o: &mut Out, e: &Event) {
             player(o, who);
             o.verb("put", player_num(who));
             objects(o, what);
-            put_to(o, to, false, false, &None);
+            put_to(o, to, false, false, &None, false);
         }
         Event::Exiles { who, what } => {
             player(o, who);
@@ -12870,7 +12883,7 @@ fn not_condition(o: &mut Out, c: &Condition) {
                     player(o, who);
                     o.w("don't put");
                     objects(o, what);
-                    put_to(o, to, false, false, &None);
+                    put_to(o, to, false, false, &None, false);
                     syn::this_way_or_not(o);
                 });
                 o.add(syn::dont_alone(full));
