@@ -1045,7 +1045,7 @@ face: Underworld Fires
 type: Sorcery
 cost: {1}{R}
 > Underworld Fires deals 1 damage to each creature and each planeswalker. If a permanent dealt damage this way would die this turn, exile it instead.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Objects(Objects { quant: Each, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })] }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [DealtDamageThisWay], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Objects(Objects { quant: Each, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })] }, During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [DealtDamageThisWay], or: None } }), instead: [Exile(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 
 ## Unscythe, Killer of Kings
 face: Unscythe, Killer of Kings

@@ -3781,7 +3781,7 @@ face: Insult
 type: Sorcery
 cost: {2}{R}
 > Damage can't be prevented this turn. If a source you control would deal damage this turn, it deals double that damage instead.
-= Spell([DamageCantBePrevented(ThisTurn), With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: DealsDamage(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: None }] }] }] }])
+= Spell([DamageCantBePrevented(ThisTurn), During { dur: ThisTurn, then: [Replacement { event: DealsDamage(Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }), instead: [ThatDamage { source: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: None }] }] }])
 
 ## Insult // Injury
 face: Injury
@@ -7189,7 +7189,7 @@ face: Spikefield Hazard
 type: Instant
 cost: {R}
 > Spikefield Hazard deals 1 damage to any target. If a permanent dealt damage this way would die this turn, exile it instead.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [DealtDamageThisWay], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [DealtDamageThisWay], or: None } }), instead: [Exile(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 
 ## Spikefield Hazard // Spikefield Cave
 face: Spikefield Cave

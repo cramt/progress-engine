@@ -223,7 +223,7 @@ type: Sorcery
 cost: {2}{R}
 > Crush the Weak deals 2 damage to each creature. If a creature dealt damage this way would die this turn, exile it instead.
 > Foretell {R} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [DealtDamageThisWay], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }, During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [DealtDamageThisWay], or: None } }), instead: [Exile(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 = Keywords([Keyword { name: "foretell", param: Some(Cost([Mana(Mana(["R"]))])) }])
 
 ## Darigaaz's Charm
@@ -1102,7 +1102,7 @@ cost: {2}{B}
 > Until end of turn, you may play lands and cast spells from your graveyard.
 > If a card would be put into your graveyard from anywhere this turn, exile that card instead.
 = Spell([During { dur: UntilEndOfTurn, then: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [In(Graveyard(You))], or: None } }, payment: ManaCost, dur: Permanent }, Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Graveyard(You))], or: None } }, payment: ManaCost, dur: Permanent }] }] }])
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: PutInto { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }] }] }])
+= Spell([During { dur: ThisTurn, then: [Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }] }])
 
 ## Yeva's Forcemage
 face: Yeva's Forcemage

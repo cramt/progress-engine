@@ -960,7 +960,7 @@ cost: {2}{R}
 > Devoid (This card has no color.)
 > Touch of the Void deals 3 damage to any target. If a creature dealt damage this way would die this turn, exile it instead.
 = Keywords([Keyword { name: "devoid", param: None }])
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [DealtDamageThisWay], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, During { dur: ThisTurn, then: [Replacement { event: Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [DealtDamageThisWay], or: None } }), instead: [Exile(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 
 ## Trolls of Tel-Jilad
 face: Trolls of Tel-Jilad

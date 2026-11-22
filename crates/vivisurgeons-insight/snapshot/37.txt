@@ -357,7 +357,7 @@ face: Insult
 type: Sorcery
 cost: {2}{R}
 > Damage can't be prevented this turn. If a source you control would deal damage this turn, it deals double that damage instead.
-= Spell([DamageCantBePrevented(ThisTurn), With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: DealsDamage(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: None }] }] }] }])
+= Spell([DamageCantBePrevented(ThisTurn), During { dur: ThisTurn, then: [Replacement { event: DealsDamage(Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }), instead: [ThatDamage { source: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: None }] }] }])
 
 ## Insult // Injury
 face: Injury
@@ -770,7 +770,7 @@ cost: {5}{U}{U}
 > Flying
 > When this creature enters, you may cast target instant, sorcery, or artifact card from your graveyard without paying its mana cost. If an instant or sorcery spell cast this way would be put into your graveyard, exile it instead.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")], [Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, payment: Free, dur: Permanent }] }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Marked(Cast)], or: None } }], then: [Replacement { event: PutInto { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")], [Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, payment: Free, dur: Permanent }] }, Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Marked(Cast)], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Setessan Training
 face: Setessan Training

@@ -284,7 +284,7 @@ cost: {4}{R}{R}
 > When this creature enters, create a number of 1/1 red Goblin creature tokens equal to the number of opponents you have.
 > {3}{R}, {T}: If a source you control would deal damage to an opponent this turn, it deals double that damage to that player instead.
 = BROKE at "have" after: when this creature enters , create a number of <pt> red goblin creature tokens equal to the number of opponents you
-= Activated { cost: [Mana(Mana(["3", "R"])), Tap], effect: [With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: DealsDamageTo { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: Some([Player(That)]) }] }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3", "R"])), Tap], effect: [During { dur: ThisTurn, then: [Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }, to: [Player(AnOpponent)] }, instead: [ThatDamage { source: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: Some([Player(That)]) }] }] }], limits: [] }
 
 ## Grand Architect
 face: Grand Architect

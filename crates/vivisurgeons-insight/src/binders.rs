@@ -93,13 +93,22 @@ fn count_objects<T: Walk + Clone>(x: &T) -> usize {
 }
 
 /// The delayed triggers whose event's objects they bind themselves
-/// ([delayed-binds-event]).
-pub(crate) const DELAYED: [&str; 3] = ["DelayedWhen", "DelayedWhenever", "DelayedNext"];
+/// ([delayed-binds-event]), and a one-shot replacement, which binds the
+/// object of each event it replaces the same way ([replacement-binds-event]).
+pub(crate) const DELAYED: [&str; 4] = [
+    "DelayedWhen",
+    "DelayedWhenever",
+    "DelayedNext",
+    "Replacement",
+];
 
 fn delayed(e: &Effect) -> bool {
     matches!(
         e,
-        Effect::DelayedWhen { .. } | Effect::DelayedWhenever { .. } | Effect::DelayedNext { .. }
+        Effect::DelayedWhen { .. }
+            | Effect::DelayedWhenever { .. }
+            | Effect::DelayedNext { .. }
+            | Effect::Replacement { .. }
     )
 }
 
@@ -282,11 +291,20 @@ fn run(lines: &mut [crate::Line], type_line: &str, said: bool) {
                     if b.site != Site::Each {
                         continue;
                     }
+                    // "When you next cast a creature spell this turn,
+                    // search your library for a creature card with lesser
+                    // mana value" (Vivien, Monsters' Advocate): what the
+                    // trigger finds is described by its event's spell, and
+                    // goes inside the trigger with it (`into_reflexive`).
+                    let event = an.event_loop(l, b.ev);
                     let outside = b.uses.iter().any(|&(rl, rev)| {
                         rl != l
                             || !an.inside_loop(l, rev, b.ev)
                             || binders[l].iter().any(|o| {
-                                o.site != Site::Each && o.decl.is_some() && an.within(l, rev, o.ev)
+                                o.site != Site::Each
+                                    && o.decl.is_some()
+                                    && an.within(l, rev, o.ev)
+                                    && !(event && an.inside_loop(l, o.ev, b.ev))
                             })
                     });
                     if outside {
@@ -1219,6 +1237,8 @@ pub enum SiteKind {
     Each,
     /// A delayed trigger's event's object ([delayed-binds-event]).
     Delayed,
+    /// A one-shot replacement's event's object ([replacement-binds-event]).
+    Replaced,
 }
 
 /// Each binder of a bound tree and the binder each reference names.
@@ -1320,7 +1340,7 @@ impl Visitor for Read {
                     site.1 -= 1;
                 }
                 site.3 += 1;
-                let kind = if event { SiteKind::Delayed } else { site.0 };
+                let kind = site.0;
                 self.out.binders.push(BinderInfo {
                     what: o.clone(),
                     site: kind,
@@ -1347,6 +1367,10 @@ impl Visitor for Read {
         match e {
             Effect::With { bind, .. } => self.open(SiteKind::With, bind.len()),
             Effect::ForEach { .. } => self.open(SiteKind::Each, 1),
+            Effect::Replacement { .. } => {
+                self.open(SiteKind::Replaced, 0);
+                *self.events.last_mut().expect("opened") = true;
+            }
             e if delayed(e) => {
                 self.open(SiteKind::Delayed, 0);
                 *self.events.last_mut().expect("opened") = true;
@@ -1562,6 +1586,9 @@ fn name_of(info: &BinderInfo, verb: &str) -> String {
     if info.site == SiteKind::Delayed {
         return "trigger".into();
     }
+    if info.site == SiteKind::Replaced {
+        return "event".into();
+    }
     let o = &info.what;
     if matches!(
         o.quant,
@@ -1677,11 +1704,12 @@ pub fn annotate(a: &Ability, dbg: &str) -> String {
         while names.get(bi).is_some() && rest.starts_with("Objects {") {
             // Names follow binders in walk order; skip loop variables,
             // which are not in a `bind` list.
-            while b
-                .binders
-                .get(bi)
-                .is_some_and(|x| matches!(x.site, SiteKind::Each | SiteKind::Delayed))
-            {
+            while b.binders.get(bi).is_some_and(|x| {
+                matches!(
+                    x.site,
+                    SiteKind::Each | SiteKind::Delayed | SiteKind::Replaced
+                )
+            }) {
                 bi += 1;
             }
             let Some(n) = names.get(bi) else { break };

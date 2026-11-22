@@ -356,7 +356,7 @@ type: Sorcery
 > If a card would be put into your graveyard from anywhere this turn, exile that card instead.
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(4), cost: [Mana(Mana(["G"]))] }) }])
 = Spell([During { dur: UntilEndOfTurn, then: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [In(Graveyard(You))], or: None } }, payment: ManaCost, dur: Permanent }, Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Graveyard(You))], or: None } }, payment: ManaCost, dur: Permanent }] }] }])
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: PutInto { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }] }] }])
+= Spell([During { dur: ThisTurn, then: [Replacement { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }] }])
 
 ## Garruk, Cursed Huntsman
 face: Garruk, Cursed Huntsman

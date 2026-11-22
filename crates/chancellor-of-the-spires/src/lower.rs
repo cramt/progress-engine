@@ -19,42 +19,30 @@ use crate::model::*;
 
 /// "If any source you control would deal damage to a permanent or player
 /// this turn, it deals double that damage to that permanent or player
-/// instead" (Quest for Pure Flame), as Insight binds it: the source and
-/// the recipient, then the replacement for the turn. `None` when the tree
-/// isn't that shape; a refusal by name when it is but says what the engine
-/// can't run.
-fn damage_this_turn(bind: &[Objects], then: &[i::Effect]) -> Option<Result<Effect, String>> {
-    let [i::Effect::During {
-        dur: i::Duration::ThisTurn,
-        then,
-    }] = then
+/// instead" (Quest for Pure Flame), as Insight binds it: the replacement
+/// for the turn binds the source and the recipient of each event it
+/// replaces ([replacement-binds-event]), the recipient innermost. `None`
+/// when the tree isn't that shape; a refusal by name when it is but says
+/// what the engine can't run.
+fn damage_this_turn(then: &[i::Effect]) -> Option<Result<Effect, String>> {
+    let [i::Effect::Replacement { event, instead }] = then else {
+        return None;
+    };
+    let i::Event::DealsDamageTo {
+        what: source_is,
+        to,
+    } = &**event
     else {
         return None;
     };
-    let [i::Effect::Replacement { event, instead }] = then.as_slice() else {
-        return None;
-    };
-    let i::Event::DealsDamageTo { what, to } = &**event else {
-        return None;
-    };
-    // `Introduced(0)` is the innermost binder, the last one bound.
-    let introduced = |o: &Objects| match o.quant {
-        Quant::Introduced(k) if o.filter == i::Filter::default() => bind
-            .len()
-            .checked_sub(1 + usize::from(k))
-            .map(|b| (k, &bind[b])),
-        _ => None,
-    };
-    if bind.len() != 2 {
-        return None;
-    }
-    let (source, source_is) = introduced(what)?;
-    let [i::Recipient::Objects(r)] = to.as_slice() else {
+    let [i::Recipient::Objects(recipient_is)] = to.as_slice() else {
         return Some(Err(
             "damage replaced to a recipient other than any one".into()
         ));
     };
-    let (recipient, recipient_is) = introduced(r)?;
+    // The event's binders in the order it says them: the source, then the
+    // recipient, the innermost.
+    let (source, recipient) = (1, 0);
     let you = i::Filter {
         kind: Some(i::Noun::Source),
         posts: vec![Post::Controller(i::Player::You)],
@@ -3567,10 +3555,13 @@ impl<'a> Scope<'a> {
             {
                 Effect::DiscardNamed(self.who(who)?)
             }
-            i::Effect::With { bind, then } => match damage_this_turn(bind, then) {
-                Some(effect) => effect?,
-                None => return self.with(bind, then),
-            },
+            i::Effect::With { bind, then } => return self.with(bind, then),
+            i::Effect::During {
+                dur: i::Duration::ThisTurn,
+                then,
+            } if damage_this_turn(then).is_some() => {
+                damage_this_turn(then).expect("matched in the guard")?
+            }
             // "…, where X is the number of Goblins on the battlefield".
             i::Effect::Where { then, x } => {
                 let amount = match x {

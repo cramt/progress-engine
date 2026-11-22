@@ -2478,6 +2478,16 @@ impl Analysis {
             .is_some_and(|f| evs[ev].frames.contains(f))
     }
 
+    /// Whether the loop whose object is `each` is a delayed trigger or a
+    /// one-shot replacement binding its event's object, not a `ForEach`.
+    pub fn event_loop(&self, line: usize, each: usize) -> bool {
+        let c = &self.lines[line].c;
+        c.evs[each]
+            .frames
+            .last()
+            .is_some_and(|&f| crate::binders::DELAYED.contains(&c.frames[f].verb.as_str()))
+    }
+
     /// Whether the event `ev` of `line` is said inside the object `obj`.
     pub fn within(&self, line: usize, ev: usize, obj: usize) -> bool {
         self.lines[line].c.evs[ev].anc.contains(&obj)
