@@ -1717,6 +1717,11 @@ pub enum Payment {
     /// Spend exactly this mana from the pool on the whole cost (CR 601.2h,
     /// 118.3a). Every amount that pays it is offered.
     Spend(ManaPool),
+    /// Spend exactly this mana on what is left of the cost once its
+    /// Phyrexian symbols paid with life are gone from it, and pay that
+    /// life, 2 for each (CR 107.4f, 601.2h). Offered only while the player
+    /// has that much life (CR 119.4).
+    SpendPayingLife(ManaPool, u32),
     /// Stop casting: the spell returns where it was, and the mana abilities
     /// activated while casting it are reversed (CR 733.1–733.2).
     Cancel,
@@ -3301,81 +3306,84 @@ impl Game {
                     paying,
                 },
                 Answer::Pay(pay),
-            ) if self.payments(player, &owed).contains(pay) => match (*pay, paying) {
-                (Payment::Mana(a), _) => self.activate(player, a),
-                // CR 602.2b: an ability activated, its activator gets
-                // priority again (CR 117.3c).
-                (Payment::Spend(spent), Paying::Ability) => {
-                    let pool = &mut self.players[player.0 as usize].pool;
-                    *pool = pool.minus(&spent);
-                    self.before_cast = None;
-                    self.became_targets();
-                    self.give_priority(player, 0);
-                }
-                // CR 702.37e, 116.3: turned face up without the stack, and
-                // its controller gets priority again.
-                (Payment::Spend(spent), Paying::FaceUp(id)) => {
-                    let pool = &mut self.players[player.0 as usize].pool;
-                    *pool = pool.minus(&spent);
-                    self.before_cast = None;
-                    self.turn_face_up(id);
-                    self.give_priority(player, 0);
-                }
-                // CR 702.62a, 116.3: exiled with its time counters
-                // without the stack, and its owner gets priority again.
-                (Payment::Spend(spent), Paying::Suspend) => {
-                    let pool = &mut self.players[player.0 as usize].pool;
-                    *pool = pool.minus(&spent);
-                    self.before_cast = None;
-                    let counters = self
-                        .runs_of(spell)
-                        .suspend
-                        .as_ref()
-                        .expect("only a card with suspend is offered")
-                        .counters;
-                    self.players[player.0 as usize].hand.retain(|c| *c != spell);
-                    self.put_in_exile(spell);
-                    self.suspended.insert(spell, counters);
-                    self.give_priority(player, 0);
-                }
-                // CR 702.170a–b, 116.3: exiled as a plotted card without
-                // the stack, and its owner gets priority again.
-                (Payment::Spend(spent), Paying::Plot) => {
-                    let pool = &mut self.players[player.0 as usize].pool;
-                    *pool = pool.minus(&spent);
-                    self.before_cast = None;
-                    self.players[player.0 as usize].hand.retain(|c| *c != spell);
-                    self.put_in_exile(spell);
-                    self.plotted.insert(spell, self.turn);
-                    self.give_priority(player, 0);
-                }
-                (Payment::Spend(spent), Paying::Spell { from_command }) => {
-                    let pool = &mut self.players[player.0 as usize].pool;
-                    *pool = pool.minus(&spent);
-                    if from_command {
-                        *self.commander_casts.entry(spell).or_insert(0) += 1;
+            ) if self.payments(player, &owed).contains(pay) => {
+                match (self.pay_life(player, *pay), paying) {
+                    (Payment::Mana(a), _) => self.activate(player, a),
+                    // CR 602.2b: an ability activated, its activator gets
+                    // priority again (CR 117.3c).
+                    (Payment::Spend(spent), Paying::Ability) => {
+                        let pool = &mut self.players[player.0 as usize].pool;
+                        *pool = pool.minus(&spent);
+                        self.before_cast = None;
+                        self.became_targets();
+                        self.give_priority(player, 0);
                     }
-                    // CR 601.2h: the rest of its total cost, paid with the
-                    // mana in any order.
-                    let other = self.other_costs(spell);
-                    self.lose_life(player, other.life);
-                    match other.sacrifice {
-                        Some((count, filter)) => {
-                            self.waiting = Waiting::Sacrifice {
-                                player,
-                                spell,
-                                count,
-                                filter,
-                            }
+                    // CR 702.37e, 116.3: turned face up without the stack, and
+                    // its controller gets priority again.
+                    (Payment::Spend(spent), Paying::FaceUp(id)) => {
+                        let pool = &mut self.players[player.0 as usize].pool;
+                        *pool = pool.minus(&spent);
+                        self.before_cast = None;
+                        self.turn_face_up(id);
+                        self.give_priority(player, 0);
+                    }
+                    // CR 702.62a, 116.3: exiled with its time counters
+                    // without the stack, and its owner gets priority again.
+                    (Payment::Spend(spent), Paying::Suspend) => {
+                        let pool = &mut self.players[player.0 as usize].pool;
+                        *pool = pool.minus(&spent);
+                        self.before_cast = None;
+                        let counters = self
+                            .runs_of(spell)
+                            .suspend
+                            .as_ref()
+                            .expect("only a card with suspend is offered")
+                            .counters;
+                        self.players[player.0 as usize].hand.retain(|c| *c != spell);
+                        self.put_in_exile(spell);
+                        self.suspended.insert(spell, counters);
+                        self.give_priority(player, 0);
+                    }
+                    // CR 702.170a–b, 116.3: exiled as a plotted card without
+                    // the stack, and its owner gets priority again.
+                    (Payment::Spend(spent), Paying::Plot) => {
+                        let pool = &mut self.players[player.0 as usize].pool;
+                        *pool = pool.minus(&spent);
+                        self.before_cast = None;
+                        self.players[player.0 as usize].hand.retain(|c| *c != spell);
+                        self.put_in_exile(spell);
+                        self.plotted.insert(spell, self.turn);
+                        self.give_priority(player, 0);
+                    }
+                    (Payment::Spend(spent), Paying::Spell { from_command }) => {
+                        let pool = &mut self.players[player.0 as usize].pool;
+                        *pool = pool.minus(&spent);
+                        if from_command {
+                            *self.commander_casts.entry(spell).or_insert(0) += 1;
                         }
-                        None => self.return_or_cast(player, spell),
+                        // CR 601.2h: the rest of its total cost, paid with the
+                        // mana in any order.
+                        let other = self.other_costs(spell);
+                        self.lose_life(player, other.life);
+                        match other.sacrifice {
+                            Some((count, filter)) => {
+                                self.waiting = Waiting::Sacrifice {
+                                    player,
+                                    spell,
+                                    count,
+                                    filter,
+                                }
+                            }
+                            None => self.return_or_cast(player, spell),
+                        }
                     }
+                    (Payment::Cancel, _) => {
+                        let before = self.before_cast.take().expect("a cast to cancel");
+                        *self = *before;
+                    }
+                    (Payment::SpendPayingLife(..), _) => unreachable!("its life paid"),
                 }
-                (Payment::Cancel, _) => {
-                    let before = self.before_cast.take().expect("a cast to cancel");
-                    *self = *before;
-                }
-            },
+            }
             (
                 Waiting::Discard {
                     player,
@@ -3662,7 +3670,7 @@ impl Game {
                     owed,
                 },
                 Answer::Pay(pay),
-            ) if self.payments(player, &owed).contains(pay) => match *pay {
+            ) if self.payments(player, &owed).contains(pay) => match self.pay_life(player, *pay) {
                 Payment::Mana(a) => self.activate(player, a),
                 Payment::Spend(spent) => {
                     let pool = &mut self.players[player.0 as usize].pool;
@@ -3670,6 +3678,7 @@ impl Game {
                     self.declare_attackers(player, &declared);
                 }
                 Payment::Cancel => self.waiting = Waiting::Attackers { player },
+                Payment::SpendPayingLife(..) => unreachable!("its life paid"),
             },
             (Waiting::Blockers { player, rest }, Answer::Block(declared)) => {
                 if !self.legal_blocks(player, declared) {
@@ -4061,7 +4070,7 @@ impl Game {
                 if self.payments(player, &owed).contains(pay) =>
             {
                 let mut at = at;
-                match *pay {
+                match self.pay_life(player, *pay) {
                     Payment::Mana(a) => self.activate(player, a),
                     Payment::Spend(spent) => {
                         let pool = &mut self.players[player.0 as usize].pool;
@@ -4073,6 +4082,7 @@ impl Game {
                         at.next.push(0);
                         self.follow(at);
                     }
+                    Payment::SpendPayingLife(..) => unreachable!("its life paid"),
                 }
             }
             (Waiting::DiscardUnless { player, at, .. }, Answer::Pick(pick)) => {
@@ -4751,13 +4761,36 @@ impl Game {
             .into_iter()
             .map(Payment::Mana)
             .collect();
-        out.extend(
-            owed.payments(&self.player(p).pool)
-                .into_iter()
-                .map(Payment::Spend),
-        );
+        let player = self.player(p);
+        for (cost, life) in owed.life_options() {
+            // CR 119.4.
+            if life > 0 && player.life < life as i32 {
+                continue;
+            }
+            for spent in cost.payments(&player.pool) {
+                let pay = match life {
+                    0 => Payment::Spend(spent),
+                    _ => Payment::SpendPayingLife(spent, life),
+                };
+                if !out.contains(&pay) {
+                    out.push(pay);
+                }
+            }
+        }
         out.push(Payment::Cancel);
         out
+    }
+
+    /// A payment's life paid (CR 119.4), and the mana it spends as the
+    /// payment left to make.
+    fn pay_life(&mut self, p: PlayerId, pay: Payment) -> Payment {
+        match pay {
+            Payment::SpendPayingLife(spent, life) => {
+                self.lose_life(p, life);
+                Payment::Spend(spent)
+            }
+            other => other,
+        }
     }
 
     fn act(&mut self, p: PlayerId, passes: usize, action: Action) -> Result<(), Rejected> {

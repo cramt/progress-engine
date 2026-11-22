@@ -6137,3 +6137,68 @@ fn frantic_search_untaps_up_to_three_tapped_lands() {
     assert!(!game.permanents()[&legal[1]].tapped);
     assert!(game.permanents()[&legal[2]].tapped);
 }
+
+/// The payments offered once `name` is cast and every untapped land I
+/// control is tapped for mana.
+fn cast_tapping_all(game: &mut Game, name: &str, targets: Option<Vec<Target>>) -> Vec<Payment> {
+    let c = in_hand(game, ME, name).expect("in hand");
+    let mut d = step(game, Answer::Act(Action::Cast(c)));
+    if let Some(t) = targets {
+        d = step(game, Answer::Targets(t));
+    }
+    loop {
+        let Decision::Pay { actions, .. } = d else {
+            panic!("{d:?}")
+        };
+        let Some(tap) = actions.iter().find(|a| matches!(a, Payment::Mana(_))) else {
+            return actions;
+        };
+        d = step(game, Answer::Pay(*tap));
+    }
+}
+
+/// CR 107.4f, 119.4, 601.2h: a Phyrexian symbol is paid with one mana of
+/// its colour or 2 life. Vault Skirge's {1}{B/P} with one Swamp is paid
+/// only with 2 life; Dismember's {1}{B/P}{B/P} with two is paid with 2
+/// life and both, or 4 life and one, the other left in the pool.
+#[test]
+fn phyrexian_mana_is_paid_with_its_colour_or_two_life() {
+    let mut game = deal(
+        &[("Swamp", 30), ("Vault Skirge", 15), ("Dismember", 15)],
+        &[("Forest", 60)],
+        &[("Swamp", 2), ("Vault Skirge", 1), ("Dismember", 1)],
+    );
+    play(&mut game, "Swamp");
+    let offered = cast_tapping_all(&mut game, "Vault Skirge", None);
+    let b = ManaPool::of([Mana::Black]);
+    assert!(
+        !offered.iter().any(|a| matches!(a, Payment::Spend(_))),
+        "{offered:?}"
+    );
+    assert!(
+        offered.contains(&Payment::SpendPayingLife(b, 2)),
+        "{offered:?}"
+    );
+    step(&mut game, Answer::Pay(Payment::SpendPayingLife(b, 2)));
+    assert_eq!(game.player(ME).life(), 18);
+    resolve(&mut game);
+    let skirge = creature(&game, "Vault Skirge").expect("resolved");
+
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    let offered = cast_tapping_all(&mut game, "Dismember", Some(vec![Target::Object(skirge)]));
+    let bb = ManaPool::of([Mana::Black, Mana::Black]);
+    assert!(
+        offered.contains(&Payment::SpendPayingLife(bb, 2)),
+        "{offered:?}"
+    );
+    assert!(
+        offered.contains(&Payment::SpendPayingLife(b, 4)),
+        "{offered:?}"
+    );
+    step(&mut game, Answer::Pay(Payment::SpendPayingLife(b, 4)));
+    assert_eq!(game.player(ME).life(), 14);
+    assert_eq!(*game.player(ME).pool(), b, "one {{B}} left");
+    resolve(&mut game);
+    assert!(creature(&game, "Vault Skirge").is_none(), "-5/-5");
+}

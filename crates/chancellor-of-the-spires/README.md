@@ -646,7 +646,10 @@ tried (which counted 7 more games until 2026-11-12). A shock
 land's life is the same: no line says it was paid and life totals aren't
 printed, so the replay doesn't pay and the land enters tapped, unless that
 leaves a later spell unpaid for, when it goes back and pays. Life is paid
-only when something that follows needs the land untapped. A creature
+only when something that follows needs the land untapped. A Phyrexian
+mana symbol is alike (CR 107.4f): paid with mana first, and with 2 life
+only once paying mana leaves a later spell unpaid, never with all the
+life a player has while the log plays on. A creature
 type chosen as a permanent enters is the log's "chooses Beast for
 [Engineered Plague]" line, read ahead to the end of the turn. The game it
 replays is one consistent with the log, not necessarily the one played.
@@ -1060,8 +1063,8 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-22 140 of the 500 replay to
-the end and 54.62% of their lines are followed** (17,292 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 146
+the end and 54.72% of their lines are followed** (17,323 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 147
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1086,7 +1089,10 @@ one names left hidden and a hidden card in a graveyard refused (Fact or
 Fiction); void's "if a nonland permanent left the battlefield this
 turn", the permanents that left as they last existed there, and an
 "instead" said in a paragraph of its own (CR 207.2c, 608.2h: Plasma
-Bolt); the beginning of combat (Luminarch Aspirant); becoming tapped
+Bolt); Phyrexian mana, each symbol paid with one mana of its colour or
+2 life, while the player has that much (CR 107.4f, 119.4: Vault Skirge,
+Dismember, Phyrexian Metamorph); the beginning of combat (Luminarch
+Aspirant); becoming tapped
 (City of Brass); mana of a colour chosen as an instruction resolves
 (Outcaster Trailblazer); "unless" paid or not (Mana Leak, echo); a
 cycling trigger and an X counted (Gempalm Incinerator); entering with

@@ -362,7 +362,7 @@ struct Knew {
 
 #[derive(Clone)]
 enum Retry {
-    Pay(Vec<ManaActivation>),
+    Pay(Paid),
     Answer(Answer, String),
     /// Follow the line again, casting its spell in response to what is on
     /// the stack rather than after it resolves.
@@ -3934,7 +3934,7 @@ impl Driver<'_> {
             });
         let game = self.game.as_ref().expect("set up");
         let pool = *game.player(p).pool();
-        let payments = solve(&owed, pool, &unlogged_mana(game, p));
+        let payments = solve(&owed, pool, game.player(p).life(), &unlogged_mana(game, p));
         if let Some(k) = said {
             let Some(first) = payments.first() else {
                 return Err(Stop::Diverged(Divergence::Unpayable { card: name }));
@@ -4044,7 +4044,7 @@ impl Driver<'_> {
     fn pay_attack(&mut self, p: PlayerId, owed: ManaCost, attacker: &str) -> Followed {
         let game = self.game.as_ref().expect("set up");
         let pool = *game.player(p).pool();
-        let payments = solve(&owed, pool, &unlogged_mana(game, p));
+        let payments = solve(&owed, pool, game.player(p).life(), &unlogged_mana(game, p));
         let Some(first) = payments.first() else {
             return Err(Stop::Diverged(Divergence::NeverOffered {
                 what: format!("attack with {attacker}, paying {owed}"),
@@ -6192,13 +6192,14 @@ impl Driver<'_> {
     }
 
     /// The payments the solver finds for the spell being cast, best first.
-    fn payments(&mut self) -> Result<Vec<Vec<ManaActivation>>, Stop> {
+    fn payments(&mut self) -> Result<Vec<Paid>, Stop> {
         let game = self.game();
         let Decision::Pay { player, owed, .. } = game.decision() else {
             unreachable!("a cast waits for its payment")
         };
         let pool = *game.player(player).pool();
-        let mut found = solve(&owed, pool, &unlogged_mana(game, player));
+        let life = game.player(player).life();
+        let mut found = solve(&owed, pool, life, &unlogged_mana(game, player));
         // A permanent a later line this turn attacks, blocks or activates
         // with is tapped for mana last: tapped, it couldn't.
         let used: BTreeSet<String> = self
@@ -6227,11 +6228,14 @@ impl Driver<'_> {
                 .and_then(|p| game.card(p.card))
                 .is_some_and(|t| used.contains(&t.name))
         };
-        // And a permanent sacrificed for mana is the last resort.
+        // And a permanent sacrificed for mana is the last resort, all
+        // after paying no more life than the fewest (`solve`).
         found.sort_by_key(|p| {
             (
-                p.iter().filter(|a| a.sacrifices.is_some()).count(),
-                p.iter()
+                p.life,
+                p.mana.iter().filter(|a| a.sacrifices.is_some()).count(),
+                p.mana
+                    .iter()
                     .filter(|a| named(&a.source) || a.sacrifices.as_ref().is_some_and(named))
                     .count(),
             )
@@ -6395,12 +6399,12 @@ impl Kind {
 }
 
 /// Activate these mana abilities, then spend from the pool what pays the
-/// cost.
-fn pay_with(game: &mut Game, payment: &[ManaActivation]) -> Followed {
+/// cost, paying the life the payment pays.
+fn pay_with(game: &mut Game, payment: &Paid) -> Followed {
     let illegal = |a: Answer| Stop::Illegal {
         what: format!("{a:?}"),
     };
-    for a in payment {
+    for a in &payment.mana {
         game.step(Answer::Pay(Payment::Mana(*a)))
             .map_err(|_| illegal(Answer::Pay(Payment::Mana(*a))))?;
     }
@@ -6412,7 +6416,11 @@ fn pay_with(game: &mut Game, payment: &[ManaActivation]) -> Followed {
     };
     let spend = actions
         .iter()
-        .find(|a| matches!(a, Payment::Spend(_)))
+        .find(|a| match (a, payment.life) {
+            (Payment::Spend(_), 0) => true,
+            (Payment::SpendPayingLife(_, life), paid) => *life == paid,
+            _ => false,
+        })
         .copied()
         .ok_or_else(|| Stop::Illegal {
             what: "a payment the solver found doesn't pay".into(),
@@ -6471,15 +6479,50 @@ fn shared_words(said: &str, oracle: &str) -> usize {
         .count()
 }
 
-fn describe(payment: &[ManaActivation]) -> String {
-    if payment.is_empty() {
-        return "paid from the pool".into();
+fn describe(payment: &Paid) -> String {
+    let mana = if payment.mana.is_empty() {
+        "paid from the pool".into()
+    } else {
+        let mana: Vec<String> = payment
+            .mana
+            .iter()
+            .map(|a| format!("#{} for {}", a.source.0, a.adds))
+            .collect();
+        format!("tapping {}", mana.join(", "))
+    };
+    match payment.life {
+        0 => mana,
+        life => format!("{mana}, paying {life} life (CR 107.4f)"),
     }
-    let mana: Vec<String> = payment
-        .iter()
-        .map(|a| format!("#{} for {}", a.source.0, a.adds))
-        .collect();
-    format!("tapping {}", mana.join(", "))
+}
+
+/// A payment the solver found: the mana abilities activated, and the life
+/// paid for the cost's Phyrexian symbols (CR 107.4f).
+#[derive(Clone, Debug)]
+struct Paid {
+    mana: Vec<ManaActivation>,
+    life: u32,
+}
+
+/// The payments of `owed`, those paying the least life for its Phyrexian
+/// symbols first (CR 107.4f), each way of paying the rest with mana as
+/// `solve_mana` orders them: the log never says that life was paid, and
+/// life totals aren't printed, so as with a shock land, a spell's cost is
+/// paid with life only once paying it with mana left a later line
+/// unfollowed (`aim_and_pay` keeps the others to go back to; an unless or
+/// an attack's cost takes the first). Life the player doesn't have isn't
+/// paid (CR 119.4), nor all they have, which would lose them the game (CR
+/// 704.5a) where the log plays on.
+fn solve(owed: &ManaCost, pool: ManaPool, life: i32, options: &[ManaActivation]) -> Vec<Paid> {
+    owed.life_options()
+        .into_iter()
+        .filter(|(_, paid)| *paid == 0 || life > *paid as i32)
+        .flat_map(|(cost, paid)| {
+            solve_mana(&cost, pool, options)
+                .into_iter()
+                .map(move |mana| Paid { mana, life: paid })
+        })
+        .collect()
 }
 
 /// How many nodes the payment search visits before it settles for what it
@@ -6491,7 +6534,11 @@ const SEARCH: usize = 20_000;
 /// activations first, then those leaving the most flexible sources
 /// untapped. The log never says which lands paid, so the replay tries
 /// these in order.
-fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec<ManaActivation>> {
+fn solve_mana(
+    owed: &ManaCost,
+    pool: ManaPool,
+    options: &[ManaActivation],
+) -> Vec<Vec<ManaActivation>> {
     // An ability that sacrifices another permanent can be activated again
     // for another (Skirk Prospector's "Sacrifice a Goblin"): each choice of
     // what it sacrifices is a source of its own.

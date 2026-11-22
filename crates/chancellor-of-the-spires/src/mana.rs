@@ -152,10 +152,13 @@ pub enum Shard {
     Hybrid(Mana, Mana),
     /// `{2/G}`: one mana of that colour or two of any type (CR 107.4e).
     TwoOr(Mana),
+    /// `{B/P}`: one mana of that colour or 2 life (CR 107.4f).
+    Phyrexian(Mana),
 }
 
-/// A mana cost (CR 202.1a), or the mana part of one. `{X}`, Phyrexian and
-/// snow mana aren't modelled, so a cost with them is refused when read.
+/// A mana cost (CR 202.1a), or the mana part of one. `{X}`, snow mana and
+/// hybrid Phyrexian mana aren't modelled, so a cost with them is refused
+/// when read.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ManaCost {
     pub generic: u32,
@@ -199,8 +202,13 @@ impl ManaCost {
                 return Err(format!("{{{s}}} in a cost (CR 107.3)"));
             } else if s == "S" {
                 return Err("snow mana in a cost (CR 107.4h)".into());
-            } else if s.ends_with("/P") || s == "H" {
-                return Err("Phyrexian mana in a cost (CR 107.4f)".into());
+            } else if let Some(m) = s.strip_suffix("/P").and_then(Mana::symbol) {
+                if m == Mana::Colorless {
+                    return Err(format!("the mana symbol {{{s}}}"));
+                }
+                cost.shards.push(Shard::Phyrexian(m));
+            } else if s.ends_with("/P") {
+                return Err("hybrid Phyrexian mana in a cost (CR 107.4f)".into());
             } else if let Some((a, b)) = s.split_once('/') {
                 cost.shards
                     .push(match (a, Mana::symbol(a), Mana::symbol(b)) {
@@ -215,6 +223,46 @@ impl ManaCost {
             }
         }
         Ok(cost)
+    }
+
+    /// Each way to pay its Phyrexian symbols (CR 107.4f): the cost left
+    /// to pay with mana, those paid with life gone from it, and the life
+    /// they cost, 2 each. The fewest paid with life come first, and the
+    /// first pays none.
+    pub fn life_options(&self) -> Vec<(ManaCost, u32)> {
+        // Which of one colour's symbols are paid with life changes
+        // nothing, so an option is how many of each colour are.
+        let mut colours: Vec<(Mana, u32)> = Vec::new();
+        for s in &self.shards {
+            if let Shard::Phyrexian(m) = s {
+                match colours.iter_mut().find(|(c, _)| c == m) {
+                    Some((_, n)) => *n += 1,
+                    None => colours.push((*m, 1)),
+                }
+            }
+        }
+        let mut out = vec![(self.clone(), 0)];
+        for (m, n) in colours {
+            out = out
+                .into_iter()
+                .flat_map(|(cost, life)| {
+                    (0..=n).map(move |k| {
+                        let mut left = cost.clone();
+                        for _ in 0..k {
+                            let at = left
+                                .shards
+                                .iter()
+                                .position(|s| *s == Shard::Phyrexian(m))
+                                .expect("counted");
+                            left.shards.remove(at);
+                        }
+                        (left, life + 2 * k)
+                    })
+                })
+                .collect();
+        }
+        out.sort_by_key(|(_, life)| *life);
+        out
     }
 
     /// This cost and `n` more generic mana, as commander tax adds (CR 903.8).
@@ -265,7 +313,9 @@ impl ManaCost {
                 left.contains(&one) && fits(rest, left.minus(&one), generic)
             };
             match *s {
-                Shard::One(m) => take(m),
+                // A Phyrexian symbol paid with life is gone from the cost
+                // before it is paid with mana (`life_options`).
+                Shard::One(m) | Shard::Phyrexian(m) => take(m),
                 Shard::Hybrid(a, b) => take(a) || take(b),
                 Shard::TwoOr(m) => take(m) || fits(rest, left, generic + 2),
             }
@@ -313,6 +363,7 @@ impl fmt::Display for ManaCost {
                 Shard::One(m) => write!(f, "{{{}}}", m.letter())?,
                 Shard::Hybrid(a, b) => write!(f, "{{{}/{}}}", a.letter(), b.letter())?,
                 Shard::TwoOr(m) => write!(f, "{{2/{}}}", m.letter())?,
+                Shard::Phyrexian(m) => write!(f, "{{{}/P}}", m.letter())?,
             }
         }
         Ok(())
@@ -474,7 +525,13 @@ fn lower_mana_ability(
             i::Cost::Tap => ability.tap = true,
             i::Cost::PayLife(i::Amount::N(n)) => ability.life += n,
             i::Cost::Mana(m) if ability.mana.is_none() => {
-                ability.mana = Some(ManaCost::from_symbols(m)?)
+                let mana = ManaCost::from_symbols(m)?;
+                // A mana ability's cost is paid as it is activated, and
+                // the payments offered for it are mana's alone.
+                if mana.shards.iter().any(|s| matches!(s, Shard::Phyrexian(_))) {
+                    return Err("Phyrexian mana in a mana ability's cost (CR 107.4f)".into());
+                }
+                ability.mana = Some(mana)
             }
             i::Cost::PutCounters {
                 n: i::Amount::N(1),
@@ -619,7 +676,22 @@ mod tests {
         assert!(!cost("{C}").paid_by(&g(1)));
         assert_eq!(ManaCost::parse("").unwrap(), None);
         assert!(ManaCost::parse("{X}{G}").is_err());
-        assert!(ManaCost::parse("{G/P}").is_err());
+        assert!(ManaCost::parse("{G/U/P}").is_err());
+        let dismember = ManaCost::parse("{1}{B/P}{B/P}").unwrap().unwrap();
+        assert_eq!(dismember.to_string(), "{1}{B/P}{B/P}");
+        let options: Vec<(String, u32)> = dismember
+            .life_options()
+            .into_iter()
+            .map(|(c, l)| (c.to_string(), l))
+            .collect();
+        assert_eq!(
+            options,
+            [
+                ("{1}{B/P}{B/P}".into(), 0),
+                ("{1}{B/P}".into(), 2),
+                ("{1}".into(), 4)
+            ]
+        );
         let pool = ManaPool::of([Mana::Green, Mana::Green, Mana::Red]);
         // {1}{G} from {G}{G}{R}: {G}{G} or {R}{G}.
         assert_eq!(cost("{1}{G}").payments(&pool).len(), 2);
