@@ -1039,8 +1039,8 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-22 132 of the 500 replay to
-the end and 53.63% of their lines are followed** (16,979 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 138
+the end and 53.91% of their lines are followed** (17,067 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 139
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1182,7 +1182,11 @@ exiled it and a commander among them free to go to the command zone
 (CR 701.13a, 406.2, 607.2a, 903.9a: Tormod's Crypt, whose 4 games go on,
 two of them to the end, and Bojuka Bog); cards drawn and life lost by an
 X a "where X is" counts (CR 107.3i, 608.2h: Graveborn Muse, whose 5
-games go on, two of them to the end). And
+games go on, two of them to the end); each opponent exiling a card of
+their choosing from their hand, chosen in APNAP order and exiled at once
+(CR 101.4: Yarok's Fenlurker, whose 4 games go on, to Geralf's
+Messenger's undying, Escape to the Wilds, a "chooses" line and Quest for
+Pure Flame). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1198,7 +1202,9 @@ land Flare of Cultivation puts onto the battlefield, and which card was
 cast face down, from the line revealing it or the card with morph a line
 names once it is turned face up, looked for in the hand once its player
 has priority, after the draw a line in their upkeep comes before, and
-resolved before a line turns it face up (CR 702.37e), the discard paying an "unless"
+resolved before a line turns it face up (CR 702.37e), and the card
+Yarok's Fenlurker has an opponent exile, which the log never names, a
+hidden card of their hand first and each other name in it after, the discard paying an "unless"
 from the next discard line, and which face of a two-faced card a line
 names and which copy of an adventurer card it casts, and what Vesuva
 entered as a copy of, and the cards an activation's cost takes from the

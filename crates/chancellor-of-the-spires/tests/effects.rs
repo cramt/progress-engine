@@ -5718,3 +5718,42 @@ fn graveborn_muse_draws_and_costs_life_for_each_zombie() {
     assert_eq!(game.player(ME).hand().len(), hand + 2);
     assert_eq!(game.player(ME).life(), 17);
 }
+
+/// CR 101.4, 701.13a: Yarok's Fenlurker's "When this creature enters,
+/// each opponent exiles a card from their hand": the opponent chooses
+/// which, and nothing of mine is asked.
+#[test]
+fn yaroks_fenlurker_has_each_opponent_exile_a_card_of_their_choosing() {
+    let mut game = deal(
+        &[("Swamp", 30), ("Yarok's Fenlurker", 30)],
+        &[("Forest", 60)],
+        &[("Swamp", 2), ("Yarok's Fenlurker", 1)],
+    );
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(&mut game, "Yarok's Fenlurker", None);
+    let mine = game.player(ME).hand().len();
+    let theirs = game.player(THEM).hand().len();
+    resolve(&mut game);
+    resolve(&mut game);
+    let Decision::ExileFromHand { player, hand } = game.decision() else {
+        panic!("a card to exile, not {:?}", game.decision())
+    };
+    assert_eq!(player, THEM);
+    assert_eq!(hand.len(), theirs);
+    assert!(
+        game.clone()
+            .step(Answer::Pick(Some(game.player(ME).hand()[0])))
+            .is_err(),
+        "only a card of their own hand"
+    );
+    assert!(
+        game.clone().step(Answer::Pick(None)).is_err(),
+        "a card, with one in hand"
+    );
+    step(&mut game, Answer::Pick(Some(hand[0])));
+    assert_eq!(game.player(THEM).hand().len(), theirs - 1);
+    assert_eq!(game.player(ME).hand().len(), mine);
+    assert!(game.exile().contains(&hand[0]));
+}

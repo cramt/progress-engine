@@ -1082,6 +1082,14 @@ enum Waiting {
         tapped: bool,
         resume: Resuming,
     },
+    /// "Each opponent exiles a card from their hand": the first of
+    /// `choosers` chooses a card of their hand, the rest after them in
+    /// APNAP order, and then the `chosen` are exiled at once (CR 101.4).
+    ExileFromHand {
+        choosers: Vec<PlayerId>,
+        chosen: Vec<CardId>,
+        resume: Resuming,
+    },
     /// CR 508.1: the active player declares attackers.
     Attackers {
         player: PlayerId,
@@ -1382,6 +1390,12 @@ pub enum Decision {
         hand: Vec<CardId>,
         legal: Vec<CardId>,
         unsure: usize,
+    },
+    /// "Each opponent exiles a card from their hand": `player` chooses
+    /// one card of their `hand`, answered with `Answer::Pick` (CR 101.4).
+    ExileFromHand {
+        player: PlayerId,
+        hand: Vec<CardId>,
     },
     /// CR 608.2d, 603.5: follow an instruction of `card`'s that says "you
     /// may", or not, answered with `Answer::May`.
@@ -2430,6 +2444,29 @@ impl Game {
         characteristics(&self.layer_state())
     }
 
+    /// The cards each chooser chose of their hand, exiled at once (CR
+    /// 101.4, 701.13a), linked, as `ExileGraveyard`'s are, to the
+    /// permanent whose ability exiled them, which only an ability of its
+    /// own that counts them reads (CR 607.2a).
+    fn exile_from_hands(&mut self, at: &Resuming, chosen: Vec<CardId>) {
+        let linked = (!matches!(at.what, Instructions::Spell { .. }))
+            .then_some(at.object)
+            .flatten();
+        for c in chosen {
+            let owner = self.owner(c);
+            self.players[owner.0 as usize].hand.retain(|x| *x != c);
+            self.put_in_exile(c);
+            if let Some(source) = linked {
+                self.exiled_with.insert(c, source);
+            }
+            // CR 903.9a: a commander put into exile may go to the command
+            // zone.
+            if self.cards[c.0 as usize].commander {
+                self.commanders_moved.push_back(c);
+            }
+        }
+    }
+
     /// Put a card into exile, a new object linked to none and plotted by
     /// nothing earlier (CR 400.7).
     fn put_in_exile(&mut self, card: CardId) {
@@ -2705,6 +2742,10 @@ impl Game {
                     hand,
                 }
             }
+            Waiting::ExileFromHand { choosers, .. } => Decision::ExileFromHand {
+                player: choosers[0],
+                hand: self.player(choosers[0]).hand.iter().copied().collect(),
+            },
             Waiting::Scry { player, cards, .. } => Decision::Scry {
                 player: *player,
                 cards: cards.clone(),
@@ -3304,6 +3345,27 @@ impl Game {
                     _ => return Err(Rejected::Illegal(answer)),
                 }
                 self.follow(resume);
+            }
+            (
+                Waiting::ExileFromHand {
+                    mut choosers,
+                    mut chosen,
+                    resume,
+                },
+                Answer::Pick(Some(c)),
+            ) if self.player(choosers[0]).hand.contains(c) => {
+                chosen.push(*c);
+                choosers.remove(0);
+                if choosers.is_empty() {
+                    self.exile_from_hands(&resume, chosen);
+                    self.follow(resume);
+                } else {
+                    self.waiting = Waiting::ExileFromHand {
+                        choosers,
+                        chosen,
+                        resume,
+                    };
+                }
             }
             (Waiting::Reveal { cards, resume, .. }, Answer::Reveal(named))
                 if named.len() == cards.len() =>
@@ -5664,6 +5726,28 @@ impl Game {
                         }
                     }
                 }
+                Effect::ExileFromHand(whose) => {
+                    // CR 101.4: in APNAP order; one with no card in hand
+                    // has nothing to choose (CR 101.3).
+                    let n = self.players.len();
+                    let choosers: Vec<PlayerId> = (0..n)
+                        .map(|k| PlayerId(((self.active.0 as usize + k) % n) as u8))
+                        .filter(|q| match whose {
+                            lower::Whose::Yours => *q == p,
+                            lower::Whose::Opponents => *q != p,
+                            lower::Whose::Each => true,
+                        })
+                        .filter(|q| !self.player(*q).left && !self.player(*q).hand.is_empty())
+                        .collect();
+                    if !choosers.is_empty() {
+                        self.waiting = Waiting::ExileFromHand {
+                            choosers,
+                            chosen: Vec::new(),
+                            resume,
+                        };
+                        return;
+                    }
+                }
                 Effect::RevealChooseDiscard { who: w, filter } => {
                     let Some(q) = who(w) else { continue };
                     self.waiting = Waiting::ChooseFromHand {
@@ -7015,6 +7099,7 @@ impl Game {
                 ..
             }
             | Waiting::ChooseFromHand { resume: at, .. }
+            | Waiting::ExileFromHand { resume: at, .. }
             | Waiting::Scry { resume: at, .. }
             | Waiting::Search { resume: at, .. }
             | Waiting::May { at, .. }

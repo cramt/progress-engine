@@ -2381,6 +2381,7 @@ impl Driver<'_> {
             Decision::ChooseFromHand { .. } => Err(Stop::Diverged(Divergence::Unlogged {
                 what: "a card chosen from a revealed hand".into(),
             })),
+            Decision::ExileFromHand { hand, .. } => self.exile_from_hand(hand),
             // No line this turn shows an attack: none is declared.
             Decision::Attackers { .. } => {
                 if self.attack_ahead() {
@@ -2763,6 +2764,74 @@ impl Driver<'_> {
         self.consumed.insert(k);
         self.did(k, "discarded instead, so it entered (CR 614.1a)");
         self.act(Answer::Pick(Some(c)))
+    }
+
+    /// "Each opponent exiles a card from their hand" (Yarok's Fenlurker):
+    /// the log never names the card. Any card still hidden is one no line
+    /// has shown, and hidden cards are alike by name until a line names
+    /// one, so the first of them; then each card of another name the hand
+    /// holds, if a later line can't be followed without it. A hidden card
+    /// first because it is the pick a later line contradicts soonest: the
+    /// hand left can play fewer unnamed cards. Hidden cards differ in one
+    /// way, drawn this turn or not, which only Sylvan Library's choice
+    /// reads; a Fenlurker resolving between a draw and that choice would
+    /// need the drawn card tried apart.
+    fn exile_from_hand(&mut self, hand: Vec<CardId>) -> Followed {
+        let game = self.game();
+        let mut picks: Vec<CardId> = Vec::new();
+        let mut names: Vec<Option<String>> = Vec::new();
+        for c in hand {
+            let name = game.card(c).map(|t| t.name.clone());
+            if !names.contains(&name) {
+                names.push(name);
+                picks.push(c);
+            }
+        }
+        // Hidden first.
+        let hidden = names.iter().position(Option::is_none);
+        if let Some(k) = hidden {
+            picks.swap(0, k);
+            names.swap(0, k);
+        }
+        let Some((first, others)) = picks.split_first() else {
+            return Err(Stop::Diverged(Divergence::Unlogged {
+                what: "a card exiled from an empty hand".into(),
+            }));
+        };
+        if !others.is_empty() {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others: others
+                    .iter()
+                    .zip(&names[1..])
+                    .map(|(c, n)| {
+                        Retry::Answer(
+                            Answer::Pick(Some(*c)),
+                            format!(
+                                "exiled {} from the hand instead",
+                                n.as_deref().unwrap_or("a card no line names")
+                            ),
+                        )
+                    })
+                    .collect(),
+                knew: self.knew(),
+                back: Back::Any,
+            });
+        }
+        self.act(Answer::Pick(Some(*first)))?;
+        let at = self.at;
+        self.did(
+            at,
+            match &names[0] {
+                Some(n) => format!("exiled {n} from the hand, which the log never names"),
+                None => "exiled a card no line names from the hand".to_string(),
+            },
+        );
+        Ok(())
     }
 
     /// "Sacrifice this creature unless you discard a card" (CR 118.12a):
@@ -3948,6 +4017,7 @@ impl Driver<'_> {
                 | Decision::PayLifeOr { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
+                | Decision::ExileFromHand { .. }
                 | Decision::Arrange { .. }
                 | Decision::PutFromHand { .. } => self.pass()?,
                 d => return Ok(d),
@@ -3978,6 +4048,7 @@ impl Driver<'_> {
                 | Decision::PayLifeOr { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
+                | Decision::ExileFromHand { .. }
                 | Decision::Arrange { .. }
                 | Decision::PutFromHand { .. } => self.pass()?,
                 _ => break,
@@ -4041,6 +4112,7 @@ impl Driver<'_> {
                 | Decision::Search { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
+                | Decision::ExileFromHand { .. }
                 | Decision::Arrange { .. }
                 | Decision::PayOrEnterTapped { .. }
                 | Decision::EnterAsCopy { .. }
@@ -5646,6 +5718,7 @@ impl Driver<'_> {
                     | Decision::PayLifeOr { .. }
                     | Decision::Reveal { .. }
                     | Decision::ChooseAmong { .. }
+                    | Decision::ExileFromHand { .. }
                     | Decision::Arrange { .. }
                     | Decision::Targets { .. }
                     | Decision::Order { .. }

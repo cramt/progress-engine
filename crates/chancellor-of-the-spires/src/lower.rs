@@ -1473,6 +1473,10 @@ pub enum Effect {
     /// "Exile target player's graveyard": every card in it moved to exile
     /// (CR 701.13a, 406.2).
     ExileGraveyard(Who),
+    /// "Each opponent exiles a card from their hand": each of those
+    /// players, in APNAP order, chooses one card of their own hand, and
+    /// then the chosen cards are exiled at once (CR 101.4, 701.13a).
+    ExileFromHand(Whose),
     /// "Discard two cards": the player chooses which (CR 701.9a), bound
     /// to `into` for "each land card discarded this way"; "at random",
     /// chance does (CR 701.9b).
@@ -3479,6 +3483,29 @@ impl<'a> Scope<'a> {
             // "that player puts it into their hand": the instruction is
             // theirs to follow, and no choice is in it.
             i::Effect::Performed { by, effect } => match &**effect {
+                // "Each opponent exiles a card from their hand": a card of
+                // their own choosing, each in turn, then all at once (CR
+                // 101.4).
+                i::Effect::Exile(o)
+                    if o.quant == Quant::One
+                        && o.filter
+                            == (i::Filter {
+                                kind: Some(i::Noun::Card),
+                                posts: vec![Post::In(i::Zone::Hand(i::Player::That))],
+                                ..i::Filter::default()
+                            }) =>
+                {
+                    Effect::ExileFromHand(match by {
+                        i::Player::Each => Whose::Each,
+                        i::Player::EachOpponent => Whose::Opponents,
+                        other => {
+                            return Err(format!(
+                                "a card exiled from the hand of Player::{}",
+                                short(other)
+                            ))
+                        }
+                    })
+                }
                 i::Effect::GainControl {
                     what,
                     dur: i::Duration::Permanent,
