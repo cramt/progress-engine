@@ -1,150 +1,151 @@
 # The 149 cards (a 150th, a name the logs print only as "Ragavan (not in the bulk file)", dropped) that keep the most cached Magic Online games (Freeform, Penny Dreadful) from being read whole, so from Chancellor's replay: chancellor-logs coverage --top 150, each blocking 30 to 560 games, taken 2026-11-22.
-Abstruse Appropriation
-Abundant Harvest
-Academy Loremaster
-Ad Nauseam
-All-Seeing Arbiter
-Alpine Moon
-Amalia Benavides Aguirre
-Angel's Grace
-Aquamoeba
-Arixmethes, Slumbering Isle
-As Foretold
-Aven Interrupter
-Aven Mindcensor
-Baral, Chief of Compliance
-Baron Helmut Zemo
-Black Vise
-Bloodfeather Phoenix
-Case of the Uneaten Feast
-Celestial Reunion
-Chain Lightning
-Chandra's Pyreling
-City of Traitors
-Cloak and Dagger, Entwined
-Collected Conjuring
-Cursed Scroll
-Daybreak Coronet
-Defense Grid
-Deification
-Dennick, Pious Apprentice // Dennick, Pious Apparition
-Desecration Demon
-Detention Sphere
-Doom Foretold
-Draconic Roar
-Dragonfire Blade
-Dreadship Reef
-Dwarven Mauler
-Emergent Ultimatum
-Ethersworn Canonist
+# ranked: most games blocked first, so `insight failing mtgo-logs` works the list in this order.
 Fervent Champion
-Finale of Promise
-Firebender Ascension
-Foil
-Fortified Beachhead
-Fraying Sanity
-Frenzied Baloth
-Gaddock Teeg
-Giada, Font of Hope
-Gideon of the Trials
-Glimpse of Tomorrow
-Grist, Voracious Larva // Grist, the Plague Swarm
-Hogaak, Arisen Necropolis
+River of Tears
+Dragonfire Blade
+Kytheon, Hero of Akros // Gideon, Battle-Forged
+Kellan, Planar Trailblazer
+Omniscience
+Sulfuric Vortex
+Nadu, Winged Wisdom
+Dwarven Mauler
+Baral, Chief of Compliance
+Thran Portal
+Case of the Uneaten Feast
+Orcish Lumberjack
+Lightstall Inquisitor
+Restore Balance
+Meddling Mage
+As Foretold
 Hypergenesis
+Liliana of the Veil
+Mazemind Tome
+Leyline of Resonance
+Parallax Tide
+Chain Lightning
+Giada, Font of Hope
+Mindslaver
+Kaya, Ghost Assassin
+Momo, Friendly Flier
+Aven Interrupter
+Roaring Furnace // Steaming Sauna
+Platinum Angel
+Parallax Wave
+Cursed Scroll
+Vision Charm
+Turnabout
+Monument to Perfection
+Invoke Despair
+Pinnacle Starcage
+Foil
+City of Traitors
+Unstoppable Slasher
+Platinum Emperion
+Firebender Ascension
+Baron Helmut Zemo
+Spellskite
+Wretched Banquet
+Ethersworn Canonist
+Abstruse Appropriation
+Serra's Emissary
+Magma Opus
+Phyrexian Unlife
+All-Seeing Arbiter
+Chandra's Pyreling
+Amalia Benavides Aguirre
+Defense Grid
+Lost Legacy
+Overwhelmed Apprentice
+Merry, Esquire of Rohan
 Intuition
 Invasion of Arcavios // Invocation of the Founders
-Invoke Despair
-Jegantha, the Wellspring
-Kari Zev, Skyship Raider
-Karn Liberated
-Kaya, Ghost Assassin
-Kellan, Planar Trailblazer
-Kitesail Larcenist
-Kytheon, Hero of Akros // Gideon, Battle-Forged
-Lady Octopus, Inspired Inventor
-Laelia, the Blade Reforged
-Leonin Arbiter
-Leyline of Resonance
-Lightning Storm
-Lightstall Inquisitor
-Liliana of the Veil
-Lost Legacy
-Loxodon Smiter
-Magister of Worth
-Magma Opus
-Mazemind Tome
-Meddling Mage
-Merry, Esquire of Rohan
-Mindslaver
-Mishra, Claimed by Gix
-Momo, Friendly Flier
-Monument to Perfection
-Mosswood Dreadknight // Dread Whispers
-Myr Superion
-Nadu, Winged Wisdom
-Oath of Druids
-Oath of Kaya
-Old-Growth Troll
-Omniscience
-Optimistic Scavenger
-Orcish Lumberjack
-Overwhelmed Apprentice
-Parallax Tide
-Parallax Wave
-Pawpatch Recruit
-Phyrexian Devourer
-Phyrexian Dragon Engine
-Phyrexian Furnace
-Phyrexian Unlife
-Pia Nalaar, Consul of Revival
-Pinnacle Starcage
-Pippin, Guard of the Citadel
-Platinum Angel
-Platinum Emperion
-Porphyry Nodes
-Power Sink
-Restore Balance
-River of Tears
-Roaring Furnace // Steaming Sauna
-Runed Halo
-Sarcomancy
-Sarkhan, Dragon Ascendant
 Sauron's Ransom
-Season of Weaving
-Second Sunrise
-Serra's Emissary
-Shalai, Voice of Plenty
-Silent Gravestone
-Sleep-Cursed Faerie
-Solemnity
-Spellskite
-Spoils of the Vault
 Standstill
-Stasis
-Sulfuric Vortex
-Suspend
-Swans of Bryn Argoll
-Tangle Wire
-Terastodon
-Thran Portal
-Tibalt's Trickery
-Tranquil Frillback
-Tsabo's Web
-Turnabout
-Turn // Burn
-Undiscovered Paradise
-Unstoppable Slasher
-Urza's Bauble
-Vedalken Shackles
-Vision Charm
-Vivid Crag
-Void Winnower
+Angel's Grace
+Ad Nauseam
+Old-Growth Troll
 Wandering Fumarole
-Wheel of Sun and Moon
+Laelia, the Blade Reforged
+Loxodon Smiter
+Phyrexian Furnace
 Wildgrowth Walker
-Wild Mongrel
-Wilt-Leaf Liege
-Winter Moon
-Wretched Banquet
-Zero Point Ballad
+Academy Loremaster
+Wheel of Sun and Moon
+Power Sink
+Runed Halo
+Abundant Harvest
+Undiscovered Paradise
+Gideon of the Trials
+Swans of Bryn Argoll
+Aven Mindcensor
+Spoils of the Vault
+Vivid Crag
+Fraying Sanity
+Porphyry Nodes
+Sarcomancy
+Phyrexian Dragon Engine
+Gaddock Teeg
+Kari Zev, Skyship Raider
+Pawpatch Recruit
+Terastodon
 Zurgo Bellstriker
+Mosswood Dreadknight // Dread Whispers
+Celestial Reunion
+Vedalken Shackles
+Dennick, Pious Apprentice // Dennick, Pious Apparition
+Kitesail Larcenist
+Tsabo's Web
+Doom Foretold
+Lightning Storm
+Wild Mongrel
+Jegantha, the Wellspring
+Collected Conjuring
+Emergent Ultimatum
+Oath of Druids
+Bloodfeather Phoenix
+Fortified Beachhead
+Myr Superion
+Oath of Kaya
+Wilt-Leaf Liege
+Stasis
+Void Winnower
+Tibalt's Trickery
+Alpine Moon
+Desecration Demon
+Black Vise
+Cloak and Dagger, Entwined
+Optimistic Scavenger
+Pia Nalaar, Consul of Revival
+Season of Weaving
+Turn // Burn
+Karn Liberated
+Pippin, Guard of the Citadel
+Tangle Wire
+Deification
+Magister of Worth
+Urza's Bauble
+Zero Point Ballad
+Frenzied Baloth
+Arixmethes, Slumbering Isle
+Detention Sphere
+Dreadship Reef
+Finale of Promise
+Glimpse of Tomorrow
+Hogaak, Arisen Necropolis
+Solemnity
+Leonin Arbiter
+Phyrexian Devourer
+Second Sunrise
+Silent Gravestone
+Tranquil Frillback
+Lady Octopus, Inspired Inventor
+Mishra, Claimed by Gix
+Shalai, Voice of Plenty
+Winter Moon
+Aquamoeba
+Daybreak Coronet
+Draconic Roar
+Sleep-Cursed Faerie
+Suspend
+Grist, Voracious Larva // Grist, the Plague Swarm
+Sarkhan, Dragon Ascendant

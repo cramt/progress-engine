@@ -19,7 +19,7 @@ they read is the commits, `{{handoffPath}}` and `{{batchDir}}/report.json`.
 1. The queued review findings below, regressions first, then the ones that
    change the game. Fix them **by pattern**: find the rule that produced the
    wrong tree and every other card it touches, not just the named card.
-2. Then the milestone's failing abilities, most played first.
+2. Then the milestone's failing abilities in the order listed: most played first, or the list's own order when it is ranked (mtgo-logs: most games blocked first).
 
 ## Rules
 

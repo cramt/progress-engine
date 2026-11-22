@@ -70,6 +70,30 @@ fn milestones() -> Result<Vec<(String, Vec<String>)>> {
     Ok(out)
 }
 
+/// A milestone list with a `# ranked` line is worked in its own order: each
+/// name's position, for `failing` to sort by.
+fn listed_order(target: &str) -> Result<Option<HashMap<String, usize>>> {
+    let path = format!("{}/milestones/{target}.txt", env!("CARGO_MANIFEST_DIR"));
+    let Ok(text) = fs::read_to_string(&path) else {
+        return Ok(None);
+    };
+    if !text.lines().any(|l| l.starts_with("# ranked")) {
+        return Ok(None);
+    }
+    let names = text
+        .lines()
+        .filter(|l| !l.is_empty() && !l.starts_with('#'));
+    Ok(Some(
+        names
+            .enumerate()
+            .flat_map(|(i, n)| {
+                let front = n.split(" // ").next().unwrap_or(n);
+                [(n.to_string(), i), (front.to_string(), i)]
+            })
+            .collect(),
+    ))
+}
+
 /// Lists outside Scryfall name a double-faced card by its front face, so a
 /// name matches either the whole card or the face before ` // `.
 fn by_any_name(cards: &[Card]) -> HashMap<&str, &Card> {
@@ -367,8 +391,20 @@ fn failing(args: &[String]) -> Result<()> {
     let (cards, _) = load(&cache("oracle-cards.jsonl"), &excluded, None)?;
     let mut top = select(&cards, target)?;
     top.retain(|c| !c.parsed());
-    // Unranked cards go last rather than first.
-    top.sort_by_key(|c| c.edhrec_rank.unwrap_or(u64::MAX));
+    match listed_order(target)? {
+        // A list ranked by what it is for (mtgo-logs: games blocked) beats
+        // EDHREC, which put its top blocker 235th.
+        Some(order) => top.sort_by_key(|c| {
+            let front = c.name.split(" // ").next().unwrap_or(&c.name);
+            order
+                .get(c.name.as_str())
+                .or_else(|| order.get(front))
+                .copied()
+                .unwrap_or(usize::MAX)
+        }),
+        // Unranked cards go last rather than first.
+        None => top.sort_by_key(|c| c.edhrec_rank.unwrap_or(u64::MAX)),
+    }
     for c in top {
         for l in c.lines.iter() {
             if let Err(b) = &l.parsed {

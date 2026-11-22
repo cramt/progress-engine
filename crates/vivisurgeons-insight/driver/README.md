@@ -92,7 +92,7 @@ milestone has. A list that grows reopens its milestone. A list added
 mid-batch, with no row in the batch's baseline, waits for the next batch.
 `mtgo-logs` comes first: the cards that keep the most cached Magic Online
 games from being read whole, so Chancellor's replay has those games to play
-(`chancellor-logs coverage --top 150`).
+(`chancellor-logs coverage --top 150`), ranked by games blocked: its `# ranked` line makes `insight failing` keep the list's order instead of EDHREC's.
 
 ## Review and triage
 
