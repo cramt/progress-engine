@@ -760,7 +760,7 @@ type: Instant — Arcane
 cost: {W}
 > Whenever a spell or ability an opponent controls causes you to discard cards this turn, return those cards from your graveyard to your hand.
 > When a spell or ability an opponent controls causes you to discard this card, return this card from your graveyard to your hand at the beginning of the next end step.
-= BROKE at "this" after: whenever a spell or ability an opponent controls causes you to discard cards
+= Spell([During { dur: ThisTurn, then: [DelayedWhenever { event: CausedBy { by: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }, event: Discards { who: You, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } } }, then: [Move { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }])
 = Triggered { trigger: When(CausedBy { by: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }, event: Discards { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } } }), effect: [Delayed { step: EndStep(Next), then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Purity
