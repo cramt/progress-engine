@@ -227,7 +227,7 @@ face: Don't Move
 type: Sorcery
 cost: {3}{W}{W}
 > Destroy all tapped creatures. Until your next turn, whenever a creature becomes tapped, destroy it.
-= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [During { dur: UntilYourNextTurn, then: [DelayedWhenever { event: BecomesTapped(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [Destroy { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }] }] }])
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, During { dur: UntilYourNextTurn, then: [DelayedWhenever { event: BecomesTapped(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Destroy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }] }])
 
 ## Drudge Skeletons
 face: Drudge Skeletons

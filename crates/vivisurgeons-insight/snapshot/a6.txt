@@ -161,7 +161,7 @@ cost: {5}{U}
 > When you next cast an instant or sorcery spell this turn, copy that spell twice. You may choose new targets for the copies.
 = Keywords([Keyword { name: "convoke", param: None }])
 = Spell([May { who: You, then: [CastAsThoughFlash { what: Objects { quant: Plural, filter: Filter { alts: [[Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, dur: ThisTurn }] }])
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }], then: [DelayedNext { event: Casts { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, dur: ThisTurn, then: [Repeat { times: N(2), then: [Copy { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }] }])
+= Spell([DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [Repeat { times: N(2), then: [Copy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }])
 
 ## Cyber Conversion
 face: Cyber Conversion
@@ -365,7 +365,7 @@ cost: {2}{W}
 > Cast this spell only during the declare attackers step and only if you've been attacked this step.
 > This turn, whenever an attacking creature deals combat damage to you, it deals that much damage to its controller.
 = BROKE at "attackers" after: cast this spell only during the declare
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }], then: [During { dur: ThisTurn, then: [DelayedWhenever { event: DealsCombatDamageTo { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Player(You) }, then: [Damage { source: Some(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Player(ControllerOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }] }] }] }])
+= Spell([During { dur: ThisTurn, then: [DelayedWhenever { event: DealsCombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, to: Player(You) }, then: [Damage { source: Some(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Player(ControllerOf(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }] }] }])
 
 ## Hokori, Dust Drinker
 face: Hokori, Dust Drinker

@@ -92,6 +92,48 @@ fn count_objects<T: Walk + Clone>(x: &T) -> usize {
     n.0
 }
 
+/// The delayed triggers whose event's objects they bind themselves
+/// ([delayed-binds-event]).
+pub(crate) const DELAYED: [&str; 3] = ["DelayedWhen", "DelayedWhenever", "DelayedNext"];
+
+fn delayed(e: &Effect) -> bool {
+    matches!(
+        e,
+        Effect::DelayedWhen { .. } | Effect::DelayedWhenever { .. } | Effect::DelayedNext { .. }
+    )
+}
+
+/// "Whenever this creature becomes blocked by a creature of that color
+/// this turn, destroy that creature" (Zombie Boa): the object a delayed
+/// trigger's event describes is a new one each time it triggers, so the
+/// trigger binds it where its event says it, as a `ForEach` binds its
+/// object, and never the ability that set the trigger up
+/// ([delayed-binds-event]). Every object the event says at its top level
+/// that is described (no reference, no target, which is chosen as the
+/// ability is put on the stack) is bound, whether or not anything refers
+/// to it, so a reader counts the same binders without the resolver.
+pub(crate) fn delayed_binds(o: &Objects) -> bool {
+    matches!(
+        o.quant,
+        Quant::One
+            | Quant::Each
+            | Quant::All
+            | Quant::N(_)
+            | Quant::OneOrMore
+            | Quant::AnyNumber
+            | Quant::Another
+            | Quant::Plural
+            | Quant::Other
+            | Quant::AtLeast(_)
+            | Quant::AtMost(_)
+            | Quant::UpTo(_)
+            | Quant::Next
+            | Quant::NthEachTurn { .. }
+            | Quant::NthDuringTurns { .. }
+            | Quant::NthOfGame { .. }
+    )
+}
+
 /// Where a binder goes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Site {
@@ -706,12 +748,30 @@ impl Visitor for Repoint<'_> {
     }
 }
 
+/// A trigger's own list of effects, if `e` is a trigger the ability sets
+/// up, and the parts of it said before that list (its event or
+/// condition).
+fn trigger_list(e: &mut Effect) -> Option<(&mut Vec<Effect>, Vec<Condition>, Option<Event>)> {
+    Some(match e {
+        Effect::WhenYouDo(then) => (then, Vec::new(), None),
+        Effect::WhenYouDoIf { cond, then } => (then, vec![cond.clone()], None),
+        Effect::Delayed { then, .. } => (then, Vec::new(), None),
+        Effect::DelayedWhen { event, then }
+        | Effect::DelayedWhenever { event, then }
+        | Effect::DelayedNext { event, then, .. } => (then, Vec::new(), Some(event.clone())),
+        _ => return None,
+    })
+}
+
 /// "When you do, target opponent exiles the top five cards of their
 /// library. You may cast up to two spells from among the exiled cards"
-/// (Doom Reigns Supreme): what a reflexive trigger finds, exiles or
-/// chooses comes to exist only as that trigger resolves (CR 603.12), so
-/// a `With` whose binders only a `WhenYouDo` says goes inside it, from
-/// the effect that says them first ([when-you-do-binds]).
+/// (Doom Reigns Supreme), "Until end of turn, whenever a creature you
+/// control dies, exile the top card of your library. You may play it …"
+/// (Waltz of Rage): what a reflexive or delayed trigger finds, exiles or
+/// chooses comes to exist only as that trigger resolves (CR 603.12,
+/// 603.7), so a `With` whose binders only such a trigger says goes
+/// inside it (through a `During` around it), from the effect that says
+/// them first ([when-you-do-binds]).
 fn into_reflexive(es: &mut Vec<Effect>) {
     let Some(Effect::With { then, .. }) = es.last_mut() else {
         return;
@@ -721,35 +781,63 @@ fn into_reflexive(es: &mut Vec<Effect>) {
         unreachable!("matched above");
     };
     let ids = bind_ids(bind);
-    // A token the ability made before the reflexive trigger exists
-    // already (Ratonhnhaké꞉ton, Iroh, Tea Master).
+    // A token the ability made before the trigger exists already
+    // (Ratonhnhaké꞉ton, Iroh, Tea Master).
     if ids.len() != bind.len() || bind.iter().any(|o| o.quant == Quant::Made) {
         return;
     }
-    let saying: Vec<usize> = (0..then.len())
-        .filter(|&i| says(&then[i], &ids, false))
-        .collect();
-    let [at] = saying[..] else { return };
-    let inner_says = |inner: &[Effect]| inner.iter().position(|e| says(e, &ids, false));
-    let movable = match &then[at] {
-        Effect::WhenYouDo(inner) => inner_says(inner).is_some(),
-        Effect::WhenYouDoIf { cond, then: inner } => {
-            !says(cond, &ids, false) && inner_says(inner).is_some()
+    // The path to the innermost trigger whose list alone says them.
+    let one = |es: &[Effect]| -> Option<usize> {
+        let v: Vec<usize> = (0..es.len())
+            .filter(|&i| says(&es[i], &ids, false))
+            .collect();
+        match v[..] {
+            [i] => Some(i),
+            _ => None,
         }
-        _ => false,
     };
-    if !movable {
+    let mut path: Vec<usize> = Vec::new();
+    let mut deepest = 0;
+    let mut cur: Vec<Effect> = then.clone();
+    while let Some(i) = one(&cur) {
+        path.push(i);
+        let mut e = cur[i].clone();
+        if let Effect::During { then, .. } = e {
+            cur = then;
+            continue;
+        }
+        let Some((list, conds, event)) = trigger_list(&mut e) else {
+            break;
+        };
+        if conds.iter().any(|c| says(c, &ids, false))
+            || event.is_some_and(|ev| says(&ev, &ids, false))
+        {
+            break;
+        }
+        deepest = path.len();
+        cur = std::mem::take(list);
+    }
+    if deepest == 0 {
         return;
     }
+    path.truncate(deepest);
     let Some(Effect::With { bind, mut then }) = es.pop() else {
         unreachable!("matched above");
     };
-    let (Effect::WhenYouDo(inner) | Effect::WhenYouDoIf { then: inner, .. }) = &mut then[at] else {
-        unreachable!("checked above");
-    };
-    let k = inner_says(inner).expect("checked above");
-    let rest = inner.split_off(k);
-    inner.push(Effect::With { bind, then: rest });
+    let mut list: &mut Vec<Effect> = &mut then;
+    for &i in &path {
+        let e = &mut list[i];
+        list = match e {
+            Effect::During { then, .. } => then,
+            e => trigger_list(e).expect("on the path").0,
+        };
+    }
+    let k = list
+        .iter()
+        .position(|e| says(e, &ids, false))
+        .expect("checked above");
+    let rest = list.split_off(k);
+    list.push(Effect::With { bind, then: rest });
     es.extend(then);
 }
 
@@ -851,15 +939,22 @@ pub(crate) struct Scope {
     loops: Vec<bool>,
     /// The binder the loop's `each` being walked names, if it names one.
     each_over: Option<usize>,
+    /// Whether each open site is a delayed trigger still reading its event.
+    events: Vec<bool>,
+    /// Conditions and amounts open, which a delayed trigger's event binds
+    /// nothing in.
+    nest: usize,
 }
 
 impl Scope {
     fn open(&mut self, n: usize) {
         self.sites.push((n, self.depth, 0));
         self.loops.push(false);
+        self.events.push(false);
     }
     fn close(&mut self) {
         self.loops.pop();
+        self.events.pop();
         if let Some((_, _, pushed)) = self.sites.pop() {
             for _ in 0..pushed {
                 self.stack.pop();
@@ -928,6 +1023,20 @@ impl Visitor for Scope {
     }
     fn leave(&mut self, o: &mut Objects) {
         self.depth -= 1;
+        if self.events.last() == Some(&true) && self.nest == 0 {
+            if let Some(site) = self.sites.last_mut() {
+                if site.1 == self.depth && delayed_binds(o) {
+                    site.2 += 1;
+                    let id = take_mark(o);
+                    self.stack.push(id);
+                    if let Some(id) = id {
+                        self.ordinal.insert(id, self.count);
+                    }
+                    self.count += 1;
+                }
+            }
+            return;
+        }
         if let Some(site) = self.sites.last_mut() {
             if site.1 == self.depth && site.0 > 0 {
                 site.0 -= 1;
@@ -958,17 +1067,37 @@ impl Visitor for Scope {
         self.close();
     }
     fn effect(&mut self, e: &mut Effect) {
+        // The event is read before the trigger's first effect.
+        if let Some(ev) = self.events.last_mut() {
+            *ev = false;
+        }
         match e {
             Effect::With { bind, .. } => self.open(bind.len()),
             Effect::ForEach { .. } => {
                 self.open(1);
                 *self.loops.last_mut().expect("opened") = true;
             }
+            e if delayed(e) => {
+                self.open(0);
+                *self.events.last_mut().expect("opened") = true;
+            }
             _ => self.open(0),
         }
     }
     fn effect_done(&mut self, _: &mut Effect) {
         self.close();
+    }
+    fn condition(&mut self, _: &mut Condition) {
+        self.nest += 1;
+    }
+    fn condition_done(&mut self, _: &mut Condition) {
+        self.nest -= 1;
+    }
+    fn amount(&mut self, _: &mut Amount) {
+        self.nest += 1;
+    }
+    fn amount_done(&mut self, _: &mut Amount) {
+        self.nest -= 1;
     }
 }
 
@@ -1024,6 +1153,8 @@ pub enum SiteKind {
     Let,
     With,
     Each,
+    /// A delayed trigger's event's object ([delayed-binds-event]).
+    Delayed,
 }
 
 /// Each binder of a bound tree and the binder each reference names.
@@ -1048,13 +1179,18 @@ struct Read {
     decl: usize,
     /// The depths of the binder descriptions being read.
     binds: Vec<usize>,
+    /// As `Scope`'s.
+    events: Vec<bool>,
+    nest: usize,
 }
 
 impl Read {
     fn open(&mut self, k: SiteKind, n: usize) {
         self.sites.push((k, n, self.depth, 0));
+        self.events.push(false);
     }
     fn close(&mut self) {
+        self.events.pop();
         if let Some((_, _, _, pushed)) = self.sites.pop() {
             for _ in 0..pushed {
                 self.stack.pop();
@@ -1090,10 +1226,11 @@ impl Visitor for Read {
                 self.out.in_bind.insert(self.decl);
             }
         }
+        let event = self.events.last() == Some(&true) && self.nest == 0;
         if self
             .sites
             .last()
-            .is_some_and(|s| s.2 == self.depth && s.1 > 0)
+            .is_some_and(|s| s.2 == self.depth && (s.1 > 0 && !event || event && delayed_binds(o)))
         {
             self.binds.push(self.depth);
         }
@@ -1107,11 +1244,19 @@ impl Visitor for Read {
         if self.binds.last() == Some(&depth) {
             self.binds.pop();
         }
+        let event = self.events.last() == Some(&true) && self.nest == 0;
         if let Some(site) = self.sites.last_mut() {
-            if site.2 == depth && site.1 > 0 {
-                site.1 -= 1;
+            let binds = if event {
+                site.2 == depth && delayed_binds(o)
+            } else {
+                site.2 == depth && site.1 > 0
+            };
+            if binds {
+                if !event {
+                    site.1 -= 1;
+                }
                 site.3 += 1;
-                let kind = site.0;
+                let kind = if event { SiteKind::Delayed } else { site.0 };
                 self.out.binders.push(BinderInfo {
                     what: o.clone(),
                     site: kind,
@@ -1132,14 +1277,33 @@ impl Visitor for Read {
         self.close();
     }
     fn effect(&mut self, e: &mut Effect) {
+        if let Some(ev) = self.events.last_mut() {
+            *ev = false;
+        }
         match e {
             Effect::With { bind, .. } => self.open(SiteKind::With, bind.len()),
             Effect::ForEach { .. } => self.open(SiteKind::Each, 1),
+            e if delayed(e) => {
+                self.open(SiteKind::Delayed, 0);
+                *self.events.last_mut().expect("opened") = true;
+            }
             _ => self.open(SiteKind::With, 0),
         }
     }
     fn effect_done(&mut self, _: &mut Effect) {
         self.close();
+    }
+    fn condition(&mut self, _: &mut Condition) {
+        self.nest += 1;
+    }
+    fn condition_done(&mut self, _: &mut Condition) {
+        self.nest -= 1;
+    }
+    fn amount(&mut self, _: &mut Amount) {
+        self.nest += 1;
+    }
+    fn amount_done(&mut self, _: &mut Amount) {
+        self.nest -= 1;
     }
 }
 
@@ -1152,6 +1316,8 @@ pub fn bindings(a: &Ability) -> Bindings {
         depth: 0,
         decl: 0,
         binds: Vec::new(),
+        events: Vec::new(),
+        nest: 0,
     };
     a.clone().walk(&mut r);
     r.out
@@ -1260,7 +1426,11 @@ impl Visitor for Unwrap {
     fn effect(&mut self, e: &mut Effect) {
         if let Effect::ForEach { then, .. }
         | Effect::WhenYouDo(then)
-        | Effect::WhenYouDoIf { then, .. } = e
+        | Effect::WhenYouDoIf { then, .. }
+        | Effect::Delayed { then, .. }
+        | Effect::DelayedWhen { then, .. }
+        | Effect::DelayedWhenever { then, .. }
+        | Effect::DelayedNext { then, .. } = e
         {
             splice(then);
         }
@@ -1324,6 +1494,9 @@ pub fn names(a: &Ability) -> Vec<String> {
 fn name_of(info: &BinderInfo, verb: &str) -> String {
     if info.site == SiteKind::Each {
         return "each".into();
+    }
+    if info.site == SiteKind::Delayed {
+        return "trigger".into();
     }
     let o = &info.what;
     if matches!(

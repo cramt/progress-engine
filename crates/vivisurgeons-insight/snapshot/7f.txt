@@ -460,7 +460,7 @@ cost: {4}{G}{G}
 > Flying
 > Poison Breath — When this creature enters, until end of turn, whenever a creature an opponent controls is dealt damage, destroy it.
 = Keywords([Keyword { name: "flying", param: None }])
-= Labelled { label: "poison breath", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }], then: [During { dur: UntilEndOfTurn, then: [DelayedWhenever { event: IsDealtDamage(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [Destroy { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }] }] }], limits: [] } }
+= Labelled { label: "poison breath", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [During { dur: UntilEndOfTurn, then: [DelayedWhenever { event: IsDealtDamage(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }), then: [Destroy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }] }], limits: [] } }
 
 ## Grim Giganotosaurus
 face: Grim Giganotosaurus
@@ -1080,7 +1080,7 @@ type: Land — Cave
 > {1}{U}, {T}, Exile seven cards from your graveyard: Add {U}. When you spend this mana to cast a spell or activate an ability, copy that spell or ability. You may choose new targets for the copy. (Mana abilities can't be copied.)
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "U"])), Tap, Exile(Objects { quant: N(N(7)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [AddMana(Symbols(Mana(["U"]))), With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], then: [DelayedWhen { event: ManaSpent([Cast(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), ActivateAny]), then: [Copy { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }, may_choose_new_targets: true }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "U"])), Tap, Exile(Objects { quant: N(N(7)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [AddMana(Symbols(Mana(["U"]))), DelayedWhen { event: ManaSpent([Cast(Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), ActivateAny]), then: [Copy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }, may_choose_new_targets: true }] }], limits: [] }
 
 ## Super-Adaptoid
 face: Super-Adaptoid

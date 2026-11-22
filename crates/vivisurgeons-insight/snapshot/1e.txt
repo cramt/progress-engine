@@ -544,7 +544,7 @@ cost: {3}{U}{U}
 > −3: Until your next turn, whenever a creature attacks you or a planeswalker you control, it gets -5/-0 until end of turn.
 > 0: Exile all but the bottom card of each opponent's library. Activate only if there are twenty-five or more loyalty counters among Jaces you control.
 = BROKE at "~" after: N(1) : empower
-= Loyalty { change: N(-3), effect: [With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } }], then: [During { dur: UntilYourNextTurn, then: [DelayedWhenever { event: AttacksAnyOf { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, to: [Player(You), Objects(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, then: [Modify { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-5), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }] }] }
+= Loyalty { change: N(-3), effect: [During { dur: UntilYourNextTurn, then: [DelayedWhenever { event: AttacksAnyOf { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, to: [Player(You), Objects(Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })] }, then: [Modify { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-5), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }] }
 = BROKE at "the" after: 0 : exile all but
 
 ## Jeong Jeong's Deserters

@@ -340,7 +340,7 @@ cost: {1}{U}
 > III — When you next cast an instant or sorcery spell with mana value 3 or less this turn, copy that spell. You may choose new targets for the copy.
 = Chapter { chapters: [1], effect: [CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("cursed role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, name: None }] }
 = Chapter { chapters: [2], effect: [Scry(N(2))] }
-= Chapter { chapters: [3], effect: [With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) })], or: None } }], then: [DelayedNext { event: Casts { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, dur: ThisTurn, then: [Copy { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }] }
+= Chapter { chapters: [3], effect: [DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) })], or: None } } }, dur: ThisTurn, then: [Copy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }
 
 ## Genasi Enforcers
 face: Genasi Enforcers
@@ -1134,7 +1134,7 @@ type: Instant
 cost: {U/R}{U/R}
 > ({U/R} can be paid with either {U} or {R}.)
 > When you next cast an instant or sorcery spell this turn, copy that spell. You may choose new targets for the copy.
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }], then: [DelayedNext { event: Casts { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, dur: ThisTurn, then: [Copy { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }])
+= Spell([DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [Copy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }])
 
 ## Tether Technician
 face: Tether Technician

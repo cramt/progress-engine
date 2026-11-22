@@ -790,7 +790,7 @@ face: Pyromancer's Goggles
 type: Legendary Artifact
 cost: {5}
 > {T}: Add {R}. When that mana is spent to cast a red instant or sorcery spell, copy that spell and you may choose new targets for the copy.
-= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["R"]))), With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Color(Red), Type("instant")], [Color(Red), Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }], then: [DelayedWhen { event: ManaSpent([Cast(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), then: [Copy { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }], limits: [] }
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["R"]))), DelayedWhen { event: ManaSpent([Cast(Objects { quant: One, filter: Filter { alts: [[Color(Red), Type("instant")], [Color(Red), Type("sorcery")]], kind: Some(Spell), posts: [], or: None } })]), then: [Copy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }], limits: [] }
 
 ## Ravenous Gigamole
 face: Ravenous Gigamole

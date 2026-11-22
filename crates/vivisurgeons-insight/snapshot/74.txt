@@ -226,7 +226,7 @@ cost: {3}{R}
 > −2: When you next cast an instant or sorcery spell this turn, copy that spell. You may choose new targets for the copy.
 > −6: Chandra deals 6 damage to each of up to six targets.
 = Loyalty { change: N(1), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }
-= Loyalty { change: N(-2), effect: [With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }], then: [DelayedNext { event: Casts { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, dur: ThisTurn, then: [Copy { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }] }
+= Loyalty { change: N(-2), effect: [DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [Copy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }
 = BROKE at "." after: N(-6) : ~ deals 6 damage to each of up to six targets
 
 ## Clash of Elements

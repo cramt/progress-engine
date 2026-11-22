@@ -462,10 +462,12 @@ impl Collect {
         };
         let id = self.evs.len();
         let (scope_root, top_effect) = self.roots.last().copied().unwrap_or((0, None));
-        let each_of_loop = self.frames[self.here()].kind == Fk::Effect
-            && self.frames[self.here()].verb == "ForEach"
-            && self.frames[self.here()].items.is_empty()
-            && decl.is_some();
+        let here = &self.frames[self.here()];
+        let each_of_loop = here.kind == Fk::Effect
+            && decl.is_some()
+            && (here.verb == "ForEach" && here.items.is_empty()
+                || crate::binders::DELAYED.contains(&here.verb.as_str())
+                    && obj.as_ref().is_some_and(crate::binders::delayed_binds));
         self.evs.push(Ev {
             decl,
             role,

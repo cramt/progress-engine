@@ -365,7 +365,7 @@ type: Instant
 cost: {1}{R}
 > Whenever a creature you control enters this turn, put a +1/+1 counter on it and it gains haste until end of turn.
 > Learn. (You may reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card.)
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }], then: [During { dur: ThisTurn, then: [DelayedWhenever { event: Enters { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }] }] }] }])
+= Spell([During { dur: ThisTurn, then: [DelayedWhenever { event: Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }] }] }])
 = Spell([Action { by: None, name: "learn", n: None }])
 
 ## Flatline

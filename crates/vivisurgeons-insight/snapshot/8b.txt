@@ -85,7 +85,7 @@ cost: {2}{W}
 > Untap all white creatures you control.
 > Whenever a creature blocks this turn, it gets +0/+1 until end of turn.
 = Spell([Untap(Objects { quant: All, filter: Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })])
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [During { dur: ThisTurn, then: [DelayedWhenever { event: Blocks(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }] }])
+= Spell([During { dur: ThisTurn, then: [DelayedWhenever { event: Blocks(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }] }])
 
 ## Beacon of Unrest
 face: Beacon of Unrest

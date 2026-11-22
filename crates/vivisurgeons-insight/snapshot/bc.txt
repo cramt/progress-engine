@@ -1051,7 +1051,7 @@ type: Legendary Creature — Human Cleric
 cost: {1}{G}{W}{U}
 > Grand Summon — {T}: Add one mana of any color. When you next cast a creature spell this turn, that creature enters with two additional +1/+1 counters on it.
 > Whenever another permanent you control is put into a graveyard from the battlefield, if it had one or more counters on it, you may put that number of +1/+1 counters on target creature.
-= Labelled { label: "grand summon", ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None }), With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }], then: [DelayedNext { event: Casts { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, dur: ThisTurn, then: [EntersWithCounters { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: Additional(N(2)), kind: "+1/+1" }] }] }], limits: [] } }
+= Labelled { label: "grand summon", ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None }), DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [EntersWithCounters { what: Objects { quant: Bound(0), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: Additional(N(2)), kind: "+1/+1" }] }], limits: [] } }
 = BROKE at "of" after: whenever another permanent you control is put into a graveyard from the battlefield , if it had one or more counters on it , you may put that number
 
 ## Zendikar Farguide

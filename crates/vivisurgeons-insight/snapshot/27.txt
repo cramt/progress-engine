@@ -656,7 +656,7 @@ type: Sorcery
 cost: {1}{W}
 > Whenever a creature attacks this turn, it gains lifelink until end of turn.
 > Awaken 4—{4}{W} (If you cast this spell for {4}{W}, also put four +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [During { dur: ThisTurn, then: [DelayedWhenever { event: Attacks(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }] }] }] }])
+= Spell([During { dur: ThisTurn, then: [DelayedWhenever { event: Attacks(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }] }] }])
 = Keywords([Keyword { name: "awaken", param: Some(NCost { n: N(4), cost: [Mana(Mana(["4", "W"]))] }) }])
 
 ## Ore Gorger

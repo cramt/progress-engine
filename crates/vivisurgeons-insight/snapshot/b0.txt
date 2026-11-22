@@ -679,7 +679,7 @@ cost: {2}{U}
 > (As this Saga enters and after your draw step, add a lore counter. Sacrifice after IV.)
 > I, II, III — Until your next turn, whenever you cast an instant or sorcery spell, target player mills cards equal to that spell's mana value.
 > IV — Draw a card. If a graveyard has twenty or more cards in it, draw three cards instead.
-= Chapter { chapters: [1, 2, 3], effect: [With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }], then: [During { dur: UntilYourNextTurn, then: [DelayedWhenever { event: Casts { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Mill { who: Target, n: ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }] }] }] }] }
+= Chapter { chapters: [1, 2, 3], effect: [During { dur: UntilYourNextTurn, then: [DelayedWhenever { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, then: [Mill { who: Target, n: ManaValueOf(Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }] }] }] }
 = Chapter { chapters: [4], effect: [Draw { who: You, n: N(1) }, Instead { cond: ZoneHasCards { zone: AGraveyard, op: Ge, n: 20 }, then: [Draw { who: You, n: N(3) }] }] }
 
 ## Noxious Newt

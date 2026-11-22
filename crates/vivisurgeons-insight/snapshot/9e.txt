@@ -878,7 +878,7 @@ cost: {2}{B}
 > II — Whenever an Assassin you control attacks this turn, put a +1/+1 counter on it.
 > III — Return target Assassin creature card from your graveyard to the battlefield with an additional +1/+1 counter on it.
 = Chapter { chapters: [1], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, no_regen: false }] }
-= Chapter { chapters: [2], effect: [With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Subtype("assassin")]], kind: None, posts: [Controller(You)], or: None } }], then: [During { dur: ThisTurn, then: [DelayedWhenever { event: Attacks(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }] }] }
+= Chapter { chapters: [2], effect: [During { dur: ThisTurn, then: [DelayedWhenever { event: Attacks(Objects { quant: One, filter: Filter { alts: [[Subtype("assassin")]], kind: None, posts: [Controller(You)], or: None } }), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }] }
 = Chapter { chapters: [3], effect: [EntersWith { effect: Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("assassin"), Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, n: Additional(N(1)), kind: "+1/+1" }] }
 
 ## Twisted Spider-Clone

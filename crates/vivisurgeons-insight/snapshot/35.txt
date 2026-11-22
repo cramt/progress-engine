@@ -682,7 +682,7 @@ face: Noxious Assault
 type: Sorcery
 cost: {3}{G}{G}
 > Creatures you control get +2/+2 until end of turn. Whenever a creature blocks this turn, its controller gets a poison counter.
-= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [During { dur: ThisTurn, then: [DelayedWhenever { event: Blocks(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [GetCounters { who: ControllerOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), kind: "poison" }] }] }] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }, During { dur: ThisTurn, then: [DelayedWhenever { event: Blocks(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [GetCounters { who: ControllerOf(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), kind: "poison" }] }] }])
 
 ## Nylea's Presence
 face: Nylea's Presence
@@ -1019,7 +1019,7 @@ face: Theoretical Duplication
 type: Instant
 cost: {2}{U}
 > Whenever a nontoken creature an opponent controls enters this turn, create a token that's a copy of that creature.
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }], then: [During { dur: ThisTurn, then: [DelayedWhenever { event: Enters { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }] }] }] }])
+= Spell([During { dur: ThisTurn, then: [DelayedWhenever { event: Enters { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, under: None, state: None }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Bound(0), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }] }] }])
 
 ## Thought Erasure
 face: Thought Erasure

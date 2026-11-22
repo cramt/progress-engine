@@ -578,7 +578,7 @@ cost: {2}{R}
 > Firebending 1 (Whenever this creature attacks, add {R}. This mana lasts until end of combat.)
 > Exhaust — {3}: Put a +1/+1 counter on Jeong Jeong. When you next cast a Lesson spell this turn, copy it and you may choose new targets for the copy. (Activate each exhaust ability only once.)
 = Keywords([Keyword { name: "firebending", param: Some(N(N(1))) }])
-= KeywordOn { keyword: Exhaust, ability: Activated { cost: [Mana(Mana(["3"]))], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Spell), posts: [], or: None } }], then: [DelayedNext { event: Casts { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, dur: ThisTurn, then: [Copy { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }] }] }], limits: [] } }
+= KeywordOn { keyword: Exhaust, ability: Activated { cost: [Mana(Mana(["3"]))], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [Copy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }] }], limits: [] } }
 
 ## Journey to Eternity // Atzal, Cave of Eternity
 face: Journey to Eternity

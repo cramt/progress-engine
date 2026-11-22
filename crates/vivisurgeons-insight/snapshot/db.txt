@@ -472,7 +472,7 @@ cost: {4}{R}
 > Whenever a creature attacks and isn't blocked this combat, untap it and remove it from combat.
 = BROKE at "your" after: cast this spell only during combat on
 = BROKE at "and" after: you choose which creatures block this combat
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [During { dur: ThisCombat, then: [DelayedWhenever { event: AttacksUnblocked { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, at: None }, then: [Untap(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), RemoveFromCombat(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }])
+= Spell([During { dur: ThisCombat, then: [DelayedWhenever { event: AttacksUnblocked { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, at: None }, then: [Untap(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }), RemoveFromCombat(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 
 ## Militia Bugler
 face: Militia Bugler
@@ -775,7 +775,7 @@ cost: {2}{B}{B}
 > • Until end of turn, whenever a creature is dealt damage, destroy it.
 > • Until end of turn, whenever a creature dies, that creature's controller loses life equal to its toughness.
 > Entwine {2}{B} (Choose both if you pay the entwine cost.)
-= Spell([With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, /* it2 */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [Modal { choose: One, modes: [[During { dur: UntilEndOfTurn, then: [DelayedWhenever { event: IsDealtDamage(Objects { quant: Introduced(1) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [Destroy { what: Objects { quant: Bound(1) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }] }], [During { dur: UntilEndOfTurn, then: [DelayedWhenever { event: Dies(Objects { quant: Introduced(0) /* it2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [LoseLife { who: ControllerOf(Objects { quant: Bound(0) /* it2 */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: ToughnessOf(Objects { quant: Bound(0) /* it2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }] }]] }] }])
+= Spell([Modal { choose: One, modes: [[During { dur: UntilEndOfTurn, then: [DelayedWhenever { event: IsDealtDamage(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Destroy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }] }], [During { dur: UntilEndOfTurn, then: [DelayedWhenever { event: Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: ControllerOf(Objects { quant: Bound(0), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: ToughnessOf(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }] }]] }])
 = Keywords([Keyword { name: "entwine", param: Some(Cost([Mana(Mana(["2", "B"]))])) }])
 
 ## Skirk Outrider

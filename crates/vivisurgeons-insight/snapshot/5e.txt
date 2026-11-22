@@ -1001,7 +1001,7 @@ cost: {1}{R}
 > I — Chain — Exile the top card of your library. During any turn you put a lore counter on this Saga, you may play that card.
 > II, III — Gestalt Mode — When you next cast a creature spell this turn, it gains haste until end of turn.
 = BROKE at "any" after: i — chain — exile the top card of your library . during
-= Chapter { chapters: [2, 3], effect: [With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }], then: [Labelled { label: "gestalt mode", then: [DelayedNext { event: Casts { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, dur: ThisTurn, then: [Modify { what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }] }] }] }] }
+= Chapter { chapters: [2, 3], effect: [Labelled { label: "gestalt mode", then: [DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [Modify { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }] }] }] }
 
 ## Tangle Mantis
 face: Tangle Mantis
