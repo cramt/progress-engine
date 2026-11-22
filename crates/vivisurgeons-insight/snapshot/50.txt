@@ -498,7 +498,7 @@ type: Creature — Human Monk
 > Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)
 > If a noncreature source you control would deal damage to a creature, battle, or opponent, it deals that much damage plus 2 instead.
 = Keywords([Keyword { name: "prowess", param: None }])
-= Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("battle")]], kind: None, posts: [], or: Some(Filter { alts: [], kind: Some(Opponent), posts: [], or: None }) } }], ability: Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Source), posts: [Controller(You)], or: None } }, to: [Objects(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Plus(ThatDamage, 2), to: None }] }]) }
+= Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Source), posts: [Controller(You)], or: None } }], ability: Static([Replacement { event: DealsDamageTo { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("battle")]], kind: None, posts: [], or: Some(Filter { alts: [], kind: Some(Opponent), posts: [], or: None }) } })] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Plus(ThatDamage, 2), to: None }] }]) }
 
 ## It That Heralds the End
 face: It That Heralds the End
@@ -1139,7 +1139,7 @@ cost: {1}{R}
 > Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)
 > If a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, it deals that much damage plus 1 instead.
 = Keywords([Keyword { name: "prowess", param: None }])
-= Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } }], ability: Static([Replacement { event: DealsNoncombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }, to: [Or([Player(AnOpponent), Objects(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })])] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Plus(ThatDamage, 1), to: None }] }]) }
+= Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }], ability: Static([Replacement { event: DealsNoncombatDamageTo { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Or([Player(AnOpponent), Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } })])] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Plus(ThatDamage, 1), to: None }] }]) }
 
 ## Tromokratis
 face: Tromokratis

@@ -1354,6 +1354,44 @@ fn replaced_subject(
     })
 }
 
+/// "If a source you control would deal damage to a permanent or player, it
+/// deals double that damage to that permanent or player instead" (Fiery
+/// Emancipation, Torbran, Obosh): the "it" that deals the replacing damage
+/// is the source the replaced event names first, never its recipient,
+/// which is nearer, and "that permanent or player" is the recipient
+/// ([replacement-source]; CR 614.1a, the replacement changes how much that
+/// source deals to that recipient).
+fn replaced_damage(ld: &LineData, li: usize, ei: usize, r: &Objects) -> Option<Target> {
+    let e = &ld.c.evs[ei];
+    let d = e.effect_frame?;
+    let frame = &ld.c.frames;
+    if frame[d].verb != "ThatDamage" || *e.frames.last()? != d {
+        return None;
+    }
+    let rep = *e
+        .frames
+        .iter()
+        .rev()
+        .find(|&&f| frame[f].verb == "@static:Replacement")?;
+    let said: Vec<usize> = (0..ei)
+        .filter(|&i| {
+            let x = &ld.c.evs[i];
+            x.role == Role::Intro && x.frames.last() == Some(&rep)
+        })
+        .collect();
+    let (&source, recipients) = said.split_first()?;
+    // Its source, said first of the effect's objects.
+    let i = if matches!(frame[d].items.first(), Some(Item::Ev(i)) if *i == ei) {
+        if r.filter != Filter::default() {
+            return None;
+        }
+        source
+    } else {
+        *recipients.iter().find(|&&i| compat(r, &ld.c.evs[i]))?
+    };
+    Some(Target::Intro(li, i))
+}
+
 /// The line, and within the reference's own line the effect, a listed
 /// object was said in.
 type Group = (usize, Option<usize>);
@@ -1486,6 +1524,14 @@ fn resolve_one(
             Class::Determined,
             vec![t],
             "the subject of the effect it replaces".into(),
+        );
+    }
+    if let Some(t) = replaced_damage(ld, li, ei, r) {
+        return (
+            Some(t.clone()),
+            Class::Determined,
+            vec![t],
+            "the source or recipient of the damage it replaces".into(),
         );
     }
     match k {

@@ -308,7 +308,7 @@ cost: {2}{R}{R}
 > If a source would deal damage to this creature, it deals double that damage to this creature instead.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }])
 = Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }], ability: Static([Replacement { event: DealsDamageTo { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(You)] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: Some([Player(You)]) }] }]) }
-= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [ThatDamage { source: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]) }] }])
+= Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }], ability: Static([Replacement { event: DealsDamageTo { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]) }] }]) }
 
 ## Goldspan Dragon
 face: Goldspan Dragon
@@ -930,7 +930,7 @@ cost: {2}{R}{R}
 > Flying
 > If another source you control would deal damage to an opponent or a permanent an opponent controls, it deals that much damage plus 1 instead.
 = Keywords([Keyword { name: "flying", param: None }])
-= Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } }], ability: Static([Replacement { event: DealsDamageTo { what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }, to: [Or([Player(AnOpponent), Objects(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })])] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Plus(ThatDamage, 1), to: None }] }]) }
+= Let { bind: [/* it */ Objects { quant: Another, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }], ability: Static([Replacement { event: DealsDamageTo { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Or([Player(AnOpponent), Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } })])] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Plus(ThatDamage, 1), to: None }] }]) }
 
 ## Titania, Proud Pummeler
 face: Titania, Proud Pummeler
