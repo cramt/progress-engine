@@ -41,6 +41,9 @@ pub const DECK_SIZE: usize = 60;
 /// 64 until a fetchland's find twelve lines before an unpayable Mana Leak
 /// sat behind more later choices than that (game 933380242).
 const BACKTRACKS: usize = 512;
+/// The most ways to read one combat's blocks the replay lists: past it, it
+/// stops by name rather than drop some untried.
+const BLOCK_READINGS: usize = 4096;
 
 /// One game replayed: what the engine did for each line, how it ended,
 /// and the engine's game where it ended (`None` if it was never set up).
@@ -335,6 +338,10 @@ enum Back {
     /// another size, or a card from the graveyard, and the engine
     /// refusing to go on with a hidden card in a graveyard.
     Cards,
+    /// Which of the creatures of a name blocked which: a creature that
+    /// died or lived, a trigger of it, a life total, or a play it leaves
+    /// impossible.
+    Combat,
 }
 
 /// The replay's own record of the lines it has matched, put back with the
@@ -656,6 +663,7 @@ impl Driver<'_> {
                         // Of refusals, only those of hidden cards in a
                         // graveyard: another pile may have left none.
                         Back::Cards => cards || unseen_in_graveyard,
+                        Back::Combat => unpayable || triggers,
                     };
                     while self.checkpoints.last().is_some_and(|cp| !cause(cp.back)) {
                         self.checkpoints.pop();
@@ -1679,6 +1687,14 @@ impl Driver<'_> {
                 }
                 self.did(i, format!("attacked with {}", names.join(", ")));
             }
+            // Read with the blocks around it (`blocks_ahead`).
+            StopsBlocking(c) => self.did(
+                i,
+                format!(
+                    "{}'s block was taken back before blockers were declared",
+                    c.name()
+                ),
+            ),
             Blocks {
                 blocker: b @ (Object::Card(_) | Object::Hidden(_)),
                 attacker: a @ (Object::Card(_) | Object::Hidden(_)),
@@ -1699,17 +1715,21 @@ impl Driver<'_> {
                     self.pass()?;
                 }
                 let (bn, an) = (self.called(b)?, self.called(a)?);
-                let game = self.game();
-                if !game
-                    .blocks()
-                    .iter()
-                    .any(|(x, y)| is_called(game, x, &bn) && is_called(game, y, &an))
-                {
-                    return Err(Stop::Diverged(Divergence::NeverOffered {
-                        what: format!("{bn} blocking {an}"),
-                    }));
+                if self.taken_back(i) {
+                    self.did(i, format!("{bn} blocking {an} was taken back"));
+                } else {
+                    let game = self.game();
+                    if !game
+                        .blocks()
+                        .iter()
+                        .any(|(x, y)| is_called(game, x, &bn) && is_called(game, y, &an))
+                    {
+                        return Err(Stop::Diverged(Divergence::NeverOffered {
+                            what: format!("{bn} blocking {an}"),
+                        }));
+                    }
+                    self.did(i, format!("{bn} blocks {an}"));
                 }
-                self.did(i, format!("{bn} blocks {an}"));
             }
             // A creature type chosen as a permanent enters, as the engine
             // asks (`choose_type`), which reads this line ahead.
@@ -2462,8 +2482,32 @@ impl Driver<'_> {
                 }
                 self.act(Answer::Attack(Vec::new()))
             }
+            // Two attackers of one name the log can't tell apart: the
+            // first reading, and the others gone back to if a later line
+            // can't be followed (one enchanted, and dying, the other not).
             Decision::Blockers { can, attackers, .. } => {
-                let blocks = self.blocks_ahead(&can, &attackers)?;
+                let mut ways = self.blocks_ahead(&can, &attackers)?.into_iter();
+                let blocks = ways.next().expect("one way at least");
+                let others: Vec<Retry> = ways
+                    .map(|b| {
+                        Retry::Answer(
+                            Answer::Block(b),
+                            "read the blocks of creatures of one name another way".into(),
+                        )
+                    })
+                    .collect();
+                if !others.is_empty() {
+                    let game = self.game().clone();
+                    self.checkpoints.push(Checkpoint {
+                        game,
+                        entry: self.at,
+                        trace: self.trace.len(),
+                        resume: self.at,
+                        others,
+                        knew: self.knew(),
+                        back: Back::Combat,
+                    });
+                }
                 self.act(Answer::Block(blocks))
             }
             // The log never shows how damage was divided: lethal to each
@@ -2609,54 +2653,154 @@ impl Driver<'_> {
     }
 
     /// The blocks the log shows from the line being followed to the end of
-    /// the turn, as the defending player's declaration: each blocker a
-    /// creature of `can` of
-    /// that name, each attacker one of `attackers` of its name, the first
-    /// when two share it.
+    /// the turn, as every declaration the defending player could have
+    /// made: each blocker a creature of `can` of that name, each attacker
+    /// any of `attackers` of its name. The first has each blocker on an
+    /// attacker not yet blocked where one is left.
     fn blocks_ahead(
         &mut self,
         can: &[ObjectId],
         attackers: &[ObjectId],
-    ) -> Result<Vec<(ObjectId, ObjectId)>, Stop> {
-        let lines: Vec<(Object, Object)> = self
+    ) -> Result<Vec<Vec<(ObjectId, ObjectId)>>, Stop> {
+        let mut lines: Vec<(Object, Object)> = Vec::new();
+        for e in self
             .entries
             .iter()
             .skip(self.at)
             .take_while(|e| !matches!(e.event, Event::TurnBegins(_)))
-            .filter_map(|e| match &e.event {
+        {
+            match &e.event {
                 Event::Blocks {
                     blocker: b @ (Object::Card(_) | Object::Hidden(_)),
                     attacker: a @ (Object::Card(_) | Object::Hidden(_)),
-                } => Some((b.clone(), a.clone())),
-                _ => None,
-            })
-            .collect();
-        let mut out = Vec::new();
+                } => lines.push((b.clone(), a.clone())),
+                // A block taken back before blockers are declared: that
+                // blocker's line is no block. The line names the blocker
+                // alone, so with two blockers of its name blocking
+                // different attackers, which one stopped isn't known.
+                Event::StopsBlocking(c) => {
+                    let theirs: Vec<usize> = (0..lines.len())
+                        .filter(|k| matches!(&lines[*k].0, Object::Card(x) if x == c))
+                        .collect();
+                    let attacked: BTreeSet<String> = theirs
+                        .iter()
+                        .map(|k| format!("{:?}", lines[*k].1))
+                        .collect();
+                    if attacked.len() > 1 {
+                        return Err(Stop::Unfollowed {
+                            event: "StopsBlocking of one of several blockers of a name".into(),
+                            card: Some(c.name().to_string()),
+                        });
+                    }
+                    if let Some(k) = theirs.last() {
+                        lines.remove(*k);
+                    }
+                }
+                _ => {}
+            }
+        }
+        // Each line's blockers and attackers of the names it gives.
+        let mut each: Vec<(Vec<ObjectId>, Vec<ObjectId>)> = Vec::new();
         for (b, a) in lines {
             let (b, a) = (self.called(&b)?, self.called(&a)?);
             let game = self.game.as_ref().expect("set up");
-            let named = |id: &ObjectId, n: &Called| is_called(game, id, n);
-            let Some(blocker) = can
-                .iter()
-                .find(|id| named(id, &b) && !out.iter().any(|(x, _)| x == *id))
-            else {
+            let named = |ids: &[ObjectId], n: &Called| -> Vec<ObjectId> {
+                ids.iter()
+                    .filter(|id| is_called(game, id, n))
+                    .copied()
+                    .collect()
+            };
+            let (blockers, of_name) = (named(can, &b), named(attackers, &a));
+            if blockers.is_empty() || of_name.is_empty() {
                 return Err(Stop::Diverged(Divergence::NeverOffered {
                     what: format!("{b} blocking {a}"),
                 }));
+            }
+            each.push((blockers, of_name));
+        }
+        // Every way to read the lines, depth first: of creatures of a name,
+        // the first not yet blocking, and an attacker not yet blocked before
+        // one that is. Two blockers on one of two attackers of a name is as
+        // possible as one on each (CR 509.1a), and the log prints both the
+        // same; so is either of two blockers of a name on either attacker.
+        // Of lines naming the same two names, a later one's blocker comes
+        // later among them, so each declaration is listed once.
+        fn every(
+            each: &[(Vec<ObjectId>, Vec<ObjectId>)],
+            so_far: &mut Vec<(ObjectId, ObjectId)>,
+            out: &mut Vec<Vec<(ObjectId, ObjectId)>>,
+        ) {
+            if out.len() > BLOCK_READINGS {
+                return;
+            }
+            let k = so_far.len();
+            let Some((blockers, of_name)) = each.get(k) else {
+                out.push(so_far.clone());
+                return;
             };
-            // Of two attackers of one name, one not yet blocked first.
-            let unblocked = attackers
+            let after = (0..k)
+                .rev()
+                .find(|j| each[*j] == each[k])
+                .and_then(|j| blockers.iter().position(|b| *b == so_far[j].0));
+            let (fresh, taken): (Vec<ObjectId>, Vec<ObjectId>) = of_name
                 .iter()
-                .find(|id| named(id, &a) && !out.iter().any(|(_, x)| x == *id));
-            let Some(attacker) = unblocked.or_else(|| attackers.iter().find(|id| named(id, &a)))
-            else {
-                return Err(Stop::Diverged(Divergence::NeverOffered {
-                    what: format!("{b} blocking {a}"),
-                }));
-            };
-            out.push((*blocker, *attacker));
+                .partition(|x| !so_far.iter().any(|(_, y)| y == *x));
+            let free: Vec<ObjectId> = blockers
+                .iter()
+                .enumerate()
+                .filter(|(n, b)| {
+                    after.is_none_or(|a| *n > a) && !so_far.iter().any(|(x, _)| x == *b)
+                })
+                .map(|(_, b)| *b)
+                .collect();
+            for blocker in free {
+                for a in fresh.iter().chain(&taken) {
+                    so_far.push((blocker, *a));
+                    every(each, so_far, out);
+                    so_far.pop();
+                }
+            }
+        }
+        let mut out = Vec::new();
+        every(&each, &mut Vec::new(), &mut out);
+        if out.len() > BLOCK_READINGS {
+            return Err(Stop::Unfollowed {
+                event: "Blocks: more ways to read a combat's blocks than the replay lists".into(),
+                card: None,
+            });
+        }
+        if out.is_empty() {
+            return Err(Stop::Diverged(Divergence::NeverOffered {
+                what: "more blockers of a name than there are".into(),
+            }));
         }
         Ok(out)
+    }
+
+    /// Whether the block on line `i` is taken back before blockers are
+    /// declared: the next line this turn naming its blocker, as a block or
+    /// not, says it stops blocking (as `blocks_ahead` reads it).
+    fn taken_back(&self, i: usize) -> bool {
+        let Event::Blocks {
+            blocker: Object::Card(c),
+            ..
+        } = &self.entries[i].event
+        else {
+            return false;
+        };
+        self.entries
+            .iter()
+            .skip(i + 1)
+            .take_while(|e| !matches!(e.event, Event::TurnBegins(_)))
+            .find_map(|e| match &e.event {
+                Event::Blocks {
+                    blocker: Object::Card(x),
+                    ..
+                } if x == c => Some(false),
+                Event::StopsBlocking(x) if x == c => Some(true),
+                _ => None,
+            })
+            .unwrap_or(false)
     }
 
     /// The name a log gives a card: a two-faced card's by the face up.

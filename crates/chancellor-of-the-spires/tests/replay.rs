@@ -704,6 +704,97 @@ fn an_attack_and_a_block_replay() {
     ));
 }
 
+/// CR 509.1a: each blocker blocks one attacker, so both Raging Goblins
+/// may block one of alice's two Grizzly Bears, and the log prints that as
+/// it prints one on each. Only the Bears that died leaves Grim Lavamancer
+/// a second card to exile, so the replay goes back to the blocks for it.
+#[test]
+fn two_blockers_may_block_one_of_two_attackers_of_a_name() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Mountain].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Grizzly Bears].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Mountain].
+        bob casts [Raging Goblin].
+        bob casts [Raging Goblin].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Grim Lavamancer].
+        alice casts [Grizzly Bears].
+        Turn 3: bob
+        bob draws a card.
+        Turn 4: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Lightning Bolt] targeting bob.
+        bob is being attacked by [Grizzly Bears] and [Grizzly Bears]
+        [Raging Goblin] blocks [Grizzly Bears].
+        [Raging Goblin] blocks [Grizzly Bears].
+        bob exiles [Grizzly Bears] and [Lightning Bolt] with with [Grim Lavamancer]'s ability.
+        alice activates an ability of [Grim Lavamancer] targeting bob ( Grim Lavamancer deals 2 damage to any target.).
+        Turn 4: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    assert!(
+        r.trace
+            .iter()
+            .any(|t| t.did == "chose again: read the blocks of creatures of one name another way"),
+        "{:?}",
+        r.trace
+    );
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Grizzly Bears"), 1);
+    assert_eq!(on_battlefield(&game, "Raging Goblin"), 0);
+    assert_eq!(game.player(BOB).life(), 20 - 3 - 2 - 2);
+}
+
+/// A block taken back before blockers are declared (Magic Online prints
+/// the click and its undoing) is no block: the Bears that "blocks" and
+/// then "stops blocking" never does, and the Goblin's damage is bob's.
+#[test]
+fn a_block_taken_back_is_no_block() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Mountain].
+        alice casts [Raging Goblin].
+        bob is being attacked by [Raging Goblin]
+        Turn 1: bob
+        bob plays [Forest].
+        Turn 2: alice
+        Turn 2: bob
+        bob plays [Forest].
+        bob casts [Grizzly Bears].
+        Turn 3: alice
+        bob is being attacked by [Raging Goblin]
+        [Grizzly Bears] blocks [Raging Goblin].
+        [Grizzly Bears] stops blocking.
+        Turn 3: bob
+        alice has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.unwrap();
+    assert_eq!(game.player(BOB).life(), 18);
+    assert_eq!(on_battlefield(&game, "Raging Goblin"), 1);
+}
+
 /// Elephant Grass's tax on attacking its controller, never printed paid
 /// (CR 508.1h): Raging Goblin attacks for free before it is cast and for
 /// {2} after, both Mountains tapped to pay; with one Mountain the attack
