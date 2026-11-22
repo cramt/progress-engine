@@ -383,7 +383,7 @@ cost: {3}{R}
 > You can cast spells only during your turn and you can cast no more than two spells each turn.
 > You may cast spells with mana value less than or equal to the number of lands you control without paying their mana costs.
 = BROKE at "turn" after: you can cast spells only during your
-= BROKE at "paying" after: you may cast spells with mana value less than or equal to the number of lands you control without
+= Static([CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Le, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }) })], or: None } }, zone: None, cost: [], rather: true }])
 
 ## Flamespeaker's Will
 face: Flamespeaker's Will

@@ -252,7 +252,7 @@ face: Dracogenesis
 type: Enchantment
 cost: {6}{R}{R}
 > You may cast Dragon spells without paying their mana costs.
-= BROKE at "their" after: you may cast dragon spells without paying
+= Static([CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Spell), posts: [], or: None } }, zone: None, cost: [], rather: true }])
 
 ## Ellie and Alan, Paleontologists
 face: Ellie and Alan, Paleontologists

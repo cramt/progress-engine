@@ -1112,7 +1112,7 @@ cost: {6}{U}{U}
 > Flying
 > Once during each of your turns, you may cast a noncreature or Robot spell from your hand without paying its mana cost.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "paying" after: once during each of your turns , you may cast a noncreature or robot spell from your hand without
+= Static([Once { yours: true, then: [CastPaying { what: Objects { quant: One, filter: Filter { alts: [[Non("creature")], [Subtype("robot")]], kind: Some(Spell), posts: [], or: None } }, zone: Some(Hand(You)), cost: [], rather: true }] }])
 
 ## Vizier of the Anointed
 face: Vizier of the Anointed

@@ -486,7 +486,7 @@ face: Omnipresence
 type: Enchantment
 cost: {5}{G}{G}{G}
 > You may cast spells with mana value less than or equal to the number of creatures you control from your hand without paying their mana costs.
-= BROKE at "paying" after: you may cast spells with mana value less than or equal to the number of creatures you control from your hand without
+= Static([CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Le, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }) })], or: None } }, zone: Some(Hand(You)), cost: [], rather: true }])
 
 ## Ornate Kanzashi
 face: Ornate Kanzashi

@@ -1044,7 +1044,7 @@ cost: {1}{G}{W}{U}
 > −7: Draw three cards. You get an emblem with "You may cast spells from your hand without paying their mana costs."
 = BROKE at "of" after: N(1) : choose up to two target creatures . until your next turn , whenever either
 = Let { bind: [/* target */ Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }], ability: Loyalty { change: N(-2), effect: [Tap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Restrict { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }] } }
-= BROKE at "paying" after: N(-7) : draw three cards . you get an emblem with " you may cast spells from your hand without
+= Loyalty { change: N(-7), effect: [Draw { who: You, n: N(3) }, Emblem([Static([CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, zone: Some(Hand(You)), cost: [], rather: true }])])] }
 
 ## Territorial Bruntar
 face: Territorial Bruntar

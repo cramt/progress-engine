@@ -705,7 +705,7 @@ face: Omniscience
 type: Enchantment
 cost: {7}{U}{U}{U}
 > You may cast spells from your hand without paying their mana costs.
-= BROKE at "paying" after: you may cast spells from your hand without
+= Static([CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, zone: Some(Hand(You)), cost: [], rather: true }])
 
 ## Orochi Merge-Keeper
 face: Orochi Merge-Keeper

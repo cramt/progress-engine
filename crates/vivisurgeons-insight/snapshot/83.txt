@@ -650,7 +650,7 @@ cost: {1}{G}{W}
 > Reach
 > If a creature is attacking you and you control a Forest and a Plains, you may cast this creature without paying its mana cost and as though it had flash.
 = Keywords([Keyword { name: "reach", param: None }])
-= BROKE at "paying" after: if a creature is attacking you and you control a forest and a plains , you may cast this creature without
+= BROKE at "though" after: if a creature is attacking you and you control a forest and a plains , you may cast this creature without paying its mana cost and as
 
 ## Quest for Pure Flame
 face: Quest for Pure Flame

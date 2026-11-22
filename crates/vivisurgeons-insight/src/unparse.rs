@@ -14404,9 +14404,16 @@ fn static_other(o: &mut Out, s: &Static) {
                     o.w("from");
                     zone(o, z);
                 }
-                by_paying(o, c, *rather);
+                if c.is_empty() {
+                    o.w("without paying");
+                    syn::its(o);
+                    o.w("mana");
+                    o.noun("cost", obj_num(what));
+                } else {
+                    by_paying(o, c, *rather);
+                }
             });
-            if *rather && z.is_none() {
+            if *rather && z.is_none() && !c.is_empty() {
                 let pay = out(|o| {
                     o.w("you may");
                     for (i, x) in c.iter().enumerate() {

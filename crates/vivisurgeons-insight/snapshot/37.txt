@@ -1124,7 +1124,7 @@ face: Zaffai and the Tempests
 type: Legendary Creature — Human Bard Sorcerer
 cost: {5}{U}{R}
 > Once during each of your turns, you may cast an instant or sorcery spell from your hand without paying its mana cost.
-= BROKE at "paying" after: once during each of your turns , you may cast an instant or sorcery spell from your hand without
+= Static([Once { yours: true, then: [CastPaying { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, zone: Some(Hand(You)), cost: [], rather: true }] }])
 
 ## Zask, Skittering Swarmlord
 face: Zask, Skittering Swarmlord

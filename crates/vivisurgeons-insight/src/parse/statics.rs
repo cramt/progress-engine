@@ -847,7 +847,15 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                 Some(Post::In(z)) => { let z = z.clone(); what.filter.posts.pop(); Some(z) }
                 _ => p.attempt(|p| { p.word("from")?; zone(p) }),
             };
-            let (cost, rather) = paying(p)?;
+            // "You may cast spells from your hand without paying their mana
+            // costs" (Omniscience): the alternative cost of nothing (CR
+            // 118.9) ([cast-without-paying]).
+            let (cost, rather) = match p.attempt(|p| {
+                p.one_of(&["without paying its mana cost", "without paying their mana costs"])
+            }) {
+                Some(_) => (Vec::new(), true),
+                None => paying(p)?,
+            };
             Some(vec![Static::CastPaying { what, zone, cost, rather }])
         },
         // "You may play lands and cast spells from the top of your library":
