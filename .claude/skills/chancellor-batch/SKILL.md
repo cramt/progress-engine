@@ -49,6 +49,15 @@ replay, the test suite) go in the background; wait for their notice.
      not fall, and **divergences** (the engine disagreeing with the log) must
      stay 0. A divergence is a bug to fix before pushing: the engine's, or the
      replay's inference.
+   - **Review.** Hand each rule's diff to one read-only sub-agent that has not
+     seen your reasoning. Brief it with the diff only, not your argument, and
+     have it check that each cited rule says what the code does (quoted from
+     the pinned CR) and the card against Scryfall. Above all, it should look
+     for a **silent guess**: a value the engine can't know, defaulted (a
+     `filter_map` that drops unknowns, a `*` read as 0, a type assumed) where
+     it should refuse by name. The replay can't catch these, because a guess
+     that matches the log looks like progress. Fix what it finds before you
+     push. If you leave something, put it at the top of the handoff.
    - A gate you can't pass: drop or revert the commit that broke it and say so
      in the handoff.
 4. **Commit and push.** One commit per rule, its subject a lowercase claim
