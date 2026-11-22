@@ -1554,6 +1554,9 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         },
         |p| { let who = subject_player(p); p.verb("shuffle")?; p.attempt(|p| p.one_of(&["your library", "their library"])); Some(Effect::Shuffle(who)) },
         |p| { p.word("scry")?; amount(p).map(Effect::Scry) },
+        // "Then you scry 2" (Overwhelmed Apprentice): the controller, as
+        // the bare imperative says ([you-scry]).
+        |p| { p.words("you scry")?; amount(p).map(Effect::Scry) },
         |p| { p.word("surveil")?; amount(p).map(Effect::Surveil) },
         |p| { let who = subject_player(p); p.verb("mill")?; let n = cards(p)?; Some(Effect::Mill { who, n }) },
         |p| { let who = subject_player(p); p.verb("mill")?; p.words("cards equal to")?; let n = measure(p)?; Some(Effect::Mill { who, n }) },

@@ -552,7 +552,7 @@ face: Overwhelmed Apprentice
 type: Creature — Human Wizard
 cost: {U}
 > When this creature enters, each opponent mills two cards. Then you scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)
-= BROKE at "scry" after: when this creature enters , each opponent mills two cards . then you
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: EachOpponent, n: N(2) }, Scry(N(2))], limits: [] }
 
 ## Overwhelming Intellect
 face: Overwhelming Intellect

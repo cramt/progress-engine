@@ -986,6 +986,12 @@ mod syn {
         alt(o, vec![active, passive]);
     }
 
+    /// [you-scry]: "you scry 2" is "scry 2" (Overwhelmed Apprentice, The
+    /// Scarab God): the imperative is the controller's (CR 701.22a).
+    pub fn you_scry(o: &mut Out) {
+        any_of(o, &["scry", "you scry"]);
+    }
+
     pub fn gapped(o: &mut Out, with_verb: Out, without: Out) {
         alt(o, vec![with_verb, without]);
     }
@@ -7967,7 +7973,7 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
             }
         }
         Effect::Scry(n) => {
-            o.w("scry");
+            syn::you_scry(o);
             amount(o, n);
         }
         Effect::Surveil(n) => {
