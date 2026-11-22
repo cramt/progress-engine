@@ -440,7 +440,7 @@ face: Karplusan Strider
 type: Creature — Yeti
 cost: {3}{G}
 > This creature can't be the target of blue or black spells.
-= BROKE at "blue" after: this creature can't be the target of
+= BROKE at "." after: this creature can't be the target of blue or black spells
 
 ## Ketria Crystal
 face: Ketria Crystal

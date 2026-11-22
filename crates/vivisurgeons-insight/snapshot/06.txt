@@ -1110,7 +1110,7 @@ cost: {G}
 > Kicker {G} (You may pay an additional {G} as you cast this spell.)
 > Target creature can't be the target of spells or abilities your opponents control this turn. If this spell was kicked, that creature gets +4/+4 until end of turn.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["G"]))])) }])
-= BROKE at "spells" after: target creature can't be the target of
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Restrict { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeTargetOf(Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(EachOpponent)], or: None }), dur: ThisTurn }, If { order: Leading, cond: WasKicked, then: [Modify { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: true }), gains: [], dur: UntilEndOfTurn }] }]) }
 
 ## Wall of Blood
 face: Wall of Blood

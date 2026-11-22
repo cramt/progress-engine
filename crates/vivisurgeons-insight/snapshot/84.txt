@@ -389,7 +389,7 @@ cost: {1}{W}{W}
 > This creature can't be the target of black or red spells your opponents control.
 = Keywords([Keyword { name: "first strike", param: None }])
 = Keywords([Keyword { name: "lifelink", param: None }])
-= BROKE at "black" after: this creature can't be the target of
+= BROKE at "." after: this creature can't be the target of black or red spells your opponents control
 
 ## Filigree Crawler
 face: Filigree Crawler

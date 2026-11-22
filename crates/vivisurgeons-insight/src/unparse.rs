@@ -7499,6 +7499,12 @@ fn restriction(o: &mut Out, r: &Restriction, n: Num) {
         }
         Restriction::CantBeCountered => o.w("can't be countered"),
         Restriction::CantBeSacrificed => o.w("can't be sacrificed"),
+        Restriction::CantBeTargetOf(by) => {
+            o.w("can't be the");
+            o.noun("target", n);
+            o.w("of");
+            filter(o, by, Num::Pl);
+        }
         Restriction::DoesntUntap(p) => {
             o.verb("don't", n);
             o.w("untap during");

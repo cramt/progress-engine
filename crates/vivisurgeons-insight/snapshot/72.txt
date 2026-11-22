@@ -134,7 +134,7 @@ cost: {1}{G}
 > Enchanted creature can't be the target of spells or abilities your opponents control.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = BROKE at "or" after: enchanted creature can't be blocked except by creatures with flying
-= BROKE at "spells" after: enchanted creature can't be the target of
+= Static([Restrict { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeTargetOf(Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(EachOpponent)], or: None }) }])
 
 ## Castigate
 face: Castigate

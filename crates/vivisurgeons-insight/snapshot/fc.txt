@@ -959,7 +959,7 @@ cost: {3}{G}{G}
 > During your turn, Thrun has indestructible.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "spells" after: ~ can't be the target of nongreen
+= BROKE at "." after: ~ can't be the target of nongreen spells your opponents control or abilities from nongreen sources your opponents control
 = Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
 
 ## Thundering Wurm

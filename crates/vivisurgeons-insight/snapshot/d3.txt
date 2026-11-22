@@ -411,7 +411,7 @@ cost: {5}{G}{G}
 > This creature can't be the target of nongreen spells or abilities from nongreen sources.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "nongreen" after: this creature can't be the target of
+= BROKE at "." after: this creature can't be the target of nongreen spells or abilities from nongreen sources
 
 ## Ghost-Lit Raider
 face: Ghost-Lit Raider

@@ -529,7 +529,7 @@ type: Creature — Human Rebel Mercenary
 cost: {2}{W}
 > This creature can't be the target of black spells or abilities from black sources.
 > {2}{W}: Put target nontoken Mercenary on the bottom of its owner's library.
-= BROKE at "black" after: this creature can't be the target of
+= BROKE at "." after: this creature can't be the target of black spells or abilities from black sources
 = Activated { cost: [Mana(Mana(["2", "W"]))], effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Nontoken), Subtype("mercenary")]], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryBottom, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Might Sliver

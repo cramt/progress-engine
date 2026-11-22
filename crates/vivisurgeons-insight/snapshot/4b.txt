@@ -993,7 +993,7 @@ type: Legendary Creature — Human Archer
 cost: {U}{B}{R}
 > Tetsuo Umezawa can't be the target of Aura spells.
 > {U}{B}{B}{R}, {T}: Destroy target tapped or blocking creature.
-= BROKE at "spells" after: ~ can't be the target of aura
+= BROKE at "." after: ~ can't be the target of aura spells
 = Activated { cost: [Mana(Mana(["U", "B", "B", "R"])), Tap], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Tapped), Type("creature")], [State(Blocking), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }
 
 ## Thirsting Axe

@@ -835,7 +835,7 @@ type: Artifact
 cost: {1}
 > Cards in graveyards can't be the targets of spells or abilities.
 > {4}, {T}: Exile this artifact and all cards from all graveyards. Draw a card.
-= BROKE at "of" after: cards in graveyards can't be the targets
+= Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, rule: CantBeTargetOf(Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None }) }])
 = Activated { cost: [Mana(Mana(["4"])), Tap], effect: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Exile(Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } }), Draw { who: You, n: N(1) }], limits: [] }
 
 ## Skyclave Apparition

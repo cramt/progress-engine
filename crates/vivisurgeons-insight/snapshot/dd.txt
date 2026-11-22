@@ -889,7 +889,7 @@ cost: {2}{G/U}
 > Enchanted creature can't be the target of spells or abilities your opponents control.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "spells" after: enchanted creature can't be the target of
+= Static([Restrict { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeTargetOf(Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(EachOpponent)], or: None }) }])
 
 ## Shivan Phoenix
 face: Shivan Phoenix

@@ -483,7 +483,7 @@ cost: {1}{G}
 > When this enchantment enters, draw a card.
 > Cards in graveyards can't be the targets of spells or abilities.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "of" after: cards in graveyards can't be the targets
+= Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, rule: CantBeTargetOf(Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None }) }])
 
 ## Havoc Eater
 face: Havoc Eater

@@ -493,6 +493,15 @@ pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
         |p| p.words("can't be attacked").map(|_| Restriction::CantBeAttacked),
         |p| p.words("can't be countered").map(|_| Restriction::CantBeCountered),
         |p| p.words("can't be sacrificed").map(|_| Restriction::CantBeSacrificed),
+        |p| {
+            p.words("can't be the")?;
+            p.one_of(&["targets", "target"])?;
+            p.word("of")?;
+            // A description of which spells and abilities, not an object
+            // a later "that creature" could mean (Vines of Vastwood).
+            let by = filter(p)?;
+            matches!(by.kind, Some(Noun::SpellOrAbility)).then_some(Restriction::CantBeTargetOf(by))
+        },
         |p| p.words("can't be regenerated").map(|_| Restriction::CantBeRegenerated),
         |p| p.words("can't enter the battlefield").map(|_| Restriction::CantEnterBattlefield),
         |p| p.words("can't be turned face up").map(|_| Restriction::CantBeTurnedFaceUp),

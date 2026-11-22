@@ -967,7 +967,7 @@ face: Spellbane Centaur
 type: Creature — Centaur
 cost: {2}{G}
 > Creatures you control can't be the targets of blue spells or abilities from blue sources.
-= BROKE at "of" after: creatures you control can't be the targets
+= BROKE at "." after: creatures you control can't be the targets of blue spells or abilities from blue sources
 
 ## Spitfire Lagac
 face: Spitfire Lagac

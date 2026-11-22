@@ -987,7 +987,7 @@ face: Veilstone Amulet
 type: Artifact
 cost: {3}
 > Whenever you cast a spell, creatures you control can't be the targets of spells or abilities your opponents control this turn.
-= BROKE at "the" after: whenever you cast a spell , creatures you control can't be
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeTargetOf(Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(EachOpponent)], or: None }), dur: ThisTurn }], limits: [] }
 
 ## Venomized Cat
 face: Venomized Cat

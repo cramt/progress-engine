@@ -248,7 +248,7 @@ cost: {W}{U}
 > Cards in graveyards can't be the targets of spells or abilities.
 > Disturb {2}{W}{U} (You may cast this card from your graveyard transformed for its disturb cost.)
 = Keywords([Keyword { name: "lifelink", param: None }])
-= BROKE at "of" after: cards in graveyards can't be the targets
+= Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, rule: CantBeTargetOf(Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None }) }])
 = Keywords([Keyword { name: "disturb", param: Some(Cost([Mana(Mana(["2", "W", "U"]))])) }])
 
 ## Dennick, Pious Apprentice // Dennick, Pious Apparition

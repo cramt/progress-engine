@@ -848,7 +848,7 @@ cost: {1}{W}{U}
 > Enchant creature
 > Enchanted creature gets +0/+2 and can't be the target of spells.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "the" after: enchanted creature gets <pt> and can't be
+= BROKE at "." after: enchanted creature gets <pt> and can't be the target of spells
 
 ## Spidersilk Net
 face: Spidersilk Net

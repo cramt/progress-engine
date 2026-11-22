@@ -520,7 +520,7 @@ face: Lurker
 type: Creature — Beast
 cost: {2}{G}
 > This creature can't be the target of spells unless it attacked or blocked this turn.
-= BROKE at "spells" after: this creature can't be the target of
+= BROKE at "unless" after: this creature can't be the target of spells
 
 ## Madame Hydra
 face: Madame Hydra

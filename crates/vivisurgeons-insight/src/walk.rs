@@ -2538,6 +2538,9 @@ impl Walk for Restriction {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
         match self {
+            Restriction::CantBeTargetOf(f0) => {
+                Walk::walk(f0, v);
+            }
             Restriction::CantBeBlockedExceptBy(f0) => {
                 Walk::walk(f0, v);
             }

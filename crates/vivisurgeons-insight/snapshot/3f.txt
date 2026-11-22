@@ -1149,7 +1149,7 @@ cost: {1}{B}{B}
 > This creature can't be the target of spells that can target only Walls or of abilities that can target only Walls.
 = Keywords([Keyword { name: "defender", param: None }])
 = BROKE at "blocking" after: prevent all damage that would be dealt to this creature by creatures it's
-= BROKE at "spells" after: this creature can't be the target of
+= BROKE at "can" after: this creature can't be the target of spells that
 
 ## Waltz of Rage
 face: Waltz of Rage

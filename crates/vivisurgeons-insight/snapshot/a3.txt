@@ -802,7 +802,7 @@ type: Creature — Human Wizard
 cost: {1}{U}{U}
 > This creature can't be the target of red spells or abilities from red sources.
 > {T}: This creature deals 1 damage to any target.
-= BROKE at "red" after: this creature can't be the target of
+= BROKE at "." after: this creature can't be the target of red spells or abilities from red sources
 = Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Suspend

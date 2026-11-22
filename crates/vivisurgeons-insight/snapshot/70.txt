@@ -901,7 +901,7 @@ type: Legendary Creature — Human Warrior
 cost: {G}{W}
 > Shanna can't be the target of abilities your opponents control.
 > Shanna gets +1/+1 for each creature you control.
-= BROKE at "your" after: ~ can't be the target of abilities
+= BROKE at "." after: ~ can't be the target of abilities your opponents control
 = Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }])
 
 ## Silkwrap

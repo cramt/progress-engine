@@ -3190,6 +3190,11 @@ pub struct Token {
 pub enum Restriction {
     /// "can attack as though it didn't have defender".
     AttacksDespiteDefender,
+    /// "can't be the target of spells or abilities your opponents
+    /// control", "can't be the targets of spells or abilities": no such
+    /// spell or ability may choose it as a target (CR 115.1,
+    /// [cant-be-target-of]).
+    CantBeTargetOf(Filter),
     CantBlock,
     CantAttack,
     CantAttackOrBlock,
