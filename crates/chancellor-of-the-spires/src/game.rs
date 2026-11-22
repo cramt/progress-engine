@@ -603,6 +603,10 @@ pub enum Target {
     /// An activated or triggered ability on the stack (CR 113.1b-c), by
     /// its `seq`: an object of its own, not its source (CR 113.7a).
     Ability(u32),
+    /// A card in a graveyard.
+    Card(CardId),
+    /// No target, for a slot of "up to one" (CR 115.6).
+    Nothing,
 }
 
 /// What can be on the stack (CR 405.1): spells, activated abilities other
@@ -1729,6 +1733,11 @@ pub struct Game {
     /// an ability of its that counts them (CR 608.2h, 113.7a).
     last_known: OrdMap<ObjectId, LastKnown>,
     exile: Vector<CardId>,
+    /// The cards in exile an object's own abilities put there, each with
+    /// that object, for the abilities linked to them (CR 607.2a). A card
+    /// exiled again loses its link, so one counts only while it is in
+    /// `exile` from that exile.
+    exiled_with: OrdMap<CardId, ObjectId>,
     /// Adventurer cards exiled as their Adventure resolved, each with the
     /// player who may cast it from exile while it stays there (CR 715.3d).
     adventuring: OrdMap<CardId, PlayerId>,
@@ -1916,6 +1925,7 @@ impl Game {
             used: OrdSet::new(),
             powered_up: OrdSet::new(),
             exile: Vector::new(),
+            exiled_with: OrdMap::new(),
             adventuring: OrdMap::new(),
             suspended: OrdMap::new(),
             hasty: OrdSet::new(),
@@ -2312,8 +2322,15 @@ impl Game {
         characteristics(&self.layer_state())
     }
 
+    /// Put a card into exile, linked to no object (CR 400.7).
+    fn put_in_exile(&mut self, card: CardId) {
+        self.exiled_with.remove(&card);
+        self.exile.push_back(card);
+    }
+
     /// The battlefield with what else of the game a static's condition
-    /// reads: the size of each graveyard. Cloning it is cheap, its maps
+    /// reads: the size of each graveyard and the cards exiled with each
+    /// permanent. Cloning it is cheap, its maps
     /// being persistent.
     fn layer_state(&self) -> State {
         let mut state = self.battlefield.clone();
@@ -2323,6 +2340,11 @@ impl Game {
             .enumerate()
             .map(|(q, p)| (PlayerId(q as u8), p.graveyard.len() as u32))
             .collect();
+        for (card, object) in self.exiled_with.iter() {
+            if self.exile.contains(card) {
+                *state.exiled_with.entry(*object).or_insert(0) += 1;
+            }
+        }
         state
     }
 
@@ -2928,7 +2950,7 @@ impl Game {
                         .expect("only a card with suspend is offered")
                         .counters;
                     self.players[player.0 as usize].hand.retain(|c| *c != spell);
-                    self.exile.push_back(spell);
+                    self.put_in_exile(spell);
                     self.suspended.insert(spell, counters);
                     self.give_priority(player, 0);
                 }
@@ -3512,7 +3534,9 @@ impl Game {
                     lower::PaidWith::ExileFromGraveyard => {
                         let p = &mut self.players[player.0 as usize];
                         p.graveyard.retain(|c| !chosen.contains(c));
-                        self.exile.extend(chosen.iter().copied());
+                        for c in chosen {
+                            self.put_in_exile(*c);
+                        }
                     }
                 }
                 self.pay_mana_for_ability(player, source, owed);
@@ -4751,7 +4775,7 @@ impl Game {
         // any other zone.
         self.turn_up(card, Side::Front);
         if let (true, Some(controller)) = (adventure, resolved) {
-            self.exile.push_back(card);
+            self.put_in_exile(card);
             self.adventuring.insert(card, controller);
             return;
         }
@@ -4762,7 +4786,7 @@ impl Game {
             Via::ManaCost | Via::FaceDown | Via::Suspend => false,
         };
         if exiled {
-            self.exile.push_back(card);
+            self.put_in_exile(card);
         } else {
             let owner = self.owner(card);
             self.players[owner.0 as usize].graveyard.push_back(card);
@@ -4971,7 +4995,15 @@ impl Game {
             found: OrdMap::new(),
             name: None,
         };
-        if !targets.is_empty() && at.targets.iter().all(Option::is_none) {
+        // CR 115.6: a slot of "up to one" left empty is no target, so
+        // one with no target chosen in any slot isn't targeted.
+        let chosen = targets.iter().any(|t| *t != Target::Nothing);
+        if chosen
+            && targets
+                .iter()
+                .zip(&at.targets)
+                .all(|(t, c)| *t == Target::Nothing || c.is_none())
+        {
             return self.done(&at);
         }
         // CR 603.4: an intervening "if" checked again as it resolves, from
@@ -5222,9 +5254,35 @@ impl Game {
                     }
                 }
                 Effect::Exile(on) => {
+                    let mut exiled = Vec::new();
+                    // A card in a graveyard, which isn't an object the
+                    // battlefield knows.
+                    if let lower::On::One(Obj::Target(s)) = on {
+                        if let Some(Target::Card(c)) = at.targets[s] {
+                            for player in &mut self.players {
+                                player.graveyard.retain(|g| *g != c);
+                            }
+                            self.put_in_exile(c);
+                            exiled.push(c);
+                        }
+                    }
                     for o in self.objects_on(&at, &on) {
-                        if self.permanents.contains_key(&o) {
+                        if let Some(perm) = self.permanents.get(&o) {
+                            let card = perm.card;
                             self.leave_battlefield(o, Zone::Exile);
+                            exiled.push(card);
+                        }
+                    }
+                    // CR 607.2a: what an ability of a permanent's exiles
+                    // is linked to that permanent, for an ability of its
+                    // that reads "exiled with".
+                    if let (Some(source), false) =
+                        (at.object, matches!(at.what, Instructions::Spell { .. }))
+                    {
+                        for c in exiled {
+                            if self.exile.contains(&c) {
+                                self.exiled_with.insert(c, source);
+                            }
                         }
                     }
                 }
@@ -6075,8 +6133,9 @@ impl Game {
                         *dealt.objects.entry(*o).or_insert(0) += n;
                     }
                 }
-                // No instruction deals damage to a spell or an ability.
-                Target::Spell(_) | Target::Ability(_) => {}
+                // No instruction deals damage to a spell, an ability or
+                // a card.
+                Target::Spell(_) | Target::Ability(_) | Target::Card(_) | Target::Nothing => {}
             }
         }
         if has(Keyword::Lifelink) {
@@ -6218,6 +6277,26 @@ impl Game {
                     .filter(|seq| Some(*seq) != choosing)
                     .map(Target::Ability)
                     .collect()
+            }
+            TargetSpec::GraveyardCard { filter, whose } => (0..self.players.len())
+                .map(|q| PlayerId(q as u8))
+                .filter(|q| match whose {
+                    lower::Whose::Yours => *q == p,
+                    lower::Whose::Opponents => *q != p,
+                    lower::Whose::Each => true,
+                })
+                .flat_map(|q| self.player(q).graveyard.iter().copied())
+                .filter(|c| {
+                    self.known(*c)
+                        .and_then(|k| k.printed.as_ref())
+                        .is_some_and(|ch| filter.matches(ch))
+                })
+                .map(Target::Card)
+                .collect(),
+            TargetSpec::UpToOne(spec) => {
+                let mut legal = self.legal_targets(spec, p, source);
+                legal.push(Target::Nothing);
+                legal
             }
         }
     }
@@ -6660,6 +6739,9 @@ impl Game {
             lower::Intervening::Control { control, excluding } => (control, *excluding),
             lower::Intervening::OnBattlefield => {
                 return self.battlefield.objects.contains_key(&source)
+            }
+            lower::Intervening::Tapped => {
+                return self.permanents.get(&source).is_some_and(|p| p.tapped)
             }
             lower::Intervening::ArrivedSinceLastUpkeep => {
                 let last = self.player(source_chars.controller).last_turn;
@@ -7619,6 +7701,12 @@ impl Game {
                     self.trigger_on(Event::Begins(TurnStep::BeginningOfCombat));
                     return self.give_priority(self.active, 0);
                 }
+                // CR 505.1b: the turn's second main phase, the engine
+                // making no additional one (CR 505.1a).
+                Step::PostcombatMain => {
+                    self.trigger_on(Event::Begins(TurnStep::SecondMain));
+                    return self.give_priority(self.active, 0);
+                }
                 _ => return self.give_priority(self.active, 0),
             }
             match self.after(step) {
@@ -7984,7 +8072,7 @@ impl Game {
                 player.hand.push_back(perm.card);
                 self.returned += 1;
             }
-            Zone::Exile => self.exile.push_back(perm.card),
+            Zone::Exile => self.put_in_exile(perm.card),
         }
         if to != Zone::Hand && self.cards[perm.card.0 as usize].commander {
             self.commanders_moved.push_back(perm.card);

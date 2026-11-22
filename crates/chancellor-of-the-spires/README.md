@@ -1031,9 +1031,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 103 of the 500 replay to
-the end and 49.10% of their lines are followed** (15,546 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 101
+Worked card by card from there, **on 2026-11-22 105 of the 500 replay to
+the end and 49.54% of their lines are followed** (15,684 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 103
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1122,7 +1122,13 @@ of its type revealed into the hand (CR 702.29e: Eternal Dragon's
 plainscycling); a mana value compared with an amount counted as the
 instruction is followed, the counters on its source as it last existed
 (CR 608.2h: Powder Keg destroying each artifact and creature of mana
-value equal to its fuse counters, sacrificed to pay). And
+value equal to its fuse counters, sacrificed to pay); the beginning of
+the second main phase (CR 505.1b), an intervening "if this creature is
+tapped", "up to one target", which may be none (CR 115.6), a target card
+in a graveyard (CR 115.2), and the cards an object's own abilities exile
+linked to it, which "exiled with this creature" counts (CR 607.2a:
+Veteran Survivor, and Withered Wretch's "exile target card from a
+graveyard"). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1167,11 +1173,17 @@ two permanents of one name, tried as the other too (Rishadan Port on one
 of two Forests), and a card cycled in response to what is on the stack
 if what follows says so (Eternal Dragon cycled with the Swamp Rishadan
 Port's ability is about to tap, keeping the Wasteland activated next
-untapped). One divergence was the engine's own, found by the full
+untapped), and a trigger line naming no target for an "up to one"
+slot taken as none chosen. One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Veteran Survivor (6), Adeline, Cunning
-Nightbonder, Fact or Fiction and Michelangelo's Technique (5 each); of
+top of the worklist now: Adeline, Cunning Nightbonder, Fact or Fiction
+and Michelangelo's Technique (5 each); of the 6 games Veteran Survivor
+stopped, one replays to the end and the rest stop at other cards
+(Horror of the Broken Lands's cycling trigger, Hopeful Initiate's
+training, Lurrus, Deftblade Elite's provoke, Malcolm's discard), and a
+target card in a graveyard let Withered Wretch's game replay to the end
+too; of
 the 5 games Powder Keg stopped, two replay to the end and three stop at
 other cards (Siege-Gang Commander's sacrifice, Goblin Tinkerer, Circular
 Logic); of the 5 games Eternal Dragon's landcycling stopped, two

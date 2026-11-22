@@ -477,6 +477,10 @@ pub enum Condition {
     /// "As long as this creature has three or more +1/+1 counters on it":
     /// how many of that kind its source has.
     CountersOnItself(Counter, Count),
+    /// "As long as there are three or more cards exiled with this
+    /// creature": how many cards in exile its own abilities put there,
+    /// linked to it as the object it is now (CR 607.2a, 400.7).
+    ExiledWithItself(Count),
 }
 
 /// "You control a Mountain or a Plains", "you control two or fewer other
@@ -596,6 +600,9 @@ pub struct State {
     /// How many cards each player's graveyard holds, for a condition that
     /// counts them; the game sets it as it reads the layers.
     pub graveyards: OrdMap<PlayerId, u32>,
+    /// How many cards in exile each permanent's abilities exiled, for a
+    /// condition that counts them (CR 607.2a); the game sets it too.
+    pub exiled_with: OrdMap<ObjectId, u32>,
     pub objects: OrdMap<ObjectId, Object>,
     pub statics: OrdMap<StaticId, StaticAbility>,
     pub resolved: Vector<Resolved>,

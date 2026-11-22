@@ -159,6 +159,9 @@ impl Run<'_> {
                         .unwrap_or(0),
                 )
             }
+            Condition::ExiledWithItself(count) => {
+                return count.holds(self.state.exiled_with.get(&source).copied().unwrap_or(0))
+            }
             Condition::CardsInYourGraveyard(count) => {
                 return count.holds(
                     self.state

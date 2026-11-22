@@ -728,6 +728,20 @@ fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbilit
                     count_of(*op, *v)?,
                 )
             }
+            // "As long as there are three or more cards exiled with this
+            // creature": the cards its own abilities exiled (CR 607.2a).
+            i::Condition::AmountIs {
+                n: i::Amount::CountOf(o),
+                op,
+                value: i::Amount::N(v),
+            } if o.quant == Quant::Plural
+                && o.filter.kind == Some(i::Noun::Card)
+                && o.filter.alts.is_empty()
+                && o.filter.or.is_none()
+                && matches!(o.filter.posts.as_slice(), [Post::ExiledWith(w)] if itself(w)) =>
+            {
+                Condition::ExiledWithItself(count_of(*op, *v)?)
+            }
             // Threshold: "seven or more cards in your graveyard".
             i::Condition::AmountIs {
                 n: i::Amount::CountOf(o),
@@ -1674,6 +1688,15 @@ pub enum TargetSpec {
     /// the kinds named (CR 113.1c), never a mana ability, which doesn't go
     /// on the stack (CR 605.3b).
     Ability { activated: bool, triggered: bool },
+    /// "target card from a graveyard", "target creature card in your
+    /// graveyard": a card in the graveyards `whose` names, the filter
+    /// matching its own characteristics (CR 115.2: an object in another
+    /// zone, as it says).
+    GraveyardCard { filter: CardFilter, whose: Whose },
+    /// "up to one target …": the slot's own kind of target, or none (CR
+    /// 115.6, 601.2c). `Scope::slot_up_to_one` makes it, never around
+    /// another.
+    UpToOne(Box<TargetSpec>),
 }
 
 /// A spell's or ability's instructions and the targets they name, by slot.
@@ -1780,6 +1803,10 @@ pub enum TurnStep {
     Upkeep,
     Draw,
     BeginningOfCombat,
+    /// "At the beginning of your second main phase": the turn's second
+    /// main phase (CR 505.1b). The engine makes no additional combat
+    /// phase, so it is the postcombat main phase (CR 505.1a).
+    SecondMain,
     End,
 }
 
@@ -1821,6 +1848,9 @@ pub enum Intervening {
     /// Cumulative upkeep's "if this permanent is on the battlefield" (CR
     /// 702.24a).
     OnBattlefield,
+    /// "If this creature is tapped": its source is a permanent, tapped
+    /// (CR 110.5).
+    Tapped,
 }
 
 /// A spell's instructions, its paragraphs in order (CR 608.2c), with the
@@ -1864,6 +1894,7 @@ pub fn triggered(
                 i::Step::Upkeep(w) => (TurnStep::Upkeep, w),
                 i::Step::DrawStep(w) => (TurnStep::Draw, w),
                 i::Step::Combat(w) => (TurnStep::BeginningOfCombat, w),
+                i::Step::SecondMain(w) => (TurnStep::SecondMain, w),
                 i::Step::EndStep(w) => (TurnStep::End, w),
                 _ => return Err(trigger_node(trigger)),
             };
@@ -2087,6 +2118,16 @@ pub fn mana_trigger(
 /// 603.4), of those lowered: "if you control at least five other
 /// Mountains", "other" than the object a `Let` binds being the event's.
 fn intervening(cond: &i::Condition, bind: &[Objects]) -> Result<Intervening, String> {
+    if let i::Condition::Is { what, filter } = cond {
+        let tapped = i::Filter {
+            alts: vec![vec![Adj::State(i::State::Tapped)]],
+            ..i::Filter::default()
+        };
+        if what.quant == Quant::SelfRef && what.filter == i::Filter::default() && *filter == tapped
+        {
+            return Ok(Intervening::Tapped);
+        }
+    }
     let i::Condition::YouControl(o) = cond else {
         return Err(format!("an intervening if of {}", short(cond)));
     };
@@ -2446,10 +2487,19 @@ impl<'a> Scope<'a> {
             Quant::Introduced(i) | Quant::Bound(i) => Ok(Obj::Target(self.binder(i.into())?)),
             Quant::Target {
                 n: i::Amount::N(1),
-                up_to: false,
-            } => Ok(Obj::Target(
-                self.slot(TargetSpec::Permanent(target_filter(o)?)),
-            )),
+                up_to,
+            } => {
+                let spec = match graveyard_card(o) {
+                    Some(spec) => spec?,
+                    None if up_to => return Err("up to one target permanent".into()),
+                    None => TargetSpec::Permanent(target_filter(o)?),
+                };
+                Ok(Obj::Target(self.slot(if up_to {
+                    TargetSpec::UpToOne(Box::new(spec))
+                } else {
+                    spec
+                })))
+            }
             ref q => Err(format!("an object {}", short(q))),
         }
     }
@@ -3651,6 +3701,41 @@ fn ability_spec(o: &Objects) -> Result<TargetSpec, String> {
         activated,
         triggered,
     })
+}
+
+/// "Target card from a graveyard", "target creature card in your
+/// graveyard": `None` if the target isn't a card in a graveyard.
+fn graveyard_card(o: &Objects) -> Option<Result<TargetSpec, String>> {
+    let f = &o.filter;
+    let whose = f.posts.iter().find_map(|p| match p {
+        Post::In(i::Zone::AGraveyard) => Some(Ok(Whose::Each)),
+        Post::In(i::Zone::Graveyard(i::Player::You)) => Some(Ok(Whose::Yours)),
+        Post::In(i::Zone::Graveyard(i::Player::EachOpponent)) => Some(Ok(Whose::Opponents)),
+        Post::In(i::Zone::Graveyard(w)) => Some(Err(format!(
+            "a target card in the graveyard of Player::{}",
+            short(w)
+        ))),
+        _ => None,
+    })?;
+    Some((|| {
+        let whose = whose?;
+        if f.posts.len() != 1 {
+            return Err("a target card in a graveyard with more than where it is".into());
+        }
+        let filter = card_filter(&Objects {
+            quant: Quant::One,
+            filter: i::Filter {
+                posts: Vec::new(),
+                ..f.clone()
+            },
+        })?;
+        let filter = if filter.0.is_empty() {
+            CardFilter(vec![Filter::default()])
+        } else {
+            filter
+        };
+        Ok(TargetSpec::GraveyardCard { filter, whose })
+    })())
 }
 
 fn spell_filter(o: &Objects) -> Result<CardFilter, String> {

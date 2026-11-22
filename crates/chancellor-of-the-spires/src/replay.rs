@@ -2272,7 +2272,11 @@ impl Driver<'_> {
                     .iter()
                     .zip(&to)
                     .map(|(l, t)| match t {
-                        Target::Player(_) | Target::Spell(_) | Target::Ability(_) => 0,
+                        Target::Player(_)
+                        | Target::Spell(_)
+                        | Target::Ability(_)
+                        | Target::Card(_)
+                        | Target::Nothing => 0,
                         Target::Object(_) => {
                             let n = (*l).min(left);
                             left -= n;
@@ -2475,6 +2479,12 @@ impl Driver<'_> {
                 card: card.to_string(),
             })
         };
+        // "Up to one target": a line naming no target chose none, which
+        // the log tells apart from a target only when every slot may be
+        // left empty.
+        if aims.is_empty() && slots.iter().all(|s| s.contains(&Target::Nothing)) {
+            return Ok(vec![Target::Nothing; slots.len()]);
+        }
         if aims.len() != slots.len() {
             return Err(wrong());
         }
@@ -2517,7 +2527,16 @@ impl Driver<'_> {
                             (Target::Spell(c), Called::FaceDown(d)) => {
                                 c == d && game.face_down_on_stack(*c)
                             }
-                            (Target::Player(_) | Target::Ability(_), _) => false,
+                            (Target::Card(c), Called::Name(name)) => {
+                                game.card(*c).is_some_and(|t| t.is_called(name))
+                            }
+                            (
+                                Target::Player(_)
+                                | Target::Ability(_)
+                                | Target::Card(_)
+                                | Target::Nothing,
+                                _,
+                            ) => false,
                         })
                         .collect();
                     matching.sort_by_key(|t| match t {

@@ -4875,3 +4875,71 @@ fn powder_keg_destroys_what_its_fuse_counters_count() {
     assert_eq!(creature(&game, "Raging Goblin"), None);
     assert!(creature(&game, "Grizzly Bears").is_some());
 }
+
+/// CR 505.1b, 603.4, 115.6, 607.2a: Veteran Survivor's "at the beginning
+/// of your second main phase, if this creature is tapped, exile up to one
+/// target card from a graveyard" triggers only after it attacked, may
+/// target nothing, and the cards it exiles are the ones "as long as there
+/// are three or more cards exiled with this creature" counts: with three
+/// it is a 5/4 with hexproof. Their graveyard fills with the Islands they
+/// discard to hand size.
+#[test]
+fn veteran_survivor_counts_the_cards_its_own_trigger_exiled() {
+    use chancellor_of_the_spires::model::Keyword;
+    let mut game = deal(
+        &[("Plains", 30), ("Veteran Survivor", 30)],
+        &[("Island", 60)],
+        &[("Plains", 2), ("Veteran Survivor", 1)],
+    );
+    play(&mut game, "Plains");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Veteran Survivor", None);
+    resolve(&mut game);
+    let survivor = creature(&game, "Veteran Survivor").unwrap();
+    // Not attacking: untapped, so no trigger in the second main phase.
+    pass_until(&mut game, ME, Step::PostcombatMain);
+    assert!(game.stack().is_empty());
+    // Attack, then pass to the second main phase's trigger.
+    let attack_and_aim = |game: &mut Game, pick: &dyn Fn(&[Target]) -> Target| {
+        my_next_main(game);
+        while !matches!(game.decision(), Decision::Attackers { .. }) {
+            step(game, Answer::Act(Action::Pass));
+        }
+        step(game, Answer::Attack(vec![(survivor, THEM)]));
+        loop {
+            match game.decision() {
+                Decision::Targets { slots, .. } => {
+                    assert_eq!(game.step_now(), Step::PostcombatMain);
+                    let t = pick(&slots[0]);
+                    step(game, Answer::Targets(vec![t]));
+                    return resolve(game);
+                }
+                Decision::Blockers { .. } => {
+                    step(game, Answer::Block(vec![]));
+                }
+                _ => {
+                    step(game, Answer::Act(Action::Pass));
+                }
+            }
+        }
+    };
+    let first_card = |slots: &[Target]| {
+        assert!(slots.contains(&Target::Nothing));
+        *slots
+            .iter()
+            .find(|t| matches!(t, Target::Card(_)))
+            .expect("an Island in their graveyard")
+    };
+    // Up to one: none chosen exiles nothing.
+    attack_and_aim(&mut game, &|_| Target::Nothing);
+    assert!(game.exile().is_empty());
+    for k in 1..=3 {
+        assert_eq!(game.characteristics()[&survivor].pt, Some(pt(2, 1)));
+        attack_and_aim(&mut game, &first_card);
+        assert_eq!(game.exile().len(), k);
+    }
+    let chars = &game.characteristics()[&survivor];
+    assert_eq!(chars.pt, Some(pt(5, 4)));
+    assert!(chars.has(Keyword::Hexproof));
+}
