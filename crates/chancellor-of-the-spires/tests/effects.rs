@@ -1930,6 +1930,83 @@ fn goblin_piledriver_grows_for_each_other_attacking_goblin() {
     assert_eq!(pt_of(&game, driver), pt(1, 2), "until end of turn");
 }
 
+/// Void (CR 207.2c): Plasma Bolt deals 2 damage, or 3 instead once a
+/// nonland permanent has left the battlefield this turn, Mogg Fanatic
+/// sacrificed (CR 701.21a); a land played doesn't count, nor does the
+/// turn before.
+#[test]
+fn plasma_bolt_deals_three_once_a_nonland_permanent_left_this_turn() {
+    let mut game = deal(
+        &[("Mountain", 20), ("Plasma Bolt", 20), ("Mogg Fanatic", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 3), ("Plasma Bolt", 2), ("Mogg Fanatic", 2)],
+    );
+    let sacrifice = |game: &mut Game| {
+        cast(game, "Mogg Fanatic", None);
+        resolve(game);
+        let fanatic = creature(game, "Mogg Fanatic").unwrap();
+        activate(game, fanatic);
+        step(game, Answer::Targets(vec![Target::Player(THEM)]));
+        resolve(game);
+    };
+    play(&mut game, "Mountain");
+    sacrifice(&mut game);
+    assert_eq!(game.player(THEM).life(), 19);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Plasma Bolt", Some(vec![Target::Player(THEM)]));
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 17, "the Fanatic left last turn");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    sacrifice(&mut game);
+    assert_eq!(game.player(THEM).life(), 16);
+    cast(&mut game, "Plasma Bolt", Some(vec![Target::Player(THEM)]));
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 13, "the Fanatic left this turn");
+}
+
+/// Void counts a nonland permanent only: a land that left the
+/// battlefield this turn, Evolving Wilds sacrificed for its search (CR
+/// 701.21a), leaves Plasma Bolt at 2 damage.
+#[test]
+fn plasma_bolt_deals_two_when_only_a_land_left_this_turn() {
+    let mut game = deal(
+        &[
+            ("Mountain", 20),
+            ("Evolving Wilds", 20),
+            ("Plasma Bolt", 20),
+        ],
+        &[("Forest", 60)],
+        &[("Mountain", 1), ("Evolving Wilds", 1), ("Plasma Bolt", 1)],
+    );
+    play(&mut game, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Evolving Wilds");
+    let wilds = creature(&game, "Evolving Wilds").expect("on the battlefield");
+    activate(&mut game, wilds);
+    assert!(matches!(resolve(&mut game), Decision::Search { .. }));
+    step(&mut game, Answer::Find(Found::Nothing));
+    assert!(creature(&game, "Evolving Wilds").is_none(), "sacrificed");
+    cast(&mut game, "Plasma Bolt", Some(vec![Target::Player(THEM)]));
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 18, "only a land left");
+}
+
+/// Void's "or a spell was warped this turn" never holds in a game the
+/// engine runs, because it refuses every card with warp (CR 702.185c), so
+/// Plasma Bolt's lowering reads only the other half.
+#[test]
+fn a_warp_card_is_refused() {
+    // A vanilla creature but for warp, so nothing else refuses it first.
+    let warp = CardText {
+        oracle: Oracle::OneFace("Warp {R}".into()),
+        ..card("Raging Goblin")
+    };
+    let (refused, _) = Game::reads(&warp);
+    assert_eq!(refused.expect("refused").node, "keyword warp");
+}
+
 /// My first activated ability `source` offers, activated.
 fn activate(game: &mut Game, source: chancellor_of_the_spires::model::ObjectId) -> Decision {
     let Decision::Priority { actions, .. } = game.decision() else {

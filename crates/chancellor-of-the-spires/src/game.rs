@@ -1887,6 +1887,10 @@ pub struct Game {
     damage_multipliers: Vec<(PlayerId, u32)>,
     /// Cards an instruction put on the bottom of a library this turn.
     bottomed: u32,
+    /// The permanents that left the battlefield this turn, as they last
+    /// existed there (CR 608.2h), for void's "if a nonland permanent left
+    /// the battlefield this turn".
+    left_this_turn: Vector<Chars>,
     /// What a resolving instruction ran into that the game can't know or
     /// do, set as `step` answers: the answer is refused with it and the
     /// game put back as it was, rather than going on wrong.
@@ -2105,6 +2109,7 @@ impl Game {
             wards: Vector::new(),
             last_known: OrdMap::new(),
             bottomed: 0,
+            left_this_turn: Vector::new(),
             halted: None,
             returned: 0,
             transformed: 0,
@@ -6613,6 +6618,17 @@ impl Game {
                     self.discard(q, &cards);
                     self.discarded += cards.len() as u32;
                 }
+                Effect::IfThisTurn { cond, holds, .. } => {
+                    let held = match &cond {
+                        lower::ThisTurn::PermanentLeft(f) => {
+                            self.left_this_turn.iter().any(|c| f.matches_card(c))
+                        }
+                    };
+                    if held == holds {
+                        at = here;
+                        at.next.push(0);
+                    }
+                }
                 Effect::Kicked { was, .. } => {
                     let kicked = matches!(at.what, Instructions::Spell { kicked: true, .. });
                     if kicked == was {
@@ -8741,6 +8757,7 @@ impl Game {
         self.turn += 1;
         self.battlefield.active = Some(p);
         self.bottomed = 0;
+        self.left_this_turn.clear();
         self.returned = 0;
         self.transformed = 0;
         self.shuffled = 0;
@@ -9213,6 +9230,7 @@ impl Game {
                 token,
             },
         );
+        self.left_this_turn.push_back(chars.clone());
         self.battlefield.leave(id);
         // CR 712.8a: its front face in any other zone, and no copy: the
         // copy effect applied to the object, which is gone (CR 400.7).
@@ -9265,7 +9283,11 @@ impl Game {
             .filter(|(_, perm)| owned(&perm.card))
             .map(|(id, _)| *id)
             .collect();
+        let all = self.characteristics();
         for id in gone {
+            if let Some(chars) = all.get(&id) {
+                self.left_this_turn.push_back(chars.clone());
+            }
             if let Some(perm) = self.permanents.remove(&id) {
                 self.cards[perm.card.0 as usize].copy = None;
             }
@@ -9377,6 +9399,10 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         dormant: Vec::new(),
         lowered,
     };
+    // The paragraph a spell's last was, when it was its only one, so that
+    // an "instead" said in a paragraph of its own (void's) reads the
+    // instruction it replaces.
+    let mut paragraph: Option<(&[i::Objects], Vec<i::Effect>)> = None;
     for (n, a) in runs.lowered.unread.iter().enumerate() {
         let n = n as u16;
         // An ability word adds no rules (CR 207.2c), and a `Let` binds the
@@ -9677,7 +9703,25 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     modes.into_iter().map(|m| m.map_err(refused)).collect(),
                 ));
             }
+            // "Void — ~ deals 3 damage instead if …": the paragraph before
+            // and this one, lowered as one.
+            i::Ability::Spell(effects)
+                if matches!(effects.as_slice(), [i::Effect::Instead { .. }])
+                    && bind.is_empty()
+                    && paragraph.is_some() =>
+            {
+                let (first_bind, mut joined) = paragraph.take().expect("matched");
+                joined.extend(effects.iter().cloned());
+                let program = lower::spell(first_bind, &joined).map_err(|node| {
+                    Unrunnable::new(
+                        node.clone(),
+                        format!("the game can't run a spell's {node} yet"),
+                    )
+                })?;
+                runs.spell = Some(SpellText::One(program));
+            }
             i::Ability::Spell(effects) => {
+                paragraph = runs.spell.is_none().then(|| (bind, effects.clone()));
                 let program = lower::spell(bind, effects).map_err(|node| {
                     Unrunnable::new(
                         node.clone(),

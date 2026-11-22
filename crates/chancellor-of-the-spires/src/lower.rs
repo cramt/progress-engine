@@ -1519,6 +1519,16 @@ impl CardFilter {
     }
 }
 
+/// Something that happened this turn, which an instruction asks of as it
+/// is followed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ThisTurn {
+    /// "A nonland permanent left the battlefield this turn": one the
+    /// filter matches, by its characteristics as it last existed there
+    /// (CR 608.2h), left for any zone.
+    PermanentLeft(Filter),
+}
+
 /// One instruction of a spell or an ability, as it resolves (CR 608.2c).
 /// Each names what it acts on through the ability's own [`Who`] and
 /// [`Obj`], never a guess: a target by its slot, chosen as the ability
@@ -1799,6 +1809,15 @@ pub enum Effect {
         filter: Filter,
         then: Vec<Effect>,
     },
+    /// Void's "~ deals 3 damage instead if a nonland permanent left the
+    /// battlefield this turn": these instructions only if what happened
+    /// this turn holds as they are followed, or with `holds` false only if
+    /// it doesn't, as the instruction an "instead" replaces is.
+    IfThisTurn {
+        cond: ThisTurn,
+        holds: bool,
+        then: Vec<Effect>,
+    },
     /// "If this spell was kicked, …" (CR 702.33d): these instructions only
     /// if the spell resolving was kicked, or with `was` false only if it
     /// wasn't, as the instruction an "instead" replaces is.
@@ -1893,6 +1912,7 @@ impl Effect {
             | Effect::IfTarget { then, .. }
             | Effect::IfControl { then, .. }
             | Effect::Kicked { then, .. }
+            | Effect::IfThisTurn { then, .. }
             | Effect::Unless {
                 otherwise: then, ..
             }
@@ -4103,6 +4123,38 @@ impl<'a> Scope<'a> {
                 k += 2;
                 continue;
             }
+            // Void's "~ deals 3 damage instead if a nonland permanent left
+            // the battlefield this turn": the first only if it didn't, the
+            // second only if it did. Asked twice, once for each, which is
+            // the same answer only because damage moves no permanent until
+            // the state-based actions after the spell resolves (CR 704.3),
+            // so only damage is lowered so.
+            if let Some(i::Effect::Instead { cond, then }) = effects.get(k + 1) {
+                if let Some(cond) = this_turn(cond) {
+                    let cond = cond?;
+                    let replaced = self.effect(&effects[k])?;
+                    let instead = self.instead(&effects[k], &replaced, then)?;
+                    let damage =
+                        |e: &[Effect]| e.iter().all(|e| matches!(e, Effect::Damage { .. }));
+                    if !damage(&replaced) || !damage(&instead) {
+                        return Err(
+                            "an instead, for what happened this turn, of other than damage".into(),
+                        );
+                    }
+                    out.push(Effect::IfThisTurn {
+                        cond: cond.clone(),
+                        holds: false,
+                        then: replaced,
+                    });
+                    out.push(Effect::IfThisTurn {
+                        cond,
+                        holds: true,
+                        then: instead,
+                    });
+                    k += 2;
+                    continue;
+                }
+            }
             out.extend(self.effect(&effects[k])?);
             k += 1;
         }
@@ -4878,8 +4930,58 @@ fn mark_blind(effects: &mut [Effect], slot: Slot) {
     }
 }
 
-/// Whether an instruction in these, or a "may" in them, puts the card the
-/// innermost binder names onto the battlefield.
+/// A condition on what happened this turn, if it is one: void's "if a
+/// nonland permanent left the battlefield this turn or a spell was warped
+/// this turn". The warp half never holds in a game the engine runs, since
+/// it refuses every card with warp (CR 702.185c: cast for its warp cost),
+/// and so says nothing; `a_warp_card_is_refused` holds that up.
+fn this_turn(cond: &i::Condition) -> Option<Result<ThisTurn, String>> {
+    let left = |e: &i::Event| match e {
+        i::Event::Leaves {
+            what,
+            from: i::Zone::Battlefield,
+        } if what.quant == Quant::One && what.filter.kind == Some(i::Noun::Permanent) => {
+            // What was on the battlefield was a permanent, so the kind
+            // says nothing more.
+            Some(
+                objects(&Objects {
+                    quant: Quant::All,
+                    filter: i::Filter {
+                        kind: None,
+                        ..what.filter.clone()
+                    },
+                })
+                .and_then(|f| {
+                    if f.0.iter().all(|p| {
+                        matches!(
+                            p,
+                            Pred::Is(_) | Pred::IsNot(_) | Pred::IsAny(_) | Pred::ManaValue(..)
+                        )
+                    }) {
+                        Ok(ThisTurn::PermanentLeft(f))
+                    } else {
+                        Err("a permanent that left, by more than its characteristics".into())
+                    }
+                }),
+            )
+        }
+        _ => None,
+    };
+    let warped = |e: &i::Event| {
+        matches!(e, i::Event::CastUsing { what, keyword }
+            if keyword == "warp" && what.quant == Quant::One
+                && what.filter == i::Filter { kind: Some(i::Noun::Spell), ..i::Filter::default() })
+    };
+    match cond {
+        i::Condition::DidThisTurn(e) => left(e),
+        i::Condition::Or(cs) => match cs.as_slice() {
+            [i::Condition::DidThisTurn(a), i::Condition::DidThisTurn(b)] if warped(b) => left(a),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 /// Whether an instruction reveals the cards a binder holds ("reveal it",
 /// "reveal those cards"), the log's reveal line naming each.
 fn reveals_found(effects: &[i::Effect]) -> bool {
