@@ -530,19 +530,19 @@ fn skyknight_squire_flies_from_its_third_counter() {
 
 #[test]
 fn a_line_the_engine_cant_lower_is_refused_by_name() {
-    // Mountainwalk isn't a keyword the layers name, so granting it is
-    // refused, the +1/+1 beside it with it.
-    const GOBLIN_KING: Card = card(
-        "Goblin King",
-        "Creature — Goblin",
-        "Other Goblins get +1/+1 and have mountainwalk.",
-        3,
-        &[Color::Red],
-        Some(pt(2, 2)),
+    // "+2/+2 for each Aura attached to it" is modifying by an amount,
+    // which isn't lowered.
+    const RABID_WOMBAT: Card = card(
+        "Rabid Wombat",
+        "Creature — Wombat",
+        "Vigilance\nThis creature gets +2/+2 for each Aura attached to it.",
+        4,
+        &[Color::Green],
+        Some(pt(0, 1)),
     );
-    let refusal = lower::card(&GOBLIN_KING)
+    let refusal = lower::card(&RABID_WOMBAT)
         .err()
-        .expect("granting mountainwalk isn't lowered yet");
+        .expect("modifying by an amount isn't lowered yet");
     assert!(refusal.to_string().contains("no lowering"), "{refusal}");
 }
 

@@ -104,6 +104,9 @@ pub enum Keyword {
     /// "Protection from blue" (CR 702.16a): one instance per quality, so
     /// "from black and from red" is two (CR 702.16g).
     Protection(Quality),
+    /// "Mountainwalk" (CR 702.14a): unblockable while the defending
+    /// player controls a land of that basic land type (CR 702.14c).
+    Landwalk(BasicLandType),
 }
 
 /// What a protection ability protects from (CR 702.16a).

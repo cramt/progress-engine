@@ -1036,9 +1036,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 121 of the 500 replay to
-the end and 51.49% of their lines are followed** (16,301 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 120
+Worked card by card from there, **on 2026-11-22 124 of the 500 replay to
+the end and 51.73% of their lines are followed** (16,376 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 127
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1145,7 +1145,8 @@ it is chosen (CR 601.2b, 700.2a: Boros Charm, Red Elemental Blast);
 Pyroblast and Hydroblast, either mode); a characteristic-defining
 power and toughness in layer 7a, counted as the layers reach it (CR
 604.3, 613.4a: Tarmogoyf's card types in all graveyards, Terravore's
-land cards). And
+land cards); landwalk, no block while the defending player controls a
+land of its type (CR 702.14c: Goblin King's mountainwalk). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1207,9 +1208,10 @@ stopped, one replays to the end and the rest stop at other cards
 training, Lurrus, Deftblade Elite's provoke, Malcolm's discard), and a
 target card in a graveyard let Withered Wretch's game replay to the end
 too; of the 8 games Tarmogoyf and Terravore stopped, four replay to the
-end; of the 18 games a modal spell stopped, six replay to the end, two
-stop at other cards after Pyroblast's "if it's blue" (Goblin King's
-mountainwalk, Ghastly Demise's "if"), four at
+end; of the 4 games Goblin King stopped, three replay to the end and one
+stops at Tormod's Crypt; of the 18 games a modal spell stopped, seven
+replay to the end, one stops at Ghastly Demise's "if" after Pyroblast's
+"if it's blue", four at
 Archdruid's Charm, whose modes a search's "With" wraps, one at
 Kolaghan's Command's "choose two", and the rest at other cards
 (Tarmogoyf, Huntmaster of the Fells, Nulldrifter, Phyrexian Obliterator,

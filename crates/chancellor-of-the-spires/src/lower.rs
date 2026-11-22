@@ -673,6 +673,11 @@ fn keyword(k: &i::Keyword) -> Option<Vec<Keyword>> {
         "shroud" => Keyword::Shroud,
         "trample" => Keyword::Trample,
         "vigilance" => Keyword::Vigilance,
+        "plainswalk" => Keyword::Landwalk(BasicLandType::Plains),
+        "islandwalk" => Keyword::Landwalk(BasicLandType::Island),
+        "swampwalk" => Keyword::Landwalk(BasicLandType::Swamp),
+        "mountainwalk" => Keyword::Landwalk(BasicLandType::Mountain),
+        "forestwalk" => Keyword::Landwalk(BasicLandType::Forest),
         _ => return None,
     }])
 }

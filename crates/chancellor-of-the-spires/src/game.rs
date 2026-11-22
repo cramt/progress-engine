@@ -7143,8 +7143,19 @@ impl Game {
                     .collect();
                 let flying = chars[a].has(Keyword::Flying);
                 let menace = chars[a].has(Keyword::Menace);
+                // CR 702.14c: the defending player controls a land of a
+                // type it walks.
+                let walked = chars.values().any(|c| {
+                    c.controller == p
+                        && c.is(CardType::Land)
+                        && c.subtypes.iter().any(|s| {
+                            matches!(s, Subtype::BasicLand(t)
+                                if chars[a].has(Keyword::Landwalk(*t)))
+                        })
+                });
                 // CR 702.16f.
-                (!menace || by.is_empty() || by.len() >= 2)
+                (!walked || by.is_empty())
+                    && (!menace || by.is_empty() || by.len() >= 2)
                     && by.iter().all(|b| !chars[a].protected_from(&chars[b]))
                     // CR 702.28b.
                     && by

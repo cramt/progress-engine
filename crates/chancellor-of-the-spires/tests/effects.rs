@@ -5194,3 +5194,55 @@ fn tarmogoyf_counts_card_types_in_graveyards_before_a_pump() {
     resolve(&mut game);
     assert_eq!(game.characteristics()[&goyf].pt, Some(pt(5, 6)));
 }
+
+/// CR 702.14c: Goblin King gives my Raging Goblin mountainwalk, so while
+/// they control a Mountain their Raging Goblin can't block it.
+#[test]
+fn mountainwalk_cant_be_blocked_while_they_control_a_mountain() {
+    let mut game = deal_both(
+        &[("Mountain", 30), ("Goblin King", 15), ("Raging Goblin", 15)],
+        &[("Mountain", 40), ("Raging Goblin", 20)],
+        &[("Mountain", 4), ("Goblin King", 1), ("Raging Goblin", 1)],
+        &[("Mountain", 1), ("Raging Goblin", 1)],
+    );
+    play(&mut game, "Mountain");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(&mut game, THEM, "Raging Goblin", None);
+    resolve(&mut game);
+    let theirs = creature(&game, "Raging Goblin").expect("theirs");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Goblin King", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    let mine = game
+        .permanents()
+        .iter()
+        .find(|(id, p)| {
+            **id != theirs && game.card(p.card).is_some_and(|t| t.name == "Raging Goblin")
+        })
+        .map(|(id, _)| *id)
+        .expect("mine");
+    while !matches!(game.decision(), Decision::Attackers { .. }) {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    step(&mut game, Answer::Attack(vec![(mine, THEM)]));
+    while !matches!(game.decision(), Decision::Blockers { .. }) {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    let Decision::Blockers { can, .. } = game.decision() else {
+        unreachable!("waited for it")
+    };
+    assert!(can.contains(&theirs), "untapped, it could block another");
+    assert!(game
+        .clone()
+        .step(Answer::Block(vec![(theirs, mine)]))
+        .is_err());
+    step(&mut game, Answer::Block(vec![]));
+}
