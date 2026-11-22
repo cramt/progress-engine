@@ -1360,7 +1360,8 @@ fn replaced_subject(
 /// is the source the replaced event names first, never its recipient,
 /// which is nearer, and "that permanent or player" is the recipient
 /// ([replacement-source]; CR 614.1a, the replacement changes how much that
-/// source deals to that recipient).
+/// source deals to that recipient). A resolving ability's replacement for
+/// the turn is the same (Quest for Pure Flame).
 fn replaced_damage(ld: &LineData, li: usize, ei: usize, r: &Objects) -> Option<Target> {
     let e = &ld.c.evs[ei];
     let d = e.effect_frame?;
@@ -1368,11 +1369,12 @@ fn replaced_damage(ld: &LineData, li: usize, ei: usize, r: &Objects) -> Option<T
     if frame[d].verb != "ThatDamage" || *e.frames.last()? != d {
         return None;
     }
-    let rep = *e
-        .frames
-        .iter()
-        .rev()
-        .find(|&&f| frame[f].verb == "@static:Replacement")?;
+    let rep = *e.frames.iter().rev().find(|&&f| {
+        matches!(
+            frame[f].verb.as_str(),
+            "@static:Replacement" | "Replacement"
+        )
+    })?;
     let said: Vec<usize> = (0..ei)
         .filter(|&i| {
             let x = &ld.c.evs[i];
