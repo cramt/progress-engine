@@ -42,6 +42,15 @@ wrong node:
 - `semantics_row`: the SEMANTICS.md row the tree breaks, or the missing row it
   needs, when there is one.
 
+Check every reference by hand, because most missed faults are here. For each
+`Bound(n)`, count the enclosing binders out to the one it names, as `<ast>`
+says to count, and check that it is the object the text means. "It" after
+"a creature attacks you or a planeswalker you control" is the attacker, and
+"that card" is the card the text exiled, not the nearest binder. The `/* name */`
+comment is only a label and can be wrong, so follow the index, not the label.
+Check too that each binder sits where its object exists. A binder whose object
+is chosen inside a "When you do" or a delayed trigger must sit inside it.
+
 Be specific and terse. A finding the writer can't act on is noise.
 
 Write your findings to `<out>` as JSON, and write no other file:
