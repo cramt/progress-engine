@@ -2615,6 +2615,9 @@ impl Walk for SpendUse {
             SpendUse::ActivateAbilityOf(f0) => {
                 Walk::walk(f0, v);
             }
+            SpendUse::CastOrActivate(f0) => {
+                Walk::walk(f0, v);
+            }
             _ => {}
         }
     }

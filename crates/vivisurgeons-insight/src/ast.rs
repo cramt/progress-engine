@@ -422,6 +422,11 @@ pub enum SpendUse {
     ActivateAbilityOf(Objects),
     /// "to activate abilities": of any object.
     ActivateAny,
+    /// "When you spend this mana to cast a spell or activate an ability,
+    /// copy that spell or ability" (Sunken Palace): the one spell or
+    /// ability the mana is spent on, an object of kind `SpellOrAbility`,
+    /// so a delayed trigger binds whichever it was ([delayed-binds-event]).
+    CastOrActivate(Objects),
     /// "on costs that contain {X}": any cost with an {X} in it, a spell's
     /// or an ability's (CR 107.3).
     CostsWithX,

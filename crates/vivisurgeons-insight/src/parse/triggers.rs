@@ -227,6 +227,19 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
         // (CR 106.6).
         |p| {
             p.one_of(&["you spend this mana", "that mana is spent"])?;
+            if let Some(e) = p.attempt(|p| {
+                p.words("to cast a spell or activate an ability")?;
+                matches!(p.peek(), Some(Tok::Comma)).then_some(())?;
+                Some(Event::ManaSpent(vec![SpendUse::CastOrActivate(Objects {
+                    quant: Quant::One,
+                    filter: Filter {
+                        kind: Some(Noun::SpellOrAbility),
+                        ..Filter::default()
+                    },
+                })]))
+            }) {
+                return Some(e);
+            }
             Some(Event::ManaSpent(p.attempt(super::spend_uses).unwrap_or_default()))
         },
         |p| {

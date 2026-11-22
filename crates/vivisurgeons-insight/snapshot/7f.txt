@@ -1080,7 +1080,7 @@ type: Land — Cave
 > {1}{U}, {T}, Exile seven cards from your graveyard: Add {U}. When you spend this mana to cast a spell or activate an ability, copy that spell or ability. You may choose new targets for the copy. (Mana abilities can't be copied.)
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "U"])), Tap, Exile(Objects { quant: N(N(7)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [AddMana(Symbols(Mana(["U"]))), DelayedWhen { event: ManaSpent([Cast(Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), ActivateAny]), then: [Copy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }, may_choose_new_targets: true }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "U"])), Tap, Exile(Objects { quant: N(N(7)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [AddMana(Symbols(Mana(["U"]))), DelayedWhen { event: ManaSpent([CastOrActivate(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } })]), then: [Copy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }, may_choose_new_targets: true }] }], limits: [] }
 
 ## Super-Adaptoid
 face: Super-Adaptoid

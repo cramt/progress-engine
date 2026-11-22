@@ -2744,6 +2744,10 @@ fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
         if i > 0 {
             o.w("or");
         }
+        if let SpendUse::CastOrActivate(_) = u {
+            o.w("to cast a spell or activate an ability");
+            continue;
+        }
         if *u == SpendUse::CostsWithX {
             o.w("on costs that contain");
             o.tok(Tok::Sym("X".into()));
@@ -2753,9 +2757,10 @@ fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
         // "to" said once for both.
         let verb = match u {
             SpendUse::Cast(_) => "cast",
-            SpendUse::ActivateAbilityOf(_) | SpendUse::ActivateAny | SpendUse::CostsWithX => {
-                "activate"
-            }
+            SpendUse::ActivateAbilityOf(_)
+            | SpendUse::ActivateAny
+            | SpendUse::CostsWithX
+            | SpendUse::CastOrActivate(_) => "activate",
         };
         let with_to = out(|o| o.w(&format!("to {verb}")));
         if i > 0 {
@@ -2770,7 +2775,7 @@ fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
                 objects(o, x);
             }
             SpendUse::ActivateAny => syn::an_ability(o),
-            SpendUse::CostsWithX => {}
+            SpendUse::CostsWithX | SpendUse::CastOrActivate(_) => {}
         }
     }
 }
