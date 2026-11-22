@@ -81,7 +81,10 @@ is gated again against a fresh baseline measured at origin in a worktree,
 then pushed, up to three rebases. A conflict, a failed re-gate, a fourth
 rejection or a git error parks the commits on `insight/unpushed-<n>`, resets
 to origin and escalates. After a rebase, review and metrics compare against
-origin's baseline, so the human's commits are not counted as the batch's.
+origin's baseline, so the human's commits are not counted as the batch's. A
+`finish` that finds HEAD already rebased past the baseline (a push that
+rebased and died before pushing) measures the baseline at the origin commit
+it sits on, for the same reason.
 
 The current milestone is the first in `milestones.json` not both at 100% and
 pinned, where pinned means `golden/<name>.txt` holds as many cards as the

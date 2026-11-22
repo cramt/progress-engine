@@ -30,6 +30,7 @@ import {
   parkAndReset,
   preflight,
   pushRebasing,
+  rebasedOnto,
   setBranch,
   type Unpushed,
 } from "./git.ts";
@@ -796,6 +797,18 @@ async function finish(): Promise<number> {
   const report = readReport(dir);
   if (report.escalations.length)
     escalate(f.batch, "writer", report.escalations);
+  const onto = await rebasedOnto(REPO, f.baseline.head);
+  if (onto) {
+    log(
+      "finish",
+      `HEAD was rebased onto origin ${onto.slice(0, 7)}, past the baseline ${f.baseline.head.slice(0, 7)}; measuring the baseline there`,
+    );
+    f = {
+      ...f,
+      baseline: await measureAt(onto, join(dir, "baseline-onto.snap")),
+      lastGate: null,
+    };
+  }
   const commits = (await commitsSince(REPO, f.baseline.head)).length;
   const head = await must("git", ["rev-parse", "HEAD"], { cwd: REPO });
   const clean = !(await dirty(REPO));

@@ -88,6 +88,24 @@ export async function batchCommitOnOrigin(
   return mine.find((c) => onOrigin.has(c.sha))?.sha ?? null;
 }
 
+/**
+ * The origin commit HEAD now sits on, when that is past `baseline`: the
+ * batch's commits were rebased onto a newer origin (a push that rebased and
+ * then died before pushing, or the writer pulling). Its commits are then the
+ * ones past that commit, and origin's own past the baseline are not the
+ * batch's. Null when HEAD still grows from the baseline.
+ */
+export async function rebasedOnto(
+  repo: string,
+  baseline: string,
+): Promise<string | null> {
+  await must("git", ["fetch", "-q", "origin", BRANCH], { cwd: repo });
+  const mb = await must("git", ["merge-base", "HEAD", `origin/${BRANCH}`], {
+    cwd: repo,
+  });
+  return mb !== baseline && (await isAncestor(repo, baseline, mb)) ? mb : null;
+}
+
 export type Preflight =
   | { kind: "ready"; head: string }
   | { kind: "refused"; reason: string };

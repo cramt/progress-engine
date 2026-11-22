@@ -7,8 +7,10 @@ import { test } from "node:test";
 import { pinnedCards, ratchets } from "./gates.ts";
 import {
   batchCommitOnOrigin,
+  commitsSince,
   preflight,
   pushRebasing,
+  rebasedOnto,
   setBranch,
 } from "./git.ts";
 import {
@@ -361,6 +363,22 @@ test("gate: origin moving is the writer pushing only when it holds a batch commi
   commit(r2.driver, "d.txt", "writer\n", "insight: d");
   git(r2.driver, "push", "-q", "origin", `${mine}:main`);
   assert.equal(await batchCommitOnOrigin(r2.driver, base2), mine);
+});
+
+test("finish: a batch rebased onto a newer origin counts from there, not from its baseline", async () => {
+  const r = repos();
+  const baseline = git(r.driver, "rev-parse", "HEAD");
+  commit(r.driver, "b.txt", "writer\n", "insight: b");
+  assert.equal(await rebasedOnto(r.driver, baseline), null);
+  const onto = humanPushes(r, "c.txt", "human\n");
+  git(r.driver, "pull", "-q", "--rebase", "origin", "main");
+  humanPushes(r, "d.txt", "human again\n");
+  assert.equal(await rebasedOnto(r.driver, baseline), onto);
+  assert.equal(await batchCommitOnOrigin(r.driver, onto), null);
+  assert.deepEqual(
+    (await commitsSince(r.driver, onto)).map((c) => c.subject),
+    ["insight: b"],
+  );
 });
 
 // ---------- a driver branch that takes in main ----------
