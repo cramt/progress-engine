@@ -5487,6 +5487,15 @@ impl Game {
                         }
                     }
                 }
+                Effect::ToGraveyard { cards, from } => {
+                    for c in self.still_found(&at, cards, from) {
+                        let owner = self.owner(c);
+                        let player = &mut self.players[owner.0 as usize];
+                        player.library.retain(|x| *x != c);
+                        player.hand.retain(|x| *x != c);
+                        player.graveyard.push_back(c);
+                    }
+                }
                 Effect::IfControl { control, .. } => {
                     let all = self.characteristics();
                     let n = all

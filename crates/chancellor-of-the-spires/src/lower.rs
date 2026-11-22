@@ -1388,6 +1388,12 @@ pub enum Effect {
         top: bool,
         from: FoundIn,
     },
+    /// "The rest into your graveyard": each card found goes to its
+    /// owner's graveyard (CR 400.3), Strategic Planning's two.
+    ToGraveyard {
+        cards: Cards,
+        from: FoundIn,
+    },
     /// "You may reveal that card": the cards bound to `cards`, looked at
     /// by their controller alone, are revealed to everyone (CR 701.20a)
     /// and bound to `into`, which a "revealed this way" reads.
@@ -3020,12 +3026,18 @@ impl<'a> Scope<'a> {
                         cards,
                         tapped: *tapped,
                     },
-                    (i::Zone::BottomOfLibrary(i::Player::You), Some(i::Order::Any)) => {
+                    // "The other on the bottom of your library": with no
+                    // order said, its owner arranges them, as for "in any
+                    // order" (CR 401.4).
+                    (i::Zone::BottomOfLibrary(i::Player::You), Some(i::Order::Any) | None) => {
                         Effect::ToLibrary {
                             cards,
                             top: false,
                             from,
                         }
+                    }
+                    (i::Zone::Graveyard(i::Player::You), None) => {
+                        Effect::ToGraveyard { cards, from }
                     }
                     _ => return Err(format!("{} of found cards", node())),
                 }

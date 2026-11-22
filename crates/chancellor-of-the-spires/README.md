@@ -990,7 +990,9 @@ its trigger counts, and Thespian's Stage becoming a Cloudpost that keeps
 its copy ability, and Goblin Cadets, blocked, triggering once and going
 to its attacker's opponent, out of combat, and Prismatic Omen making
 Forests Mountains and Islands, and two Valakuts entering at once
-triggering four times. `tests/oracle.rs` reads Skyknight Squire flying
+triggering four times, and Sleight of Hand bottoming the card not
+chosen and Strategic Planning putting the two not chosen into the
+graveyard. `tests/oracle.rs` reads Skyknight Squire flying
 and a Knight from its third +1/+1 counter.
 
 ### The milestone
@@ -1019,8 +1021,8 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-22 92 of the 500 replay to
-the end and 47.45% of their lines are followed** (15,023 of 31,659), 2
-of them relying on a land the log never names (1 to the end), and 93
+the end and 48.03% of their lines are followed** (15,206 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 98
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1097,7 +1099,9 @@ basic land type added in layer 4, with each one's mana ability, and the
 permanents one instruction puts onto the battlefield entering at once,
 each seeing the others enter (Prismatic Omen, and two Valakuts Hour of
 Promise finds triggering four times); a static ability existing as long
-as its permanent has so many counters of a kind (Skyknight Squire). And
+as its permanent has so many counters of a kind (Skyknight Squire); the
+cards looked at put on the bottom with no order said (Sleight of Hand)
+or into a graveyard (Strategic Planning). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1135,9 +1139,9 @@ Enchantress triggers with Enchantress's Presence's between them). One divergence
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
 top of the worklist now: Elephant Grass's cumulative upkeep (7),
-Veteran Survivor (6), Adeline, Eternal Dragon's landcycling, Fact or
-Fiction, Michelangelo's Technique, Powder Keg, Sleight of Hand and
-Strategic Planning (5 each); of the 7 games Quicksilver stopped, one replays to
+Veteran Survivor (6), Adeline, Cunning Nightbonder, Eternal Dragon's
+landcycling, Fact or Fiction, Michelangelo's Technique and Powder Keg
+(5 each); of the 7 games Quicksilver stopped, one replays to
 the end, four stop at Blazing Shoal's exile from hand, one at Wayward
 Guide-Beast and one at Frostboil Snarl; of the 9 games a counter line before an
 activation stopped, Triskelion's replays to the end, Quest for Pure

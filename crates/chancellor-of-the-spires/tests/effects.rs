@@ -1282,6 +1282,54 @@ fn impulse_takes_one_of_four_and_bottoms_the_rest_in_order() {
     assert_eq!(game.bottomed(), 3);
 }
 
+/// CR 401.4: Sleight of Hand looks at the top two, puts the one chosen
+/// into my hand and the other on the bottom, no order to give for one.
+#[test]
+fn sleight_of_hand_takes_one_of_two_and_bottoms_the_other() {
+    let mut game = deal(
+        &[("Island", 30), ("Sleight of Hand", 30)],
+        &[("Forest", 60)],
+        &[("Island", 1), ("Sleight of Hand", 1)],
+    );
+    play(&mut game, "Island");
+    cast(&mut game, "Sleight of Hand", None);
+    let two: Vec<CardId> = game.player(ME).library().iter().take(2).copied().collect();
+    let Decision::ChooseAmong { cards, n, .. } = resolve(&mut game) else {
+        panic!("a choice of one")
+    };
+    assert_eq!((cards, n), (two.clone(), 1));
+    step(&mut game, Answer::Choose(vec![two[1]]));
+    assert!(game.player(ME).hand().contains(&two[1]));
+    assert_eq!(game.player(ME).library().back(), Some(&two[0]));
+    assert_eq!(game.bottomed(), 1);
+}
+
+/// CR 400.3: Strategic Planning looks at the top three, puts the one
+/// chosen into my hand and the other two into my graveyard.
+#[test]
+fn strategic_planning_takes_one_of_three_and_puts_the_rest_in_the_graveyard() {
+    let mut game = deal(
+        &[("Island", 30), ("Strategic Planning", 30)],
+        &[("Forest", 60)],
+        &[("Island", 2), ("Strategic Planning", 1)],
+    );
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    cast(&mut game, "Strategic Planning", None);
+    let three: Vec<CardId> = game.player(ME).library().iter().take(3).copied().collect();
+    let Decision::ChooseAmong { cards, n, .. } = resolve(&mut game) else {
+        panic!("a choice of one")
+    };
+    assert_eq!((cards, n), (three.clone(), 1));
+    step(&mut game, Answer::Choose(vec![three[0]]));
+    assert!(game.player(ME).hand().contains(&three[0]));
+    let graveyard = game.player(ME).graveyard();
+    assert!(graveyard.contains(&three[1]) && graveyard.contains(&three[2]));
+    assert!(!game.player(ME).library().contains(&three[1]));
+    assert_eq!(game.bottomed(), 0);
+}
+
 /// CR 103.6, 103.6a, 702.11c, 115.4: after the mulligans, Leyline of
 /// Sanctity in my opening hand may begin the game on the battlefield;
 /// then I have hexproof, and their Duress can't target me.
