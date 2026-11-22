@@ -319,12 +319,13 @@ fn cleanup_discards_down_to_seven_as_a_decision() {
     let Decision::Discard {
         player,
         count,
+        random,
         hand,
     } = d
     else {
         panic!("expected a discard, got {d:?}");
     };
-    assert_eq!((player, count, hand.len()), (THEM, 1, 8));
+    assert_eq!((player, count, random, hand.len()), (THEM, 1, false, 8));
     for wrong in [vec![], vec![hand[0], hand[0]], vec![hand[0], hand[1]]] {
         assert!(matches!(
             game.step(Answer::Discard(wrong)),
@@ -898,7 +899,8 @@ fn loam_goldfished_casts_what_it_can() {
             // Deep Analysis draws two (CR 121.2); its flashback is
             // carried, never offered.
             vec!["Mountain", "cast Deep Analysis"],
-            vec!["Command Beacon"],
+            // Its discard is at random (CR 701.9b), the first card.
+            vec!["Command Beacon", "cast Desperate Ravings"],
             // Unpaid, it enters tapped (CR 614.12a).
             vec!["Breeding Pool"],
         ]
@@ -1030,7 +1032,7 @@ fn loam_coverage() {
     }
     assert_eq!(cards.len(), 90);
     // The README's number: a change that moves it updates it there.
-    assert_eq!((runs.len(), whole.len()), (42, 31));
+    assert_eq!((runs.len(), whole.len()), (43, 32));
 }
 
 fn hidden(n: usize) -> DeckCards {

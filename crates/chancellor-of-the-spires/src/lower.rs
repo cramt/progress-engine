@@ -1386,11 +1386,13 @@ pub enum Effect {
         n: Amount,
     },
     /// "Discard two cards": the player chooses which (CR 701.9a), bound
-    /// to `into` for "each land card discarded this way".
+    /// to `into` for "each land card discarded this way"; "at random",
+    /// chance does (CR 701.9b).
     Discard {
         who: Who,
         n: u32,
         into: Slot,
+        random: bool,
     },
     /// "Target player reveals their hand. You choose a nonland card from
     /// it. That player discards that card." (CR 701.20a, 701.9a): the
@@ -1903,8 +1905,14 @@ pub enum TriggerEvent {
     /// "Whenever this creature deals damage to a player", "… deals combat
     /// damage to a player": a permanent the filter matches deals damage to
     /// a player, once for each player dealt damage at once (CR 120.3,
-    /// 510.2), only combat damage if `combat`.
-    DealsDamageToPlayer { what: Filter, combat: bool },
+    /// 510.2), only combat damage if `combat`, only to an opponent of its
+    /// controller if `opponent` ("… to an opponent"). That player is the
+    /// event's.
+    DealsDamageToPlayer {
+        what: Filter,
+        combat: bool,
+        opponent: bool,
+    },
     /// "Whenever this creature deals damage": a permanent the filter
     /// matches deals damage to anything, the amount all it dealt at once
     /// (CR 120.3, 510.2).
@@ -2081,7 +2089,9 @@ pub fn triggered(
     );
     scope.caster = matches!(
         event,
-        TriggerEvent::Casts { .. } | TriggerEvent::Draws { .. }
+        TriggerEvent::Casts { .. }
+            | TriggerEvent::Draws { .. }
+            | TriggerEvent::DealsDamageToPlayer { .. }
     );
     let lowered = scope.effects(effect)?;
     scope.program.effects = lowered;
@@ -2156,12 +2166,17 @@ fn when(e: &i::Event, bound: &dyn Fn(&Objects) -> Objects) -> Result<TriggerEven
         i::Event::Blocks(what) => TriggerEvent::Blocks(entering(what)?),
         i::Event::BecomesBlocked(what) => TriggerEvent::BecomesBlocked(entering(what)?),
         i::Event::DealsDamageTo { what, to }
-            if matches!(to.as_slice(), [i::Recipient::Player(i::Player::APlayer)])
-                && what.filter.kind != Some(i::Noun::Source) =>
+            if matches!(
+                to.as_slice(),
+                [i::Recipient::Player(
+                    i::Player::APlayer | i::Player::AnOpponent
+                )]
+            ) && what.filter.kind != Some(i::Noun::Source) =>
         {
             TriggerEvent::DealsDamageToPlayer {
                 what: entering(what)?,
                 combat: false,
+                opponent: matches!(to.as_slice(), [i::Recipient::Player(i::Player::AnOpponent)]),
             }
         }
         i::Event::DealsDamageTo { what, to }
@@ -2184,6 +2199,7 @@ fn when(e: &i::Event, bound: &dyn Fn(&Objects) -> Objects) -> Result<TriggerEven
         i::Event::DealsCombatDamageToPlayer(what) => TriggerEvent::DealsDamageToPlayer {
             what: entering(what)?,
             combat: true,
+            opponent: false,
         },
         // A spell cast by itself triggers from the stack, where
         // nothing looks for triggers yet.
@@ -2822,15 +2838,12 @@ impl<'a> Scope<'a> {
                     _ => Amount::N(n(k)?),
                 },
             },
-            i::Effect::Discard {
-                who,
-                what,
-                random: false,
-            } if what.filter
-                == (i::Filter {
-                    kind: Some(i::Noun::Card),
-                    ..i::Filter::default()
-                }) =>
+            i::Effect::Discard { who, what, random }
+                if what.filter
+                    == (i::Filter {
+                        kind: Some(i::Noun::Card),
+                        ..i::Filter::default()
+                    }) =>
             {
                 let k = match &what.quant {
                     Quant::One => 1,
@@ -2843,6 +2856,7 @@ impl<'a> Scope<'a> {
                     who: self.who(who)?,
                     n: k,
                     into,
+                    random: *random,
                 }
             }
             i::Effect::LoseLife { who, n: k } => Effect::LoseLife {

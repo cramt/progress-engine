@@ -592,6 +592,57 @@ fn an_unblocked_creature_deals_its_power_to_the_player() {
     assert_eq!(game.player(THEM).life(), 18);
 }
 
+/// CR 510.2, 603.2, 701.9b: Hypnotic Specter's combat damage to an
+/// opponent triggers, and that player discards a card at random: chance's
+/// pick, which the decision says, of their hand.
+#[test]
+fn hypnotic_specter_makes_the_opponent_it_damages_discard_at_random() {
+    let mut game = deal(
+        &[("Swamp", 40), ("Hypnotic Specter", 20)],
+        &[("Forest", 60)],
+        &[("Swamp", 3), ("Hypnotic Specter", 1)],
+    );
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(&mut game, "Hypnotic Specter", None);
+    resolve(&mut game);
+    let specter = creature(&game, "Hypnotic Specter").unwrap();
+    my_next_main(&mut game);
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(specter, THEM)]));
+    let hand = game.player(THEM).hand().clone();
+    let d = (0..20)
+        .find_map(|_| match game.decision() {
+            d @ Decision::Discard { .. } => Some(d),
+            Decision::Blockers { .. } => {
+                step(&mut game, Answer::Block(vec![]));
+                None
+            }
+            _ => {
+                step(&mut game, Answer::Act(Action::Pass));
+                None
+            }
+        })
+        .expect("a discard");
+    let Decision::Discard {
+        player,
+        count,
+        random,
+        hand: from,
+    } = d
+    else {
+        unreachable!()
+    };
+    assert_eq!((player, count, random), (THEM, 1, true));
+    assert_eq!(from, hand.iter().copied().collect::<Vec<_>>());
+    assert_eq!(game.player(THEM).life(), 18);
+    step(&mut game, Answer::Discard(vec![from[0]]));
+    assert!(game.player(THEM).graveyard().contains(&from[0]));
+}
+
 /// CR 509.1a, 702.9b, 510.1c–d, 704.5g: Grizzly Bears can't block Storm
 /// Crow, which flies; blocking Grizzly Bears they trade, each dealt
 /// lethal damage.

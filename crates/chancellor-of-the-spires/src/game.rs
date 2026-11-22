@@ -840,8 +840,12 @@ enum Event {
     Cast { card: CardId, controller: PlayerId },
     /// These permanents were dealt this much damage, at once.
     Damaged(BTreeMap<ObjectId, u32>),
-    /// This permanent dealt damage to a player, combat damage or not.
-    DamagedPlayer { source: ObjectId, combat: bool },
+    /// This permanent dealt damage to this player, combat damage or not.
+    DamagedPlayer {
+        source: ObjectId,
+        player: PlayerId,
+        combat: bool,
+    },
     /// This permanent dealt this much damage, to anything, at once.
     DealtBy { source: ObjectId, amount: u32 },
     /// This permanent was turned face up (CR 702.37e).
@@ -992,6 +996,7 @@ enum Waiting {
     Discard {
         player: PlayerId,
         count: usize,
+        random: bool,
         then: Option<(Resuming, Slot)>,
     },
     /// `player` chooses targets for each of `slots` (CR 601.2c, 603.3d).
@@ -1267,10 +1272,13 @@ pub enum Decision {
     },
     /// Discard exactly `count` distinct cards of `hand` (CR 514.1). The
     /// legal answers are every such set, given by their rule rather than
-    /// listed.
+    /// listed. If `random`, the cards are chance's and not the player's
+    /// (CR 701.9b): whoever answers stands in for chance, a replay with
+    /// what its log says was discarded.
     Discard {
         player: PlayerId,
         count: usize,
+        random: bool,
         hand: Vec<CardId>,
     },
     /// CR 903.9a: the commander went to a graveyard or exile, and its
@@ -2582,9 +2590,15 @@ impl Game {
                 count: *count,
                 hand: self.player(*player).hand.iter().copied().collect(),
             },
-            Waiting::Discard { player, count, .. } => Decision::Discard {
+            Waiting::Discard {
+                player,
+                count,
+                random,
+                ..
+            } => Decision::Discard {
                 player: *player,
                 count: *count,
+                random: *random,
                 hand: self.player(*player).hand.iter().copied().collect(),
             },
             Waiting::Targets {
@@ -3121,6 +3135,7 @@ impl Game {
                     player,
                     count,
                     then,
+                    ..
                 },
                 Answer::Discard(cards),
             ) if self.can_discard(player, count, cards) => {
@@ -5484,13 +5499,19 @@ impl Game {
                         }
                     }
                 }
-                Effect::Discard { who: w, n, into } => {
+                Effect::Discard {
+                    who: w,
+                    n,
+                    into,
+                    random,
+                } => {
                     let Some(q) = who(w) else { continue };
                     let count = (n as usize).min(self.player(q).hand.len());
                     if count > 0 {
                         self.waiting = Waiting::Discard {
                             player: q,
                             count,
+                            random,
                             then: Some((resume, into)),
                         };
                         return;
@@ -6520,7 +6541,11 @@ impl Game {
         }
         for player in hit.players {
             if let Some(source) = by {
-                self.trigger_on(Event::DamagedPlayer { source, combat });
+                self.trigger_on(Event::DamagedPlayer {
+                    source,
+                    player,
+                    combat,
+                });
             }
             self.trigger_on(Event::PlayerDamaged { player, controller });
         }
@@ -6905,13 +6930,25 @@ impl Game {
                             .map(|(id, n)| (Some(*id), Some(*n)))
                             .collect(),
                         (
-                            TriggerEvent::DealsDamageToPlayer { what, combat },
-                            Event::DamagedPlayer { source, combat: c },
-                        ) if all.contains_key(source) && (*c || !combat) => what
-                            .matches(&seen(*source))
-                            .then_some((None, None))
-                            .into_iter()
-                            .collect(),
+                            TriggerEvent::DealsDamageToPlayer {
+                                what,
+                                combat,
+                                opponent,
+                            },
+                            Event::DamagedPlayer {
+                                source,
+                                player,
+                                combat: c,
+                            },
+                        ) if all.contains_key(source)
+                            && (*c || !combat)
+                            && (!opponent || *player != chars.controller) =>
+                        {
+                            what.matches(&seen(*source))
+                                .then_some((None, None))
+                                .into_iter()
+                                .collect()
+                        }
                         (TriggerEvent::DealsDamage(f), Event::DealtBy { source, amount }) => {
                             (all.contains_key(source) && f.matches(&seen(*source)))
                                 .then_some((None, Some(*amount)))
@@ -7056,6 +7093,7 @@ impl Game {
                 let player = match &event {
                     Event::Cast { controller, .. } => Some(*controller),
                     Event::Drew(q) => Some(*q),
+                    Event::DamagedPlayer { player, .. } => Some(*player),
                     _ => None,
                 };
                 // CR 603.4: an intervening "if" checked as it triggers.
@@ -7533,6 +7571,7 @@ impl Game {
         for (s, controller, player) in hit_players {
             self.trigger_on(Event::DamagedPlayer {
                 source: s,
+                player,
                 combat: true,
             });
             self.trigger_on(Event::PlayerDamaged { player, controller });
@@ -8141,6 +8180,7 @@ impl Game {
                         self.waiting = Waiting::Discard {
                             player: self.active,
                             count,
+                            random: false,
                             then: None,
                         };
                         return;
