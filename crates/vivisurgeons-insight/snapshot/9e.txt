@@ -236,7 +236,7 @@ cost: {1}{W}
 > As this enchantment enters, choose a planeswalker type.
 > Planeswalkers you control of the chosen type have hexproof.
 > As long as you control a creature, if damage dealt to a planeswalker you control of the chosen type would result in all loyalty counters on it being removed, instead all but one of those counters are removed.
-= BROKE at "." after: as this enchantment enters , choose a planeswalker type
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(PlaneswalkerType)] }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You), OfChosenType], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }])
 = BROKE at "dealt" after: as long as you control a creature , if damage
 

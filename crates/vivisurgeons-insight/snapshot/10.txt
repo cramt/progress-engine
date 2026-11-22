@@ -663,7 +663,7 @@ type: Sorcery
 cost: {2}{U}
 > Choose a nonbasic land type. Each land you control of that type becomes a copy of target creature you control until end of turn and gains haste until end of turn.
 > Flashback {4}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= BROKE at "." after: choose a nonbasic land type
+= BROKE at "haste" after: choose a nonbasic land type . each land you control of that type becomes a copy of target creature you control until end of turn and gains
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["4", "U"]))])) }])
 
 ## Marchesa's Emissary

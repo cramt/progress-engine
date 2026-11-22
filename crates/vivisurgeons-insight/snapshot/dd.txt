@@ -641,7 +641,7 @@ face: Multiversal Passage
 type: Land
 > As this land enters, choose a basic land type. Then you may pay 2 life. If you don't, it enters tapped.
 > This land is the chosen type.
-= BROKE at "." after: as this land enters , choose a basic land type
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(BasicLandType), May { who: You, then: [Pay { who: You, cost: [PayLife(N(2))] }] }, IfYouDont([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])] }])
 = BROKE at "." after: this land is the chosen type
 
 ## Murmurs from Beyond

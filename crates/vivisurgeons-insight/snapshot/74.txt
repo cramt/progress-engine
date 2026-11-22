@@ -987,7 +987,7 @@ type: Enchantment
 cost: {2}{U}{U}
 > As this enchantment enters, choose a land type.
 > Each land of the chosen type has phasing. (It phases in or out before its controller untaps during each of their untap steps. While it's phased out, it's treated as though it doesn't exist.)
-= BROKE at "." after: as this enchantment enters , choose a land type
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(LandType)] }])
 = Static([Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("land")]], kind: None, posts: [OfChosenType], or: None } }, pt: None, has: [Keyword { name: "phasing", param: None }], per: None }])
 
 ## Shimmer Myr

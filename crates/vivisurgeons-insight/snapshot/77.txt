@@ -577,7 +577,7 @@ cost: {U}{R}{W}
 > Flying, vigilance
 > Whenever Leori deals combat damage to a player, choose a planeswalker type. Until end of turn, whenever you activate an ability of a planeswalker of that type, copy that ability. You may choose new targets for the copies.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
-= BROKE at "." after: whenever ~ deals combat damage to a player , choose a planeswalker type
+= BROKE at "planeswalker" after: whenever ~ deals combat damage to a player , choose a planeswalker type . until end of turn , whenever you activate an ability of a
 
 ## Lethal Throwdown
 face: Lethal Throwdown

@@ -319,7 +319,7 @@ cost: {2}
 > When this artifact enters, draw a card.
 > Sacrifice this artifact: Choose a basic land type. Each land you control becomes that type until end of turn.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "." after: sacrifice this artifact : choose a basic land type
+= BROKE at "that" after: sacrifice this artifact : choose a basic land type . each land you control becomes
 
 ## Embereth Veteran
 face: Embereth Veteran

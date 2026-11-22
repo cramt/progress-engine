@@ -4441,6 +4441,15 @@ pub enum Choice {
     /// "choose odd or even": a parity, zero being even.
     OddOrEven,
     CreatureType,
+    /// "choose a land type": any of the land types (CR 205.3i).
+    LandType,
+    /// "choose a basic land type": Forest, Island, Mountain, Plains or
+    /// Swamp (CR 205.3i).
+    BasicLandType,
+    /// "choose a nonbasic land type": a land type other than those five.
+    NonbasicLandType,
+    /// "choose a planeswalker type" (CR 205.3j).
+    PlaneswalkerType,
     CardType,
     /// "choose a permanent type": artifact, battle, creature, enchantment,
     /// land or planeswalker (CR 110.4).

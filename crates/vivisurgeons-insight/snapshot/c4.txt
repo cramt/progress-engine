@@ -995,7 +995,7 @@ type: Land — Gate
 > This land is the chosen type in addition to its other types.
 > Mana abilities of this land cost an additional 1 life to activate.
 = Static([EntersTappedUnless { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: YouControl(Objects { quant: AtMost(N(2)), filter: Filter { alts: [[State(Other), Type("land")]], kind: None, posts: [], or: None } }) }])
-= BROKE at "." after: as this land enters , choose a basic land type
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(BasicLandType)] }])
 = Static([AlsoIs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Chosen }])
 = BROKE at "additional" after: mana abilities of this land cost an
 

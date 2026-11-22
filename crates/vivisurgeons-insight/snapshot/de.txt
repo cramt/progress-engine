@@ -46,7 +46,7 @@ face: Barbarian Guides
 type: Creature — Human Barbarian
 cost: {2}{R}
 > {2}{R}, {T}: Choose a land type. Target creature you control gains snow landwalk of the chosen type until end of turn. Return that creature to its owner's hand at the beginning of the next end step. (It can't be blocked as long as defending player controls a snow land of that type.)
-= BROKE at "." after: {2} {R} , {T} : choose a land type
+= BROKE at "snow" after: {2} {R} , {T} : choose a land type . target creature you control gains
 
 ## Bartz and Boko
 face: Bartz and Boko

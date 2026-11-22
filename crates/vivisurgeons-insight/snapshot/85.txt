@@ -859,7 +859,7 @@ type: Creature — Vedalken Wizard
 cost: {U}
 > As this creature enters, choose a basic land type.
 > Lands you control are the chosen type in addition to their other types.
-= BROKE at "." after: as this creature enters , choose a basic land type
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(BasicLandType)] }])
 = Static([AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, types: Chosen }])
 
 ## Reckless Pangolin

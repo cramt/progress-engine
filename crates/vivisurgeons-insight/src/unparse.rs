@@ -10875,6 +10875,10 @@ fn choice(o: &mut Out, c: &Choice) {
         }
         Choice::OddOrEven => o.w("odd or even"),
         Choice::CreatureType => o.w("a creature type"),
+        Choice::LandType => o.w("a land type"),
+        Choice::BasicLandType => o.w("a basic land type"),
+        Choice::NonbasicLandType => o.w("a nonbasic land type"),
+        Choice::PlaneswalkerType => o.w("a planeswalker type"),
         Choice::CardType => o.w("a card type"),
         Choice::PermanentType => o.w("a permanent type"),
         Choice::CardName => o.w("a card name"),

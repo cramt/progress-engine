@@ -855,7 +855,7 @@ face: Terraformer
 type: Creature — Human Wizard
 cost: {2}{U}
 > {1}: Choose a basic land type. Each land you control becomes that type until end of turn.
-= BROKE at "." after: {1} : choose a basic land type
+= BROKE at "that" after: {1} : choose a basic land type . each land you control becomes
 
 ## The Book of Exalted Deeds
 face: The Book of Exalted Deeds

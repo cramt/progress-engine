@@ -185,7 +185,7 @@ cost: {1}{U}
 > As this Aura enters, choose a basic land type.
 > Enchanted land is the chosen type.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "." after: as this aura enters , choose a basic land type
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(BasicLandType)] }])
 = BROKE at "." after: enchanted land is the chosen type
 
 ## Crucible of the Spirit Dragon
