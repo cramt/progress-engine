@@ -562,7 +562,7 @@ cost: {4}{G}{G}
 > This spell costs {1} less to cast for each creature card in your graveyard.
 > {7}{G}{G}: Monstrosity 5. This ability costs {1} less to activate for each creature card in your graveyard. (If this creature isn't monstrous, put five +1/+1 counters on it and it becomes monstrous.)
 = Static([CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }])
-= Activated { cost: [Mana(Mana(["7", "G", "G"]))], effect: [Action { by: None, name: "monstrosity", n: Some(N(5)) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["7", "G", "G"]))], effect: [Action { by: None, name: "monstrosity", n: Some(N(5)) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })), cond: None }] }
 
 ## Obscuring Aether
 face: Obscuring Aether

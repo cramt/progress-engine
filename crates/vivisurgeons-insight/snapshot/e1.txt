@@ -662,7 +662,7 @@ face: Sanctum of Tranquil Light
 type: Legendary Enchantment — Shrine
 cost: {W}
 > {5}{W}: Tap target creature. This ability costs {1} less to activate for each Shrine you control.
-= Activated { cost: [Mana(Mana(["5", "W"]))], effect: [Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Subtype("shrine")]], kind: None, posts: [Controller(You)], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["5", "W"]))], effect: [Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("shrine")]], kind: None, posts: [Controller(You)], or: None } })), cond: None }] }
 
 ## Saruli Gatekeepers
 face: Saruli Gatekeepers

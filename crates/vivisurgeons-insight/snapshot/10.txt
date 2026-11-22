@@ -216,7 +216,7 @@ cost: {1}
 > Equipped creature gets +2/+2 and has hexproof from monocolored.
 > Equip {4}. This ability costs {1} less to activate for each color of the creature it targets.
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "hexproof", param: Some(Colors([Monocolored])) }], per: None }])
-= BROKE at "this" after: equip {4} .
+= KeywordLimits { keyword: Keyword { name: "equip", param: Some(Cost([Mana(Mana(["4"]))])) }, limits: [CostChange { by: Mana(["1"]), less: true, per: Some(NumberOfColors(ColorsOf(Objects { quant: TargetOf(Objects { quant: ThisAbility, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }))), cond: None }] }
 
 ## Dreamcatcher
 face: Dreamcatcher

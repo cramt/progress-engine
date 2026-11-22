@@ -576,7 +576,7 @@ fn x_bound(a: &Ability) -> bool {
             )
         }
         Ability::Spree { cost, .. } => cost.0.iter().any(|s| s == "X"),
-        Ability::Keywords(_) | Ability::KeywordOn { .. } => true,
+        Ability::Keywords(_) | Ability::KeywordOn { .. } | Ability::KeywordLimits { .. } => true,
         Ability::Static(s) => format!("{s:?}").contains("Where {"),
         _ => false,
     }

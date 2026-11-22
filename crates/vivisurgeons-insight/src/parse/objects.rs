@@ -1926,6 +1926,13 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             let filter = filter(p)?;
             Some(Objects { quant: Quant::SelfOrAnother(Box::new(first)), filter })
         },
+        // "the creature it targets": what an ability or spell "it" targets.
+        |p| {
+            p.word("the")?;
+            let filter = filter(p)?;
+            p.words("it targets")?;
+            Some(Objects { quant: Quant::TargetOf(Box::new(antecedent())), filter })
+        },
         // "the artifact with the greatest mana value": one, picked out by
         // the post, not an earlier noun.
         |p| {

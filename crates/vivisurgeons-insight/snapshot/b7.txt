@@ -1074,7 +1074,7 @@ cost: {2}{G}
 > Put a +1/+1 counter on target creature, then double the number of +1/+1 counters on it.
 > Flashback {8}{G}{G}. This spell costs {X} less to cast this way, where X is the greatest mana value of a commander you own on the battlefield or in the command zone. (You may cast this card from your graveyard for its flashback cost. Then exile it.)
 = Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, DoubleCounters { kind: Some("+1/+1"), on: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }]) }
-= BROKE at "this" after: flashback {8} {G} {G} .
+= BROKE at "spell" after: flashback {8} {G} {G} . this
 
 ## Yavimaya Steelcrusher
 face: Yavimaya Steelcrusher

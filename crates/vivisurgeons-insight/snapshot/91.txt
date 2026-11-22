@@ -331,7 +331,7 @@ cost: {B}
 > {6}{B}: Adapt 4. This ability costs {1} less to activate for each other artifact you control. (If this creature has no +1/+1 counters on it, put four +1/+1 counters on it.)
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CanBlockOnly(Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None }) }])
-= Activated { cost: [Mana(Mana(["6", "B"]))], effect: [Action { by: None, name: "adapt", n: Some(N(4)) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["6", "B"]))], effect: [Action { by: None, name: "adapt", n: Some(N(4)) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } })), cond: None }] }
 
 ## Exhibition Magician
 face: Exhibition Magician

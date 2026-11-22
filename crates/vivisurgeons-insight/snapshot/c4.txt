@@ -983,7 +983,7 @@ cost: {1}{U}
 > Kicker {X}. X can't be 0. (You may pay an additional {X} as you cast this spell.)
 > Flying
 > When this creature enters, if it was kicked, gain control of target artifact with mana value X or less. If that artifact is an Equipment, attach it to this creature.
-= BROKE at "x" after: kicker {X} .
+= BROKE at "<end>" after: kicker {X} . x can't be 0 .
 = Keywords([Keyword { name: "flying", param: None }])
 = Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [With(Compare { stat: ManaValue, op: Le, value: X })], or: None } }], ability: Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), WasKicked), effect: [GainControl { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: Permanent }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } }, then: [Attach { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] } }
 

@@ -1168,7 +1168,7 @@ cost: {2}{R}{W}
 > Equip {3}. This ability costs {1} less to activate for each +1/+1 counter on the creature it targets.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, GainLife { who: You, n: N(3) }], limits: [] }
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), has: [], per: None }])
-= BROKE at "this" after: equip {3} .
+= BROKE at "targets" after: equip {3} . this ability costs {1} less to activate for each <pt> counter on the creature it
 
 ## Wayfaring Giant
 face: Wayfaring Giant

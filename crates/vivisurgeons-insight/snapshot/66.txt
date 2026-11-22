@@ -971,7 +971,7 @@ cost: {4}
 > When this creature enters, put a +1/+1 counter on target creature you control.
 > {4}, {T}: Draw a card. This ability costs {1} less to activate for each modified creature you control. (Equipment, Auras you control, and counters are modifications.)
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
-= Activated { cost: [Mana(Mana(["4"])), Tap], effect: [Draw { who: You, n: N(1) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Modified), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["4"])), Tap], effect: [Draw { who: You, n: N(1) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Modified), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), cond: None }] }
 
 ## Triceraton Commander
 face: Triceraton Commander

@@ -58,6 +58,12 @@ impl Walk for Ability {
                     Walk::walk(x0, v);
                 }
             }
+            Ability::KeywordLimits { keyword, limits } => {
+                Walk::walk(keyword, v);
+                for x0 in (limits).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Ability::Activated {
                 cost,
                 effect,
@@ -2474,6 +2480,9 @@ impl Walk for Quant {
                 Walk::walk(n, v);
             }
             Quant::SourceOf(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
+            Quant::TargetOf(f0) => {
                 Walk::walk(&mut **f0, v);
             }
             Quant::AtLeast(f0) => {

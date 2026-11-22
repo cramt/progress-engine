@@ -99,6 +99,14 @@ pub enum Ability {
         ability: Box<Ability>,
     },
     Keywords(Vec<Keyword>),
+    /// "Equip {4}. This ability costs {1} less to activate for each color
+    /// of the creature it targets": an activated keyword ability (equip,
+    /// CR 702.6a) and the rules its own line adds to it, of which "this
+    /// ability" is that keyword's ability.
+    KeywordLimits {
+        keyword: Keyword,
+        limits: Vec<Limit>,
+    },
     Activated {
         cost: Vec<Cost>,
         effect: Vec<Effect>,
@@ -380,11 +388,15 @@ pub enum Limit {
         then: Option<(Objects, Restriction)>,
     },
     /// "This ability costs {1} less to activate for each …", "… if you
-    /// control a creature with a +1/+1 counter on it".
+    /// control a creature with a +1/+1 counter on it", "This ability costs
+    /// {X} less to activate, where X is …".
     CostChange {
         by: Mana,
         less: bool,
-        per: Option<Objects>,
+        /// How many times `by` applies ("for each creature card in your
+        /// graveyard": `CountOf`; "for each basic land type among lands you
+        /// control"), or, when `by` is {X}, what X is.
+        per: Option<Amount>,
         cond: Option<Condition>,
     },
     /// "Activate only as an instant": no earlier than an instant could be
@@ -828,6 +840,10 @@ pub enum Quant {
     /// with power 3 or less": the ability the text is part of, which is no
     /// card (CR 113.1).
     ThisAbility,
+    /// "for each color of the creature it targets", "the power of the
+    /// creature it targets": the object `of` (an ability, `ThisAbility`)
+    /// targets, the filter saying what it is (CR 115.1).
+    TargetOf(Box<Objects>),
     Enchanted,
     Equipped,
     /// A bare plural: "Creatures you control get +1/+1".

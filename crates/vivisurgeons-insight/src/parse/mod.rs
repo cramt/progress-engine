@@ -402,7 +402,19 @@ fn limits(p: &mut P) -> Vec<Limit> {
                 let by = mana(p)?;
                 let less = p.one_of(&["less", "more"])? == "less";
                 p.words("to activate")?;
-                let per = p.attempt(|p| { p.words("for each")?; objects(p) });
+                let x = by == Mana(vec!["X".into()]);
+                let per = if x {
+                    // "This ability costs {X} less to activate, where X is
+                    // the number of differently named lands you control".
+                    Some(p.attempt(|p| { p.words(", where x is")?; measure(p) })?)
+                } else {
+                    p.attempt(|p| { p.words("for each")?; cost_per(p) })
+                };
+                // "the creature it targets": what this ability targets.
+                let mut per = per;
+                if let Some(a) = per.as_mut() {
+                    a.walk(&mut TargetOfThisAbility);
+                }
                 let mut cond = p.attempt(|p| { p.word("if")?; condition(p) });
                 // "This ability costs {1} less to activate if it targets a
                 // creature with power 3 or less": "it" is this ability, the
@@ -421,6 +433,34 @@ fn limits(p: &mut P) -> Vec<Limit> {
         v.extend(l);
     }
     v
+}
+
+/// "the creature it targets" said in this ability's own cost change: "it"
+/// is this ability.
+struct TargetOfThisAbility;
+
+impl Visitor for TargetOfThisAbility {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if let Quant::TargetOf(of) = &mut o.quant {
+            if **of == antecedent() {
+                of.quant = Quant::ThisAbility;
+            }
+        }
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        false
+    }
+}
+
+/// What follows "costs {1} less to activate for each": "basic land type
+/// among lands you control" (domain), "color of …", or objects counted.
+fn cost_per(p: &mut P) -> Option<Amount> {
+    alt!(p;
+        |p| { p.words("basic land type among")?; objects(p).map(|o| Amount::NumberOfBasicLandTypes(Box::new(o))) },
+        |p| { p.words("color of")?; objects(p).map(|o| Amount::NumberOfColors(Box::new(Palette::ColorsOf(Box::new(o))))) },
+        |p| objects(p).map(|o| Amount::CountOf(Box::new(o))),
+    )
 }
 
 /// "X can't be 0", "X can't be greater than …" (CR 107.3a).
@@ -490,6 +530,14 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             let k = keyword_line(p)?;
             p.attempt(|p| p.tok(&Tok::Period));
             finished(p).then_some(Ability::Keywords(k))
+        },
+        // "Equip {4}. This ability costs {1} less to activate for each …".
+        |p| {
+            let mut k = keyword_line(p)?;
+            p.tok(&Tok::Period)?;
+            let limits = limits(p);
+            if k.len() != 1 || k[0].name != "equip" || limits.is_empty() || !finished(p) { return None; }
+            Some(Ability::KeywordLimits { keyword: k.remove(0), limits })
         },
         |p| {
             let a = statics::opening_hand(p)?;

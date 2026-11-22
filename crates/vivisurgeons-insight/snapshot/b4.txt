@@ -628,7 +628,7 @@ type: Land
 > {T}: Add {C}.
 > {4}: This land becomes a 3/3 Citizen creature with vigilance until end of turn. It's still a land. This ability costs {1} less to activate for each legendary creature and planeswalker you control.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["4"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Subtype("citizen"), Type("creature")], gains: [Keyword { name: "vigilance", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Supertype("legendary"), Type("creature")], [Supertype("legendary"), Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["4"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Subtype("citizen"), Type("creature")], gains: [Keyword { name: "vigilance", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Supertype("legendary"), Type("creature")], [Supertype("legendary"), Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })), cond: None }] }
 
 ## Molten Tributary
 face: Molten Tributary

@@ -208,7 +208,7 @@ cost: {3}
 > Equip {4}. This ability costs {3} less to activate if you're the monarch.
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }])
 = Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), NoMonarch), effect: [Designation("monarch")], limits: [] }
-= BROKE at "this" after: equip {4} .
+= KeywordLimits { keyword: Keyword { name: "equip", param: Some(Cost([Mana(Mana(["4"]))])) }, limits: [CostChange { by: Mana(["3"]), less: true, per: None, cond: Some(IsMonarch(You)) }] }
 
 ## Darksteel Pendant
 face: Darksteel Pendant

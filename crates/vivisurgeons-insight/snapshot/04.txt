@@ -710,7 +710,7 @@ cost: {1}{R}
 > Whenever this creature attacks, target creature defending player controls with power less than this creature's power can't block this turn.
 > Domain — {5}{R}: This creature gets +2/+2 until end of turn. This ability costs {1} less to activate for each basic land type among lands you control. Activate only once each turn.
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(DefendingPlayer), With(Compare { stat: Power, op: Lt, value: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } }, rule: CantBlock, dur: ThisTurn }], limits: [] }
-= BROKE at "among" after: domain — {5} {R} : this creature gets <pt> until end of turn . this ability costs {1} less to activate for each basic land type
+= Labelled { label: "domain", ability: Activated { cost: [Mana(Mana(["5", "R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(NumberOfBasicLandTypes(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })), cond: None }, OncePerTurn] } }
 
 ## Raging Redcap
 face: Raging Redcap

@@ -75,7 +75,7 @@ cost: {2}{G}{G}
 > Wurms you control get +2/+2 and have trample.
 > {7}{G}, {T}: Create a 4/4 green Wurm creature token. This ability costs {X} less to activate, where X is the greatest power among Wurms you control.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("wurm")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "trample", param: None }], per: None }])
-= BROKE at "," after: {7} {G} , {T} : create a <pt> green wurm creature token . this ability costs {X} less to activate
+= Activated { cost: [Mana(Mana(["7", "G"])), Tap], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [Green], types: ["wurm", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [CostChange { by: Mana(["X"]), less: true, per: Some(Greatest { stat: Power, among: Objects { quant: Plural, filter: Filter { alts: [[Subtype("wurm")]], kind: None, posts: [Controller(You)], or: None } } }), cond: None }] }
 
 ## Beorn's Hospitality
 face: Beorn's Hospitality

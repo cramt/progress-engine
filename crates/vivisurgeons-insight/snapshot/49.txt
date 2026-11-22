@@ -476,7 +476,7 @@ face: Loreseeker's Stone
 type: Artifact
 cost: {6}
 > {3}, {T}: Draw three cards. This ability costs {1} more to activate for each card in your hand.
-= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Draw { who: You, n: N(3) }], limits: [CostChange { by: Mana(["1"]), less: false, per: Some(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Draw { who: You, n: N(3) }], limits: [CostChange { by: Mana(["1"]), less: false, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })), cond: None }] }
 
 ## Lumbering Satyr
 face: Lumbering Satyr

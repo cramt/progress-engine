@@ -36,7 +36,7 @@ cost: {3}
 > Equip {2}. This ability costs {2} less to activate if you have one or fewer cards in hand.
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }])
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(2) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Subtype("pirate")]], kind: Some(Card), posts: [], or: None } })] }], limits: [] }
-= BROKE at "this" after: equip {2} .
+= KeywordLimits { keyword: Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }, limits: [CostChange { by: Mana(["2"]), less: true, per: None, cond: Some(CardsInHandAtMost(1)) }] }
 
 ## Artifact Blast
 face: Artifact Blast

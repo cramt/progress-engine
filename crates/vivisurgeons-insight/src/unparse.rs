@@ -2439,6 +2439,14 @@ fn ability_into(o: &mut Out, a: &Ability) {
     match a {
         // `ability` said its binders where the text first says them.
         Ability::Let { ability, .. } => ability_into(o, ability),
+        Ability::KeywordLimits {
+            keyword: k,
+            limits: ls,
+        } => {
+            keyword(o, k);
+            o.tok(Tok::Period);
+            limits(o, ls, false);
+        }
         Ability::Keywords(ks) => {
             for (i, k) in ks.iter().enumerate() {
                 let protection_objects = |k: &Keyword| {
@@ -2697,9 +2705,30 @@ fn limits(o: &mut Out, ls: &[Limit], triggered: bool) {
                 mana(o, by);
                 o.w(if *less { "less" } else { "more" });
                 o.w("to activate");
-                if let Some(per) = per {
-                    o.w("for each");
-                    each_objects(o, per);
+                match per {
+                    Some(x) if *by == Mana(vec!["X".into()]) => {
+                        o.w(", where x is");
+                        measure(o, x);
+                    }
+                    Some(Amount::CountOf(x)) => {
+                        o.w("for each");
+                        each_objects(o, x);
+                    }
+                    Some(Amount::NumberOfBasicLandTypes(x)) => {
+                        o.w("for each basic land type among");
+                        objects(o, x);
+                    }
+                    Some(Amount::NumberOfColors(p)) => {
+                        o.w("for each color of");
+                        if let Palette::ColorsOf(x) = &**p {
+                            objects(o, x);
+                        }
+                    }
+                    Some(a) => {
+                        o.w("for each");
+                        measure(o, a);
+                    }
+                    None => {}
                 }
                 if let Some(c) = cond {
                     o.w("if");
@@ -4186,6 +4215,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::Unresolved(Hint::Created)
         | Quant::ThisAbility
         | Quant::SourceOf(_)
+        | Quant::TargetOf(_)
         | Quant::Unresolved(Hint::Linked)
         | Quant::Other
         | Quant::OneOrMore
@@ -4545,6 +4575,12 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             posts(o, &f.posts, n);
         }
         Quant::ThisAbility if *f == Filter::default() => syn::this_ability(o),
+        Quant::TargetOf(of) => {
+            o.w("the");
+            filter(o, f, n);
+            objects(o, of);
+            o.w("targets");
+        }
         Quant::Unresolved(Hint::Rest) => {
             syn::the_rest(o);
             filter(o, f, n);

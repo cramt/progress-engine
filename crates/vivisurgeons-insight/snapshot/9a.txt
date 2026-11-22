@@ -1055,7 +1055,7 @@ cost: {4}{W}
 > Create a 1/1 white Human creature token for each creature you control.
 > Flashback {8}{W}{W}. This spell costs {X} less to cast this way, where X is the greatest mana value of a commander you own on the battlefield or in the command zone. (You may cast this card from your graveyard for its flashback cost. Then exile it.)
 = Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
-= BROKE at "this" after: flashback {8} {W} {W} .
+= BROKE at "spell" after: flashback {8} {W} {W} . this
 
 ## Void Attendant
 face: Void Attendant

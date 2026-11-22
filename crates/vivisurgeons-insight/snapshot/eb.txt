@@ -1163,7 +1163,7 @@ cost: {3}{R}
 > Each opponent sacrifices an artifact. For each artifact sacrificed this way, you create a Treasure token.
 > Flashback {8}{R}{R}. This spell costs {X} less to cast this way, where X is the greatest mana value of a commander you own on the battlefield or in the command zone. (You may cast this card from your graveyard for its flashback cost. Then exile it.)
 = Spell([Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }])
-= BROKE at "this" after: flashback {8} {R} {R} .
+= BROKE at "spell" after: flashback {8} {R} {R} . this
 
 ## Voice of Resurgence
 face: Voice of Resurgence

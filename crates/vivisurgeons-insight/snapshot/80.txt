@@ -35,7 +35,7 @@ type: Land — Town
 > {5}{G}{U}, {T}: Transform this land. This ability costs {1} less to activate for each other Town you control.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["G"]), Mana(["U"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["5", "G", "U"])), Tap], effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("town")]], kind: None, posts: [Controller(You)], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["5", "G", "U"])), Tap], effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("town")]], kind: None, posts: [Controller(You)], or: None } })), cond: None }] }
 
 ## Balamb Garden, SeeD Academy // Balamb Garden, Airborne
 face: Balamb Garden, Airborne

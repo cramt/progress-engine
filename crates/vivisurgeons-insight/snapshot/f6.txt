@@ -683,7 +683,7 @@ cost: {U}
 > Flying
 > {7}{U}: Adapt 4. This ability costs {1} less to activate for each instant and sorcery card in your graveyard. (If this creature has no +1/+1 counters on it, put four +1/+1 counters on it.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Activated { cost: [Mana(Mana(["7", "U"]))], effect: [Action { by: None, name: "adapt", n: Some(N(4)) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["7", "U"]))], effect: [Action { by: None, name: "adapt", n: Some(N(4)) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })), cond: None }] }
 
 ## Radha, Heart of Keld
 face: Radha, Heart of Keld

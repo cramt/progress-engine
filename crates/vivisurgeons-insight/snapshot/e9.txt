@@ -72,7 +72,7 @@ cost: {1}{G}
 > Equipped creature has base power and toughness 10/10.
 > Equip {10}. This ability costs {X} less to activate, where X is the power of the creature it targets.
 = Static([BasePt { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Pt { power: N(10), toughness: N(10), signed: false } }])
-= BROKE at "this" after: equip {10} .
+= KeywordLimits { keyword: Keyword { name: "equip", param: Some(Cost([Mana(Mana(["10"]))])) }, limits: [CostChange { by: Mana(["X"]), less: true, per: Some(PowerOf(Objects { quant: TargetOf(Objects { quant: ThisAbility, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), cond: None }] }
 
 ## Bill the Pony
 face: Bill the Pony

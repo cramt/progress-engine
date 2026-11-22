@@ -26,7 +26,7 @@ face: Battlefield Butcher
 type: Creature — Human Soldier
 cost: {2}{B}
 > {5}, {T}: Each opponent loses 2 life. This ability costs {1} less to activate for each creature card in your graveyard.
-= Activated { cost: [Mana(Mana(["5"])), Tap], effect: [LoseLife { who: EachOpponent, n: N(2) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["5"])), Tap], effect: [LoseLife { who: EachOpponent, n: N(2) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })), cond: None }] }
 
 ## Battlefield Thaumaturge
 face: Battlefield Thaumaturge

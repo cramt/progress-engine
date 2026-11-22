@@ -468,7 +468,7 @@ type: Creature — Dinosaur
 cost: {5}{B}{G}
 > {10}{B}{G}: Monstrosity 10. This ability costs {1} less to activate for each creature with power 4 or greater your opponents control. (If this creature isn't monstrous, put ten +1/+1 counters on it and it becomes monstrous.)
 > When this creature becomes monstrous, destroy all artifacts and creatures other than this creature.
-= Activated { cost: [Mana(Mana(["10", "B", "G"]))], effect: [Action { by: None, name: "monstrosity", n: Some(N(10)) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) }), Controller(EachOpponent)], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["10", "B", "G"]))], effect: [Action { by: None, name: "monstrosity", n: Some(N(10)) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) }), Controller(EachOpponent)], or: None } })), cond: None }] }
 = BROKE at "," after: when this creature becomes monstrous
 
 ## Grow Extra Arms

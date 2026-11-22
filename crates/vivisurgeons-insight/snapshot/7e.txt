@@ -965,7 +965,7 @@ face: Waterbending Scroll
 type: Artifact
 cost: {1}{U}
 > {6}, {T}: Draw a card. This ability costs {1} less to activate for each Island you control.
-= Activated { cost: [Mana(Mana(["6"])), Tap], effect: [Draw { who: You, n: N(1) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [Controller(You)], or: None } }), cond: None }] }
+= Activated { cost: [Mana(Mana(["6"])), Tap], effect: [Draw { who: You, n: N(1) }], limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [Controller(You)], or: None } })), cond: None }] }
 
 ## Wight of the Reliquary
 face: Wight of the Reliquary

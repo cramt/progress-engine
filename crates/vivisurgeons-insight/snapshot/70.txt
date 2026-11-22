@@ -715,7 +715,7 @@ cost: {2}{W}
 > Equipped creature gets +3/+3 and has ward {1}. (Whenever equipped creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)
 > Equip {3}. This ability costs {1} less to activate for each other Equipment you control. ({3}: Attach to target creature you control. Equip only as a sorcery.)
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["1"]))])) }], per: None }])
-= BROKE at "this" after: equip {3} .
+= KeywordLimits { keyword: Keyword { name: "equip", param: Some(Cost([Mana(Mana(["3"]))])) }, limits: [CostChange { by: Mana(["1"]), less: true, per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } })), cond: None }] }
 
 ## Prideful Parent
 face: Prideful Parent

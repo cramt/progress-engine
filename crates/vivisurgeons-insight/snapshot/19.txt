@@ -597,7 +597,7 @@ cost: {1}
 > Equipped creature gets +0/+1 and has ward {1}. (Whenever equipped creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)
 > Equip {0}. Activate only once each turn.
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: true }), has: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["1"]))])) }], per: None }])
-= BROKE at "activate" after: equip {0} .
+= KeywordLimits { keyword: Keyword { name: "equip", param: Some(Cost([Mana(Mana(["0"]))])) }, limits: [OncePerTurn] }
 
 ## Liberating Combustion
 face: Liberating Combustion
