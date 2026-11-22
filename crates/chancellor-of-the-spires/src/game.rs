@@ -1093,6 +1093,14 @@ enum Waiting {
         chosen: Vec<CardId>,
         resume: Resuming,
     },
+    /// "Untap up to three lands": `player` chooses up to `n` of the tapped
+    /// permanents `on` matches (CR 608.2d, 701.26b).
+    UntapUpTo {
+        player: PlayerId,
+        n: u32,
+        on: lower::On,
+        resume: Resuming,
+    },
     /// CR 508.1: the active player declares attackers.
     Attackers {
         player: PlayerId,
@@ -1399,6 +1407,14 @@ pub enum Decision {
     ExileFromHand {
         player: PlayerId,
         hand: Vec<CardId>,
+    },
+    /// "Untap up to three lands": `player` chooses up to `n` of `legal`,
+    /// the tapped permanents the instruction matches, answered with
+    /// `Answer::Untap` (CR 608.2d, 701.26b).
+    UntapUpTo {
+        player: PlayerId,
+        n: u32,
+        legal: Vec<ObjectId>,
     },
     /// CR 608.2d, 603.5: follow an instruction of `card`'s that says "you
     /// may", or not, answered with `Answer::May`.
@@ -1718,6 +1734,8 @@ pub enum Answer {
     Sacrifice(Vec<ObjectId>),
     /// The permanents returned to their owner's hand to pay a cost.
     ReturnToHand(Vec<ObjectId>),
+    /// The permanents chosen to untap (CR 701.26b).
+    Untap(Vec<ObjectId>),
     /// A creature type, as the Oracle text names it: "Beast" (CR 205.3m).
     CreatureType(String),
     /// Which permanent a card entering as a copy copies, if any.
@@ -2745,6 +2763,16 @@ impl Game {
                     hand,
                 }
             }
+            Waiting::UntapUpTo {
+                player,
+                n,
+                on,
+                resume,
+            } => Decision::UntapUpTo {
+                player: *player,
+                n: *n,
+                legal: self.untappable(resume, on),
+            },
             Waiting::ExileFromHand { choosers, .. } => Decision::ExileFromHand {
                 player: choosers[0],
                 hand: self.player(choosers[0]).hand.iter().copied().collect(),
@@ -3369,6 +3397,25 @@ impl Game {
                         resume,
                     };
                 }
+            }
+            (
+                Waiting::UntapUpTo {
+                    n, ref on, resume, ..
+                },
+                Answer::Untap(chosen),
+            ) => {
+                let legal = self.untappable(&resume, on);
+                let distinct: BTreeSet<&ObjectId> = chosen.iter().collect();
+                if distinct.len() != chosen.len()
+                    || chosen.len() > n as usize
+                    || !chosen.iter().all(|o| legal.contains(o))
+                {
+                    return Err(Rejected::Illegal(answer));
+                }
+                for o in chosen {
+                    self.permanents.get_mut(o).expect("legal").tapped = false;
+                }
+                self.follow(resume);
             }
             (Waiting::Reveal { cards, resume, .. }, Answer::Reveal(named))
                 if named.len() == cards.len() =>
@@ -5751,6 +5798,18 @@ impl Game {
                         return;
                     }
                 }
+                // CR 608.2d, 609.3: with nothing tapped to untap, no choice.
+                Effect::UntapUpTo { n, on } => {
+                    if n > 0 && !self.untappable(&at, &on).is_empty() {
+                        self.waiting = Waiting::UntapUpTo {
+                            player: p,
+                            n,
+                            on,
+                            resume,
+                        };
+                        return;
+                    }
+                }
                 Effect::RevealChooseDiscard { who: w, filter } => {
                     let Some(q) = who(w) else { continue };
                     self.waiting = Waiting::ChooseFromHand {
@@ -6612,6 +6671,15 @@ impl Game {
             .filter(|o| self.permanents.contains_key(o))
     }
 
+    /// The tapped permanents `on` matches, which only can be untapped (CR
+    /// 701.26b).
+    fn untappable(&self, at: &Resuming, on: &lower::On) -> Vec<ObjectId> {
+        self.objects_on(at, on)
+            .into_iter()
+            .filter(|o| self.permanents.get(o).is_some_and(|p| p.tapped))
+            .collect()
+    }
+
     /// The permanents an instruction acts on: the one it names, if it is
     /// still there, or each the filter matches now, read from the
     /// ability's source; a spell's, off the battlefield, is its card with
@@ -7103,6 +7171,7 @@ impl Game {
             }
             | Waiting::ChooseFromHand { resume: at, .. }
             | Waiting::ExileFromHand { resume: at, .. }
+            | Waiting::UntapUpTo { resume: at, .. }
             | Waiting::Scry { resume: at, .. }
             | Waiting::Search { resume: at, .. }
             | Waiting::May { at, .. }

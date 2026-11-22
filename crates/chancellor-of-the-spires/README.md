@@ -438,7 +438,7 @@ non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**44 of Loam's 90 distinct cards are played or cast and resolved, 33 of
+**45 of Loam's 90 distinct cards are played or cast and resolved, 34 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
@@ -455,7 +455,8 @@ since an activated ability can cost a discard, 30 of them from
 2026-11-12, and Izzet Charm, since a modal spell's mode is chosen, 31
 from 2026-11-22, and Desperate Ravings, since a discard can be at
 random, 32 the same day, and Squee, Goblin Nabob, since an ability can
-work from a graveyard, 33), Blast Zone played too since it
+work from a graveyard, 33, and Frantic Search, since "untap up to three
+lands" is chosen as it resolves, 34), Blast Zone played too since it
 enters with its counter, its abilities carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
@@ -1046,9 +1047,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 132 of the 500 replay to
-the end and 54.13% of their lines are followed** (17,138 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 140
+Worked card by card from there, **on 2026-11-22 133 of the 500 replay to
+the end and 54.31% of their lines are followed** (17,195 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 141
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1197,7 +1198,9 @@ Messenger's undying, Escape to the Wilds, a "chooses" line and Quest for
 Pure Flame); a creature's own "can't attack", "can't block" or "can't
 attack or block", unless you control enough of something (CR 508.1c,
 509.1b: Topiary Stomper, Bloodsoaked Champion, Scrapheap Scrounger and
-War Falcon, whose 12 games go on). And
+War Falcon, whose 12 games go on); "untap up to three lands", chosen
+by its controller among the tapped lands as it resolves (CR 608.2d,
+701.26b: Frantic Search, whose 5 games go on, one to the end). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1215,7 +1218,9 @@ names once it is turned face up, looked for in the hand once its player
 has priority, after the draw a line in their upkeep comes before, and
 resolved before a line turns it face up (CR 702.37e), and the card
 Yarok's Fenlurker has an opponent exile, which the log never names, a
-hidden card of their hand first and each other name in it after, the discard paying an "unless"
+hidden card of their hand first and each other name in it after, the
+lands Frantic Search untaps, as many of its caster's own as it lets
+them and each other set of them by name after, the discard paying an "unless"
 from the next discard line, and which face of a two-faced card a line
 names and which copy of an adventurer card it casts, and what Vesuva
 entered as a copy of, and the cards an activation's cost takes from the

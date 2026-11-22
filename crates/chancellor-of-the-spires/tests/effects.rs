@@ -5849,3 +5849,49 @@ fn topiary_stomper_cant_block_with_four_lands() {
     assert!(game.permanents().contains_key(&stomper));
     assert_eq!(game.player(ME).life(), life - 1);
 }
+
+/// CR 608.2d, 701.26b: Frantic Search's "Untap up to three lands" asks
+/// its caster, as it resolves after the discard, which of the tapped lands
+/// to untap: no more than three, none twice and none untapped, and those
+/// chosen untap.
+#[test]
+fn frantic_search_untaps_up_to_three_tapped_lands() {
+    let mut game = deal(
+        &[("Island", 50), ("Frantic Search", 10)],
+        &[("Island", 60)],
+        &[("Island", 4), ("Frantic Search", 1)],
+    );
+    play(&mut game, "Island");
+    for _ in 0..3 {
+        my_next_main(&mut game);
+        play(&mut game, "Island");
+    }
+    cast(&mut game, "Frantic Search", None);
+    let Decision::Discard { hand, count, .. } = resolve(&mut game) else {
+        panic!("the discard first")
+    };
+    let d = step(&mut game, Answer::Discard(hand[..count].to_vec()));
+    let Decision::UntapUpTo { player, n, legal } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(
+        (player, n, legal.len()),
+        (ME, 3, 3),
+        "the three tapped Islands"
+    );
+    let untapped = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| !p.tapped)
+        .map(|(id, _)| *id)
+        .expect("the fourth Island");
+    assert!(game.clone().step(Answer::Untap(vec![untapped])).is_err());
+    assert!(game
+        .clone()
+        .step(Answer::Untap(vec![legal[0], legal[0]]))
+        .is_err());
+    step(&mut game, Answer::Untap(legal[..2].to_vec()));
+    assert!(!game.permanents()[&legal[0]].tapped);
+    assert!(!game.permanents()[&legal[1]].tapped);
+    assert!(game.permanents()[&legal[2]].tapped);
+}

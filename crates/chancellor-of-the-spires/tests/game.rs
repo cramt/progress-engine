@@ -443,7 +443,7 @@ fn resolve_stack(game: &mut Game) {
 /// The pilot's simplest legal answer to a choice an effect asks for,
 /// if the game is waiting on one: the first target in each slot, the
 /// order triggers were listed in, the first legal card, every card scried
-/// back on top, the first cards discarded.
+/// back on top, the first cards discarded, nothing untapped.
 fn simplest(game: &mut Game) -> bool {
     let answer = match game.decision() {
         Decision::ReturnCommander { .. } => Answer::CommandZone(true),
@@ -459,6 +459,7 @@ fn simplest(game: &mut Game) -> bool {
         Decision::PayOrEnterTapped { .. } => Answer::PayLife(false),
         Decision::Attackers { .. } => Answer::Attack(vec![]),
         Decision::Blockers { .. } => Answer::Block(vec![]),
+        Decision::UntapUpTo { .. } => Answer::Untap(vec![]),
         _ => return false,
     };
     game.step(answer).unwrap_or_else(|e| panic!("{e}"));
@@ -1032,7 +1033,7 @@ fn loam_coverage() {
     }
     assert_eq!(cards.len(), 90);
     // The README's number: a change that moves it updates it there.
-    assert_eq!((runs.len(), whole.len()), (44, 33));
+    assert_eq!((runs.len(), whole.len()), (45, 34));
 }
 
 fn hidden(n: usize) -> DeckCards {

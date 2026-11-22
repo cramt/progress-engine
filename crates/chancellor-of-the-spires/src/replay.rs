@@ -2411,6 +2411,7 @@ impl Driver<'_> {
                 what: "a card chosen from a revealed hand".into(),
             })),
             Decision::ExileFromHand { hand, .. } => self.exile_from_hand(hand),
+            Decision::UntapUpTo { player, n, legal } => self.untap_up_to(player, n, legal),
             // No line this turn shows an attack: none is declared.
             Decision::Attackers { .. } => {
                 if self.attack_ahead() {
@@ -2860,6 +2861,87 @@ impl Driver<'_> {
                 None => "exiled a card no line names from the hand".to_string(),
             },
         );
+        Ok(())
+    }
+
+    /// "Untap up to three lands": which, the log never says. Its player
+    /// untaps as many as it lets them of their own, the first of them
+    /// first, and the replay goes back to each other set of that many if
+    /// a later line can't be followed without it (a land that makes the
+    /// colour a later spell needs). Sets alike by name are one, as
+    /// `exile_from_hand`'s cards are: three of eight tapped Islands is one
+    /// try, not 56. Untapping fewer, or an opponent's, leaves the player
+    /// less mana and nothing more, so it is never tried.
+    fn untap_up_to(&mut self, p: PlayerId, n: u32, legal: Vec<ObjectId>) -> Followed {
+        let chars = self.game().characteristics();
+        let mine: Vec<ObjectId> = legal
+            .into_iter()
+            .filter(|o| chars.get(o).is_some_and(|c| c.controller == p))
+            .collect();
+        let k = mine.len().min(n as usize);
+        let game = self.game();
+        let name = |o: &ObjectId| game.card(game.permanents()[o].card).map(|t| t.name.clone());
+        let mut sets: Vec<Vec<ObjectId>> = Vec::new();
+        let mut seen: BTreeSet<Vec<Option<String>>> = BTreeSet::new();
+        let mut pick: Vec<usize> = (0..k).collect();
+        // Every set of `k` of `mine`, in order, one of each by its names.
+        loop {
+            let set: Vec<ObjectId> = pick.iter().map(|i| mine[*i]).collect();
+            let mut names: Vec<Option<String>> = set.iter().map(name).collect();
+            names.sort();
+            if seen.insert(names) {
+                sets.push(set);
+            }
+            let Some(i) = (0..k).rev().find(|i| pick[*i] < mine.len() - k + i) else {
+                break;
+            };
+            pick[i] += 1;
+            for j in i + 1..k {
+                pick[j] = pick[j - 1] + 1;
+            }
+        }
+        let describe = |game: &Game, set: &[ObjectId]| -> String {
+            let names: Vec<String> = set
+                .iter()
+                .map(|o| {
+                    let name = game
+                        .card(game.permanents()[o].card)
+                        .map_or("a card no line names".to_string(), |t| t.name.clone());
+                    format!("{name} #{}", o.0)
+                })
+                .collect();
+            if names.is_empty() {
+                "nothing".to_string()
+            } else {
+                names.join(", ")
+            }
+        };
+        let first = sets.remove(0);
+        if !sets.is_empty() {
+            let game = self.game().clone();
+            let others = sets
+                .iter()
+                .map(|set| {
+                    Retry::Answer(
+                        Answer::Untap(set.clone()),
+                        format!("untapped {} instead", describe(&game, set)),
+                    )
+                })
+                .collect();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others,
+                knew: self.knew(),
+                back: Back::Unplayable,
+            });
+        }
+        let did = format!("untapped {}", describe(self.game(), &first));
+        self.act(Answer::Untap(first))?;
+        let at = self.at;
+        self.did(at, did);
         Ok(())
     }
 
@@ -4047,6 +4129,7 @@ impl Driver<'_> {
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
                 | Decision::ExileFromHand { .. }
+                | Decision::UntapUpTo { .. }
                 | Decision::Arrange { .. }
                 | Decision::PutFromHand { .. } => self.pass()?,
                 d => return Ok(d),
@@ -4078,6 +4161,7 @@ impl Driver<'_> {
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
                 | Decision::ExileFromHand { .. }
+                | Decision::UntapUpTo { .. }
                 | Decision::Arrange { .. }
                 | Decision::PutFromHand { .. } => self.pass()?,
                 _ => break,
@@ -4142,6 +4226,7 @@ impl Driver<'_> {
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
                 | Decision::ExileFromHand { .. }
+                | Decision::UntapUpTo { .. }
                 | Decision::Arrange { .. }
                 | Decision::PayOrEnterTapped { .. }
                 | Decision::EnterAsCopy { .. }
@@ -5748,6 +5833,7 @@ impl Driver<'_> {
                     | Decision::Reveal { .. }
                     | Decision::ChooseAmong { .. }
                     | Decision::ExileFromHand { .. }
+                    | Decision::UntapUpTo { .. }
                     | Decision::Arrange { .. }
                     | Decision::Targets { .. }
                     | Decision::Order { .. }

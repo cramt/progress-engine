@@ -1515,6 +1515,13 @@ pub enum Effect {
     /// "Tap target land", "untap it" (CR 701.26a).
     Tap(On),
     Untap(On),
+    /// "Untap up to three lands": its controller chooses as it resolves
+    /// up to `n` of the tapped permanents `on` matches, and untaps them
+    /// (CR 608.2d, 701.26b).
+    UntapUpTo {
+        n: u32,
+        on: On,
+    },
     /// "Sacrifice this creature" (CR 701.21a): only a permanent its
     /// controller controls.
     Sacrifice(Obj),
@@ -3027,7 +3034,19 @@ impl<'a> Scope<'a> {
             },
             i::Effect::Destroy { what, .. } => Effect::Destroy(self.on(what)?),
             i::Effect::Tap(what) => Effect::Tap(self.on(what)?),
-            i::Effect::Untap(what) => Effect::Untap(self.on(what)?),
+            i::Effect::Untap(what) => match what.quant {
+                Quant::UpTo(i::Amount::N(n)) => {
+                    let all = Objects {
+                        quant: Quant::All,
+                        ..what.clone()
+                    };
+                    Effect::UntapUpTo {
+                        n,
+                        on: On::Each(objects(&all)?),
+                    }
+                }
+                _ => Effect::Untap(self.on(what)?),
+            },
             i::Effect::Exile(what) => Effect::Exile(self.on(what)?),
             i::Effect::Sacrifice {
                 who: i::Player::You,
