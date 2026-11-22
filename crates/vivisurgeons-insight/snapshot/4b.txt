@@ -685,7 +685,7 @@ cost: {W}{U}
 > As this creature enters, choose a nonland card name.
 > Spells with the chosen name can't be cast.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(NonlandCardName)] }])
-= BROKE at "cast" after: spells with the chosen name can't be
+= Static([PlayerRestrict { who: Each, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } })] }])
 
 ## Mogg Hollows
 face: Mogg Hollows

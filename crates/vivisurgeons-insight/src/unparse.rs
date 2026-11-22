@@ -980,6 +980,12 @@ mod syn {
     /// and the other into your hand", "destroy target artifact, target
     /// creature, and target land", "You and permanents you control gain
     /// hexproof". Each object is its own clause in the tree.
+    /// [cant-be-cast]: "Spells with the chosen name can't be cast" is
+    /// "players can't cast spells with the chosen name" (Meddling Mage).
+    pub fn cant_be_cast(o: &mut Out, active: Out, passive: Out) {
+        alt(o, vec![active, passive]);
+    }
+
     pub fn gapped(o: &mut Out, with_verb: Out, without: Out) {
         alt(o, vec![with_verb, without]);
     }
@@ -5399,6 +5405,23 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         Post::ControlledThen(w) => {
             player(o, w);
             o.w("controlled");
+        }
+        Post::Parity { stat, parity } => {
+            o.w("with");
+            let word = match parity {
+                Parity::Odd => "odd",
+                Parity::Even => "even",
+            };
+            match (stat, n) {
+                (Stat::ManaValue, Num::Pl) => o.w(&format!("{word} mana values")),
+                _ => {
+                    if n == Num::Sg {
+                        o.w("an");
+                    }
+                    o.w(word);
+                    o.w(stat_name(*stat));
+                }
+            }
         }
         Post::OfChosenParity(s) => {
             o.w("with");
@@ -14073,6 +14096,24 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("additional");
             o.noun("land", amount_num(n));
             o.w("on each of your turns");
+        }
+        Static::PlayerRestrict {
+            who: Player::Each,
+            rules,
+        } if matches!(&rules[..], [PlayerRule::CantCast(_)]) => {
+            let [PlayerRule::CantCast(x)] = &rules[..] else {
+                unreachable!("matched above")
+            };
+            let active = out(|o| {
+                player(o, &Player::Each);
+                o.w("can't");
+                player_rule(o, &rules[0]);
+            });
+            let passive = out(|o| {
+                objects(o, x);
+                o.w("can't be cast");
+            });
+            syn::cant_be_cast(o, active, passive);
         }
         Static::PlayerRestrict { who, rules } => {
             player(o, who);

@@ -1178,7 +1178,7 @@ type: Creature — Eldrazi
 cost: {9}
 > Your opponents can't cast spells with even mana values. (Zero is even.)
 > Your opponents can't block with creatures with even mana values.
-= BROKE at "mana" after: your opponents can't cast spells with even
+= Static([PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Parity { stat: ManaValue, parity: Even }], or: None } })] }])
 = BROKE at "even" after: your opponents can't block with creatures with
 
 ## Wall of Blossoms

@@ -504,7 +504,7 @@ cost: {4}{U/B}{U/B}
 > Companion — Your starting deck contains only cards with even mana values. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)
 > When Gyruda enters, each player mills four cards. Put a creature card with an even mana value from among the milled cards onto the battlefield under your control.
 = BROKE at "even" after: companion — your starting deck contains only cards with
-= BROKE at "even" after: when ~ enters , each player mills four cards . put a creature card with an
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Mill { who: Each, n: N(4) }, Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Parity { stat: ManaValue, parity: Even }, FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Milled)], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }], limits: [] }
 
 ## Haunting Figment
 face: Haunting Figment

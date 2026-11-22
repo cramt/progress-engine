@@ -1014,7 +1014,7 @@ cost: {3}{W}{W}
 > Activated abilities of sources with the chosen name can't be activated.
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(NonlandCardName)] }])
-= BROKE at "cast" after: spells with the chosen name can't be
+= Static([PlayerRestrict { who: Each, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } })] }])
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, rule: NoActivatedAbilities }])
 
 ## Waker of Waves

@@ -442,8 +442,8 @@ type: Legendary Creature — Kithkin Advisor
 cost: {G}{W}
 > Noncreature spells with mana value 4 or greater can't be cast.
 > Noncreature spells with {X} in their mana costs can't be cast.
-= BROKE at "cast" after: noncreature spells with mana value 4 or greater can't be
-= BROKE at "cast" after: noncreature spells with {X} in their mana costs can't be
+= Static([PlayerRestrict { who: Each, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } })] }])
+= Static([PlayerRestrict { who: Each, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [XInManaCost], or: None } })] }])
 
 ## Glass Golem
 face: Glass Golem

@@ -799,8 +799,8 @@ face: Soundwave, Superior Captain
 type: Legendary Artifact
 > Whenever you cast a spell with an odd mana value, convert Soundwave. If you do, create Ravage, a legendary 3/3 black Robot artifact creature token with menace and deathtouch.
 > Whenever you cast a spell with an even mana value, convert Soundwave. If you do, create Laserbeak, a legendary 2/2 blue Robot artifact creature token with flying and hexproof.
-= BROKE at "odd" after: whenever you cast a spell with an
-= BROKE at "even" after: whenever you cast a spell with an
+= BROKE at "~" after: whenever you cast a spell with an odd mana value , convert
+= BROKE at "~" after: whenever you cast a spell with an even mana value , convert
 
 ## Spirit of the Aldergard
 face: Spirit of the Aldergard

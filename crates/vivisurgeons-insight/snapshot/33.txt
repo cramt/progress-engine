@@ -783,7 +783,7 @@ cost: {3}{B/R}{B/R}
 > Companion — Your starting deck contains only cards with odd mana values and land cards. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)
 > If a source you control with an odd mana value would deal damage to a permanent or player, it deals double that damage to that permanent or player instead.
 = BROKE at "odd" after: companion — your starting deck contains only cards with
-= BROKE at "odd" after: if a source you control with an
+= Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [], kind: Some(Player), posts: [], or: None }) } }], ability: Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You), Parity { stat: ManaValue, parity: Odd }], or: None } }, to: [Objects(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Twice(ThatDamage), to: Some([Objects(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [], kind: Some(Player), posts: [], or: None }) } })]) }] }]) }
 
 ## Ogre Berserker
 face: Ogre Berserker

@@ -258,7 +258,7 @@ type: Instant
 cost: {7}
 > For each opponent, exile up to one target permanent that player controls with an even mana value. (Zero is even.)
 > Adamant — If at least three colorless mana was spent to cast this spell, return a permanent card with an odd mana value from your graveyard to the battlefield.
-= BROKE at "mana" after: for each opponent , exile up to one target permanent that player controls with an even
+= Spell([ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That), Parity { stat: ManaValue, parity: Even }], or: None } })] }])
 = BROKE at "spent" after: adamant — if at least three colorless mana was
 
 ## Die Young

@@ -922,6 +922,19 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.one_of(&["the chosen quality", "that quality"])?;
             Some(Post::OfChosenParity(s))
         },
+        // "spells with even mana values", "a creature with an odd mana
+        // value" (Void Winnower).
+        |p| {
+            p.word("with")?;
+            p.attempt(|p| p.one_of(&["an", "a"]));
+            let parity = alt!(p; |p| p.word("odd").map(|_| Parity::Odd), |p| p.word("even").map(|_| Parity::Even))?;
+            let stat = alt!(p;
+                |p| p.one_of(&["mana values", "mana value"]).map(|_| Stat::ManaValue),
+                |p| p.word("power").map(|_| Stat::Power),
+                |p| p.word("toughness").map(|_| Stat::Toughness),
+            )?;
+            Some(Post::Parity { stat, parity })
+        },
         |p| p.words("of that color").map(|_| Post::OfThatColor),
         |p| p.words("attached to it").map(|_| Post::AttachedToIt),
         |p| { p.one_of(&["that was attached to it", "that were attached to it"])?; Some(Post::WasAttachedToIt) },

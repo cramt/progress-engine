@@ -1247,6 +1247,12 @@ pub enum Post {
     /// "with mana value of the chosen quality", "with power of that
     /// quality": whose value has the parity chosen (odd or even).
     OfChosenParity(Stat),
+    /// "spells with even mana values" (Void Winnower), "with an odd mana
+    /// value": whose value has that parity; zero is even.
+    Parity {
+        stat: Stat,
+        parity: Parity,
+    },
     /// "a spell with {X} in its mana cost": one whose mana cost has the
     /// symbol (CR 107.3), whatever X was chosen as.
     XInManaCost,

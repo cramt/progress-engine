@@ -4,7 +4,7 @@ type: Enchantment
 cost: {3}{U}
 > Creature spells can't be cast.
 > Pay 4 life: Destroy this enchantment. It can't be regenerated. Any player may activate this ability.
-= BROKE at "." after: creature spells can't be cast
+= Static([PlayerRestrict { who: Each, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } })] }])
 = BROKE at "may" after: pay 4 life : destroy this enchantment . it can't be regenerated . any player
 
 ## Angel's Trumpet

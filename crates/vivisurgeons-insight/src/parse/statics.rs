@@ -1116,6 +1116,14 @@ fn static_body_first(p: &mut P) -> Option<Vec<Static>> {
 /// What a static says of its subject, read once for each predicate.
 fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
     alt!(p;
+        // "Noncreature spells with mana value 4 or greater can't be cast"
+        // (Gaddock Teeg), "Spells with the chosen name can't be cast"
+        // (Meddling Mage): no player may cast them ([cant-be-cast]).
+        |p| {
+            if what.quant != Quant::Plural || what.filter.kind != Some(Noun::Spell) { return None; }
+            p.words("can't be cast")?;
+            Some(vec![Static::PlayerRestrict { who: Player::Each, rules: vec![PlayerRule::CantCast(what.clone())] }])
+        },
         // "have all activated abilities of all creature cards exiled with ~".
         |p| {
             p.verb("have")?;

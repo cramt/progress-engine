@@ -616,7 +616,7 @@ cost: {1}{W}{W}
 > As this enchantment enters, choose a nonland card name.
 > Spells with the chosen name can't be cast.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(NonlandCardName)] }])
-= BROKE at "cast" after: spells with the chosen name can't be
+= Static([PlayerRestrict { who: Each, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } })] }])
 
 ## Nightkin Ambusher
 face: Nightkin Ambusher
