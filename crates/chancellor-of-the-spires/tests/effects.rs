@@ -5032,3 +5032,59 @@ fn price_of_progress_counts_each_players_own_nonbasic_lands() {
     assert_eq!(game.player(ME).life(), mine - 2);
     assert_eq!(game.player(THEM).life(), theirs - 4);
 }
+
+/// CR 702.8a, 601.2f, 101.2, 701.6a: with Cunning Nightbonder out, my
+/// Ambush Viper, a spell with flash, costs {G} rather than {1}{G}, and
+/// their Counterspell doesn't counter it.
+#[test]
+fn cunning_nightbonder_makes_flash_spells_cheaper_and_uncounterable() {
+    let mut game = deal_both(
+        &[
+            ("Island", 20),
+            ("Forest", 20),
+            ("Cunning Nightbonder", 10),
+            ("Ambush Viper", 10),
+        ],
+        &[("Island", 40), ("Counterspell", 20)],
+        &[
+            ("Island", 2),
+            ("Forest", 1),
+            ("Cunning Nightbonder", 1),
+            ("Ambush Viper", 1),
+        ],
+        &[("Island", 2), ("Counterspell", 1)],
+    );
+    play(&mut game, "Island");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Island");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Island");
+    cast(&mut game, "Cunning Nightbonder", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Island");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Forest");
+    let viper = in_hand(&game, ME, "Ambush Viper").unwrap();
+    let Decision::Pay { owed, .. } = game.clone().step(Answer::Act(Action::Cast(viper))).unwrap()
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(owed.generic, 0, "{{1}}{{G}} less {{1}}");
+    cast(&mut game, "Ambush Viper", None);
+    // I pass priority to them with the Viper on the stack.
+    step(&mut game, Answer::Act(Action::Pass));
+    cast_as(
+        &mut game,
+        THEM,
+        "Counterspell",
+        Some(vec![Target::Spell(viper)]),
+    );
+    resolve(&mut game);
+    assert!(game
+        .stack()
+        .iter()
+        .any(|o| matches!(o, StackObject::Spell { card, .. } if *card == viper)));
+    resolve(&mut game);
+    assert!(creature(&game, "Ambush Viper").is_some());
+}

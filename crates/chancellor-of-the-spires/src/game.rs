@@ -4676,7 +4676,7 @@ impl Game {
                     lower::CastBy::Opponents => p != chars.controller,
                 };
                 let now = !change.your_turn || chars.controller == self.active;
-                if caster && now && change.spells.matches(spell) {
+                if caster && now && self.changes(change, card, spell) {
                     let times = match &change.per {
                         None => 1,
                         Some(f) => self.count(f, id, &chars, &all),
@@ -4693,6 +4693,46 @@ impl Game {
             generic: (cost.generic + more).saturating_sub(less),
             shards: cost.shards,
         }
+    }
+
+    /// Whether a cost change's spells include this one: its card's
+    /// characteristics, and its flash for "spells with flash" (CR 702.8a).
+    fn changes(&self, change: &lower::CostChange, card: CardId, spell: &Chars) -> bool {
+        change.spells.matches(spell)
+            && (!change.with_flash
+                || self
+                    .known(card)
+                    .is_some_and(|k| k.runs.as_ref().is_ok_and(|r| r.flash)))
+    }
+
+    /// CR 101.2: a spell a static on the battlefield says can't be
+    /// countered, as Cunning Nightbonder's "spells with flash you cast …
+    /// can't be countered".
+    fn uncounterable(&self, card: CardId, caster: PlayerId) -> bool {
+        let Some(spell) = self.spell_chars(card) else {
+            return false;
+        };
+        self.characteristics().into_iter().any(|(id, chars)| {
+            let Some(runs) = self
+                .known(self.permanents[&id].card)
+                .and_then(|k| k.runs.as_ref().ok())
+            else {
+                return false;
+            };
+            chars.abilities.iter().any(|a| {
+                let Ability::Unread(n) = a else { return false };
+                runs.cost_changes.get(n).is_some_and(|change| {
+                    change.uncounterable
+                        && match change.cast_by {
+                            lower::CastBy::Anyone => true,
+                            lower::CastBy::You => caster == chars.controller,
+                            lower::CastBy::Opponents => caster != chars.controller,
+                        }
+                        && (!change.your_turn || chars.controller == self.active)
+                        && self.changes(change, card, &spell)
+                })
+            })
+        })
     }
 
     /// What a spell on the stack, or a card about to be one, is to what
@@ -5346,9 +5386,10 @@ impl Game {
                 // graveyard; an ability only leaves the stack.
                 Effect::Counter(slot) => match at.targets[slot] {
                     Some(Target::Spell(c)) => {
-                        let on_stack = self.stack.iter().position(
-                            |x| matches!(x, StackObject::Spell { card, .. } if *card == c),
-                        );
+                        let on_stack = self.stack.iter().position(|x| {
+                            matches!(x, StackObject::Spell { card, controller, .. }
+                                if *card == c && !self.uncounterable(c, *controller))
+                        });
                         if let Some(k) = on_stack {
                             if let StackObject::Spell { via, .. } = self.stack.remove(k) {
                                 self.off_the_stack(c, via, None);

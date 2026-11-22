@@ -4425,6 +4425,12 @@ pub struct CostChange {
     pub per: Option<Filter>,
     /// "During your turn": only in its controller's turn.
     pub your_turn: bool,
+    /// "Spells with flash": only a spell whose card has flash (CR
+    /// 702.8a), which its characteristics don't carry.
+    pub with_flash: bool,
+    /// "… cost {1} less to cast and can't be countered": the same spells
+    /// can't be countered either (CR 101.2, 701.6a).
+    pub uncounterable: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -4445,6 +4451,15 @@ pub fn cost_change(parts: &[i::Static]) -> Option<Result<CostChange, String>> {
         }] => (then.as_slice(), true),
         _ => (parts, false),
     };
+    // "Spells with flash you cast cost {1} less to cast and can't be
+    // countered": the second part over the same spells.
+    let (parts, uncounterable) = match parts {
+        [change @ i::Static::CostChange { what, .. }, i::Static::Restrict {
+            what: same,
+            rule: i::Restriction::CantBeCountered,
+        }] if same == what => (std::slice::from_ref(change), true),
+        _ => (parts, false),
+    };
     let [i::Static::CostChange {
         what,
         by,
@@ -4462,10 +4477,12 @@ pub fn cost_change(parts: &[i::Static]) -> Option<Result<CostChange, String>> {
             return Err("a cost change of other than spells".into());
         }
         let mut cast_by = CastBy::Anyone;
+        let mut with_flash = false;
         let mut posts = Vec::new();
         for post in &what.filter.posts {
             match post {
                 Post::Cast(i::Player::You) => cast_by = CastBy::You,
+                Post::WithKeyword(k) if k == "flash" => with_flash = true,
                 Post::Cast(i::Player::EachOpponent | i::Player::AnOpponent) => {
                     cast_by = CastBy::Opponents
                 }
@@ -4491,6 +4508,8 @@ pub fn cost_change(parts: &[i::Static]) -> Option<Result<CostChange, String>> {
             less: *less,
             per,
             your_turn,
+            with_flash,
+            uncounterable,
         })
     })())
 }
