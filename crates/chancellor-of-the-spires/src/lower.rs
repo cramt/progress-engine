@@ -2963,7 +2963,7 @@ impl<'a> Scope<'a> {
             i::Effect::Draw { who, n: k } => Effect::Draw {
                 who: self.who(who)?,
                 n: match k {
-                    i::Amount::CountOf(_) => self.resolved_amount(k)?,
+                    i::Amount::CountOf(_) | i::Amount::X => self.resolved_amount(k)?,
                     _ => Amount::N(n(k)?),
                 },
             },
@@ -2996,6 +2996,9 @@ impl<'a> Scope<'a> {
                         Cards::Bound(slot) => Amount::ManaValueOf(slot),
                         _ => return Err("the mana value of several cards".into()),
                     },
+                    // "lose X life, where X is the number of Zombies you
+                    // control" (Graveborn Muse).
+                    i::Amount::X => self.resolved_amount(k)?,
                     k => Amount::N(n(k)?),
                 },
             },

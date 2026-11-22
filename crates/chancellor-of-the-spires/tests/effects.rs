@@ -5683,3 +5683,38 @@ fn tormods_crypt_exiles_a_graveyard_and_itself_in_it() {
     assert!(game.player(ME).graveyard().is_empty());
     assert_eq!(game.exile().len(), 2);
 }
+
+/// CR 107.3i, 608.2h, 503.1a: Graveborn Muse's "At the beginning of your
+/// upkeep, you draw X cards and lose X life, where X is the number of
+/// Zombies you control", the Muse a Zombie itself, so two with Walking
+/// Corpse.
+#[test]
+fn graveborn_muse_draws_and_costs_life_for_each_zombie() {
+    let mut game = deal(
+        &[
+            ("Swamp", 30),
+            ("Graveborn Muse", 15),
+            ("Walking Corpse", 15),
+        ],
+        &[("Forest", 60)],
+        &[("Swamp", 5), ("Graveborn Muse", 1), ("Walking Corpse", 1)],
+    );
+    for _ in 0..3 {
+        play(&mut game, "Swamp");
+        my_next_main(&mut game);
+    }
+    play(&mut game, "Swamp");
+    cast(&mut game, "Graveborn Muse", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    assert_eq!(game.player(ME).life(), 19, "one Zombie at this upkeep");
+    play(&mut game, "Swamp");
+    cast(&mut game, "Walking Corpse", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::Upkeep);
+    pass_until(&mut game, ME, Step::Upkeep);
+    let hand = game.player(ME).hand().len();
+    resolve(&mut game);
+    assert_eq!(game.player(ME).hand().len(), hand + 2);
+    assert_eq!(game.player(ME).life(), 17);
+}

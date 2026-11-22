@@ -4419,6 +4419,13 @@ impl Driver<'_> {
                 .iter()
                 .find(|(_, perm)| perm.card == card && perm.face_down)
                 .map(|(id, _)| *id);
+            // Cast face down on the line before, it is still a spell, and
+            // only a permanent is turned face up: it resolves first (CR
+            // 702.37c, 702.37e).
+            if id.is_none() && game.turn() == turn && !game.stack().is_empty() {
+                self.pass()?;
+                continue;
+            }
             let Some(id) = id.filter(|_| game.turn() == turn) else {
                 return Err(Stop::Diverged(Divergence::NeverOffered {
                     what: format!("turn {name} face up"),
