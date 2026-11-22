@@ -1185,7 +1185,7 @@ impl Driver<'_> {
                         });
                     if let Some(j) = cycles {
                         // A payment gone back to goes on after both lines.
-                        self.cycle(p, c.name(), j)?;
+                        self.cycle(p, c.name(), i, j)?;
                         for k in i..=j {
                             self.did(k, format!("cycled {} (CR 702.29a)", c.name()));
                         }
@@ -2656,10 +2656,27 @@ impl Driver<'_> {
     /// `p` cycles the card of this name from their hand: offered any time
     /// they have priority, the stack resolving first down to what a later
     /// line shows resolving, as a play's does.
-    fn cycle(&mut self, p: PlayerId, name: &str, i: usize) -> Followed {
+    fn cycle(&mut self, p: PlayerId, name: &str, from: usize, i: usize) -> Followed {
         self.text(name)?;
         let turn = self.game().turn();
-        while !self.game().stack().is_empty() && !self.resolves_later() {
+        // Cycled in response to what is on the stack if what follows says
+        // so, as an ability may be: Eternal Dragon cycled with the Swamp
+        // Rishadan Port's ability is about to tap, leaving the Wasteland
+        // activated next untapped.
+        let respond = self.respond == Some(from);
+        if !respond && !self.game().stack().is_empty() {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: from,
+                trace: self.trace.len(),
+                resume: from,
+                others: vec![Retry::Respond],
+                knew: self.knew(),
+                back: Back::Triggers,
+            });
+        }
+        while !respond && !self.game().stack().is_empty() && !self.resolves_later() {
             self.pass()?;
             if self.game().turn() != turn {
                 break;

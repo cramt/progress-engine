@@ -184,6 +184,8 @@ const INDEXED: &[&str] = &[
     "Enchantress's Presence",
     "Wild Growth",
     "Elephant Grass",
+    "Eternal Dragon",
+    "Wasteland",
 ];
 
 fn index() -> &'static IndexFile {
@@ -757,6 +759,47 @@ fn elephant_grass_taxes_an_attack_and_its_upkeep_is_paid() {
         "{:?}",
         r.end
     );
+}
+
+/// Eternal Dragon's plainscycling (CR 702.29e), its Plains named by the
+/// line revealing it, cycled in response to Rishadan Port's ability on the
+/// Swamp that pays for it: resolving the ability first leaves only the
+/// Wasteland to pay with, which the next line activates.
+#[test]
+fn typecycling_in_response_keeps_a_land_untapped() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Swamp].
+        Turn 1: bob
+        bob plays [Rishadan Port].
+        Turn 2: alice
+        alice plays [Plains].
+        Turn 2: bob
+        bob plays [Mountain].
+        Turn 3: alice
+        alice plays [Wasteland].
+        Turn 3: bob
+        bob plays [Mountain].
+        Turn 4: alice
+        bob activates an ability of [Rishadan Port] targeting [Swamp] ( Tap target land.).
+        alice discards [Eternal Dragon].
+        alice cycles [Eternal Dragon].
+        alice reveals [Plains].
+        alice plays [Plains].
+        alice activates an ability of [Wasteland] targeting [Rishadan Port] ( Destroy target nonbasic land.).
+        Turn 4: bob
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.unwrap();
+    let graveyard: Vec<String> = game
+        .player(BOB)
+        .graveyard()
+        .iter()
+        .filter_map(|c| game.card(*c).map(|t| t.name.clone()))
+        .collect();
+    assert_eq!(graveyard, ["Rishadan Port"]);
 }
 
 /// Goblin Lackey's "may" (CR 603.5, 608.2d): no line says the first was

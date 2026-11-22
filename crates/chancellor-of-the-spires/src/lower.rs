@@ -4365,3 +4365,60 @@ pub fn attack_rule(bind: &[Objects], parts: &[i::Static]) -> Option<Result<Attac
         Ok(AttackRule { attackers, tax })
     })())
 }
+
+/// Typecycling (CR 702.29e): "[Type]cycling [cost]" means "[Cost],
+/// Discard this card: Search your library for a [type] card, reveal it,
+/// and put it into your hand. Then shuffle your library." Its cost and
+/// its instructions, or `None` for a keyword that isn't typecycling.
+pub fn typecycling(k: &i::Keyword) -> Option<Result<(crate::mana::ManaCost, Program), String>> {
+    let name = k.name.to_lowercase();
+    let kind = name.strip_suffix("cycling")?.trim().to_string();
+    if kind.is_empty() {
+        return None;
+    }
+    Some((|| {
+        let Some(i::KeywordParam::Cost(cost)) = &k.param else {
+            return Err(format!("{kind}cycling with no cost"));
+        };
+        let [i::Cost::Mana(m)] = cost.as_slice() else {
+            return Err(format!("a {kind}cycling cost other than mana"));
+        };
+        // "Usually a subtype (as in "mountaincycling") but can be any card
+        // type, subtype, supertype, or combination thereof (as in "basic
+        // landcycling")".
+        let adjs = match kind.as_str() {
+            "basic land" => vec![Adj::Supertype("basic".into()), Adj::Type("land".into())],
+            t if !t.contains(' ') => vec![Adj::Subtype(t.into())],
+            _ => return Err(format!("{kind}cycling")),
+        };
+        let filter = card_filter(&Objects {
+            quant: Quant::One,
+            filter: i::Filter {
+                alts: vec![adjs],
+                kind: Some(i::Noun::Card),
+                ..i::Filter::default()
+            },
+        })?;
+        let found = Slot(0);
+        Ok((
+            crate::mana::ManaCost::from_symbols(m)?,
+            Program {
+                targets: Vec::new(),
+                effects: vec![
+                    Effect::Search {
+                        who: Who::You,
+                        filter,
+                        into: found,
+                        enters: false,
+                        reveals: true,
+                    },
+                    Effect::ToHand {
+                        cards: Cards::Bound(found),
+                        who: Who::You,
+                    },
+                    Effect::Shuffle(Who::You),
+                ],
+            },
+        ))
+    })())
+}

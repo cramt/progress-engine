@@ -4779,3 +4779,41 @@ fn elephant_grass_stops_black_attackers_and_taxes_the_rest() {
     through_combat(&mut game);
     assert_eq!(game.player(THEM).life(), 18);
 }
+
+/// CR 702.29e: Eternal Dragon's plainscycling discards it for {2} and
+/// searches for a Plains card, revealed, which goes to the hand; the
+/// search offers only Plains.
+#[test]
+fn plainscycling_searches_for_a_plains_into_the_hand() {
+    let mut game = deal(
+        &[("Plains", 20), ("Island", 20), ("Eternal Dragon", 20)],
+        &[("Forest", 60)],
+        &[("Island", 2), ("Eternal Dragon", 1)],
+    );
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    let dragon = in_hand(&game, ME, "Eternal Dragon").unwrap();
+    step(&mut game, Answer::Act(Action::Cycle(dragon)));
+    while let Decision::Pay { actions, .. } = game.decision() {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        step(&mut game, Answer::Pay(pay));
+    }
+    assert!(game.player(ME).graveyard().contains(&dragon));
+    let Decision::Search { known, reveals, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(reveals);
+    assert!(!known.is_empty());
+    assert!(known
+        .iter()
+        .all(|c| game.card(*c).is_some_and(|t| t.name == "Plains")));
+    let plains = known[0];
+    step(&mut game, Answer::Find(Found::Card(plains)));
+    assert!(game.player(ME).hand().contains(&plains));
+}

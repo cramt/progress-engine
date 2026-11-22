@@ -8083,7 +8083,7 @@ fn hand_keyword(k: &i::Keyword) -> bool {
 }
 
 /// "Cycling {2}": its mana cost, if that is all its cost is; landcycling
-/// and the like search instead, and stay carried.
+/// and the like search instead (`lower::typecycling`).
 fn cycling_cost(k: &i::Keyword) -> Option<ManaCost> {
     if !k.name.eq_ignore_ascii_case("cycling") {
         return None;
@@ -8234,6 +8234,26 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                                 limits: Default::default(),
                             },
                         ));
+                    } else if let Some(cycling) = lower::typecycling(k) {
+                        // One the engine can't run, or a second cycling,
+                        // is carried and never offered.
+                        match cycling {
+                            Ok((cost, program)) if runs.cycling.is_none() => {
+                                runs.cycling = Some((
+                                    n,
+                                    Activated {
+                                        cost: lower::ActivationCost {
+                                            mana: Some(cost),
+                                            ..Default::default()
+                                        },
+                                        program,
+                                        limits: Default::default(),
+                                    },
+                                ))
+                            }
+                            Ok(_) => runs.dormant.push(format!("a second cycling: {}", k.name)),
+                            Err(node) => runs.dormant.push(format!("typecycling: {node}")),
+                        }
                     } else if let Some(suspend) = lower::suspend(k) {
                         runs.suspend = Some(suspend.map_err(|node| {
                             Unrunnable::new(node.clone(), format!("the game can't run {node} yet"))
