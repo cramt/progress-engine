@@ -400,7 +400,7 @@ type: Enchantment — Room
 cost: {6}{B}{B}
 > When you unlock this door, return all creature cards from your graveyard to the battlefield.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Move { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Gallant Pie-Wielder
 face: Gallant Pie-Wielder

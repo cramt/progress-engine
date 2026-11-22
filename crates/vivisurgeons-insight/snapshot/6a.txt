@@ -804,7 +804,7 @@ type: Enchantment — Room
 cost: {2}{R}
 > When you unlock this door, exile the top two cards of your library. You may play them until the end of your next turn.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [With { bind: [/* exiled */ Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }], then: [Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, payment: ManaCost, dur: UntilEndOfYourNextTurn }] }] }], limits: [] }
 
 ## Painter's Studio // Defaced Gallery
 face: Defaced Gallery

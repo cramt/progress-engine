@@ -355,7 +355,7 @@ cost: {3}{W}{W}
 > Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, create a 3/1 white Spirit creature token with flying.
 = Keywords([Keyword { name: "flying", param: None }])
 = BROKE at "unlock" after: when this creature enters , return an enchantment card from your graveyard to your hand or
-= BROKE at "fully" after: eerie — whenever an enchantment you control enters and whenever you
+= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(1), signed: false }), colors: [White], types: ["spirit", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }], limits: [] } }
 
 ## Gimli, Counter of Kills
 face: Gimli, Counter of Kills

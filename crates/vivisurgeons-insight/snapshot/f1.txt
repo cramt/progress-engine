@@ -388,7 +388,7 @@ cost: {5}{U}
 > Eerie — Whenever this creature or another enchantment you control enters and whenever you fully unlock a Room, tap up to one target creature and put a stun counter on it.
 > Stun counters can't be removed from permanents your opponents control. (They won't untap if they have stun counters.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "fully" after: eerie — whenever this creature or another enchantment you control enters and whenever you
+= Labelled { label: "eerie", ability: Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [Tap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), PutCounters { n: N(1), kind: "stun", on: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } } }
 = BROKE at "your" after: stun counters can't be removed from permanents
 
 ## Fiery Conclusion

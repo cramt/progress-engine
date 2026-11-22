@@ -624,7 +624,7 @@ face: Scrabbling Skullcrab
 type: Creature — Crab Skeleton
 cost: {U}
 > Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, target player mills two cards. (They put the top two cards of their library into their graveyard.)
-= BROKE at "fully" after: eerie — whenever an enchantment you control enters and whenever you
+= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [Mill { who: Target, n: N(2) }], limits: [] } }
 
 ## Seashell Cameo
 face: Seashell Cameo

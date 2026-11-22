@@ -3291,6 +3291,17 @@ pub enum Trigger {
     State(Box<Condition>),
 }
 
+/// What a player unlocks in an `Event::Unlocks`.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Unlocked {
+    /// "this door": the half of the Room this ability is printed on, given
+    /// its unlocked designation, as it enters or after (CR 709.5h).
+    ThisDoor,
+    /// "fully unlock a Room": it gets its second unlocked designation, or
+    /// both at once (CR 709.5i).
+    Fully(Objects),
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Event {
     /// "When you spend this mana to cast …", "When that mana is spent": the
@@ -3590,6 +3601,12 @@ pub enum Event {
     /// "Whenever an opponent becomes the monarch", "until an opponent becomes
     /// the monarch": the player takes the designation (CR 725.1).
     BecomesMonarch(Player),
+    /// "When you unlock this door", "whenever you fully unlock a Room": a
+    /// Room gets an unlocked designation (CR 709.5h, 709.5i).
+    Unlocks {
+        who: Player,
+        what: Unlocked,
+    },
     /// "you scry", "you surveil": a keyword action the player performs.
     Performs {
         who: Player,

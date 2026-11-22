@@ -128,6 +128,13 @@ fn player_predicate(p: &mut P, who: &Player) -> Option<Event> {
             Some(Event::DrawsNth { who: who.clone(), n })
         },
         |p| { p.verb("play")?; p.words("a land")?; Some(Event::PlaysLand(who.clone())) },
+        // "you unlock this door", "you fully unlock a Room" (CR 709.5h, 709.5i).
+        |p| {
+            let fully = p.attempt(|p| p.word("fully")).is_some();
+            p.verb("unlock")?;
+            let what = if fully { Unlocked::Fully(objects(p)?) } else { p.words("this door").map(|_| Unlocked::ThisDoor)? };
+            Some(Event::Unlocks { who: who.clone(), what })
+        },
         |p| {
             p.verb("tap")?;
             let what = objects(p)?;
@@ -193,7 +200,7 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
             }
             v.extend(items.into_iter().map(|(_, _, e)| e));
             // A lone verb the rules below read is theirs to read.
-            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlayerAttacks { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. } | Event::Performs { .. } | Event::Exerts { .. } | Event::BecomesMonarch(_)) {
+            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlayerAttacks { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. } | Event::Performs { .. } | Event::Exerts { .. } | Event::BecomesMonarch(_) | Event::Unlocks { .. }) {
                 return None;
             }
             Some(if v.len() == 1 { v.remove(0) } else { Event::Or(v) })

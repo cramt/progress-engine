@@ -1062,7 +1062,7 @@ cost: {1}{U}
 > Defender
 > Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, this creature can attack this turn as though it didn't have defender.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "fully" after: eerie — whenever an enchantment you control enters and whenever you
+= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksDespiteDefender, dur: ThisTurn }], limits: [] } }
 
 ## Storm Crow
 face: Storm Crow

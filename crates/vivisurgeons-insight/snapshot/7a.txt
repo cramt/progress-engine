@@ -662,7 +662,7 @@ type: Enchantment — Room
 cost: {2}{G}
 > When you unlock this door, search your library for a basic land card, put it onto the battlefield tapped, then shuffle.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You)] }], limits: [] }
 
 ## Moldering Gym // Weight Room
 face: Weight Room
@@ -670,7 +670,7 @@ type: Enchantment — Room
 cost: {5}{G}
 > When you unlock this door, manifest dread, then put three +1/+1 counters on that creature.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Action { by: None, name: "manifest dread", n: None }, PutCounters { n: N(3), kind: "+1/+1", on: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Mortarion, Daemon Primarch
 face: Mortarion, Daemon Primarch

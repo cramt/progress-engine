@@ -959,7 +959,7 @@ type: Enchantment — Room
 cost: {3}{R}
 > When you unlock this door, create three 1/1 red Devil creature tokens with "When this token dies, it deals 1 damage to any target."
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Create { who: You, n: N(3), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["devil", "creature"], keywords: [], abilities: [Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }], named: None, attacking: None } }], limits: [] }
 
 ## Spiked Corridor // Torture Pit
 face: Torture Pit

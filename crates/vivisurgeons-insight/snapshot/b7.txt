@@ -255,7 +255,7 @@ type: Enchantment — Room
 cost: {3}{G}
 > When you unlock this door, manifest dread, then put two +1/+1 counters and a trample counter on that creature.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Action { by: None, name: "manifest dread", n: None }, PutCountersEach { counters: [(N(2), "+1/+1"), (N(1), "trample")], on: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Experimental Lab // Staff Room
 face: Staff Room

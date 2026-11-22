@@ -706,7 +706,7 @@ type: Enchantment — Room
 cost: {1}{R}
 > When you unlock this door, this Room deals damage equal to the number of cards in your hand to target creature an opponent controls.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })] }], limits: [] }
 
 ## Roaring Furnace // Steaming Sauna
 face: Steaming Sauna

@@ -350,7 +350,7 @@ type: Enchantment — Room
 cost: {2}{R}
 > When you unlock this door, this Room deals 4 damage to target creature an opponent controls.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })] }], limits: [] }
 
 ## Glassworks // Shattered Yard
 face: Shattered Yard

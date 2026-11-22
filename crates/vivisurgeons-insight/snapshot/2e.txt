@@ -335,7 +335,7 @@ cost: {2}{U}
 > Flash
 > Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, draw a card.
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "fully" after: eerie — whenever an enchantment you control enters and whenever you
+= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [Draw { who: You, n: N(1) }], limits: [] } }
 
 ## Errant Ephemeron
 face: Errant Ephemeron

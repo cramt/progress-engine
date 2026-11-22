@@ -182,7 +182,7 @@ type: Enchantment — Room
 cost: {3}{B}
 > When you unlock this door, this Room deals 6 damage to target creature an opponent controls. You gain life equal to the excess damage dealt this way.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= BROKE at "damage" after: when you unlock this door , this room deals 6 damage to target creature an opponent controls . you gain life equal to the excess
 
 ## Cramped Vents // Access Maze
 face: Access Maze

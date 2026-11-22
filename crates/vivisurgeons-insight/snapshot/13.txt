@@ -150,7 +150,7 @@ type: Enchantment — Room
 cost: {2}{B}
 > When you unlock this door, you draw two cards and you lose 2 life.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Draw { who: You, n: N(2) }, LoseLife { who: You, n: N(2) }], limits: [] }
 
 ## Derelict Attic // Widow's Walk
 face: Widow's Walk

@@ -1118,7 +1118,7 @@ cost: {2}{U}
 > Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, put a possession counter on this creature.
 > When this creature dies, create an X/X blue Spirit creature token with flying, where X is the number of counters on this creature.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= BROKE at "fully" after: eerie — whenever an enchantment you control enters and whenever you
+= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [PutCounters { n: N(1), kind: "possession", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
 = Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Where { then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: X, toughness: X, signed: false }), colors: [Blue], types: ["spirit", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) }], limits: [] }
 
 ## Vaultborn Tyrant

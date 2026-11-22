@@ -594,7 +594,7 @@ type: Enchantment — Room
 cost: {2}{U}
 > When you unlock this door, create a token that's a copy of target creature you control, except it's a Reflection in addition to its other creature types.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= BROKE at "creature" after: when you unlock this door , create a token that's a copy of target creature you control , except it's a reflection in addition to its other
 
 ## Mirror Room // Fractured Realm
 face: Fractured Realm

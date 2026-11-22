@@ -1023,7 +1023,7 @@ face: Victor, Valgavoth's Seneschal
 type: Legendary Creature — Human Warlock
 cost: {1}{W}{B}
 > Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, surveil 2 if this is the first time this ability has resolved this turn. If it's the second time, each opponent discards a card. If it's the third time, put a creature card from a graveyard onto the battlefield under your control.
-= BROKE at "fully" after: eerie — whenever an enchantment you control enters and whenever you
+= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [If { order: Trailing, cond: NthResolution(1), then: [Surveil(N(2))] }, If { order: Leading, cond: NthResolution(2), then: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, If { order: Leading, cond: NthResolution(3), then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }], limits: [] } }
 
 ## Void Maw
 face: Void Maw

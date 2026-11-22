@@ -682,6 +682,7 @@ fn event(e: &Event, out: &mut Vec<(*const Objects, To)>) {
         | Event::AttacksUnblocked { .. }
         | Event::Exerts { .. }
         | Event::BecomesMonarch(_)
+        | Event::Unlocks { .. }
         | Event::Performs { .. } => {}
     }
 }

@@ -356,7 +356,7 @@ type: Enchantment — Room
 cost: {1}{W}
 > When you unlock this door, create a 1/1 white Glimmer enchantment creature token.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["glimmer", "enchantment", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Grand Entryway // Elegant Rotunda
 face: Elegant Rotunda
@@ -364,7 +364,7 @@ type: Enchantment — Room
 cost: {2}{W}
 > When you unlock this door, put a +1/+1 counter on each of up to two target creatures.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Graviton, Fundamental Force
 face: Graviton, Fundamental Force

@@ -902,7 +902,7 @@ type: Enchantment — Room
 cost: {2}{W}{W}
 > When you unlock this door, destroy all creatures with power 3 or greater.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(3) })], or: None } }, no_regen: false }], limits: [] }
 
 ## Restricted Office // Lecture Hall
 face: Lecture Hall

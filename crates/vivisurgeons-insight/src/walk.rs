@@ -1915,6 +1915,10 @@ impl Walk for Event {
             Event::BecomesMonarch(f0) => {
                 Walk::walk(f0, v);
             }
+            Event::Unlocks { who, what } => {
+                Walk::walk(who, v);
+                Walk::walk(what, v);
+            }
             Event::Performs { who, .. } => {
                 Walk::walk(who, v);
             }
@@ -3132,6 +3136,18 @@ impl Walk for TypeSet {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
                 }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Walk for Unlocked {
+    #[allow(clippy::all)]
+    fn walk(&mut self, v: &mut dyn Visitor) {
+        match self {
+            Unlocked::Fully(f0) => {
+                Walk::walk(f0, v);
             }
             _ => {}
         }

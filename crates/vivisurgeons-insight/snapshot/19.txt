@@ -290,7 +290,7 @@ type: Enchantment — Room
 cost: {B}
 > When you unlock this door, return target creature card from your graveyard to your hand.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Demanding Dragon
 face: Demanding Dragon

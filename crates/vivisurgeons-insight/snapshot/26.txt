@@ -198,7 +198,7 @@ face: Cult Healer
 type: Creature — Human Doctor
 cost: {2}{W}
 > Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, this creature gains lifelink until end of turn.
-= BROKE at "fully" after: eerie — whenever an enchantment you control enters and whenever you
+= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Daring Demolition
 face: Daring Demolition

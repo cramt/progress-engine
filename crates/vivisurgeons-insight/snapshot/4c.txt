@@ -93,7 +93,7 @@ type: Enchantment — Room
 cost: {U}
 > When you unlock this door, return up to one target creature to its owner's hand.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Bottomless Pool // Locker Room
 face: Locker Room
@@ -438,7 +438,7 @@ face: Gremlin Tamer
 type: Creature — Human Scout
 cost: {W}{U}
 > Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, create a 1/1 red Gremlin creature token.
-= BROKE at "fully" after: eerie — whenever an enchantment you control enters and whenever you
+= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["gremlin", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] } }
 
 ## Grunn, the Lonely King
 face: Grunn, the Lonely King

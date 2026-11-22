@@ -264,7 +264,7 @@ cost: {2}{U}
 > Flying, vigilance
 > Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, this creature gets +1/+1 until end of turn.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
-= BROKE at "fully" after: eerie — whenever an enchantment you control enters and whenever you
+= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Extract
 face: Extract

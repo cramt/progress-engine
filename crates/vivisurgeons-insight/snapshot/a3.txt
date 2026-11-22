@@ -727,7 +727,7 @@ type: Enchantment — Room
 cost: {3}{U}
 > When you unlock this door, create an X/X blue Spirit creature token with flying, where X is the number of unlocked doors among Rooms you control.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= BROKE at "doors" after: when you unlock this door , create an <pt> blue spirit creature token with flying , where x is the number of unlocked
 
 ## Solemn Offering
 face: Solemn Offering
@@ -899,7 +899,7 @@ type: Enchantment — Room
 cost: {3}{G}{G}
 > When you unlock this door, you may cast spells from your graveyard this turn, and if a card would be put into your graveyard from anywhere this turn, exile it instead.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "," after: when you unlock this door
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Graveyard(You))], or: None } }, payment: ManaCost, dur: ThisTurn }] }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [During { dur: ThisTurn, then: [Replacement { event: PutInto { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }], limits: [] }
 
 ## Walltop Sentries
 face: Walltop Sentries

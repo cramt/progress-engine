@@ -11470,6 +11470,20 @@ fn event(o: &mut Out, e: &Event) {
             o.verb("play", player_num(p));
             o.w("a land");
         }
+        Event::Unlocks { who, what } => {
+            player(o, who);
+            match what {
+                Unlocked::ThisDoor => {
+                    o.verb("unlock", player_num(who));
+                    o.w("this door");
+                }
+                Unlocked::Fully(x) => {
+                    o.w("fully");
+                    o.verb("unlock", player_num(who));
+                    objects(o, x);
+                }
+            }
+        }
         Event::Or(v) => event_list(o, v),
         Event::Copies { who, what } => {
             player(o, who);
@@ -11794,6 +11808,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::LosesLife(p)
         | Event::Draws(p)
         | Event::PlaysLand(p)
+        | Event::Unlocks { who: p, .. }
         | Event::DrawsExceptFirstInDrawStep(p) => Subject::Player(p),
         _ => return None,
     })
