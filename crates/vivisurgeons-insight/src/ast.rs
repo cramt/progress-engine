@@ -379,6 +379,9 @@ pub enum Limit {
     SorcerySpeed,
     /// "Activate only once each turn", "This ability triggers only once each turn".
     OncePerTurn,
+    /// "This ability triggers only twice each turn" (Nadu, Winged Wisdom's
+    /// granted trigger).
+    TwicePerTurn,
     OnlyDuringYourTurn,
     OnlyIf(Condition),
     /// "Spend this mana only to cast …": a rule on the mana the ability made,

@@ -2686,6 +2686,7 @@ fn limits(o: &mut Out, ls: &[Limit], triggered: bool) {
             | Limit::OnlyDuringYourUpkeep
             | Limit::OnlyIf(_) => unreachable!("an activation limit"),
             Limit::OncePerTurn => o.w("this ability triggers only once each turn"),
+            Limit::TwicePerTurn => o.w("this ability triggers only twice each turn"),
             Limit::SpendOnly { uses, then } => {
                 o.w("spend this mana only");
                 spend_uses(o, uses);

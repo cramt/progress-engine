@@ -368,6 +368,7 @@ fn limits(p: &mut P) -> Vec<Limit> {
                 Some(v)
             },
             |p| p.words("this ability triggers only once each turn").map(|_| vec![Limit::OncePerTurn]),
+            |p| p.words("this ability triggers only twice each turn").map(|_| vec![Limit::TwicePerTurn]),
             // "This ability can't be copied and X can't be 0."
             |p| {
                 p.words("this ability can't be copied")?;
