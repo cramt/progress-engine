@@ -992,6 +992,12 @@ mod syn {
         any_of(o, &["scry", "you scry"]);
     }
 
+    /// [players-skip]: "Players skip their untap steps" (Stasis) is
+    /// "skip each untap step": each player's is skipped (CR 502).
+    pub fn players_skip(o: &mut Out, skip: Out) {
+        alt(o, vec![skip, of("players skip their untap steps")]);
+    }
+
     pub fn gapped(o: &mut Out, with_verb: Out, without: Out) {
         alt(o, vec![with_verb, without]);
     }
@@ -14521,8 +14527,15 @@ fn static_other(o: &mut Out, s: &Static) {
         }
         Static::PlayWithTopRevealed(_) => o.w("play with the top card of your library revealed"),
         Static::SkipStep(s) => {
-            o.w("skip");
-            step(o, s);
+            let skip = out(|o| {
+                o.w("skip");
+                step(o, s);
+            });
+            if *s == Step::Untap(Whose::Each) {
+                syn::players_skip(o, skip);
+            } else {
+                o.add(skip);
+            }
         }
         Static::ActivationsPerTurn {
             what,

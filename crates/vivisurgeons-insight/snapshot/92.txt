@@ -899,7 +899,7 @@ type: Enchantment
 cost: {1}{U}
 > Players skip their untap steps.
 > At the beginning of your upkeep, sacrifice this enchantment unless you pay {U}.
-= BROKE at "." after: players skip their untap steps
+= Static([SkipStep(Untap(Each))])
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Unless { effect: Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, who: You, cost: [Mana(Mana(["U"]))] }], limits: [] }
 
 ## Strife Scholar // Awaken the Ages

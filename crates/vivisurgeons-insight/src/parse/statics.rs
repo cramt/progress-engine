@@ -604,6 +604,9 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             Some(vec![Static::PlayWithTopRevealed(who.unwrap_or(whose))])
         },
         |p| { p.word("skip")?; step(p).map(|s| vec![Static::SkipStep(s)]) },
+        // "Players skip their untap steps" (Stasis): every untap step is
+        // skipped, each player's own ([players-skip]).
+        |p| { p.words("players skip their untap steps")?; Some(vec![Static::SkipStep(Step::Untap(Whose::Each))]) },
         // "You control your opponents while they're searching their libraries."
         |p| {
             p.words("you control")?;
