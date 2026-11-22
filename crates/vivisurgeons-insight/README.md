@@ -88,12 +88,12 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1800/1801 (99.9%) | pinned; Saw in Half was outside the old corpus |
-| My decks: every card in the 20 decks of cramt/mtg | 1197/1207 (99.2%) | 2494/2504 (99.6%) | reopened by 3 new decks; 1023 cards pinned |
-| Standard after the early-2027 rotation | 3075/3517 (87.4%) | 6588/7055 (93.4%) | |
+| My decks: every card in the 20 decks of cramt/mtg | 1199/1207 (99.3%) | 2496/2504 (99.7%) | reopened by 3 new decks; 1023 cards pinned |
+| Standard after the early-2027 rotation | 3076/3517 (87.5%) | 6589/7055 (93.4%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4282/5157 (83.0%) | 9471/10421 (90.9%) | |
-| EDHREC top 2000 | 1820/1987 (91.6%) | 3651/3847 (94.9%) | |
-| EDHREC top 5000 | 4164/4977 (83.7%) | 9178/10111 (90.8%) | |
+| All of Standard | 4283/5157 (83.1%) | 9472/10421 (90.9%) | |
+| EDHREC top 2000 | 1821/1987 (91.6%) | 3652/3847 (94.9%) | |
+| EDHREC top 5000 | 4165/4977 (83.7%) | 9179/10111 (90.8%) | |
 | Commander precons | 4772/6151 (77.6%) | 10703/12228 (87.5%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn

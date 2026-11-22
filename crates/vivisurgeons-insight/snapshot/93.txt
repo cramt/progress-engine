@@ -1208,7 +1208,7 @@ cost: {B}{R}
 > Trample, haste
 > You may cast this card from your graveyard if a non-Zombie creature died this turn. If you do, this creature enters with a +1/+1 counter on it.
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "if" after: you may cast this card from your graveyard
+= BROKE at "a" after: you may cast this card from your graveyard if
 
 ## Vampiric Spirit
 face: Vampiric Spirit

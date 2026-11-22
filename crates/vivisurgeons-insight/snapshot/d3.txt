@@ -172,7 +172,7 @@ cost: {1}{U}{U}
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } })], limits: [] }
 = Static([LookAtTopAnyTime])
-= BROKE at "if" after: once each turn , you may cast a spell from the top of your library
+= Static([Once { yours: false, then: [PlayFrom { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [SharesType { card_type: "card", with: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) }], or: None } }, zone: TopOfLibrary(You) }] }])
 
 ## Chainflinger
 face: Chainflinger

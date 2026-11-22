@@ -12869,6 +12869,10 @@ fn type_words(o: &mut Out, types: &[Adj], n: Num) {
     }
     for (i, a) in types.iter().enumerate() {
         let last = i + 1 == types.len();
+        // "a green and white Citizen creature" (Witness Protection).
+        if i == 1 && matches!((&types[0], a), (Adj::Color(_), Adj::Color(_))) {
+            o.w("and");
+        }
         adj(o, a, (last && noun).then_some(n));
     }
 }
@@ -13257,6 +13261,7 @@ fn static_subject(s: &Static) -> Option<&Objects> {
         | Static::Loses { what, .. }
         | Static::BasePt { what, .. }
         | Static::BasePtEqual { what, .. }
+        | Static::IsNamed { what, .. }
         | Static::AdditionalCostFor { what, .. } => Some(what),
         Static::EntersTapped(what)
         | Static::EntersUntapped(what)
@@ -13455,6 +13460,16 @@ fn statics(o: &mut Out, ss: &[Static]) {
                     });
                     o.w("and");
                     syn::each_and_each(o, spelled, oracle);
+                    j += 1;
+                    continue;
+                }
+            }
+            // "… with base power and toughness 1/1 named Legitimate
+            // Businessperson" ([is-named]).
+            if let Static::IsNamed { name, .. } = next {
+                if matches!(ss[j - 1], Static::Is { .. } | Static::BasePt { .. }) {
+                    o.w("named");
+                    o.w(name);
                     j += 1;
                     continue;
                 }
@@ -14427,6 +14442,11 @@ fn static_other(o: &mut Out, s: &Static) {
             objects(o, x);
             o.w("as though those creatures had haste");
         }
+        // Said after the size it follows ([is-named]).
+        Static::IsNamed { name, .. } => {
+            o.w("named");
+            o.w(name);
+        }
         Static::OwnKeywordCostPaying { keyword, cost: c } => {
             o.w("you may");
             costs(o, c);
@@ -14699,6 +14719,24 @@ fn play_what_from(o: &mut Out, what: &Objects, z: &Zone) {
         w.filter.posts.push(Post::In(z.clone()));
         objects(o, &w);
         return;
+    }
+    // "a spell from the top of your library if it shares a card type with
+    // a card exiled with this creature" ([play-if-shares]).
+    if let Some(Post::SharesType {
+        card_type,
+        with: Some(with),
+    }) = what.filter.posts.last()
+    {
+        if card_type == "card" {
+            let mut bare = what.clone();
+            bare.filter.posts.pop();
+            objects(o, &bare);
+            o.w("from");
+            zone(o, z);
+            o.w("if it shares a card type with");
+            objects(o, with);
+            return;
+        }
     }
     objects(o, what);
     o.w("from");

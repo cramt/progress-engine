@@ -666,7 +666,7 @@ cost: {1}{B}
 > This creature enters tapped.
 > You may cast this card from your graveyard if you gained life this turn.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
-= BROKE at "if" after: you may cast this card from your graveyard
+= BROKE at "you" after: you may cast this card from your graveyard if
 
 ## Obelisk of Jund
 face: Obelisk of Jund

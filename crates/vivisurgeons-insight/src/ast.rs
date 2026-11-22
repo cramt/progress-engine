@@ -3840,6 +3840,13 @@ pub enum Static {
         cond: Condition,
         then: Vec<Effect>,
     },
+    /// "… with base power and toughness 1/1 named Legitimate Businessperson"
+    /// (Witness Protection): the object's name is that one alone, its
+    /// other names lost, as its reminder text says.
+    IsNamed {
+        what: Objects,
+        name: String,
+    },
     /// "with base power and toughness 0/1".
     BasePt {
         what: Objects,

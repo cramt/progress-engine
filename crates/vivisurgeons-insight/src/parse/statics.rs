@@ -845,6 +845,14 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                 Some(Post::In(z)) => { let z = z.clone(); last.filter.posts.pop(); z }
                 _ => { p.word("from")?; zone(p)? }
             };
+            // "you may cast a spell from the top of your library if it
+            // shares a card type with a card exiled with this creature"
+            // (Cemetery Illuminator): only such a spell ([play-if-shares]).
+            if items.len() == 1 {
+                if let Some(with) = p.attempt(|p| { p.words("if it shares a card type with")?; objects(p) }) {
+                    items[0].1.filter.posts.push(Post::SharesType { card_type: "card".into(), with: Some(Box::new(with)) });
+                }
+            }
             Some(items.into_iter().map(|(verb, what)| Static::PlayFrom { verb, what, zone: zone.clone() }).collect())
         },
         |p| {
@@ -1413,7 +1421,23 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
         |p| {
             p.one_of(&["is", "are"])?;
             p.attempt(|p| p.one_of(&["a", "an"]));
-            let types = group(p).filter(|g| g.iter().all(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_) | Adj::Supertype(_) | Adj::Color(_))))?;
+            // "a green and white Citizen creature" (Witness Protection): the
+            // colors joined by "and" before the rest of the group.
+            let mut colors = Vec::new();
+            if let Some(c) = p.attempt(|p| {
+                let a = super::objects::color_word(p.peek_word()?)?;
+                p.bump();
+                p.word("and")?;
+                Some(a)
+            }) {
+                colors.push(Adj::Color(c));
+            }
+            let mut types = group(p).filter(|g| g.iter().all(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_) | Adj::Supertype(_) | Adj::Color(_))))?;
+            if !colors.is_empty() {
+                if !matches!(types.first(), Some(Adj::Color(_))) { return None; }
+                colors.append(&mut types);
+                types = colors;
+            }
             let mut v = vec![Static::Is { what: what.clone(), types: set_of(types.clone()) }];
             if p.attempt(|p| p.word("with")).is_some() {
                 v.push(alt!(p;
@@ -1433,6 +1457,11 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                     // "is a Vehicle artifact with crew 5" (Swift Reconfiguration).
                     |p| keyword_list(p).map(|has| Static::Modify { what: what.clone(), pt: None, has, per: None }),
                 )?);
+                // "… with base power and toughness 1/1 named Legitimate
+                // Businessperson" (Witness Protection) ([is-named]).
+                if let Some(name) = p.attempt(|p| { p.word("named")?; super::effects::card_name(p, &[]) }) {
+                    v.push(Static::IsNamed { what: what.clone(), name });
+                }
                 // "… with base power and toughness 0/2 in addition to its
                 // other types": the types are added, not replacing.
                 if p.attempt(|p| p.one_of(&["in addition to its other types", "in addition to their other types", "in addition to its other creature types", "in addition to their other creature types"])).is_some() {

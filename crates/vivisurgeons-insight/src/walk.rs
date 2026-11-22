@@ -2853,6 +2853,9 @@ impl Walk for Static {
                     Walk::walk(x0, v);
                 }
             }
+            Static::IsNamed { what, .. } => {
+                Walk::walk(what, v);
+            }
             Static::BasePt { what, .. } => {
                 Walk::walk(what, v);
             }

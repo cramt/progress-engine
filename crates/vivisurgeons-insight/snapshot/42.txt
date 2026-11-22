@@ -282,7 +282,7 @@ cost: {2}{B}{B}
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
-= BROKE at "if" after: you may cast this card from your graveyard
+= BROKE at "a" after: you may cast this card from your graveyard if
 
 ## Eccentric Pestfinder // Turn Stones
 face: Eccentric Pestfinder
