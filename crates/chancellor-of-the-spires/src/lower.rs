@@ -1401,7 +1401,10 @@ fn objects(o: &Objects) -> Result<Filter, String> {
     for post in &f.posts {
         preds.push(match post {
             Post::Controller(i::Player::You) => Pred::YouControl,
-            Post::Controller(i::Player::EachOpponent) => Pred::OpponentsControl,
+            // "A permanent an opponent controls" is one any of them does.
+            Post::Controller(i::Player::EachOpponent | i::Player::AnOpponent) => {
+                Pred::OpponentsControl
+            }
             Post::With(i::Compare {
                 stat: stat @ (i::Stat::Power | i::Stat::ManaValue),
                 op,
@@ -1611,6 +1614,11 @@ pub enum Effect {
     Destroy(On),
     /// "Exile target creature" (CR 701.13a).
     Exile(On),
+    /// "Exile target nonland permanent an opponent controls until this
+    /// Aura leaves the battlefield": exiled only while the ability's
+    /// source is still on the battlefield, and returned under its owner's
+    /// control as the source leaves (CR 610.3, 610.3b–c).
+    ExileUntilLeaves(On),
     /// "Return target permanent to its owner's hand".
     ToOwnersHand(On),
     /// "Return this card from your graveyard to your hand": the
@@ -3196,6 +3204,9 @@ impl<'a> Scope<'a> {
                 _ => Effect::Untap(self.on(what)?),
             },
             i::Effect::Exile(what) => Effect::Exile(self.on(what)?),
+            i::Effect::ExileUntilLeaves { what, until } if itself(until) => {
+                Effect::ExileUntilLeaves(self.on(what)?)
+            }
             i::Effect::Sacrifice {
                 who: i::Player::You,
                 what,

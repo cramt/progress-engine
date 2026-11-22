@@ -6202,3 +6202,132 @@ fn phyrexian_mana_is_paid_with_its_colour_or_two_life() {
     resolve(&mut game);
     assert!(creature(&game, "Vault Skirge").is_none(), "-5/-5");
 }
+
+/// CR 610.3, 610.3c: Banisher Priest exiles their Grizzly Bears until it
+/// leaves the battlefield; bolted, it dies and the Bears return under
+/// their owner's control.
+#[test]
+fn banisher_priest_exiles_until_it_leaves_the_battlefield() {
+    let mut game = deal_both(
+        &[
+            ("Plains", 30),
+            ("Mountain", 10),
+            ("Banisher Priest", 10),
+            ("Lightning Bolt", 10),
+        ],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[
+            ("Plains", 3),
+            ("Mountain", 1),
+            ("Banisher Priest", 1),
+            ("Lightning Bolt", 1),
+        ],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Plains");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    let card = game.permanents()[&bears].card;
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Banisher Priest", None);
+    let d = resolve(&mut game);
+    let Decision::Targets { slots, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(slots, vec![vec![Target::Object(bears)]]);
+    step(&mut game, Answer::Targets(vec![Target::Object(bears)]));
+    resolve(&mut game);
+    assert!(creature(&game, "Grizzly Bears").is_none());
+    let priest = creature(&game, "Banisher Priest").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Object(priest)]),
+    );
+    resolve(&mut game);
+    assert!(creature(&game, "Banisher Priest").is_none());
+    let back = creature(&game, "Grizzly Bears").expect("returned");
+    assert_eq!(game.permanents()[&back].card, card);
+    assert_eq!(game.characteristics()[&back].controller, THEM);
+}
+
+/// CR 610.3, 303.4c: Sheltered by Ghosts exiles their Grizzly Bears until
+/// it leaves the battlefield; the creature it enchants bolted, the Aura
+/// is put into the graveyard as a state-based action (CR 704.5m) and the
+/// Bears return under their owner's control.
+#[test]
+fn sheltered_by_ghosts_returns_what_it_exiled_when_its_creature_dies() {
+    let mut game = deal_both(
+        &[
+            ("Plains", 20),
+            ("Mountain", 20),
+            ("Raging Goblin", 7),
+            ("Sheltered by Ghosts", 7),
+            ("Lightning Bolt", 6),
+        ],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[
+            ("Plains", 2),
+            ("Mountain", 2),
+            ("Raging Goblin", 1),
+            ("Sheltered by Ghosts", 1),
+            ("Lightning Bolt", 1),
+        ],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    let goblin = creature(&game, "Raging Goblin").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    let card = game.permanents()[&bears].card;
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(
+        &mut game,
+        "Sheltered by Ghosts",
+        Some(vec![Target::Object(goblin)]),
+    );
+    let d = resolve(&mut game);
+    let Decision::Targets { slots, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(slots, vec![vec![Target::Object(bears)]]);
+    step(&mut game, Answer::Targets(vec![Target::Object(bears)]));
+    resolve(&mut game);
+    assert!(creature(&game, "Grizzly Bears").is_none(), "exiled");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Object(goblin)]),
+    );
+    resolve(&mut game);
+    assert!(creature(&game, "Raging Goblin").is_none());
+    assert!(
+        creature(&game, "Sheltered by Ghosts").is_none(),
+        "the Aura is gone"
+    );
+    let back = creature(&game, "Grizzly Bears").expect("returned");
+    assert_eq!(game.permanents()[&back].card, card);
+    assert_eq!(game.characteristics()[&back].controller, THEM);
+}

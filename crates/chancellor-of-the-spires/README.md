@@ -1062,9 +1062,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 140 of the 500 replay to
-the end and 54.72% of their lines are followed** (17,323 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 147
+Worked card by card from there, **on 2026-11-22 141 of the 500 replay to
+the end and 55.17% of their lines are followed** (17,465 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 148
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1091,7 +1091,9 @@ turn", the permanents that left as they last existed there, and an
 "instead" said in a paragraph of its own (CR 207.2c, 608.2h: Plasma
 Bolt); Phyrexian mana, each symbol paid with one mana of its colour or
 2 life, while the player has that much (CR 107.4f, 119.4: Vault Skirge,
-Dismember, Phyrexian Metamorph); the beginning of combat (Luminarch
+Dismember, Phyrexian Metamorph); exile until this leaves the
+battlefield, what it exiled returning as it leaves (CR 610.3: Sheltered
+by Ghosts, Glass Casket, Banisher Priest); the beginning of combat (Luminarch
 Aspirant); becoming tapped
 (City of Brass); mana of a colour chosen as an instruction resolves
 (Outcaster Trailblazer); "unless" paid or not (Mana Leak, echo); a

@@ -1931,6 +1931,9 @@ pub struct Game {
     /// exiled again loses its link, so one counts only while it is in
     /// `exile` from that exile.
     exiled_with: OrdMap<CardId, ObjectId>,
+    /// Each card exiled "until" this permanent leaves the battlefield,
+    /// which returns it then (CR 610.3).
+    exiled_until: OrdMap<CardId, ObjectId>,
     /// Adventurer cards exiled as their Adventure resolved, each with the
     /// player who may cast it from exile while it stays there (CR 715.3d).
     adventuring: OrdMap<CardId, PlayerId>,
@@ -2126,6 +2129,7 @@ impl Game {
             powered_up: OrdSet::new(),
             exile: Vector::new(),
             exiled_with: OrdMap::new(),
+            exiled_until: OrdMap::new(),
             adventuring: OrdMap::new(),
             suspended: OrdMap::new(),
             plotted: OrdMap::new(),
@@ -2564,6 +2568,7 @@ impl Game {
     fn put_in_exile(&mut self, card: CardId) {
         self.exiled_with.remove(&card);
         self.plotted.remove(&card);
+        self.exiled_until.remove(&card);
         self.exile.push_back(card);
     }
 
@@ -6051,6 +6056,37 @@ impl Game {
                         }
                     }
                 }
+                // CR 610.3a–b: once its source has left, the event it
+                // waits for has happened, and nothing moves.
+                Effect::ExileUntilLeaves(on) => {
+                    let Some(source) = at.object else {
+                        self.halted = Some(Rejected::Refused {
+                            card: self
+                                .face_name(at.what.card())
+                                .unwrap_or("a spell")
+                                .to_string(),
+                            refusal: Unrunnable::new(
+                                "ExileUntilLeaves with no source",
+                                "exiles until its source leaves the battlefield, and the \
+                                 instruction has no source there",
+                            ),
+                        });
+                        return;
+                    };
+                    if !self.permanents.contains_key(&source) {
+                        continue;
+                    }
+                    for o in self.objects_on(&at, &on) {
+                        if let Some(perm) = self.permanents.get(&o) {
+                            let card = perm.card;
+                            self.leave_battlefield(o, Zone::Exile);
+                            if self.exile.contains(&card) {
+                                self.exiled_with.insert(card, source);
+                                self.exiled_until.insert(card, source);
+                            }
+                        }
+                    }
+                }
                 // CR 701.26a.
                 Effect::Attach { to } => {
                     let (Some(what), Some(to)) = (at.object, self.named(&at, to)) else {
@@ -9285,6 +9321,68 @@ impl Game {
         if to == Zone::Graveyard && chars.is(CardType::Creature) {
             self.trigger_on(Event::Died(id));
         }
+        self.return_exiled_until(id);
+    }
+
+    /// CR 610.3, 610.3c: what `id` exiled "until" it leaves the
+    /// battlefield returns under its owner's control as it leaves. A
+    /// token stays in exile (CR 111.8: "If such a token would change
+    /// zones, it remains in its current zone instead"). A card whose
+    /// entering asks a choice (a copy, life paid, a discard, a creature
+    /// type, what an Aura enchants: CR 614.12, 303.4f) is refused, since
+    /// a permanent leaving can't stop to ask it.
+    fn return_exiled_until(&mut self, id: ObjectId) {
+        let back: Vec<CardId> = self
+            .exiled_until
+            .iter()
+            .filter(|(_, o)| **o == id)
+            .map(|(c, _)| *c)
+            .collect();
+        for c in back {
+            self.exiled_until.remove(&c);
+            if !self.exile.contains(&c) || self.cards[c.0 as usize].token {
+                continue;
+            }
+            let owner = self.owner(c);
+            let Some(k) = self.known(c).filter(|k| k.runs.is_ok()) else {
+                self.halted = Some(Rejected::Refused {
+                    card: "a hidden card".into(),
+                    refusal: Unrunnable::new(
+                        "ExileUntilLeaves of a card that doesn't run",
+                        "a card exiled until a permanent leaves returns, and the game \
+                         can't run it",
+                    ),
+                });
+                return;
+            };
+            let name = k.text.name.clone();
+            let aura = self
+                .runs_of(c)
+                .lowered
+                .chars
+                .subtypes
+                .contains(&Subtype::Other("Aura".into()));
+            let (tapped, pays, discard) = self.entering(c, owner);
+            if aura
+                || pays.is_some()
+                || discard.is_some()
+                || self.chooses_type(c, owner)
+                || self.as_copy(c, owner).is_some()
+            {
+                self.halted = Some(Rejected::Refused {
+                    card: name,
+                    refusal: Unrunnable::new(
+                        "ExileUntilLeaves returning a card that chooses as it enters",
+                        "a card exiled until a permanent leaves returns as it leaves, and \
+                         how it enters asks a choice the game can't stop for there",
+                    ),
+                });
+                return;
+            }
+            self.exile.retain(|x| *x != c);
+            self.exiled_with.remove(&c);
+            self.arrive(c, owner, tapped);
+        }
     }
 
     /// CR 800.4a: everything the player owns leaves the game. Nothing
@@ -9317,14 +9415,20 @@ impl Game {
             .map(|(id, _)| *id)
             .collect();
         let all = self.characteristics();
-        for id in gone {
-            if let Some(chars) = all.get(&id) {
+        for id in &gone {
+            if let Some(chars) = all.get(id) {
                 self.left_this_turn.push_back(chars.clone());
             }
-            if let Some(perm) = self.permanents.remove(&id) {
+            if let Some(perm) = self.permanents.remove(id) {
                 self.cards[perm.card.0 as usize].copy = None;
             }
-            self.battlefield.leave(id);
+            self.battlefield.leave(*id);
+        }
+        // CR 610.3: what they exiled "until" they leave returns once they
+        // have all left, one card after another rather than at once (CR
+        // 610.3d), which no game so far tells apart.
+        for id in gone {
+            self.return_exiled_until(id);
         }
     }
 }

@@ -2151,6 +2151,9 @@ impl Driver<'_> {
                     };
                     return Err(unfollowed(Some(n)));
                 };
+                // Sheltered by Ghosts aimed at one of two Champions of the
+                // Parish, the tapped one, as the other blocks after.
+                self.aim_alike(i, &t.targets)?;
                 self.trigger(c.name())?;
                 self.did(
                     i,
