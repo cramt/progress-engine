@@ -5195,6 +5195,68 @@ fn tarmogoyf_counts_card_types_in_graveyards_before_a_pump() {
     assert_eq!(game.characteristics()[&goyf].pt, Some(pt(5, 6)));
 }
 
+/// CR 604.3: Tarmogoyf counts every card in all graveyards, so with a
+/// card there the engine can't see (Strategic Planning put two cards of my
+/// library into my graveyard, never named), its power can't be known: the
+/// game refuses to go on rather than count it low.
+#[test]
+fn tarmogoyf_refuses_a_graveyard_holding_a_hidden_card() {
+    let known = [
+        ("Forest", 5),
+        ("Island", 5),
+        ("Tarmogoyf", 5),
+        ("Strategic Planning", 5),
+    ];
+    let mut game = (0..2000)
+        .map(|seed| {
+            Game::start(Setup {
+                format: Format::Constructed,
+                decks: vec![
+                    DeckCards {
+                        hidden: 40,
+                        ..deck(&known)
+                    },
+                    deck(&[("Island", 60)]),
+                ],
+                mulligans: false,
+                seed,
+            })
+            .unwrap()
+        })
+        .find(|g| {
+            known
+                .iter()
+                .all(|(n, _)| named(g, g.player(ME).hand(), n) >= 1)
+        })
+        .expect("a seed deals one of each");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    cast(&mut game, "Strategic Planning", None);
+    let three: Vec<CardId> = game.player(ME).library().iter().take(3).copied().collect();
+    resolve(&mut game);
+    // The two left in the graveyard are hidden ones where there are two.
+    let mut by_hidden = three.clone();
+    by_hidden.sort_by_key(|c| game.card(*c).is_none());
+    step(&mut game, Answer::Choose(vec![by_hidden[0]]));
+    assert!(
+        game.player(ME)
+            .graveyard()
+            .iter()
+            .any(|c| game.card(*c).is_none()),
+        "a hidden card in my graveyard"
+    );
+    my_next_main(&mut game);
+    cast(&mut game, "Tarmogoyf", None);
+    resolve(&mut game);
+    assert!(creature(&game, "Tarmogoyf").is_some());
+    match game.step(Answer::Act(Action::Pass)) {
+        Err(Rejected::Refused { card, .. }) => assert_eq!(card, "Tarmogoyf"),
+        other => panic!("{other:?}"),
+    }
+}
+
 /// CR 702.14c: Goblin King gives my Raging Goblin mountainwalk, so while
 /// they control a Mountain their Raging Goblin can't block it.
 #[test]

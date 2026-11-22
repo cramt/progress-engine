@@ -1145,7 +1145,8 @@ it is chosen (CR 601.2b, 700.2a: Boros Charm, Red Elemental Blast);
 Pyroblast and Hydroblast, either mode); a characteristic-defining
 power and toughness in layer 7a, counted as the layers reach it (CR
 604.3, 613.4a: Tarmogoyf's card types in all graveyards, Terravore's
-land cards); landwalk, no block while the defending player controls a
+land cards, and the game refused while a graveyard holds a card it
+can't see, rather than counted low); landwalk, no block while the defending player controls a
 land of its type (CR 702.14c: Goblin King's mountainwalk); "whenever
 you attack" (CR 508.3d), tokens put onto the battlefield tapped and
 attacking each opponent, attacking but never attacked (CR 508.4), and a

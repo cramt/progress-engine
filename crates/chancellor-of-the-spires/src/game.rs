@@ -2426,6 +2426,54 @@ impl Game {
         state
     }
 
+    /// A characteristic-defining ability on the battlefield that counts
+    /// cards in graveyards (Tarmogoyf) while one of them is a card the
+    /// engine can't see: its power and toughness can't be known, and every
+    /// answer would act on them (state-based actions, combat), so the game
+    /// refuses to go on rather than count it low.
+    fn uncounted_graveyard(&self) -> Option<Rejected> {
+        let reads = |s: &model::StaticAbility| {
+            s.ops.iter().any(|op| {
+                matches!(op, crate::model::Op::DefinePt { power, toughness }
+                    if [power, toughness].into_iter().flatten().any(|d| d.count.reads_graveyards()))
+            })
+        };
+        if !self.battlefield.statics.values().any(reads) {
+            return None;
+        }
+        let hidden = self
+            .players
+            .iter()
+            .flat_map(|p| &p.graveyard)
+            .any(|c| self.known(*c).and_then(|k| k.printed.as_ref()).is_none());
+        if !hidden {
+            return None;
+        }
+        let card = self
+            .permanents
+            .iter()
+            .find(|(id, _)| {
+                self.battlefield.objects[*id]
+                    .printed
+                    .abilities
+                    .iter()
+                    .any(|a| {
+                        matches!(a, Ability::Static(s)
+                        if self.battlefield.statics.get(s).is_some_and(reads))
+                    })
+            })
+            .and_then(|(_, p)| self.face_name(p.card))
+            .unwrap_or("a permanent")
+            .to_string();
+        Some(Rejected::Refused {
+            card,
+            refusal: Unrunnable::new(
+                "DefinedCount::Graveyard",
+                "counts the cards in graveyards, and one of them is hidden",
+            ),
+        })
+    }
+
     /// Whether the engine can run this card: why it refuses it if not. A
     /// land is checked as it would be played, any other card as it would
     /// be cast.
@@ -2935,6 +2983,9 @@ impl Game {
     /// Answer the decision and run on to the next one. An answer that isn't
     /// legal leaves the game as it was.
     pub fn step(&mut self, answer: Answer) -> Result<Decision, Rejected> {
+        if let Some(refused) = self.uncounted_graveyard() {
+            return Err(refused);
+        }
         match (self.waiting.clone(), &answer) {
             (Waiting::OpeningHand { player }, Answer::Begin(cards)) => {
                 let distinct: BTreeSet<&CardId> = cards.iter().collect();
