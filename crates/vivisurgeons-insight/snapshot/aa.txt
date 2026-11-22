@@ -658,7 +658,7 @@ cost: {3}
 > This artifact enters tapped with a time counter on it.
 > {T}: Add an amount of {C} equal to the number of time counters on this artifact.
 > {4}, {T}: Time travel. Activate only as a sorcery. (For each suspended card you own and each permanent you control with a time counter on it, you may add or remove a time counter.)
-= BROKE at "counter" after: this artifact enters tapped with a time
+= Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "time" }])
 = Activated { cost: [Tap], effect: [AddMana(AmountOf { mana: Mana(["C"]), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("time"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) })], limits: [] }
 = Activated { cost: [Mana(Mana(["4"])), Tap], effect: [Action { by: None, name: "time travel", n: None }], limits: [SorcerySpeed] }
 

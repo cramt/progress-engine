@@ -82,7 +82,7 @@ cost: {2}{G}{U}
 > As long as Arixmethes has a slumber counter on it, it's a land. (It's not a creature.)
 > Whenever you cast a spell, you may remove a slumber counter from Arixmethes.
 > {T}: Add {G}{U}.
-= BROKE at "on" after: ~ enters tapped with five slumber counters
+= Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(5), kind: "slumber" }])
 = BROKE at "." after: as long as ~ has a slumber counter on it , it's a land
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [RemoveCounters { n: N(1), kind: "slumber", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G", "U"])))], limits: [] }

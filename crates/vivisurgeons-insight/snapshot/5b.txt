@@ -738,7 +738,7 @@ cost: {U}
 > This creature enters tapped with three stun counters on it. (If it would become untapped, remove a stun counter from it instead.)
 > {1}{U}: Untap this creature.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
-= BROKE at "counters" after: this creature enters tapped with three stun
+= Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(3), kind: "stun" }])
 = Activated { cost: [Mana(Mana(["1", "U"]))], effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Slinking Skirge

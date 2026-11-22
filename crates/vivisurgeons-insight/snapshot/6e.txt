@@ -836,7 +836,7 @@ type: Creature — Salamander Horror
 cost: {B}
 > This creature enters tapped with a stun counter on it. (If it would become untapped, remove a stun counter from it instead.)
 > Chef's Knife — During your turn, this creature has first strike and deathtouch.
-= BROKE at "counter" after: this creature enters tapped with a stun
+= Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "stun" }])
 = Labelled { label: "chef's knife", ability: Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }, Keyword { name: "deathtouch", param: None }], per: None }] }]) }
 
 ## Treasure Trove

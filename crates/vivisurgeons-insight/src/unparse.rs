@@ -13523,6 +13523,16 @@ fn statics(o: &mut Out, ss: &[Static]) {
                     continue;
                 }
             }
+            // "enters tapped with two charge counters on it"
+            // ([enters-tapped-with]).
+            if let (Static::EntersTapped(_), Static::EntersWithCounters { n: k, kind, .. }) =
+                (&ss[j - 1], next)
+            {
+                o.w("with");
+                enters_counters(o, k, kind);
+                j += 1;
+                continue;
+            }
             // "… with base power and toughness 1/1 named Legitimate
             // Businessperson" ([is-named]).
             if let Static::IsNamed { name, .. } = next {

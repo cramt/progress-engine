@@ -1306,7 +1306,24 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             }
             Some(v)
         },
-        |p| { p.verb("enter")?; p.attempt(|p| p.words("the battlefield")); p.word("tapped")?; Some(vec![Static::EntersTapped(what.clone())]) },
+        |p| {
+            p.verb("enter")?;
+            p.attempt(|p| p.words("the battlefield"));
+            p.word("tapped")?;
+            let mut v = vec![Static::EntersTapped(what.clone())];
+            // "enters tapped with two charge counters on it" ([enters-tapped-with]).
+            if let Some((n, kind)) = p.attempt(|p| {
+                p.word("with")?;
+                let n = amount_a(p)?;
+                let kind = counter_kind(p)?;
+                p.one_of(&["counters", "counter"])?;
+                p.one_of(&["on it", "on them"])?;
+                Some((n, kind))
+            }) {
+                v.push(Static::EntersWithCounters { what: what.clone(), n, kind });
+            }
+            Some(v)
+        },
         |p| { p.verb("enter")?; p.attempt(|p| p.words("the battlefield")); p.word("untapped")?; Some(vec![Static::EntersUntapped(what.clone())]) },
         |p| { p.verb("lose")?; lost(p).map(|lost| vec![Static::Loses { what: what.clone(), lost }]) },
         |p| {

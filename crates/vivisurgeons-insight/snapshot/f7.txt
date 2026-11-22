@@ -847,7 +847,7 @@ face: Saprazzan Skerry
 type: Land
 > This land enters tapped with two depletion counters on it.
 > {T}, Remove a depletion counter from this land: Add {U}{U}. If there are no depletion counters on this land, sacrifice it.
-= BROKE at "counters" after: this land enters tapped with two depletion
+= Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "depletion" }])
 = Activated { cost: [Tap, RemoveCounters { n: N(1), kind: "depletion", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [AddMana(Symbols(Mana(["U", "U"]))), If { order: Leading, cond: Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("depletion") }), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Sarah Jane Smith
@@ -991,7 +991,7 @@ cost: {3}
 > This creature enters tapped with two +1/+1 counters on it.
 > This creature doesn't untap during your untap step if it has a +1/+1 counter on it.
 > At the beginning of combat on your turn, you may move a +1/+1 counter from this creature onto target creature.
-= BROKE at "<pt>" after: this creature enters tapped with two
+= Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }])
 = BROKE at "if" after: this creature doesn't untap during your untap step
 = Triggered { trigger: At(Combat(Yours)), effect: [May { who: You, then: [MoveCounters { counters: Objects { quant: One, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [], or: None } }, from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
 
