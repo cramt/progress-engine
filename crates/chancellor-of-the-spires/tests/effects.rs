@@ -5125,3 +5125,45 @@ fn red_elemental_blast_offers_only_a_mode_with_a_legal_target() {
     resolve(&mut game);
     assert_eq!(creature(&game, "Flying Men"), None);
 }
+
+/// CR 608.2c, 700.2a: Pyroblast's "Destroy target permanent if it's
+/// blue" may target any permanent, and does nothing to one that isn't
+/// blue as it resolves: their Island stays, their Flying Men don't.
+#[test]
+fn pyroblast_destroys_its_target_only_if_it_is_blue() {
+    let mut game = deal_both(
+        &[("Mountain", 30), ("Pyroblast", 30)],
+        &[("Island", 40), ("Flying Men", 20)],
+        &[("Mountain", 1), ("Pyroblast", 2)],
+        &[("Island", 1), ("Flying Men", 1)],
+    );
+    play(&mut game, "Mountain");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Island");
+    cast_as(&mut game, THEM, "Flying Men", None);
+    resolve(&mut game);
+    let island = creature(&game, "Island").expect("their land");
+    let men = creature(&game, "Flying Men").expect("theirs");
+    let blast = |game: &mut Game, at: chancellor_of_the_spires::model::ObjectId| {
+        pass_until(game, ME, Step::PrecombatMain);
+        let pyro = in_hand(game, ME, "Pyroblast").unwrap();
+        let Decision::Mode { modes, .. } = step(game, Answer::Act(Action::Cast(pyro))) else {
+            panic!("{:?}", game.decision())
+        };
+        assert_eq!(modes, vec![1], "no spell on the stack to counter");
+        let Decision::Targets { slots, .. } = step(game, Answer::Mode(1)) else {
+            panic!("{:?}", game.decision())
+        };
+        assert!(slots[0].contains(&Target::Object(at)));
+        let mut d = step(game, Answer::Targets(vec![Target::Object(at)]));
+        while let Decision::Pay { actions, .. } = d {
+            d = step(game, Answer::Pay(actions[0]));
+        }
+        resolve(game);
+    };
+    blast(&mut game, island);
+    assert!(game.permanents().contains_key(&island), "not blue");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    blast(&mut game, men);
+    assert_eq!(creature(&game, "Flying Men"), None);
+}

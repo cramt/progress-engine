@@ -1458,6 +1458,15 @@ pub enum Effect {
         filter: CardFilter,
         then: Vec<Effect>,
     },
+    /// Pyroblast's "Counter target spell if it's blue": these instructions
+    /// only if the target in the slot still matches the filter as they
+    /// are followed, a spell by its card's characteristics and a
+    /// permanent by what the layers make it.
+    IfTarget {
+        target: usize,
+        filter: Filter,
+        then: Vec<Effect>,
+    },
     /// "If this spell was kicked, …" (CR 702.33d): these instructions only
     /// if the spell resolving was kicked, or with `was` false only if it
     /// wasn't, as the instruction an "instead" replaces is.
@@ -1549,6 +1558,7 @@ impl Effect {
         match self {
             Effect::May(_, then)
             | Effect::IfCard { then, .. }
+            | Effect::IfTarget { then, .. }
             | Effect::IfControl { then, .. }
             | Effect::Kicked { then, .. }
             | Effect::Unless {
@@ -2796,6 +2806,19 @@ impl<'a> Scope<'a> {
             {
                 Effect::Counter(self.slot(ability_spec(what)?))
             }
+            // Pyroblast's "counter target spell" inside its "if", the spell
+            // a `Let` binds.
+            i::Effect::Counter { what, unless: None }
+                if matches!(what.quant, Quant::Introduced(_) | Quant::Bound(_)) =>
+            {
+                let Obj::Target(slot) = self.obj(what)? else {
+                    return Err(node());
+                };
+                if !matches!(self.program.targets[slot], TargetSpec::Spell(_)) {
+                    return Err(format!("{} of a permanent", node()));
+                }
+                Effect::Counter(slot)
+            }
             // "Counter target spell unless its controller pays {3}" (CR
             // 118.12a), the spell a `Let` binds.
             i::Effect::Counter {
@@ -3274,6 +3297,35 @@ impl<'a> Scope<'a> {
                 of: self.obj(of)?,
                 except: excepts(except)?,
             },
+            // "If it's blue", "it" a target the spell's `Let` binds.
+            i::Effect::If {
+                cond: i::Condition::Is { what, filter },
+                then,
+                ..
+            } if matches!(what.quant, Quant::Bound(k) | Quant::Introduced(k)
+                    if self.found(k.into()).is_none())
+                && what.filter == i::Filter::default() =>
+            {
+                let Obj::Target(target) = self.obj(what)? else {
+                    return Err(node());
+                };
+                let filter = objects(&Objects {
+                    quant: Quant::All,
+                    filter: filter.clone(),
+                })?;
+                if filter
+                    .0
+                    .iter()
+                    .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_) | Pred::IsAny(_)))
+                {
+                    return Err(format!("{} of a target relative to its source", node()));
+                }
+                Effect::IfTarget {
+                    target,
+                    filter,
+                    then: self.effects(then)?,
+                }
+            }
             i::Effect::If {
                 cond: i::Condition::Is { what, filter },
                 then,

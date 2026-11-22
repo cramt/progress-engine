@@ -6057,6 +6057,24 @@ impl Game {
                         self.become_copy(id, &copied, &except, this.as_deref());
                     }
                 }
+                // CR 608.2b: the target as it is now; one gone is
+                // illegal, and does nothing.
+                Effect::IfTarget { target, filter, .. } => {
+                    let holds = match at.targets[target] {
+                        Some(Target::Spell(c)) => self
+                            .spell_chars(c)
+                            .is_some_and(|ch| filter.matches_card(&ch)),
+                        Some(Target::Object(o)) => self
+                            .characteristics()
+                            .get(&o)
+                            .is_some_and(|ch| filter.matches_card(ch)),
+                        _ => false,
+                    };
+                    if holds {
+                        at = here;
+                        at.next.push(0);
+                    }
+                }
                 Effect::IfCard { card, filter, .. } => {
                     let holds = match at.found.get(&card).map(Vec::as_slice) {
                         Some([c]) => self

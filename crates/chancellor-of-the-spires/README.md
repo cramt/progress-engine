@@ -1032,8 +1032,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 114 of the 500 replay to
-the end and 50.42% of their lines are followed** (15,964 of 31,659), 3
+Worked card by card from there, **on 2026-11-22 117 of the 500 replay to
+the end and 51.11% of their lines are followed** (16,181 of 31,659), 3
 of them relying on a land the log never names (2 to the end), and 117
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -1136,7 +1136,9 @@ a cost change for spells with flash, which the same spells can't be
 countered beside (CR 702.8a, 101.2: Cunning Nightbonder); a modal
 spell's "choose one", its mode announced first and only one whose
 targets can be chosen offered, a mode the engine can't run refused as
-it is chosen (CR 601.2b, 700.2a: Boros Charm, Red Elemental Blast). And
+it is chosen (CR 601.2b, 700.2a: Boros Charm, Red Elemental Blast);
+"if it's blue" of a target, read as the spell resolves (CR 608.2c:
+Pyroblast and Hydroblast, either mode). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1195,8 +1197,9 @@ stopped, one replays to the end and the rest stop at other cards
 (Horror of the Broken Lands's cycling trigger, Hopeful Initiate's
 training, Lurrus, Deftblade Elite's provoke, Malcolm's discard), and a
 target card in a graveyard let Withered Wretch's game replay to the end
-too; of the 18 games a modal spell stopped, three replay to the end,
-five stop at Pyroblast's or Hydroblast's "if it's blue", four at
+too; of the 18 games a modal spell stopped, six replay to the end, two
+stop at other cards after Pyroblast's "if it's blue" (Goblin King's
+mountainwalk, Ghastly Demise's "if"), four at
 Archdruid's Charm, whose modes a search's "With" wraps, one at
 Kolaghan's Command's "choose two", and the rest at other cards
 (Tarmogoyf, Huntmaster of the Fells, Nulldrifter, Phyrexian Obliterator,
