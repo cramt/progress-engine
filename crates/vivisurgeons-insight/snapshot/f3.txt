@@ -963,7 +963,7 @@ face: Righteous Indignation
 type: Enchantment
 cost: {2}{W}
 > Whenever a creature blocks a black or red creature, the blocking creature gets +1/+1 until end of turn.
-= BROKE at "red" after: whenever a creature blocks a black or
+= BROKE at "," after: whenever a creature blocks a black or red creature
 
 ## Sage's Nouliths
 face: Sage's Nouliths

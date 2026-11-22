@@ -963,7 +963,7 @@ face: Sylvan Basilisk
 type: Creature — Basilisk
 cost: {3}{G}{G}
 > Whenever this creature becomes blocked by a creature, destroy that creature.
-= BROKE at "creature" after: whenever this creature becomes blocked by a
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] } }
 
 ## Syphon Fuel
 face: Syphon Fuel
@@ -1124,7 +1124,7 @@ cost: {1}{U}
 > Defender
 > Whenever this creature blocks a creature, tap that creature. That creature doesn't untap during its controller's next untap step.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "," after: whenever this creature blocks a creature
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Blocks }), effect: [Tap(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Restrict { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }], limits: [] } }
 
 ## Vivid Marsh
 face: Vivid Marsh

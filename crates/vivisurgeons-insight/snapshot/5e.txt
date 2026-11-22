@@ -1135,7 +1135,7 @@ cost: {2}{R}
 > Defender (This creature can't attack.)
 > Whenever this creature blocks a creature, that creature can't attack during its controller's next turn.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "," after: whenever this creature blocks a creature
+= BROKE at "its" after: whenever this creature blocks a creature , that creature can't attack during
 
 ## Warleader's Call
 face: Warleader's Call

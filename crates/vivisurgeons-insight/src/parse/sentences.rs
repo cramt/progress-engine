@@ -1591,6 +1591,16 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         // "When you do, put two +1/+1 counters … on target attacking
         // creature. It becomes an Angel …": "it" is what the reflexive
         // trigger targeted, so the sentence is that trigger's too.
+        // "that creature's controller sacrifices it at end of combat. If
+        // the player does, they create a 0/2 … Wall" (Basalt Golem): the
+        // "do" is the delayed trigger's, so the branch is asked only once
+        // that trigger resolves ([delayed-if-you-do]).
+        if let Some(Effect::Delayed { then, .. }) = v.last_mut() {
+            if matches!(s.first(), Some(Effect::IfYouDo(_) | Effect::IfYouDont(_))) {
+                then.extend(s);
+                continue;
+            }
+        }
         let reflexive = matches!(
             v.last(),
             Some(Effect::WhenYouDo(_) | Effect::WhenYouDoIf { .. })

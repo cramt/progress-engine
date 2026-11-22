@@ -463,7 +463,7 @@ cost: {1}{U}
 > Defender (This creature can't attack.)
 > Whenever this creature blocks a creature, return that creature to its owner's hand at end of combat. (Return it only if it's on the battlefield.)
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "," after: whenever this creature blocks a creature
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Blocks }), effect: [Delayed { step: EndOfCombat(The), then: [Move { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] } }
 
 ## Keeper of the Dead
 face: Keeper of the Dead

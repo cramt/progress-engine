@@ -8472,17 +8472,23 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                 // "return it … at the beginning of the next end step. That
                 // creature is a black Zombie …" (Grave Betrayal): the step
                 // said after the first clause, the rest its own sentences.
+                // "… sacrifices it at end of combat. If the player does":
+                // the rest continues the first clause's player.
+                let rest_cx = Cx {
+                    continues: subject_of(&then[0]).or_else(|| cx.continues.clone()),
+                    ..cx.clone()
+                };
                 let after = out(|o| {
                     clauses(o, &then[..1], cx);
                     at_step(o, s, false);
                     o.tok(Tok::Period);
-                    clauses(o, &then[1..], cx);
+                    clauses(o, &then[1..], &rest_cx);
                 });
                 let joined = out(|o| {
                     clauses(o, &then[..1], cx);
                     at_step(o, s, false);
                     o.w(", then");
-                    clauses(o, &then[1..], cx);
+                    clauses(o, &then[1..], &rest_cx);
                 });
                 syn::position_then(o, before, after, joined);
             }
@@ -11255,6 +11261,22 @@ fn event(o: &mut Out, e: &Event) {
         Event::BecomesBlocked(x) => {
             obj_subj(o, x, "become");
             o.w("blocked");
+        }
+        Event::BlockedWith { what, other, how } => {
+            match how {
+                BlockHow::Blocks => obj_subj(o, what, "block"),
+                BlockHow::BlockedBy => {
+                    obj_subj(o, what, "become");
+                    o.w("blocked by");
+                }
+                BlockHow::Either => {
+                    obj_subj(o, what, "block");
+                    o.w("or");
+                    o.verb("become", obj_num(what));
+                    o.w("blocked by");
+                }
+            }
+            objects(o, other);
         }
         Event::DealsCombatDamageToPlayer(x) => {
             obj_subj(o, x, "deal");

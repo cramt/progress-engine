@@ -166,7 +166,7 @@ cost: {4}{R}
 > Flying
 > Whenever this creature blocks a creature without flying, this creature gets +1/+0 and gains first strike until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "flying" after: whenever this creature blocks a creature without
+= Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithoutKeyword("flying")], or: None } }, how: Blocks }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Crown of Suspicion
 face: Crown of Suspicion

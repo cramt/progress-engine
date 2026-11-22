@@ -293,7 +293,7 @@ face: Engulfing Slagwurm
 type: Creature — Wurm
 cost: {5}{G}{G}
 > Whenever this creature blocks or becomes blocked by a creature, destroy that creature. You gain life equal to that creature's toughness.
-= BROKE at "by" after: whenever this creature blocks or becomes blocked
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Either }), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, GainLife { who: You, n: ToughnessOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }], limits: [] } }
 
 ## Etrata, Deadly Fugitive
 face: Etrata, Deadly Fugitive

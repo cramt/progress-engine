@@ -820,7 +820,7 @@ type: Creature — Troll
 cost: {1}{G}
 > Whenever this creature becomes blocked by a creature, this creature gets +1/+1 until end of turn.
 > {G}: Regenerate this creature.
-= BROKE at "creature" after: whenever this creature becomes blocked by a
+= Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 = Activated { cost: [Mana(Mana(["G"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Rasputin Dreamweaver

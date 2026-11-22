@@ -92,7 +92,7 @@ cost: {1}{W}{W}
 > Whenever Brimaz blocks a creature, create a 1/1 white Cat Soldier creature token with vigilance that's blocking that creature.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["cat", "soldier", "creature"], keywords: [Keyword { name: "vigilance", param: None }], abilities: [], named: None, attacking: Some(ControllerChooses) } }], limits: [] }
-= BROKE at "," after: whenever ~ blocks a creature
+= BROKE at "blocking" after: whenever ~ blocks a creature , create a <pt> white cat soldier creature token with vigilance that's
 
 ## Brokers Initiate
 face: Brokers Initiate

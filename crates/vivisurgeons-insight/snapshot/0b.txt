@@ -404,7 +404,7 @@ cost: {1}{B}
 > Vigilance
 > Whenever this creature blocks or becomes blocked by a white creature, this creature gains first strike until end of turn.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= BROKE at "by" after: whenever this creature blocks or becomes blocked
+= Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: One, filter: Filter { alts: [[Color(White), Type("creature")]], kind: None, posts: [], or: None } }, how: Either }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Gift of the Viper
 face: Gift of the Viper

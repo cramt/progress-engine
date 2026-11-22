@@ -884,7 +884,7 @@ face: Thicket Basilisk
 type: Creature — Basilisk
 cost: {3}{G}{G}
 > Whenever this creature blocks or becomes blocked by a non-Wall creature, destroy that creature at end of combat.
-= BROKE at "by" after: whenever this creature blocks or becomes blocked
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Non("wall"), Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Either }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] } }
 
 ## Thundersteel Colossus
 face: Thundersteel Colossus

@@ -783,7 +783,7 @@ face: Retaliation
 type: Enchantment
 cost: {2}{G}
 > Creatures you control have "Whenever this creature becomes blocked by a creature, this creature gets +1/+1 until end of turn."
-= BROKE at "creature" after: creatures you control have " whenever this creature becomes blocked by a
+= Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] } }])
 
 ## Return Triumphant
 face: Return Triumphant

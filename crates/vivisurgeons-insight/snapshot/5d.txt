@@ -490,7 +490,7 @@ face: Lim-Dûl's Cohort
 type: Creature — Zombie
 cost: {1}{B}{B}
 > Whenever this creature blocks or becomes blocked by a creature, that creature can't be regenerated this turn.
-= BROKE at "by" after: whenever this creature blocks or becomes blocked
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Either }), effect: [Restrict { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeRegenerated, dur: ThisTurn }], limits: [] } }
 
 ## Mage's Guile
 face: Mage's Guile
@@ -1026,7 +1026,7 @@ cost: {2}
 > Whenever equipped creature blocks or becomes blocked by a Vampire, destroy that creature. It can't be regenerated.
 > Equip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }])
-= BROKE at "by" after: whenever equipped creature blocks or becomes blocked
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Either }), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: true }], limits: [] } }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
 ## Words of War

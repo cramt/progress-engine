@@ -405,7 +405,7 @@ cost: {5}{U}
 > Whenever this creature blocks or becomes blocked by a creature that has been dealt damage this turn, this creature gets +2/+0 and gains trample until end of turn.
 > When you control no Islands, sacrifice this creature.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: Unless(CantAttack, PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "by" after: whenever this creature blocks or becomes blocked
+= BROKE at "been" after: whenever this creature blocks or becomes blocked by a creature that has
 = BROKE at "," after: when you control no islands
 
 ## Glacier Godmaw

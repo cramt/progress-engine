@@ -139,7 +139,7 @@ cost: {2}
 > At the beginning of combat on your turn, this creature gains banding until end of combat. (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding you control are being blocked by a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's blocking.)
 > Whenever this creature becomes blocked by a Wall, destroy that Wall at end of combat.
 = BROKE at "combat" after: at the beginning of combat on your turn , this creature gains banding until end of
-= BROKE at "wall" after: whenever this creature becomes blocked by a
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Subtype("wall")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Subtype("wall")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] } }
 
 ## Blitz Leech
 face: Blitz Leech

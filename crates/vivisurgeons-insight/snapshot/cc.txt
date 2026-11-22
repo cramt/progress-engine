@@ -1043,7 +1043,7 @@ cost: {1}{W}
 > Defender (This creature can't attack.)
 > Whenever this creature blocks a creature, if at least one other Wall creature is blocking that creature and no non-Wall creatures are blocking that creature, this creature gains banding until end of turn. (If any creatures with banding you control are blocking a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by.)
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "," after: whenever this creature blocks a creature
+= BROKE at "creature" after: whenever this creature blocks a creature , if at least one other wall creature is blocking that
 
 ## Waning Wurm
 face: Waning Wurm

@@ -1094,7 +1094,7 @@ cost: {1}{G}{G}
 > Reach (This creature can block creatures with flying.)
 > Whenever this creature blocks a creature with flying, this creature gets +0/+2 until end of turn.
 = Keywords([Keyword { name: "reach", param: None }])
-= BROKE at "flying" after: whenever this creature blocks a creature with
+= Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, how: Blocks }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Zephyr Sprite
 face: Zephyr Sprite

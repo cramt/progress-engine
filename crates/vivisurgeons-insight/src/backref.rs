@@ -1567,7 +1567,22 @@ fn resolve_one(
                 if let Some((_, v)) = groups.iter().rev().find(|(_, v)| v.len() >= 2) {
                     cands.push(Target::Set(v.clone()));
                 }
-            } else if groups.len() >= 2 {
+            } else if let [(_, g)] = &groups[..] {
+                // "When this creature blocks a creature, destroy both
+                // creatures" (Alaborn Zealot), "Whenever equipped creature
+                // blocks or becomes blocked by a creature, destroy both
+                // creatures" (Dead-Iron Sledge): the two sides of the event,
+                // one of them the card when only one other is named
+                // ([both-sides]).
+                match &g[..] {
+                    [a, b] => cands.push(Target::Set(vec![a.clone(), b.clone()])),
+                    [a] if self_at.is_some() && self_compat(r, type_line) => {
+                        cands.push(Target::Set(vec![Target::SelfCard, a.clone()]))
+                    }
+                    _ => {}
+                }
+            }
+            if k == Kind::Text(Hint::Both) && cands.is_empty() && groups.len() >= 2 {
                 let n = groups.len();
                 let last = |g: &Vec<Target>| g.last().expect("a group is never empty").clone();
                 cands.push(Target::Set(vec![
@@ -1780,6 +1795,31 @@ fn resolve_one(
         if cands.iter().any(keep) && !cands.iter().all(keep) {
             cands.retain(keep);
             note = "a permanent, not a card off the battlefield or the damage's source".into();
+        }
+    }
+    // "Whenever this creature becomes blocked by a creature, it deals 2
+    // damage to that creature" (Acolyte of the Inferno): a bare "it" dealing
+    // damage to a reference said after it, which names the other object, is
+    // the card; the creature isn't dealing damage to itself ([source-not-
+    // recipient]).
+    if cands.len() > 1
+        && e.subject
+        && r.filter == Filter::default()
+        && cands.contains(&Target::SelfCard)
+    {
+        let recipient = ld.c.evs[ei + 1..].iter().find(|x| {
+            !x.subject
+                && x.effect_frame == e.effect_frame
+                && x.obj
+                    .as_ref()
+                    .is_some_and(|o| reference(o).is_some() && o.filter != Filter::default())
+        });
+        if let Some(rx) = recipient.and_then(|x| x.obj.as_ref()) {
+            let named = |t: &Target| matches!(t, Target::Intro(l, i) if compat(rx, get((*l, *i))));
+            if cands.iter().any(named) {
+                cands.retain(|t| !named(t));
+                note = "the card, not the damage's recipient".into();
+            }
         }
     }
     // "you may attach an Equipment you control to it" (Goldwardens'

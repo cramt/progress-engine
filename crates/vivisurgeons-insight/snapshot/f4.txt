@@ -909,7 +909,7 @@ cost: {4}{R}
 > First strike
 > Whenever this creature blocks or becomes blocked by a creature, that creature loses first strike until end of turn.
 = Keywords([Keyword { name: "first strike", param: None }])
-= BROKE at "by" after: whenever this creature blocks or becomes blocked
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Either }), effect: [LoseKeywords { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, keywords: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Tamiyo's Epiphany
 face: Tamiyo's Epiphany

@@ -307,7 +307,7 @@ cost: {4}{B}
 > Non-Eye creatures you control can't attack.
 > Whenever this creature becomes blocked by a creature, destroy that creature.
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Non("eye"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantAttack }])
-= BROKE at "creature" after: whenever this creature becomes blocked by a
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] } }
 
 ## Fixer, Techno Terror
 face: Fixer, Techno Terror

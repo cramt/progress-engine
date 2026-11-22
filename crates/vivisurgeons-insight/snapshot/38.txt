@@ -122,7 +122,7 @@ cost: {5}
 > This creature can't be blocked by artifact creatures.
 > Whenever this creature becomes blocked by a creature, that creature's controller sacrifices it at end of combat. If the player does, they create a 0/2 colorless Wall artifact creature token with defender.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [], or: None }) }])
-= BROKE at "creature" after: whenever this creature becomes blocked by a
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Delayed { step: EndOfCombat(The), then: [Sacrifice { who: ControllerOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, IfYouDo([Create { who: That, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(2), signed: false }), colors: [Colorless], types: ["wall", "artifact", "creature"], keywords: [Keyword { name: "defender", param: None }], abilities: [], named: None, attacking: None } }])] }], limits: [] } }
 
 ## Battershield Warrior
 face: Battershield Warrior
@@ -455,7 +455,7 @@ type: Creature — Gorgon
 cost: {3}{B}{B}
 > Whenever this creature blocks or becomes blocked by a nonblack creature, destroy that creature at end of combat.
 > Madness {B}{B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)
-= BROKE at "by" after: whenever this creature blocks or becomes blocked
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[NonColor(Black), Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Either }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] } }
 = Keywords([Keyword { name: "madness", param: Some(Cost([Mana(Mana(["B", "B"]))])) }])
 
 ## Grave Peril

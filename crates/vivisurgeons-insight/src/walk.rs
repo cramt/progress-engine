@@ -1655,6 +1655,10 @@ impl Walk for Event {
             Event::BecomesBlocked(f0) => {
                 Walk::walk(f0, v);
             }
+            Event::BlockedWith { what, other, .. } => {
+                Walk::walk(what, v);
+                Walk::walk(other, v);
+            }
             Event::DealsCombatDamageToPlayer(f0) => {
                 Walk::walk(f0, v);
             }

@@ -517,8 +517,8 @@ type: Creature — Gorgon
 cost: {3}{B}{B}
 > Whenever this creature blocks a creature, destroy that creature at end of combat.
 > Whenever this creature becomes blocked by a non-Wall creature, destroy that creature at end of combat.
-= BROKE at "," after: whenever this creature blocks a creature
-= BROKE at "non-wall" after: whenever this creature becomes blocked by a
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Blocks }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Non("wall"), Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] } }
 
 ## Jin Sakai, Ghost of Tsushima
 face: Jin Sakai, Ghost of Tsushima
@@ -585,7 +585,7 @@ type: Artifact — Equipment
 cost: {2}
 > Equipped creature gets +0/+2 and has hexproof and "Whenever a creature with deathtouch blocks or becomes blocked by this creature, destroy that creature."
 > Equip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)
-= BROKE at "by" after: equipped creature gets <pt> and has hexproof and " whenever a creature with deathtouch blocks or becomes blocked
+= Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [Keyword { name: "hexproof", param: None }], per: None }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("deathtouch")], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Either }), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] } } }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Mondrak, Glory Dominus

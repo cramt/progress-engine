@@ -403,7 +403,7 @@ type: Artifact — Equipment
 cost: {1}
 > Whenever equipped creature becomes blocked by a creature, you may draw two cards.
 > Equip {1}
-= BROKE at "creature" after: whenever equipped creature becomes blocked by a
+= Triggered { trigger: When(BlockedWith { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, other: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [May { who: You, then: [Draw { who: You, n: N(2) }] }], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
 ## Inquisitorial Rosette

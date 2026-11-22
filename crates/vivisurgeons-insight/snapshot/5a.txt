@@ -559,7 +559,7 @@ cost: {3}{R}{G}{W}
 > Vigilance, trample
 > Whenever this creature blocks a creature, this creature deals damage to that creature's controller equal to this creature's power.
 = Keywords([Keyword { name: "vigilance", param: None }, Keyword { name: "trample", param: None }])
-= BROKE at "," after: whenever this creature blocks a creature
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Blocks }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Player(ControllerOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }))] }], limits: [] } }
 
 ## Might of Old Krosa
 face: Might of Old Krosa

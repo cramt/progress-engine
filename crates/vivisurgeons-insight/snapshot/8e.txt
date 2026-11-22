@@ -268,7 +268,7 @@ face: Dwarven Soldier
 type: Creature — Dwarf Soldier
 cost: {1}{R}
 > Whenever this creature blocks or becomes blocked by one or more Orcs, this creature gets +0/+2 until end of turn.
-= BROKE at "by" after: whenever this creature blocks or becomes blocked
+= Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Subtype("orc")]], kind: None, posts: [], or: None } }, how: Either }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Ebonblade Reaper
 face: Ebonblade Reaper
@@ -746,8 +746,8 @@ type: Enchantment
 cost: {3}{R}
 > Whenever a creature becomes blocked by a creature with lesser power, destroy the blocking creature.
 > Whenever a creature blocks a creature with lesser power, destroy the attacking creature.
-= BROKE at "creature" after: whenever a creature becomes blocked by a
-= BROKE at "lesser" after: whenever a creature blocks a creature with
+= BROKE at "," after: whenever a creature becomes blocked by a creature with lesser power
+= BROKE at "," after: whenever a creature blocks a creature with lesser power
 
 ## Nuclear Fallout
 face: Nuclear Fallout

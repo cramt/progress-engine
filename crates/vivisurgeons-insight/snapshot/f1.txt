@@ -637,7 +637,7 @@ cost: {2}{G}
 > Whenever this creature blocks a creature, put four fungus counters on that creature. The creature gains "This creature doesn't untap during your untap step if it has a fungus counter on it" and "At the beginning of your upkeep, remove a fungus counter from this creature."
 = Keywords([Keyword { name: "defender", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: whenever this creature blocks a creature
+= BROKE at "if" after: whenever this creature blocks a creature , put four fungus counters on that creature . the creature gains " this creature doesn't untap during your untap step
 
 ## Misdirection
 face: Misdirection

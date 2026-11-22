@@ -498,7 +498,7 @@ cost: {W}{W}{W}
 > Enchant creature
 > Whenever enchanted creature blocks or becomes blocked by a creature with toughness 3 or less, destroy the other creature at end of combat. At the beginning of the next end step, if that creature was destroyed this way, put a +1/+1 counter on the first creature.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "by" after: whenever enchanted creature blocks or becomes blocked
+= BROKE at "," after: whenever enchanted creature blocks or becomes blocked by a creature with toughness 3 or less
 
 ## Involuntary Employment
 face: Involuntary Employment
@@ -838,7 +838,7 @@ cost: {W}{U}
 > Whenever equipped creature blocks a creature, that creature doesn't untap during its controller's next untap step.
 > Equip {2}
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }])
-= BROKE at "," after: whenever equipped creature blocks a creature
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Blocks }), effect: [Restrict { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }], limits: [] } }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Silence the Echo
@@ -1078,7 +1078,7 @@ cost: {1}{U}{U}
 > Defender
 > Whenever this creature blocks a creature, that creature doesn't untap during its controller's next untap step.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "," after: whenever this creature blocks a creature
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Blocks }), effect: [Restrict { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }], limits: [] } }
 
 ## Wayta, Trainer Prodigy
 face: Wayta, Trainer Prodigy

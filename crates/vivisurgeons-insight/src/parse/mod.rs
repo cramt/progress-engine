@@ -1382,6 +1382,62 @@ impl Visitor for BeforeEach {
     }
 }
 
+/// "Whenever this creature blocks two or more creatures, it gains first
+/// strike" (Lairwatch Giant), "Whenever equipped creature becomes blocked by
+/// one or more colorless creatures, it gains deathtouch" (Hedron Blade): a
+/// bare "it" said first in the effect of a block trigger is its subject, as
+/// is "the blocking creature" or "the attacking creature" when that is the
+/// subject's side ([block-sides]).
+fn block_subject(e: &Event, effect: &mut [Effect]) {
+    let e = match e {
+        Event::While { event, .. }
+        | Event::AndIf { event, .. }
+        | Event::InterveningIf { event, .. }
+        | Event::FirstTimeEachTurn(event) => &**event,
+        e => e,
+    };
+    let Event::BlockedWith { what, how, .. } = e else {
+        return;
+    };
+    if !matches!(what.quant, Quant::SelfRef | Quant::Equipped) {
+        return;
+    }
+    let side = match how {
+        BlockHow::Blocks => Some(State::Blocking),
+        BlockHow::BlockedBy => Some(State::Attacking),
+        BlockHow::Either => None,
+    };
+    struct Subject<'a> {
+        what: &'a Objects,
+        side: Option<State>,
+        first: bool,
+    }
+    impl Visitor for Subject<'_> {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if o.quant != Quant::Unresolved(Hint::Antecedent) {
+                return true;
+            }
+            let bare = o.filter == Filter::default();
+            let named_side = self
+                .side
+                .is_some_and(|s| o.filter.alts.iter().any(|g| g.contains(&Adj::State(s))));
+            if (bare && self.first) || named_side {
+                *o = self.what.clone();
+            }
+            self.first = false;
+            true
+        }
+    }
+    let mut v = Subject {
+        what,
+        side,
+        first: true,
+    };
+    for x in effect.iter_mut() {
+        x.walk(&mut v);
+    }
+}
+
 /// "Whenever another nontoken creature you control dies, if its mana value
 /// was 1 or greater, … return that card to the battlefield": a reference
 /// back said before the effect names any other object is to the trigger's
@@ -1390,6 +1446,7 @@ impl Visitor for BeforeEach {
 /// counter on this creature and it can't be blocked"). Once another object
 /// is named, "it" may be that one, and stays a plain back-reference.
 fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [Effect]) {
+    block_subject(e, effect);
     // "Whenever this creature or another artifact you control enters, put a
     // +1/+1 counter on this creature. It can't be blocked this turn": with
     // no one object, the card half of the rule still holds.

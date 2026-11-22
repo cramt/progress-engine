@@ -3,7 +3,7 @@ face: Abomination
 type: Creature — Horror
 cost: {3}{B}{B}
 > Whenever this creature blocks or becomes blocked by a green or white creature, destroy that creature at end of combat.
-= BROKE at "by" after: whenever this creature blocks or becomes blocked
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Color(Green), Type("creature")], [Color(White), Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Either }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] } }
 
 ## Ahn-Crop Invader
 face: Ahn-Crop Invader

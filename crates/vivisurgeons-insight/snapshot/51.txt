@@ -1139,7 +1139,7 @@ face: Tolarian Entrancer
 type: Creature — Human Wizard
 cost: {1}{U}
 > Whenever this creature becomes blocked by a creature, gain control of that creature at end of combat.
-= BROKE at "creature" after: whenever this creature becomes blocked by a
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Delayed { step: EndOfCombat(The), then: [GainControl { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: Permanent }] }], limits: [] } }
 
 ## Troubled Healer
 face: Troubled Healer

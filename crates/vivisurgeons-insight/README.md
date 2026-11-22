@@ -89,12 +89,12 @@ reports every one. The lists in `milestones/` say where they came from, and
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1800/1801 (99.9%) | pinned; Saw in Half was outside the old corpus |
 | My decks: every card in the 20 decks of cramt/mtg | 1199/1207 (99.3%) | 2496/2504 (99.7%) | reopened by 3 new decks; 1023 cards pinned |
-| Standard after the early-2027 rotation | 3076/3517 (87.5%) | 6589/7055 (93.4%) | |
+| Standard after the early-2027 rotation | 3077/3517 (87.5%) | 6590/7055 (93.4%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4283/5157 (83.1%) | 9472/10421 (90.9%) | |
+| All of Standard | 4285/5157 (83.1%) | 9474/10421 (90.9%) | |
 | EDHREC top 2000 | 1821/1987 (91.6%) | 3652/3847 (94.9%) | |
-| EDHREC top 5000 | 4165/4977 (83.7%) | 9179/10111 (90.8%) | |
-| Commander precons | 4772/6151 (77.6%) | 10703/12228 (87.5%) | |
+| EDHREC top 5000 | 4166/4977 (83.7%) | 9180/10111 (90.8%) | |
+| Commander precons | 4773/6151 (77.6%) | 10704/12228 (87.5%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -161,7 +161,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | My decks (pinned) | 2136/2136 (100%) |
 | EDHREC top 2000 | 3648/3650 (99.9%) |
-| All parsed abilities | 51614/51640 (99.9%) |
+| All parsed abilities | 51700/51727 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -200,7 +200,7 @@ own" (in Two-Headed Giant a teammate owns cards too), "choose target
 opponent" as "choose an opponent" (which does not target), a Saga's "II —"
 as an ability word, a sorcery's "The next Dragon spell you cast costs …" as
 a static, and a bare "its graveyard" as its controller's (CR 400.3 makes it
-the owner's). The 26 corpus abilities that still do not round-trip are
+the owner's). The 27 corpus abilities that still do not round-trip are
 listed by `insight roundtrip`. Twelve of them say a zone "in" or "from" where
 Oracle is not consistent with itself ("reveal any number of artifact cards in
 your hand", Metalworker; "… from your hand", Arsenal Thresher): the renderer

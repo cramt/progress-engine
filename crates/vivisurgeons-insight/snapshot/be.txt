@@ -933,7 +933,7 @@ face: Serra Inquisitors
 type: Creature — Human Cleric
 cost: {4}{W}
 > Whenever this creature blocks or becomes blocked by one or more black creatures, this creature gets +2/+0 until end of turn.
-= BROKE at "by" after: whenever this creature blocks or becomes blocked
+= Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Color(Black), Type("creature")]], kind: None, posts: [], or: None } }, how: Either }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Shu Soldier-Farmers
 face: Shu Soldier-Farmers

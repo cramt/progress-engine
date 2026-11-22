@@ -333,6 +333,26 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
         |p| { p.verb("transform")?; p.word("into")?; let into = objects(p)?; Some(Event::TransformsInto { what: what.clone(), into }) },
         |p| { p.verb("leave")?; let from = zone(p)?; Some(Event::Leaves { what: what.clone(), from }) },
         |p| p.one_of(&["is countered", "are countered"]).map(|_| Event::Countered(what.clone())),
+        // "blocks or becomes blocked by a creature", "becomes blocked by a
+        // creature", "blocks a creature": the other side of the block said.
+        |p| {
+            let how = alt!(p;
+                |p| { p.verb("block")?; p.words("or")?; p.verb("become")?; p.words("blocked by")?; Some(BlockHow::Either) },
+                |p| { p.verb("become")?; p.words("blocked by")?; Some(BlockHow::BlockedBy) },
+                |p| p.verb("block").map(|_| BlockHow::Blocks),
+            )?;
+            let other = objects(p)?;
+            // "Whenever a creature blocks a black or red creature, the
+            // blocking creature gets +1/+1" (Righteous Indignation): with
+            // neither side this card or the equipped creature, nothing
+            // tells a reference which side it means, so it is left unread
+            // ([block-sides]).
+            let fixed = |o: &Objects| matches!(o.quant, Quant::SelfRef | Quant::Equipped);
+            if !fixed(what) && !fixed(&other) {
+                return None;
+            }
+            Some(Event::BlockedWith { what: what.clone(), other, how })
+        },
         |p| p.verb("attack or block").map(|_| Event::AttacksOrBlocks(what.clone())),
         |p| p.verb("attack").map(|_| Event::Attacks(what.clone())),
         |p| p.verb("block").map(|_| Event::Blocks(what.clone())),

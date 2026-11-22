@@ -1080,7 +1080,7 @@ face: Viashino Weaponsmith
 type: Creature — Lizard
 cost: {3}{R}
 > Whenever this creature becomes blocked by a creature, this creature gets +2/+2 until end of turn.
-= BROKE at "creature" after: whenever this creature becomes blocked by a
+= Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Visions of Villainy
 face: Visions of Villainy

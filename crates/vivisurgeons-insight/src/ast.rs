@@ -3284,6 +3284,15 @@ pub enum Event {
     Blocks(Objects),
     AttacksOrBlocks(Objects),
     BecomesBlocked(Objects),
+    /// "Whenever this creature blocks a creature", "… becomes blocked by a
+    /// creature", "… blocks or becomes blocked by a non-Wall creature": a
+    /// block between the two, `what` on the side `how` says (CR 509.1a,
+    /// 509.1h).
+    BlockedWith {
+        what: Objects,
+        other: Objects,
+        how: BlockHow,
+    },
     /// "deals combat damage to a player".
     DealsCombatDamageToPlayer(Objects),
     /// "deals combat damage to a player or planeswalker", "… to an
@@ -4458,4 +4467,15 @@ impl Ability {
             _ => None,
         }
     }
+}
+
+/// Which side of a block `Event::BlockedWith`'s object is on.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum BlockHow {
+    /// "blocks a creature".
+    Blocks,
+    /// "becomes blocked by a creature".
+    BlockedBy,
+    /// "blocks or becomes blocked by a creature": either.
+    Either,
 }

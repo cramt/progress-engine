@@ -848,7 +848,7 @@ cost: {1}{G}
 > Reach
 > Whenever this creature blocks a creature with flying, this creature gets +2/+0 until end of turn.
 = Keywords([Keyword { name: "reach", param: None }])
-= BROKE at "flying" after: whenever this creature blocks a creature with
+= Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, how: Blocks }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Soul of Ravnica
 face: Soul of Ravnica

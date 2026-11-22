@@ -872,7 +872,7 @@ cost: {1}{U}
 face: Order of the Alabaster Host
 type: Creature — Phyrexian Knight
 > Whenever this creature becomes blocked by a creature, the blocking creature gets -1/-1 until end of turn.
-= BROKE at "creature" after: whenever this creature becomes blocked by a
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Modify { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[State(Blocking), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Order of the White Shield
 face: Order of the White Shield

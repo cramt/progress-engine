@@ -1086,7 +1086,7 @@ face: Tel-Jilad Wolf
 type: Creature — Wolf
 cost: {2}{G}
 > Whenever this creature becomes blocked by an artifact creature, this creature gets +3/+3 until end of turn.
-= BROKE at "artifact" after: whenever this creature becomes blocked by an
+= Triggered { trigger: When(BlockedWith { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, other: Objects { quant: One, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [], or: None } }, how: BlockedBy }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Thing in the Ice // Awoken Horror
 face: Thing in the Ice

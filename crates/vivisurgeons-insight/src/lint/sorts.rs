@@ -636,6 +636,7 @@ fn event(e: &Event, out: &mut Vec<(*const Objects, To)>) {
         | Event::Blocks(_)
         | Event::AttacksOrBlocks(_)
         | Event::BecomesBlocked(_)
+        | Event::BlockedWith { .. }
         | Event::DealsCombatDamageToPlayer(_)
         | Event::DealsCombatDamageTo { .. }
         | Event::DealsDamage(_)
