@@ -1830,6 +1830,10 @@ pub struct Game {
     combat: Option<Combat>,
     /// The "until end of turn" effects to end in cleanup (CR 514.2).
     until_end_of_turn: Vec<Timestamp>,
+    /// "If any source you control would deal damage … this turn, it deals
+    /// double that damage … instead": for each, the player whose sources
+    /// it watches and the multiplier, ending in cleanup (CR 514.2).
+    damage_multipliers: Vec<(PlayerId, u32)>,
     /// Cards an instruction put on the bottom of a library this turn.
     bottomed: u32,
     /// Libraries an instruction shuffled this turn.
@@ -2041,6 +2045,7 @@ impl Game {
             entering: None,
             combat: None,
             until_end_of_turn: Vec::new(),
+            damage_multipliers: Vec::new(),
             delayed: Vector::new(),
             wards: Vector::new(),
             last_known: OrdMap::new(),
@@ -5359,7 +5364,7 @@ impl Game {
         let damage = if self.you_have(p, ForYou::PreventAllDamage) {
             0
         } else {
-            damage
+            self.replaced_damage(p, damage)
         };
         self.lose_life(p, damage);
         if lifelink {
@@ -6073,6 +6078,7 @@ impl Game {
                     },
                     fired: false,
                 }),
+                Effect::MultiplyDamageThisTurn { by } => self.damage_multipliers.push((p, by)),
                 Effect::Scry(n) => {
                     let cards: Vec<CardId> = self
                         .player(p)
@@ -6756,10 +6762,19 @@ impl Game {
 
     /// What the resolving spell or ability's source is now, or as it last
     /// existed (CR 113.7a).
+    /// A spell is its card, controlled by the player who cast it (CR
+    /// 112.2), not the printed characteristics' placeholder controller.
     fn source_of(&self, at: &Resuming) -> Option<Chars> {
-        at.object
-            .and_then(|o| self.characteristics().remove(&o))
-            .or_else(|| self.known(at.what.card()).and_then(|k| k.printed.clone()))
+        let now = at.object.and_then(|o| {
+            self.characteristics()
+                .remove(&o)
+                .or_else(|| self.last_known.get(&o).map(|l| l.chars.clone()))
+        });
+        now.or_else(|| {
+            let mut printed = self.known(at.what.card())?.printed.clone()?;
+            printed.controller = at.controller;
+            Some(printed)
+        })
     }
 
     /// A spell's or ability's source, for what its quality is (CR
@@ -6774,6 +6789,18 @@ impl Game {
                     .or_else(|| self.last_known.get(&o).map(|l| l.chars.clone()))
             })
             .or_else(|| self.known(card).and_then(|k| k.printed.clone()))
+    }
+
+    /// `n` damage a source `by` controls would deal, as the replacement
+    /// effects doubling it make it (CR 614.1a). The affected player or
+    /// controller would choose their order (CR 616.1), but the engine's
+    /// damage replacements only multiply and its prevention prevents all
+    /// of it, so every order deals the same.
+    fn replaced_damage(&self, by: PlayerId, n: u32) -> u32 {
+        self.damage_multipliers
+            .iter()
+            .filter(|(p, _)| *p == by)
+            .fold(n, |n, (_, k)| n.saturating_mul(*k))
     }
 
     /// Damage from one source, dealt at once (CR 120.3): a player loses
@@ -6792,7 +6819,9 @@ impl Game {
         let now = self.characteristics();
         let mut total = 0;
         let mut dealt = Dealt::default();
+        let by = source.map_or(controller, |c| c.controller);
         for (to, n) in hits {
+            let n = &self.replaced_damage(by, *n);
             // CR 702.16e: damage from a source with the quality is
             // prevented.
             let prevented = match (to, source) {
@@ -8612,6 +8641,7 @@ impl Game {
                     // CR 514.2.
                     let ended = std::mem::take(&mut self.until_end_of_turn);
                     self.battlefield.end(&ended);
+                    self.damage_multipliers.clear();
                     let ids: Vec<ObjectId> = self.permanents.keys().copied().collect();
                     for id in ids {
                         if let Some(perm) = self.permanents.get_mut(&id) {

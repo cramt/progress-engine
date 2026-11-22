@@ -2853,6 +2853,132 @@ fn quest_for_pure_flame_counts_damage_my_sources_deal_an_opponent() {
     assert_eq!(game.counters_on(quest, &quest_counter), 1);
 }
 
+/// Quest for Pure Flame's "Remove four quest counters from this
+/// enchantment and sacrifice it: If any source you control would deal
+/// damage to a permanent or player this turn, it deals double that damage
+/// to that permanent or player instead": a replacement effect (CR 614.1a)
+/// on my sources' damage to anyone, me too, which ends in cleanup (CR
+/// 514.2).
+#[test]
+fn quest_for_pure_flame_doubles_my_sources_damage_this_turn() {
+    let mut game = deal(
+        &[
+            ("Mountain", 6),
+            ("Quest for Pure Flame", 2),
+            ("Lightning Bolt", 52),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 3),
+            ("Quest for Pure Flame", 1),
+            ("Lightning Bolt", 3),
+        ],
+    );
+    let bolt_them = |game: &mut Game| {
+        cast(game, "Lightning Bolt", Some(vec![Target::Player(THEM)]));
+        resolve(game);
+        if let Decision::May { .. } = resolve(game) {
+            step(game, Answer::May(true));
+        }
+    };
+    play(&mut game, "Mountain");
+    cast(&mut game, "Quest for Pure Flame", None);
+    resolve(&mut game);
+    let quest = creature(&game, "Quest for Pure Flame").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    bolt_them(&mut game);
+    bolt_them(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    bolt_them(&mut game);
+    bolt_them(&mut game);
+    let quest_counter = chancellor_of_the_spires::model::Counter::Named("quest".into());
+    assert_eq!(game.counters_on(quest, &quest_counter), 4);
+    assert_eq!(game.player(THEM).life(), 8);
+    activate(&mut game, quest);
+    resolve(&mut game);
+    assert_eq!(creature(&game, "Quest for Pure Flame"), None, "sacrificed");
+    cast(&mut game, "Lightning Bolt", Some(vec![Target::Player(ME)]));
+    resolve(&mut game);
+    assert_eq!(game.player(ME).life(), 14, "my own face, doubled");
+    my_next_main(&mut game);
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Player(THEM)]),
+    );
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 5, "ended in cleanup");
+}
+
+/// Quest for Pure Flame doubles only damage from sources its controller
+/// controls: their Lightning Bolt, a spell they cast and so control (CR
+/// 112.2), deals me 3.
+#[test]
+fn quest_for_pure_flame_leaves_an_opponents_spell_alone() {
+    let mut game = deal_both(
+        &[
+            ("Mountain", 6),
+            ("Quest for Pure Flame", 2),
+            ("Lightning Bolt", 52),
+        ],
+        &[("Mountain", 30), ("Lightning Bolt", 30)],
+        &[
+            ("Mountain", 3),
+            ("Quest for Pure Flame", 1),
+            ("Lightning Bolt", 3),
+        ],
+        &[("Mountain", 2), ("Lightning Bolt", 1)],
+    );
+    let bolt_them = |game: &mut Game| {
+        cast(game, "Lightning Bolt", Some(vec![Target::Player(THEM)]));
+        resolve(game);
+        if let Decision::May { .. } = resolve(game) {
+            step(game, Answer::May(true));
+        }
+    };
+    let their_turn = |game: &mut Game| {
+        pass_until(game, THEM, Step::PrecombatMain);
+        play_as(game, THEM, "Mountain");
+        pass_until(game, ME, Step::PrecombatMain);
+    };
+    play(&mut game, "Mountain");
+    cast(&mut game, "Quest for Pure Flame", None);
+    resolve(&mut game);
+    let quest = creature(&game, "Quest for Pure Flame").unwrap();
+    their_turn(&mut game);
+    play(&mut game, "Mountain");
+    bolt_them(&mut game);
+    bolt_them(&mut game);
+    their_turn(&mut game);
+    play(&mut game, "Mountain");
+    bolt_them(&mut game);
+    bolt_them(&mut game);
+    activate(&mut game, quest);
+    resolve(&mut game);
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Player(THEM)]),
+    );
+    step(&mut game, Answer::Act(Action::Pass));
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Player(ME)]),
+    );
+    resolve(&mut game);
+    assert_eq!(
+        game.player(ME).life(),
+        17,
+        "their source isn't one I control"
+    );
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 2, "mine is doubled");
+}
+
 /// CR 507.1: Luminarch Aspirant's "At the beginning of combat on your
 /// turn, put a +1/+1 counter on target creature you control" triggers in
 /// my beginning of combat step, not theirs.

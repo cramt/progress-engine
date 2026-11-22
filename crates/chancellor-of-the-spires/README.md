@@ -1047,8 +1047,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 133 of the 500 replay to
-the end and 54.31% of their lines are followed** (17,195 of 31,659), 3
+Worked card by card from there, **on 2026-11-22 137 of the 500 replay to
+the end and 54.41% of their lines are followed** (17,225 of 31,659), 3
 of them relying on a land the log never names (2 to the end), and 141
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -1200,7 +1200,13 @@ attack or block", unless you control enough of something (CR 508.1c,
 509.1b: Topiary Stomper, Bloodsoaked Champion, Scrapheap Scrounger and
 War Falcon, whose 12 games go on); "untap up to three lands", chosen
 by its controller among the tapped lands as it resolves (CR 608.2d,
-701.26b: Frantic Search, whose 5 games go on, one to the end). And
+701.26b: Frantic Search, whose 5 games go on, one to the end); "if
+any source you control would deal damage to a permanent or player this
+turn, it deals double that damage instead", a replacement effect on
+every damage its controller's sources deal, a spell's controlled by its
+caster, ending in cleanup (CR 614.1a, 112.2, 514.2: Quest for Pure
+Flame, whose 7 games go on, four to the end, the rest stopping at
+Plasma Bolt and Stomp). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an

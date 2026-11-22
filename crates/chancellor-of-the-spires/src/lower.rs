@@ -17,6 +17,100 @@ use vivisurgeons_insight::{read_face, Face};
 
 use crate::model::*;
 
+/// "If any source you control would deal damage to a permanent or player
+/// this turn, it deals double that damage to that permanent or player
+/// instead" (Quest for Pure Flame), as Insight binds it: the source and
+/// the recipient, then the replacement for the turn. `None` when the tree
+/// isn't that shape; a refusal by name when it is but says what the engine
+/// can't run.
+fn damage_this_turn(bind: &[Objects], then: &[i::Effect]) -> Option<Result<Effect, String>> {
+    let [i::Effect::During {
+        dur: i::Duration::ThisTurn,
+        then,
+    }] = then
+    else {
+        return None;
+    };
+    let [i::Effect::Replacement { event, instead }] = then.as_slice() else {
+        return None;
+    };
+    let i::Event::DealsDamageTo { what, to } = &**event else {
+        return None;
+    };
+    // `Introduced(0)` is the innermost binder, the last one bound.
+    let introduced = |o: &Objects| match o.quant {
+        Quant::Introduced(k) if o.filter == i::Filter::default() => bind
+            .len()
+            .checked_sub(1 + usize::from(k))
+            .map(|b| (k, &bind[b])),
+        _ => None,
+    };
+    if bind.len() != 2 {
+        return None;
+    }
+    let (source, source_is) = introduced(what)?;
+    let [i::Recipient::Objects(r)] = to.as_slice() else {
+        return Some(Err(
+            "damage replaced to a recipient other than any one".into()
+        ));
+    };
+    let (recipient, recipient_is) = introduced(r)?;
+    let you = i::Filter {
+        kind: Some(i::Noun::Source),
+        posts: vec![Post::Controller(i::Player::You)],
+        ..i::Filter::default()
+    };
+    if source_is.quant != Quant::One || source_is.filter != you {
+        return Some(Err(
+            "damage replaced from a source other than one you control".into(),
+        ));
+    }
+    let any = i::Filter {
+        kind: Some(i::Noun::Permanent),
+        or: Some(Box::new(i::Filter {
+            kind: Some(i::Noun::Player),
+            ..i::Filter::default()
+        })),
+        ..i::Filter::default()
+    };
+    if recipient_is.quant != Quant::One || recipient_is.filter != any {
+        return Some(Err(
+            "damage replaced to a recipient other than any permanent or player".into(),
+        ));
+    }
+    let [i::Effect::ThatDamage {
+        source: by,
+        n,
+        to: same,
+    }] = instead.as_slice()
+    else {
+        return Some(Err(
+            "a damage replacement doing more than dealing that damage".into(),
+        ));
+    };
+    if by.quant != Quant::Bound(source) || by.filter != i::Filter::default() {
+        return Some(Err("damage replaced by another source's".into()));
+    }
+    let same_recipient = match same.as_deref() {
+        None => true,
+        Some([i::Recipient::Objects(o)]) => o.quant == Quant::Bound(recipient),
+        Some(_) => false,
+    };
+    if !same_recipient {
+        return Some(Err("damage replaced to another recipient".into()));
+    }
+    let by = match n {
+        i::Amount::Twice(a) if **a == i::Amount::ThatDamage => 2,
+        i::Amount::Thrice(a) if **a == i::Amount::ThatDamage => 3,
+        _ => {
+            return Some(Err(
+                "damage replaced by other than double or triple it".into()
+            ))
+        }
+    };
+    Some(Ok(Effect::MultiplyDamageThisTurn { by }))
+}
+
 /// A card as Scryfall gives it, the fields the layers read.
 pub struct Card<'a> {
     pub name: &'a str,
@@ -1547,6 +1641,14 @@ pub enum Effect {
     Damage {
         to: DamageTo,
         n: Amount,
+    },
+    /// "If any source you control would deal damage to a permanent or
+    /// player this turn, it deals double that damage to that permanent or
+    /// player instead" (Quest for Pure Flame): a replacement effect (CR
+    /// 614.1a) on all damage a source its controller controls deals, until
+    /// it ends in cleanup (CR 514.2), multiplying it by `by`.
+    MultiplyDamageThisTurn {
+        by: u32,
     },
     /// The controller scries (CR 701.22a).
     Scry(u32),
@@ -3408,7 +3510,10 @@ impl<'a> Scope<'a> {
             {
                 Effect::DiscardNamed(self.who(who)?)
             }
-            i::Effect::With { bind, then } => return self.with(bind, then),
+            i::Effect::With { bind, then } => match damage_this_turn(bind, then) {
+                Some(effect) => effect?,
+                None => return self.with(bind, then),
+            },
             // "…, where X is the number of Goblins on the battlefield".
             i::Effect::Where { then, x } => {
                 let amount = match x {
