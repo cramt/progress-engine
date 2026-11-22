@@ -3284,6 +3284,11 @@ pub enum Trigger {
     /// "When this artifact enters and at the beginning of your upkeep": one
     /// ability with two trigger conditions (CR 603.1b), an event and a step.
     WhenAndAt(Box<Event>, Step),
+    /// "When you control no Islands, …", "When there are no creatures on
+    /// the battlefield, …": a state trigger, which triggers as soon as the
+    /// game state matches the condition and not again until it has left
+    /// the stack (CR 603.8). No event happens.
+    State(Box<Condition>),
 }
 
 #[derive(Clone, Debug, PartialEq)]

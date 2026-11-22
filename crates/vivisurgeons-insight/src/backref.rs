@@ -525,7 +525,7 @@ fn trigger_event(t: &Trigger) -> Option<&Event> {
     match t {
         Trigger::When(e) | Trigger::WhenAndAt(e, _) => Some(e),
         Trigger::InterveningIf(t, _) => trigger_event(t),
-        Trigger::At(_) => None,
+        Trigger::At(_) | Trigger::State(_) => None,
     }
 }
 

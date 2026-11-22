@@ -563,7 +563,7 @@ cost: {2}{B}{B}
 > When there are no cards in your graveyard, you lose the game.
 = Activated { cost: [Tap, Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [] }
 = BROKE at "," after: if damage would be dealt to you
-= BROKE at "graveyard" after: when there are no cards in your
+= BROKE at "lose" after: when there are no cards in your graveyard , you
 
 ## Impale
 face: Impale
@@ -1135,7 +1135,7 @@ face: Synod Centurion
 type: Artifact Creature — Construct
 cost: {4}
 > When you control no other artifacts, sacrifice this creature.
-= BROKE at "," after: when you control no other artifacts
+= Triggered { trigger: State(YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("artifact")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Thought Eater
 face: Thought Eater

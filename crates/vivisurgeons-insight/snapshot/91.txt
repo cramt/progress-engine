@@ -456,7 +456,7 @@ cost: {R}
 > Mountainwalk (This creature can't be blocked as long as defending player controls a Mountain.)
 > When you control a Dwarf, sacrifice this creature.
 = Keywords([Keyword { name: "mountainwalk", param: None }])
-= BROKE at "," after: when you control a dwarf
+= Triggered { trigger: State(YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dwarf")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Grakmaw, Skyclave Ravager
 face: Grakmaw, Skyclave Ravager

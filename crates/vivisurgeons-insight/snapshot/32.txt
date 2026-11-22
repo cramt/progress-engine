@@ -580,7 +580,7 @@ cost: {1}{W}{W}
 > When this enchantment leaves the battlefield, you lose the game.
 = Keywords([Keyword { name: "hexproof", param: None }])
 = Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Player(You)] }, instead: [PreventThatDamage, PutCounters { n: N(1), kind: "incarnation", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
-= BROKE at "counters" after: when there are nine or more incarnation
+= Triggered { trigger: State(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("incarnation"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(9) }), effect: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 = Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [LoseGame(You)], limits: [] }
 
 ## Nine-Tail White Fox

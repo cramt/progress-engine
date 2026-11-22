@@ -602,6 +602,15 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("was kicked").map(|_| Condition::WasKicked)
         },
         |p| p.words("you attacked this turn").map(|_| Condition::YouAttackedThisTurn),
+        // "if there are no Zombies on the battlefield": none of them, the
+        // count "there are N or more" reads, at zero.
+        |p| {
+            p.words("there are no")?;
+            let filter = filter(p)?;
+            if !filter.posts.contains(&Post::In(Zone::Battlefield)) { return None; }
+            let n_of = Amount::CountOf(Box::new(Objects { quant: Quant::Plural, filter }));
+            Some(Condition::AmountIs { n: n_of, op: Op::Eq, value: Amount::N(0) })
+        },
         |p| {
             p.words("there are")?;
             let n = number(p)?;

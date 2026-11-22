@@ -267,7 +267,7 @@ cost: {1}{B}
 > {2}: Put a plot counter on this enchantment. Any player may activate this ability.
 > When there are five or more plot counters on this enchantment, sacrifice it. If you do, destroy up to two target creatures.
 = BROKE at "may" after: {2} : put a plot counter on this enchantment . any player
-= BROKE at "counters" after: when there are five or more plot
+= Triggered { trigger: State(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("plot"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(5) }), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, IfYouDo([Destroy { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }])], limits: [] }
 
 ## Deathrite Shaman
 face: Deathrite Shaman

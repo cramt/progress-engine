@@ -506,7 +506,7 @@ face: Hidden Predators
 type: Enchantment
 cost: {G}
 > When an opponent controls a creature with power 4 or greater, if this permanent is an enchantment, it becomes a 4/4 Beast creature.
-= BROKE at "power" after: when an opponent controls a creature with
+= Triggered { trigger: InterveningIf(State(PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } })), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Subtype("beast"), Type("creature")], gains: [], keeps: Supertypes, dur: Permanent }], limits: [] }
 
 ## Howling Golem
 face: Howling Golem

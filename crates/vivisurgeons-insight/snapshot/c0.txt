@@ -946,7 +946,7 @@ cost: {3}{W}{W}{W}
 > When you have 20 or more life, you lose the game.
 > Whenever you lose life, you gain 2 life for each 1 life you lost. (Damage dealt to you causes you to lose life.)
 = BROKE at "0" after: you don't lose the game for having
-= BROKE at "20" after: when you have
+= Triggered { trigger: State(PlayerHas { who: You, at_least: 20, what: Life }), effect: [LoseGame(You)], limits: [] }
 = BROKE at "you" after: whenever you lose life , you gain 2 life for each 1 life
 
 ## Triton Fortune Hunter

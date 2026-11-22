@@ -939,7 +939,7 @@ cost: {W}
 > Flying
 > When you control no enchantments, sacrifice this creature.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: when you control no enchantments
+= Triggered { trigger: State(YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## The Circle of Loyalty
 face: The Circle of Loyalty

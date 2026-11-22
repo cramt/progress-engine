@@ -763,7 +763,7 @@ face: Rune-Tail, Kitsune Ascendant
 type: Legendary Creature — Fox Monk
 cost: {2}{W}
 > When you have 30 or more life, flip Rune-Tail.
-= BROKE at "30" after: when you have
+= BROKE at "~" after: when you have 30 or more life , flip
 
 ## Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence
 face: Rune-Tail's Essence

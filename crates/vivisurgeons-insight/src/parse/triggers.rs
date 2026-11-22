@@ -487,5 +487,12 @@ pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
                 None => e,
             })))
         },
+        // "When you control no Islands, sacrifice this creature": a state
+        // trigger (CR 603.8), whose condition runs to the comma.
+        |p| {
+            p.word("when")?;
+            let c = condition(p)?;
+            (p.peek() == Some(&Tok::Comma)).then(|| Trigger::State(Box::new(c)))
+        },
     )
 }

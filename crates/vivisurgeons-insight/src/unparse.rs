@@ -11169,6 +11169,10 @@ fn trigger(o: &mut Out, t: &Trigger) {
             o.w(", if");
             condition(o, c);
         }
+        Trigger::State(c) => {
+            o.w("when");
+            condition(o, c);
+        }
     }
 }
 
@@ -13328,8 +13332,12 @@ fn amount_is(o: &mut Out, n: &Amount, op: Op, value: &Amount) {
         Amount::CountOf(x) if op == Op::Eq && *value == Amount::N(0) => {
             if let Some(Post::In(Zone::Library(w))) = x.filter.posts.first() {
                 whose(o, w);
+                o.w("library has no cards in it");
+            } else {
+                // "there are no Zombies on the battlefield".
+                o.w("there are no");
+                filter(o, &x.filter, Num::Pl);
             }
-            o.w("library has no cards in it");
         }
         Amount::CountOf(x) if op == Op::Ge && matches!(x.filter.kind, Some(Noun::Counter(_))) => {
             if let (Some(Post::On(on)), Some(Noun::Counter(Some(k)))) =

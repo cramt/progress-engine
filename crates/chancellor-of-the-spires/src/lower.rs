@@ -647,6 +647,7 @@ pub fn trigger_node(t: &i::Trigger) -> String {
         i::Trigger::When(e) => format!("Trigger::When(Event::{})", short(e)),
         i::Trigger::At(s) => format!("Trigger::At(Step::{})", short(s)),
         i::Trigger::InterveningIf(t, _) => format!("{} if", trigger_node(t)),
+        i::Trigger::State(c) => format!("Trigger::State(Condition::{})", short(c)),
         i::Trigger::WhenAndAt(e, s) => {
             format!(
                 "Trigger::WhenAndAt(Event::{}, Step::{})",

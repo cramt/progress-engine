@@ -868,7 +868,7 @@ cost: {2}{U}{U}
 > When you control no lands, sacrifice this creature.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } } }, If { order: Leading, cond: ThisWay(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Player(You)] }] }], limits: [] }
-= BROKE at "," after: when you control no lands
+= Triggered { trigger: State(YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Shady Informant
 face: Shady Informant

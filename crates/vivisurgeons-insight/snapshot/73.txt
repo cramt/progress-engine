@@ -724,7 +724,7 @@ cost: {5}{U}
 > This creature can't attack unless defending player controls a snow land.
 > When you control no snow lands, sacrifice this creature.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: Unless(CantAttack, PlayerControls(DefendingPlayer, Objects { quant: One, filter: Filter { alts: [[Supertype("snow"), Type("land")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "," after: when you control no snow lands
+= Triggered { trigger: State(YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Supertype("snow"), Type("land")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Scour
 face: Scour

@@ -940,7 +940,7 @@ cost: {1}{U}{U}
 > When you control no Islands, sacrifice this creature.
 > You may choose not to untap this creature during your untap step.
 > {T}: Gain control of target creature whose controller controls an Island for as long as you control this creature and this creature remains tapped.
-= BROKE at "," after: when you control no islands
+= Triggered { trigger: State(YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
 = BROKE at "controls" after: {T} : gain control of target creature whose controller
 

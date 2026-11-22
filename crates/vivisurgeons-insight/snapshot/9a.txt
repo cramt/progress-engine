@@ -679,7 +679,7 @@ cost: {B}{B}{B}
 > When you control no permanents with phylactery counters on them, sacrifice this creature.
 = Keywords([Keyword { name: "indestructible", param: None }])
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "phylactery", on: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } } }] }])
-= BROKE at "counters" after: when you control no permanents with phylactery
+= Triggered { trigger: State(YouDontControl(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [WithCounter(Some("phylactery"))], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Power Taint
 face: Power Taint

@@ -231,7 +231,7 @@ face: Emperor Crocodile
 type: Creature — Crocodile
 cost: {3}{G}
 > When you control no other creatures, sacrifice this creature.
-= BROKE at "," after: when you control no other creatures
+= Triggered { trigger: State(YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Enthusiastic Mechanaut
 face: Enthusiastic Mechanaut

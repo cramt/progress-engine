@@ -597,7 +597,7 @@ cost: {4}{U}
 > As long as there are no cards in your library, this creature has base power and toughness 10/10 and has flying and vigilance.
 = Keywords([Keyword { name: "hexproof", param: None }])
 = BROKE at "draw" after: if you would draw a card while your library has no cards in it , skip that
-= BROKE at "in" after: as long as there are no cards
+= BROKE at "creature" after: as long as there are no cards in your library , this
 
 ## Llanowar Stalker
 face: Llanowar Stalker

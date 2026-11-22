@@ -228,7 +228,7 @@ cost: {4}
 > When this artifact has twenty or more charge counters on it, you win the game.
 = Keywords([Keyword { name: "indestructible", param: None }])
 = Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "charge", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
-= BROKE at "charge" after: when this artifact has twenty or more
+= Triggered { trigger: State(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("charge"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(20) }), effect: [WinGame(You)], limits: [] }
 
 ## Dauntless Aven
 face: Dauntless Aven

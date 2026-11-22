@@ -601,7 +601,7 @@ cost: {2}
 > When there are four or more page counters on this artifact, exile it. If you do, you gain 4 life.
 = Activated { cost: [Tap, PutCounters { n: N(1), kind: "page", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Scry(N(1))], limits: [] }
 = Activated { cost: [Mana(Mana(["2"])), Tap, PutCounters { n: N(1), kind: "page", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "counters" after: when there are four or more page
+= Triggered { trigger: State(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("page"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(4) }), effect: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), IfYouDo([GainLife { who: You, n: N(4) }])], limits: [] }
 
 ## Mephidross Vampire
 face: Mephidross Vampire

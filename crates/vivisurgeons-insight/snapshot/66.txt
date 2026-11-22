@@ -272,7 +272,7 @@ cost: {4}{R}
 > Flying
 > When you control no artifacts, sacrifice this creature.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: when you control no artifacts
+= Triggered { trigger: State(YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Crazed Firecat
 face: Crazed Firecat

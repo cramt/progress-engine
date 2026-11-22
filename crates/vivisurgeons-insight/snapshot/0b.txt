@@ -821,7 +821,7 @@ type: Enchantment
 cost: {2}{W}{W}
 > At the beginning of your upkeep, if there are no Reflection tokens on the battlefield, create a 2/2 white Reflection creature token.
 > {0}: Destroy target Reflection.
-= BROKE at "tokens" after: at the beginning of your upkeep , if there are no reflection
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("reflection")]], kind: Some(Token), posts: [In(Battlefield)], or: None } }), op: Eq, value: N(0) }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White], types: ["reflection", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 = Activated { cost: [Mana(Mana(["0"]))], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("reflection")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }
 
 ## Spoils of the Vault

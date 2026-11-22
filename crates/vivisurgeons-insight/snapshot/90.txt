@@ -783,7 +783,7 @@ type: Legendary Creature — Skeleton
 cost: {3}{U}{B}
 > When you control no Islands, sacrifice Skeleton Ship.
 > {T}: Put a -1/-1 counter on target creature.
-= BROKE at "," after: when you control no islands
+= Triggered { trigger: State(YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Tap], effect: [PutCounters { n: N(1), kind: "-1/-1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Smoldering Marsh

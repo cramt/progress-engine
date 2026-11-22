@@ -247,7 +247,7 @@ type: Legendary Snow Land
 > When Dark Depths has no ice counters on it, sacrifice it. If you do, create Marit Lage, a legendary 20/20 black Avatar creature token with flying and indestructible.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(10), kind: "ice" }])
 = Activated { cost: [Mana(Mana(["3"]))], effect: [RemoveCounters { n: N(1), kind: "ice", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "it" after: when ~ has no ice counters on
+= Triggered { trigger: State(Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("ice") })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, IfYouDo([CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(20), toughness: N(20), signed: false }), colors: [Black], types: ["legendary", "avatar", "creature"], keywords: [Keyword { name: "flying", param: None }, Keyword { name: "indestructible", param: None }], abilities: [], named: None, attacking: None }, name: "marit lage" }])], limits: [] }
 
 ## Dire Fleet Warmonger
 face: Dire Fleet Warmonger

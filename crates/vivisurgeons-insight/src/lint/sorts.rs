@@ -872,7 +872,7 @@ impl Reader {
         match t {
             Trigger::When(e) | Trigger::WhenAndAt(e, _) => self.event(e),
             Trigger::InterveningIf(t, _) => self.trigger(t),
-            Trigger::At(_) => {}
+            Trigger::At(_) | Trigger::State(_) => {}
         }
     }
 }

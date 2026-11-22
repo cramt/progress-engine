@@ -610,7 +610,7 @@ cost: {4}{B}{R}
 > Flying, haste
 > Whenever Olivia attacks, return target creature card from your graveyard to the battlefield tapped and attacking. It gains "When you don't control a legendary Vampire, exile this creature."
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "," after: whenever ~ attacks , return target creature card from your graveyard to the battlefield tapped and attacking . it gains " when you don't control a legendary vampire
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }], ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [EntersAttacking(Move { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }), GrantAbility { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: State(YouDontControl(Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Subtype("vampire")]], kind: None, posts: [], or: None } })), effect: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }, dur: Permanent }], limits: [] } }
 
 ## Ordruun Commando
 face: Ordruun Commando

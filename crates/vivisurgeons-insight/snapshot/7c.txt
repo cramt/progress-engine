@@ -275,7 +275,7 @@ face: Endangered Armodon
 type: Creature — Elephant
 cost: {2}{G}{G}
 > When you control a creature with toughness 2 or less, sacrifice this creature.
-= BROKE at "2" after: when you control a creature with toughness
+= Triggered { trigger: State(YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Toughness, op: Le, value: N(2) })], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Envoy of the Ancestors
 face: Envoy of the Ancestors

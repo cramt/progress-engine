@@ -3111,6 +3111,9 @@ impl Walk for Trigger {
             Trigger::WhenAndAt(f0, _) => {
                 Walk::walk(&mut **f0, v);
             }
+            Trigger::State(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             _ => {}
         }
     }

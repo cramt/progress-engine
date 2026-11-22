@@ -559,7 +559,7 @@ cost: {3}
 > As this creature enters, choose a color.
 > When you control no permanents of the chosen color, sacrifice this creature.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(Color)] }])
-= BROKE at "chosen" after: when you control no permanents of the
+= Triggered { trigger: State(YouDontControl(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [OfChosenColor], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Mark of Eviction
 face: Mark of Eviction

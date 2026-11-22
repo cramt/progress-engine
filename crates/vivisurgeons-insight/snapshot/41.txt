@@ -271,7 +271,7 @@ cost: {4}{B}
 > Whenever you cast a creature spell, create X 1/1 black Thrull creature tokens, where X is that spell's mana value.
 > When you control seven or more Thrulls, sacrifice Endrek Sahr.
 = Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }], ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Where { then: [Create { who: You, n: X, token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["thrull", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], x: ManaValueOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] } }
-= BROKE at "," after: when you control seven or more thrulls
+= Triggered { trigger: State(YouControl(Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Subtype("thrull")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Enduring Bondwarden
 face: Enduring Bondwarden
@@ -891,7 +891,7 @@ cost: {B}
 > When this enchantment enters, create a 2/2 black Zombie creature token.
 > At the beginning of your upkeep, if there are no Zombies on the battlefield, this enchantment deals 1 damage to you.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= BROKE at "on" after: at the beginning of your upkeep , if there are no zombies
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [In(Battlefield)], or: None } }), op: Eq, value: N(0) }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(You)] }], limits: [] }
 
 ## Sautekh Immortal
 face: Sautekh Immortal

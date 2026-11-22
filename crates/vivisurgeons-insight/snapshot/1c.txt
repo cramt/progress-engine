@@ -492,7 +492,7 @@ face: Lurking Jackals
 type: Enchantment
 cost: {B}
 > When an opponent has 10 or less life, if this permanent is an enchantment, it becomes a 3/2 Jackal creature.
-= BROKE at "10" after: when an opponent has
+= Triggered { trigger: InterveningIf(State(PlayerHasAtMost { who: AnOpponent, at_most: 10, what: Life }), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), types: [Subtype("jackal"), Type("creature")], gains: [], keeps: Supertypes, dur: Permanent }], limits: [] }
 
 ## Luxury Suite
 face: Luxury Suite
