@@ -4064,6 +4064,24 @@ fn subj(o: &mut Out, who: &Player, verb: &str, cx: &Cx) {
         o.add(after);
         return;
     }
+    // "that attacking player may discard a card. If the player does, they
+    // draw a card" (Curse of Chaos): said again, the attacker is a pronoun.
+    if *who == Player::AttackingPlayer
+        && !cx.modal
+        && (*who == inherited || continues_player(cx, who))
+    {
+        let full = out(|o| {
+            o.add(said);
+            o.add(after);
+        });
+        let pronoun = out(|o| {
+            syn::that_player(o);
+            o.verb(verb, Num::Any);
+        });
+        let alone = out(|o| o.verb(verb, n));
+        syn::anaphor_player(o, pronoun, out(|o| syn::anaphor_player(o, full, alone)));
+        return;
+    }
     if *who == inherited {
         let alone_n = if cx.modal || cx.implied.is_none() {
             Num::Pl
@@ -5561,7 +5579,9 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         Post::WithBasicLandType => o.w("with a basic land type"),
         Post::WithSingleTarget => o.w("with a single target"),
         Post::ChosenBy(Player::You) => o.w("of your choice"),
-        Post::ChosenBy(Player::That) => o.w("of their choice"),
+        // "that attacking player may tap or untap target permanent of their
+        // choice" (Curse of Inertia): only ever said after that player.
+        Post::ChosenBy(Player::That | Player::AttackingPlayer) => o.w("of their choice"),
         Post::ChosenBy(p) => {
             o.w("of");
             whose(o, p);

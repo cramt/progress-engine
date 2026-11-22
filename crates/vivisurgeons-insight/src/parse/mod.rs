@@ -2830,6 +2830,92 @@ impl Visitor for EntriesThisTurn {
     }
 }
 
+/// "deals 1 damage to target creature and each other creature that shares
+/// a color with it" (Wojek Embermage), "target creature and each other
+/// creature with the same name as that creature" (Izzet Staticaster): in a
+/// permanent's ability, an "each/all other" listed after a target in the
+/// same effect is other than that target, so the permanent itself is among
+/// them when it qualifies (Radiance's ruling) ([other-than-named-before]).
+#[derive(Default)]
+struct OtherThanTargetBefore(Vec<bool>);
+
+impl Visitor for OtherThanTargetBefore {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if self.0.last() == Some(&true)
+            && matches!(o.quant, Quant::Each | Quant::All | Quant::Plural)
+        {
+            other_than(o, &antecedent(), None);
+        }
+        true
+    }
+    fn leave(&mut self, o: &mut Objects) {
+        if matches!(o.quant, Quant::Target { .. })
+            && !matches!(o.filter.kind, Some(Noun::Player | Noun::Opponent))
+        {
+            if let Some(top) = self.0.last_mut() {
+                *top = true;
+            }
+        }
+    }
+    fn ability(&mut self, a: &mut Ability) -> bool {
+        !matches!(a, Ability::Spell(_))
+    }
+    fn effect(&mut self, _: &mut Effect) {
+        self.0.push(false);
+    }
+    fn effect_done(&mut self, _: &mut Effect) {
+        self.0.pop();
+    }
+}
+
+/// "that attacking player may tap or untap target permanent of their
+/// choice" (Curse of Inertia), "that attacking player may discard a card. If
+/// the player does, they draw a card" (Curse of Chaos): `That` in such a
+/// trigger is the attacked player ([attacking-player]), so once an effect's
+/// subject is the attacking player, a later "their", "they" or "the player"
+/// is that one. A created token's "attacking that opponent" is still the
+/// attacked player (Combat Calligrapher).
+#[derive(Default)]
+struct TheyAttacked {
+    said: bool,
+    creating: usize,
+}
+
+impl Visitor for TheyAttacked {
+    fn enter(&mut self, _: &mut Objects) -> bool {
+        true
+    }
+    fn ability(&mut self, a: &mut Ability) -> bool {
+        matches!(
+            a,
+            Ability::Triggered { .. } | Ability::Let { .. } | Ability::Labelled { .. }
+        )
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        if matches!(
+            e,
+            Effect::Create { .. } | Effect::CreateNamed { .. } | Effect::CreateAttached { .. }
+        ) {
+            self.creating += 1;
+        }
+    }
+    fn effect_done(&mut self, e: &mut Effect) {
+        if matches!(
+            e,
+            Effect::Create { .. } | Effect::CreateNamed { .. } | Effect::CreateAttached { .. }
+        ) {
+            self.creating -= 1;
+        }
+    }
+    fn player(&mut self, p: &mut Player) {
+        match p {
+            Player::AttackingPlayer => self.said = true,
+            Player::That if self.said && self.creating == 0 => *p = Player::AttackingPlayer,
+            _ => {}
+        }
+    }
+}
+
 struct OtherMarkedCards;
 
 impl Visitor for OtherMarkedCards {
@@ -2933,6 +3019,8 @@ pub fn parse_line(
             a.walk(&mut EachItself);
             a.walk(&mut DelayedX);
             a.walk(&mut OtherMarkedCards);
+            a.walk(&mut OtherThanTargetBefore::default());
+            a.walk(&mut TheyAttacked::default());
             a.walk(&mut FromAmongAfterShares);
             a.walk(&mut EntriesThisTurn);
             a.walk(&mut MeldListed::default());
