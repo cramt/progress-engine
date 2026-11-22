@@ -1352,15 +1352,62 @@ pub enum Except {
     /// "Except it has this ability": the ability making the copy is part
     /// of the copy's copiable values (CR 707.9a).
     HasThisAbility,
+    /// "Except it's an Illusion in addition to its other types": card
+    /// types and subtypes, as the type line spells them, added to the
+    /// copy's (CR 707.9b).
+    AlsoIs(Vec<TypeWord>),
+    /// "And it has "When this creature becomes the target …"": the quoted
+    /// abilities, in the copying ability's own words, added to the copy's
+    /// rules text (CR 707.9a).
+    Has(Vec<String>),
+}
+
+/// A word a copy's type line gains.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum TypeWord {
+    /// "Artifact", a card type, before the type line's others.
+    Type(String),
+    /// "Illusion", a subtype, after the dash.
+    Subtype(String),
 }
 
 /// A copy effect's exceptions, each one the engine makes or refused by
-/// name.
-pub fn excepts(except: &[i::Exception]) -> Result<Vec<Except>, String> {
+/// name. `line` is the copying ability's text, which a quoted ability the
+/// copy gains is taken from: without it, or with its quotes not one for
+/// each such ability, one is refused.
+pub fn excepts(except: &[i::Exception], line: Option<&str>) -> Result<Vec<Except>, String> {
     except
         .iter()
         .map(|e| match e {
             i::Exception::HasThisAbility => Ok(Except::HasThisAbility),
+            i::Exception::AlsoIs(adjs) => adjs
+                .iter()
+                .map(|a| match a {
+                    i::Adj::Type(t) if card_type(t).is_some() => Ok(TypeWord::Type(capitalised(t))),
+                    i::Adj::Subtype(t) => Ok(TypeWord::Subtype(capitalised(t))),
+                    other => Err(format!("a copy that is also {}", short(other))),
+                })
+                .collect::<Result<_, _>>()
+                .map(Except::AlsoIs),
+            i::Exception::Has {
+                keywords,
+                abilities,
+            } if keywords.is_empty() && !abilities.is_empty() => {
+                let quoted: Vec<String> = line
+                    .unwrap_or_default()
+                    .split('"')
+                    .skip(1)
+                    .step_by(2)
+                    .map(str::to_string)
+                    .collect();
+                if line.is_none() {
+                    return Err("a copy that has abilities, outside an ability's own line".into());
+                }
+                if quoted.len() != abilities.len() {
+                    return Err("a copy that has abilities not quoted one for one".into());
+                }
+                Ok(Except::Has(quoted))
+            }
             other => Err(format!("a copy except {}", short(other))),
         })
         .collect()
@@ -1962,6 +2009,11 @@ pub enum TriggerEvent {
     /// "When this creature is turned face up": a permanent the filter
     /// matches is turned face up (CR 702.37e).
     TurnedFaceUp(Filter),
+    /// "When this creature becomes the target of a spell or ability": a
+    /// permanent the filter matches becomes a target of a spell or
+    /// ability anyone controls, once however many of its slots name it
+    /// (CR 603.2c).
+    BecomesTarget(Filter),
     /// "When this creature transforms into ~": a permanent the filter
     /// matches transforms, the ability on the face it transformed into
     /// (CR 701.27e).
@@ -2209,6 +2261,21 @@ fn when(e: &i::Event, bound: &dyn Fn(&Objects) -> Objects) -> Result<TriggerEven
             TriggerEvent::TransformsInto(entering(what)?)
         }
         i::Event::BecomesTapped(what) => TriggerEvent::BecomesTapped(entering(what)?),
+        i::Event::BecomesTarget {
+            what,
+            of:
+                Some(Objects {
+                    quant: Quant::One,
+                    filter,
+                }),
+        } if *filter
+            == (i::Filter {
+                kind: Some(i::Noun::SpellOrAbility),
+                ..Default::default()
+            }) =>
+        {
+            TriggerEvent::BecomesTarget(entering(what)?)
+        }
         i::Event::Cycles {
             who: i::Player::You,
             what: Some(o),
@@ -3518,7 +3585,7 @@ impl<'a> Scope<'a> {
                 except,
             } if itself(what) => Effect::BecomeCopy {
                 of: self.obj(of)?,
-                except: excepts(except)?,
+                except: excepts(except, None)?,
             },
             // "If it's blue", "it" a target the spell's `Let` binds.
             i::Effect::If {

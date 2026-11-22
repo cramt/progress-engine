@@ -880,6 +880,8 @@ enum Event {
     Drew(PlayerId),
     /// This permanent became tapped (CR 701.26a).
     BecameTapped(ObjectId),
+    /// This permanent became a target of a spell or ability (CR 115.1).
+    BecameTarget(ObjectId),
     /// These creatures were declared as blockers, and these attackers
     /// became blocked (CR 509.1h, 509.1i).
     Blocked {
@@ -3632,7 +3634,12 @@ impl Game {
             ) => match choice {
                 Some(o) if of.contains(o) => {
                     let copied = self.copiable(*o).expect("offered");
-                    self.make_copy(card, &copied, &except, None);
+                    let name = copied.text.name.clone();
+                    self.make_copy(card, &copied, &except, None)
+                        .map_err(|refusal| Rejected::Refused {
+                            card: name,
+                            refusal,
+                        })?;
                     self.enter_as_itself(card, player, tapped || copy_tapped, then);
                 }
                 None if may || of.is_empty() => {
@@ -6926,15 +6933,23 @@ impl Game {
                 ..
             } => (Target::Ability(*seq), *controller, targets.clone()),
         };
-        let all = self.characteristics();
+        // An object targeted in two slots of one spell or ability became
+        // a target in one event, so it triggers once (CR 603.2c), as the
+        // rulings on ward and heroic have it.
         let mut seen = BTreeSet::new();
-        for t in targets {
-            let Target::Object(o) = t else { continue };
-            // CR 115.3: an object targeted in two slots became a target
-            // once.
-            if !seen.insert(o) {
-                continue;
-            }
+        let targeted: Vec<ObjectId> = targets
+            .iter()
+            .filter_map(|t| match t {
+                Target::Object(o) => Some(*o),
+                _ => None,
+            })
+            .filter(|o| seen.insert(*o))
+            .collect();
+        for o in &targeted {
+            self.trigger_on(Event::BecameTarget(*o));
+        }
+        let all = self.characteristics();
+        for o in targeted {
             let Some(c) = all.get(&o) else { continue };
             if c.controller == controller {
                 continue;
@@ -7168,6 +7183,12 @@ impl Game {
                             .then_some((None, None))
                             .into_iter()
                             .collect(),
+                        (TriggerEvent::BecomesTarget(f), Event::BecameTarget(id)) => {
+                            (all.contains_key(id) && f.matches(&seen(*id)))
+                                .then_some((Some(*id), None))
+                                .into_iter()
+                                .collect()
+                        }
                         (TriggerEvent::BecomesTapped(f), Event::BecameTapped(id)) => f
                             .matches(&seen(*id))
                             .then_some((Some(*id), None))
@@ -7942,14 +7963,16 @@ impl Game {
     /// The card becomes a copy of `copied`, with the exceptions (CR 707.9):
     /// "except it has this ability" adds the line of the ability making
     /// the copy, `this`, to the copied rules text (CR 707.9a). A copy of a
-    /// copy has what the copy has (CR 707.3).
+    /// copy has what the copy has (CR 707.3). One whose exceptions can't
+    /// be made, or whose copiable values with them the engine can't run,
+    /// is no copy, and why is the error.
     fn make_copy(
         &mut self,
         card: CardId,
         copied: &Arc<Known>,
         except: &[lower::Except],
         this: Option<&str>,
-    ) {
+    ) -> Result<(), Unrunnable> {
         let mut text = copied.text.clone();
         for e in except {
             match (e, this, &mut text.oracle) {
@@ -7958,6 +7981,31 @@ impl Game {
                         rules.push('\n');
                     }
                     rules.push_str(line);
+                }
+                (lower::Except::Has(lines), _, Oracle::OneFace(rules)) => {
+                    for line in lines {
+                        if !rules.is_empty() {
+                            rules.push('\n');
+                        }
+                        rules.push_str(line);
+                    }
+                }
+                (lower::Except::AlsoIs(words), ..) => {
+                    text.type_line = also_is(&text.type_line, words).ok_or_else(|| {
+                        Unrunnable::new(
+                            "a copy that is also a subtype",
+                            format!(
+                                "{} can't gain a subtype none of its types has (CR 205.3d)",
+                                text.name
+                            ),
+                        )
+                    })?;
+                }
+                (lower::Except::Has(_), ..) => {
+                    return Err(Unrunnable::new(
+                        "a copy that has abilities",
+                        "the game can't add abilities to a copy of a face of two texts yet",
+                    ))
                 }
                 // Only a face of one text is ever on the battlefield, and
                 // only an ability has a "this ability".
@@ -7969,8 +8017,12 @@ impl Game {
         } else {
             known(text)
         };
+        if let Err(r) = &values.runs {
+            return Err(r.clone());
+        }
         self.copies.push_back(values);
         self.cards[card.0 as usize].copy = Some(CopyId(self.copies.len() as u32 - 1));
+        Ok(())
     }
 
     /// A permanent becomes a copy where it is (CR 707.4), its layer 1
@@ -7985,11 +8037,11 @@ impl Game {
         this: Option<&str>,
     ) {
         let card = self.permanents[&id].card;
-        let before = self.cards[card.0 as usize].copy;
-        self.make_copy(card, copied, except, this);
-        let Ok(runs) = &self.known(card).expect("a copy is known").runs else {
-            self.cards[card.0 as usize].copy = before;
+        if self.make_copy(card, copied, except, this).is_err() {
             return;
+        }
+        let Ok(runs) = &self.known(card).expect("a copy is known").runs else {
+            unreachable!("a copy made runs")
         };
         let mut chars = runs.lowered.chars.clone();
         chars.controller = self.battlefield.objects[&id].printed.controller;
@@ -9149,7 +9201,8 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                 runs.opening = Some(Opening::Reveals(program));
             }
             i::Ability::Static(parts) => {
-                let e = enters(parts).map_err(|node| {
+                let line = runs.lowered.unread_text.get(n as usize).cloned();
+                let e = enters(parts, line.as_deref()).map_err(|node| {
                     Unrunnable::new(
                         node.clone(),
                         format!("the game can't run its static ability {node} yet"),
@@ -9249,7 +9302,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
 }
 
 /// An "enters tapped" static of the card's own (CR 614.1d).
-fn enters(parts: &[i::Static]) -> Result<Enters, String> {
+fn enters(parts: &[i::Static], line: Option<&str>) -> Result<Enters, String> {
     let itself = |o: &i::Objects| o.quant == i::Quant::SelfRef;
     match parts {
         [i::Static::EntersTapped(what)] if itself(what) => Ok(Enters::Tapped),
@@ -9284,7 +9337,7 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
             may: *may,
             tapped: *tapped,
             of: lower::copy_of(of)?,
-            except: lower::excepts(except)?,
+            except: lower::excepts(except, line)?,
         })),
         [i::Static::AsEnters { what, then }]
             if itself(what) && lower::chooses_creature_type(then) =>
@@ -9297,6 +9350,55 @@ fn enters(parts: &[i::Static]) -> Result<Enters, String> {
         [one] => Err(short(one)),
         _ => Err("a static ability of several parts".into()),
     }
+}
+
+/// A type line with these words added, each where the type line spells
+/// it: a card type after the supertypes, a subtype after the dash; one it
+/// has already isn't added twice (CR 205.1b, 707.9b). `None` if a subtype
+/// isn't a creature type added to a creature, the only kind the engine
+/// adds (CR 205.3d).
+fn also_is(type_line: &str, words: &[lower::TypeWord]) -> Option<String> {
+    let (left, right) = match type_line.split_once(" — ") {
+        Some((l, r)) => (l.to_string(), Some(r.to_string())),
+        None => (type_line.to_string(), None),
+    };
+    let mut left: Vec<String> = left.split_whitespace().map(str::to_string).collect();
+    let mut right: Vec<String> = right
+        .map(|r| r.split_whitespace().map(str::to_string).collect())
+        .unwrap_or_default();
+    for w in words {
+        match w {
+            lower::TypeWord::Type(t) if !left.contains(t) => {
+                let at = left
+                    .iter()
+                    .position(|x| {
+                        !matches!(
+                            x.as_str(),
+                            "Basic" | "Legendary" | "Snow" | "World" | "Ongoing"
+                        )
+                    })
+                    .unwrap_or(left.len());
+                left.insert(at, t.clone());
+            }
+            lower::TypeWord::Type(_) => {}
+            lower::TypeWord::Subtype(t) => {
+                let creature_type = vivisurgeons_insight::vocab::vocab()
+                    .creature_types
+                    .contains(&t.to_lowercase());
+                if !(creature_type && left.iter().any(|x| x == "Creature")) {
+                    return None;
+                }
+                if !right.contains(t) {
+                    right.push(t.clone());
+                }
+            }
+        }
+    }
+    Some(if right.is_empty() {
+        left.join(" ")
+    } else {
+        format!("{} — {}", left.join(" "), right.join(" "))
+    })
 }
 
 /// A zone a permanent can leave the battlefield for, its owner's.
@@ -9410,5 +9512,34 @@ mod tests {
         );
         assert!(game.player(PlayerId(2)).has_left());
         assert!(game.player(PlayerId(2)).hand().is_empty());
+    }
+
+    /// CR 205.1b, 205.3d, 707.9b: "in addition to its other types" keeps
+    /// the copied type line and adds the word where it is spelled; a
+    /// creature type only on a creature.
+    #[test]
+    fn a_copy_also_is_its_exception_types() {
+        use lower::TypeWord::{Subtype as Sub, Type};
+        let illusion = [Sub("Illusion".into())];
+        let artifact = [Type("Artifact".into())];
+        let also = |line: &str, w: &[lower::TypeWord]| also_is(line, w);
+        assert_eq!(
+            also("Creature — Goblin", &illusion).as_deref(),
+            Some("Creature — Goblin Illusion")
+        );
+        assert_eq!(
+            also("Creature", &illusion).as_deref(),
+            Some("Creature — Illusion")
+        );
+        assert_eq!(
+            also("Legendary Creature — Elf Druid", &artifact).as_deref(),
+            Some("Legendary Artifact Creature — Elf Druid")
+        );
+        assert_eq!(
+            also("Artifact Creature — Golem", &artifact).as_deref(),
+            Some("Artifact Creature — Golem")
+        );
+        assert_eq!(also("Artifact — Vehicle", &illusion), None);
+        assert_eq!(also("Land — Forest", &illusion), None);
     }
 }

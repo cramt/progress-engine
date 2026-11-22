@@ -1039,7 +1039,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-22 128 of the 500 replay to
-the end and 52.47% of their lines are followed** (16,613 of 31,659), 3
+the end and 52.59% of their lines are followed** (16,648 of 31,659), 3
 of them relying on a land the log never names (2 to the end), and 137
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -1169,7 +1169,14 @@ the card for its plot cost, and the plotted card cast from exile
 without paying its mana cost in a main phase of a later turn, a card
 exiled anew being no longer plotted (CR 702.170a–d, 116.2k, 400.7:
 Outcaster Trailblazer, whose 13 games now stop at other cards,
-Phantasmal Image's and Phyrexian Metamorph's copy in 4 of them). And
+Phantasmal Image's and Phyrexian Metamorph's copy in 4 of them); a
+copy's exceptions as part of its copiable values, a type "in addition
+to its other types" added where its type line spells it, a creature
+type only to a creature, and a quoted ability it "has" added to its
+text, and "when this creature becomes the target of a spell or
+ability", once however many of one spell's slots name it (CR 707.9a–b,
+205.1b, 205.3d, 603.2c: Phantasmal Image, whose 6 games now stop at
+other cards, Phyrexian Metamorph's Phyrexian mana in 2). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an

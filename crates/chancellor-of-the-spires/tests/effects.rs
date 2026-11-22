@@ -5589,3 +5589,60 @@ fn a_plotted_card_is_cast_free_on_a_later_turn() {
     resolve(&mut game);
     assert!(creature(&game, "Outcaster Trailblazer").is_some());
 }
+
+/// CR 707.9a–b, 707.5: Phantasmal Image entering as a copy of Mogg
+/// Fanatic is a Mogg Fanatic that is an Illusion too and has "When this
+/// creature becomes the target of a spell or ability, sacrifice it."; the
+/// Fanatic it copied aiming at it makes it trigger, and it is sacrificed
+/// before the damage (CR 603.2c, 603.3).
+#[test]
+fn phantasmal_image_copies_and_is_sacrificed_as_it_becomes_a_target() {
+    let mut game = deal(
+        &[
+            ("Mountain", 20),
+            ("Island", 20),
+            ("Mogg Fanatic", 10),
+            ("Phantasmal Image", 10),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 1),
+            ("Island", 1),
+            ("Mogg Fanatic", 1),
+            ("Phantasmal Image", 1),
+        ],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Mogg Fanatic", None);
+    resolve(&mut game);
+    let fanatic = creature(&game, "Mogg Fanatic").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    let image = in_hand(&game, ME, "Phantasmal Image").unwrap();
+    cast(&mut game, "Phantasmal Image", None);
+    let d = resolve(&mut game);
+    let Decision::EnterAsCopy { of, may, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert!(may);
+    assert_eq!(of, vec![fanatic]);
+    step(&mut game, Answer::Copy(Some(fanatic)));
+    let copy = permanent_of(&game, image);
+    assert_eq!(game.card(image).unwrap().name, "Mogg Fanatic");
+    let now = &game.characteristics()[&copy];
+    let has = |t: &str| now.subtypes.iter().any(|s| format!("{s:?}").contains(t));
+    assert!(has("Goblin") && has("Illusion"), "{:?}", now.subtypes);
+    let Decision::Targets { .. } = activate(&mut game, fanatic) else {
+        panic!("a target")
+    };
+    step(&mut game, Answer::Targets(vec![Target::Object(copy)]));
+    assert_eq!(
+        game.stack().len(),
+        2,
+        "the Fanatic's ability and the Image's trigger"
+    );
+    resolve(&mut game);
+    assert!(!game.permanents().contains_key(&copy), "sacrificed");
+    assert!(game.player(ME).graveyard().contains(&image));
+    assert_eq!(game.card(image).unwrap().name, "Phantasmal Image");
+}
