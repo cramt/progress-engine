@@ -7181,7 +7181,7 @@ fn dur(o: &mut Out, d: &Duration) {
         Duration::ThisTurn => o.w("this turn"),
         Duration::ThisCombat => o.w("this combat"),
         Duration::UntilYourNextTurn => o.w("until your next turn"),
-        Duration::WhileSelfOnBattlefield => o.w("for as long as you control ~"),
+        Duration::WhileSelfOnBattlefield => o.w("until ~ leaves the battlefield"),
         Duration::Permanent => {}
         Duration::RestOfGame => o.w("for the rest of the game"),
         Duration::ForAsLongAs(c) => {

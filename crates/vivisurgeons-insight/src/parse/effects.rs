@@ -9,7 +9,6 @@ pub(super) fn duration(p: &mut P) -> Option<Duration> {
         |p| p.words("this turn").map(|_| Duration::ThisTurn),
         |p| p.words("until your next turn").map(|_| Duration::UntilYourNextTurn),
         |p| p.words("until the end of your next turn").map(|_| Duration::UntilEndOfYourNextTurn),
-        |p| p.words("for as long as you control ~").map(|_| Duration::WhileSelfOnBattlefield),
         |p| p.words("until ~ leaves the battlefield").map(|_| Duration::WhileSelfOnBattlefield),
         |p| p.words("for the rest of the game").map(|_| Duration::RestOfGame),
         |p| { p.words("for as long as")?; condition(p).map(|c| Duration::ForAsLongAs(Box::new(c))) },

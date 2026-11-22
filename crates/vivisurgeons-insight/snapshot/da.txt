@@ -427,7 +427,7 @@ cost: {3}{W}
 > {W}{U}{B}{R}{G}: Kyodai gets +5/+5 until end of turn.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: AnotherTarget, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: WhileSelfOnBattlefield }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: AnotherTarget, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: ForAsLongAs(YouControl(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }], limits: [] }
 = Activated { cost: [Mana(Mana(["W", "U", "B", "R", "G"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Maelstrom Colossus

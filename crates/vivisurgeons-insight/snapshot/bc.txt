@@ -509,7 +509,7 @@ cost: {3}{R}{R}
 > You may choose not to untap Hivis during your untap step.
 > {T}: Gain control of target Dragon for as long as you control Hivis and Hivis remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "remains" after: {T} : gain control of target dragon for as long as you control ~ and ~
+= BROKE at "tapped" after: {T} : gain control of target dragon for as long as you control ~ and ~ remains
 
 ## Hulk, Brutal Brawler
 face: Hulk, Brutal Brawler

@@ -892,7 +892,7 @@ cost: {2}{G}{W}{U}
 > You may choose not to untap Rubinia Soulsinger during your untap step.
 > {T}: Gain control of target creature for as long as you control Rubinia Soulsinger and Rubinia Soulsinger remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "remains" after: {T} : gain control of target creature for as long as you control ~ and ~
+= BROKE at "tapped" after: {T} : gain control of target creature for as long as you control ~ and ~ remains
 
 ## Rush of Battle
 face: Rush of Battle

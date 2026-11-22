@@ -1490,6 +1490,9 @@ pub enum Duration {
     /// player this combat" lasts.
     ThisCombat,
     UntilYourNextTurn,
+    /// "until ~ leaves the battlefield". "For as long as you control ~" is
+    /// `ForAsLongAs(YouControl(SelfRef))`, not this: it also ends when
+    /// another player gains control of the card.
     WhileSelfOnBattlefield,
     Permanent,
     /// "for the rest of the game".

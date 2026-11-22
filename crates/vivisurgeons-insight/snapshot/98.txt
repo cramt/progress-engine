@@ -482,7 +482,7 @@ cost: {1}{B}{R}
 > Sacrifice five Treasures: Gain control of target creature for as long as you control Kellogg. Activate only as a sorcery.
 = Keywords([Keyword { name: "first strike", param: None }, Keyword { name: "haste", param: None }])
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [] }
-= Activated { cost: [Sacrifice(Objects { quant: N(N(5)), filter: Filter { alts: [[Subtype("treasure")]], kind: None, posts: [], or: None } })], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: WhileSelfOnBattlefield }], limits: [SorcerySpeed] }
+= Activated { cost: [Sacrifice(Objects { quant: N(N(5)), filter: Filter { alts: [[Subtype("treasure")]], kind: None, posts: [], or: None } })], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: ForAsLongAs(YouControl(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }], limits: [SorcerySpeed] }
 
 ## Key to the Side-Door
 face: Key to the Side-Door
