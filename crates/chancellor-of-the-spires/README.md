@@ -680,7 +680,15 @@ stays hidden: the log never names it, so the replay takes the first of
 those looked at as the one chosen, a hidden card in the hand until a line
 plays it, and puts the rest back in the order they were; its place is
 the engine's, so the library's order stays honest though its names are
-unknown. A "put a card on the bottom of the library" line must match a
+unknown. Fact or Fiction's five are revealed but never printed, and
+nothing it goes on to do reads what they are, so they stay hidden (the
+engine's blind reveal); its piles aren't printed either, so the replay
+takes a pile of two of them first and goes back to try every other size
+when a later line shows the hand or graveyard otherwise: a card the
+hand doesn't hold, a hand revealed or discarded down to another size.
+The other pile goes to the graveyard hidden, and there the engine
+refuses to go on: the card could be one whose ability works from a
+graveyard, or one Accumulated Knowledge counts by name. A "put a card on the bottom of the library" line must match a
 card the engine put on the bottom that turn, and a "creates three
 Goblin Tokens" line as many tokens the engine created.
 A "may" is answered by its own line when the log prints one ("chooses
@@ -887,7 +895,11 @@ left untried, is `GaveUp` and reported apart from the divergences, since
 it may be a search too big: game 962326960's two Valakut triggers need
 a Fabled Passage and a Topiary Stomper to have found Mountains, a
 Nature's Lore a Stomping Ground and Hour of Promise two Valakuts, four
-searches back, and with those finds forced it replays past both. `--game ID` prints one game line by line with what the engine
+searches back, and with those finds forced it replays past both. Nor is it one when a way
+the engine refused got anywhere: that way may be the game's, so the
+furthest refusal of a card no one has named in a graveyard is what
+stops it (a Fact or Fiction pile whose size agrees with the log but
+leaves hidden cards in the graveyard, where every other size diverges). `--game ID` prints one game line by line with what the engine
 did and each player's life as it ended; `--finished F` writes the ids of the games replayed to the end, to
 diff against a run before a change for a finished game it broke, and
 `--lines F` each game's lines followed, its lines, its stop and the lands
@@ -1047,9 +1059,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 137 of the 500 replay to
-the end and 54.41% of their lines are followed** (17,225 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 141
+Worked card by card from there, **on 2026-11-22 138 of the 500 replay to
+the end and 54.48% of their lines are followed** (17,249 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 143
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1069,7 +1081,9 @@ intervening "if" (Valakut); "then if you control" (Fabled Passage); draw
 triggers (Razorkin Needlehead); mana abilities costing a counter, once
 each turn (Wall of Roots), or a sacrifice (Skirk Prospector); damage a
 source you control deals an opponent, a spell's too (Quest for Pure
-Flame); the beginning of combat (Luminarch Aspirant); becoming tapped
+Flame), and piles an opponent separates, cards revealed that no
+one names left hidden and a hidden card in a graveyard refused (Fact or
+Fiction); the beginning of combat (Luminarch Aspirant); becoming tapped
 (City of Brass); mana of a colour chosen as an instruction resolves
 (Outcaster Trailblazer); "unless" paid or not (Mana Leak, echo); a
 cycling trigger and an X counted (Gempalm Incinerator); entering with

@@ -300,6 +300,9 @@ pub fn replay(
     }
 }
 
+/// The node the engine refuses a hidden card in a graveyard by.
+const HIDDEN_IN_GRAVEYARD: &str = "a hidden card in a graveyard";
+
 /// A point to go back to: the game as it was at a choice the log doesn't
 /// show (a payment, a search), the other ways to make it, and the line to
 /// go on from once one is made.
@@ -327,6 +330,11 @@ enum Back {
     /// A spell cast after what is on the stack resolves, or in response
     /// to it: a trigger the log does or doesn't show.
     Triggers,
+    /// Cards put into a hand or a graveyard unseen (Fact or Fiction's
+    /// piles): a card played that the hand doesn't hold, a hand of
+    /// another size, or a card from the graveyard, and the engine
+    /// refusing to go on with a hidden card in a graveyard.
+    Cards,
 }
 
 /// The replay's own record of the lines it has matched, put back with the
@@ -553,6 +561,10 @@ impl Driver<'_> {
         // other payment gets past it.
         // With the lands the log never names that its way relied on.
         let mut furthest: Option<(usize, Stop, Vec<Traced>, Vec<String>)> = None;
+        // The furthest a way got before the engine refused to go on with a
+        // card no one has named in a graveyard (`Back::Cards`): if every
+        // other way diverged, this one may be the game's.
+        let mut refused_at: Option<(usize, Stop, Vec<Traced>, Vec<String>)> = None;
         let mut i = 0;
         while i < g.entries.len() {
             let entry = &g.entries[i];
@@ -604,7 +616,23 @@ impl Driver<'_> {
                     // the replay can't follow yet says more than what
                     // another way of following it ran into: the engine
                     // hasn't disagreed with the log on every way there.
+                    let cards = matches!(
+                        stop,
+                        Stop::Diverged(
+                            Divergence::NotInHand { .. }
+                                | Divergence::NotInGraveyard { .. }
+                                | Divergence::UnloggedDiscard { .. }
+                                | Divergence::Discards { .. }
+                                | Divergence::HandSize { .. }
+                        )
+                    );
                     let refused = matches!(stop, Stop::Refused { .. } | Stop::Unfollowed { .. });
+                    let unseen_in_graveyard = matches!(&stop, Stop::Refused { node, .. }
+                        if node == HIDDEN_IN_GRAVEYARD);
+                    if unseen_in_graveyard && refused_at.as_ref().is_none_or(|f| i > f.0) {
+                        refused_at =
+                            Some((i, stop.clone(), self.trace.clone(), self.unseen.clone()));
+                    }
                     if furthest.as_ref().is_none_or(|f| {
                         i > f.0 || i == f.0 && refused && matches!(f.1, Stop::Diverged(_))
                     }) {
@@ -625,6 +653,9 @@ impl Driver<'_> {
                         // Or a cost it can't pay once what is on the stack
                         // resolves (Chill's tax on a red spell).
                         Back::Triggers => triggers || unpayable,
+                        // Of refusals, only those of hidden cards in a
+                        // graveyard: another pile may have left none.
+                        Back::Cards => cards || unseen_in_graveyard,
                     };
                     while self.checkpoints.last().is_some_and(|cp| !cause(cp.back)) {
                         self.checkpoints.pop();
@@ -696,6 +727,16 @@ impl Driver<'_> {
                         }
                         None => {
                             let (at, stop, trace, unseen) = furthest.take().expect("recorded");
+                            // A divergence is the engine's only if every
+                            // way diverged: a way that left a card no one
+                            // has named in a graveyard, which the engine
+                            // refuses to go on with, may be the game's
+                            // (Fact or Fiction's pile), and that refusal
+                            // is what stops it.
+                            let (at, stop, trace, unseen) = match (stop, refused_at.take()) {
+                                (Stop::Diverged(_), Some(refused)) if !untried => refused,
+                                (stop, _) => (at, stop, trace, unseen),
+                            };
                             // Only a way tried and every way left untried
                             // tells a divergence from a search too big.
                             let stop = match stop {
@@ -2509,7 +2550,16 @@ impl Driver<'_> {
                 let at = self.at;
                 self.pay_cards(at)
             }
-            Decision::Reveal { player, cards } => self.reveal(player, &cards),
+            Decision::Reveal {
+                player,
+                cards,
+                blind,
+            } => self.reveal(player, &cards, blind),
+            Decision::SeparatePiles { cards, .. } => self.separate_piles(cards),
+            // The piles differ only in which cards `separate_piles` put in
+            // the first, so taking it, as many ways as it tries, is each
+            // way the cards could have been split.
+            Decision::ChoosePile { .. } => self.act(Answer::Pile(0)),
             // Cards looked at are hidden alike to the log: which is chosen,
             // and the order they go back in, is nothing it can tell.
             Decision::ChooseAmong { cards, n, .. } => self.choose_among(cards, n),
@@ -4128,6 +4178,8 @@ impl Driver<'_> {
                 | Decision::PayLifeOr { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
+                | Decision::SeparatePiles { .. }
+                | Decision::ChoosePile { .. }
                 | Decision::ExileFromHand { .. }
                 | Decision::UntapUpTo { .. }
                 | Decision::Arrange { .. }
@@ -4160,6 +4212,8 @@ impl Driver<'_> {
                 | Decision::PayLifeOr { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
+                | Decision::SeparatePiles { .. }
+                | Decision::ChoosePile { .. }
                 | Decision::ExileFromHand { .. }
                 | Decision::UntapUpTo { .. }
                 | Decision::Arrange { .. }
@@ -4225,6 +4279,8 @@ impl Driver<'_> {
                 | Decision::Search { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
+                | Decision::SeparatePiles { .. }
+                | Decision::ChoosePile { .. }
                 | Decision::ExileFromHand { .. }
                 | Decision::UntapUpTo { .. }
                 | Decision::Arrange { .. }
@@ -5548,6 +5604,51 @@ impl Driver<'_> {
         Ok(())
     }
 
+    /// Piles an opponent separates (Fact or Fiction's), which the log
+    /// never shows, nor which one went to the hand: the first pile, which
+    /// `Decision::ChoosePile`'s answer takes, is the first so many of the
+    /// cards, two first, and a checkpoint goes back to try each other
+    /// size if a later line shows the hand or graveyard otherwise
+    /// (`Back::Cards`).
+    /// Only the size is tried, so cards whose names are known are told
+    /// apart only by their order.
+    fn separate_piles(&mut self, cards: Vec<CardId>) -> Followed {
+        let sizes: Vec<usize> = [2, 3, 1, 4, 5, 0]
+            .into_iter()
+            .filter(|k| *k <= cards.len())
+            .collect();
+        let others: Vec<Retry> = sizes[1..]
+            .iter()
+            .map(|k| {
+                Retry::Answer(
+                    Answer::Piles(cards[..*k].to_vec()),
+                    format!("separated {k} of the {} into the pile taken", cards.len()),
+                )
+            })
+            .collect();
+        let game = self.game().clone();
+        self.checkpoints.push(Checkpoint {
+            game,
+            entry: self.at,
+            trace: self.trace.len(),
+            resume: self.at,
+            others,
+            knew: self.knew(),
+            back: Back::Cards,
+        });
+        let first = sizes[0];
+        self.act(Answer::Piles(cards[..first].to_vec()))?;
+        let at = self.at;
+        self.did(
+            at,
+            format!(
+                "separated {first} of the {} into the pile taken",
+                cards.len()
+            ),
+        );
+        Ok(())
+    }
+
     /// A choice among cards the log never shows (Impulse's look, Flare of
     /// Cultivation's land put onto the battlefield): the first, and when
     /// one is chosen and the cards' names differ, a checkpoint to go back
@@ -5832,6 +5933,8 @@ impl Driver<'_> {
                     | Decision::PayLifeOr { .. }
                     | Decision::Reveal { .. }
                     | Decision::ChooseAmong { .. }
+                    | Decision::SeparatePiles { .. }
+                    | Decision::ChoosePile { .. }
                     | Decision::ExileFromHand { .. }
                     | Decision::UntapUpTo { .. }
                     | Decision::Arrange { .. }
@@ -5857,7 +5960,7 @@ impl Driver<'_> {
     /// one had named: the log's "reveals [X] with [Dark Confidant]'s
     /// ability" lines, from the line being followed to the end of the
     /// turn, name them in order.
-    fn reveal(&mut self, p: PlayerId, cards: &[CardId]) -> Followed {
+    fn reveal(&mut self, p: PlayerId, cards: &[CardId], blind: bool) -> Followed {
         let count = cards.len();
         let game = self.game.as_ref().expect("set up");
         if cards.iter().all(|c| game.player(p).hand().contains(c)) {
@@ -5902,6 +6005,11 @@ impl Driver<'_> {
                     names.extend(cards.iter().map(|c| c.name().to_string()));
                 }
             }
+        }
+        // Fact or Fiction's five are revealed and never printed: when
+        // nothing after reads what they are, they stay hidden.
+        if names.is_empty() && blind {
+            return self.act(Answer::Unsaid);
         }
         if names.len() != count {
             return Err(Stop::Diverged(Divergence::Unlogged {

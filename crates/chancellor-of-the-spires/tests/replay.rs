@@ -137,6 +137,9 @@ const INDEXED: &[&str] = &[
     "Stomping Ground",
     "Plains",
     "Duress",
+    "Fact or Fiction",
+    "Accumulated Knowledge",
+    "Impulse",
     "Champion of the Parish",
     "Elite Vanguard",
     "Goblin Lackey",
@@ -2297,4 +2300,65 @@ fn a_plotted_card_is_the_turns_players_and_cast_free_later() {
     let game = r.game.expect("set up");
     assert!(game.plotted().next().is_none());
     assert_eq!(game.permanents().len(), 4 + 3 + 1);
+}
+
+/// Fact or Fiction's five revealed cards and its piles, which no log
+/// prints: the five stay hidden, and the replay tries each size of the
+/// pile alice takes. Every size but all five leaves cards in her
+/// graveyard no one has named, where the engine refuses to go on as the
+/// spell resolves (one could be a card whose ability works there, or
+/// Accumulated Knowledge counting its name); taking all five, or none,
+/// leaves a hand Duress reveals (CR 701.20a) the wrong size. A divergence
+/// on every way the engine went on isn't the engine's, so the refusal is
+/// what stops the game.
+#[test]
+fn fact_or_fiction_piles_that_leave_a_hidden_card_in_the_graveyard_are_refused() {
+    let (g, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 4: alice
+        alice draws a card.
+        alice plays [Island].
+        alice casts [Fact or Fiction].
+        Turn 4: bob
+        bob draws a card.
+        bob casts [Duress] targeting alice.
+        alice reveals 6 cards with [Duress]: [Island], [Island], [Accumulated Knowledge], [Impulse], [Island], [Island].
+        alice discards [Impulse].
+        Turn 5: alice
+        alice draws a card.
+        alice plays [Island].
+        alice casts [Accumulated Knowledge].
+        alice draws a card with [Accumulated Knowledge].
+        alice has conceded from the game.
+    ");
+    let End::Stopped { entry, stop } = &r.end else {
+        panic!("{:?}", r.trace)
+    };
+    assert!(
+        matches!(stop, Stop::Refused { node, .. } if node == "a hidden card in a graveyard"),
+        "{stop:?} at {}",
+        g.entries[*entry].text
+    );
+    // The pile went there as Fact or Fiction resolved, before bob's turn.
+    assert_eq!(g.entries[*entry].text, "Turn 4: bob");
 }

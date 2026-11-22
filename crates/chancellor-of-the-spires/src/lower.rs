@@ -1707,10 +1707,14 @@ pub enum Effect {
     },
     /// "Reveal the top card of your library": the top `n` cards of
     /// `whose` library are revealed (CR 701.20a), and bound to `into`.
+    /// `blind` if nothing the instruction goes on to do reads what they
+    /// are, only where they go (Fact or Fiction's piles), so a hidden
+    /// card among them may stay hidden when no one says what it is.
     RevealTop {
         whose: Who,
         n: u32,
         into: Slot,
+        blind: bool,
     },
     /// "Look at the top four cards of your library": bound to `into`,
     /// seen by the controller alone, so to everyone else they stay
@@ -1725,6 +1729,23 @@ pub enum Effect {
     ChooseAmong {
         from: Slot,
         n: u32,
+        into: Slot,
+    },
+    /// "An opponent separates those cards into two piles": an opponent
+    /// of the controller puts each card bound to `from` into one of two
+    /// piles (CR 700.3a), the first bound to `into`, the second the rest.
+    /// Either may be empty (CR 700.3d), and the cards stay where they are
+    /// (CR 700.3c).
+    SeparatePiles {
+        from: Slot,
+        into: Slot,
+    },
+    /// "Put one pile into your hand": the controller chooses one of the
+    /// two piles `SeparatePiles` made of `from`, the first bound to
+    /// `first`, and it is bound to `into`; the other pile is the rest.
+    ChoosePile {
+        from: Slot,
+        first: Slot,
         into: Slot,
     },
     /// "Put that card into your hand": into `who`'s hand.
@@ -2762,6 +2783,9 @@ struct Scope<'a> {
     /// The slot the cards an instruction before discarded are bound to,
     /// "discarded this way".
     discarded: Option<Slot>,
+    /// The cards an instruction before separated into two piles, and the
+    /// slot of the first pile, which "one pile" chooses between.
+    piles: Option<(Slot, Slot)>,
 }
 
 impl<'a> Scope<'a> {
@@ -2787,6 +2811,7 @@ impl<'a> Scope<'a> {
             named: false,
             x: None,
             discarded: None,
+            piles: None,
         }
     }
 
@@ -3591,7 +3616,24 @@ impl<'a> Scope<'a> {
                     whose,
                     n: n(k)?,
                     into,
+                    blind: false,
                 }
+            }
+            // CR 700.3: "An opponent separates those cards into two
+            // piles". With several opponents, which of them does is the
+            // controller's choice, which the game asks only of a game
+            // with one.
+            i::Effect::SeparatePiles {
+                who: i::Player::AnOpponent,
+                what,
+                n: 2,
+            } => {
+                let Cards::Bound(from) = self.cards(what)? else {
+                    return Err(node());
+                };
+                let into = self.new_slot();
+                self.piles = Some((from, into));
+                Effect::SeparatePiles { from, into }
             }
             i::Effect::LookAtTop { who, whose, n: k } => {
                 let whose = self.library_of(who, whose)?;
@@ -3902,6 +3944,21 @@ impl<'a> Scope<'a> {
                 out.extend(lowered?);
                 return Ok(out);
             }
+            // "Put one pile into your hand": the controller chooses one
+            // of the piles separated before, and the rest is the other.
+            [o] if o.quant == Quant::N(i::Amount::N(1))
+                && o.filter
+                    == (i::Filter {
+                        kind: Some(i::Noun::Pile),
+                        ..i::Filter::default()
+                    }) =>
+            {
+                let (from, first) = self.piles.ok_or("one of piles no instruction made")?;
+                let into = self.new_slot();
+                self.among.insert(into, from);
+                out.push(Effect::ChoosePile { from, first, into });
+                into
+            }
             [o] if o.quant == Quant::N(i::Amount::N(1)) => {
                 let from = match o.filter.posts.as_slice() {
                     [Post::FromAmong(among)] if o.filter.alts.is_empty() => {
@@ -3948,6 +4005,7 @@ impl<'a> Scope<'a> {
         if self.made == Some(slot) {
             return Err("With a card no instruction makes".into());
         }
+        mark_blind(&mut out, slot);
         Ok(out)
     }
 
@@ -4792,6 +4850,32 @@ pub fn alternative_cost(parts: &[i::Static]) -> Option<Result<Alternative, Strin
         exiled: false,
         instant_or_sorcery: false,
     }))
+}
+
+/// Marks the reveal that binds `slot` blind when every other instruction
+/// with it only moves the cards or groups them, never reading what they
+/// are: Fact or Fiction's "An opponent separates those cards into two
+/// piles. Put one pile into your hand and the other into your graveyard."
+/// Anything else, or a filter over them, leaves it seeing.
+fn mark_blind(effects: &mut [Effect], slot: Slot) {
+    let moves_only = effects.iter().all(|e| match e {
+        Effect::RevealTop { into, .. } => *into == slot,
+        Effect::SeparatePiles { .. } | Effect::ChoosePile { .. } | Effect::Shuffle(_) => true,
+        Effect::ToHand { cards, .. }
+        | Effect::ToGraveyard { cards, .. }
+        | Effect::ToLibrary { cards, .. } => !matches!(cards, Cards::Matching { .. }),
+        _ => false,
+    });
+    if !moves_only {
+        return;
+    }
+    for e in effects {
+        if let Effect::RevealTop { into, blind, .. } = e {
+            if *into == slot {
+                *blind = true;
+            }
+        }
+    }
 }
 
 /// Whether an instruction in these, or a "may" in them, puts the card the

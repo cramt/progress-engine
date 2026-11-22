@@ -27,6 +27,14 @@
 //! it, once, which is sound because nothing in the game could have told
 //! the difference before; the cards a deck file builds are known from the
 //! start, so a goldfish never has one.
+//!
+//! A hidden card can reach a graveyard too, where everyone would have seen
+//! it but the log never says what it was: Fact or Fiction's five are
+//! revealed and never printed, and a blind reveal (`Answer::Unsaid`) keeps
+//! them hidden through the piles. While one is in a graveyard the game
+//! refuses to go on (`refused_in_graveyard`): it could be a card whose
+//! ability works there, and whatever reads a graveyard by what its cards
+//! are would read it.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -1060,6 +1068,25 @@ enum Waiting {
         /// Looked at before, and revealed by an instruction of its own
         /// ("You may reveal that card").
         looked: bool,
+        /// Nothing the instruction goes on to do reads what they are
+        /// (`lower::Effect::RevealTop`'s `blind`).
+        blind: bool,
+        resume: Resuming,
+    },
+    /// CR 700.3: `player` separates `cards` into two piles, the first
+    /// bound to `into`.
+    SeparatePiles {
+        player: PlayerId,
+        cards: Vec<CardId>,
+        into: Slot,
+        resume: Resuming,
+    },
+    /// `player` chooses one of two piles of the cards bound to `from`,
+    /// the first bound to `first`; the one chosen is bound to `into`.
+    ChoosePile {
+        player: PlayerId,
+        piles: [Vec<CardId>; 2],
+        into: Slot,
         resume: Resuming,
     },
     /// `player` chooses `n` of `cards`, bound to `into`.
@@ -1429,6 +1456,23 @@ pub enum Decision {
     Reveal {
         player: PlayerId,
         cards: Vec<CardId>,
+        /// Whether `Answer::Unsaid` is legal: nothing the instruction
+        /// goes on to do reads what the cards are (Fact or Fiction's), so
+        /// one who can't say may leave them hidden.
+        blind: bool,
+    },
+    /// CR 700.3a, 700.3d: `player` separates `cards` into two piles,
+    /// answered `Answer::Piles` with the first; the second is the rest,
+    /// and either may be empty.
+    SeparatePiles {
+        player: PlayerId,
+        cards: Vec<CardId>,
+    },
+    /// "Put one pile into your hand": `player` chooses one of `piles`,
+    /// answered `Answer::Pile` with its index.
+    ChoosePile {
+        player: PlayerId,
+        piles: [Vec<CardId>; 2],
     },
     /// "Put one of them into your hand": choose exactly `n` of `cards`,
     /// answered `Answer::Choose`.
@@ -1714,6 +1758,13 @@ pub enum Answer {
     Begin(Vec<CardId>),
     /// What each hidden card revealed is, in the decision's order.
     Reveal(Vec<CardText>),
+    /// To a blind `Decision::Reveal`: the cards revealed aren't said, and
+    /// stay hidden. Only a replay whose log never prints them answers it.
+    Unsaid,
+    /// To `Decision::SeparatePiles`: the cards of the first pile.
+    Piles(Vec<CardId>),
+    /// To `Decision::ChoosePile`: the index of the pile chosen.
+    Pile(usize),
     /// The cards chosen.
     Choose(Vec<CardId>),
     /// The cards in the order they go, the first topmost.
@@ -1746,7 +1797,7 @@ pub enum Answer {
     Mana(ManaPool),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Rejected {
     /// Not among the legal answers to the decision.
     Illegal(Answer),
@@ -1836,6 +1887,10 @@ pub struct Game {
     damage_multipliers: Vec<(PlayerId, u32)>,
     /// Cards an instruction put on the bottom of a library this turn.
     bottomed: u32,
+    /// What a resolving instruction ran into that the game can't know or
+    /// do, set as `step` answers: the answer is refused with it and the
+    /// game put back as it was, rather than going on wrong.
+    halted: Option<Rejected>,
     /// Libraries an instruction shuffled this turn.
     shuffled: u32,
     /// Permanents returned to a hand this turn, by a cost or an
@@ -2050,6 +2105,7 @@ impl Game {
             wards: Vector::new(),
             last_known: OrdMap::new(),
             bottomed: 0,
+            halted: None,
             returned: 0,
             transformed: 0,
             copies: Vector::new(),
@@ -2585,13 +2641,25 @@ impl Game {
 
     /// A card in a graveyard with an ability that works there (CR 113.6b:
     /// Anger's haste), which the engine can't run: every answer would be
-    /// given without it, so the game refuses to go on.
+    /// given without it, so the game refuses to go on. A hidden card there
+    /// may be one (Fact or Fiction's pile), and anything reading the
+    /// graveyard by what its cards are would read it, so the game refuses
+    /// alike.
     fn refused_in_graveyard(&self) -> Option<Rejected> {
         self.players
             .iter()
             .flat_map(|p| &p.graveyard)
             .find_map(|c| {
-                let k = self.known(*c)?;
+                let Some(k) = self.known(*c) else {
+                    return Some(Rejected::Refused {
+                        card: "a hidden card".into(),
+                        refusal: Unrunnable::new(
+                            "a hidden card in a graveyard",
+                            "a card no one has named is in a graveyard, where an ability \
+                             of it could work and what it is could be read",
+                        ),
+                    });
+                };
                 match &k.runs {
                     Err(why) if k.in_graveyard => Some(Rejected::Refused {
                         card: k.text.name.clone(),
@@ -2786,9 +2854,23 @@ impl Game {
                 player: *player,
                 cards: cards.clone(),
             },
-            Waiting::Reveal { player, cards, .. } => Decision::Reveal {
+            Waiting::Reveal {
+                player,
+                cards,
+                blind,
+                ..
+            } => Decision::Reveal {
                 player: *player,
                 cards: cards.clone(),
+                blind: *blind,
+            },
+            Waiting::SeparatePiles { player, cards, .. } => Decision::SeparatePiles {
+                player: *player,
+                cards: cards.clone(),
+            },
+            Waiting::ChoosePile { player, piles, .. } => Decision::ChoosePile {
+                player: *player,
+                piles: piles.clone(),
             },
             Waiting::ChooseAmong {
                 player, cards, n, ..
@@ -3129,7 +3211,8 @@ impl Game {
     }
 
     /// Answer the decision and run on to the next one. An answer that isn't
-    /// legal leaves the game as it was.
+    /// legal leaves the game as it was, as does one that runs into what
+    /// the game can't know (`halted`), refused.
     pub fn step(&mut self, answer: Answer) -> Result<Decision, Rejected> {
         if let Some(refused) = self
             .uncounted_graveyard()
@@ -3137,6 +3220,16 @@ impl Game {
         {
             return Err(refused);
         }
+        let before = self.clone();
+        let next = self.answer(answer);
+        if let Some(halted) = self.halted.take() {
+            *self = before;
+            return Err(halted);
+        }
+        next
+    }
+
+    fn answer(&mut self, answer: Answer) -> Result<Decision, Rejected> {
         match (self.waiting.clone(), &answer) {
             (Waiting::OpeningHand { player }, Answer::Begin(cards)) => {
                 let distinct: BTreeSet<&CardId> = cards.iter().collect();
@@ -3428,6 +3521,43 @@ impl Game {
                 for (c, text) in cards.iter().zip(named) {
                     self.cards[c.0 as usize].face = Face::of(text.clone());
                 }
+                self.follow(resume);
+            }
+            (
+                Waiting::Reveal {
+                    blind: true,
+                    resume,
+                    ..
+                },
+                Answer::Unsaid,
+            ) => self.follow(resume),
+            (
+                Waiting::SeparatePiles {
+                    cards,
+                    into,
+                    mut resume,
+                    ..
+                },
+                Answer::Piles(first),
+            ) => {
+                // CR 700.3a: each card in exactly one pile.
+                let distinct: BTreeSet<&CardId> = first.iter().collect();
+                if distinct.len() != first.len() || !first.iter().all(|c| cards.contains(c)) {
+                    return Err(Rejected::Illegal(answer));
+                }
+                resume.found.insert(into, first.clone());
+                self.follow(resume);
+            }
+            (
+                Waiting::ChoosePile {
+                    piles,
+                    into,
+                    mut resume,
+                    ..
+                },
+                Answer::Pile(k),
+            ) if *k < 2 => {
+                resume.found.insert(into, piles[*k].clone());
                 self.follow(resume);
             }
             (
@@ -6179,8 +6309,9 @@ impl Game {
                     };
                     return;
                 }
-                Effect::RevealTop { whose, n, into } | Effect::LookAtTop { whose, n, into } => {
+                Effect::RevealTop { whose, n, into, .. } | Effect::LookAtTop { whose, n, into } => {
                     let revealed = matches!(e, Effect::RevealTop { .. });
+                    let blind = matches!(e, Effect::RevealTop { blind: true, .. });
                     let Some(q) = who(whose) else { continue };
                     let cards: Vec<CardId> = self
                         .player(q)
@@ -6201,10 +6332,59 @@ impl Game {
                             player: q,
                             cards: hidden,
                             looked: false,
+                            blind,
                             resume: at,
                         };
                         return;
                     }
+                }
+                Effect::SeparatePiles { from, into } => {
+                    let cards = self.still_in_library(&at, Cards::Bound(from));
+                    let opponents: Vec<PlayerId> = (0..self.players.len())
+                        .map(|q| PlayerId(q as u8))
+                        .filter(|q| *q != p && !self.player(*q).left)
+                        .collect();
+                    // "An opponent": with several, the controller chooses
+                    // which, a choice the game doesn't ask yet; with none
+                    // left, no one separates them.
+                    let [opponent] = opponents.as_slice() else {
+                        self.halted = Some(Rejected::Refused {
+                            card: self
+                                .face_name(at.what.card())
+                                .unwrap_or("a spell")
+                                .to_string(),
+                            refusal: Unrunnable::new(
+                                "SeparatePiles without exactly one opponent",
+                                "an opponent separates the piles, and the game asks only \
+                                 a game with exactly one",
+                            ),
+                        });
+                        return;
+                    };
+                    self.waiting = Waiting::SeparatePiles {
+                        player: *opponent,
+                        cards,
+                        into,
+                        resume: at,
+                    };
+                    return;
+                }
+                Effect::ChoosePile { from, first, into } => {
+                    let all = self.still_in_library(&at, Cards::Bound(from));
+                    let one = at
+                        .found
+                        .get(&first)
+                        .cloned()
+                        .expect("SeparatePiles binds the first pile before ChoosePile");
+                    let (a, b): (Vec<CardId>, Vec<CardId>) =
+                        all.into_iter().partition(|c| one.contains(c));
+                    self.waiting = Waiting::ChoosePile {
+                        player: p,
+                        piles: [a, b],
+                        into,
+                        resume: at,
+                    };
+                    return;
                 }
                 Effect::Gather { from, into } => {
                     let cards = from
@@ -6410,6 +6590,7 @@ impl Game {
                             player: q,
                             cards: hidden,
                             looked: false,
+                            blind: false,
                             resume,
                         };
                         return;
@@ -6452,6 +6633,7 @@ impl Game {
                             player: self.owner(c),
                             cards: hidden,
                             looked: true,
+                            blind: false,
                             resume: at,
                         };
                         return;
@@ -6600,6 +6782,25 @@ impl Game {
         }
     }
 
+    /// The cards in the graveyards of the players `whose` names, relative
+    /// to the instruction's controller.
+    fn counted_graveyards<'g>(
+        &'g self,
+        at: &Resuming,
+        whose: lower::Whose,
+    ) -> impl Iterator<Item = CardId> + 'g {
+        let me = at.controller.0 as usize;
+        self.players
+            .iter()
+            .enumerate()
+            .filter(move |(q, _)| match whose {
+                lower::Whose::Yours => *q == me,
+                lower::Whose::Opponents => *q != me,
+                lower::Whose::Each => true,
+            })
+            .flat_map(|(_, player)| player.graveyard.iter().copied())
+    }
+
     /// How much an amount is as the instruction is followed.
     fn amount(&self, at: &Resuming, n: lower::Amount) -> u32 {
         match n {
@@ -6627,17 +6828,9 @@ impl Game {
                 named,
                 filter,
             } => self
-                .players
-                .iter()
-                .enumerate()
-                .filter(|(q, _)| match whose {
-                    lower::Whose::Yours => *q == at.controller.0 as usize,
-                    lower::Whose::Opponents => *q != at.controller.0 as usize,
-                    lower::Whose::Each => true,
-                })
-                .flat_map(|(_, player)| &player.graveyard)
+                .counted_graveyards(at, whose)
                 .filter(|c| {
-                    self.known(**c).is_some_and(|k| {
+                    self.known(*c).is_some_and(|k| {
                         named.as_ref().is_none_or(|n| k.text.name == *n)
                             && k.printed.as_ref().is_some_and(|ch| filter.matches(ch))
                     })
@@ -7205,6 +7398,8 @@ impl Game {
             | Waiting::Search { resume: at, .. }
             | Waiting::May { at, .. }
             | Waiting::Reveal { resume: at, .. }
+            | Waiting::SeparatePiles { resume: at, .. }
+            | Waiting::ChoosePile { resume: at, .. }
             | Waiting::ChooseAmong { resume: at, .. }
             | Waiting::Arrange { resume: at, .. }
             | Waiting::PutFromHand { resume: at, .. }

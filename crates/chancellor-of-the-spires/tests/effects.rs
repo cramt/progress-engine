@@ -1384,6 +1384,47 @@ fn impulse_takes_one_of_four_and_bottoms_the_rest_in_order() {
     assert_eq!(game.bottomed(), 3);
 }
 
+/// CR 700.3: Fact or Fiction reveals the top five, the opponent separates
+/// them into two piles, either of which may be empty (CR 700.3d), and I
+/// put the one I choose into my hand and the other into my graveyard.
+/// Each card goes into exactly one pile (CR 700.3a).
+#[test]
+fn fact_or_fiction_an_opponent_separates_the_five_and_i_take_a_pile() {
+    let mut game = deal(
+        &[("Island", 30), ("Fact or Fiction", 30)],
+        &[("Forest", 60)],
+        &[("Island", 4), ("Fact or Fiction", 1)],
+    );
+    for _ in 0..3 {
+        play(&mut game, "Island");
+        my_next_main(&mut game);
+    }
+    play(&mut game, "Island");
+    cast(&mut game, "Fact or Fiction", None);
+    let five: Vec<CardId> = game.player(ME).library().iter().take(5).copied().collect();
+    let Decision::SeparatePiles { player, cards } = resolve(&mut game) else {
+        panic!("piles to separate")
+    };
+    assert_eq!((player, cards), (THEM, five.clone()));
+    let mine = in_hand(&game, ME, "Island").unwrap();
+    assert!(game.clone().step(Answer::Piles(vec![mine])).is_err());
+    assert!(game
+        .clone()
+        .step(Answer::Piles(vec![five[0], five[0]]))
+        .is_err());
+    let Decision::ChoosePile { player, piles } = step(&mut game, Answer::Piles(vec![five[3]]))
+    else {
+        panic!("a pile to choose")
+    };
+    let rest = vec![five[0], five[1], five[2], five[4]];
+    assert_eq!((player, piles.clone()), (ME, [vec![five[3]], rest.clone()]));
+    let hand = game.player(ME).hand().len();
+    step(&mut game, Answer::Pile(1));
+    assert_eq!(game.player(ME).hand().len(), hand + 4);
+    assert!(rest.iter().all(|c| game.player(ME).hand().contains(c)));
+    assert!(game.player(ME).graveyard().contains(&five[3]));
+}
+
 /// CR 401.4: Sleight of Hand looks at the top two, puts the one chosen
 /// into my hand and the other on the bottom, no order to give for one.
 #[test]
@@ -5423,12 +5464,12 @@ fn tarmogoyf_counts_card_types_in_graveyards_before_a_pump() {
     assert_eq!(game.characteristics()[&goyf].pt, Some(pt(5, 6)));
 }
 
-/// CR 604.3: Tarmogoyf counts every card in all graveyards, so with a
-/// card there the engine can't see (Strategic Planning put two cards of my
-/// library into my graveyard, never named), its power can't be known: the
-/// game refuses to go on rather than count it low.
+/// A card in a graveyard the engine can't see (Strategic Planning put two
+/// cards of my library into my graveyard, never named) could be one whose
+/// ability works there (CR 113.6b), and Tarmogoyf would count it (CR
+/// 604.3): the game refuses to go on rather than read it as nothing.
 #[test]
-fn tarmogoyf_refuses_a_graveyard_holding_a_hidden_card() {
+fn a_hidden_card_in_a_graveyard_is_refused() {
     let known = [
         ("Forest", 5),
         ("Island", 5),
@@ -5475,12 +5516,10 @@ fn tarmogoyf_refuses_a_graveyard_holding_a_hidden_card() {
             .any(|c| game.card(*c).is_none()),
         "a hidden card in my graveyard"
     );
-    my_next_main(&mut game);
-    cast(&mut game, "Tarmogoyf", None);
-    resolve(&mut game);
-    assert!(creature(&game, "Tarmogoyf").is_some());
     match game.step(Answer::Act(Action::Pass)) {
-        Err(Rejected::Refused { card, .. }) => assert_eq!(card, "Tarmogoyf"),
+        Err(Rejected::Refused { refusal, .. }) => {
+            assert_eq!(refusal.node, "a hidden card in a graveyard")
+        }
         other => panic!("{other:?}"),
     }
 }
