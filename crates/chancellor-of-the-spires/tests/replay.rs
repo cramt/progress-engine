@@ -178,6 +178,11 @@ const INDEXED: &[&str] = &[
     "Stifle",
     "Triskelion",
     "Quicksilver, Brash Blur",
+    "Goblin Matron",
+    "Goblin Piledriver",
+    "Argothian Enchantress",
+    "Enchantress's Presence",
+    "Wild Growth",
 ];
 
 fn index() -> &'static IndexFile {
@@ -426,9 +431,10 @@ fn on_battlefield(game: &chancellor_of_the_spires::game::Game, name: &str) -> us
 
 /// CR 602.2, 701.23, 701.24: a fetchland activated, its search answered by
 /// the replay since the log never says what was found. Alice's spells this
-/// game need {R} and {G} alike, so the first basic tried is a Mountain,
-/// with which Grizzly Bears on Island can't be paid for; the replay goes
-/// back to the search, finds a Forest instead, and the rest follows.
+/// game need {R} and {G} alike and she plays a Mountain and a Forest, so
+/// the first basic tried is a Mountain, with which Grizzly Bears on Island
+/// can't be paid for; the replay goes back to the search, finds a Forest
+/// instead, and the rest follows.
 #[test]
 fn a_fetchland_finds_what_later_spells_need() {
     let (_, r) = run("
@@ -446,6 +452,10 @@ fn a_fetchland_finds_what_later_spells_need() {
         Turn 3: alice
         alice plays [Mountain].
         alice casts [Raging Goblin].
+        Turn 3: bob
+        bob plays [Island].
+        Turn 4: alice
+        alice plays [Forest].
         bob has conceded from the game.
     ");
     assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
@@ -460,10 +470,45 @@ fn a_fetchland_finds_what_later_spells_need() {
     // CR 119.4: the fetch's life.
     assert_eq!(game.player(ALICE).life(), 19);
     assert_eq!(on_battlefield(&game, "Wooded Foothills"), 0);
-    assert_eq!(on_battlefield(&game, "Forest"), 1);
+    assert_eq!(on_battlefield(&game, "Forest"), 2);
     assert_eq!(on_battlefield(&game, "Grizzly Bears"), 1);
-    // Cast, and still on the stack when bob concedes.
-    assert_eq!(game.stack().len(), 1);
+    assert_eq!(on_battlefield(&game, "Raging Goblin"), 1);
+}
+
+/// CR 701.23a: of the basics a search may find, a colour the player's
+/// spells need that no land the log shows them playing makes is tried
+/// first: Alice's Mountain makes red and nothing she plays makes green,
+/// so her Wooded Foothills finds the Forest with no going back.
+#[test]
+fn a_fetchland_finds_first_a_colour_no_land_played_makes() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Wooded Foothills].
+        alice activates an ability of [Wooded Foothills] ( Search your library for a Mountain or Forest card, put it onto the battlefield, then shuffle.).
+        Turn 1: bob
+        bob plays [Island].
+        Turn 2: alice
+        alice plays [Mountain].
+        alice casts [Raging Goblin].
+        Turn 2: bob
+        bob plays [Island].
+        Turn 3: alice
+        alice plays [Mountain].
+        alice casts [Grizzly Bears].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    assert!(
+        r.trace.iter().any(|t| t.did.starts_with("found Forest")),
+        "{:#?}",
+        r.trace
+    );
+    assert!(
+        !r.trace.iter().any(|t| t.did.starts_with("chose again")),
+        "{:#?}",
+        r.trace
+    );
 }
 
 /// CR 701.23b: when the log says the search failed, it found nothing, and
@@ -941,6 +986,90 @@ fn a_search_that_reveals_finds_the_card_the_line_names() {
         game.card(top).map(|t| t.name.as_str()),
         Some("Aura of Silence")
     );
+}
+
+/// CR 608.2d, 701.23a: Goblin Matron's "you may search your library for
+/// a Goblin card, reveal that card": the line revealing it shows the
+/// "may" taken and names the card found, put into the hand.
+#[test]
+fn a_reveal_line_takes_the_may_of_a_search_that_reveals() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        Turn 1: bob
+        bob plays [Forest].
+        Turn 2: alice
+        alice plays [Mountain].
+        Turn 2: bob
+        bob plays [Forest].
+        Turn 3: alice
+        alice plays [Mountain].
+        alice casts [Goblin Matron].
+        alice puts triggered ability from [Goblin Matron] onto the stack (When Goblin Matron enters, you may search your library for a Goblin card, reveal that card, put it...).
+        alice reveals [Goblin Piledriver].
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert!(game
+        .player(ALICE)
+        .hand()
+        .iter()
+        .any(|c| game.card(*c).is_some_and(|t| t.name == "Goblin Piledriver")));
+}
+
+/// CR 405.5, 608.2: a "draws a card with [X]'s ability" line is the
+/// topmost of X's triggers resolving, and only it: of two Argothian
+/// Enchantress triggers with Enchantress's Presence's between them, the
+/// first line draws one card, not all three.
+#[test]
+fn a_draw_line_resolves_one_trigger_of_its_name() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob plays [Island].
+        Turn 2: alice
+        alice plays [Forest].
+        alice casts [Argothian Enchantress].
+        Turn 2: bob
+        bob plays [Island].
+        Turn 3: alice
+        alice plays [Forest].
+        alice casts [Enchantress's Presence].
+        alice puts triggered ability from [Argothian Enchantress] onto the stack (Whenever you cast an enchantment spell, draw a card.).
+        alice draws a card with [Argothian Enchantress]'s ability.
+        Turn 3: bob
+        bob plays [Island].
+        Turn 4: alice
+        alice plays [Forest].
+        alice casts [Argothian Enchantress].
+        Turn 4: bob
+        bob plays [Island].
+        Turn 5: alice
+        alice plays [Forest].
+        alice casts [Wild Growth] targeting [Forest].
+        alice puts triggered ability from [Argothian Enchantress] onto the stack (Whenever you cast an enchantment spell, draw a card.).
+        alice puts triggered ability from [Enchantress's Presence] onto the stack (Whenever you cast an enchantment spell, draw a card.).
+        alice puts triggered ability from [Argothian Enchantress] onto the stack (Whenever you cast an enchantment spell, draw a card.).
+        alice draws a card with [Argothian Enchantress]'s ability.
+        alice draws a card with [Enchantress's Presence]'s ability.
+        alice draws a card with [Argothian Enchantress]'s ability.
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
 }
 
 /// CR 702.29a: "discards [Lonely Sandbar]" then "cycles [Lonely Sandbar]"

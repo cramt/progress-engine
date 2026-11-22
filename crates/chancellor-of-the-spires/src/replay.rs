@@ -1429,6 +1429,13 @@ impl Driver<'_> {
                         Decision::May { card, .. } if game.reveals_looked_at(card) => {
                             self.pass()?
                         }
+                        // The card revealed shows the search's "may" taken
+                        // (Goblin Matron's).
+                        Decision::May { player, card, .. }
+                            if player == p && game.may_search_revealing(card) =>
+                        {
+                            self.act(Answer::May(true))?
+                        }
                         Decision::Reveal { .. } if game.looked_at_revealed() => self.pass()?,
                         Decision::Search {
                             player,
@@ -3699,13 +3706,17 @@ impl Driver<'_> {
             return Ok(());
         }
         let on_stack = |game: &Game| {
-            game.stack().iter().any(|o| match o {
-                StackObject::Spell { card, .. }
-                | StackObject::Ability { source: card, .. }
-                | StackObject::Trigger { source: card, .. } => named(game, card),
-            })
+            game.stack()
+                .iter()
+                .filter(|o| match o {
+                    StackObject::Spell { card, .. }
+                    | StackObject::Ability { source: card, .. }
+                    | StackObject::Trigger { source: card, .. } => named(game, card),
+                })
+                .count()
         };
-        if !on_stack(game) {
+        let waiting = on_stack(game);
+        if waiting == 0 {
             // It resolved already, drawing as it went: the line is printed
             // after a choice it asked for first, a scry before the draw.
             if game.last_resolved().is_some_and(|c| named(game, &c)) {
@@ -3714,7 +3725,10 @@ impl Driver<'_> {
             return Err(Stop::Diverged(Divergence::Draw));
         }
         let before = game.player(p).hand().len();
-        while on_stack(self.game()) {
+        // Only until one of its name has resolved: of two Enchantress's
+        // Presence triggers with an Argothian Enchantress trigger between
+        // them, the line is the top one's draw.
+        while on_stack(self.game()) == waiting {
             if !matches!(self.game().decision(), Decision::Priority { .. }) {
                 break;
             }
@@ -4666,6 +4680,32 @@ impl Driver<'_> {
         chosen
     }
 
+    /// Which colours the lands the log shows `p` playing this match make:
+    /// each basic land type's (CR 305.6: a Taiga makes {R} and {G}), and
+    /// the mana symbols in its text, as Scryfall's colour identity has
+    /// them (CR 903.4).
+    fn colours_made(&mut self, p: PlayerId) -> [bool; 5] {
+        let colours = [
+            crate::model::Color::White,
+            crate::model::Color::Blue,
+            crate::model::Color::Black,
+            crate::model::Color::Red,
+            crate::model::Color::Green,
+        ];
+        let mut made = [false; 5];
+        for land in self.lands[p.0 as usize].clone() {
+            if let Ok(text) = self.text(&land) {
+                let subtypes = text.type_line.split('—').nth(1).unwrap_or("");
+                for (k, c) in colours.iter().enumerate() {
+                    let basic = ["Plains", "Island", "Swamp", "Mountain", "Forest"][k];
+                    made[k] |= text.identity.contains(c)
+                        || subtypes.split_whitespace().any(|t| t == basic);
+                }
+            }
+        }
+        made
+    }
+
     /// Answer a search the log doesn't show the result of. The log says
     /// when a search fails (`FailsToFind`), so this one found a card; which
     /// card isn't said, so the replay chooses, as it chooses a payment, and
@@ -4709,7 +4749,14 @@ impl Driver<'_> {
                     .into_iter()
                     .enumerate()
                     .collect();
-            basics.sort_by_key(|(k, _)| std::cmp::Reverse(demand[*k]));
+            // A colour the player's spells need that no land the log shows
+            // them playing makes was most likely fetched: Goblins casting
+            // Tranquil Domain off Mountains, Rishadan Port and a Wooded
+            // Foothills found its Forest. Going back to the search later
+            // instead can take more retries than the replay has.
+            let made = self.colours_made(p);
+            basics
+                .sort_by_key(|(k, _)| (demand[*k] == 0 || made[*k], std::cmp::Reverse(demand[*k])));
             // Then what the player casts or plays later this game, which
             // came from their library if a tutor found it.
             let later: Vec<String> = self

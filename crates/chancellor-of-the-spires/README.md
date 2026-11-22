@@ -614,8 +614,12 @@ A fetchland's search is the log's to say and it doesn't: it prints the
 activation, and a failed search ("fails to find"), never the card found,
 which a basic land rarely shows again. So unless the log says the search
 failed, the replay answers it with a hidden card of the library named as
-it is found, choosing as it chooses a payment: each basic land, the colours
-the player's spells this game need most first, then each land the log
+it is found, choosing as it chooses a payment: each basic land, first a
+colour the player's spells this game need that no land the log shows
+them playing in the match makes (Goblins' Wooded Foothills finding the
+Forest for its Tranquil Domain, which going back to it from five turns
+on can take more retries than the replay has), then the colours their
+spells need most, then each land the log
 shows the player playing anywhere in the match (their deck has it), then
 each their opponent plays, then each card it shows them casting or
 playing later in the game (a tutor's find shows up again), and last, as
@@ -949,7 +953,9 @@ its face's name, Steam Clean cast as an Adventure and the Scalding Viper
 cast after it from exile; and Delver of Secrets declining to reveal,
 then revealing a Lightning Bolt and attacking as Insectile Aberration;
 and a Vesuva gone back to and copied as Cloudpost when its copy of a
-Forest can't pay for two Bronze Sables. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
+Forest can't pay for two Bronze Sables; and Goblin Matron's search
+taken by the line revealing its Goblin, and three draw triggers, two
+of one name, each resolved by its own draw line. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
 player, at a creature, and at one already gone), Preordain, Champion of
 the Parish, Temple of Deceit, and combat: an unblocked attacker,
 flying against a block, a trade, first strike, exalted, prowess,
@@ -1012,8 +1018,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 87 of the 500 replay to
-the end and 46.69% of their lines are followed** (14,781 of 31,659), 2
+Worked card by card from there, **on 2026-11-22 92 of the 500 replay to
+the end and 47.45% of their lines are followed** (15,023 of 31,659), 2
 of them relying on a land the log never names (1 to the end), and 93
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -1120,11 +1126,18 @@ target (Mogg Fanatic's, its target sacrificed in response), a search's
 find tried among the permanents a later line shows triggering or
 activated (Valakut, never cast or played), and a trigger line still
 unmatched when the turn reaches an attack the log shows after it taken
-for a trigger that never came, so an earlier choice is gone back to. One divergence was the engine's own, found by the full
+for a trigger that never came, so an earlier choice is gone back to,
+and a "reveals [Goblin Piledriver]" line taking the "may" of a search
+that reveals what it finds (Goblin Matron's), and a "draws a card with
+[Argothian Enchantress]'s ability" line resolving only the topmost
+trigger of that name, not every one down to the last (two Argothian
+Enchantress triggers with Enchantress's Presence's between them). One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Veteran Survivor (6), Adeline, Elephant Grass,
-Eternal Dragon's landcycling and Fact or Fiction (5 each); of the 7 games Quicksilver stopped, one replays to
+top of the worklist now: Elephant Grass's cumulative upkeep (7),
+Veteran Survivor (6), Adeline, Eternal Dragon's landcycling, Fact or
+Fiction, Michelangelo's Technique, Powder Keg, Sleight of Hand and
+Strategic Planning (5 each); of the 7 games Quicksilver stopped, one replays to
 the end, four stop at Blazing Shoal's exile from hand, one at Wayward
 Guide-Beast and one at Frostboil Snarl; of the 9 games a counter line before an
 activation stopped, Triskelion's replays to the end, Quest for Pure

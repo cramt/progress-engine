@@ -2239,6 +2239,28 @@ impl Game {
             .is_some_and(|r| r.triggered.values().any(|t| reveals(&t.program.effects)))
     }
 
+    /// Whether a triggered ability of the card may search for a card it
+    /// reveals: Goblin Matron's "you may search your library for a Goblin
+    /// card, reveal that card", whose "may" the line revealing it shows
+    /// taken.
+    pub fn may_search_revealing(&self, c: CardId) -> bool {
+        fn reveals(effects: &[Effect]) -> bool {
+            effects.iter().any(|e| {
+                matches!(e, Effect::Search { reveals: true, .. }) || e.inner().is_some_and(reveals)
+            })
+        }
+        self.known(c)
+            .and_then(|k| k.runs.as_ref().ok())
+            .is_some_and(|r| {
+                r.triggered.values().any(|t| {
+                    t.program.effects.iter().any(|e| match e {
+                        Effect::May(_, then) => reveals(then),
+                        _ => false,
+                    })
+                })
+            })
+    }
+
     /// How many permanents have transformed this turn.
     pub fn transformed(&self) -> u32 {
         self.transformed
