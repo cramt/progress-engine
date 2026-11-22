@@ -368,7 +368,7 @@ face: Hollowsage
 type: Creature — Merfolk Wizard
 cost: {3}{B}
 > Whenever this creature becomes untapped, you may have target player discard a card.
-= BROKE at "," after: whenever this creature becomes untapped
+= Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
 
 ## Insatiable Skittermaw
 face: Insatiable Skittermaw

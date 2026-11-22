@@ -580,7 +580,7 @@ cost: {W}
 > Whenever this artifact becomes untapped, venture into the dungeon.
 > {3}{W}, {T}: For as long as this artifact remains tapped, another target permanent loses all abilities and can't attack or block.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "," after: whenever this artifact becomes untapped
+= Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Action { by: None, name: "venture into the dungeon", n: None }], limits: [] }
 = BROKE at "tapped" after: {3} {W} , {T} : for as long as this artifact remains
 
 ## Jacob Frye
@@ -679,7 +679,7 @@ cost: {W}{U}{B}
 > Merieke Ri Berit doesn't untap during your untap step.
 > {T}: Gain control of target creature for as long as you control Merieke Ri Berit. When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature. It can't be regenerated.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: DoesntUntap(You) }])
-= BROKE at "untapped" after: {T} : gain control of target creature for as long as you control ~ . when ~ leaves the battlefield or becomes
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Tap], effect: [GainControl { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: WhileSelfOnBattlefield }, DelayedWhen { event: Or([Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }, BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), then: [Destroy { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: true }] }], limits: [] } }
 
 ## Mister Fantastic
 face: Mister Fantastic

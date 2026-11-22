@@ -338,7 +338,7 @@ face: Felhide Spiritbinder
 type: Creature — Minotaur Shaman
 cost: {3}{R}
 > Inspired — Whenever this creature becomes untapped, you may pay {1}{R}. If you do, create a token that's a copy of another target creature, except it's an enchantment in addition to its other types. It gains haste. Exile it at the beginning of the next end step.
-= BROKE at "," after: inspired — whenever this creature becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1", "R"]))] }] }, With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [AlsoIs([Type("enchantment")])] }, Modify { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: Permanent }, Delayed { step: EndStep(Next), then: [Exile(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])] }], limits: [] } }
 
 ## Fight for the Throne
 face: Fight for the Throne

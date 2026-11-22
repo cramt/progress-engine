@@ -759,7 +759,7 @@ cost: {1}{U}{B}
 > Flying
 > Inspired — Whenever this creature becomes untapped, each opponent discards a card, then each opponent mills a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: inspired — whenever this creature becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Mill { who: EachOpponent, n: N(1) }], limits: [] } }
 
 ## Snow-Covered Island
 face: Snow-Covered Island

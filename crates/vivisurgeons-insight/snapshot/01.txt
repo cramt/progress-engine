@@ -222,7 +222,7 @@ cost: {1}
 > Whenever equipped creature becomes untapped, remove a bait counter from this Equipment. If you do, create a 1/1 blue Fish creature token.
 > Equip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)
 = Static([HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["1"])), Tap, TapUntapped(Objects { quant: Granter, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [PutCounters { n: N(1), kind: "bait", on: Objects { quant: Granter, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }])
-= BROKE at "," after: whenever equipped creature becomes untapped
+= Triggered { trigger: When(BecomesUntapped(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [RemoveCounters { n: N(1), kind: "bait", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, IfYouDo([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Blue], types: ["fish", "creature"], keywords: [], abilities: [], named: None, attacking: None } }])], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Flame Wave

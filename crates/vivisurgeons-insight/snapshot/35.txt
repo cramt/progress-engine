@@ -540,7 +540,7 @@ face: Kragma Butcher
 type: Creature — Minotaur Warrior
 cost: {2}{R}
 > Inspired — Whenever this creature becomes untapped, it gets +2/+0 until end of turn.
-= BROKE at "," after: inspired — whenever this creature becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Kree Commandos
 face: Kree Commandos

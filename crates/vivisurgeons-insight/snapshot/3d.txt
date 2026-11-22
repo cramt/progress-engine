@@ -32,7 +32,7 @@ cost: {4}{U}{U}
 > Flying
 > Inspired — Whenever this creature becomes untapped, reveal the top card of your library. If it's an artifact, creature, or land card, you may put it onto the battlefield with a manifestation counter on it. That permanent is an enchantment in addition to its other types.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: inspired — whenever this creature becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [EntersWith { effect: Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, n: N(1), kind: "manifestation" }, IsNow { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, types: [Type("enchantment")], keeps: OtherTypes, pt: None, gains: [] }] }] }] }], limits: [] } }
 
 ## Arc Blade
 face: Arc Blade

@@ -496,7 +496,7 @@ face: King Macar, the Gold-Cursed
 type: Legendary Creature — Human Noble
 cost: {2}{B}{B}
 > Inspired — Whenever King Macar becomes untapped, you may exile target creature. If you do, create a Gold token. (It's an artifact with "Sacrifice this token: Add one mana of any color.")
-= BROKE at "," after: inspired — whenever ~ becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }, IfYouDo([Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["gold"], keywords: [], abilities: [], named: Some("gold"), attacking: None } }])], limits: [] } }
 
 ## Kyren Legate
 face: Kyren Legate

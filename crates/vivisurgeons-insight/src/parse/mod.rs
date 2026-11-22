@@ -962,6 +962,7 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         | Event::LeftUnderControlOf { what, .. }
         | Event::BecomesTapped(what)
         | Event::BecomesCrewed(what)
+        | Event::BecomesUntapped(what)
         | Event::TurnedFaceUp(what)
         | Event::TappedForMana(what)
         | Event::TapsForMana { what, .. }

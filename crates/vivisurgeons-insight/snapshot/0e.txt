@@ -116,7 +116,7 @@ cost: {2}{B}
 > You may choose not to untap this creature during your untap step.
 > {2}{B}, {T}: Put target creature card from a graveyard onto the battlefield under your control. When this creature becomes untapped or you lose control of this creature, exile that creature.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "untapped" after: {2} {B} , {T} : put target creature card from a graveyard onto the battlefield under your control . when this creature becomes
+= BROKE at "control" after: {2} {B} , {T} : put target creature card from a graveyard onto the battlefield under your control . when this creature becomes untapped or you lose
 
 ## Combat Thresher
 face: Combat Thresher

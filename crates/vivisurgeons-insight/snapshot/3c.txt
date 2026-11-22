@@ -1207,7 +1207,7 @@ face: Warchanter of Mogis
 type: Creature — Minotaur Shaman
 cost: {3}{B}{B}
 > Inspired — Whenever this creature becomes untapped, target creature you control gains intimidate until end of turn. (A creature with intimidate can't be blocked except by artifact creatures and/or creatures that share a color with it.)
-= BROKE at "," after: inspired — whenever this creature becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "intimidate", param: None }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Warclamp Mastiff
 face: Warclamp Mastiff

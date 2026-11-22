@@ -772,7 +772,7 @@ cost: {3}{U}
 > Whenever Tui and La become tapped, draw a card.
 > Whenever Tui and La become untapped, put a +1/+1 counter on them.
 = Triggered { trigger: When(BecomesTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "," after: whenever ~ become untapped
+= Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Variable Chaser // Arc of Fortune
 face: Variable Chaser

@@ -566,7 +566,7 @@ face: Pain Seer
 type: Creature — Human Wizard
 cost: {1}{B}
 > Inspired — Whenever this creature becomes untapped, reveal the top card of your library and put that card into your hand. You lose life equal to that card's mana value.
-= BROKE at "," after: inspired — whenever this creature becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [RevealTop { who: You, whose: You, n: N(1) }, Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, LoseLife { who: You, n: ManaValueOf(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }) }] }], limits: [] } }
 
 ## Pako, Arcane Retriever
 face: Pako, Arcane Retriever

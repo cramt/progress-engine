@@ -614,7 +614,7 @@ face: Pheres-Band Tromper
 type: Creature — Centaur Warrior
 cost: {3}{G}
 > Inspired — Whenever this creature becomes untapped, put a +1/+1 counter on it.
-= BROKE at "," after: inspired — whenever this creature becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
 
 ## Phyrexian Missionary
 face: Phyrexian Missionary

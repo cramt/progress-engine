@@ -956,7 +956,7 @@ face: Wake Thrasher
 type: Creature — Merfolk Soldier
 cost: {2}{U}
 > Whenever a permanent you control becomes untapped, this creature gets +1/+1 until end of turn.
-= BROKE at "," after: whenever a permanent you control becomes untapped
+= Triggered { trigger: When(BecomesUntapped(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } })), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Watcher Sliver
 face: Watcher Sliver

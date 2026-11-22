@@ -886,7 +886,7 @@ cost: {3}{U}{U}
 > Flying
 > Inspired — Whenever this creature becomes untapped, draw a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: inspired — whenever this creature becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] } }
 
 ## Stirring Wildwood
 face: Stirring Wildwood

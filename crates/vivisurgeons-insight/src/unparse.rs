@@ -11343,6 +11343,10 @@ fn event(o: &mut Out, e: &Event) {
             obj_subj(o, x, "become");
             o.w("crewed");
         }
+        Event::BecomesUntapped(x) => {
+            obj_subj(o, x, "become");
+            o.w("untapped");
+        }
         Event::TurnedFaceUp(x) => {
             obj_subj(o, x, "are");
             o.w("turned face up");
@@ -11662,6 +11666,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::IsDealtDamage(x)
         | Event::BecomesTapped(x)
         | Event::BecomesCrewed(x)
+        | Event::BecomesUntapped(x)
         | Event::TurnedFaceUp(x)
         | Event::TappedForMana(x)
         | Event::Crews { by: x, .. }

@@ -421,7 +421,7 @@ cost: {1}{U}
 > Whenever this creature becomes untapped, you may pay {2}. If you do, draw a card.
 > Whenever an opponent casts a spell from anywhere other than their hand, draw a card.
 > Discard a card: This creature can't be blocked this turn.
-= BROKE at "," after: whenever this creature becomes untapped
+= Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 = Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(That)))], or: None } } }), effect: [Draw { who: You, n: N(1) }], limits: [] }
 = Activated { cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
 

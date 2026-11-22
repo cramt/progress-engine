@@ -388,6 +388,7 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
         // cost (CR 702.122a).
         |p| { p.verb("crew")?; let v = objects(p)?; Some(Event::Crews { by: what.clone(), what: v, saddle: false }) },
         |p| p.one_of(&["becomes tapped", "become tapped"]).map(|_| Event::BecomesTapped(what.clone())),
+        |p| p.one_of(&["becomes untapped", "become untapped"]).map(|_| Event::BecomesUntapped(what.clone())),
         |p| p.one_of(&["is turned face up", "are turned face up"]).map(|_| Event::TurnedFaceUp(what.clone())),
         |p| p.one_of(&["is tapped for mana", "are tapped for mana"]).map(|_| Event::TappedForMana(what.clone())),
         |p| { p.one_of(&["is put into", "are put into"])?; let to = zone(p)?; p.word("from")?; let from = zone(p)?; Some(Event::PutInto { what: what.clone(), to, from }) },

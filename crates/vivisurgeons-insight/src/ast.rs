@@ -3328,6 +3328,10 @@ pub enum Event {
     },
     YouAttack,
     BecomesTapped(Objects),
+    /// "Whenever this creature becomes untapped" (inspired, an ability word,
+    /// CR 207.2c): untapped by any means, the untap step's or an effect's
+    /// (CR 701.26b).
+    BecomesUntapped(Objects),
     /// "Whenever this Vehicle becomes crewed": its crew ability resolved and
     /// it became an artifact creature (CR 702.122a).
     BecomesCrewed(Objects),

@@ -1699,6 +1699,9 @@ impl Walk for Event {
             Event::BecomesTapped(f0) => {
                 Walk::walk(f0, v);
             }
+            Event::BecomesUntapped(f0) => {
+                Walk::walk(f0, v);
+            }
             Event::BecomesCrewed(f0) => {
                 Walk::walk(f0, v);
             }

@@ -557,7 +557,7 @@ face: Mesmeric Orb
 type: Artifact
 cost: {2}
 > Whenever a permanent becomes untapped, that permanent's controller mills a card.
-= BROKE at "," after: whenever a permanent becomes untapped
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }], ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Mill { who: ControllerOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }), n: N(1) }], limits: [] } }
 
 ## Messenger Drake
 face: Messenger Drake

@@ -488,7 +488,7 @@ cost: {2}
 > {T}, Discard a card: Up to one target creature can't be blocked this turn.
 > Whenever this artifact becomes untapped, you may pay {2}. If you do, draw a card.
 = Activated { cost: [Tap, Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
-= BROKE at "," after: whenever this artifact becomes untapped
+= Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Kiln Fiend
 face: Kiln Fiend

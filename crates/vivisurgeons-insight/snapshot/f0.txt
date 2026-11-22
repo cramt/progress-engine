@@ -319,7 +319,7 @@ cost: {3}{B}
 > Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)
 > Inspired — Whenever this creature becomes untapped, you may pay {2}{B}. If you do, create a 2/2 black Zombie enchantment creature token.
 = Keywords([Keyword { name: "intimidate", param: None }])
-= BROKE at "," after: inspired — whenever this creature becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2", "B"]))] }] }, IfYouDo([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "enchantment", "creature"], keywords: [], abilities: [], named: None, attacking: None } }])], limits: [] } }
 
 ## Formless Genesis
 face: Formless Genesis

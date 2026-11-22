@@ -699,7 +699,7 @@ face: Pheres-Band Raiders
 type: Creature — Centaur Warrior
 cost: {5}{G}
 > Inspired — Whenever this creature becomes untapped, you may pay {2}{G}. If you do, create a 3/3 green Centaur enchantment creature token.
-= BROKE at "," after: inspired — whenever this creature becomes untapped
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2", "G"]))] }] }, IfYouDo([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green], types: ["centaur", "enchantment", "creature"], keywords: [], abilities: [], named: None, attacking: None } }])], limits: [] } }
 
 ## Plasma Elemental
 face: Plasma Elemental
