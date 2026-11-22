@@ -654,6 +654,21 @@ fn keyword(k: &i::Keyword) -> Option<Vec<Keyword>> {
             _ => None,
         };
     }
+    // CR 702.21a: a ward of generic mana; one of coloured mana or of
+    // another cost isn't read.
+    if name == "ward" {
+        let i::KeywordParam::Cost(cost) = k.param.as_ref()? else {
+            return None;
+        };
+        let [i::Cost::Mana(m)] = cost.as_slice() else {
+            return None;
+        };
+        let cost = crate::mana::ManaCost::from_symbols(m).ok()?;
+        return cost
+            .shards
+            .is_empty()
+            .then_some(vec![Keyword::Ward(cost.generic)]);
+    }
     if k.param.is_some() {
         return None;
     }

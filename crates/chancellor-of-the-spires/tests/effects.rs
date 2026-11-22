@@ -5291,3 +5291,80 @@ fn adeline_makes_a_token_attacking_each_opponent_when_you_attack() {
     through_combat(&mut game);
     assert_eq!(game.player(THEM).life(), 18);
 }
+
+/// CR 702.21a: Flowering of the White Tree gives Isamaru ward {1}, so
+/// their Lightning Bolt targeting it triggers ward, and the Bolt is
+/// countered unless they pay {1}; paid, it resolves and Isamaru, 4/3,
+/// dies. My own spell targeting it wouldn't trigger it.
+#[test]
+fn ward_counters_an_opponents_spell_unless_they_pay() {
+    for pays in [false, true] {
+        let mut game = deal_both(
+            &[
+                ("Plains", 40),
+                ("Isamaru, Hound of Konda", 10),
+                ("Flowering of the White Tree", 10),
+            ],
+            &[("Mountain", 40), ("Lightning Bolt", 20)],
+            &[
+                ("Plains", 2),
+                ("Isamaru, Hound of Konda", 1),
+                ("Flowering of the White Tree", 1),
+            ],
+            &[("Mountain", 2), ("Lightning Bolt", 1)],
+        );
+        play(&mut game, "Plains");
+        cast(&mut game, "Isamaru, Hound of Konda", None);
+        resolve(&mut game);
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, "Mountain");
+        my_next_main(&mut game);
+        play(&mut game, "Plains");
+        cast(&mut game, "Flowering of the White Tree", None);
+        resolve(&mut game);
+        let isamaru = creature(&game, "Isamaru, Hound of Konda").unwrap();
+        assert_eq!(game.characteristics()[&isamaru].pt, Some(pt(4, 3)));
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, "Mountain");
+        let bolt = in_hand(&game, THEM, "Lightning Bolt").unwrap();
+        cast_as(
+            &mut game,
+            THEM,
+            "Lightning Bolt",
+            Some(vec![Target::Object(isamaru)]),
+        );
+        assert_eq!(game.stack().len(), 2, "ward triggered over the Bolt");
+        let Decision::PayUnless {
+            player,
+            owed,
+            actions,
+            ..
+        } = resolve(&mut game)
+        else {
+            panic!("{:?}", game.decision())
+        };
+        assert_eq!((player, owed.generic), (THEM, 1));
+        if pays {
+            let mut actions = actions;
+            loop {
+                let pay = actions
+                    .iter()
+                    .find(|a| matches!(a, Payment::Spend(_)))
+                    .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+                    .copied()
+                    .expect("a Mountain untapped");
+                match step(&mut game, Answer::Pay(pay)) {
+                    Decision::PayUnless { actions: a, .. } => actions = a,
+                    _ => break,
+                }
+            }
+            resolve(&mut game);
+            assert!(creature(&game, "Isamaru, Hound of Konda").is_none());
+        } else {
+            step(&mut game, Answer::Pay(Payment::Cancel));
+            assert!(game.player(THEM).graveyard().contains(&bolt));
+            assert!(game.stack().is_empty());
+            assert!(creature(&game, "Isamaru, Hound of Konda").is_some());
+        }
+    }
+}

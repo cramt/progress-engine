@@ -107,6 +107,10 @@ pub enum Keyword {
     /// "Mountainwalk" (CR 702.14a): unblockable while the defending
     /// player controls a land of that basic land type (CR 702.14c).
     Landwalk(BasicLandType),
+    /// "Ward {2}" (CR 702.21a): whenever it becomes the target of a spell
+    /// or ability an opponent controls, that spell or ability is countered
+    /// unless its controller pays this much generic mana.
+    Ward(u32),
 }
 
 /// What a protection ability protects from (CR 702.16a).

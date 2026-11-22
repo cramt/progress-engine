@@ -739,6 +739,9 @@ pub enum TriggerOf {
     /// A suspended card's in exile (CR 702.62a): `false` its upkeep's
     /// "remove a time counter", `true` "when the last is removed".
     Suspend(bool),
+    /// Ward's (CR 702.21a), its instructions `Game::wards`' at this
+    /// place: the permanent's, made as it became a target.
+    Ward(u32),
 }
 
 /// A delayed triggered ability (CR 603.7a): whose, and what it waits for,
@@ -1746,6 +1749,10 @@ pub struct Game {
     abilities: u32,
     /// Every delayed triggered ability created this game (CR 603.7a).
     delayed: Vector<Delayed>,
+    /// The instructions of every ward trigger this game (CR 702.21a):
+    /// "counter that spell or ability unless that player pays", the
+    /// spell or ability in its one slot, the player its event's.
+    wards: Vector<(Program, Target)>,
     /// The card whose spell or ability most recently finished resolving.
     last_resolved: Option<CardId>,
     /// The permanents one instruction has put onto the battlefield so far,
@@ -1965,6 +1972,7 @@ impl Game {
             combat: None,
             until_end_of_turn: Vec::new(),
             delayed: Vector::new(),
+            wards: Vector::new(),
             last_known: OrdMap::new(),
             bottomed: 0,
             returned: 0,
@@ -3001,6 +3009,7 @@ impl Game {
                     let pool = &mut self.players[player.0 as usize].pool;
                     *pool = pool.minus(&spent);
                     self.before_cast = None;
+                    self.became_targets();
                     self.give_priority(player, 0);
                 }
                 // CR 702.37e, 116.3: turned face up without the stack, and
@@ -4561,6 +4570,7 @@ impl Game {
             }
             None => {
                 self.before_cast = None;
+                self.became_targets();
                 self.give_priority(p, 0);
             }
         }
@@ -4953,6 +4963,7 @@ impl Game {
     /// triggers, and its caster had priority, so gets it again.
     fn cast_done(&mut self, player: PlayerId, spell: CardId) {
         self.before_cast = None;
+        self.became_targets();
         self.trigger_on(Event::Cast {
             card: spell,
             controller: player,
@@ -5178,15 +5189,21 @@ impl Game {
     ) {
         let slots = self.program(what).targets.clone();
         let source = self.source_chars(what.card(), object);
-        let checked: Vec<Option<Target>> = targets
-            .iter()
-            .zip(&slots)
-            .map(|(t, s)| {
-                self.legal_targets(s, controller, source.as_ref())
-                    .contains(t)
-                    .then_some(*t)
-            })
-            .collect();
+        let checked: Vec<Option<Target>> = match what {
+            // Ward's slot is no target, so nothing checks it.
+            Instructions::Triggered(_, TriggerOf::Ward(_)) => {
+                targets.iter().copied().map(Some).collect()
+            }
+            _ => targets
+                .iter()
+                .zip(&slots)
+                .map(|(t, s)| {
+                    self.legal_targets(s, controller, source.as_ref())
+                        .contains(t)
+                        .then_some(*t)
+                })
+                .collect(),
+        };
         let at = Resuming {
             what,
             controller,
@@ -5249,6 +5266,7 @@ impl Game {
                 &self.face_runs(c, side).triggered[&n].program
             }
             Instructions::Triggered(_, TriggerOf::Delayed(k)) => &self.delayed[k as usize].program,
+            Instructions::Triggered(_, TriggerOf::Ward(k)) => &self.wards[k as usize].0,
             Instructions::Triggered(c, TriggerOf::Suspend(last)) => {
                 match &self.runs_of(c).suspend {
                     Some(s) if last => &s.last,
@@ -6626,7 +6644,11 @@ impl Game {
                     .targets
                     .clone();
                 if slots.is_empty() {
-                    self.push_trigger(first, Vec::new());
+                    let warded = match first.ability {
+                        TriggerOf::Ward(k) => vec![self.wards[k as usize].1],
+                        _ => Vec::new(),
+                    };
+                    self.push_trigger(first, warded);
                     put = Put::Some;
                     continue;
                 }
@@ -6667,6 +6689,81 @@ impl Game {
             player: t.player,
             seq: self.abilities,
         });
+        self.became_targets();
+    }
+
+    /// CR 702.21a: the spell or ability just put on the stack, its targets
+    /// chosen, becomes the target of each permanent it targets, and each
+    /// ward of one an opponent of its controller controls triggers. Ward's
+    /// "counter that spell or ability" needs no target, so the warded
+    /// spell or ability is put in its slot as it is made.
+    fn became_targets(&mut self) {
+        let Some(top) = self.stack.last() else {
+            return;
+        };
+        let (of, controller, targets) = match top {
+            StackObject::Spell {
+                card,
+                controller,
+                targets,
+                ..
+            } => (Target::Spell(*card), *controller, targets.clone()),
+            StackObject::Ability {
+                seq,
+                controller,
+                targets,
+                ..
+            }
+            | StackObject::Trigger {
+                seq,
+                controller,
+                targets,
+                ..
+            } => (Target::Ability(*seq), *controller, targets.clone()),
+        };
+        let all = self.characteristics();
+        let mut seen = BTreeSet::new();
+        for t in targets {
+            let Target::Object(o) = t else { continue };
+            // CR 115.3: an object targeted in two slots became a target
+            // once.
+            if !seen.insert(o) {
+                continue;
+            }
+            let Some(c) = all.get(&o) else { continue };
+            if c.controller == controller {
+                continue;
+            }
+            for a in &c.abilities {
+                let Ability::Keyword(Keyword::Ward(n)) = a else {
+                    continue;
+                };
+                self.wards.push_back((
+                    Program {
+                        targets: Vec::new(),
+                        effects: vec![Effect::Unless {
+                            who: Who::EventPlayer,
+                            cost: lower::UnlessCost::Mana(ManaCost {
+                                generic: *n,
+                                shards: Vec::new(),
+                            }),
+                            otherwise: vec![Effect::Counter(0)],
+                        }],
+                    },
+                    of,
+                ));
+                self.pending.push_back(Pending {
+                    source: self.permanents[&o].card,
+                    object: Some(o),
+                    ability: TriggerOf::Ward(self.wards.len() as u32 - 1),
+                    controller: c.controller,
+                    triggering: None,
+                    amount: None,
+                    player: Some(controller),
+                    ordered: false,
+                });
+            }
+        }
     }
 
     /// The card whose spell or ability is resolving and waits on a choice
