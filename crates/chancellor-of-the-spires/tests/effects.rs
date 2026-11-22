@@ -5167,3 +5167,30 @@ fn pyroblast_destroys_its_target_only_if_it_is_blue() {
     blast(&mut game, men);
     assert_eq!(creature(&game, "Flying Men"), None);
 }
+
+/// CR 604.3, 613.4a, 613.4c, 205.2a: Tarmogoyf's power is the number of
+/// card types among cards in all graveyards, its toughness that plus 1,
+/// in layer 7a, before Giant Growth's +3/+3 in 7c: their discarded Island
+/// makes it 1/2, and Giant Growth in my graveyard once it has resolved
+/// adds instant, so 2/3 and 5/6 with the pump.
+#[test]
+fn tarmogoyf_counts_card_types_in_graveyards_before_a_pump() {
+    let mut game = deal(
+        &[("Forest", 30), ("Tarmogoyf", 15), ("Giant Growth", 15)],
+        &[("Island", 60)],
+        &[("Forest", 2), ("Tarmogoyf", 1), ("Giant Growth", 1)],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Tarmogoyf", None);
+    resolve(&mut game);
+    let goyf = creature(&game, "Tarmogoyf").unwrap();
+    let theirs = game.player(THEM).graveyard().len();
+    assert!(theirs > 0, "they discarded to hand size");
+    assert_eq!(game.characteristics()[&goyf].pt, Some(pt(1, 2)));
+    my_next_main(&mut game);
+    cast(&mut game, "Giant Growth", Some(vec![Target::Object(goyf)]));
+    resolve(&mut game);
+    assert_eq!(game.characteristics()[&goyf].pt, Some(pt(5, 6)));
+}

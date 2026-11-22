@@ -14,8 +14,8 @@ use ascent::aggregators::min;
 use ascent::ascent_run;
 
 use crate::model::{
-    Ability, CardType, Chars, Condition, Counter, Layer, ObjectId, Op, Seen, State, StaticAbility,
-    StaticId, Subtype, Timestamp,
+    pt, Ability, CardType, Chars, Condition, Counter, Defined, DefinedCount, Layer, ObjectId, Op,
+    Seen, State, StaticAbility, StaticId, Subtype, Timestamp,
 };
 
 /// A continuous effect: a static ability of one object (CR 611.3), or what
@@ -351,6 +351,10 @@ impl Run<'_> {
             .filter(|op| op.layer() == layer)
             .cloned()
             .collect();
+        let source = match e {
+            Effect::Static(o, _) => Some(o),
+            Effect::Resolved(_) => None,
+        };
         for o in set {
             // An object that left the battlefield since the effect began
             // is gone, and a new object if it returns (CR 400.7).
@@ -358,12 +362,76 @@ impl Run<'_> {
                 continue;
             };
             let printed = &object.printed;
+            // Layer 7a's numbers, counted before the object changes.
+            let defined: Vec<(Option<i32>, Option<i32>)> = ops
+                .iter()
+                .filter_map(|op| match op {
+                    Op::DefinePt { power, toughness } => {
+                        let count = |d: &Option<Defined>| {
+                            d.as_ref().map(|d| self.define(d, source.unwrap_or(o)))
+                        };
+                        Some((count(power), count(toughness)))
+                    }
+                    _ => None,
+                })
+                .collect();
+            let mut defined = defined.into_iter();
             if let Some(c) = self.now.get_mut(&o) {
                 for op in &ops {
-                    op.apply(c, printed);
+                    match op {
+                        Op::DefinePt { .. } => {
+                            let (power, toughness) = defined.next().expect("counted above");
+                            let mut p = c.pt.unwrap_or(pt(0, 0));
+                            p.power = power.unwrap_or(p.power);
+                            p.toughness = toughness.unwrap_or(p.toughness);
+                            c.pt = Some(p);
+                        }
+                        _ => op.apply(c, printed),
+                    }
                 }
             }
         }
+    }
+
+    /// CR 604.3, 613.4a: what a characteristic-defining ability of
+    /// `source` counts, as the layers before 7a left the battlefield.
+    fn define(&self, d: &Defined, source: ObjectId) -> i32 {
+        let n = match &d.count {
+            DefinedCount::Permanents(f) => {
+                let Some(source_chars) = self.now.get(&source) else {
+                    return d.plus;
+                };
+                self.now
+                    .iter()
+                    .filter(|(id, c)| {
+                        f.matches(&Seen {
+                            id: **id,
+                            chars: c,
+                            source,
+                            source_chars,
+                            source_attached_to: self.state.objects[&source].attached_to,
+                            source_chosen: self.state.objects[&source].chosen_type.as_ref(),
+                            token: self.state.objects[*id].token,
+                            attacking: self.state.attacking.contains(*id),
+                        })
+                    })
+                    .count()
+            }
+            DefinedCount::GraveyardCards(f) => self
+                .state
+                .graveyard_cards
+                .iter()
+                .filter(|c| f.matches_card(c))
+                .count(),
+            DefinedCount::GraveyardCardTypes => self
+                .state
+                .graveyard_cards
+                .iter()
+                .flat_map(|c| c.types.iter().copied())
+                .collect::<BTreeSet<CardType>>()
+                .len(),
+        };
+        n as i32 + d.plus
     }
 
     /// A land has a mana ability for each basic land type it has once

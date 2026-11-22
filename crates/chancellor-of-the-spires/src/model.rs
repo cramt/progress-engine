@@ -329,14 +329,16 @@ impl Filter {
 }
 
 /// CR 613.1, 613.4. Layer 1 is each object's copiable values
-/// (`Object::printed`), where every other layer starts; layers 3 and 7a
-/// aren't modelled yet.
+/// (`Object::printed`), where every other layer starts; layer 3 isn't
+/// modelled yet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Layer {
     Control,
     Type,
     Color,
     Ability,
+    /// Layer 7a: characteristic-defining abilities (CR 613.4a).
+    DefinePt,
     SetPt,
     ModifyPt,
     SwitchPt,
@@ -355,11 +357,12 @@ impl Layer {
         )
     }
 
-    pub const ALL: [Layer; 7] = [
+    pub const ALL: [Layer; 8] = [
         Layer::Control,
         Layer::Type,
         Layer::Color,
         Layer::Ability,
+        Layer::DefinePt,
         Layer::SetPt,
         Layer::ModifyPt,
         Layer::SwitchPt,
@@ -385,6 +388,13 @@ pub enum Op {
     Grant(Ability),
     Lose(Ability),
     LoseAll,
+    /// Layer 7a: "~'s power is equal to the number of creatures you
+    /// control", a characteristic-defining ability's power, toughness or
+    /// both (CR 604.3, 613.4a), counted as the layers reach it.
+    DefinePt {
+        power: Option<Defined>,
+        toughness: Option<Defined>,
+    },
     /// Layer 7b: "has base power and toughness 1/1", or each equal to its
     /// mana value.
     SetBasePt(PtValue),
@@ -392,6 +402,33 @@ pub enum Op {
     ModifyPt(Pt),
     /// Layer 7d.
     SwitchPt,
+}
+
+/// What a characteristic-defining ability sets power or toughness to: a
+/// number counted, plus a fixed one ("that number plus 1").
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Defined {
+    pub count: DefinedCount,
+    pub plus: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum DefinedCount {
+    /// "The number of creatures you control": the permanents the filter
+    /// matches, read from the ability's object, as layers 1–6 made them.
+    Permanents(Filter),
+    /// "The number of land cards in all graveyards": by the cards' own
+    /// characteristics (`State::graveyard_cards`).
+    GraveyardCards(Filter),
+    /// "The number of card types among cards in all graveyards" (CR
+    /// 205.2a).
+    GraveyardCardTypes,
+}
+
+impl DefinedCount {
+    pub fn reads_graveyards(&self) -> bool {
+        !matches!(self, DefinedCount::Permanents(_))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -407,6 +444,7 @@ impl Op {
             Op::AddTypes(_) | Op::AddSubtypes(_) | Op::SetBasicLandType(_) => Layer::Type,
             Op::SetColors(_) => Layer::Color,
             Op::Grant(_) | Op::Lose(_) | Op::LoseAll => Layer::Ability,
+            Op::DefinePt { .. } => Layer::DefinePt,
             Op::SetBasePt(_) => Layer::SetPt,
             Op::ModifyPt(_) => Layer::ModifyPt,
             Op::SwitchPt => Layer::SwitchPt,
@@ -432,6 +470,7 @@ impl Op {
                 c.abilities.remove(a);
             }
             Op::LoseAll => c.abilities.clear(),
+            Op::DefinePt { .. } => unreachable!("the layers count it (`Run::define`)"),
             Op::SetBasePt(v) => {
                 c.pt = Some(match v {
                     PtValue::Fixed(p) => *p,
@@ -603,6 +642,10 @@ pub struct State {
     /// How many cards in exile each permanent's abilities exiled, for a
     /// condition that counts them (CR 607.2a); the game sets it too.
     pub exiled_with: OrdMap<ObjectId, u32>,
+    /// The cards in every graveyard, by their own characteristics, for a
+    /// characteristic-defining ability that counts them; the game sets it
+    /// only while a static on the battlefield reads it.
+    pub graveyard_cards: Vector<Chars>,
     pub objects: OrdMap<ObjectId, Object>,
     pub statics: OrdMap<StaticId, StaticAbility>,
     pub resolved: Vector<Resolved>,

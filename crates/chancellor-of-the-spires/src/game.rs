@@ -2401,6 +2401,20 @@ impl Game {
                 *state.exiled_with.entry(*object).or_insert(0) += 1;
             }
         }
+        // Only while something counts them: they are read every time the
+        // layers are, and the layers are memoized on the whole state.
+        let counts_graveyards = state.statics.values().flat_map(|s| &s.ops).any(|op| {
+            matches!(op, crate::model::Op::DefinePt { power, toughness }
+                if [power, toughness].into_iter().flatten().any(|d| d.count.reads_graveyards()))
+        });
+        if counts_graveyards {
+            state.graveyard_cards = self
+                .players
+                .iter()
+                .flat_map(|p| &p.graveyard)
+                .filter_map(|c| self.known(*c)?.printed.clone())
+                .collect();
+        }
         state
     }
 

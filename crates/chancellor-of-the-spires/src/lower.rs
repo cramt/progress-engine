@@ -677,6 +677,78 @@ fn keyword(k: &i::Keyword) -> Option<Vec<Keyword>> {
     }])
 }
 
+/// A characteristic-defining ability's power and toughness (CR 604.3):
+/// "~'s power is equal to the number of creatures you control", "~'s
+/// power and toughness are each equal to …", "~'s power is equal to …
+/// and its toughness is equal to that number plus 1". `None` if the
+/// static isn't one.
+fn defines_pt(parts: &[i::Static]) -> Option<Result<Op, String>> {
+    let me = |o: &Objects| o.quant == Quant::SelfRef && o.filter == i::Filter::default();
+    let (power, toughness) = match parts {
+        [i::Static::SetPower { what, equal_to }] if me(what) => (Some(equal_to), None),
+        [i::Static::SetToughness { what, equal_to }] if me(what) => (None, Some((equal_to, 0))),
+        [i::Static::SetPt {
+            what,
+            each_equal_to,
+        }] if me(what) => (Some(each_equal_to), Some((each_equal_to, 0))),
+        [i::Static::SetPower { what, equal_to }, i::Static::SetToughness {
+            what: same,
+            equal_to: i::Amount::Plus(that, k),
+        }] if me(what) && me(same) && **that == i::Amount::ThatNumber => {
+            (Some(equal_to), Some((equal_to, *k as i32)))
+        }
+        _ => return None,
+    };
+    Some((|| {
+        let define = |a: &i::Amount, plus: i32| defined(a).map(|count| Defined { count, plus });
+        Ok(Op::DefinePt {
+            power: power.map(|a| define(a, 0)).transpose()?,
+            toughness: toughness.map(|(a, k)| define(a, k)).transpose()?,
+        })
+    })())
+}
+
+/// What a characteristic-defining ability counts.
+fn defined(a: &i::Amount) -> Result<DefinedCount, String> {
+    let in_all_graveyards = |o: &Objects| {
+        o.filter.kind == Some(i::Noun::Card)
+            && o.filter.or.is_none()
+            && matches!(
+                o.filter.posts.as_slice(),
+                [Post::In(i::Zone::Graveyard(i::Player::Each))]
+            )
+    };
+    match a {
+        i::Amount::NumberOfCardTypes(o) if in_all_graveyards(o) && o.filter.alts.is_empty() => {
+            Ok(DefinedCount::GraveyardCardTypes)
+        }
+        // "The number of cards in all graveyards".
+        i::Amount::CountOf(o) if in_all_graveyards(o) && o.filter.alts.is_empty() => {
+            Ok(DefinedCount::GraveyardCards(Filter::default()))
+        }
+        i::Amount::CountOf(o) if in_all_graveyards(o) => {
+            let filter = objects(&Objects {
+                quant: Quant::All,
+                filter: i::Filter {
+                    kind: None,
+                    posts: Vec::new(),
+                    ..o.filter.clone()
+                },
+            })?;
+            if filter
+                .0
+                .iter()
+                .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_) | Pred::IsAny(_)))
+            {
+                return Err("counting cards in graveyards relative to a source".into());
+            }
+            Ok(DefinedCount::GraveyardCards(filter))
+        }
+        i::Amount::CountOf(o) => Ok(DefinedCount::Permanents(counted(o)?)),
+        other => Err(format!("a power or toughness of {}", short(other))),
+    }
+}
+
 /// "Three or more": a comparison with a number as a count.
 fn count_of(op: i::Op, v: u32) -> Result<Count, String> {
     Ok(match op {
@@ -692,6 +764,13 @@ fn count_of(op: i::Op, v: u32) -> Result<Count, String> {
 /// part is an `Op` over one filter. Parts over different objects would be
 /// two effects, and nothing needs that yet.
 fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbility, String> {
+    if let Some(op) = defines_pt(parts) {
+        return Ok(StaticAbility {
+            filter: Filter(vec![Pred::Itself]),
+            ops: vec![op?],
+            condition: None,
+        });
+    }
     // "This creature gets +1/+1 as long as you control a Mountain": the
     // effect, and when it exists.
     if let [i::Static::AsLongAs { cond, then, .. }] = parts {

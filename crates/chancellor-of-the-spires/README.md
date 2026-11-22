@@ -485,8 +485,11 @@ as the layers have made it so far (CR 611.3a), so a land Blood Moon makes
 a Mountain in layer 4 grows Wild Nacatl in 7c, and an effect that would
 change whether the condition holds is one it depends on (CR 613.8a).
 Layers 4 (adding types and subtypes, setting a basic land type, CR 305.7),
-5 (colour), 6 (granting, removing, removing all) and 7b–7d (setting,
-modifying, switching), counters in 7c, filters over type, supertype,
+5 (colour), 6 (granting, removing, removing all), 7a (a
+characteristic-defining power and toughness, counted as the layer is
+reached: creatures its controller controls, cards or card types in all
+graveyards, CR 604.3, 613.4a) and 7b–7d (setting, modifying, switching),
+counters in 7c, filters over type, supertype,
 subtype, colour, controller, "nontoken", "other", "this" and "enchanted",
 and alternatives of one type, supertype or colour each ("artifact or
 enchantment").
@@ -503,8 +506,9 @@ Toph made a land.
 Layer 1 is each object's copiable values, the game's to write as a copy
 effect begins (above, *The game*).
 
-Not yet: a copy effect that ends, layers 2–3 (control, text), 7a (characteristic-defining
-abilities, and so CDAs first, CR 613.3), dependency through "what it does"
+Not yet: a copy effect that ends, layers 2–3 (control, text),
+characteristic-defining abilities other than power and toughness, and so
+CDAs first in layers 2–6 (CR 613.3), dependency through "what it does"
 (CR 613.8a), abilities granted with a
 later timestamp (CR 613.7a), effects on players and rules (CR 613.10–11),
 and conditional statics other than "as long as you control …" and "as
@@ -1032,9 +1036,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 117 of the 500 replay to
-the end and 51.11% of their lines are followed** (16,181 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 117
+Worked card by card from there, **on 2026-11-22 121 of the 500 replay to
+the end and 51.49% of their lines are followed** (16,301 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 120
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1138,7 +1142,10 @@ spell's "choose one", its mode announced first and only one whose
 targets can be chosen offered, a mode the engine can't run refused as
 it is chosen (CR 601.2b, 700.2a: Boros Charm, Red Elemental Blast);
 "if it's blue" of a target, read as the spell resolves (CR 608.2c:
-Pyroblast and Hydroblast, either mode). And
+Pyroblast and Hydroblast, either mode); a characteristic-defining
+power and toughness in layer 7a, counted as the layers reach it (CR
+604.3, 613.4a: Tarmogoyf's card types in all graveyards, Terravore's
+land cards). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1180,7 +1187,9 @@ their own combat with nothing to answer activated after combat damage
 when the engine's game outlasts the log's (Mogg Fanatic attacking, then
 sacrificed for the last point), and an activated ability's target, of
 two permanents of one name, tried as the other too (Rishadan Port on one
-of two Forests), and a card cycled in response to what is on the stack
+of two Forests), triggered abilities of one name put on the stack in
+the other order when what follows says so (two suspended Search for
+Tomorrows, the one with a counter left resolving second), and a card cycled in response to what is on the stack
 if what follows says so (Eternal Dragon cycled with the Swamp Rishadan
 Port's ability is about to tap, keeping the Wasteland activated next
 untapped), and a trigger line naming no target for an "up to one"
@@ -1197,7 +1206,8 @@ stopped, one replays to the end and the rest stop at other cards
 (Horror of the Broken Lands's cycling trigger, Hopeful Initiate's
 training, Lurrus, Deftblade Elite's provoke, Malcolm's discard), and a
 target card in a graveyard let Withered Wretch's game replay to the end
-too; of the 18 games a modal spell stopped, six replay to the end, two
+too; of the 8 games Tarmogoyf and Terravore stopped, four replay to the
+end; of the 18 games a modal spell stopped, six replay to the end, two
 stop at other cards after Pyroblast's "if it's blue" (Goblin King's
 mountainwalk, Ghastly Demise's "if"), four at
 Archdruid's Charm, whose modes a search's "With" wraps, one at

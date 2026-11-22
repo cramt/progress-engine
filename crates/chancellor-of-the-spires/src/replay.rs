@@ -2240,6 +2240,34 @@ impl Driver<'_> {
                         what: "the order triggered abilities go on the stack".into(),
                     }));
                 }
+                // Triggers of one name the log can't tell apart (two
+                // suspended Search for Tomorrows, one with a counter
+                // left): the other order of them, if what follows says so.
+                let mut other = order.clone();
+                for k in 0..other.len() {
+                    if let Some(j) =
+                        (k + 1..other.len()).find(|j| names[other[*j]] == names[other[k]])
+                    {
+                        other.swap(k, j);
+                        break;
+                    }
+                }
+                if other != order {
+                    let game = self.game().clone();
+                    self.checkpoints.push(Checkpoint {
+                        game,
+                        entry: self.at,
+                        trace: self.trace.len(),
+                        resume: self.at,
+                        others: vec![Retry::Answer(
+                            Answer::Order(other),
+                            "put triggered abilities of one name on the stack in the other order"
+                                .into(),
+                        )],
+                        knew: self.knew(),
+                        back: Back::Triggers,
+                    });
+                }
                 self.act(Answer::Order(order))
             }
             // An empty hand revealed is nothing to choose from, and the

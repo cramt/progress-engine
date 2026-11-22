@@ -530,19 +530,19 @@ fn skyknight_squire_flies_from_its_third_counter() {
 
 #[test]
 fn a_line_the_engine_cant_lower_is_refused_by_name() {
-    // A characteristic-defining ability, layer 7a, isn't modelled.
-    const TARMOGOYF: Card = card(
-        "Tarmogoyf",
-        "Creature — Lhurgoyf",
-        "Tarmogoyf's power is equal to the number of card types among cards in all graveyards \
-and its toughness is equal to that number plus 1.",
-        2,
-        &[Color::Green],
-        None,
+    // Mountainwalk isn't a keyword the layers name, so granting it is
+    // refused, the +1/+1 beside it with it.
+    const GOBLIN_KING: Card = card(
+        "Goblin King",
+        "Creature — Goblin",
+        "Other Goblins get +1/+1 and have mountainwalk.",
+        3,
+        &[Color::Red],
+        Some(pt(2, 2)),
     );
-    let refusal = lower::card(&TARMOGOYF)
+    let refusal = lower::card(&GOBLIN_KING)
         .err()
-        .expect("a characteristic-defining ability isn't lowered yet");
+        .expect("granting mountainwalk isn't lowered yet");
     assert!(refusal.to_string().contains("no lowering"), "{refusal}");
 }
 
