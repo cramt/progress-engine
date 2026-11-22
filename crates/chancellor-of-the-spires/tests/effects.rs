@@ -5532,3 +5532,60 @@ fn ward_counters_an_opponents_spell_unless_they_pay() {
         }
     }
 }
+
+/// CR 702.170a–b, 116.2k: Outcaster Trailblazer plotted for {2}{G} in my
+/// main phase is exiled without the stack; it can't be cast from exile the
+/// turn it became plotted, and on my next turn it is cast without paying
+/// its mana cost (CR 702.170d).
+#[test]
+fn a_plotted_card_is_cast_free_on_a_later_turn() {
+    let mut game = deal(
+        &[("Forest", 40), ("Outcaster Trailblazer", 20)],
+        &[("Swamp", 60)],
+        &[("Forest", 3), ("Outcaster Trailblazer", 1)],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    let trailblazer = in_hand(&game, ME, "Outcaster Trailblazer").unwrap();
+    let mut d = step(&mut game, Answer::Act(Action::Plot(trailblazer)));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a Forest");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    assert!(game.stack().is_empty(), "a special action");
+    assert!(game.exile().contains(&trailblazer));
+    assert!(game.plotted().any(|(c, _)| c == trailblazer));
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(
+        !actions.contains(&Action::CastPlotted(trailblazer)),
+        "not the turn it became plotted"
+    );
+    my_next_main(&mut game);
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(actions.contains(&Action::CastPlotted(trailblazer)));
+    let mut d = step(&mut game, Answer::Act(Action::CastPlotted(trailblazer)));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .copied()
+            .expect("nothing to pay");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    assert!(game.plotted().next().is_none());
+    assert!(!game.exile().contains(&trailblazer));
+    resolve(&mut game);
+    assert!(creature(&game, "Outcaster Trailblazer").is_some());
+}

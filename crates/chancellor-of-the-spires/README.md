@@ -1039,7 +1039,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-22 128 of the 500 replay to
-the end and 52.25% of their lines are followed** (16,543 of 31,659), 3
+the end and 52.47% of their lines are followed** (16,613 of 31,659), 3
 of them relying on a land the log never names (2 to the end), and 137
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -1163,14 +1163,24 @@ Hypnotic Specter); an ability that works from its card's graveyard,
 triggering there at a step's beginning (CR 113.6m: Squee, Goblin
 Nabob's return), and the game refused while a card it can't run has
 one there (CR 113.6b: Anger, Wonder, Bridge from Below), which took 27
-lines and one game to the end that went on without them. And
+lines and one game to the end that went on without them; plot, a
+special action in its owner's main phase with the stack empty, exiling
+the card for its plot cost, and the plotted card cast from exile
+without paying its mana cost in a main phase of a later turn, a card
+exiled anew being no longer plotted (CR 702.170a–d, 116.2k, 400.7:
+Outcaster Trailblazer, whose 13 games now stop at other cards,
+Phantasmal Image's and Phyrexian Metamorph's copy in 4 of them). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
 instruction's, the creature sacrificed for flashback, a land the log never
 names as a hypothesis, which of two permanents of one name an
 activation is of, a winner line resolving what ended the game, and
-which of the cards drawn this turn Sylvan Library chooses, which
+a "becomes plotted" line, which names nobody, as the turn's player's
+plot, unless a card of that name on the stack or in exile and not
+plotted may be an effect's, and a later cast "without paying its mana
+cost" as that plotted card's, and which of the cards drawn this turn
+Sylvan Library chooses, which
 land Flare of Cultivation puts onto the battlefield, and which card was
 cast face down, from the line revealing it or the card with morph a line
 names once it is turned face up, the discard paying an "unless"

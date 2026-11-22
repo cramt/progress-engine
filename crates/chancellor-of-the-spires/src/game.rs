@@ -355,6 +355,9 @@ struct Runnable {
     /// Suspend (CR 702.62a): its time counters, cost and triggered
     /// abilities.
     suspend: Option<lower::Suspend>,
+    /// Plot's cost, exiling the card from hand as a plotted card (CR
+    /// 702.170a).
+    plot: Option<ManaCost>,
     /// What its statics say of its controller ("you have hexproof", "skip
     /// your draw step"), by the ability's index, so each works only while
     /// the permanent has it.
@@ -713,6 +716,9 @@ pub enum Via {
     /// Without paying its mana cost, as its suspend's last time counter
     /// was removed (CR 702.62a).
     Suspend,
+    /// Without paying its mana cost, from exile as a plotted card (CR
+    /// 702.170d).
+    Plotted,
     /// Face down for {3} by its morph ability, a 2/2 with no text, name,
     /// subtypes or mana cost (CR 702.37c, 708.4).
     FaceDown,
@@ -833,6 +839,9 @@ enum Paying {
     /// Suspend's cost, exiling the card with its time counters, a special
     /// action (CR 702.62a, 116.2f).
     Suspend,
+    /// Plot's cost, exiling the card as a plotted card, a special action
+    /// (CR 702.170a–b, 116.2k).
+    Plot,
 }
 
 /// What happened that a triggered ability may be waiting for (CR 603.2).
@@ -1611,6 +1620,14 @@ pub enum Action {
     /// counters, a special action when it could begin to be cast (CR
     /// 702.62a, 116.2f).
     Suspend(CardId),
+    /// Pay a card's plot cost and exile it from hand as a plotted card, a
+    /// special action in its owner's main phase with the stack empty (CR
+    /// 702.170a–b, 116.2k).
+    Plot(CardId),
+    /// Cast a plotted card from exile without paying its mana cost, in
+    /// its owner's main phase with the stack empty on a later turn than
+    /// it became plotted (CR 702.170d).
+    CastPlotted(CardId),
 }
 
 /// What a player paying a spell's cost can do.
@@ -1815,6 +1832,9 @@ pub struct Game {
     /// Suspended cards, in exile, and the time counters on each (CR
     /// 702.62b).
     suspended: OrdMap<CardId, u32>,
+    /// Plotted cards, in exile, and the turn each became plotted (CR
+    /// 702.170a, 702.170d).
+    plotted: OrdMap<CardId, u32>,
     /// Creature spells cast by suspend, which have haste as permanents
     /// (CR 702.62a).
     hasty: OrdSet<CardId>,
@@ -2000,6 +2020,7 @@ impl Game {
             exiled_with: OrdMap::new(),
             adventuring: OrdMap::new(),
             suspended: OrdMap::new(),
+            plotted: OrdMap::new(),
             hasty: OrdSet::new(),
             command,
             commander_casts: OrdMap::new(),
@@ -2235,6 +2256,14 @@ impl Game {
     pub fn suspended(&self) -> &OrdMap<CardId, u32> {
         &self.suspended
     }
+    /// The plotted cards in exile and the turn each became plotted (CR
+    /// 702.170a). One that left exile is no longer plotted.
+    pub fn plotted(&self) -> impl Iterator<Item = (CardId, u32)> + '_ {
+        self.plotted
+            .iter()
+            .filter(|(c, _)| self.exile.contains(c))
+            .map(|(c, t)| (*c, *t))
+    }
     /// Whether the card has suspend (CR 702.62a).
     pub fn has_suspend(&self, c: CardId) -> bool {
         self.known(c)
@@ -2399,9 +2428,11 @@ impl Game {
         characteristics(&self.layer_state())
     }
 
-    /// Put a card into exile, linked to no object (CR 400.7).
+    /// Put a card into exile, a new object linked to none and plotted by
+    /// nothing earlier (CR 400.7).
     fn put_in_exile(&mut self, card: CardId) {
         self.exiled_with.remove(&card);
+        self.plotted.remove(&card);
         self.exile.push_back(card);
     }
 
@@ -3128,6 +3159,17 @@ impl Game {
                     self.players[player.0 as usize].hand.retain(|c| *c != spell);
                     self.put_in_exile(spell);
                     self.suspended.insert(spell, counters);
+                    self.give_priority(player, 0);
+                }
+                // CR 702.170a–b, 116.3: exiled as a plotted card without
+                // the stack, and its owner gets priority again.
+                (Payment::Spend(spent), Paying::Plot) => {
+                    let pool = &mut self.players[player.0 as usize].pool;
+                    *pool = pool.minus(&spent);
+                    self.before_cast = None;
+                    self.players[player.0 as usize].hand.retain(|c| *c != spell);
+                    self.put_in_exile(spell);
+                    self.plotted.insert(spell, self.turn);
                     self.give_priority(player, 0);
                 }
                 (Payment::Spend(spent), Paying::Spell { from_command }) => {
@@ -3934,6 +3976,39 @@ impl Game {
                 }
             }
         }
+        // CR 702.170a, 116.2k: plot, in its owner's main phase with the
+        // stack empty, whatever the card's type.
+        if sorcery_speed {
+            for c in player.hand.iter() {
+                let Some(known) = self.known(*c) else {
+                    continue;
+                };
+                if known.runs.as_ref().is_ok_and(|r| r.plot.is_some()) {
+                    actions.push(Action::Plot(*c));
+                }
+            }
+        }
+        // CR 702.170d: a plotted card cast on a later turn, in its owner's
+        // main phase with the stack empty, whatever its type; its targets
+        // still have to be choosable (CR 601.2c).
+        if sorcery_speed {
+            for (c, became) in self.plotted() {
+                let Some(known) = self.known(c) else {
+                    continue;
+                };
+                let targetable = match &known.runs {
+                    Ok(runs) => self.spell_targetable(runs, p, known.printed.as_ref()),
+                    _ => true,
+                };
+                if self.owner(c) == p
+                    && became < self.turn
+                    && !is_land(&known.text.type_line)
+                    && targetable
+                {
+                    actions.push(Action::CastPlotted(c));
+                }
+            }
+        }
         // CR 715.3d: an adventurer card cast from exile, though not as an
         // Adventure.
         for c in self.adventuring(p) {
@@ -4488,6 +4563,21 @@ impl Game {
                     paying: Paying::Suspend,
                 };
             }
+            Action::Plot(card) => {
+                let owed = self
+                    .runs_of(card)
+                    .plot
+                    .clone()
+                    .expect("only a card with plot is offered");
+                self.before_cast = Some(Box::new(self.clone()));
+                self.waiting = Waiting::Paying {
+                    player: p,
+                    spell: card,
+                    owed,
+                    paying: Paying::Plot,
+                };
+            }
+            Action::CastPlotted(card) => self.cast(p, card, Via::Plotted, Side::Front)?,
             // CR 702.37e: show the morph cost, pay it, then turn it face up.
             Action::TurnFaceUp(id) => {
                 let card = self.permanents[&id].card;
@@ -4760,8 +4850,8 @@ impl Game {
                 Game::spell_refusal(runs).map_err(refused)?;
                 runs.alternatives[&n].mana.clone()
             }
-            // CR 702.62d: an alternative cost of none.
-            Via::Suspend => {
+            // CR 702.62d, 702.170d: an alternative cost of none.
+            Via::Suspend | Via::Plotted => {
                 Game::spell_refusal(runs).map_err(refused)?;
                 ManaCost::default()
             }
@@ -4773,7 +4863,10 @@ impl Game {
         self.turn_up(card, side);
         // CR 601.2a: from wherever it is.
         self.command.retain(|c| *c != card);
-        if self.adventuring.remove(&card).is_some() || via == Via::Suspend {
+        if self.adventuring.remove(&card).is_some()
+            || via == Via::Suspend
+            || self.plotted.remove(&card).is_some()
+        {
             self.exile.retain(|c| *c != card);
         }
         if via == Via::Suspend && creature {
@@ -5085,7 +5178,7 @@ impl Game {
         let exiled = match via {
             Via::Alternative(n) => self.runs_of(card).alternatives[&n].exiled,
             // CR 708.9: revealed as it leaves the stack.
-            Via::ManaCost | Via::FaceDown | Via::Suspend => false,
+            Via::ManaCost | Via::FaceDown | Via::Suspend | Via::Plotted => false,
         };
         if exiled {
             self.put_in_exile(card);
@@ -8788,6 +8881,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         for_you: BTreeMap::new(),
         cycling: None,
         suspend: None,
+        plot: None,
         cost_changes: BTreeMap::new(),
         attack_rules: BTreeMap::new(),
         alternatives: BTreeMap::new(),
@@ -8932,6 +9026,13 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                         runs.suspend = Some(suspend.map_err(|node| {
                             Unrunnable::new(node.clone(), format!("the game can't run {node} yet"))
                         })?);
+                    } else if let Some(plot) = lower::plot(k) {
+                        // One the engine can't pay for is carried and
+                        // never offered: the card is still cast from hand.
+                        match plot {
+                            Ok(cost) => runs.plot = Some(cost),
+                            Err(node) => runs.dormant.push(format!("plot: {node}")),
+                        }
                     } else if let Some(t) = lower::keyword_trigger(k) {
                         runs.triggered.insert(n, t);
                     } else if let Some(alt) = lower::flashback(k) {

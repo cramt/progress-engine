@@ -4538,6 +4538,22 @@ pub fn kicker(k: &i::Keyword) -> Option<Result<crate::mana::ManaCost, String>> {
     })
 }
 
+/// "Plot {2}{G}": the cost of exiling the card from hand as a plotted card
+/// (CR 702.170a). `None` if the keyword isn't plot; the node it can't
+/// lower if its cost is more than mana.
+pub fn plot(k: &i::Keyword) -> Option<Result<crate::mana::ManaCost, String>> {
+    if !k.name.eq_ignore_ascii_case("plot") {
+        return None;
+    }
+    let Some(i::KeywordParam::Cost(cost)) = &k.param else {
+        return Some(Err("plot without a cost".into()));
+    };
+    Some(match cost.as_slice() {
+        [i::Cost::Mana(m)] => crate::mana::ManaCost::from_symbols(m),
+        _ => Err("plot with a cost other than mana".into()),
+    })
+}
+
 /// "You may sacrifice two Mountains rather than pay this spell's mana
 /// cost": `None` if the static isn't one alternative cost.
 pub fn alternative_cost(parts: &[i::Static]) -> Option<Result<Alternative, String>> {

@@ -130,6 +130,7 @@ fn scalding_viper() -> CardText {
 /// The real cards the logs here name beyond these, from the card index.
 const INDEXED: &[&str] = &[
     "Mountain",
+    "Outcaster Trailblazer",
     "Swamp",
     "Wooded Foothills",
     "Raging Goblin",
@@ -2253,4 +2254,47 @@ fn quicksilver_powers_up_in_combat_and_strikes_twice() {
     assert_eq!(r.end, End::Finished, "{:?}", r.trace);
     let game = r.game.expect("set up");
     assert_eq!(game.player(BOB).life(), 16);
+}
+
+/// CR 702.170a, 116.2k: "[Outcaster Trailblazer] becomes plotted." names
+/// nobody, so it is the turn's player's, plot being a special action only
+/// in its owner's main phase; a later turn's "casts [Outcaster
+/// Trailblazer] without paying its mana cost." casts it from exile (CR
+/// 702.170d).
+#[test]
+fn a_plotted_card_is_the_turns_players_and_cast_free_later() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Forest].
+        [Outcaster Trailblazer] becomes plotted.
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 4: alice
+        alice draws a card.
+        alice casts [Outcaster Trailblazer] without paying its mana cost.
+        alice puts a triggered ability from [Outcaster Trailblazer] onto the stack (When this creature enters, add one mana of any color.).
+        alice plays [Forest].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    let game = r.game.expect("set up");
+    assert!(game.plotted().next().is_none());
+    assert_eq!(game.permanents().len(), 4 + 3 + 1);
 }

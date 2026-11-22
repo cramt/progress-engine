@@ -1118,6 +1118,14 @@ impl Driver<'_> {
                     Some(v) if v.starts_with("by sacrificing ") || v.starts_with("by return ") => {
                         vec![Route::Alternative(CastFrom::Hand)]
                     }
+                    // Other spells cast without paying a mana cost print
+                    // the same words, so only a card of the player's the
+                    // engine holds plotted is taken for one (CR 702.170d).
+                    Some("without paying its mana cost")
+                        if self.plotted_of(cast.player, card.name()) =>
+                    {
+                        vec![Route::Plotted]
+                    }
                     Some(_) => return Err(other()),
                 };
                 let p = self.seat(cast.player);
@@ -1162,7 +1170,7 @@ impl Driver<'_> {
                 let routes: Vec<Route> = routes
                     .into_iter()
                     .filter(|r| match r {
-                        Route::ManaCost => true,
+                        Route::ManaCost | Route::Plotted => true,
                         Route::Alternative(from) => zones.contains(from),
                     })
                     .collect();
@@ -1758,6 +1766,17 @@ impl Driver<'_> {
             } if cards.len() == 1 => {
                 let p = self.seat(*player);
                 let did = self.suspend(i, p, cards[0].name(), *n)?;
+                self.did(i, did);
+            }
+            // CR 702.170a, 116.2k: plot, a special action only in its
+            // owner's main phase, so the turn's player's; the line names
+            // nobody.
+            Plotted(card) => {
+                let Some(turn) = &entry.turn else {
+                    return Err(unfollowed(Some(card.name())));
+                };
+                let p = self.seat(turn.active);
+                let did = self.plot(i, p, card.name())?;
                 self.did(i, did);
             }
             // The time counters suspend put on the card it exiled.
@@ -3058,6 +3077,80 @@ impl Driver<'_> {
                 card: Some(name.to_string()),
             }),
         }
+    }
+
+    /// Plot `name` from `p`'s hand (CR 702.170a, 116.2k): offered in their
+    /// main phase with the stack empty, within this turn, its cost paid as
+    /// a spell's.
+    fn plot(&mut self, i: usize, p: PlayerId, name: &str) -> Result<String, Stop> {
+        let turn = self.game().turn();
+        // The log prints the same words for a spell or an exiled card an
+        // effect makes plotted (CR 702.170c), which isn't in any hand: with
+        // one of that name on the stack or in exile and not yet plotted,
+        // the line isn't taken for the special action on a hidden card.
+        let game = self.game();
+        let named = |c: &CardId| game.card(*c).is_some_and(|t| t.name == name);
+        let plotted: Vec<CardId> = game.plotted().map(|(c, _)| c).collect();
+        let elsewhere = game
+            .exile()
+            .iter()
+            .filter(|c| !plotted.contains(c))
+            .any(named)
+            || game.stack().iter().any(|o| match o {
+                StackObject::Spell { card, .. } => named(card),
+                _ => false,
+            });
+        if elsewhere {
+            return Err(Stop::Unfollowed {
+                event: "Plotted a card that may be an effect's, not from a hand".into(),
+                card: Some(name.to_string()),
+            });
+        }
+        let Some(card) = self.in_hand(p, name)? else {
+            return Err(Stop::Diverged(Divergence::NotInHand {
+                card: name.to_string(),
+            }));
+        };
+        if let Some(r) = self.game().refusal(card) {
+            return Err(Stop::Refused {
+                card: name.to_string(),
+                node: r.node,
+                why: r.why,
+            });
+        }
+        loop {
+            let game = self.game();
+            if game.turn() != turn {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("plot {name}"),
+                }));
+            }
+            if let Decision::Priority { player, actions } = game.decision() {
+                if player == p && actions.contains(&Action::Plot(card)) {
+                    break;
+                }
+            }
+            self.pass()?;
+        }
+        self.act(Answer::Act(Action::Plot(card)))?;
+        let paid = self.aim_and_pay(i, &[], name)?;
+        if !self.game().plotted().any(|(c, _)| c == card) {
+            return Err(Stop::Diverged(Divergence::NeverOffered {
+                what: format!("plot {name}"),
+            }));
+        }
+        Ok(format!("plotted {name} (CR 702.170a), {paid}"))
+    }
+
+    /// Whether the engine holds a card named `name` of `player`'s
+    /// plotted in exile (CR 702.170a).
+    fn plotted_of(&self, player: log::Player, name: &str) -> bool {
+        let Some(game) = self.game.as_ref() else {
+            return false;
+        };
+        let p = self.seat(player);
+        game.plotted()
+            .any(|(c, _)| game.owner(c) == p && game.card(c).is_some_and(|t| t.name == name))
     }
 
     /// Whether a counters line's are time counters on a card of
@@ -4544,7 +4637,10 @@ impl Driver<'_> {
                                 Kind::Cast(Route::Alternative(_)),
                                 Side::Front,
                                 Action::CastAlternative(x, _),
-                            ) => *x == c,
+                            )
+                            | (Kind::Cast(Route::Plotted), Side::Front, Action::CastPlotted(x)) => {
+                                *x == c
+                            }
                             _ => false,
                         });
                         if let Some(a) = wanted {
@@ -4660,6 +4756,13 @@ impl Driver<'_> {
     /// their graveyard for flashback, otherwise their hand, naming a
     /// hidden card of it if none is known to be.
     fn find(&mut self, p: PlayerId, name: &str, kind: Kind) -> Result<Option<CardId>, Stop> {
+        if kind == Kind::Cast(Route::Plotted) {
+            let text = self.text(name)?;
+            let game = self.game();
+            return Ok(game.plotted().map(|(c, _)| c).find(|c| {
+                game.owner(*c) == p && game.card(*c).is_some_and(|t| t.name == text.name)
+            }));
+        }
         // An adventurer card on an adventure is cast from exile before one
         // in hand: the log doesn't say which, and a player who sent it on
         // one cast it from there (CR 715.3d).
@@ -5966,6 +6069,8 @@ enum Kind {
 enum Route {
     ManaCost,
     Alternative(CastFrom),
+    /// From exile as a plotted card (CR 702.170d).
+    Plotted,
 }
 
 impl Kind {
