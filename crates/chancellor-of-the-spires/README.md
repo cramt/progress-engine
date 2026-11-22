@@ -1124,7 +1124,7 @@ checked as attackers are declared and paid before they attack (CR
 508.1c, 508.1h–j: Elephant Grass's "Black creatures can't attack you"
 and {2} for each nonblack attacker); typecycling, its search for a card
 of its type revealed into the hand (CR 702.29e: Eternal Dragon's
-plainscycling); a mana value compared with an amount counted as the
+plainscycling; a card type or supertype as that, not a subtype); a mana value compared with an amount counted as the
 instruction is followed, the counters on its source as it last existed
 (CR 608.2h: Powder Keg destroying each artifact and creature of mana
 value equal to its fuse counters, sacrificed to pay); the beginning of

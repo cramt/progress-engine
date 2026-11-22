@@ -4817,6 +4817,8 @@ pub fn typecycling(k: &i::Keyword) -> Option<Result<(crate::mana::ManaCost, Prog
         // landcycling")".
         let adjs = match kind.as_str() {
             "basic land" => vec![Adj::Supertype("basic".into()), Adj::Type("land".into())],
+            t if card_type(t).is_some() => vec![Adj::Type(t.into())],
+            t if supertype(t).is_some() => vec![Adj::Supertype(t.into())],
             t if !t.contains(' ') => vec![Adj::Subtype(t.into())],
             _ => return Err(format!("{kind}cycling")),
         };
@@ -4850,4 +4852,55 @@ pub fn typecycling(k: &i::Keyword) -> Option<Result<(crate::mana::ManaCost, Prog
             },
         ))
     })())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{CardType, Chars, PlayerId, Supertype};
+
+    fn chars(types: &[CardType], supertypes: &[Supertype], subtypes: &[&str]) -> Chars {
+        Chars {
+            types: types.iter().copied().collect(),
+            supertypes: supertypes.iter().copied().collect(),
+            subtypes: subtypes
+                .iter()
+                .map(|s| subtype(s, &types.iter().copied().collect()))
+                .collect(),
+            colors: Default::default(),
+            abilities: Default::default(),
+            pt: None,
+            mana_value: 0,
+            controller: PlayerId(0),
+        }
+    }
+
+    fn searched(kind: &str) -> CardFilter {
+        let k = i::Keyword {
+            name: format!("{kind}cycling"),
+            param: Some(i::KeywordParam::Cost(vec![i::Cost::Mana(i::Mana(vec![
+                "2".into(),
+            ]))])),
+        };
+        let (_, program) = typecycling(&k).unwrap().unwrap();
+        match &program.effects[0] {
+            Effect::Search { filter, .. } => filter.clone(),
+            e => panic!("{e:?}"),
+        }
+    }
+
+    /// CR 702.29e: the type is "usually a subtype … but can be any card
+    /// type, subtype, supertype": artifactcycling finds an artifact, not a
+    /// card with the subtype "artifact", and wizardcycling a Wizard.
+    #[test]
+    fn typecycling_searches_for_a_card_type_supertype_or_subtype() {
+        let artifact = chars(&[CardType::Artifact], &[], &[]);
+        let wizard = chars(&[CardType::Creature], &[], &["Wizard"]);
+        let snow = chars(&[CardType::Land], &[Supertype::Snow], &[]);
+        assert!(searched("artifact").matches(&artifact));
+        assert!(!searched("artifact").matches(&wizard));
+        assert!(searched("wizard").matches(&wizard));
+        assert!(searched("snow").matches(&snow));
+        assert!(!searched("snow").matches(&artifact));
+    }
 }
