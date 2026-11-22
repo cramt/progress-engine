@@ -1955,6 +1955,27 @@ fn resolve_one(
             cands.retain(|t| !permanent_target(t));
             note = "a card, not a permanent".into();
         }
+        // "Exile target instant or sorcery card from your graveyard.
+        // Creatures you control get +X/+0 …, where X is that card's mana
+        // value" (Surge to Victory): permanents a clause only changes stay
+        // permanents, never "that card".
+        let staying = |t: &Target| match t {
+            Target::Intro(l, i) => {
+                let x = get((*l, *i));
+                matches!(
+                    x.verb.as_str(),
+                    "Modify" | "Becomes" | "GainKeywords" | "Restrict"
+                ) && x
+                    .obj
+                    .as_ref()
+                    .is_some_and(|o| !targeted(o) && o.filter.kind.is_none() && names_permanent(o))
+            }
+            _ => false,
+        };
+        if cands.iter().any(card) && cands.iter().any(staying) {
+            cands.retain(|t| !staying(t));
+            note = "a card, not permanents that stay".into();
+        }
     }
     let class = match cands.len() {
         0 => Class::None,
