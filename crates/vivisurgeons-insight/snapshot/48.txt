@@ -370,7 +370,7 @@ cost: {4}{R}{W}
 > Red instant and sorcery spells you control have lifelink.
 > Whenever a white instant or sorcery spell causes you to gain life, Firesong and Sunspeaker deals 3 damage to target creature or player.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Color(Red), Type("instant")], [Color(Red), Type("sorcery")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }])
-= BROKE at "causes" after: whenever a white instant or sorcery spell
+= BROKE at "gain" after: whenever a white instant or sorcery spell causes you to
 
 ## Flare of Duplication
 face: Flare of Duplication

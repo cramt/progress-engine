@@ -823,7 +823,7 @@ face: Sand Golem
 type: Artifact Creature — Golem
 cost: {5}
 > When a spell or ability an opponent controls causes you to discard this card, return this card from your graveyard to the battlefield with a +1/+1 counter on it at the beginning of the next end step.
-= BROKE at "causes" after: when a spell or ability an opponent controls
+= Triggered { trigger: When(CausedBy { by: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }, event: Discards { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } } }), effect: [Delayed { step: EndStep(Next), then: [EntersWith { effect: Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, n: N(1), kind: "+1/+1" }] }], limits: [] }
 
 ## Scared Stiff
 face: Scared Stiff

@@ -649,7 +649,7 @@ cost: {5}{G}
 > When a spell or ability an opponent controls causes you to discard this card, return it to your hand.
 = Keywords([Keyword { name: "split second", param: None }])
 = Keywords([Keyword { name: "shroud", param: None }])
-= BROKE at "causes" after: when a spell or ability an opponent controls
+= Triggered { trigger: When(CausedBy { by: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }, event: Discards { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } } }), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Radiant Flames
 face: Radiant Flames

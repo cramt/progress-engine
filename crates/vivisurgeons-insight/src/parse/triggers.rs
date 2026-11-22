@@ -278,6 +278,22 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
             Some(Event::Searches { who, zone: Zone::Library(w) })
         },
         |p| { let who = player(p)?; p.verb("discard")?; let what = objects(p)?; Some(Event::Discards { who, what }) },
+        // "a spell or ability an opponent controls causes you to discard this card".
+        |p| {
+            let by = objects(p)?;
+            p.verb("cause")?;
+            let who = player(p)?;
+            p.words("to discard")?;
+            let what = objects(p)?;
+            // "causes you to discard cards this turn, return those cards"
+            // (Pure Intentions) would bind the cards outside the delayed
+            // trigger, before they are discarded: refused until a delayed
+            // trigger binds its event's objects ([when-you-do-binds]).
+            if !matches!(what.quant, Quant::SelfRef | Quant::One) {
+                return None;
+            }
+            Some(Event::CausedBy { by, event: Box::new(Event::Discards { who, what }) })
+        },
         |p| { let who = player(p)?; p.verb("cycle")?; let what = p.attempt(objects); Some(Event::Cycles { who, what }) },
         |p| { let who = player(p)?; p.verb("sacrifice")?; let what = objects(p)?; Some(Event::Sacrifices { who, what }) },
         |p| { let who = player(p)?; p.verb("tap")?; let what = objects(p)?; p.words("for mana")?; Some(Event::TapsForMana { who, what }) },

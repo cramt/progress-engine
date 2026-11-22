@@ -831,7 +831,7 @@ face: Sacred Ground
 type: Enchantment
 cost: {1}{W}
 > Whenever a spell or ability an opponent controls causes a land to be put into your graveyard from the battlefield, return that card to the battlefield.
-= BROKE at "causes" after: whenever a spell or ability an opponent controls
+= BROKE at "be" after: whenever a spell or ability an opponent controls causes a land to
 
 ## Scatter the Seeds
 face: Scatter the Seeds

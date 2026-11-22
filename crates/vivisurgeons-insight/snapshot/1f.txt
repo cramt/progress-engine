@@ -869,7 +869,7 @@ face: Psychogenic Probe
 type: Artifact
 cost: {2}
 > Whenever a spell or ability causes a player to shuffle their library, this artifact deals 2 damage to that player.
-= BROKE at "player" after: whenever a spell or ability causes a
+= BROKE at "shuffle" after: whenever a spell or ability causes a player to
 
 ## Punish the Enemy
 face: Punish the Enemy

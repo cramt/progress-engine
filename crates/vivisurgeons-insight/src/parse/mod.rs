@@ -1017,6 +1017,7 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         Event::While { event, .. }
         | Event::AndIf { event, .. }
         | Event::InterveningIf { event, .. }
+        | Event::CausedBy { event, .. }
         | Event::FirstTimeEachTurn(event) => {
             return trigger_object(event);
         }

@@ -11549,6 +11549,18 @@ fn event(o: &mut Out, e: &Event) {
             event(o, e);
             o.w("for the first time each turn");
         }
+        Event::CausedBy { by, event: e } => {
+            objects(o, by);
+            o.verb("cause", obj_num(by));
+            match &**e {
+                Event::Discards { who, what } => {
+                    player(o, who);
+                    o.w("to discard");
+                    objects(o, what);
+                }
+                e => event(o, e),
+            }
+        }
         Event::TapsFor { who, what, mana: m } => {
             player(o, who);
             o.verb("tap", player_num(who));

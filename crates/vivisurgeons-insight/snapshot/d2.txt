@@ -756,7 +756,7 @@ face: Spiritual Focus
 type: Enchantment
 cost: {1}{W}
 > Whenever a spell or ability an opponent controls causes you to discard a card, you gain 2 life and you may draw a card.
-= BROKE at "causes" after: whenever a spell or ability an opponent controls
+= Triggered { trigger: When(CausedBy { by: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }, event: Discards { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } } }), effect: [GainLife { who: You, n: N(2) }, May { who: You, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Squandered Resources
 face: Squandered Resources

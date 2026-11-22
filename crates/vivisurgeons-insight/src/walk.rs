@@ -1831,6 +1831,10 @@ impl Walk for Event {
             Event::FirstTimeEachTurn(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Event::CausedBy { by, event } => {
+                Walk::walk(by, v);
+                Walk::walk(&mut **event, v);
+            }
             Event::TapsFor { who, what, .. } => {
                 Walk::walk(who, v);
                 Walk::walk(what, v);

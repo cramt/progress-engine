@@ -673,7 +673,7 @@ cost: {U}
 > Psychic Purge deals 1 damage to any target.
 > When a spell or ability an opponent controls causes you to discard this card, that player loses 5 life.
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
-= BROKE at "causes" after: when a spell or ability an opponent controls
+= Triggered { trigger: When(CausedBy { by: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }, event: Discards { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } } }), effect: [LoseLife { who: That, n: N(5) }], limits: [] }
 
 ## Psychotic Haze
 face: Psychotic Haze

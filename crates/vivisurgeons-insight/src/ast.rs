@@ -3463,6 +3463,12 @@ pub enum Event {
     },
     /// "attacks for the first time each turn".
     FirstTimeEachTurn(Box<Event>),
+    /// "a spell or ability an opponent controls causes you to discard this
+    /// card": `event`, only when `by` makes it happen ([caused-by]).
+    CausedBy {
+        by: Objects,
+        event: Box<Event>,
+    },
     /// "you tap a permanent for {C}".
     TapsFor {
         who: Player,

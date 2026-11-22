@@ -630,7 +630,7 @@ fn event(e: &Event, out: &mut Vec<(*const Objects, To)>) {
         Event::While { event: e, .. }
         | Event::AndIf { event: e, .. }
         | Event::InterveningIf { event: e, .. } => event(e, out),
-        Event::FirstTimeEachTurn(e) => event(e, out),
+        Event::FirstTimeEachTurn(e) | Event::CausedBy { event: e, .. } => event(e, out),
         Event::ManaSpent(_)
         | Event::Attacks(_)
         | Event::Blocks(_)

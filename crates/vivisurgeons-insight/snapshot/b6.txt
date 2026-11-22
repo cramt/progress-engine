@@ -1104,7 +1104,7 @@ face: Widespread Panic
 type: Enchantment
 cost: {2}{R}
 > Whenever a spell or ability causes its controller to shuffle their library, that player puts a card from their hand on top of their library.
-= BROKE at "controller" after: whenever a spell or ability causes its
+= BROKE at "shuffle" after: whenever a spell or ability causes its controller to
 
 ## Wild Griffin
 face: Wild Griffin

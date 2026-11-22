@@ -207,7 +207,7 @@ face: Dodecapod
 type: Artifact Creature — Golem
 cost: {4}
 > If a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield with two +1/+1 counters on it instead of putting it into your graveyard.
-= BROKE at "causes" after: if a spell or ability an opponent controls
+= BROKE at "it" after: if a spell or ability an opponent controls causes you to discard this card , put
 
 ## Dramatic Reversal
 face: Dramatic Reversal
