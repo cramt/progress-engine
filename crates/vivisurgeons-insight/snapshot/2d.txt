@@ -459,7 +459,7 @@ cost: {2}
 > You may remove a loyalty counter from a planeswalker you control rather than pay Heart of Kiran's crew cost.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
 = Keywords([Keyword { name: "crew", param: Some(N(N(3))) }])
-= BROKE at "~" after: you may remove a loyalty counter from a planeswalker you control rather than pay
+= Static([OwnKeywordCostPaying { keyword: "crew", cost: [RemoveCounters { n: N(1), kind: "loyalty", from: Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } } }] }])
 
 ## Hellish Sideswipe
 face: Hellish Sideswipe

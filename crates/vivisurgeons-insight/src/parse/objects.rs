@@ -832,6 +832,17 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // "a spell they don't own" (Gonti, Night Minister).
         |p| { let pl = player_simple(p)?; if pl == Player::You { return None; } p.one_of(&["doesn't own", "don't own"])?; Some(Post::NotOwnedBy(pl)) },
         |p| { let pl = player_simple(p)?; p.one_of(&["controls", "control"])?; Some(Post::Controller(pl)) },
+        // "of that player's choice that one of your opponents controls"
+        // (Bladegriff Prototype), "permanents you own that your opponents
+        // control" (Zedruu): the relative "that" after another clause.
+        |p| {
+            let prev = p.t.get(p.i.checked_sub(1)?)?;
+            if !matches!(prev, Tok::Word(w) if w == "choice" || w == "own") { return None; }
+            p.word("that")?;
+            let pl = player_simple(p)?;
+            p.one_of(&["controls", "control"])?;
+            Some(Post::Controller(pl))
+        },
         |p| { let pl = player_simple(p)?; p.one_of(&["doesn't control", "don't control"])?; Some(Post::NotControlledBy(pl)) },
         |p| { p.words("with total")?; compare(p).map(Post::Total) },
         |p| { p.word("with")?; compare(p).map(itself).map(Post::With) },

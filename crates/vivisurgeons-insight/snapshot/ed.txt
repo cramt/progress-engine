@@ -116,7 +116,7 @@ cost: {5}
 > Flying
 > Whenever this creature deals combat damage to a player, destroy target nonland permanent of that player's choice that one of your opponents controls.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "one" after: whenever this creature deals combat damage to a player , destroy target nonland permanent of that player 's choice that
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [ChosenBy(That), Controller(AnOpponent)], or: None } }, no_regen: false }], limits: [] }
 
 ## Blood Pact
 face: Blood Pact

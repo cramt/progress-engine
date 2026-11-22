@@ -5222,6 +5222,21 @@ fn posts_said(o: &mut Out, ps: &[Post], n: Num) {
                 continue;
             }
         }
+        // "permanent of that player's choice that one of your opponents
+        // controls" (Bladegriff Prototype), "permanents you own that your
+        // opponents control" (Zedruu): a controller after another clause
+        // is said with "that".
+        if i > 0
+            && match (&ps[i - 1], &ps[i]) {
+                // "of an opponent's choice they control" (Arena): the chooser
+                // again needs no "that".
+                (Post::ChosenBy(_), Post::Controller(Player::That)) => false,
+                (Post::ChosenBy(_) | Post::Owner(_), Post::Controller(_)) => true,
+                _ => false,
+            }
+        {
+            o.w("that");
+        }
         post(o, &ps[i], n);
         i += 1;
     }
@@ -5581,7 +5596,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         Post::ChosenBy(Player::You) => o.w("of your choice"),
         // "that attacking player may tap or untap target permanent of their
         // choice" (Curse of Inertia): only ever said after that player.
-        Post::ChosenBy(Player::That | Player::AttackingPlayer) => o.w("of their choice"),
+        Post::ChosenBy(Player::That | Player::AttackingPlayer) => {
+            o.w("of");
+            syn::their(o);
+            o.w("choice");
+        }
         Post::ChosenBy(p) => {
             o.w("of");
             whose(o, p);
@@ -12722,6 +12741,18 @@ fn condition_said(o: &mut Out, c: &Condition) {
                 "this turn"
             });
         }
+        // "if an Assassin crewed it this turn" (Adrestia) ([crewed-it]).
+        Condition::ThereAre(v) if matches!(&v[..], [x] if matches!(x.filter.posts.last(), Some(Post::CrewedThisTurn { .. }))) =>
+        {
+            let mut bare = v[0].clone();
+            let Some(Post::CrewedThisTurn { what, saddle }) = bare.filter.posts.pop() else {
+                return;
+            };
+            objects(o, &bare);
+            o.w(if saddle { "saddled" } else { "crewed" });
+            objects(o, &what);
+            o.w("this turn");
+        }
         Condition::ThereAre(v) => {
             // The zone each is in is said once, after the last.
             syn::there_is(o);
@@ -14395,6 +14426,15 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("you may activate abilities of");
             objects(o, x);
             o.w("as though those creatures had haste");
+        }
+        Static::OwnKeywordCostPaying { keyword, cost: c } => {
+            o.w("you may");
+            costs(o, c);
+            o.w("rather than pay");
+            syn::this_card(o, out(syn::it));
+            o.tok(Tok::Possessive);
+            o.w(keyword);
+            o.w("cost");
         }
         Static::KeywordCostPaying {
             keyword,

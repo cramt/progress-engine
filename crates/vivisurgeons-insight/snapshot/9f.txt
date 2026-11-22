@@ -1090,6 +1090,6 @@ type: Legendary Creature — Minotaur Monk
 cost: {1}{U}{R}{W}
 > At the beginning of your upkeep, you gain X life and draw X cards, where X is the number of permanents you own that your opponents control.
 > {U}{R}{W}: Target opponent gains control of target permanent you control.
-= BROKE at "your" after: at the beginning of your upkeep , you gain x life and draw x cards , where x is the number of permanents you own that
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Where { then: [GainLife { who: You, n: X }, Draw { who: You, n: X }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Owner(You), Controller(EachOpponent)], or: None } }) }], limits: [] }
 = Activated { cost: [Mana(Mana(["U", "R", "W"]))], effect: [Performed { by: TargetOpponent, effect: GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, dur: Permanent } }], limits: [] }
 

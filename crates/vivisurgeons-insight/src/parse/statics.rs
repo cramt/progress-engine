@@ -729,6 +729,15 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             )?;
             Some(vec![Static::KeywordCostPaying { keyword, cost, first }])
         },
+        // "You may remove a loyalty counter from a planeswalker you control
+        // rather than pay ~'s crew cost" (Heart of Kiran).
+        |p| {
+            p.words("you may")?;
+            let cost = costs(p)?;
+            p.words("rather than pay ~ 's")?;
+            p.words("crew cost")?;
+            Some(vec![Static::OwnKeywordCostPaying { keyword: "crew".into(), cost }])
+        },
         // "For each {B} in a cost, you may pay 2 life rather than pay that
         // mana" (K'rrik).
         |p| {

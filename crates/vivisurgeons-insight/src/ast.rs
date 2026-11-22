@@ -3902,6 +3902,14 @@ pub enum Static {
         cost: Vec<Cost>,
         first: Option<EachTurn>,
     },
+    /// "You may remove a loyalty counter from a planeswalker you control
+    /// rather than pay ~'s crew cost" (Heart of Kiran): a cost paid in place
+    /// of this permanent's own keyword ability's cost (CR 702.122a), where
+    /// `KeywordCostPaying` is every one of yours.
+    OwnKeywordCostPaying {
+        keyword: String,
+        cost: Vec<Cost>,
+    },
     /// "Humans you control have each of the chosen abilities" (Greymond): the
     /// keywords chosen with this object's `Choice::KeywordsAmong`.
     HasChosenAbilities(Objects),

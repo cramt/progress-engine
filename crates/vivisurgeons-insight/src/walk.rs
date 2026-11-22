@@ -2901,6 +2901,11 @@ impl Walk for Static {
                     Walk::walk(x0, v);
                 }
             }
+            Static::OwnKeywordCostPaying { cost, .. } => {
+                for x0 in (cost).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Static::HasChosenAbilities(f0) => {
                 Walk::walk(f0, v);
             }
