@@ -942,6 +942,30 @@ impl Driver<'_> {
                 i,
                 "begun on the battlefield from the opening hand (CR 103.6a)",
             ),
+            // A token the engine put onto the battlefield attacking, as the
+            // line before created it (CR 508.4).
+            PutsOntoBattlefield {
+                player,
+                card,
+                attacking: Some(log::Target::Player(q)),
+            } => {
+                let (p, q) = (self.seat(*player), self.seat(*q));
+                let game = self.game();
+                let chars = game.characteristics();
+                let attacking = game.attacks().iter().any(|(a, d)| {
+                    *d == q
+                        && chars.get(a).is_some_and(|c| c.controller == p)
+                        && game
+                            .permanents()
+                            .get(a)
+                            .and_then(|x| game.card(x.card))
+                            .is_some_and(|t| t.name == card.name())
+                });
+                if !attacking {
+                    return Err(unfollowed(Some(card.name())));
+                }
+                self.did(i, format!("{} entered attacking (CR 508.4)", card.name()));
+            }
             Reveals {
                 cards,
                 how: log::Reveal::OpeningHand,
@@ -1929,13 +1953,16 @@ impl Driver<'_> {
             // Tokens a resolving instruction created, which the engine
             // must have created this turn.
             Creates { count, what, .. } => {
-                self.until_choice()?;
                 let turn = self.game().turn();
                 let seen = if self.created.0 == turn {
                     self.created.1
                 } else {
                     0
                 } + count;
+                // Resolving only until they exist: what their entering
+                // triggered is on a later line (Champion of the Parish
+                // after Adeline's token).
+                self.until_created(seen)?;
                 if seen > self.game().created() {
                     return Err(Stop::Unfollowed {
                         event: "Creates".into(),
@@ -1944,6 +1971,34 @@ impl Driver<'_> {
                 }
                 self.created = (turn, seen);
                 self.did(i, format!("{count} {what} created (CR 111.1)"));
+            }
+            // Training's trigger resolving (CR 702.149a): the one of that
+            // card's on the stack, matched to its line, leaves it.
+            Trains { card, .. } => {
+                let name = card.name();
+                let on_stack = |game: &Game, matched: &BTreeSet<u32>| {
+                    game.stack().iter().rev().find_map(|o| match o {
+                        StackObject::Trigger { source, seq, .. }
+                            if matched.contains(seq)
+                                && game.card(*source).is_some_and(|t| t.name == name) =>
+                        {
+                            Some(*seq)
+                        }
+                        _ => None,
+                    })
+                };
+                let Some(seq) = on_stack(self.game.as_ref().expect("set up"), &self.matched) else {
+                    return Err(unfollowed(Some(name)));
+                };
+                while self
+                    .game()
+                    .stack()
+                    .iter()
+                    .any(|o| matches!(o, StackObject::Trigger { seq: s, .. } if *s == seq))
+                {
+                    self.pass()?;
+                }
+                self.did(i, format!("{name} trained (CR 702.149a)"));
             }
             TriggerFailed(c) => {
                 self.did(
@@ -3776,6 +3831,37 @@ impl Driver<'_> {
                 d => return Ok(d),
             }
         }
+    }
+
+    /// As `until_choice`, stopping as soon as `n` tokens have been
+    /// created this turn.
+    fn until_created(&mut self, n: u32) -> Result<(), Stop> {
+        let turn = self.game().turn();
+        while self.game().created() < n {
+            let game = self.game();
+            match game.decision() {
+                Decision::Priority { .. } if !game.stack().is_empty() && game.turn() == turn => {
+                    self.pass()?
+                }
+                Decision::Search { .. }
+                | Decision::PayOrEnterTapped { .. }
+                | Decision::EnterAsCopy { .. }
+                | Decision::May { .. }
+                | Decision::ChooseName { .. }
+                | Decision::ChooseCreatureType { .. }
+                | Decision::ChooseMana { .. }
+                | Decision::PayUnless { .. }
+                | Decision::DiscardUnless { .. }
+                | Decision::SacrificeUnless { .. }
+                | Decision::PayLifeOr { .. }
+                | Decision::Reveal { .. }
+                | Decision::ChooseAmong { .. }
+                | Decision::Arrange { .. }
+                | Decision::PutFromHand { .. } => self.pass()?,
+                _ => break,
+            }
+        }
+        Ok(())
     }
 
     /// The log shows a triggered ability going on the stack: the engine's

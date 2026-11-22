@@ -5535,19 +5535,44 @@ impl Game {
                     }
                 }
                 // CR 111.2: its creator owns and controls it.
-                Effect::Create { n, token, tapped } => {
+                Effect::Create {
+                    n,
+                    token,
+                    tapped,
+                    attacking,
+                } => {
                     self.entering.get_or_insert_with(Vec::new);
-                    for _ in 0..self.amount(&at, n) {
-                        self.cards.push_back(CardEntry {
-                            owner: p,
-                            commander: false,
-                            token: true,
-                            face: Face::of((*token).clone()),
-                            copy: None,
-                        });
-                        let card = CardId(self.cards.len() as u32 - 1);
-                        self.arrive(card, p, tapped);
-                        self.created += 1;
+                    let n = self.amount(&at, n);
+                    let defenders: Vec<Option<PlayerId>> = if attacking {
+                        (0..self.players.len())
+                            .map(|q| PlayerId(q as u8))
+                            .filter(|q| *q != p && !self.player(*q).left)
+                            .map(Some)
+                            .collect()
+                    } else {
+                        vec![None]
+                    };
+                    for defender in defenders {
+                        for _ in 0..n {
+                            self.cards.push_back(CardEntry {
+                                owner: p,
+                                commander: false,
+                                token: true,
+                                face: Face::of((*token).clone()),
+                                copy: None,
+                            });
+                            let card = CardId(self.cards.len() as u32 - 1);
+                            self.arrive(card, p, tapped);
+                            self.created += 1;
+                            if let Some(q) = defender {
+                                let id = *self
+                                    .entering
+                                    .as_ref()
+                                    .and_then(|b| b.last())
+                                    .expect("it just entered");
+                                self.enter_attacking(id, p, q);
+                            }
+                        }
                     }
                     self.entered();
                 }
@@ -7726,6 +7751,26 @@ impl Game {
         match self.entering.as_mut() {
             Some(batch) => batch.push(id),
             None => self.trigger_on(Event::Entered(id)),
+        }
+    }
+
+    /// CR 508.4: put onto the battlefield attacking `q`, it is attacking
+    /// but never attacked, so nothing waiting for attackers declared
+    /// sees it. It isn't attacking outside combat, nor when it is a
+    /// noncreature or its controller isn't the attacking player (CR
+    /// 506.3a–b); entering after blockers are declared, it is unblocked
+    /// (CR 506.3d).
+    fn enter_attacking(&mut self, id: ObjectId, controller: PlayerId, q: PlayerId) {
+        let creature = self
+            .characteristics()
+            .get(&id)
+            .is_some_and(|c| c.is(CardType::Creature));
+        if controller != self.active || !creature {
+            return;
+        }
+        if let Some(combat) = self.combat.as_mut() {
+            combat.attackers.insert(id, q);
+            self.battlefield.attacking.insert(id);
         }
     }
 

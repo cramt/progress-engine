@@ -1036,9 +1036,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 124 of the 500 replay to
-the end and 51.73% of their lines are followed** (16,376 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 127
+Worked card by card from there, **on 2026-11-22 126 of the 500 replay to
+the end and 51.98% of their lines are followed** (16,456 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 130
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1146,7 +1146,11 @@ Pyroblast and Hydroblast, either mode); a characteristic-defining
 power and toughness in layer 7a, counted as the layers reach it (CR
 604.3, 613.4a: Tarmogoyf's card types in all graveyards, Terravore's
 land cards); landwalk, no block while the defending player controls a
-land of its type (CR 702.14c: Goblin King's mountainwalk). And
+land of its type (CR 702.14c: Goblin King's mountainwalk); "whenever
+you attack" (CR 508.3d), tokens put onto the battlefield tapped and
+attacking each opponent, attacking but never attacked (CR 508.4), and a
+printed star counted as 0 until layer 7a sets it, so a "*/4" keeps its 4
+(CR 208.2a: Adeline, Resplendent Cathar). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an

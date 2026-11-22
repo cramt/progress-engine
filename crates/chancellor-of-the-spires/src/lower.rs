@@ -1412,10 +1412,15 @@ pub enum Effect {
     /// where X is the number of creatures you control": `n` tokens with
     /// this text, its controller's, `n` counted as it is followed (CR
     /// 111.1–111.3, 608.2h).
+    /// "For each opponent, create a 1/1 … token that's tapped and
+    /// attacking that player": with `attacking`, `n` tokens for each
+    /// opponent still in the game, each attacking that opponent (CR
+    /// 508.4).
     Create {
         n: Amount,
         token: Box<crate::deck::CardText>,
         tapped: bool,
+        attacking: bool,
     },
     /// "~ deals 3 damage to any target": the source is the spell or the
     /// ability's source (CR 120.1).
@@ -2104,6 +2109,12 @@ fn when(e: &i::Event, bound: &dyn Fn(&Objects) -> Objects) -> Result<TriggerEven
                 Quant::AtLeast(i::Amount::N(n)) => n,
                 ref q => return Err(format!("attacking with {}", short(q))),
             },
+        },
+        // CR 508.3d: "whenever you attack" is one or more of its
+        // controller's creatures declared as attackers.
+        i::Event::YouAttack => TriggerEvent::AttacksWith {
+            filter: Filter(Vec::new()),
+            n: 1,
         },
         i::Event::IsDealtDamage(what) => TriggerEvent::DealtDamage(entering(what)?),
         i::Event::DealsDamage(what) => TriggerEvent::DealsDamage(entering(what)?),
@@ -2846,6 +2857,7 @@ impl<'a> Scope<'a> {
                 n: self.resolved_amount(k)?,
                 token: Box::new(token_text(token)?),
                 tapped: token.tapped,
+                attacking: false,
             },
             i::Effect::Destroy { what, .. } => Effect::Destroy(self.on(what)?),
             i::Effect::Tap(what) => Effect::Tap(self.on(what)?),
@@ -3114,6 +3126,28 @@ impl<'a> Scope<'a> {
                     who: self.who(who)?,
                     life: *life,
                     otherwise: self.effect(otherwise)?,
+                }
+            }
+            // "For each opponent, create a token that's tapped and
+            // attacking that player or a planeswalker they control"
+            // (Adeline). A planeswalker spell is refused as it is cast,
+            // so the player is all there is to attack.
+            i::Effect::ForEach { each, then, .. }
+                if each.filter.kind == Some(i::Noun::Opponent)
+                    && matches!(then.as_slice(), [i::Effect::Create { who: i::Player::You, token, .. }]
+                        if token.attacking.as_ref().is_some_and(attacks_that_player)) =>
+            {
+                let [i::Effect::Create { n: k, token, .. }] = then.as_slice() else {
+                    unreachable!("matched")
+                };
+                Effect::Create {
+                    n: self.resolved_amount(k)?,
+                    token: Box::new(token_text(&i::Token {
+                        attacking: None,
+                        ..token.clone()
+                    })?),
+                    tapped: token.tapped,
+                    attacking: true,
                 }
             }
             i::Effect::ForEach { each, then, .. } => match then.as_slice() {
@@ -3817,6 +3851,23 @@ fn target_filter(o: &Objects) -> Result<Filter, String> {
         return Err("a target relative to its source".into());
     }
     Ok(f)
+}
+
+/// "Attacking that player or a planeswalker they control": the player a
+/// "for each opponent" names.
+fn attacks_that_player(r: &i::Recipient) -> bool {
+    let that = |r: &i::Recipient| *r == i::Recipient::Player(i::Player::That);
+    match r {
+        i::Recipient::Or(rs) => {
+            rs.first().is_some_and(that)
+                && rs[1..].iter().all(|r| {
+                    matches!(r, i::Recipient::Objects(o)
+                if o.filter.alts == [vec![i::Adj::Type("planeswalker".into())]]
+                    && o.filter.posts == [Post::Controller(i::Player::That)])
+                })
+        }
+        r => that(r),
+    }
 }
 
 /// A token's text, as a card's (CR 111.3): its name its subtypes and

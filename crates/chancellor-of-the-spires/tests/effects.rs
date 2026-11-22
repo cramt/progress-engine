@@ -5246,3 +5246,48 @@ fn mountainwalk_cant_be_blocked_while_they_control_a_mountain() {
         .is_err());
     step(&mut game, Answer::Block(vec![]));
 }
+
+/// CR 508.3d, 508.4: Adeline's "Whenever you attack" triggers as Raging
+/// Goblin attacks, and its token enters tapped and attacking the
+/// opponent, never declared, so Adeline doesn't trigger again; combat
+/// deals both creatures' damage.
+#[test]
+fn adeline_makes_a_token_attacking_each_opponent_when_you_attack() {
+    let mut game = deal(
+        &[
+            ("Plains", 30),
+            ("Mountain", 10),
+            ("Adeline, Resplendent Cathar", 10),
+            ("Raging Goblin", 10),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Plains", 3),
+            ("Mountain", 1),
+            ("Adeline, Resplendent Cathar", 1),
+            ("Raging Goblin", 1),
+        ],
+    );
+    play(&mut game, "Plains");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Adeline, Resplendent Cathar", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    let goblin = creature(&game, "Raging Goblin").unwrap();
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(goblin, THEM)]));
+    assert_eq!(game.stack().len(), 1, "one trigger, for the attack");
+    resolve(&mut game);
+    assert!(game.stack().is_empty(), "the token never attacked");
+    let token = creature(&game, "Human Token").expect("the token");
+    assert!(game.permanents()[&token].tapped);
+    assert!(game.attacks().contains(&(token, THEM)));
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+}

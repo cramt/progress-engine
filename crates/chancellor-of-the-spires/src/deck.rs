@@ -267,7 +267,15 @@ pub fn text(card: &Card) -> CardText {
     let number = |v: &Option<String>| v.as_deref().and_then(|s| s.parse::<i32>().ok());
     let colors = |c: &[String]| c.iter().filter_map(|c| color(c)).collect::<Vec<_>>();
     let identity: Vec<Color> = colors(&card.ci);
-    let pt_of = |f: &chip_scryfall::index::Face| Some(pt(number(&f.power)?, number(&f.toughness)?));
+    // CR 208.2a: a value with a star is a characteristic-defining
+    // ability's, which sets it in layer 7a (CR 613.4a), so Adeline's "*/4"
+    // keeps its 4 and its star starts at 0.
+    let printed = |v: &Option<String>| match v.as_deref() {
+        Some(s) if s.contains('*') => Some(0),
+        _ => number(v),
+    };
+    let pt_of =
+        |f: &chip_scryfall::index::Face| Some(pt(printed(&f.power)?, printed(&f.toughness)?));
     let one = |oracle| CardText {
         name: card.name.clone(),
         type_line: card.type_line.clone(),
