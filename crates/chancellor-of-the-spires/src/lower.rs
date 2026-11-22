@@ -3585,8 +3585,9 @@ impl<'a> Scope<'a> {
     }
 }
 
-/// "target creature": a permanent by its characteristics, and "you
-/// control"; anything relative to a source is refused, since a spell's
+/// "target creature", "target creature with mana value 3 or less": a
+/// permanent by its characteristics, and "you control" or "an opponent
+/// controls"; anything relative to a source is refused, since a spell's
 /// has none on the battlefield.
 fn target_filter(o: &Objects) -> Result<Filter, String> {
     // "target permanent": any of them, by whatever else the filter says.
@@ -3610,7 +3611,12 @@ fn target_filter(o: &Objects) -> Result<Filter, String> {
     if f.0.iter().any(|p| {
         !matches!(
             p,
-            Pred::Is(_) | Pred::IsNot(_) | Pred::IsAny(_) | Pred::YouControl
+            Pred::Is(_)
+                | Pred::IsNot(_)
+                | Pred::IsAny(_)
+                | Pred::YouControl
+                | Pred::OpponentsControl
+                | Pred::ManaValue(..)
         )
     }) {
         return Err("a target relative to its source".into());

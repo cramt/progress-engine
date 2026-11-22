@@ -4943,3 +4943,58 @@ fn veteran_survivor_counts_the_cards_its_own_trigger_exiled() {
     assert_eq!(chars.pt, Some(pt(5, 4)));
     assert!(chars.has(Keyword::Hexproof));
 }
+
+/// CR 115.1, 202.3: Smother's "target creature with mana value 3 or
+/// less" offers their Dusk Legion Zealot, of mana value 2, and not my
+/// Hollow Dogs, of 5, and destroys what it targets.
+#[test]
+fn smother_targets_only_a_creature_of_mana_value_3_or_less() {
+    let mut game = deal_both(
+        &[
+            ("Swamp", 30),
+            ("Dark Ritual", 10),
+            ("Hollow Dogs", 10),
+            ("Smother", 10),
+        ],
+        &[("Swamp", 40), ("Dusk Legion Zealot", 20)],
+        &[
+            ("Swamp", 2),
+            ("Dark Ritual", 2),
+            ("Hollow Dogs", 1),
+            ("Smother", 1),
+        ],
+        &[("Swamp", 2), ("Dusk Legion Zealot", 1)],
+    );
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Swamp");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Swamp");
+    for _ in 0..2 {
+        cast(&mut game, "Dark Ritual", None);
+        resolve(&mut game);
+    }
+    cast(&mut game, "Hollow Dogs", None);
+    resolve(&mut game);
+    let dogs = creature(&game, "Hollow Dogs").expect("cast off two rituals");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Swamp");
+    cast_as(&mut game, THEM, "Dusk Legion Zealot", None);
+    resolve(&mut game);
+    let zealot = creature(&game, "Dusk Legion Zealot").expect("theirs");
+    my_next_main(&mut game);
+    let smother = in_hand(&game, ME, "Smother").unwrap();
+    let Decision::Targets { slots, .. } = step(&mut game, Answer::Act(Action::Cast(smother)))
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(slots, vec![vec![Target::Object(zealot)]]);
+    assert!(!slots[0].contains(&Target::Object(dogs)));
+    let mut d = step(&mut game, Answer::Targets(vec![Target::Object(zealot)]));
+    while let Decision::Pay { actions, .. } = d {
+        d = step(&mut game, Answer::Pay(actions[0]));
+    }
+    resolve(&mut game);
+    assert_eq!(creature(&game, "Dusk Legion Zealot"), None);
+    assert!(creature(&game, "Hollow Dogs").is_some());
+}
