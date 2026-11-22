@@ -1146,6 +1146,13 @@ mod syn {
     /// a pronoun or a definite article agrees with the noun it points back
     /// to, which the tree holds by position, not by word. A character card
     /// is "he" or "she", "him" or "her", where another object is "it".
+    /// "during your turn", "as long as it's your turn" (Faithful
+    /// Pikemaster): one static condition, said either way
+    /// ([during-your-turn]).
+    pub fn during_your_turn(o: &mut Out) {
+        any_of(o, &["during your turn", "as long as it's your turn"]);
+    }
+
     pub fn it(o: &mut Out) {
         any_of(o, &["it", "them", "they", "him", "her", "he", "she"]);
     }
@@ -14036,12 +14043,13 @@ fn static_other(o: &mut Out, s: &Static) {
             let body = |o: &mut Out| statics_joined(o, then);
             if *cond == Condition::ItsYourTurn {
                 let before = out(|o| {
-                    o.w("during your turn,");
+                    syn::during_your_turn(o);
+                    o.w(",");
                     body(o);
                 });
                 let after = out(|o| {
                     body(o);
-                    o.w("during your turn");
+                    syn::during_your_turn(o);
                 });
                 syn::position(o, before, after);
                 return;
