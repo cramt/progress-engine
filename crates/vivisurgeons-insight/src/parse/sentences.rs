@@ -1591,13 +1591,22 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         // "When you do, put two +1/+1 counters … on target attacking
         // creature. It becomes an Angel …": "it" is what the reflexive
         // trigger targeted, so the sentence is that trigger's too.
+        let reflexive = matches!(
+            v.last(),
+            Some(Effect::WhenYouDo(_) | Effect::WhenYouDoIf { .. })
+        );
         if let Some(
             Effect::WhenYouDo(then)
             | Effect::WhenYouDoIf { then, .. }
             | Effect::WhenThisWay { then, .. },
         ) = v.last_mut()
         {
-            if s.first().is_some_and(continues_target) {
+            // "When you do, this creature deals damage equal to … to any
+            // target. If the sacrificed creature was a Giant, this creature
+            // deals twice that much damage instead" (Surtland Flinger): what
+            // it replaces happens only as the reflexive trigger resolves.
+            let replaces = reflexive && matches!(s.first(), Some(Effect::Instead { .. }));
+            if replaces || s.first().is_some_and(continues_target) {
                 then.extend(s);
                 continue;
             }
@@ -1698,7 +1707,14 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         // made in two branches are both the sentence's, so it is neither's.
         let copies_before = v[..n.saturating_sub(1)].iter().any(makes_copy);
         let both = copies_before && v.last().is_some_and(makes_copy);
-        let option = matches!(v.last(), Some(Effect::IfYouDo(_)));
+        // "When you do, target opponent exiles the top five cards of their
+        // library. You may cast up to two spells from among the exiled
+        // cards" (Doom Reigns Supreme): a reflexive trigger is an option's
+        // branch too, and what it exiles exists only once it resolves.
+        let option = matches!(
+            v.last(),
+            Some(Effect::IfYouDo(_) | Effect::WhenYouDo(_) | Effect::WhenYouDoIf { .. })
+        );
         if let Some(branch) = v
             .last_mut()
             .and_then(branch_with_new_object)
@@ -2075,6 +2091,10 @@ fn brings_in(e: &Effect) -> bool {
         | Effect::EntersAttacking(effect)
         | Effect::EntersAttached { effect, .. } => brings_in(effect),
         Effect::Or(v) => v.iter().all(brings_in),
+        // "target opponent exiles the top five cards of their library"
+        // (Doom Reigns Supreme): what another player does brings in what
+        // it would if you did it.
+        Effect::Performed { effect, .. } => brings_in(effect),
         _ => false,
     }
 }
@@ -2154,6 +2174,21 @@ fn refers_back(e: &Effect) -> bool {
         // "Create a token that's a copy of that card".
         Effect::CreateCopy { of, .. } => it(of),
         // "For each of those cards, pay 4 life or …" (Sylvan Library).
+        // "Put a +1/+1 counter on that token for each permanent you own …"
+        // (Iroh, Tea Master): said first of the token, the count after,
+        // which marks the clause's references `BeforeEach`.
+        Effect::ForEach {
+            order: ClauseOrder::Trailing,
+            each,
+            then,
+        } => {
+            it(each)
+                || then.first().is_some_and(|e| {
+                    let mut e = e.clone();
+                    e.walk(&mut UnBeforeEach);
+                    refers_back(&e)
+                })
+        }
         Effect::ForEach { each, .. } => it(each),
         // "When you do, exile the top two cards of your library. Until the
         // end of your next turn, you may play those cards" (Anep).
@@ -2485,4 +2520,17 @@ fn unless_each(p: &mut P) -> Option<Post> {
         return None;
     }
     Some(Post::Not(Box::new(Post::Either(v))))
+}
+
+/// Undoes `BeforeEach`, to ask of a trailing "for each"'s clause what
+/// `refers_back` asks of any other.
+struct UnBeforeEach;
+
+impl Visitor for UnBeforeEach {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if o.quant == Quant::Unresolved(Hint::BeforeEach) {
+            o.quant = Quant::Unresolved(Hint::Antecedent);
+        }
+        true
+    }
 }
