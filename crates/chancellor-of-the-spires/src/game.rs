@@ -35,6 +35,18 @@
 //! refuses to go on (`refused_in_graveyard`): it could be a card whose
 //! ability works there, and whatever reads a graveyard by what its cards
 //! are would read it.
+//!
+//! Unless its caller presumes otherwise ([`Game::presume_graveyard_inert`]):
+//! a replay may say a card no one named in a graveyard has no ability that
+//! works there (CR 113.6), since the log would show one that did, and the
+//! game goes on. The game keeps each card it took on that presumption
+//! ([`Game::presumed`]), and naming one later as a card with such an
+//! ability, or as one the engine can't run, is refused
+//! ([`Unnameable::WorksInGraveyard`]). What reads a graveyard's cards by
+//! what they are refuses while one is hidden: a count of them by name or
+//! type, and a target there when no card it can see is one. A cost
+//! exiling them counts a hidden one as one it may take, as a cost
+//! discarding counts a hidden card in a hand.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -191,6 +203,19 @@ struct Known {
     morph: Option<Morph>,
     /// An ability of it works from a graveyard (`lower::works_in_graveyard`).
     in_graveyard: bool,
+}
+
+impl Known {
+    /// Whether an ability of it may work while it is in a graveyard
+    /// without anyone casting or activating it (CR 113.6b, 113.6m): a
+    /// static or triggered ability there, or any of a card the engine
+    /// can't run, whose abilities it can't tell apart.
+    fn may_work_in_graveyard(&self) -> bool {
+        match &self.runs {
+            Err(_) => true,
+            Ok(r) => self.in_graveyard || r.triggered.iter().any(|(_, t)| t.from_graveyard()),
+        }
+    }
 }
 
 /// A card's morph ability (CR 702.37a).
@@ -1900,6 +1925,16 @@ pub struct Game {
     /// do, set as `step` answers: the answer is refused with it and the
     /// game put back as it was, rather than going on wrong.
     halted: Option<Rejected>,
+    /// What reading the game's state ran into that it can't know, where
+    /// the reading can't stop the answer itself (a count of a graveyard's
+    /// cards holding a hidden one): `step` refuses with it as with
+    /// `halted`. Taken at every `step`; only one thread plays a game.
+    unknowable: std::cell::RefCell<Option<Rejected>>,
+    /// Whether a hidden card in a graveyard is presumed to have no ability
+    /// that works there (`presume_graveyard_inert`), and each card that
+    /// has been.
+    presume_inert: bool,
+    presumed: OrdSet<CardId>,
     /// Libraries an instruction shuffled this turn.
     shuffled: u32,
     /// Permanents returned to a hand this turn, by a cost or an
@@ -2014,6 +2049,10 @@ pub enum Unnameable {
     /// It was cast face down, so it is a card with a morph ability the
     /// engine runs, and this card isn't (CR 702.37c).
     NotMorph(String),
+    /// It was in a graveyard hidden, presumed to have no ability that works
+    /// there (`Game::presume_graveyard_inert`), and this card may have one
+    /// (`Known::may_work_in_graveyard`).
+    WorksInGraveyard(String),
 }
 
 impl Game {
@@ -2119,6 +2158,9 @@ impl Game {
             bottomed: 0,
             left_this_turn: Vector::new(),
             halted: None,
+            unknowable: Default::default(),
+            presume_inert: false,
+            presumed: OrdSet::new(),
             returned: 0,
             transformed: 0,
             copies: Vector::new(),
@@ -2347,8 +2389,66 @@ impl Game {
         if face_down && k.morph.is_none() {
             return Err(Unnameable::NotMorph(k.text.name.clone()));
         }
+        if self.presumed.contains(&c) && k.may_work_in_graveyard() {
+            return Err(Unnameable::WorksInGraveyard(k.text.name.clone()));
+        }
         self.cards[c.0 as usize].face = face;
         Ok(())
+    }
+    /// Presume each card no one has named in a graveyard, now and later,
+    /// has no ability that works there (CR 113.6), rather than refuse to
+    /// go on with one (the module's "Hidden cards"). The caller's
+    /// presumption, which the game records (`presumed`).
+    pub fn presume_graveyard_inert(&mut self) {
+        self.presume_inert = true;
+        self.presume();
+    }
+    /// The cards taken on that presumption, while they were hidden in a
+    /// graveyard: named since or not.
+    pub fn presumed(&self) -> &OrdSet<CardId> {
+        &self.presumed
+    }
+    /// Naming `c` as `k` breaks the presumption it was taken on: the
+    /// refusal, as `reveal`'s `Unnameable::WorksInGraveyard`.
+    fn breaks_presumption(&self, c: CardId, k: &Known) -> Option<Rejected> {
+        (self.presumed.contains(&c) && k.may_work_in_graveyard()).then(|| Rejected::Refused {
+            card: k.text.name.clone(),
+            refusal: Unrunnable::new(
+                "a card presumed to have no ability in a graveyard",
+                "it was in a graveyard no one named, presumed to have no ability that works \
+                 there, and it may have one",
+            ),
+        })
+    }
+    fn presume(&mut self) {
+        if !self.presume_inert {
+            return;
+        }
+        let hidden: Vec<CardId> = self
+            .players
+            .iter()
+            .flat_map(|p| &p.graveyard)
+            .copied()
+            .filter(|c| self.known(*c).is_none())
+            .collect();
+        self.presumed.extend(hidden);
+    }
+    /// Whether one of these cards is hidden: then what reads them by what
+    /// they are can't, and `unknowable` says so for `step` to refuse.
+    fn unread(&self, cards: impl IntoIterator<Item = CardId>, card: &str, node: &str) -> bool {
+        if !cards.into_iter().any(|c| self.known(c).is_none()) {
+            return false;
+        }
+        self.unknowable
+            .borrow_mut()
+            .get_or_insert_with(|| Rejected::Refused {
+                card: card.to_string(),
+                refusal: Unrunnable::new(
+                    node,
+                    "reads the cards in a graveyard by what they are, and one of them is hidden",
+                ),
+            });
+        true
     }
     /// How many cards the game has, every `CardId` below it.
     pub fn card_count(&self) -> usize {
@@ -2666,6 +2766,9 @@ impl Game {
             .flat_map(|p| &p.graveyard)
             .find_map(|c| {
                 let Some(k) = self.known(*c) else {
+                    if self.presume_inert {
+                        return None;
+                    }
                     return Some(Rejected::Refused {
                         card: "a hidden card".into(),
                         refusal: Unrunnable::new(
@@ -3159,23 +3262,30 @@ impl Game {
     /// The cards of `p`'s hand `filter` matches, which they may discard
     /// (CR 701.9a), and how many cards of it are hidden.
     /// The cards of `p`'s a cost may take, and the hidden cards of a hand
-    /// that might be among them.
+    /// or graveyard that might be among them.
     fn payable_cards(&self, p: PlayerId, cards: &lower::CardsPaid) -> (Vec<CardId>, usize) {
         match cards.how {
             lower::PaidWith::Discard => self.discardable(p, &cards.filter),
-            lower::PaidWith::ExileFromGraveyard => (
-                self.player(p)
-                    .graveyard
-                    .iter()
-                    .copied()
-                    .filter(|c| {
-                        self.known(*c)
-                            .and_then(|k| k.printed.as_ref())
-                            .is_some_and(|ch| cards.filter.matches(ch))
-                    })
-                    .collect(),
-                0,
-            ),
+            // A hidden card there (`presume_graveyard_inert`) may be one,
+            // as a hidden card in a hand may be one to discard.
+            lower::PaidWith::ExileFromGraveyard => {
+                let graveyard = &self.player(p).graveyard;
+                (
+                    graveyard
+                        .iter()
+                        .copied()
+                        .filter(|c| {
+                            self.known(*c)
+                                .and_then(|k| k.printed.as_ref())
+                                .is_some_and(|ch| cards.filter.matches(ch))
+                        })
+                        .collect(),
+                    graveyard
+                        .iter()
+                        .filter(|c| self.known(**c).is_none())
+                        .count(),
+                )
+            }
         }
     }
 
@@ -3235,12 +3345,14 @@ impl Game {
         {
             return Err(refused);
         }
+        self.unknowable.take();
         let before = self.clone();
         let next = self.answer(answer);
-        if let Some(halted) = self.halted.take() {
+        if let Some(halted) = self.halted.take().or_else(|| self.unknowable.take()) {
             *self = before;
             return Err(halted);
         }
+        self.presume();
         next
     }
 
@@ -3536,6 +3648,11 @@ impl Game {
             (Waiting::Reveal { cards, resume, .. }, Answer::Reveal(named))
                 if named.len() == cards.len() =>
             {
+                for (c, text) in cards.iter().zip(named.iter()) {
+                    if let Some(refused) = self.breaks_presumption(*c, &known(text.clone())) {
+                        return Err(refused);
+                    }
+                }
                 for (c, text) in cards.iter().zip(named) {
                     self.cards[c.0 as usize].face = Face::of(text.clone());
                 }
@@ -3967,6 +4084,9 @@ impl Game {
                             .clone()
                             .unwrap_or_else(|| self.cards[c.0 as usize].face.clone());
                         let known = Arc::clone(face.up().expect("checked known"));
+                        if let Some(refused) = self.breaks_presumption(c, &known) {
+                            return Err(refused);
+                        }
                         match known.found_by(&filter, enters) {
                             Ok(true) => {}
                             Ok(false) => return Err(Rejected::Illegal(answer)),
@@ -6912,15 +7032,31 @@ impl Game {
                 whose,
                 named,
                 filter,
-            } => self
-                .counted_graveyards(at, whose)
-                .filter(|c| {
-                    self.known(*c).is_some_and(|k| {
-                        named.as_ref().is_none_or(|n| k.text.name == *n)
-                            && k.printed.as_ref().is_some_and(|ch| filter.matches(ch))
+            } => {
+                // Every card counts whatever it is: a hidden one too.
+                if named.is_none() && filter == lower::CardFilter(vec![Filter::default()]) {
+                    return self.counted_graveyards(at, whose).count() as u32;
+                }
+                let card = self
+                    .face_name(at.what.card())
+                    .unwrap_or("an instruction")
+                    .to_string();
+                if self.unread(
+                    self.counted_graveyards(at, whose),
+                    &card,
+                    "Amount::CardsInGraveyards",
+                ) {
+                    return 0;
+                }
+                self.counted_graveyards(at, whose)
+                    .filter(|c| {
+                        self.known(*c).is_some_and(|k| {
+                            named.as_ref().is_none_or(|n| k.text.name == *n)
+                                && k.printed.as_ref().is_some_and(|ch| filter.matches(ch))
+                        })
                     })
-                })
-                .count() as u32,
+                    .count() as u32
+            }
             lower::Amount::ThatMuch => at.amount.unwrap_or(0),
             lower::Amount::Times(k, n) => k * self.amount(at, *n),
             lower::Amount::ThatPlayerControls(f) => {
@@ -7276,21 +7412,37 @@ impl Game {
                     .map(Target::Ability)
                     .collect()
             }
-            TargetSpec::GraveyardCard { filter, whose } => (0..self.players.len())
-                .map(|q| PlayerId(q as u8))
-                .filter(|q| match whose {
-                    lower::Whose::Yours => *q == p,
-                    lower::Whose::Opponents => *q != p,
-                    lower::Whose::Each => true,
-                })
-                .flat_map(|q| self.player(q).graveyard.iter().copied())
-                .filter(|c| {
-                    self.known(*c)
-                        .and_then(|k| k.printed.as_ref())
-                        .is_some_and(|ch| filter.matches(ch))
-                })
-                .map(Target::Card)
-                .collect(),
+            TargetSpec::GraveyardCard { filter, whose } => {
+                let cards: Vec<CardId> = (0..self.players.len())
+                    .map(|q| PlayerId(q as u8))
+                    .filter(|q| match whose {
+                        lower::Whose::Yours => *q == p,
+                        lower::Whose::Opponents => *q != p,
+                        lower::Whose::Each => true,
+                    })
+                    .flat_map(|q| self.player(q).graveyard.iter().copied())
+                    .collect();
+                let legal: Vec<Target> = cards
+                    .iter()
+                    .copied()
+                    .filter(|c| {
+                        self.known(*c)
+                            .and_then(|k| k.printed.as_ref())
+                            .is_some_and(|ch| filter.matches(ch))
+                    })
+                    .map(Target::Card)
+                    .collect();
+                // With none it can see, whether there is a target at all
+                // (CR 601.2c, 603.3d) turns on what a hidden one is.
+                if legal.is_empty() {
+                    self.unread(
+                        cards,
+                        "a spell or ability",
+                        "a target card in a graveyard no one named",
+                    );
+                }
+                legal
+            }
             TargetSpec::UpToOne(spec) => {
                 let mut legal = self.legal_targets(spec, p, source);
                 legal.push(Target::Nothing);

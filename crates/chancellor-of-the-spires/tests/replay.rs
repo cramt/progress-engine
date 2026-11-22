@@ -2395,15 +2395,14 @@ fn a_plotted_card_is_the_turns_players_and_cast_free_later() {
 
 /// Fact or Fiction's five revealed cards and its piles, which no log
 /// prints: the five stay hidden, and the replay tries each size of the
-/// pile alice takes. Every size but all five leaves cards in her
-/// graveyard no one has named, where the engine refuses to go on as the
-/// spell resolves (one could be a card whose ability works there, or
-/// Accumulated Knowledge counting its name); taking all five, or none,
-/// leaves a hand Duress reveals (CR 701.20a) the wrong size. A divergence
-/// on every way the engine went on isn't the engine's, so the refusal is
-/// what stops the game.
+/// pile alice takes, two first. The cards it leaves in her graveyard no one
+/// has named, and the replay presumes them to have no ability that works
+/// there; taking all five, or none, leaves a hand Duress reveals (CR
+/// 701.20a) the wrong size. Accumulated Knowledge then counts the cards of
+/// its name in all graveyards, which it can't with hidden ones there, and
+/// the engine refuses it rather than count them as none.
 #[test]
-fn fact_or_fiction_piles_that_leave_a_hidden_card_in_the_graveyard_are_refused() {
+fn accumulated_knowledge_refuses_to_count_a_graveyard_holding_fact_or_fictions_hidden_pile() {
     let (g, r) = run("
         alice chooses to play first.
         alice begins the game with seven cards in hand.
@@ -2446,10 +2445,13 @@ fn fact_or_fiction_piles_that_leave_a_hidden_card_in_the_graveyard_are_refused()
         panic!("{:?}", r.trace)
     };
     assert!(
-        matches!(stop, Stop::Refused { node, .. } if node == "a hidden card in a graveyard"),
+        matches!(stop, Stop::Refused { node, .. } if node == "Amount::CardsInGraveyards"),
         "{stop:?} at {}",
         g.entries[*entry].text
     );
-    // The pile went there as Fact or Fiction resolved, before bob's turn.
-    assert_eq!(g.entries[*entry].text, "Turn 4: bob");
+    assert_eq!(
+        g.entries[*entry].text,
+        "alice draws a card with [Accumulated Knowledge]."
+    );
+    assert!(r.presumed > 0);
 }

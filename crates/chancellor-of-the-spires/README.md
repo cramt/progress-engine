@@ -47,6 +47,15 @@ can't be played, cast or discarded or have a characteristic read, and
 is the same whatever its card (CR 708.2a), and is then named only as a
 card with morph. `Game::reveal` names it once, which is
 sound because nothing in the game could have told the difference before.
+A hidden card that reaches a graveyard (Strategic Planning's two, a
+countered face-down spell) is one everyone saw (CR 404.2) and the game
+didn't, and the game refuses to go on with one there: it could be a card
+whose ability works there (CR 113.6b). Unless its caller presumes it has
+none (`Game::presume_graveyard_inert`), as the replay does; then the game
+records each card it took so (`Game::presumed`), refuses naming one later
+as a card that may have such an ability, and still refuses what reads a
+graveyard's cards by what they are while one is hidden: a count of them
+by name or type, a target there when it sees none.
 A deck's `hidden` count is how many it brings; a deck file's cards are all
 known, so a goldfish never has one. `deck::read` makes a
 player's cards from a `.deck.toml` and the card index (`decks/index.jsonl`),
@@ -689,9 +698,13 @@ engine's blind reveal); its piles aren't printed either, so the replay
 takes a pile of two of them first and goes back to try every other size
 when a later line shows the hand or graveyard otherwise: a card the
 hand doesn't hold, a hand revealed or discarded down to another size.
-The other pile goes to the graveyard hidden, and there the engine
-refuses to go on: the card could be one whose ability works from a
-graveyard, or one Accumulated Knowledge counts by name. A "put a card on the bottom of the library" line must match a
+The other pile goes to the graveyard hidden. The replay presumes a card
+no one named in a graveyard has no ability that works there, since the
+log would show it working (a trigger's line, a play only it allows), and
+names it when a line does (a cost exiling it, a cast from there); a line
+targeting a card there it can't find stops. Accumulated Knowledge
+counting such a graveyard by name is refused, and the replay goes back to
+try another pile. The report counts the games relying on the presumption. A "put a card on the bottom of the library" line must match a
 card the engine put on the bottom that turn, and a "creates three
 Goblin Tokens" line as many tokens the engine created.
 A "may" is answered by its own line when the log prints one ("chooses
@@ -1062,10 +1075,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 141 of the 500 replay to
-the end and 55.17% of their lines are followed** (17,465 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 148
-games have no card the engine refuses before any game (from 21). The
+Worked card by card from there, **on 2026-11-23 142 of the 500 replay to
+the end and 55.44% of their lines are followed** (17,551 of 31,659), 3
+of them relying on a land the log never names (2 to the end) and 9 on a
+card no one named in a graveyard having no ability there (1 to the end),
+and 148 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1093,7 +1107,12 @@ Bolt); Phyrexian mana, each symbol paid with one mana of its colour or
 2 life, while the player has that much (CR 107.4f, 119.4: Vault Skirge,
 Dismember, Phyrexian Metamorph); exile until this leaves the
 battlefield, what it exiled returning as it leaves (CR 610.3: Sheltered
-by Ghosts, Glass Casket, Banisher Priest); the beginning of combat (Luminarch
+by Ghosts, Glass Casket, Banisher Priest); a card no one named in a
+graveyard presumed by the replay to have no ability that works there,
+named when a line exiles or casts it from there, and refused when a
+count by name, a target or that naming would read what it is (CR 404.2,
+113.6b: Strategic Planning's milled cards, Fact or Fiction's pile, a
+countered face-down spell, whose 8 games go on, one to the end); the beginning of combat (Luminarch
 Aspirant); becoming tapped
 (City of Brass); mana of a colour chosen as an instruction resolves
 (Outcaster Trailblazer); "unless" paid or not (Mana Leak, echo); a

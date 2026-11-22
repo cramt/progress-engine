@@ -24,7 +24,8 @@ use std::fmt;
 use crate::deck::{CardText, DeckCards, Side};
 use crate::game::{
     Action, Activation, Answer, CardId, Decision, Format, Found, Game, Mana, ManaActivation,
-    ManaCost, ManaPool, Outcome, Payment, Rejected, Setup, StackObject, Step, Target, HAND_SIZE,
+    ManaCost, ManaPool, Outcome, Payment, Rejected, Setup, StackObject, Step, Target, Unnameable,
+    HAND_SIZE,
 };
 use crate::log::{self, Entry, Event, Object};
 use crate::lower::{CastFrom, PaidWith};
@@ -56,6 +57,10 @@ pub struct Replay {
     /// match, named as a hypothesis (`UnseenLand`), which the replay as it
     /// ended relies on.
     pub unseen: Vec<String>,
+    /// How many cards no one named the replay as it ended presumed had no
+    /// ability that works in a graveyard while they were in one
+    /// (`Game::presume_graveyard_inert`).
+    pub presumed: usize,
 }
 
 /// A real land the log may never name, which a search the log doesn't
@@ -293,9 +298,11 @@ pub fn replay(
         face_down: BTreeMap::new(),
         entries: g.entries.clone(),
         respond: None,
+        presumed: 0,
     };
     let end = r.run(m, g);
     Replay {
+        presumed: r.presumed,
         trace: r.trace,
         end,
         game: r.game,
@@ -303,8 +310,36 @@ pub fn replay(
     }
 }
 
-/// The node the engine refuses a hidden card in a graveyard by.
-const HIDDEN_IN_GRAVEYARD: &str = "a hidden card in a graveyard";
+/// The nodes the engine refuses a hidden card in a graveyard by: there at
+/// all, read by what it is, or named as a card it was presumed not to be.
+const UNSEEN_IN_GRAVEYARD: [&str; 5] = [
+    "a hidden card in a graveyard",
+    "Amount::CardsInGraveyards",
+    "DefinedCount::Graveyard",
+    "a target card in a graveyard no one named",
+    "a card presumed to have no ability in a graveyard",
+];
+
+/// Name a hidden card: one presumed in a graveyard to have no ability that
+/// works there and named as one that has is refused, the game the replay
+/// played until then not the log's.
+fn name_hidden(game: &mut Game, c: CardId, text: CardText) -> Result<(), Stop> {
+    game.reveal(c, text).map_err(|e| match e {
+        Unnameable::WorksInGraveyard(card) => Stop::Refused {
+            card,
+            node: UNSEEN_IN_GRAVEYARD[4].into(),
+            why: "it was in a graveyard no one named, presumed to have no ability that works \
+                  there, and it may have one"
+                .into(),
+        },
+        other => panic!("a hidden card: {other:?}"),
+    })
+}
+
+/// Where a way of following the log stopped: its line, the stop, its
+/// trace, the lands the log never names it relied on and how many cards
+/// it presumed in a graveyard (`Replay::presumed`).
+type WayStopped = (usize, Stop, Vec<Traced>, Vec<String>, usize);
 
 /// A point to go back to: the game as it was at a choice the log doesn't
 /// show (a payment, a search), the other ways to make it, and the line to
@@ -402,6 +437,8 @@ struct Driver<'a> {
     alternatives: HashMap<String, Vec<CastFrom>>,
     /// The lands the log never names that a search has found so far.
     unseen: Vec<String>,
+    /// The game's `presumed` as the replay ended, on the way it reports.
+    presumed: usize,
     /// The turn, and the permanents the replay activated an ability of in
     /// it.
     activated: (u32, Vec<ObjectId>),
@@ -523,6 +560,10 @@ impl Driver<'_> {
         self.counted = knew.counted;
     }
 
+    fn presumed_now(&self) -> usize {
+        self.game.as_ref().map_or(0, |g| g.presumed().len())
+    }
+
     fn seat(&self, p: log::Player) -> PlayerId {
         self.seats[p.0 as usize]
     }
@@ -567,18 +608,21 @@ impl Driver<'_> {
         // The failure that got furthest, which is the one reported if no
         // other payment gets past it.
         // With the lands the log never names that its way relied on.
-        let mut furthest: Option<(usize, Stop, Vec<Traced>, Vec<String>)> = None;
+        let mut furthest: Option<WayStopped> = None;
         // The furthest a way got before the engine refused to go on with a
         // card no one has named in a graveyard (`Back::Cards`): if every
         // other way diverged, this one may be the game's.
-        let mut refused_at: Option<(usize, Stop, Vec<Traced>, Vec<String>)> = None;
+        let mut refused_at: Option<WayStopped> = None;
         let mut i = 0;
         while i < g.entries.len() {
             let entry = &g.entries[i];
             self.at = i;
             match self.follow(g, i, entry) {
                 Ok(Next::Line(n)) => i = n,
-                Ok(Next::Done) => return End::Finished,
+                Ok(Next::Done) => {
+                    self.presumed = self.presumed_now();
+                    return End::Finished;
+                }
                 Err(stop) => {
                     // What resolving first would show and the log doesn't:
                     // a trigger, a choice (Duress's, answered with a
@@ -634,16 +678,34 @@ impl Driver<'_> {
                         )
                     );
                     let refused = matches!(stop, Stop::Refused { .. } | Stop::Unfollowed { .. });
-                    let unseen_in_graveyard = matches!(&stop, Stop::Refused { node, .. }
-                        if node == HIDDEN_IN_GRAVEYARD);
+                    // Or what reads a card no one named in a graveyard by
+                    // what it is, which another pile may not leave there.
+                    let unseen_in_graveyard = match &stop {
+                        Stop::Refused { node, .. } => UNSEEN_IN_GRAVEYARD.contains(&node.as_str()),
+                        Stop::Unfollowed { event, .. } => {
+                            event == "a target card in a graveyard no one named"
+                        }
+                        _ => false,
+                    };
                     if unseen_in_graveyard && refused_at.as_ref().is_none_or(|f| i > f.0) {
-                        refused_at =
-                            Some((i, stop.clone(), self.trace.clone(), self.unseen.clone()));
+                        refused_at = Some((
+                            i,
+                            stop.clone(),
+                            self.trace.clone(),
+                            self.unseen.clone(),
+                            self.presumed_now(),
+                        ));
                     }
                     if furthest.as_ref().is_none_or(|f| {
                         i > f.0 || i == f.0 && refused && matches!(f.1, Stop::Diverged(_))
                     }) {
-                        furthest = Some((i, stop.clone(), self.trace.clone(), self.unseen.clone()));
+                        furthest = Some((
+                            i,
+                            stop.clone(),
+                            self.trace.clone(),
+                            self.unseen.clone(),
+                            self.presumed_now(),
+                        ));
                     }
                     // Only a choice made earlier can make a later payment
                     // or play impossible, or lose the game early, so only
@@ -734,17 +796,19 @@ impl Driver<'_> {
                             }
                         }
                         None => {
-                            let (at, stop, trace, unseen) = furthest.take().expect("recorded");
+                            let (at, stop, trace, unseen, presumed) =
+                                furthest.take().expect("recorded");
                             // A divergence is the engine's only if every
                             // way diverged: a way that left a card no one
                             // has named in a graveyard, which the engine
                             // refuses to go on with, may be the game's
                             // (Fact or Fiction's pile), and that refusal
                             // is what stops it.
-                            let (at, stop, trace, unseen) = match (stop, refused_at.take()) {
-                                (Stop::Diverged(_), Some(refused)) if !untried => refused,
-                                (stop, _) => (at, stop, trace, unseen),
-                            };
+                            let (at, stop, trace, unseen, presumed) =
+                                match (stop, refused_at.take()) {
+                                    (Stop::Diverged(_), Some(refused)) if !untried => refused,
+                                    (stop, _) => (at, stop, trace, unseen, presumed),
+                                };
                             // Only a way tried and every way left untried
                             // tells a divergence from a search too big.
                             let stop = match stop {
@@ -753,12 +817,14 @@ impl Driver<'_> {
                             };
                             self.trace = trace;
                             self.unseen = unseen;
+                            self.presumed = presumed;
                             return End::Stopped { entry: at, stop };
                         }
                     }
                 }
             }
         }
+        self.presumed = self.presumed_now();
         End::Finished
     }
 
@@ -872,6 +938,11 @@ impl Driver<'_> {
             seed: g.id,
         })
         .expect("two constructed decks set up");
+        // A card no one names in a graveyard is presumed to have no
+        // ability that works there: the log would show it working (a
+        // trigger's line, a play only it allows), and a line naming the
+        // card there names it then.
+        game.presume_graveyard_inert();
         let mut asked = [0u32; 2];
         let mut begun: [Vec<CardId>; 2] = [Vec::new(), Vec::new()];
         loop {
@@ -974,7 +1045,7 @@ impl Driver<'_> {
                     let Some(c) = hand.iter().find(|c| game.card(**c).is_none()) else {
                         return Err(Stop::Diverged(Divergence::NotInHand { card: n }));
                     };
-                    game.reveal(*c, text).expect("a hidden card");
+                    name_hidden(game, *c, text)?;
                     *c
                 }
             };
@@ -2908,6 +2979,23 @@ impl Driver<'_> {
                         }
                         _ => false,
                     });
+                    // A card in a graveyard the log names that may be one
+                    // no one named there, which the engine can't offer.
+                    let hidden_there = game
+                        .players()
+                        .iter()
+                        .any(|q| q.graveyard().iter().any(|c| game.card(*c).is_none()));
+                    if matching.is_empty()
+                        && hidden_there
+                        && legal
+                            .iter()
+                            .all(|t| matches!(t, Target::Card(_) | Target::Nothing))
+                    {
+                        return Err(Stop::Unfollowed {
+                            event: "a target card in a graveyard no one named".into(),
+                            card: Some(card.to_string()),
+                        });
+                    }
                     **matching.get(k).or(matching.first()).ok_or_else(wrong)?
                 }
                 _ => return Err(wrong()),
@@ -3688,21 +3776,33 @@ impl Driver<'_> {
                                 .copied();
                             if let Some(c) = c {
                                 if game.card(c).is_none() {
-                                    game.reveal(c, text).expect("a hidden card");
+                                    name_hidden(game, c, text)?;
                                 }
                             }
                             c
                         }
                         PaidWith::ExileFromGraveyard => {
                             let game = self.game();
-                            game.player(player)
-                                .graveyard()
-                                .iter()
-                                .find(|c| {
-                                    !chosen.contains(*c)
-                                        && game.card(**c).is_some_and(|t| t.is_called(n))
-                                })
-                                .copied()
+                            let graveyard = game.player(player).graveyard().clone();
+                            match graveyard.iter().find(|c| {
+                                !chosen.contains(*c)
+                                    && game.card(**c).is_some_and(|t| t.is_called(n))
+                            }) {
+                                Some(c) => Some(*c),
+                                // Not one named there: one no one named,
+                                // which the log names now.
+                                None => match graveyard
+                                    .iter()
+                                    .find(|c| !chosen.contains(*c) && game.card(**c).is_none())
+                                {
+                                    Some(c) => {
+                                        let text = self.text(n)?;
+                                        name_hidden(self.game(), *c, text)?;
+                                        Some(*c)
+                                    }
+                                    None => None,
+                                },
+                            }
                         }
                     };
                     let Some(c) = c else {
@@ -4611,7 +4711,7 @@ impl Driver<'_> {
                     else {
                         return Err(Stop::Diverged(Divergence::NotInHand { card: n.clone() }));
                     };
-                    game.reveal(*c, text).expect("a hidden card");
+                    name_hidden(game, *c, text)?;
                     *c
                 }
             };
@@ -4875,7 +4975,7 @@ impl Driver<'_> {
         let Some(c) = hand.iter().find(|c| game.card(**c).is_none()) else {
             return Ok(None);
         };
-        game.reveal(*c, text).expect("a hidden card");
+        name_hidden(game, *c, text)?;
         Ok(Some(*c))
     }
 
@@ -5188,12 +5288,19 @@ impl Driver<'_> {
         }
         let text = self.text(name)?;
         let game = self.game();
-        Ok(game
-            .player(p)
-            .graveyard()
+        let graveyard = game.player(p).graveyard().clone();
+        if let Some(c) = graveyard
             .iter()
-            .copied()
-            .find(|c| game.card(*c).is_some_and(|t| t.name == text.name)))
+            .find(|c| game.card(**c).is_some_and(|t| t.name == text.name))
+        {
+            return Ok(Some(*c));
+        }
+        // One no one named there, which the log names as it is cast.
+        let Some(c) = graveyard.iter().find(|c| game.card(**c).is_none()) else {
+            return Ok(None);
+        };
+        name_hidden(game, *c, text)?;
+        Ok(Some(*c))
     }
 
     /// Pass priority until `p` may activate an ability of a permanent named
@@ -6322,7 +6429,9 @@ impl Driver<'_> {
                     let Some(c) = hand.iter().find(|c| tried.card(**c).is_none()) else {
                         continue;
                     };
-                    tried.reveal(*c, text).expect("a hidden card");
+                    if name_hidden(&mut tried, *c, text).is_err() {
+                        continue;
+                    }
                     *c
                 }
             };
@@ -6460,7 +6569,7 @@ impl Driver<'_> {
                     else {
                         return Err(Stop::Diverged(Divergence::NotInHand { card: n.clone() }));
                     };
-                    game.reveal(*c, text).expect("a hidden card");
+                    name_hidden(game, *c, text)?;
                     *c
                 }
             };

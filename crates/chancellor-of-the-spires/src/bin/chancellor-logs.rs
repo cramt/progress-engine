@@ -761,6 +761,10 @@ mod native {
                         run.unseen.0 += 1;
                         run.unseen.1 += (replayed.end == End::Finished) as usize;
                     }
+                    if replayed.presumed > 0 {
+                        run.presumed.0 += 1;
+                        run.presumed.1 += (replayed.end == End::Finished) as usize;
+                    }
                     match (&replayed.end, stop_at) {
                         (End::Stopped { stop, .. }, Some(at)) => {
                             let key = match stop.card() {
@@ -864,6 +868,10 @@ mod native {
                 "  relied on a land the log never names: {} games, {} of them to the end",
                 run.unseen.0, run.unseen.1
             );
+            println!(
+                "  relied on a card no one named in a graveyard having no ability there: {} games, {} of them to the end",
+                run.presumed.0, run.presumed.1
+            );
             let mut stops: Vec<_> = run.stops.iter().collect();
             stops.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(b.0)));
             println!("  worklist: its stops by games, the card and the node");
@@ -937,6 +945,9 @@ mod native {
         /// Games relying on a land the log never names, and those of them
         /// to the end.
         unseen: (usize, usize),
+        /// Games relying on a card no one named in a graveyard having no
+        /// ability that works there, and those of them to the end.
+        presumed: (usize, usize),
         finished: usize,
         followed: usize,
         lines: usize,

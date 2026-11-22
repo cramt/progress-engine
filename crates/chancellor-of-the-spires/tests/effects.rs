@@ -5547,12 +5547,33 @@ fn tarmogoyf_counts_card_types_in_graveyards_before_a_pump() {
 /// 604.3): the game refuses to go on rather than read it as nothing.
 #[test]
 fn a_hidden_card_in_a_graveyard_is_refused() {
-    let known = [
-        ("Forest", 5),
-        ("Island", 5),
-        ("Tarmogoyf", 5),
-        ("Strategic Planning", 5),
-    ];
+    let mut game = planned(
+        &[
+            ("Forest", 5),
+            ("Island", 5),
+            ("Tarmogoyf", 5),
+            ("Strategic Planning", 5),
+        ],
+        false,
+    );
+    assert!(
+        game.player(ME)
+            .graveyard()
+            .iter()
+            .any(|c| game.card(*c).is_none()),
+        "a hidden card in my graveyard"
+    );
+    match game.step(Answer::Act(Action::Pass)) {
+        Err(Rejected::Refused { refusal, .. }) => {
+            assert_eq!(refusal.node, "a hidden card in a graveyard")
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+/// Strategic Planning on the second turn, the card kept a known one where
+/// there is one, so two hidden cards go to my graveyard where they can.
+fn planned(known: &[(&'static str, usize)], presume: bool) -> Game {
     let mut game = (0..2000)
         .map(|seed| {
             Game::start(Setup {
@@ -5560,7 +5581,7 @@ fn a_hidden_card_in_a_graveyard_is_refused() {
                 decks: vec![
                     DeckCards {
                         hidden: 40,
-                        ..deck(&known)
+                        ..deck(known)
                     },
                     deck(&[("Island", 60)]),
                 ],
@@ -5575,6 +5596,9 @@ fn a_hidden_card_in_a_graveyard_is_refused() {
                 .all(|(n, _)| named(g, g.player(ME).hand(), n) >= 1)
         })
         .expect("a seed deals one of each");
+    if presume {
+        game.presume_graveyard_inert();
+    }
     pass_until(&mut game, ME, Step::PrecombatMain);
     play(&mut game, "Forest");
     my_next_main(&mut game);
@@ -5582,20 +5606,55 @@ fn a_hidden_card_in_a_graveyard_is_refused() {
     cast(&mut game, "Strategic Planning", None);
     let three: Vec<CardId> = game.player(ME).library().iter().take(3).copied().collect();
     resolve(&mut game);
-    // The two left in the graveyard are hidden ones where there are two.
     let mut by_hidden = three.clone();
     by_hidden.sort_by_key(|c| game.card(*c).is_none());
     step(&mut game, Answer::Choose(vec![by_hidden[0]]));
-    assert!(
-        game.player(ME)
-            .graveyard()
-            .iter()
-            .any(|c| game.card(*c).is_none()),
-        "a hidden card in my graveyard"
+    game
+}
+
+/// A caller may presume a card no one named in a graveyard has no ability
+/// that works there (CR 113.6b, 113.6m), as a replay does, whose log would
+/// show one working: the game goes on, keeping each card it presumed, and
+/// naming one later as a card with such an ability (Squee's return at its
+/// owner's upkeep) is refused, as is a count of the graveyard by name.
+#[test]
+fn a_hidden_card_in_a_graveyard_presumed_inert_goes_on() {
+    let mut game = planned(
+        &[
+            ("Forest", 5),
+            ("Island", 5),
+            ("Accumulated Knowledge", 5),
+            ("Strategic Planning", 5),
+        ],
+        true,
     );
+    let hidden: Vec<CardId> = game
+        .player(ME)
+        .graveyard()
+        .iter()
+        .copied()
+        .filter(|c| game.card(*c).is_none())
+        .collect();
+    assert!(!hidden.is_empty(), "a hidden card in my graveyard");
+    assert!(hidden.iter().all(|c| game.presumed().contains(c)));
+    assert!(matches!(
+        game.clone().reveal(hidden[0], card("Squee, Goblin Nabob")),
+        Err(Unnameable::WorksInGraveyard(_))
+    ));
+    assert!(matches!(
+        game.clone().reveal(hidden[0], card("Anger")),
+        Err(Unnameable::WorksInGraveyard(_))
+    ));
+    assert_eq!(game.clone().reveal(hidden[0], card("Island")), Ok(()));
+    // Accumulated Knowledge counts the cards of its name in all graveyards,
+    // and can't count one it can't see.
+    my_next_main(&mut game);
+    cast(&mut game, "Accumulated Knowledge", None);
+    step(&mut game, Answer::Act(Action::Pass));
     match game.step(Answer::Act(Action::Pass)) {
-        Err(Rejected::Refused { refusal, .. }) => {
-            assert_eq!(refusal.node, "a hidden card in a graveyard")
+        Err(Rejected::Refused { card, refusal }) => {
+            assert_eq!(card, "Accumulated Knowledge");
+            assert_eq!(refusal.node, "Amount::CardsInGraveyards");
         }
         other => panic!("{other:?}"),
     }
