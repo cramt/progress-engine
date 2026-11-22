@@ -5088,3 +5088,40 @@ fn cunning_nightbonder_makes_flash_spells_cheaper_and_uncounterable() {
     resolve(&mut game);
     assert!(creature(&game, "Ambush Viper").is_some());
 }
+
+/// CR 601.2b, 700.2a: Red Elemental Blast's mode is chosen as it is cast,
+/// before its target; with no blue spell on the stack only "Destroy
+/// target blue permanent" can be chosen, and it destroys their Flying
+/// Men.
+#[test]
+fn red_elemental_blast_offers_only_a_mode_with_a_legal_target() {
+    let mut game = deal_both(
+        &[("Mountain", 30), ("Red Elemental Blast", 30)],
+        &[("Island", 40), ("Flying Men", 20)],
+        &[("Mountain", 1), ("Red Elemental Blast", 1)],
+        &[("Island", 1), ("Flying Men", 1)],
+    );
+    play(&mut game, "Mountain");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Island");
+    cast_as(&mut game, THEM, "Flying Men", None);
+    resolve(&mut game);
+    let men = creature(&game, "Flying Men").expect("theirs");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    let blast = in_hand(&game, ME, "Red Elemental Blast").unwrap();
+    let Decision::Mode { modes, .. } = step(&mut game, Answer::Act(Action::Cast(blast))) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(modes, vec![1]);
+    assert!(game.clone().step(Answer::Mode(0)).is_err());
+    let Decision::Targets { slots, .. } = step(&mut game, Answer::Mode(1)) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(slots, vec![vec![Target::Object(men)]]);
+    let mut d = step(&mut game, Answer::Targets(vec![Target::Object(men)]));
+    while let Decision::Pay { actions, .. } = d {
+        d = step(&mut game, Answer::Pay(actions[0]));
+    }
+    resolve(&mut game);
+    assert_eq!(creature(&game, "Flying Men"), None);
+}

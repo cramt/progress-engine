@@ -378,6 +378,13 @@ fn mana_of(game: &Game, source: ObjectId) -> Vec<ManaActivation> {
 /// ability, one adding a colour the cost still lacks if any, from the
 /// source with the fewest choices. If none is left it cancels (CR 733.1).
 fn pay(game: &mut Game) -> bool {
+    // CR 601.2b: a modal spell's mode first, the first the engine runs.
+    if let Decision::Mode { modes, .. } = game.decision() {
+        assert!(
+            modes.iter().any(|m| game.step(Answer::Mode(*m)).is_ok()),
+            "no mode of {modes:?} runs"
+        );
+    }
     // CR 601.2c: targets first.
     if let Decision::Targets { .. } = game.decision() {
         simplest(game);
@@ -522,6 +529,7 @@ fn a_creature_cast_at_sorcery_speed_resolves_onto_the_battlefield() {
             controller: ME,
             via: Via::ManaCost,
             kicked: false,
+            mode: 0,
         }]
     );
     assert_eq!(game.player(ME).pool().total(), 0);
@@ -1022,7 +1030,7 @@ fn loam_coverage() {
     }
     assert_eq!(cards.len(), 90);
     // The README's number: a change that moves it updates it there.
-    assert_eq!((runs.len(), whole.len()), (41, 30));
+    assert_eq!((runs.len(), whole.len()), (42, 31));
 }
 
 fn hidden(n: usize) -> DeckCards {

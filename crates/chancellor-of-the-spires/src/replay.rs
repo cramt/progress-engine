@@ -999,7 +999,7 @@ impl Driver<'_> {
                 card: Object::Card(card),
             } => {
                 let p = self.seat(*player);
-                let play = self.offered(p, card.name(), Kind::Land, false, false)?;
+                let play = self.offered(p, card.name(), Kind::Land, false, false, None)?;
                 self.act(Answer::Act(play))?;
                 self.did(i, format!("played {}", card.name()));
             }
@@ -2088,6 +2088,8 @@ impl Driver<'_> {
                 }
                 self.did(i, "put into the hand by the instruction");
             }
+            // Followed with the cast before it (`mode_said`).
+            ChosenMode(_) if self.consumed.contains(&i) => {}
             other => {
                 let card = other.cards().first().map(|c| c.name().to_string());
                 return Err(unfollowed(card.as_deref()));
@@ -2371,6 +2373,7 @@ impl Driver<'_> {
             } => self.enter_as_copy(player, card, &of, may),
             d @ (Decision::Pay { .. }
             | Decision::Kicker { .. }
+            | Decision::Mode { .. }
             | Decision::Mulligan { .. }
             | Decision::Bottom { .. }
             | Decision::OpeningHand { .. }) => {
@@ -4282,6 +4285,7 @@ impl Driver<'_> {
         kind: Kind,
         respond: bool,
         answers: bool,
+        mode: Option<u8>,
     ) -> Result<Action, Stop> {
         // The face the line names, a two-faced card's back by its name.
         let side = self.text(name)?.side_named(name);
@@ -4292,7 +4296,9 @@ impl Driver<'_> {
         let respond = answers
             || respond
                 && match self.find(p, name, kind)? {
-                    Some(c) => self.game().refusal(c).is_some() || self.game().targets_the_stack(c),
+                    Some(c) => {
+                        self.game().refusal(c).is_some() || self.game().targets_the_stack(c, mode)
+                    }
                     None => true,
                 };
         if !respond {
@@ -4440,8 +4446,25 @@ impl Driver<'_> {
         on_stack: bool,
         answers: bool,
     ) -> Result<String, Stop> {
-        let cast_it = self.offered(p, name, Kind::Cast(route), on_stack, answers)?;
+        // CR 601.2b, 700.2a: the mode, which the line or the "Chosen
+        // mode:" line after it says, and whose targets say whether it
+        // answers a spell on the stack.
+        let mode = self.mode_said(i, cast, name)?;
+        let cast_it = self.offered(p, name, Kind::Cast(route), on_stack, answers, mode)?;
         self.act(Answer::Act(cast_it))?;
+        if let Decision::Mode { modes, .. } = self.game().decision() {
+            let k = mode.ok_or_else(|| {
+                Stop::Diverged(Divergence::Unlogged {
+                    what: format!("the mode of {name}"),
+                })
+            })?;
+            if !modes.contains(&k) {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("mode {} of {name}", k + 1),
+                }));
+            }
+            self.act(Answer::Mode(k))?;
+        }
         // CR 601.2b: the line says whether its kicker was paid.
         match self.game().decision() {
             Decision::Kicker { .. } => self.act(Answer::Kick(kicked))?,
@@ -4458,6 +4481,36 @@ impl Driver<'_> {
         } else {
             paid
         })
+    }
+
+    /// The mode of the card called `name` the log says was chosen, by its
+    /// index among the card's "•" lines: quoted on the cast line, or on a
+    /// "Chosen mode:" line right after it, which is then followed. The log
+    /// may cut a mode's text short with "...". `None` if no mode is said
+    /// or none matches.
+    fn mode_said(&mut self, i: usize, cast: &log::Cast, name: &str) -> Result<Option<u8>, Stop> {
+        let after = self.entries.get(i + 1).and_then(|e| match &e.event {
+            Event::ChosenMode(m) => Some(m.clone()),
+            _ => None,
+        });
+        let Some(said) = cast.modes.first().cloned().or_else(|| after.clone()) else {
+            return Ok(None);
+        };
+        let text = self.text(name)?.rules_text();
+        let said = digits(said.trim());
+        let k = text
+            .lines()
+            .filter_map(|l| l.trim().strip_prefix('•'))
+            .map(|m| digits(m.trim()))
+            .position(|m| match said.strip_suffix("...") {
+                Some(cut) => m.starts_with(cut.trim_end()),
+                None => m == said,
+            });
+        if k.is_some() && cast.modes.is_empty() && after.is_some() {
+            self.consumed.insert(i + 1);
+            self.did(i + 1, "the mode chosen as the spell before it was cast");
+        }
+        Ok(k.and_then(|k| u8::try_from(k).ok()))
     }
 
     /// The card of `p`'s named `name` where `kind` casts or plays it from:
@@ -6004,4 +6057,23 @@ fn solve(owed: &ManaCost, pool: ManaPool, options: &[ManaActivation]) -> Vec<Vec
         });
     }
     out
+}
+
+/// A mode's text as the log prints it: numbers as digits ("Draw 2 cards,
+/// then discard 2 cards." for Izzet Charm's "Draw two cards, then discard
+/// two cards.").
+fn digits(text: &str) -> String {
+    const WORDS: [&str; 10] = [
+        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    ];
+    text.split(' ')
+        .map(|w| {
+            let bare = w.trim_end_matches(|c: char| !c.is_alphanumeric());
+            match WORDS.iter().position(|n| bare.eq_ignore_ascii_case(n)) {
+                Some(k) => format!("{}{}", k + 1, &w[bare.len()..]),
+                None => w.to_string(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }

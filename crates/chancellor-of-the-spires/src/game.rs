@@ -340,9 +340,8 @@ struct Runnable {
     /// Its triggered abilities (CR 603), all of which the engine runs: a
     /// card with one it can't is refused.
     triggered: BTreeMap<u16, Triggered>,
-    /// An instant's or sorcery's instructions (CR 113.3a), its paragraphs
-    /// in order.
-    spell: Option<Program>,
+    /// An instant's or sorcery's instructions (CR 113.3a).
+    spell: Option<SpellText>,
     flash: bool,
     /// What it lets its owner do from their opening hand (CR 103.6).
     opening: Option<Opening>,
@@ -394,7 +393,7 @@ impl Runnable {
             }
         }
         let mut out = Vec::new();
-        if let Some(p) = &self.spell {
+        for p in self.spell.iter().flat_map(SpellText::programs) {
             walk(&p.effects, &mut out);
         }
         for t in self.triggered.values() {
@@ -404,6 +403,36 @@ impl Runnable {
             walk(&a.program.effects, &mut out);
         }
         out.into_iter()
+    }
+}
+
+/// An instant's or sorcery's instructions (CR 113.3a).
+#[derive(Clone, Debug)]
+enum SpellText {
+    /// Its paragraphs in order.
+    One(Program),
+    /// "Choose one —" (CR 700.2): each mode's, or why the engine can't run
+    /// it, refused if it is chosen.
+    Modes(Vec<Result<Program, Unrunnable>>),
+}
+
+impl SpellText {
+    /// The instructions the mode chosen follows; a spell that isn't modal
+    /// has the one.
+    fn program(&self, mode: u8) -> Option<&Program> {
+        match self {
+            SpellText::One(p) => Some(p),
+            SpellText::Modes(m) => m.get(mode as usize)?.as_ref().ok(),
+        }
+    }
+
+    /// Every instruction list it could follow.
+    fn programs(&self) -> impl Iterator<Item = &Program> {
+        let (one, modes) = match self {
+            SpellText::One(p) => (Some(p), &[][..]),
+            SpellText::Modes(m) => (None, m.as_slice()),
+        };
+        one.into_iter().chain(modes.iter().flatten())
     }
 }
 
@@ -625,6 +654,9 @@ pub enum StackObject {
         via: Via,
         /// Its kicker was paid (CR 702.33d).
         kicked: bool,
+        /// The mode chosen of a modal spell (CR 700.2a); 0 for one that
+        /// isn't.
+        mode: u8,
     },
     /// A triggered ability (CR 603.3): the card whose ability it is, by
     /// its index among that card's unread abilities, the permanent it
@@ -688,6 +720,7 @@ enum Instructions {
         card: CardId,
         via: Via,
         kicked: bool,
+        mode: u8,
     },
     /// An activated ability, of the text it is printed on.
     Activated(CardId, Printed, u16),
@@ -934,6 +967,14 @@ enum Waiting {
         spell: CardId,
         owed: ManaCost,
         paying: Paying,
+    },
+    /// CR 601.2b, 700.2a: `player` casting modal `card`, whose cost so far
+    /// is `base`, chooses its mode.
+    Mode {
+        player: PlayerId,
+        card: CardId,
+        base: ManaCost,
+        from_command: bool,
     },
     /// CR 601.2b: `player` casting `card`, whose cost so far is `base`,
     /// announces whether they pay its kicker.
@@ -1242,6 +1283,14 @@ pub enum Decision {
     LegendRule {
         player: PlayerId,
         among: Vec<ObjectId>,
+    },
+    /// CR 601.2b, 700.2a: `player` casting modal `card` chooses one of
+    /// its `modes`, by their index in its text, answered `Answer::Mode`:
+    /// those whose targets can all be chosen.
+    Mode {
+        player: PlayerId,
+        card: CardId,
+        modes: Vec<u8>,
     },
     /// CR 601.2b, 702.33a: `player` casting `card` announces whether they
     /// pay its kicker, `cost` more, answered `Answer::Kick`.
@@ -1581,6 +1630,8 @@ pub enum Answer {
     PayLife(bool),
     /// CR 601.2b: `true` pays the spell's kicker.
     Kick(bool),
+    /// CR 700.2a: the mode chosen, by its index in the spell's text.
+    Mode(u8),
     /// CR 601.2c: one target per slot.
     Targets(Vec<Target>),
     /// CR 603.3b.
@@ -2205,12 +2256,17 @@ impl Game {
         self.commander_casts.get(&c).copied().unwrap_or(0)
     }
     /// Whether a known card's spell has a target slot a spell or an
-    /// ability on the stack fills.
-    pub fn targets_the_stack(&self, c: CardId) -> bool {
+    /// ability on the stack fills: in `mode` if it is modal and one is
+    /// given, else in any.
+    pub fn targets_the_stack(&self, c: CardId, mode: Option<u8>) -> bool {
+        let fills = |p: &Program| p.targets.iter().any(on_the_stack);
         self.known(c)
             .and_then(|k| k.runs.as_ref().ok())
             .and_then(|r| r.spell.as_ref())
-            .is_some_and(|p| p.targets.iter().any(on_the_stack))
+            .is_some_and(|s| match mode {
+                Some(k) => s.program(k).is_some_and(fills),
+                None => s.programs().any(fills),
+            })
     }
 
     /// Whether an activated ability of a known card has a target slot a
@@ -2630,6 +2686,11 @@ impl Game {
                     unsure: hand.iter().filter(|c| self.known(**c).is_none()).count(),
                 }
             }
+            Waiting::Mode { player, card, .. } => Decision::Mode {
+                player: *player,
+                card: *card,
+                modes: self.choosable_modes(*player, *card),
+            },
             Waiting::Kicker { player, card, .. } => Decision::Kicker {
                 player: *player,
                 card: *card,
@@ -3336,6 +3397,34 @@ impl Game {
                 }
             }
             (
+                Waiting::Mode {
+                    player,
+                    card,
+                    base,
+                    from_command,
+                },
+                Answer::Mode(mode),
+            ) => {
+                if !self.choosable_modes(player, card).contains(mode) {
+                    return Err(Rejected::Illegal(answer));
+                }
+                if let Some(SpellText::Modes(modes)) = &self.runs_of(card).spell {
+                    if let Err(refusal) = &modes[*mode as usize] {
+                        return Err(Rejected::Refused {
+                            card: self
+                                .known(card)
+                                .map(|k| k.text.name.clone())
+                                .unwrap_or_default(),
+                            refusal: refusal.clone(),
+                        });
+                    }
+                }
+                if let Some(StackObject::Spell { mode: m, .. }) = self.stack.back_mut() {
+                    *m = *mode;
+                }
+                self.kicker_or_targets(player, card, base, from_command);
+            }
+            (
                 Waiting::Kicker {
                     player,
                     card,
@@ -3693,13 +3782,7 @@ impl Game {
             // CR 601.2c: a spell with a target slot nothing can fill can't
             // be cast.
             let targetable = match &known.runs {
-                Ok(Runnable {
-                    spell: Some(program),
-                    ..
-                }) => program
-                    .targets
-                    .iter()
-                    .all(|t| !self.legal_targets(t, p, known.printed.as_ref()).is_empty()),
+                Ok(runs) => self.spell_targetable(runs, p, known.printed.as_ref()),
                 _ => true,
             };
             (sorcery_speed || self.instant_speed(known)) && targetable
@@ -3761,12 +3844,7 @@ impl Game {
                 {
                     continue;
                 }
-                let targetable = runs.spell.as_ref().is_none_or(|program| {
-                    program
-                        .targets
-                        .iter()
-                        .all(|t| !self.legal_targets(t, p, known.printed.as_ref()).is_empty())
-                });
+                let targetable = self.spell_targetable(runs, p, known.printed.as_ref());
                 let instant_or_sorcery = runs.lowered.chars.is(CardType::Instant)
                     || runs.lowered.chars.is(CardType::Sorcery);
                 for (n, alt) in &runs.alternatives {
@@ -4266,6 +4344,7 @@ impl Game {
                     targets: Vec::new(),
                     via: Via::FaceDown,
                     kicked: false,
+                    mode: 0,
                 });
                 let owed = self.total_cost(p, card, ManaCost::default().plus_generic(3));
                 self.waiting = Waiting::Paying {
@@ -4573,7 +4652,6 @@ impl Game {
         };
         let from_command = via == Via::ManaCost && self.command.contains(&card);
         let creature = runs.lowered.chars.is(CardType::Creature);
-        let kicker = runs.kicker.is_some();
         let before = self.clone();
         self.turn_up(card, side);
         // CR 601.2a: from wherever it is.
@@ -4593,6 +4671,7 @@ impl Game {
             targets: Vec::new(),
             via,
             kicked: false,
+            mode: 0,
         });
         // CR 903.8: commander tax is on a cast from the command zone.
         let owed = if from_command {
@@ -4601,9 +4680,9 @@ impl Game {
             cost
         };
         self.before_cast = Some(Box::new(before));
-        // CR 601.2b: an optional additional cost is announced first.
-        if kicker {
-            self.waiting = Waiting::Kicker {
+        // CR 601.2b: the mode is announced first.
+        if matches!(self.runs_of(card).spell, Some(SpellText::Modes(_))) {
+            self.waiting = Waiting::Mode {
                 player: p,
                 card,
                 base: owed,
@@ -4611,8 +4690,65 @@ impl Game {
             };
             return Ok(());
         }
-        self.choose_targets(p, card, owed, from_command);
+        self.kicker_or_targets(p, card, owed, from_command);
         Ok(())
+    }
+
+    /// CR 601.2b: an optional additional cost is announced, then the
+    /// targets chosen.
+    fn kicker_or_targets(&mut self, p: PlayerId, card: CardId, base: ManaCost, from_command: bool) {
+        if self.runs_of(card).kicker.is_some() {
+            self.waiting = Waiting::Kicker {
+                player: p,
+                card,
+                base,
+                from_command,
+            };
+            return;
+        }
+        self.choose_targets(p, card, base, from_command);
+    }
+
+    /// CR 601.2c, 700.2a: whether `p` can cast the spell for its targets:
+    /// every slot has a legal choice, of some mode of a modal one; a mode
+    /// the engine refuses counts, to be refused as it is chosen.
+    fn spell_targetable(&self, runs: &Runnable, p: PlayerId, source: Option<&Chars>) -> bool {
+        let has_targets = |program: &Program| {
+            program
+                .targets
+                .iter()
+                .all(|t| !self.legal_targets(t, p, source).is_empty())
+        };
+        match &runs.spell {
+            None => true,
+            Some(SpellText::One(program)) => has_targets(program),
+            Some(SpellText::Modes(modes)) => {
+                modes.iter().any(|m| m.as_ref().map_or(true, has_targets))
+            }
+        }
+    }
+
+    /// CR 700.2a: the modes of a modal spell `p` casts that can be chosen,
+    /// those whose every target slot has a legal choice; one the engine
+    /// can't run is listed, to be refused as it is chosen.
+    fn choosable_modes(&self, p: PlayerId, card: CardId) -> Vec<u8> {
+        let Some(SpellText::Modes(modes)) = &self.runs_of(card).spell else {
+            return Vec::new();
+        };
+        let source = self.spell_chars(card);
+        modes
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| {
+                m.as_ref().map_or(true, |program| {
+                    program
+                        .targets
+                        .iter()
+                        .all(|t| !self.legal_targets(t, p, source.as_ref()).is_empty())
+                })
+            })
+            .map(|(k, _)| k as u8)
+            .collect()
     }
 
     /// CR 601.2c–f: the spell on top of the stack, whose cost before cost
@@ -4642,9 +4778,17 @@ impl Game {
     /// an Aura's one, what it can enchant (CR 303.4a).
     fn spell_targets(&self, card: CardId) -> Option<Vec<TargetSpec>> {
         let runs = self.runs_of(card);
+        let mode = self.stack.iter().rev().find_map(|o| match o {
+            StackObject::Spell { card: c, mode, .. } if *c == card => Some(*mode),
+            _ => None,
+        });
         match &runs.enchant {
             Some(f) => Some(vec![TargetSpec::Permanent(f.clone())]),
-            None => runs.spell.as_ref().map(|s| s.targets.clone()),
+            None => runs
+                .spell
+                .as_ref()
+                .and_then(|s| s.program(mode.unwrap_or(0)))
+                .map(|p| p.targets.clone()),
         }
     }
 
@@ -4924,6 +5068,7 @@ impl Game {
                 targets,
                 via,
                 kicked,
+                mode,
             }) => {
                 let permanent = self
                     .known(card)
@@ -4956,7 +5101,12 @@ impl Game {
                     self.enter(card, controller, false, then);
                 } else {
                     self.begin_resolving(
-                        Instructions::Spell { card, via, kicked },
+                        Instructions::Spell {
+                            card,
+                            via,
+                            kicked,
+                            mode,
+                        },
                         controller,
                         (None, None, None, None),
                         targets,
@@ -5075,7 +5225,12 @@ impl Game {
             effects: Vec::new(),
         };
         match what {
-            Instructions::Spell { card: c, .. } => self.runs_of(c).spell.as_ref().unwrap_or(&NONE),
+            Instructions::Spell { card: c, mode, .. } => self
+                .runs_of(c)
+                .spell
+                .as_ref()
+                .and_then(|s| s.program(mode))
+                .unwrap_or(&NONE),
             Instructions::Triggered(c, TriggerOf::Printed(side, n)) => {
                 &self.face_runs(c, side).triggered[&n].program
             }
@@ -6301,14 +6456,15 @@ impl Game {
                 .chain(permanents(&|c| c.is(CardType::Planeswalker)))
                 .collect(),
             // CR 115.5: a spell can't target itself, and the one whose
-            // targets are being chosen is on top of the stack.
+            // mode or targets are being chosen is on top of the stack.
             TargetSpec::Spell(filter) => {
                 let casting = match &self.waiting {
                     Waiting::Targets {
                         card,
                         choosing: Choosing::Spell { .. },
                         ..
-                    } => Some(*card),
+                    }
+                    | Waiting::Mode { card, .. } => Some(*card),
                     _ => None,
                 };
                 self.stack
@@ -8555,6 +8711,26 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
             // A spell's instructions (CR 113.3a), which run as it resolves:
             // lowering them into actions is the next slice.
             i::Ability::Spell(effects) if effects.is_empty() => {}
+            i::Ability::Spell(effects) if lower::modes(bind, effects).is_some() => {
+                let refused = |node: String| {
+                    Unrunnable::new(
+                        node.clone(),
+                        format!("the game can't run a spell's {node} yet"),
+                    )
+                };
+                let modes = lower::modes(bind, effects)
+                    .expect("modal")
+                    .map_err(refused)?;
+                if runs.spell.is_some() {
+                    return Err(Unrunnable::new(
+                        "a modal spell of several paragraphs",
+                        "the game can't run a modal spell's other paragraph yet",
+                    ));
+                }
+                runs.spell = Some(SpellText::Modes(
+                    modes.into_iter().map(|m| m.map_err(refused)).collect(),
+                ));
+            }
             i::Ability::Spell(effects) => {
                 let program = lower::spell(bind, effects).map_err(|node| {
                     Unrunnable::new(
@@ -8563,11 +8739,17 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     )
                 })?;
                 match &mut runs.spell {
-                    None => runs.spell = Some(program),
+                    None => runs.spell = Some(SpellText::One(program)),
                     // CR 608.2c: its paragraphs one after the other; a
                     // second with targets would number its slots anew.
-                    Some(first) if program.targets.is_empty() => {
+                    Some(SpellText::One(first)) if program.targets.is_empty() => {
                         first.effects.extend(program.effects)
+                    }
+                    Some(SpellText::Modes(_)) => {
+                        return Err(Unrunnable::new(
+                            "a modal spell of several paragraphs",
+                            "the game can't run a modal spell's other paragraph yet",
+                        ))
                     }
                     Some(_) => {
                         return Err(Unrunnable::new(

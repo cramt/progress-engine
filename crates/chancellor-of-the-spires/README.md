@@ -438,7 +438,7 @@ non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**41 of Loam's 90 distinct cards are played or cast and resolved, 30 of
+**42 of Loam's 90 distinct cards are played or cast and resolved, 31 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
@@ -452,7 +452,8 @@ whose flashback runs, and Lotus Cobra, whose landfall adds mana of a
 colour chosen, and Cultivate, Kodama's Reach and Flare of Cultivation,
 since a search can find up to two, measured 2026-11-04, and Trade Routes,
 since an activated ability can cost a discard, 30 of them from
-2026-11-12), Blast Zone played too since it
+2026-11-12, and Izzet Charm, since a modal spell's mode is chosen, 31
+from 2026-11-22), Blast Zone played too since it
 enters with its counter, its abilities carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
@@ -1031,9 +1032,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 111 of the 500 replay to
-the end and 50.13% of their lines are followed** (15,871 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 112
+Worked card by card from there, **on 2026-11-22 114 of the 500 replay to
+the end and 50.42% of their lines are followed** (15,964 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 117
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1132,7 +1133,10 @@ graveyard"); a target by its mana value, or one an opponent controls
 (CR 202.3: Smother); damage to each player, each counting for
 themselves what "that player controls" (CR 120.2b: Price of Progress);
 a cost change for spells with flash, which the same spells can't be
-countered beside (CR 702.8a, 101.2: Cunning Nightbonder). And
+countered beside (CR 702.8a, 101.2: Cunning Nightbonder); a modal
+spell's "choose one", its mode announced first and only one whose
+targets can be chosen offered, a mode the engine can't run refused as
+it is chosen (CR 601.2b, 700.2a: Boros Charm, Red Elemental Blast). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1178,7 +1182,11 @@ of two Forests), and a card cycled in response to what is on the stack
 if what follows says so (Eternal Dragon cycled with the Swamp Rishadan
 Port's ability is about to tap, keeping the Wasteland activated next
 untapped), and a trigger line naming no target for an "up to one"
-slot taken as none chosen. One divergence was the engine's own, found by the full
+slot taken as none chosen, and a modal spell's mode from the quoted
+text on its line or the "Chosen mode:" line after it, the log's digits
+read as the card's number words, and its targets read for that mode
+alone in saying whether it answers a spell on the stack (Izzet Charm's
+2 damage at a Noble Hierarch cast just before it, once it resolved). One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
 top of the worklist now: Adeline, Cunning Nightbonder, Fact or Fiction
@@ -1187,7 +1195,12 @@ stopped, one replays to the end and the rest stop at other cards
 (Horror of the Broken Lands's cycling trigger, Hopeful Initiate's
 training, Lurrus, Deftblade Elite's provoke, Malcolm's discard), and a
 target card in a graveyard let Withered Wretch's game replay to the end
-too; of the 5 games Cunning Nightbonder stopped, one replays to the end
+too; of the 18 games a modal spell stopped, three replay to the end,
+five stop at Pyroblast's or Hydroblast's "if it's blue", four at
+Archdruid's Charm, whose modes a search's "With" wraps, one at
+Kolaghan's Command's "choose two", and the rest at other cards
+(Tarmogoyf, Huntmaster of the Fells, Nulldrifter, Phyrexian Obliterator,
+Forbidden Orchard); of the 5 games Cunning Nightbonder stopped, one replays to the end
 and four stop at other cards (Malcolm's discard, Brain Freeze's mill,
 Outcaster Trailblazer's plot, Nulldrifter's cast trigger); of the 4
 games Price of Progress stopped, three replay to the end

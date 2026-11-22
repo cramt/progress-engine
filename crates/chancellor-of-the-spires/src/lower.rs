@@ -1897,6 +1897,23 @@ pub fn spell(bind: &[Objects], effects: &[i::Effect]) -> Result<Program, String>
     Ok(scope.program)
 }
 
+/// A modal spell's "Choose one —" (CR 700.2): each mode's instructions,
+/// lowered apart with targets of its own (CR 700.2c), or the node one
+/// can't be lowered at, so a spell can be cast with the modes the engine
+/// runs. `None` if the spell isn't modal.
+pub fn modes(
+    bind: &[Objects],
+    effects: &[i::Effect],
+) -> Option<Result<Vec<Result<Program, String>>, String>> {
+    let [i::Effect::Modal { choose, modes }] = effects else {
+        return None;
+    };
+    Some(match choose {
+        i::Choose::One => Ok(modes.iter().map(|m| spell(bind, m)).collect()),
+        other => Err(format!("a modal spell choosing {}", short(other))),
+    })
+}
+
 /// A triggered ability (CR 603), with the `Let` that binds its targets and
 /// its event's objects.
 pub fn triggered(
