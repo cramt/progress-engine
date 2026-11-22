@@ -204,7 +204,7 @@ cost: {9}
 > You can't lose the game and your opponents can't win the game.
 > Creatures you control can't have -1/-1 counters put on them.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "indestructible", param: None }])
-= BROKE at "opponents" after: you can't lose the game and your
+= Static([PlayerRestrict { who: You, rules: [CantLoseGame] }, PlayerRestrict { who: EachOpponent, rules: [CantWinGame] }])
 = BROKE at "<pt>" after: creatures you control can't have
 
 ## Demigod of Revenge

@@ -523,7 +523,17 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             while let Some(r) = p.attempt(|p| { p.word("or")?; player_rule_bare(p) }) {
                 rules.push(r);
             }
-            Some(vec![Static::PlayerRestrict { who, rules }])
+            let mut v = vec![Static::PlayerRestrict { who, rules }];
+            // "You can't lose the game and your opponents can't win the
+            // game": two players' rules in one sentence ([cant-lose-win]).
+            if let Some(s) = p.attempt(|p| {
+                p.word("and")?;
+                let who = player(p)?;
+                Some(Static::PlayerRestrict { who, rules: vec![player_rule(p)?] })
+            }) {
+                v.push(s);
+            }
+            Some(v)
         },
         |p| {
             p.word("untap")?;
@@ -1541,6 +1551,8 @@ pub(super) fn player_rule_bare(p: &mut P) -> Option<PlayerRule> {
             Some(PlayerRule::CantCastMoreThanEachTurn { n, what })
         },
         |p| p.words("gain life").map(|_| PlayerRule::CantGainLife),
+        |p| p.words("lose the game").map(|_| PlayerRule::CantLoseGame),
+        |p| p.words("win the game").map(|_| PlayerRule::CantWinGame),
         |p| p.words("get counters").map(|_| PlayerRule::CantGetCounters),
         // "can't attack you or planeswalkers you control".
         |p| {

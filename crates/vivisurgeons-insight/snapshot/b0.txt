@@ -752,7 +752,7 @@ cost: {7}
 > Flying
 > You can't lose the game and your opponents can't win the game.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "opponents" after: you can't lose the game and your
+= Static([PlayerRestrict { who: You, rules: [CantLoseGame] }, PlayerRestrict { who: EachOpponent, rules: [CantWinGame] }])
 
 ## Pure Intentions
 face: Pure Intentions

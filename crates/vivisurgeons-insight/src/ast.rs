@@ -2752,6 +2752,10 @@ pub enum PlayerRule {
         what: Filter,
     },
     CantGainLife,
+    /// "can't lose the game", "can't win the game": no way to win or lose
+    /// (CR 104.2, 104.3) ends the game for that player ([cant-lose-win]).
+    CantLoseGame,
+    CantWinGame,
     CantSearchLibraries,
     /// "That player can't get counters".
     CantGetCounters,

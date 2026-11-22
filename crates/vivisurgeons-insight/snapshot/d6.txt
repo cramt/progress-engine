@@ -632,7 +632,7 @@ cost: {3}{B}{B}{B}
 > Whenever you lose life, for each 1 life you lost, exile a permanent you control or a card from your hand or graveyard.
 > When Lich's Mastery leaves the battlefield, you lose the game.
 = Keywords([Keyword { name: "hexproof", param: None }])
-= BROKE at "." after: you can't lose the game
+= Static([PlayerRestrict { who: You, rules: [CantLoseGame] }])
 = Triggered { trigger: When(GainsLife(You)), effect: [Draw { who: You, n: ThatMany }], limits: [] }
 = BROKE at "you" after: whenever you lose life , for each 1 life
 = Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [LoseGame(You)], limits: [] }

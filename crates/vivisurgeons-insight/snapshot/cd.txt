@@ -337,7 +337,7 @@ cost: {4}{W}{W}{W}
 > You can't lose the game and your opponents can't win the game.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "opponents" after: you can't lose the game and your
+= Static([PlayerRestrict { who: You, rules: [CantLoseGame] }, PlayerRestrict { who: EachOpponent, rules: [CantWinGame] }])
 
 ## Hulk's Thunderclap
 face: Hulk's Thunderclap

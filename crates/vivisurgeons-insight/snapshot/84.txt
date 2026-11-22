@@ -170,7 +170,7 @@ cost: {2}{W}
 > Equipped creature has flying and "You can't lose the game and your opponents can't win the game."
 > Reconfigure {5} ({5}: Attach to target creature you control; or unattach from a creature. Reconfigure only as a sorcery. While attached, this isn't a creature.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "opponents" after: equipped creature has flying and " you can't lose the game and your
+= Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Static([PlayerRestrict { who: You, rules: [CantLoseGame] }, PlayerRestrict { who: EachOpponent, rules: [CantWinGame] }]) }])
 = Keywords([Keyword { name: "reconfigure", param: Some(Cost([Mana(Mana(["5"]))])) }])
 
 ## Confiscation Coup

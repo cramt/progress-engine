@@ -864,7 +864,7 @@ cost: {W}{W}{W}
 > At the beginning of your end step, if you gained 3 or more life this turn, create a 3/3 white Angel creature token with flying.
 > {W}{W}{W}, {T}, Exile The Book of Exalted Deeds: Put an enlightened counter on target Angel. It gains "You can't lose the game and your opponents can't win the game." Activate only as a sorcery.
 = Triggered { trigger: InterveningIf(At(EndStep(Yours)), AmountIs { n: LifeGainedThisTurn(You), op: Ge, value: N(3) }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [White], types: ["angel", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
-= BROKE at "opponents" after: {W} {W} {W} , {T} , exile ~ : put an enlightened counter on target angel . it gains " you can't lose the game and your
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("angel")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Mana(Mana(["W", "W", "W"])), Tap, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [PutCounters { n: N(1), kind: "enlightened", on: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, GrantAbility { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Static([PlayerRestrict { who: You, rules: [CantLoseGame] }, PlayerRestrict { who: EachOpponent, rules: [CantWinGame] }]), dur: Permanent }], limits: [SorcerySpeed] } }
 
 ## The Council of Four
 face: The Council of Four

@@ -22,7 +22,7 @@ cost: {2}{B}{B}
 > Flying, trample
 > You can't win the game and your opponents can't lose the game.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }])
-= BROKE at "opponents" after: you can't win the game and your
+= Static([PlayerRestrict { who: You, rules: [CantWinGame] }, PlayerRestrict { who: EachOpponent, rules: [CantLoseGame] }])
 
 ## Aerial Surveyor
 face: Aerial Surveyor

@@ -7648,6 +7648,8 @@ fn player_rule(o: &mut Out, r: &PlayerRule) {
             o.w("each turn");
         }
         PlayerRule::CantGainLife => o.w("gain life"),
+        PlayerRule::CantLoseGame => o.w("lose the game"),
+        PlayerRule::CantWinGame => o.w("win the game"),
         PlayerRule::CantSearchLibraries => o.w("search libraries"),
         PlayerRule::CantGetCounters => o.w("get counters"),
         PlayerRule::CantAttack(v) => {
