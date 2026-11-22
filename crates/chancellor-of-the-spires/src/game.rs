@@ -369,6 +369,9 @@ struct Runnable {
     /// (CR 508.1c, 508.1h), by index, so each works only while the
     /// permanent has it.
     attack_rules: BTreeMap<u16, lower::AttackRule>,
+    /// Statics that keep the permanent itself from attacking or blocking
+    /// (CR 508.1c, 509.1b), by index.
+    combat_rules: BTreeMap<u16, lower::CombatRule>,
     /// The costs it may be cast for rather than its mana cost, and from
     /// where (CR 118.9): flashback, Fireblast's sacrifice. By the index of
     /// the ability that allows it.
@@ -7546,11 +7549,11 @@ impl Game {
 
     /// CR 508.1a, 302.6, 702.3b: untapped creatures `p` controls that have
     /// been theirs since their turn began, or have haste, and lack
-    /// defender.
+    /// defender, and no static of their own says can't attack (CR 508.1c).
     fn can_attack(&self, p: PlayerId) -> Vec<ObjectId> {
         let began = self.player(p).turn_began;
-        self.characteristics()
-            .iter()
+        let all = self.characteristics();
+        all.iter()
             .filter(|(id, c)| {
                 let perm = &self.permanents[*id];
                 c.controller == p
@@ -7560,9 +7563,35 @@ impl Game {
                         || c.has(Keyword::Haste)
                         || self.hasty.contains(&perm.card))
                     && !c.has(Keyword::Defender)
+                    && !self.restrained(**id, &all, true)
             })
             .map(|(id, _)| *id)
             .collect()
+    }
+
+    /// Whether a static of the permanent's own keeps it from attacking
+    /// (or, `attack` false, blocking) now: one it still has, its "unless"
+    /// not holding (CR 508.1c, 509.1b).
+    fn restrained(&self, id: ObjectId, all: &BTreeMap<ObjectId, Chars>, attack: bool) -> bool {
+        let chars = &all[&id];
+        let Some(runs) = self
+            .known(self.permanents[&id].card)
+            .and_then(|k| k.runs.as_ref().ok())
+        else {
+            return false;
+        };
+        chars.abilities.iter().any(|a| {
+            let Ability::Unread(n) = a else { return false };
+            let Some(rule) = runs.combat_rules.get(n) else {
+                return false;
+            };
+            if !(if attack { rule.attack } else { rule.block }) {
+                return false;
+            }
+            rule.unless
+                .as_ref()
+                .is_none_or(|cond| !self.you_control(cond, id, chars, all))
+        })
     }
 
     /// CR 508.1c, 508.1h: the total mana the attack `declared` costs, or
@@ -7611,12 +7640,16 @@ impl Game {
         Some(total)
     }
 
-    /// CR 509.1a: untapped creatures `p` controls.
+    /// CR 509.1a: untapped creatures `p` controls that no static of their
+    /// own says can't block (CR 509.1b).
     fn can_block(&self, p: PlayerId) -> Vec<ObjectId> {
-        self.characteristics()
-            .iter()
+        let all = self.characteristics();
+        all.iter()
             .filter(|(id, c)| {
-                c.controller == p && c.is(CardType::Creature) && !self.permanents[*id].tapped
+                c.controller == p
+                    && c.is(CardType::Creature)
+                    && !self.permanents[*id].tapped
+                    && !self.restrained(**id, &all, false)
             })
             .map(|(id, _)| *id)
             .collect()
@@ -9041,6 +9074,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         plot: None,
         cost_changes: BTreeMap::new(),
         attack_rules: BTreeMap::new(),
+        combat_rules: BTreeMap::new(),
         alternatives: BTreeMap::new(),
         kicker: None,
         enchant: None,
@@ -9268,6 +9302,17 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     }
                     Err(node) => runs.dormant.push(format!("an alternative cost: {node}")),
                 }
+            }
+            i::Ability::Static(parts) if lower::combat_rule(parts).is_some() => {
+                let rule = lower::combat_rule(parts)
+                    .expect("a combat rule")
+                    .map_err(|node| {
+                        Unrunnable::new(
+                            node.clone(),
+                            format!("the game can't run its combat restriction: {node}"),
+                        )
+                    })?;
+                runs.combat_rules.insert(n, rule);
             }
             i::Ability::Static(parts) if lower::attack_rule(bind, parts).is_some() => {
                 let rule = lower::attack_rule(bind, parts)

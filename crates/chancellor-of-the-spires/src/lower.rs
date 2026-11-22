@@ -4953,6 +4953,51 @@ pub struct AttackRule {
     pub tax: Option<crate::mana::ManaCost>,
 }
 
+/// "This creature can't attack or block unless you control seven or
+/// more lands": what its own permanent can't do, while the condition, if
+/// any, doesn't hold (CR 508.1c, 509.1b).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CombatRule {
+    pub attack: bool,
+    pub block: bool,
+    /// The condition under which it can, `None` for a plain "can't attack",
+    /// "can't block" or "can't attack or block".
+    pub unless: Option<YouControl>,
+}
+
+/// A static restricting its own permanent's attacking or blocking, as
+/// `CombatRule`, or `None` for any other static.
+pub fn combat_rule(parts: &[i::Static]) -> Option<Result<CombatRule, String>> {
+    let [i::Static::Restrict { what, rule }] = parts else {
+        return None;
+    };
+    let (rule, unless) = match rule {
+        i::Restriction::Unless(rule, cond) => (&**rule, Some(cond)),
+        rule => (rule, None),
+    };
+    let (attack, block) = match rule {
+        i::Restriction::CantAttack => (true, false),
+        i::Restriction::CantBlock => (false, true),
+        i::Restriction::CantAttackOrBlock => (true, true),
+        _ => return None,
+    };
+    Some((|| {
+        if !(what.quant == Quant::SelfRef && what.filter == i::Filter::default()) {
+            return Err("a combat restriction on other than its own permanent".into());
+        }
+        let unless = match unless {
+            None => None,
+            Some(i::Condition::YouControl(o)) => Some(you_control(o)?),
+            Some(other) => return Err(format!("a combat restriction unless {}", short(other))),
+        };
+        Ok(CombatRule {
+            attack,
+            block,
+            unless,
+        })
+    })())
+}
+
 /// A static that restricts attacking its controller, as `AttackRule`, or
 /// `None` for any other static.
 pub fn attack_rule(bind: &[Objects], parts: &[i::Static]) -> Option<Result<AttackRule, String>> {

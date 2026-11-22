@@ -5757,3 +5757,95 @@ fn yaroks_fenlurker_has_each_opponent_exile_a_card_of_their_choosing() {
     assert_eq!(game.player(ME).hand().len(), mine);
     assert!(game.exile().contains(&hand[0]));
 }
+
+/// CR 508.1c: Topiary Stomper's "This creature can't attack or block
+/// unless you control seven or more lands", with six it can't, with seven
+/// it can.
+#[test]
+fn topiary_stomper_attacks_only_with_seven_lands() {
+    let mut game = deal(
+        &[("Forest", 50), ("Topiary Stomper", 10)],
+        &[("Forest", 60)],
+        &[("Forest", 6), ("Topiary Stomper", 1)],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Topiary Stomper", None);
+    while !matches!(game.decision(), Decision::Search { .. }) {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    let Decision::Search { known, .. } = game.decision() else {
+        unreachable!()
+    };
+    step(&mut game, Answer::Find(Found::Card(known[0])));
+    let stomper = creature(&game, "Topiary Stomper").unwrap();
+    // With no creature that can attack, the engine asks for no
+    // declaration (CR 508.1a).
+    for lands in [5, 6] {
+        my_next_main(&mut game);
+        play(&mut game, "Forest");
+        while game.step_now() != Step::End {
+            assert!(
+                !matches!(game.decision(), Decision::Attackers { .. }),
+                "an attack with {lands} lands"
+            );
+            step(&mut game, Answer::Act(Action::Pass));
+        }
+    }
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    let (can, _) = to_attackers(&mut game);
+    assert_eq!(can, vec![stomper], "with seven lands");
+}
+
+/// CR 509.1b: Topiary Stomper's "can't attack or block unless you control
+/// seven or more lands" keeps it from blocking with four: no block of
+/// Raging Goblin is asked for, and the Goblin deals its damage. Seven
+/// lands lifting it is the attack test's, the same check.
+#[test]
+fn topiary_stomper_cant_block_with_four_lands() {
+    let mut game = deal_both(
+        &[("Forest", 50), ("Topiary Stomper", 10)],
+        &[("Mountain", 50), ("Raging Goblin", 10)],
+        &[("Forest", 3), ("Topiary Stomper", 1)],
+        &[("Mountain", 1), ("Raging Goblin", 1)],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Topiary Stomper", None);
+    while !matches!(game.decision(), Decision::Search { .. }) {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    let Decision::Search { known, .. } = game.decision() else {
+        unreachable!()
+    };
+    step(&mut game, Answer::Find(Found::Card(known[0])));
+    let stomper = creature(&game, "Topiary Stomper").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(&mut game, THEM, "Raging Goblin", None);
+    resolve(&mut game);
+    let goblin = creature(&game, "Raging Goblin").unwrap();
+    let life = game.player(ME).life();
+    while !matches!(game.decision(), Decision::Attackers { .. }) {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    step(&mut game, Answer::Attack(vec![(goblin, ME)]));
+    // With no creature that can block, the engine asks for no
+    // declaration (CR 509.1a).
+    while game.step_now() <= Step::EndOfCombat {
+        assert!(
+            !matches!(game.decision(), Decision::Blockers { .. }),
+            "a block with four lands"
+        );
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert!(game.permanents().contains_key(&stomper));
+    assert_eq!(game.player(ME).life(), life - 1);
+}

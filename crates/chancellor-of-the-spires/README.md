@@ -1047,8 +1047,8 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-22 132 of the 500 replay to
-the end and 53.91% of their lines are followed** (17,067 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 139
+the end and 54.13% of their lines are followed** (17,138 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 140
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1194,7 +1194,10 @@ games go on, two of them to the end); each opponent exiling a card of
 their choosing from their hand, chosen in APNAP order and exiled at once
 (CR 101.4: Yarok's Fenlurker, whose 4 games go on, to Geralf's
 Messenger's undying, Escape to the Wilds, a "chooses" line and Quest for
-Pure Flame). And
+Pure Flame); a creature's own "can't attack", "can't block" or "can't
+attack or block", unless you control enough of something (CR 508.1c,
+509.1b: Topiary Stomper, Bloodsoaked Champion, Scrapheap Scrounger and
+War Falcon, whose 12 games go on). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
