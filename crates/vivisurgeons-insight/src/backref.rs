@@ -258,6 +258,9 @@ struct Ev {
     controller_of: bool,
     /// It is what an `Attach` attaches, the object before "to".
     attached: bool,
+    /// It is said in an attack event: the event's number, and whether it is
+    /// what is attacked rather than the attacker ([attack-recipient]).
+    attack: Option<(usize, bool)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -323,6 +326,10 @@ struct Collect {
     attach_of: Option<usize>,
     /// The next object entered is a `ControllerOf`'s.
     controller_next: bool,
+    /// The objects of the attack event being read, in walk order: its
+    /// number and whether each is a recipient.
+    attack_next: Vec<(Objects, usize, bool)>,
+    attacks: usize,
 }
 
 const EXISTENTIAL: [&str; 18] = [
@@ -370,6 +377,8 @@ impl Collect {
             subject_of: None,
             attach_of: None,
             controller_next: false,
+            attack_next: Vec::new(),
+            attacks: 0,
         }
     }
 
@@ -442,6 +451,28 @@ impl Collect {
         false
     }
 
+    /// "Whenever a creature attacks you or a planeswalker you control":
+    /// the attacker and the objects attacked, in the order they are walked.
+    fn attack_said(&mut self, e: Option<&Event>) {
+        let Some(Event::AttacksAnyOf { what, to }) = e.map(attack_event) else {
+            return;
+        };
+        fn recipients(r: &Recipient, out: &mut Vec<Objects>) {
+            match r {
+                Recipient::Objects(o) => out.push(o.clone()),
+                Recipient::Or(v) => v.iter().for_each(|r| recipients(r, out)),
+                _ => {}
+            }
+        }
+        let mut to_objs = Vec::new();
+        to.iter().for_each(|r| recipients(r, &mut to_objs));
+        let n = self.attacks;
+        self.attacks += 1;
+        self.attack_next = std::iter::once((what.clone(), n, false))
+            .chain(to_objs.into_iter().map(|o| (o, n, true)))
+            .collect();
+    }
+
     fn effect_frame(&self) -> Option<usize> {
         self.stack
             .iter()
@@ -484,8 +515,29 @@ impl Collect {
             subject: false,
             controller_of: false,
             attached: false,
+            attack: None,
         });
         id
+    }
+}
+
+fn trigger_event(t: &Trigger) -> Option<&Event> {
+    match t {
+        Trigger::When(e) | Trigger::WhenAndAt(e, _) => Some(e),
+        Trigger::InterveningIf(t, _) => trigger_event(t),
+        Trigger::At(_) => None,
+    }
+}
+
+/// The attack an event is, through what only qualifies it.
+fn attack_event(e: &Event) -> &Event {
+    match e {
+        Event::While { event, .. }
+        | Event::AndIf { event, .. }
+        | Event::InterveningIf { event, .. }
+        | Event::CausedBy { event, .. }
+        | Event::FirstTimeEachTurn(event) => attack_event(event),
+        e => e,
     }
 }
 
@@ -535,6 +587,10 @@ impl Visitor for Collect {
             self.evs[id].attached = d == self.here();
         }
         self.evs[id].controller_of = std::mem::take(&mut self.controller_next);
+        if self.attack_next.first().is_some_and(|(x, ..)| x == o) {
+            let (_, n, recipient) = self.attack_next.remove(0);
+            self.evs[id].attack = Some((n, recipient));
+        }
         if matches!(role, Role::Ref(_) | Role::SelfMention | Role::OutOfScope) {
             let parent = self.here();
             self.frames[parent].items.push(Item::Ev(id));
@@ -554,6 +610,9 @@ impl Visitor for Collect {
     }
 
     fn ability(&mut self, a: &mut Ability) -> bool {
+        if let Ability::Triggered { trigger, .. } = a {
+            self.attack_said(trigger_event(trigger));
+        }
         if self.top {
             self.top = matches!(
                 a,
@@ -631,6 +690,12 @@ impl Visitor for Collect {
         )
         .then(|| self.here());
         self.attach_of = matches!(e, Effect::Attach { .. }).then(|| self.here());
+        if let Effect::DelayedWhen { event, .. }
+        | Effect::DelayedWhenever { event, .. }
+        | Effect::DelayedNext { event, .. } = e
+        {
+            self.attack_said(Some(event));
+        }
     }
 
     fn effect_done(&mut self, e: &mut Effect) {
@@ -1798,6 +1863,26 @@ fn resolve_one(
             note = "in its set's own filter".into();
         }
     }
+    // "Whenever a creature attacks you or a planeswalker you control, it
+    // gets -5/-0" (Jace, Reality Sculptor; Crown of Doom): what is attacked
+    // only says which attacks trigger it, so a reference the attacker fits
+    // is the attacker ([attack-recipient]).
+    let attackers: BTreeSet<usize> = cands
+        .iter()
+        .filter_map(|t| match t {
+            Target::Intro(l, i) => match get((*l, *i)).attack {
+                Some((n, false)) => Some(n),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect();
+    cands.retain(|t| match t {
+        Target::Intro(l, i) => {
+            !matches!(get((*l, *i)).attack, Some((n, true)) if attackers.contains(&n))
+        }
+        _ => true,
+    });
     let mut seen = BTreeSet::new();
     cands.retain(|t| seen.insert(t.clone()));
     // "Creatures can't attack you or planeswalkers you control unless their
@@ -2453,6 +2538,7 @@ pub fn fits(r: &Objects, b: &Objects) -> bool {
         subject: false,
         controller_of: false,
         attached: false,
+        attack: None,
     };
     // "cast target nonland permanent card …, and mana … to cast that
     // spell": a card cast is the spell.

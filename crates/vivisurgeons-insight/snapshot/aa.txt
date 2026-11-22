@@ -190,7 +190,7 @@ type: Artifact
 cost: {3}
 > Whenever a creature attacks you or a planeswalker you control, it gets +2/+0 until end of turn.
 > {2}: Target player other than this artifact's owner gains control of it. Activate only during your turn.
-= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } }], ability: Triggered { trigger: When(AttacksAnyOf { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, to: [Player(You), Objects(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }), effect: [Modify { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(AttacksAnyOf { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(You), Objects(Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })] }), effect: [Modify { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] } }
 = BROKE at "owner" after: {2} : target player other than this artifact 's
 
 ## Curse of Shaken Faith

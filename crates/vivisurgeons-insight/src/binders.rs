@@ -1677,7 +1677,11 @@ pub fn annotate(a: &Ability, dbg: &str) -> String {
         while names.get(bi).is_some() && rest.starts_with("Objects {") {
             // Names follow binders in walk order; skip loop variables,
             // which are not in a `bind` list.
-            while b.binders.get(bi).is_some_and(|x| x.site == SiteKind::Each) {
+            while b
+                .binders
+                .get(bi)
+                .is_some_and(|x| matches!(x.site, SiteKind::Each | SiteKind::Delayed))
+            {
                 bi += 1;
             }
             let Some(n) = names.get(bi) else { break };
