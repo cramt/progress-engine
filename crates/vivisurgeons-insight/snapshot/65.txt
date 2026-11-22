@@ -53,7 +53,7 @@ cost: {1}{W}
 > If this creature was kicked, it enters with a +1/+1 counter on it.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2"]))])) }])
 = Keywords([Keyword { name: "vigilance", param: None }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
 
 ## Assault Strobe
 face: Assault Strobe
@@ -982,7 +982,7 @@ cost: {B}
 > If this creature was kicked, it enters with a +1/+1 counter on it.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3"]))])) }])
 = Activated { cost: [Mana(Mana(["B"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }] }])
 
 ## Vodalian Zombie
 face: Vodalian Zombie

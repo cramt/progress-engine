@@ -657,7 +657,7 @@ cost: {B}{G}
 > If this creature was kicked, it enters with three +1/+1 counters on it.
 > Whenever one or more +1/+1 counters are put on a creature you control, if this card is in your graveyard, you may put this card on top of your library.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3"]))])) }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(3), kind: "+1/+1" }] }])
 = Triggered { trigger: InterveningIf(When(CountersPut { by: None, n: AtLeast(N(1)), kind: Some("+1/+1"), on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }), In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }), effect: [May { who: You, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Muraganda Petroglyphs

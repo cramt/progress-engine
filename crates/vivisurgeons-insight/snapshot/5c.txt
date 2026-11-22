@@ -7,7 +7,7 @@ cost: {2}{U}
 > If this creature was kicked, it enters with two +1/+1 counters on it.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["4"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }])
 
 ## Aetherblade Agent // Gitaxian Mindstinger
 face: Aetherblade Agent
@@ -708,7 +708,7 @@ cost: {1}{G}{G}
 > If this creature was kicked, it enters with three additional time counters on it.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["4"]))])) }])
 = Keywords([Keyword { name: "vanishing", param: Some(N(N(2))) }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Additional(N(3)), kind: "time" }] }])
 
 ## Reef Roads
 face: Reef Roads

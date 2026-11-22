@@ -945,7 +945,7 @@ cost: {R}
 > {2}{R}: This creature gets +2/+0 until end of turn.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2", "G"]))])) }])
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }])
 = Activated { cost: [Mana(Mana(["2", "R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Viscerid Deepwalker

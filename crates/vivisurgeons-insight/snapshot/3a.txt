@@ -573,7 +573,7 @@ cost: {1}{G}
 > Kicker {2}{G} (You may pay an additional {2}{G} as you cast this spell.)
 > If this creature was kicked, it enters with three +1/+1 counters on it and with trample.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2", "G"]))])) }])
-= BROKE at "," after: if this creature was kicked
+= BROKE at "trample" after: if this creature was kicked , it enters with three <pt> counters on it and with
 
 ## Krosan Cloudscraper
 face: Krosan Cloudscraper

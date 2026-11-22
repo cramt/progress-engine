@@ -723,7 +723,7 @@ cost: {U}
 > {T}: Target land you control becomes the basic land type of your choice until end of turn.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3", "G"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }])
 = BROKE at "the" after: {T} : target land you control becomes
 
 ## Pulsating Illusion

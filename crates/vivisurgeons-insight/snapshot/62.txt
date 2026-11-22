@@ -292,7 +292,7 @@ cost: {B}
 > Kicker {3}{B} (You may pay an additional {3}{B} as you cast this spell.)
 > If this creature was kicked, it enters with two +1/+1 counters on it and with fear. (It can't be blocked except by artifact creatures and/or black creatures.)
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3", "B"]))])) }])
-= BROKE at "," after: if this creature was kicked
+= BROKE at "fear" after: if this creature was kicked , it enters with two <pt> counters on it and with
 
 ## Eldritch Immunity
 face: Eldritch Immunity

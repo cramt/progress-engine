@@ -178,7 +178,7 @@ cost: {5}{G}{G}
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2", "G"]))])) }])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
 = Keywords([Keyword { name: "hexproof", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(4), kind: "+1/+1" }] }])
 
 ## Dark Dabbling
 face: Dark Dabbling

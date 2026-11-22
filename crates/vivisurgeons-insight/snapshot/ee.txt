@@ -370,7 +370,7 @@ cost: {1}{G}
 > If this creature was kicked, it enters with two +1/+1 counters on it.
 > Each creature you control with a +1/+1 counter on it has trample. (It can deal excess combat damage to the player or planeswalker it's attacking.)
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2", "G"]))])) }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }])
 = Static([Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithCounter(Some("+1/+1"))], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }])
 
 ## Goblin Bomb

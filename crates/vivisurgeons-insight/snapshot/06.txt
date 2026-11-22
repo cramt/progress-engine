@@ -427,7 +427,7 @@ cost: {U}
 > Kicker {3}{U} (You may pay an additional {3}{U} as you cast this spell.)
 > If this creature was kicked, it enters with two +1/+1 counters on it and with flying.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3", "U"]))])) }])
-= BROKE at "," after: if this creature was kicked
+= BROKE at "flying" after: if this creature was kicked , it enters with two <pt> counters on it and with
 
 ## Favor of the Overbeing
 face: Favor of the Overbeing

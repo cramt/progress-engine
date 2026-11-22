@@ -590,6 +590,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         },
         |p| { p.words("you have")?; let n = number(p)?; p.words("or less life")?; Some(Condition::LifeAtMost(n)) },
         |p| { p.one_of(&["this spell was kicked", "~ was kicked", "it was kicked"]).map(|_| Condition::WasKicked) },
+        // "If this creature was kicked, it enters with …": "this <any
+        // descriptor>" is the card, as "this spell" is.
+        |p| {
+            p.word("this")?;
+            let w = p.peek_word().filter(|w| crate::vocab::is_self_descriptor(w))?.to_string();
+            p.word(&w)?;
+            p.words("was kicked").map(|_| Condition::WasKicked)
+        },
         |p| p.words("you attacked this turn").map(|_| Condition::YouAttackedThisTurn),
         |p| {
             p.words("there are")?;

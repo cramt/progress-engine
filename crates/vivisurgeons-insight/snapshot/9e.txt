@@ -529,7 +529,7 @@ cost: {4}
 > If this creature was kicked, it enters with a +1/+1 counter on it for each nonbasic land your opponents control.
 > When this creature becomes the target of a spell, sacrifice it and create a number of 1/1 colorless Construct artifact creature tokens equal to its power.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3"]))])) }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [Controller(EachOpponent)], or: None } }), kind: "+1/+1" }] }])
 = Triggered { trigger: When(BecomesTarget { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Create { who: You, n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["construct", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Nahiri's Stoneblades

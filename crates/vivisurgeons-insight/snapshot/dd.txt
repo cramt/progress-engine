@@ -77,7 +77,7 @@ cost: {2}{G}{G}
 > Kicker {4} (You may pay an additional {4} as you cast this spell.)
 > If this creature was kicked, it enters with three +1/+1 counters on it.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["4"]))])) }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(3), kind: "+1/+1" }] }])
 
 ## Barbed Bloodletter
 face: Barbed Bloodletter

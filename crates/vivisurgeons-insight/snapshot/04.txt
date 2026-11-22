@@ -842,7 +842,7 @@ cost: {1}{B}
 > Landfall — Whenever a land you control enters, if this card is in your graveyard and it's your turn, you may cast it from your graveyard this turn.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["2", "B"]))])) }])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= BROKE at "," after: if this creature was kicked
+= Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }])
 = BROKE at "from" after: landfall — whenever a land you control enters , if this card is in your graveyard and it's your turn , you may cast it
 
 ## Slash of Talons

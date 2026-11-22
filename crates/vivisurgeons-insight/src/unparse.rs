@@ -1399,8 +1399,12 @@ mod syn {
         alt(o, vec![both, those]);
     }
 
+    /// "this spell was kicked", "this creature was kicked": the card by any
+    /// descriptor, as `this_card` says it.
     pub fn kicked(o: &mut Out) {
-        any_of(o, &["this spell", "it", "~"]);
+        let mut this = of("this");
+        this.0.push(Piece::Descriptor);
+        alt(o, vec![of("this spell"), this, of("it"), of("~")]);
     }
 
     /// "It can't be regenerated", "The creature can't be regenerated",
