@@ -577,7 +577,7 @@ type: Legendary Snow Creature — Zombie Wizard
 cost: {3}{U}{B}
 > Other snow and Zombie creatures you control get +1/+1.
 > {S}{S}{S}: Return this card from your graveyard to the battlefield tapped. ({S} can be paid with one mana from a snow source.)
-= Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Supertype("snow"), Subtype("zombie"), Type("creature")], [Subtype("zombie"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
+= Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Supertype("snow"), Type("creature")], [State(Other), Subtype("zombie"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
 = Activated { cost: [Mana(Mana(["S", "S", "S"]))], effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }], limits: [] }
 
 ## Necromentia

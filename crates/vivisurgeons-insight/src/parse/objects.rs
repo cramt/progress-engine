@@ -519,8 +519,31 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
         g.iter()
             .all(|a| matches!(a, Adj::Non(t) if matches!(type_word(t), Some(Adj::Type(_)))))
     };
+    // "Other snow and Zombie creatures you control" (Narfi): a leading
+    // "other" is of the whole list, never one alternative's ([or-type-own]).
+    if groups.len() > 1 && groups[0].first() == Some(&Adj::State(State::Other)) {
+        for g in groups.iter_mut().skip(1) {
+            if !g.contains(&Adj::State(State::Other)) {
+                g.insert(0, Adj::State(State::Other));
+            }
+        }
+    }
+    // "black or artifact creature", "red or artifact source": a last group
+    // that opens on a type has that type in place of "black", so it is the
+    // alternative's own and only the types after it are shared
+    // ([or-type-own]).
     if let Some(last) = groups.last() {
-        let shared: Vec<Adj> = last.iter().filter(|a| is_typed(a)).cloned().collect();
+        let other = last
+            .iter()
+            .take_while(|a| **a == Adj::State(State::Other))
+            .count();
+        let own = other + usize::from(last.get(other).is_some_and(is_typed));
+        let shared: Vec<Adj> = last
+            .iter()
+            .skip(own)
+            .filter(|a| is_typed(a))
+            .cloned()
+            .collect();
         let n = groups.len();
         for g in groups.iter_mut().take(n - 1) {
             if !g.iter().any(is_typed) && !excludes_types(g) {

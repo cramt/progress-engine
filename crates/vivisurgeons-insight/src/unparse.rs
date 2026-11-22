@@ -4860,8 +4860,29 @@ fn printed_groups(alts: &[Vec<Adj>]) -> Vec<Vec<Adj>> {
             }
         }
     }
+    // "Other snow and Zombie creatures": "other" said once leads the list
+    // ([or-type-own]).
+    if g.len() > 1
+        && g.iter()
+            .all(|x| x.first() == Some(&Adj::State(State::Other)))
+    {
+        for x in g.iter_mut().skip(1) {
+            x.remove(0);
+        }
+    }
     if let Some(last) = g.last().cloned() {
-        let shared: Vec<Adj> = last.iter().filter(|a| is_typed(a)).cloned().collect();
+        // A last group that opens on a type keeps it ([or-type-own]).
+        let other = last
+            .iter()
+            .take_while(|a| **a == Adj::State(State::Other))
+            .count();
+        let own = other + usize::from(last.get(other).is_some_and(is_typed));
+        let shared: Vec<Adj> = last
+            .iter()
+            .skip(own)
+            .filter(|a| is_typed(a))
+            .cloned()
+            .collect();
         let n = g.len();
         if !shared.is_empty() {
             for x in g.iter_mut().take(n - 1) {

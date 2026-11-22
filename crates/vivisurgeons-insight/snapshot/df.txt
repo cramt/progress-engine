@@ -576,7 +576,7 @@ face: Mechanized Warfare
 type: Enchantment
 cost: {1}{R}{R}
 > If a red or artifact source you control would deal damage to an opponent or a permanent an opponent controls, it deals that much damage plus 1 instead.
-= Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Color(Red), Type("artifact")], [Type("artifact")]], kind: Some(Source), posts: [Controller(You)], or: None } }], ability: Static([Replacement { event: DealsDamageTo { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Or([Player(AnOpponent), Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } })])] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Plus(ThatDamage, 1), to: None }] }]) }
+= Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Color(Red)], [Type("artifact")]], kind: Some(Source), posts: [Controller(You)], or: None } }], ability: Static([Replacement { event: DealsDamageTo { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Or([Player(AnOpponent), Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } })])] }, instead: [ThatDamage { source: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Plus(ThatDamage, 1), to: None }] }]) }
 
 ## Mirran Banesplitter
 face: Mirran Banesplitter

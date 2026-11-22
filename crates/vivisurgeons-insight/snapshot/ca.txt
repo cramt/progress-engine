@@ -837,7 +837,7 @@ face: Soldevi Adnate
 type: Creature — Human Cleric
 cost: {1}{B}
 > {T}, Sacrifice a black or artifact creature: Add an amount of {B} equal to the sacrificed creature's mana value.
-= Let { bind: [/* sacrificed */ Objects { quant: One, filter: Filter { alts: [[Color(Black), Type("artifact"), Type("creature")], [Type("artifact"), Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Tap, Sacrifice(Objects { quant: Introduced(0) /* sacrificed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [AddMana(AmountOf { mana: Mana(["B"]), n: ManaValueOf(Objects { quant: Bound(0) /* sacrificed */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) })], limits: [] } }
+= Let { bind: [/* sacrificed */ Objects { quant: One, filter: Filter { alts: [[Color(Black), Type("creature")], [Type("artifact"), Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Tap, Sacrifice(Objects { quant: Introduced(0) /* sacrificed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [AddMana(AmountOf { mana: Mana(["B"]), n: ManaValueOf(Objects { quant: Bound(0) /* sacrificed */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) })], limits: [] } }
 
 ## Somber Hoverguard
 face: Somber Hoverguard
