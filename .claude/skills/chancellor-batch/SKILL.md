@@ -47,7 +47,10 @@ replay, the test suite) go in the background; wait for their notice.
    - Rerun the replay into `<state>/batches/<n>/after.txt`. Against the
      baseline, the milestone's **games to the end** and **lines followed** must
      not fall, and **divergences** (the engine disagreeing with the log) must
-     stay 0. A divergence is a bug to fix before pushing: the engine's, or the
+     stay 0. **Gave up going back** (a disagreement met once the replay ran
+     out of tries, earlier choices untried) must not rise without the game
+     named in the handoff and shown to be the search, not the engine: force
+     the finds it needed and watch it replay past the line. A divergence is a bug to fix before pushing: the engine's, or the
      replay's inference. One exception: a commit that turns a silent guess
      into a refusal may lower lines followed. The lines it gave up were
      followed by luck. Name the game and the line that was wrong in the

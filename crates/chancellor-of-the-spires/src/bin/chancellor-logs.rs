@@ -775,6 +775,9 @@ mod native {
                                 run.diverged
                                     .push(format!("{stop}\n        {}", example(at)));
                             }
+                            if matches!(stop, r::Stop::GaveUp(_)) {
+                                run.gave_up.push(format!("{stop}\n        {}", example(at)));
+                            }
                             let s = run.stops.entry(key).or_insert_with(|| (0, example(at)));
                             s.0 += 1;
                         }
@@ -883,6 +886,13 @@ mod native {
             for d in &run.diverged {
                 println!("        {d}");
             }
+            println!(
+                "  gave up going back, maybe divergences, maybe a search too big ({}):",
+                run.gave_up.len()
+            );
+            for d in &run.gave_up {
+                println!("        {d}");
+            }
             println!("  stops of games with no card refused:");
             for c in &run.clean {
                 println!("        {c}");
@@ -935,6 +945,8 @@ mod native {
         clean: Vec<String>,
         /// Every divergence, with its game and line.
         diverged: Vec<String>,
+        /// Every stop where the replay ran out of tries going back.
+        gave_up: Vec<String>,
         /// Games by how many of their cards the engine refuses.
         refusing: std::collections::BTreeMap<usize, usize>,
         /// Each refused card: the games it is in, and those it is the

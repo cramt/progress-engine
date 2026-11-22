@@ -106,8 +106,17 @@ pub enum Stop {
     },
     /// The engine calls the log's play illegal.
     Illegal { what: String },
-    /// The engine's game and the log's disagree.
+    /// The engine's game and the log's disagree, on every way of making
+    /// the choices the log doesn't show that could have caused it.
     Diverged(Divergence),
+    /// The engine's game and the log's disagreed on every way the replay
+    /// tried, but it ran out of tries (`BACKTRACKS`) with earlier choices
+    /// still untried, so this isn't known to be a divergence: a game whose
+    /// right finds sit under too many later ones (962326960, whose two
+    /// Valakut triggers need a Fabled Passage and a Topiary Stomper to have
+    /// found Mountains, a Nature's Lore a Stomping Ground and Hour of
+    /// Promise two Valakuts).
+    GaveUp(Divergence),
     /// A kind of line the replay doesn't follow yet: an activated ability,
     /// a trigger, an attack. `card` is the card it names, if any.
     Unfollowed { event: String, card: Option<String> },
@@ -182,6 +191,7 @@ impl Stop {
             Stop::Refused { node, .. } => format!("refused: {node}"),
             Stop::Illegal { .. } => "illegal".into(),
             Stop::Diverged(d) => format!("diverged: {}", short(d)),
+            Stop::GaveUp(d) => format!("gave up going back: {}", short(d)),
             Stop::Unfollowed { event, .. } => format!("unfollowed: {event}"),
             Stop::UnknownCard(_) => "unknown card".into(),
         }
@@ -192,14 +202,22 @@ impl Stop {
         match self {
             Stop::Refused { card, .. } | Stop::UnknownCard(card) => Some(card),
             Stop::Unfollowed { card, .. } => card.as_deref(),
-            Stop::Diverged(
-                Divergence::NotInHand { card }
-                | Divergence::NotInGraveyard { card }
-                | Divergence::Unpayable { card }
-                | Divergence::Targets { card }
-                | Divergence::UnloggedTrigger { card }
-                | Divergence::Untriggered { card },
-            ) => Some(card),
+            Stop::Diverged(d) | Stop::GaveUp(d) => d.card(),
+            _ => None,
+        }
+    }
+}
+
+impl Divergence {
+    /// The card the divergence is about, if any.
+    fn card(&self) -> Option<&str> {
+        match self {
+            Divergence::NotInHand { card }
+            | Divergence::NotInGraveyard { card }
+            | Divergence::Unpayable { card }
+            | Divergence::Targets { card }
+            | Divergence::UnloggedTrigger { card }
+            | Divergence::Untriggered { card } => Some(card),
             _ => None,
         }
     }
@@ -212,6 +230,10 @@ impl fmt::Display for Stop {
             Stop::Refused { card, why, .. } => write!(f, "refuses {card}: {why}"),
             Stop::Illegal { what } => write!(f, "illegal: {what}"),
             Stop::Diverged(d) => write!(f, "diverged: {d:?}"),
+            Stop::GaveUp(d) => write!(
+                f,
+                "gave up going back after {BACKTRACKS} tries, with earlier choices untried: {d:?}"
+            ),
             Stop::Unfollowed { event, card } => match card {
                 Some(c) => write!(f, "doesn't follow {event} ({c})"),
                 None => write!(f, "doesn't follow {event}"),
@@ -607,6 +629,7 @@ impl Driver<'_> {
                     while self.checkpoints.last().is_some_and(|cp| !cause(cp.back)) {
                         self.checkpoints.pop();
                     }
+                    let untried = !self.checkpoints.is_empty();
                     match self.checkpoints.last_mut().filter(|_| retry) {
                         Some(cp) => {
                             backtracks += 1;
@@ -673,6 +696,12 @@ impl Driver<'_> {
                         }
                         None => {
                             let (at, stop, trace, unseen) = furthest.take().expect("recorded");
+                            // Only a way tried and every way left untried
+                            // tells a divergence from a search too big.
+                            let stop = match stop {
+                                Stop::Diverged(d) if untried => Stop::GaveUp(d),
+                                stop => stop,
+                            };
                             self.trace = trace;
                             self.unseen = unseen;
                             return End::Stopped { entry: at, stop };

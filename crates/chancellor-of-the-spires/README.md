@@ -878,7 +878,15 @@ typed `Stop`: a card refused by the node of its text the engine can't run,
 an answer it calls illegal, a state that disagrees with the log (a play it
 never offers that turn, a spell it can't pay for, a turn out of step), or
 a kind of line not followed yet (an exile, a creature put onto the
-battlefield). `--game ID` prints one game line by line with what the engine
+battlefield). A disagreement is a divergence only once every way of
+making the choices the log doesn't show that could have caused it has
+been tried; one met after
+the replay ran out of its 512 tries going back, with earlier choices
+left untried, is `GaveUp` and reported apart from the divergences, since
+it may be a search too big: game 962326960's two Valakut triggers need
+a Fabled Passage and a Topiary Stomper to have found Mountains, a
+Nature's Lore a Stomping Ground and Hour of Promise two Valakuts, four
+searches back, and with those finds forced it replays past both. `--game ID` prints one game line by line with what the engine
 did and each player's life as it ended; `--finished F` writes the ids of the games replayed to the end, to
 diff against a run before a change for a finished game it broke, and
 `--lines F` each game's lines followed, its lines, its stop and the lands
