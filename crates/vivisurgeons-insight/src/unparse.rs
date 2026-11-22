@@ -12025,6 +12025,27 @@ fn condition_said(o: &mut Out, c: &Condition) {
             syn::number(o, *n);
             o.w("or fewer cards in hand");
         }
+        // "this artifact is tapped" and "… remains tapped" ([remains-tapped]).
+        Condition::Is { what, filter: f }
+            if !is_bare_antecedent(what)
+                && f.alts == [vec![Adj::State(State::Tapped)]]
+                && f.kind.is_none()
+                && f.posts.is_empty()
+                && f.or.is_none() =>
+        {
+            pronoun_or(
+                o,
+                what,
+                |o| o.w("it's"),
+                |o| {
+                    objects(o, what);
+                    let is = out(|o| o.verb("are", obj_num(what)));
+                    let remains = out(|o| o.verb("remain", obj_num(what)));
+                    syn::remains(o, is, remains);
+                },
+            );
+            o.w("tapped");
+        }
         Condition::Is { what, filter: f } => {
             pronoun_or(
                 o,

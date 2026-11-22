@@ -648,7 +648,7 @@ cost: {2}{B}
 > You may choose not to untap this creature during your untap step.
 > {T}: Tap target artifact. It doesn't untap during its controller's untap step for as long as this creature remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: {T} : tap target artifact . it doesn't untap during its controller 's untap step for as long as this creature remains
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Tap], effect: [Tap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Restrict { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: DoesntUntap(ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), dur: ForAsLongAs(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }) }], limits: [] } }
 
 ## Pine Barrens
 face: Pine Barrens
@@ -1050,5 +1050,5 @@ face: Zygon Infiltrator
 type: Creature — Alien Shapeshifter Soldier
 cost: {2}{U}
 > Body-print — {2}{U}: Tap another target creature and put a stun counter on it. This creature becomes a copy of that creature for as long as that creature remains tapped. Activate only as a sorcery. (If a permanent with a stun counter would become untapped, remove one from it instead.)
-= BROKE at "tapped" after: body-print — {2} {U} : tap another target creature and put a stun counter on it . this creature becomes a copy of that creature for as long as that creature remains
+= Labelled { label: "body-print", ability: Let { bind: [/* target */ Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Mana(Mana(["2", "U"]))], effect: [Tap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), PutCounters { n: N(1), kind: "stun", on: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, BecomesCopy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: ForAsLongAs(Is { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }), except: [] }], limits: [SorcerySpeed] } } }
 

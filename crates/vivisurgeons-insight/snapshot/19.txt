@@ -790,7 +790,7 @@ cost: {1}{W}{W}
 > You may choose not to untap this creature during your untap step.
 > {T}: For as long as this creature remains tapped, gain control of target creature of an opponent's choice they control.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: {T} : for as long as this creature remains
+= Activated { cost: [Tap], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(AnOpponent), Controller(That)], or: None } }, dur: ForAsLongAs(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }) }], limits: [] }
 
 ## Promise of Aclazotz // Foul Rebirth
 face: Promise of Aclazotz

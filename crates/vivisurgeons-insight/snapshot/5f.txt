@@ -845,7 +845,7 @@ cost: {2}{U}
 > Whenever this creature deals damage to an opponent, tap target creature. That creature doesn't untap during its controller's untap step for as long as this creature remains tapped.
 = Keywords([Keyword { name: "shadow", param: None }])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: whenever this creature deals damage to an opponent , tap target creature . that creature doesn't untap during its controller 's untap step for as long as this creature remains
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Tap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Restrict { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntap(ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), dur: ForAsLongAs(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }) }], limits: [] } }
 
 ## The Princess Takes Flight
 face: The Princess Takes Flight

@@ -104,7 +104,7 @@ cost: {1}{U}{U}
 > {T}: Gain control of target creature that isn't of the chosen type for as long as this creature remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Performed { by: AnOpponent, effect: Choose(CreatureType) }] }])
-= BROKE at "tapped" after: {T} : gain control of target creature that isn't of the chosen type for as long as this creature remains
+= Activated { cost: [Tap], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Not(OfChosenType)], or: None } }, dur: ForAsLongAs(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }) }], limits: [] }
 
 ## Case of the Crimson Pulse
 face: Case of the Crimson Pulse

@@ -613,6 +613,13 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             alt!(p;
                 |p| { p.one_of(&["remain exiled", "remains exiled"])?; Some(Condition::In { what: what.clone(), zone: Zone::Exile }) },
                 |p| { p.one_of(&["remain on the battlefield", "remains on the battlefield"])?; Some(Condition::In { what: what.clone(), zone: Zone::Battlefield }) },
+                // "for as long as this artifact remains tapped": tapped now, as
+                // "remains exiled" is in exile now ([remains-tapped]).
+                |p| {
+                    p.one_of(&["remain tapped", "remains tapped"])?;
+                    let filter = Filter { alts: vec![vec![Adj::State(State::Tapped)]], ..Filter::default() };
+                    Some(Condition::Is { what: what.clone(), filter })
+                },
                 |p| { p.one_of(&["is attached to", "are attached to"])?; let to = objects(p)?; Some(Condition::AttachedTo { what: what.clone(), to }) },
                 |p| p.words("died this turn").map(|_| Condition::DidThisTurn(Box::new(Event::Dies(what.clone())))),
                 // "if an Assassin crewed it this turn" (Adrestia): a crew

@@ -581,7 +581,7 @@ cost: {W}
 > {3}{W}, {T}: For as long as this artifact remains tapped, another target permanent loses all abilities and can't attack or block.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
 = Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Action { by: None, name: "venture into the dungeon", n: None }], limits: [] }
-= BROKE at "tapped" after: {3} {W} , {T} : for as long as this artifact remains
+= BROKE at "attack" after: {3} {W} , {T} : for as long as this artifact remains tapped , another target permanent loses all abilities and can't
 
 ## Jacob Frye
 face: Jacob Frye

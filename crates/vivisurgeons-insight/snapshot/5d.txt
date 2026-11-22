@@ -327,7 +327,7 @@ cost: {3}
 > You may choose not to untap this artifact during your untap step.
 > {3}, {T}: Target creature gets +1/-1 for as long as this artifact remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: {3} , {T} : target creature gets <pt> for as long as this artifact remains
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(-1), signed: true }), gains: [], dur: ForAsLongAs(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }) }], limits: [] }
 
 ## Forbidden Alchemy
 face: Forbidden Alchemy
@@ -921,7 +921,7 @@ cost: {U}
 > You may choose not to untap The Blackstaff of Waterdeep during your untap step.
 > Animate Walking Statue — {1}{U}, {T}: Another target nontoken artifact you control becomes a 4/4 artifact creature for as long as The Blackstaff of Waterdeep remains tapped. Activate only as a sorcery.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: animate walking statue — {1} {U} , {T} : another target nontoken artifact you control becomes a <pt> artifact creature for as long as ~ remains
+= Labelled { label: "animate walking statue", ability: Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [Becomes { what: Objects { quant: AnotherTarget, filter: Filter { alts: [[State(Nontoken), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Type("artifact"), Type("creature")], gains: [], keeps: OtherTypes, dur: ForAsLongAs(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }) }], limits: [SorcerySpeed] } }
 
 ## Timberpack Wolf
 face: Timberpack Wolf

@@ -509,7 +509,7 @@ cost: {3}{R}{R}
 > You may choose not to untap Hivis during your untap step.
 > {T}: Gain control of target Dragon for as long as you control Hivis and Hivis remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: {T} : gain control of target dragon for as long as you control ~ and ~ remains
+= Activated { cost: [Tap], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } }, dur: ForAsLongAs(And([YouControl(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }])) }], limits: [] }
 
 ## Hulk, Brutal Brawler
 face: Hulk, Brutal Brawler
@@ -1043,7 +1043,7 @@ cost: {2}{G}{G}
 > You may choose not to untap this creature during your untap step.
 > {T}: Gain control of target legendary creature for as long as you control this creature and this creature remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: {T} : gain control of target legendary creature for as long as you control this creature and this creature remains
+= Activated { cost: [Tap], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [], or: None } }, dur: ForAsLongAs(And([YouControl(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }])) }], limits: [] }
 
 ## Yuna, Grand Summoner
 face: Yuna, Grand Summoner

@@ -342,7 +342,7 @@ cost: {4}
 > You may choose not to untap this artifact during your untap step.
 > {2}, {T}, Sacrifice a creature: Gain control of target creature for as long as you control this artifact and this artifact remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: {2} , {T} , sacrifice a creature : gain control of target creature for as long as you control this artifact and this artifact remains
+= Activated { cost: [Mana(Mana(["2"])), Tap, Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: ForAsLongAs(And([YouControl(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }])) }], limits: [] }
 
 ## Hollow Scavenger // Bakery Raid
 face: Hollow Scavenger

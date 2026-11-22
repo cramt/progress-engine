@@ -91,10 +91,10 @@ reports every one. The lists in `milestones/` say where they came from, and
 | My decks: every card in the 20 decks of cramt/mtg | 1199/1207 (99.3%) | 2496/2504 (99.7%) | reopened by 3 new decks; 1023 cards pinned |
 | Standard after the early-2027 rotation | 3079/3517 (87.5%) | 6592/7055 (93.4%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4287/5157 (83.1%) | 9476/10421 (90.9%) | |
+| All of Standard | 4288/5157 (83.1%) | 9477/10421 (90.9%) | |
 | EDHREC top 2000 | 1824/1987 (91.8%) | 3655/3847 (95.0%) | |
 | EDHREC top 5000 | 4170/4977 (83.8%) | 9184/10111 (90.8%) | |
-| Commander precons | 4776/6151 (77.6%) | 10709/12228 (87.6%) | |
+| Commander precons | 4778/6151 (77.7%) | 10711/12228 (87.6%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -145,7 +145,7 @@ rest the Comprehensive Rules make identical: "this creature", "this Aura",
 "enters"/"enters the battlefield" (CR glossary), "first"/"precombat main
 phase" (CR 505.1a), whose library a card goes to and "its graveyard" as its
 owner's (CR 400.3), "put"/"return" (CR 400.6), "remains on the
-battlefield" (CR 400.7), "protection from each color" (CR 105.1),
+battlefield" (CR 400.7), "remains tapped" in a "for as long as" (CR 611.2b), "protection from each color" (CR 105.1),
 "protection from A and from B" (CR 702.16g), "has base power and
 toughness"/"becomes" (CR 613.4b), "It's still a land" as its own sentence
 (CR 205.1b), and "When X and whenever Y" (CR 603.1b).
@@ -161,7 +161,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | My decks (pinned) | 2136/2136 (100%) |
 | EDHREC top 2000 | 3654/3655 (99.97%) |
-| All parsed abilities | 51756/51783 (99.9%) |
+| All parsed abilities | 51783/51810 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading

@@ -334,7 +334,7 @@ cost: {3}
 > You may choose not to untap this artifact during your untap step.
 > {X}, {T}: Tap target creature with power X or less. It doesn't untap during its controller's untap step for as long as this artifact remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: {X} , {T} : tap target creature with power x or less . it doesn't untap during its controller 's untap step for as long as this artifact remains
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: X })], or: None } }], ability: Activated { cost: [Mana(Mana(["X"])), Tap], effect: [Tap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Restrict { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: DoesntUntap(ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), dur: ForAsLongAs(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }) }], limits: [] } }
 
 ## Environmental Sciences
 face: Environmental Sciences

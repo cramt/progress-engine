@@ -5,7 +5,7 @@ cost: {4}
 > You may choose not to untap this artifact during your untap step.
 > {4}, {T}: Tap target artifact, creature, or land. That permanent doesn't untap during its controller's untap step for as long as this artifact remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: {4} , {T} : tap target artifact , creature , or land . that permanent doesn't untap during its controller 's untap step for as long as this artifact remains
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("land")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Mana(Mana(["4"])), Tap], effect: [Tap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Restrict { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, rule: DoesntUntap(ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), dur: ForAsLongAs(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }) }], limits: [] } }
 
 ## Ancient Silver Dragon
 face: Ancient Silver Dragon

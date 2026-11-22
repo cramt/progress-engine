@@ -316,7 +316,7 @@ cost: {2}
 > You may choose not to untap this artifact during your untap step.
 > {2}, {T}: Target creature gets +0/+3 for as long as this artifact remains tapped.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: {2} , {T} : target creature gets <pt> for as long as this artifact remains
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(3), signed: true }), gains: [], dur: ForAsLongAs(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }) }], limits: [] }
 
 ## Etali, Primal Conqueror // Etali, Primal Sickness
 face: Etali, Primal Conqueror

@@ -407,7 +407,7 @@ cost: {G}
 > You may choose not to untap this creature during your untap step.
 > {3}{G}, {T}, Collect evidence 4: Target land you control becomes a 5/5 green Plant Boar creature with haste for as long as this creature remains tapped. It's still a land. Activate only as a sorcery. (To collect evidence 4, exile cards with total mana value 4 or greater from your graveyard.)
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
-= BROKE at "tapped" after: {3} {G} , {T} , collect evidence 4 : target land you control becomes a <pt> green plant boar creature with haste for as long as this creature remains
+= Activated { cost: [Mana(Mana(["3", "G"])), Tap, Action { name: "collect evidence", n: N(4) }], effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [Color(Green), Subtype("plant"), Subtype("boar"), Type("creature")], gains: [Keyword { name: "haste", param: None }], keeps: Listed([Type("land")]), dur: ForAsLongAs(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Tapped)]], kind: None, posts: [], or: None } }) }], limits: [SorcerySpeed] }
 
 ## Heroic Teamwork
 face: Heroic Teamwork
