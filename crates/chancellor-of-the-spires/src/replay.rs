@@ -378,7 +378,8 @@ struct Driver<'a> {
     /// (`Retry::Early`).
     early: Option<usize>,
     /// The line whose spell is cast in its caster's postcombat main phase
-    /// rather than in combat (`Retry::Late`).
+    /// rather than in combat, or whose ability is activated after combat
+    /// damage (`Retry::Late`).
     late: Option<usize>,
     /// The counters the log has shown put on each permanent, by kind.
     counted: BTreeMap<(ObjectId, Counter), u32>,
@@ -565,6 +566,10 @@ impl Driver<'_> {
                         Stop::Diverged(
                             Divergence::Unpayable { .. }
                                 | Divergence::EngineOver
+                                // Too little damage dealt by the time
+                                // the log's game ends, which an earlier
+                                // choice of timing may explain.
+                                | Divergence::LogOver
                                 | Divergence::NeverOffered { .. }
                                 // A target named for what a search found.
                                 | Divergence::Targets { .. }
@@ -1097,35 +1102,7 @@ impl Driver<'_> {
                         back: Back::Triggers,
                     });
                 }
-                // A target named by a name two permanents share is either:
-                // nothing the log says tells them apart (Naturalize on one
-                // of two Mox Diamonds), so the other is tried if a later
-                // play can't be made.
-                let mut alike = 0;
-                for a in &cast.targets {
-                    if let log::Target::Object(Object::Card(c)) = &a.target {
-                        let called = Called::Name(self.permanent_name(c)?);
-                        let game = self.game.as_ref().expect("set up");
-                        let n = game
-                            .permanents()
-                            .keys()
-                            .filter(|id| is_called(game, id, &called))
-                            .count();
-                        alike = alike.max(n);
-                    }
-                }
-                if alike > 1 && self.aim_pick.is_none_or(|(at, _)| at != i) {
-                    let game = self.game().clone();
-                    self.checkpoints.push(Checkpoint {
-                        game,
-                        entry: i,
-                        trace: self.trace.len(),
-                        resume: i,
-                        others: (1..alike).map(Retry::Aim).collect(),
-                        knew: self.knew(),
-                        back: Back::Unplayable,
-                    });
-                }
+                self.aim_alike(i, &cast.targets)?;
                 // The first route that can be paid for; a line that names
                 // none is cast for its mana cost if it can be, and for an
                 // alternative cost the card has otherwise.
@@ -1384,7 +1361,40 @@ impl Driver<'_> {
                     .chain(a.targets.iter().filter_map(|t| t.note.as_deref()))
                     .collect::<Vec<_>>()
                     .join(" ");
+                // One activated in its controller's combat with nothing to
+                // answer may have been activated after combat damage, which
+                // the log never prints: Mogg Fanatic attacking, then
+                // sacrificed for the last point of damage. Tried when the
+                // game the log ends doesn't (CR 510.2, 511.1).
+                let game = self.game.as_ref().expect("set up");
+                let turn = game.turn();
+                if !on_stack
+                    && game.active() == p
+                    && !game.attacks().is_empty()
+                    && game.step_now() < Step::EndOfCombat
+                    && game.stack().is_empty()
+                {
+                    if self.late == Some(i) {
+                        while self.game().step_now() < Step::EndOfCombat
+                            && self.game().turn() == turn
+                        {
+                            self.pass()?;
+                        }
+                    } else {
+                        let game = self.game().clone();
+                        self.checkpoints.push(Checkpoint {
+                            game,
+                            entry: i,
+                            trace: self.trace.len(),
+                            resume: i,
+                            others: vec![Retry::Late],
+                            knew: self.knew(),
+                            back: Back::Unplayable,
+                        });
+                    }
+                }
                 self.resolve_what_its_cost_exiles(i, card.name())?;
+                self.aim_alike(i, &a.targets)?;
                 let activation = self.activation(p, card.name(), &said, paid, on_stack)?;
                 self.act(Answer::Act(Action::Activate(activation)))?;
                 let paid = match self.game().decision() {
@@ -1533,6 +1543,9 @@ impl Driver<'_> {
                 }
                 self.act(Answer::Attack(declared))?;
                 let names: Vec<String> = names.iter().map(ToString::to_string).collect();
+                if let Decision::PayAttack { player, owed, .. } = self.game().decision() {
+                    self.pay_attack(player, owed, &names[0])?;
+                }
                 self.did(i, format!("attacked with {}", names.join(", ")));
             }
             Blocks {
@@ -2317,6 +2330,7 @@ impl Driver<'_> {
             Decision::PayUnless {
                 player, card, owed, ..
             } => self.pay_unless(player, card, owed),
+            Decision::PayAttack { player, owed, .. } => self.pay_attack(player, owed, "an attack"),
             Decision::PayLifeOr { player, card, .. } => self.pay_life_or(player, card),
             Decision::ChooseMana {
                 player, options, ..
@@ -3458,10 +3472,45 @@ impl Driver<'_> {
             return Ok(());
         }
         // Echo paid says so, so an echo with no line wasn't.
-        let echo = self
-            .text(&name)
-            .is_ok_and(|t| t.rules_text().lines().any(|l| l.starts_with("Echo")));
-        if !echo {
+        let text = self.text(&name).ok();
+        let keyword = |k: &str| {
+            text.as_ref()
+                .is_some_and(|t| t.rules_text().lines().any(|l| l.starts_with(k)))
+        };
+        // Cumulative upkeep's payment is never printed, nor, in any log
+        // the replay has, the sacrifice when it isn't: the permanent's
+        // later age counters show it kept. So it is paid, with a
+        // checkpoint to go back and not pay if a later line can't be
+        // followed then (CR 702.24a).
+        if keyword("Cumulative upkeep") {
+            if let Some(first) = payments.first() {
+                let mut unpaid = self.game().clone();
+                unpaid
+                    .step(Answer::Pay(Payment::Cancel))
+                    .map_err(|_| Stop::Illegal {
+                        what: "declining an \"unless\"".into(),
+                    })?;
+                self.checkpoints.push(Checkpoint {
+                    game: unpaid,
+                    entry: self.at,
+                    trace: self.trace.len(),
+                    resume: self.at,
+                    others: vec![Retry::Take(format!(
+                        "didn't pay {owed} for {name}'s cumulative upkeep (CR 702.24a)"
+                    ))],
+                    knew: self.knew(),
+                    back: Back::Any,
+                });
+                pay_with(self.game(), first)?;
+                let at = self.at;
+                self.did(
+                    at,
+                    format!("paid {owed} for {name}'s cumulative upkeep (CR 702.24a)"),
+                );
+                return Ok(());
+            }
+        }
+        if !keyword("Echo") {
             if let Some(first) = payments.first() {
                 let mut paid = self.game().clone();
                 pay_with(&mut paid, first)?;
@@ -3479,6 +3528,57 @@ impl Driver<'_> {
         self.act(Answer::Pay(Payment::Cancel))?;
         let at = self.at;
         self.did(at, format!("didn't pay {owed} for {name} (CR 118.12a)"));
+        Ok(())
+    }
+
+    /// A target named by a name two permanents share: nothing the log
+    /// says tells them apart (Naturalize on one of two Mox Diamonds,
+    /// Rishadan Port on one of two Forests), so the other is tried if a
+    /// later play can't be made.
+    fn aim_alike(&mut self, i: usize, targets: &[log::Aim]) -> Followed {
+        let mut alike = 0;
+        for a in targets {
+            if let log::Target::Object(Object::Card(c)) = &a.target {
+                let called = Called::Name(self.permanent_name(c)?);
+                let game = self.game.as_ref().expect("set up");
+                let n = game
+                    .permanents()
+                    .keys()
+                    .filter(|id| is_called(game, id, &called))
+                    .count();
+                alike = alike.max(n);
+            }
+        }
+        if alike > 1 && self.aim_pick.is_none_or(|(at, _)| at != i) {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: i,
+                trace: self.trace.len(),
+                resume: i,
+                others: (1..alike).map(Retry::Aim).collect(),
+                knew: self.knew(),
+                back: Back::Unplayable,
+            });
+        }
+        Ok(())
+    }
+
+    /// An attack's cost, which the log never prints paid (Elephant Grass's
+    /// {2} for each nonblack attacker): the first payment found, the
+    /// attack never offered if there is none (CR 508.1h–j).
+    fn pay_attack(&mut self, p: PlayerId, owed: ManaCost, attacker: &str) -> Followed {
+        let game = self.game.as_ref().expect("set up");
+        let pool = *game.player(p).pool();
+        let payments = solve(&owed, pool, &unlogged_mana(game, p));
+        let Some(first) = payments.first() else {
+            return Err(Stop::Diverged(Divergence::NeverOffered {
+                what: format!("attack with {attacker}, paying {owed}"),
+            }));
+        };
+        pay_with(self.game(), first)?;
+        let at = self.at;
+        self.did(at, format!("paid {owed} to attack (CR 508.1h)"));
         Ok(())
     }
 
@@ -5655,7 +5755,9 @@ fn pay_with(game: &mut Game, payment: &[ManaActivation]) -> Followed {
         game.step(Answer::Pay(Payment::Mana(*a)))
             .map_err(|_| illegal(Answer::Pay(Payment::Mana(*a))))?;
     }
-    let (Decision::Pay { actions, .. } | Decision::PayUnless { actions, .. }) = game.decision()
+    let (Decision::Pay { actions, .. }
+    | Decision::PayUnless { actions, .. }
+    | Decision::PayAttack { actions, .. }) = game.decision()
     else {
         unreachable!("still paying")
     };

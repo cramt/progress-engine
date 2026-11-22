@@ -183,6 +183,7 @@ const INDEXED: &[&str] = &[
     "Argothian Enchantress",
     "Enchantress's Presence",
     "Wild Growth",
+    "Elephant Grass",
 ];
 
 fn index() -> &'static IndexFile {
@@ -695,6 +696,67 @@ fn an_attack_and_a_block_replay() {
         r.end.stop(),
         Some(Stop::Diverged(Divergence::NeverOffered { .. }))
     ));
+}
+
+/// Elephant Grass's tax on attacking its controller, never printed paid
+/// (CR 508.1h): Raging Goblin attacks for free before it is cast and for
+/// {2} after, both Mountains tapped to pay; with one Mountain the attack
+/// is never offered. Its cumulative upkeep, also never printed paid, is
+/// paid from the age counter line, and the Grass stays (CR 702.24a).
+#[test]
+fn elephant_grass_taxes_an_attack_and_its_upkeep_is_paid() {
+    let lines = "
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Mountain].
+        alice casts [Raging Goblin].
+        bob is being attacked by [Raging Goblin]
+        Turn 1: bob
+        bob plays [Forest].
+        bob casts [Elephant Grass].
+        Turn 2: alice
+        alice plays [Mountain].
+        bob is being attacked by [Raging Goblin]
+        Turn 2: bob
+        bob puts triggered ability from [Elephant Grass] onto the stack (Cumulative upkeep {1} (At the beginning of your upkeep, if this permanent is on the battlefield,...).
+        bob puts an age counter on [Elephant Grass].
+        bob plays [Forest].
+        Turn 3: alice
+        alice has conceded from the game.
+    ";
+    let (_, r) = run(lines);
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    assert!(r.trace.iter().any(|t| t.did.contains("paid {2} to attack")));
+    let game = r.game.unwrap();
+    assert_eq!(game.player(BOB).life(), 18);
+    let grass = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| {
+            game.card(p.card)
+                .is_some_and(|t| t.name == "Elephant Grass")
+        })
+        .map(|(id, _)| *id)
+        .expect("kept");
+    assert_eq!(
+        game.counters_on(
+            grass,
+            &chancellor_of_the_spires::model::Counter::named("age")
+        ),
+        1
+    );
+    let (_, r) = run(&lines.replace(
+        "Turn 2: alice\n        alice plays [Mountain].",
+        "Turn 2: alice",
+    ));
+    assert!(
+        matches!(
+            r.end.stop(),
+            Some(Stop::Diverged(Divergence::NeverOffered { .. }))
+        ),
+        "{:?}",
+        r.end
+    );
 }
 
 /// Goblin Lackey's "may" (CR 603.5, 608.2d): no line says the first was

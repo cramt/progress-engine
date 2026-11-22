@@ -1494,6 +1494,13 @@ pub enum UnlessCost {
     /// or greater": any number of permanents of theirs the filter
     /// matches, their powers adding up to at least `power` (CR 701.21a).
     SacrificePower { filter: Filter, power: u32 },
+    /// Cumulative upkeep's "pay [cost] for each age counter on it": the
+    /// cost once for each counter of the kind on the source as the
+    /// instruction resolves (CR 702.24a).
+    ManaPerCounter {
+        each: crate::mana::ManaCost,
+        counter: Counter,
+    },
 }
 
 impl Effect {
@@ -1798,6 +1805,9 @@ pub enum Intervening {
     /// Echo's "if this permanent came under your control since the
     /// beginning of your last upkeep" (CR 702.30a).
     ArrivedSinceLastUpkeep,
+    /// Cumulative upkeep's "if this permanent is on the battlefield" (CR
+    /// 702.24a).
+    OnBattlefield,
 }
 
 /// A spell's instructions, its paragraphs in order (CR 608.2c), with the
@@ -2089,9 +2099,43 @@ fn intervening(cond: &i::Condition, bind: &[Objects]) -> Result<Intervening, Str
 
 /// The keywords that are triggered abilities and that the engine runs,
 /// written out as their rules define them: exalted (CR 702.83a), prowess
-/// (CR 702.108a), training (CR 702.149a) and echo for mana (CR 702.30a).
-/// `None` for any other keyword.
+/// (CR 702.108a), training (CR 702.149a), and echo and cumulative upkeep
+/// for mana (CR 702.30a, 702.24a). `None` for any other keyword.
 pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
+    if k.name.eq_ignore_ascii_case("cumulative upkeep") {
+        let Some(i::KeywordParam::Cost(cost)) = &k.param else {
+            return None;
+        };
+        let [i::Cost::Mana(m)] = cost.as_slice() else {
+            return None;
+        };
+        let age = Counter::named("age");
+        return Some(Triggered {
+            event: TriggerEvent::Begins {
+                step: TurnStep::Upkeep,
+                whose: Whose::Yours,
+            },
+            program: Program {
+                targets: Vec::new(),
+                effects: vec![
+                    Effect::PutCounters {
+                        on: On::One(Obj::Itself),
+                        counter: age.clone(),
+                        n: 1,
+                    },
+                    Effect::Unless {
+                        who: Who::You,
+                        cost: UnlessCost::ManaPerCounter {
+                            each: crate::mana::ManaCost::from_symbols(m).ok()?,
+                            counter: age,
+                        },
+                        otherwise: vec![Effect::Sacrifice(Obj::Itself)],
+                    },
+                ],
+            },
+            condition: Some(Intervening::OnBattlefield),
+        });
+    }
     if k.name.eq_ignore_ascii_case("echo") {
         let Some(i::KeywordParam::Cost(cost)) = &k.param else {
             return None;
@@ -4257,5 +4301,67 @@ pub fn cost_change(parts: &[i::Static]) -> Option<Result<CostChange, String>> {
             per,
             your_turn,
         })
+    })())
+}
+
+/// "Black creatures can't attack you", "Nonblack creatures can't attack
+/// you unless their controller pays {2} for each creature they control
+/// that's attacking you": a restriction on attacking the static's
+/// controller (CR 508.1c), or a cost to (CR 508.1h), for each creature the
+/// filter matches, read from the static's permanent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AttackRule {
+    pub attackers: Filter,
+    /// `None` for "can't attack you"; the mana each attacker it matches
+    /// costs its controller to attack.
+    pub tax: Option<crate::mana::ManaCost>,
+}
+
+/// A static that restricts attacking its controller, as `AttackRule`, or
+/// `None` for any other static.
+pub fn attack_rule(bind: &[Objects], parts: &[i::Static]) -> Option<Result<AttackRule, String>> {
+    let [i::Static::Restrict { what, rule }] = parts else {
+        return None;
+    };
+    let you = |r: &i::Restriction| *r == i::Restriction::CantAttackPlayer(i::Player::You);
+    let tax = match rule {
+        r if you(r) => None,
+        i::Restriction::UnlessPays {
+            rule,
+            who: i::Player::ControllerOf(_),
+            cost,
+            per,
+        } if you(rule) => Some((cost, per)),
+        _ => return None,
+    };
+    Some((|| {
+        let attackers = objects(resolve(what, bind)?)?;
+        let tax = match tax {
+            None => None,
+            Some((cost, per)) => {
+                let [i::Cost::Mana(m)] = cost.as_slice() else {
+                    return Err("an attack cost other than mana".into());
+                };
+                // "For each creature they control that's attacking you":
+                // the cost once for each attacker, which the restriction
+                // already applies to one by one, so the total is the
+                // attackers' count (CR 508.1h).
+                let each_attacker = per.as_ref().is_some_and(|o| {
+                    o.filter.alts == [vec![Adj::Type("creature".into())]]
+                        && o.filter.kind.is_none()
+                        && o.filter.or.is_none()
+                        && o.filter.posts
+                            == [
+                                Post::Controller(i::Player::That),
+                                Post::AttackingPlayer(i::Player::You),
+                            ]
+                });
+                if !each_attacker {
+                    return Err("an attack cost counted other than by its attackers".into());
+                }
+                Some(crate::mana::ManaCost::from_symbols(m)?)
+            }
+        };
+        Ok(AttackRule { attackers, tax })
     })())
 }

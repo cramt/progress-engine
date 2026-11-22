@@ -4654,3 +4654,128 @@ fn rift_bolt_suspended_is_cast_free_at_my_next_upkeep() {
     assert_eq!(game.player(THEM).life(), 17);
     assert!(game.player(ME).graveyard().contains(&bolt));
 }
+
+/// CR 702.24a: cumulative upkeep puts an age counter on its permanent at
+/// each of its controller's upkeeps, then asks the cost once for each age
+/// counter: Elephant Grass's {1} paid in the first upkeep, {2} owed in the
+/// second, and declined, sacrificing it.
+#[test]
+fn cumulative_upkeep_asks_its_cost_for_each_age_counter() {
+    let mut game = deal(
+        &[("Forest", 40), ("Elephant Grass", 20)],
+        &[("Forest", 60)],
+        &[("Forest", 1), ("Elephant Grass", 1)],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Elephant Grass", None);
+    resolve(&mut game);
+    let grass = creature(&game, "Elephant Grass").unwrap();
+    pass_until(&mut game, THEM, Step::Upkeep);
+    pass_until(&mut game, ME, Step::Upkeep);
+    assert_eq!(game.stack().len(), 1, "cumulative upkeep triggers");
+    let Decision::PayUnless { owed, actions, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(owed.to_string(), "{1}");
+    let tap = actions
+        .iter()
+        .find(|a| matches!(a, Payment::Mana(_)))
+        .copied()
+        .unwrap();
+    let Decision::PayUnless { actions, .. } = step(&mut game, Answer::Pay(tap)) else {
+        panic!("{:?}", game.decision())
+    };
+    let spend = actions
+        .iter()
+        .find(|a| matches!(a, Payment::Spend(_)))
+        .copied()
+        .unwrap();
+    step(&mut game, Answer::Pay(spend));
+    assert!(game.permanents().contains_key(&grass));
+    pass_until(&mut game, THEM, Step::Upkeep);
+    pass_until(&mut game, ME, Step::Upkeep);
+    let Decision::PayUnless { owed, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(owed.to_string(), "{2}", "two age counters");
+    step(&mut game, Answer::Pay(Payment::Cancel));
+    assert!(!game.permanents().contains_key(&grass));
+}
+
+/// CR 508.1c, 508.1h–j: Elephant Grass's "Black creatures can't attack
+/// you" makes an attack by Walking Corpse illegal, and "Nonblack creatures
+/// can't attack you unless their controller pays {2} for each creature
+/// they control that's attacking you" makes Grizzly Bears's cost {2},
+/// paid by tapping two lands, after which it attacks and deals its damage.
+#[test]
+fn elephant_grass_stops_black_attackers_and_taxes_the_rest() {
+    let mut game = deal_both(
+        &[
+            ("Swamp", 20),
+            ("Forest", 20),
+            ("Walking Corpse", 10),
+            ("Grizzly Bears", 10),
+        ],
+        &[("Forest", 40), ("Elephant Grass", 20)],
+        &[
+            ("Swamp", 1),
+            ("Forest", 3),
+            ("Walking Corpse", 1),
+            ("Grizzly Bears", 1),
+        ],
+        &[("Forest", 3), ("Elephant Grass", 1)],
+    );
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Forest");
+    cast(&mut game, "Walking Corpse", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Elephant Grass", None);
+    resolve(&mut game);
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Forest");
+    let corpse = creature(&game, "Walking Corpse").unwrap();
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    to_attackers(&mut game);
+    assert!(
+        game.step(Answer::Attack(vec![(corpse, THEM)])).is_err(),
+        "a black creature can't attack"
+    );
+    let Decision::PayAttack { owed, actions, .. } =
+        step(&mut game, Answer::Attack(vec![(bears, THEM)]))
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(owed.to_string(), "{2}");
+    let mut actions = actions;
+    for _ in 0..2 {
+        let tap = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Mana(_)))
+            .copied()
+            .unwrap();
+        let Decision::PayAttack { actions: next, .. } = step(&mut game, Answer::Pay(tap)) else {
+            panic!("{:?}", game.decision())
+        };
+        actions = next;
+    }
+    let spend = actions
+        .iter()
+        .find(|a| matches!(a, Payment::Spend(_)))
+        .copied()
+        .unwrap();
+    step(&mut game, Answer::Pay(spend));
+    assert_eq!(game.attacks(), vec![(bears, THEM)]);
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+}

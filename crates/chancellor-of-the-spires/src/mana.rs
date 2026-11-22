@@ -163,6 +163,16 @@ pub struct ManaCost {
 }
 
 impl ManaCost {
+    /// The cost paid `n` times over, as one cost: cumulative upkeep's
+    /// "for each age counter" (CR 702.24a), an attack tax for each
+    /// attacker (CR 508.1h).
+    pub fn times(&self, n: u32) -> ManaCost {
+        ManaCost {
+            generic: self.generic * n,
+            shards: (0..n).flat_map(|_| self.shards.iter().cloned()).collect(),
+        }
+    }
+
     /// A printed mana cost such as `{1}{G}{G}`, or `None` for a card with
     /// none (CR 202.1b).
     pub fn parse(printed: &str) -> Result<Option<ManaCost>, String> {

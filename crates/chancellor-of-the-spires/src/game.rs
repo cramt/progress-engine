@@ -358,6 +358,10 @@ struct Runnable {
     /// Statics that change what spells cost (CR 601.2f), by index, so
     /// each works only while the permanent has it.
     cost_changes: BTreeMap<u16, lower::CostChange>,
+    /// Statics that restrict attacking its controller or make it cost
+    /// (CR 508.1c, 508.1h), by index, so each works only while the
+    /// permanent has it.
+    attack_rules: BTreeMap<u16, lower::AttackRule>,
     /// The costs it may be cast for rather than its mana cost, and from
     /// where (CR 118.9): flashback, Fireblast's sacrifice. By the index of
     /// the ability that allows it.
@@ -1138,6 +1142,12 @@ enum Waiting {
         owed: ManaCost,
         at: Resuming,
     },
+    /// CR 508.1h–j: `player` pays `owed` to attack as `declared`.
+    PayAttack {
+        player: PlayerId,
+        declared: Vec<(ObjectId, PlayerId)>,
+        owed: ManaCost,
+    },
     /// CR 118.12a: `player` may discard a card `filter` matches for the
     /// "unless" instruction `at` points to.
     DiscardUnless {
@@ -1420,6 +1430,14 @@ pub enum Decision {
     PayUnless {
         player: PlayerId,
         card: CardId,
+        owed: ManaCost,
+        actions: Vec<Payment>,
+    },
+    /// CR 508.1h–j: pay `owed`, the total cost of the attack declared,
+    /// activating mana abilities first, answered `Answer::Pay`;
+    /// `Payment::Cancel` takes the declaration back, to declare again.
+    PayAttack {
+        player: PlayerId,
         owed: ManaCost,
         actions: Vec<Payment>,
     },
@@ -2667,6 +2685,11 @@ impl Game {
                 owed: owed.clone(),
                 actions: self.payments(*player, owed),
             },
+            Waiting::PayAttack { player, owed, .. } => Decision::PayAttack {
+                player: *player,
+                owed: owed.clone(),
+                actions: self.payments(*player, owed),
+            },
             Waiting::DiscardUnless { player, filter, at } => {
                 let (legal, unsure) = self.discardable(*player, filter);
                 Decision::DiscardUnless {
@@ -3124,8 +3147,35 @@ impl Game {
                 {
                     return Err(Rejected::Illegal(answer));
                 }
-                self.declare_attackers(player, declared);
+                let Some(owed) = self.attack_cost(declared) else {
+                    return Err(Rejected::Illegal(answer));
+                };
+                if owed == ManaCost::default() {
+                    self.declare_attackers(player, declared);
+                } else {
+                    self.waiting = Waiting::PayAttack {
+                        player,
+                        declared: declared.to_vec(),
+                        owed,
+                    };
+                }
             }
+            (
+                Waiting::PayAttack {
+                    player,
+                    declared,
+                    owed,
+                },
+                Answer::Pay(pay),
+            ) if self.payments(player, &owed).contains(pay) => match *pay {
+                Payment::Mana(a) => self.activate(player, a),
+                Payment::Spend(spent) => {
+                    let pool = &mut self.players[player.0 as usize].pool;
+                    *pool = pool.minus(&spent);
+                    self.declare_attackers(player, &declared);
+                }
+                Payment::Cancel => self.waiting = Waiting::Attackers { player },
+            },
             (Waiting::Blockers { player, rest }, Answer::Block(declared)) => {
                 if !self.legal_blocks(player, declared) {
                     return Err(Rejected::Illegal(answer));
@@ -5576,6 +5626,16 @@ impl Game {
                             owed,
                             at: here,
                         },
+                        // CR 702.24a: counted as it resolves, from the
+                        // permanent as it last existed if it is gone.
+                        lower::UnlessCost::ManaPerCounter { each, counter } => {
+                            let n = at.object.map_or(0, |o| self.counters_on(o, &counter));
+                            Waiting::PayUnless {
+                                player: q,
+                                owed: each.times(n),
+                                at: here,
+                            }
+                        }
                         lower::UnlessCost::Discard(filter) => {
                             // With no card to discard, what follows.
                             let (legal, unsure) = self.discardable(q, &filter);
@@ -6589,6 +6649,9 @@ impl Game {
     ) -> bool {
         let (control, excluding) = match c {
             lower::Intervening::Control { control, excluding } => (control, *excluding),
+            lower::Intervening::OnBattlefield => {
+                return self.battlefield.objects.contains_key(&source)
+            }
             lower::Intervening::ArrivedSinceLastUpkeep => {
                 let last = self.player(source_chars.controller).last_turn;
                 return self
@@ -6646,6 +6709,52 @@ impl Game {
             })
             .map(|(id, _)| *id)
             .collect()
+    }
+
+    /// CR 508.1c, 508.1h: the total mana the attack `declared` costs, or
+    /// `None` if it disobeys a restriction: each attacker a permanent's
+    /// rule matches attacking that permanent's controller can't, or costs
+    /// that rule's tax.
+    fn attack_cost(&self, declared: &[(ObjectId, PlayerId)]) -> Option<ManaCost> {
+        let all = self.characteristics();
+        let mut total = ManaCost::default();
+        for (id, chars) in &all {
+            let Some(runs) = self
+                .known(self.permanents[id].card)
+                .and_then(|k| k.runs.as_ref().ok())
+            else {
+                continue;
+            };
+            for a in &chars.abilities {
+                let Ability::Unread(n) = a else { continue };
+                let Some(rule) = runs.attack_rules.get(n) else {
+                    continue;
+                };
+                let source = &self.battlefield.objects[id];
+                let n = declared
+                    .iter()
+                    .filter(|(a, d)| {
+                        *d == chars.controller
+                            && rule.attackers.matches(&Seen {
+                                id: *a,
+                                chars: &all[a],
+                                source: *id,
+                                source_chars: chars,
+                                source_attached_to: source.attached_to,
+                                source_chosen: source.chosen_type.as_ref(),
+                                token: self.battlefield.objects[a].token,
+                                attacking: false,
+                            })
+                    })
+                    .count() as u32;
+                match &rule.tax {
+                    None if n > 0 => return None,
+                    None => {}
+                    Some(each) => total = total.plus(&each.times(n)),
+                }
+            }
+        }
+        Some(total)
     }
 
     /// CR 509.1a: untapped creatures `p` controls.
@@ -8006,6 +8115,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         cycling: None,
         suspend: None,
         cost_changes: BTreeMap::new(),
+        attack_rules: BTreeMap::new(),
         alternatives: BTreeMap::new(),
         kicker: None,
         enchant: None,
@@ -8206,6 +8316,17 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     }
                     Err(node) => runs.dormant.push(format!("an alternative cost: {node}")),
                 }
+            }
+            i::Ability::Static(parts) if lower::attack_rule(bind, parts).is_some() => {
+                let rule = lower::attack_rule(bind, parts)
+                    .expect("an attack rule")
+                    .map_err(|node| {
+                        Unrunnable::new(
+                            node.clone(),
+                            format!("the game can't run its attack restriction: {node}"),
+                        )
+                    })?;
+                runs.attack_rules.insert(n, rule);
             }
             i::Ability::Static(parts) if lower::cost_change(parts).is_some() => {
                 let change = lower::cost_change(parts)

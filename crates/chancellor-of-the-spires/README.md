@@ -657,7 +657,8 @@ permanent of that name among the legal targets; when two share the name,
 which nothing the log says tells apart, an opponent's first (most spells
 aimed at a permanent are removal: Naturalize on one of two Mox Diamonds),
 the caster's own first for an Aura, and the other if a later play can't
-be made. A hand revealed to
+be made, as for an activated ability's target (Rishadan Port on one of
+two Forests). A hand revealed to
 Duress or Thoughtseize names its hidden cards: the log prints the hand,
 after the discard in older logs and all of it in newer ones, and the card
 discarded, and the engine's hand must have as many cards or the replay
@@ -747,7 +748,10 @@ the counters it shows are there, each line's counted apart from those
 before; a split card's halves listed beside it in a revealed hand are
 one card; an "unless" the log shows paid only for echo ("paid the echo
 cost for [X]"), so echo is paid when that line follows and not
-otherwise, and anything else, Mana Leak's {3}, isn't paid unless a later
+otherwise, cumulative upkeep, which no line shows paid or not, is paid
+unless a later line can't then be followed (its age counter lines go on
+while the permanent stays), an attack's cost (Elephant Grass's) is paid
+with the first payment found, and anything else, Mana Leak's {3}, isn't paid unless a later
 line can't be followed then; a discard paying an "unless" is the
 player's next "discards [X]" line that turn, and with none it isn't
 paid; Phyrexian Dreadnought's sacrifice is never paid, which no log
@@ -955,7 +959,9 @@ then revealing a Lightning Bolt and attacking as Insectile Aberration;
 and a Vesuva gone back to and copied as Cloudpost when its copy of a
 Forest can't pay for two Bronze Sables; and Goblin Matron's search
 taken by the line revealing its Goblin, and three draw triggers, two
-of one name, each resolved by its own draw line. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
+of one name, each resolved by its own draw line; and Elephant Grass
+taxing an attack for {2}, never offered with one Mountain, and its
+cumulative upkeep paid. `tests/effects.rs` runs Thoughtseize, Lightning Bolt (at a
 player, at a creature, and at one already gone), Preordain, Champion of
 the Parish, Temple of Deceit, and combat: an unblocked attacker,
 flying against a block, a trade, first strike, exalted, prowess,
@@ -992,7 +998,9 @@ to its attacker's opponent, out of combat, and Prismatic Omen making
 Forests Mountains and Islands, and two Valakuts entering at once
 triggering four times, and Sleight of Hand bottoming the card not
 chosen and Strategic Planning putting the two not chosen into the
-graveyard. `tests/oracle.rs` reads Skyknight Squire flying
+graveyard, and Elephant Grass's cumulative upkeep asking {1}, then {2}
+and sacrificed, and its "can't attack you" refusing Walking Corpse and
+taxing Grizzly Bears {2}. `tests/oracle.rs` reads Skyknight Squire flying
 and a Knight from its third +1/+1 counter.
 
 ### The milestone
@@ -1020,9 +1028,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 92 of the 500 replay to
-the end and 48.03% of their lines are followed** (15,206 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 98
+Worked card by card from there, **on 2026-11-22 99 of the 500 replay to
+the end and 48.59% of their lines are followed** (15,383 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 101
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1101,7 +1109,12 @@ each seeing the others enter (Prismatic Omen, and two Valakuts Hour of
 Promise finds triggering four times); a static ability existing as long
 as its permanent has so many counters of a kind (Skyknight Squire); the
 cards looked at put on the bottom with no order said (Sleight of Hand)
-or into a graveyard (Strategic Planning). And
+or into a graveyard (Strategic Planning); cumulative upkeep, an age
+counter and then its cost asked once for each (CR 702.24a), and a
+static's restriction on attacking its controller, or its cost to,
+checked as attackers are declared and paid before they attack (CR
+508.1c, 508.1h–j: Elephant Grass's "Black creatures can't attack you"
+and {2} for each nonblack attacker). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1135,13 +1148,23 @@ and a "reveals [Goblin Piledriver]" line taking the "may" of a search
 that reveals what it finds (Goblin Matron's), and a "draws a card with
 [Argothian Enchantress]'s ability" line resolving only the topmost
 trigger of that name, not every one down to the last (two Argothian
-Enchantress triggers with Enchantress's Presence's between them). One divergence was the engine's own, found by the full
+Enchantress triggers with Enchantress's Presence's between them), and
+an attack's cost and cumulative upkeep, neither ever printed paid, paid
+with the first payment found, the upkeep declined if a later line
+can't then be followed, and an ability its controller activates in
+their own combat with nothing to answer activated after combat damage
+when the engine's game outlasts the log's (Mogg Fanatic attacking, then
+sacrificed for the last point), and an activated ability's target, of
+two permanents of one name, tried as the other too (Rishadan Port on one
+of two Forests). One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
-top of the worklist now: Elephant Grass's cumulative upkeep (7),
-Veteran Survivor (6), Adeline, Cunning Nightbonder, Eternal Dragon's
-landcycling, Fact or Fiction, Michelangelo's Technique and Powder Keg
-(5 each); of the 7 games Quicksilver stopped, one replays to
+top of the worklist now: Veteran Survivor (6), Adeline, Cunning
+Nightbonder, Eternal Dragon's landcycling, Fact or Fiction,
+Michelangelo's Technique and Powder Keg (5 each); of the 7 games
+Elephant Grass stopped, two replay to the end, three stop at other cards
+(Thermokarst, Hypnotic Specter, Reckless Abandon) and two at a log that
+names a player where a card should be ("plays P1"); of the 7 games Quicksilver stopped, one replays to
 the end, four stop at Blazing Shoal's exile from hand, one at Wayward
 Guide-Beast and one at Frostboil Snarl; of the 9 games a counter line before an
 activation stopped, Triskelion's replays to the end, Quest for Pure
