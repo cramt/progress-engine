@@ -5381,9 +5381,33 @@ impl Game {
                     let by = at.object.filter(|o| self.permanents.contains_key(o));
                     self.damage_triggers(hit, by, false, at.controller);
                 }
+                // "Deals damage to each player equal to twice the number
+                // of nonbasic lands that player controls": each counted
+                // for themselves, all dealt by one instruction at once
+                // (CR 120.2b, 120.3a).
+                Effect::Damage {
+                    to: DamageTo::EachPlayer,
+                    n,
+                } => {
+                    let hits: Vec<(Target, u32)> = (0..self.players.len())
+                        .map(|q| PlayerId(q as u8))
+                        .filter(|q| !self.player(*q).left)
+                        .map(|q| {
+                            let them = Resuming {
+                                player: Some(q),
+                                ..at.clone()
+                            };
+                            (Target::Player(q), self.amount(&them, n.clone()))
+                        })
+                        .collect();
+                    let source = self.source_of(&at);
+                    let hit = self.deal(source.as_ref(), at.controller, &hits);
+                    let by = at.object.filter(|o| self.permanents.contains_key(o));
+                    self.damage_triggers(hit, by, false, at.controller);
+                }
                 Effect::Damage { to, n } => {
                     let to = match to {
-                        DamageTo::Each(_) => unreachable!("dealt above"),
+                        DamageTo::Each(_) | DamageTo::EachPlayer => unreachable!("dealt above"),
                         DamageTo::You => Some(Target::Player(p)),
                         DamageTo::EventPlayer => at.player.map(Target::Player),
                         DamageTo::Target(s) => at.targets[s],
@@ -5969,6 +5993,14 @@ impl Game {
                 })
                 .count() as u32,
             lower::Amount::ThatMuch => at.amount.unwrap_or(0),
+            lower::Amount::Times(k, n) => k * self.amount(at, *n),
+            lower::Amount::ThatPlayerControls(f) => {
+                let all = self.characteristics();
+                self.objects_on(at, &lower::On::Each(f))
+                    .into_iter()
+                    .filter(|o| at.player.is_some_and(|q| all[o].controller == q))
+                    .count() as u32
+            }
             lower::Amount::CountersOnItself(kind) => {
                 at.object.map_or(0, |o| self.counters_on(o, &kind))
             }

@@ -4998,3 +4998,37 @@ fn smother_targets_only_a_creature_of_mana_value_3_or_less() {
     assert_eq!(creature(&game, "Dusk Legion Zealot"), None);
     assert!(creature(&game, "Hollow Dogs").is_some());
 }
+
+/// CR 120.2b, 120.3a: Price of Progress deals each player damage equal
+/// to twice the nonbasic lands that player controls, each counted for
+/// themselves: my one Rishadan Port is 2 to me, their two are 4 to them.
+#[test]
+fn price_of_progress_counts_each_players_own_nonbasic_lands() {
+    let mut game = deal_both(
+        &[
+            ("Mountain", 20),
+            ("Rishadan Port", 20),
+            ("Price of Progress", 20),
+        ],
+        &[("Rishadan Port", 40), ("Forest", 20)],
+        &[
+            ("Mountain", 1),
+            ("Rishadan Port", 1),
+            ("Price of Progress", 1),
+        ],
+        &[("Rishadan Port", 2)],
+    );
+    play(&mut game, "Rishadan Port");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Rishadan Port");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Mountain");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Rishadan Port");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    let (mine, theirs) = (game.player(ME).life(), game.player(THEM).life());
+    cast(&mut game, "Price of Progress", None);
+    resolve(&mut game);
+    assert_eq!(game.player(ME).life(), mine - 2);
+    assert_eq!(game.player(THEM).life(), theirs - 4);
+}

@@ -1031,9 +1031,9 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 107 of the 500 replay to
-the end and 49.83% of their lines are followed** (15,777 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 104
+Worked card by card from there, **on 2026-11-22 110 of the 500 replay to
+the end and 50.04% of their lines are followed** (15,841 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 111
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1129,7 +1129,9 @@ in a graveyard (CR 115.2), and the cards an object's own abilities exile
 linked to it, which "exiled with this creature" counts (CR 607.2a:
 Veteran Survivor, and Withered Wretch's "exile target card from a
 graveyard"); a target by its mana value, or one an opponent controls
-(CR 202.3: Smother). And
+(CR 202.3: Smother); damage to each player, each counting for
+themselves what "that player controls" (CR 120.2b: Price of Progress).
+And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1184,7 +1186,8 @@ stopped, one replays to the end and the rest stop at other cards
 (Horror of the Broken Lands's cycling trigger, Hopeful Initiate's
 training, Lurrus, Deftblade Elite's provoke, Malcolm's discard), and a
 target card in a graveyard let Withered Wretch's game replay to the end
-too; of the 5 games Smother stopped, two replay to the end and three
+too; of the 4 games Price of Progress stopped, three replay to the end
+and one stops at Earthquake's X; of the 5 games Smother stopped, two replay to the end and three
 stop at other cards (Ghastly Demise's "if", Siege-Gang Commander's
 sacrifice, Pyroblast's modes); of the 5 games Powder Keg stopped, two replay to the end and three stop at
 other cards (Siege-Gang Commander's sacrifice, Goblin Tinkerer, Circular

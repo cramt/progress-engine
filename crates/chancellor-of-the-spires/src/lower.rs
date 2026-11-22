@@ -1001,6 +1001,32 @@ pub fn counted(o: &Objects) -> Result<Filter, String> {
     }
 }
 
+/// Price of Progress's "equal to twice the number of nonbasic lands that
+/// player controls", "that player" being each player dealt damage; a
+/// number the same for each.
+fn each_players_amount(k: &i::Amount) -> Result<Amount, String> {
+    Ok(match k {
+        i::Amount::N(n) => Amount::N(*n),
+        i::Amount::Twice(k) => Amount::Times(2, Box::new(each_players_amount(k)?)),
+        i::Amount::CountOf(o)
+            if matches!(o.quant, Quant::Plural | Quant::All)
+                && matches!(
+                    o.filter.posts.as_slice(),
+                    [Post::Controller(i::Player::That)]
+                ) =>
+        {
+            Amount::ThatPlayerControls(objects(&Objects {
+                quant: Quant::All,
+                filter: i::Filter {
+                    posts: Vec::new(),
+                    ..o.filter.clone()
+                },
+            })?)
+        }
+        other => return Err(format!("damage to each player of {}", short(other))),
+    })
+}
+
 /// "Cards named Accumulated Knowledge in all graveyards", "creature cards
 /// in your graveyard": `None` if what is counted isn't cards in
 /// graveyards.
@@ -1650,6 +1676,12 @@ pub enum Amount {
     /// source, or as it last existed if it is gone, sacrificed to pay for
     /// the ability (CR 608.2h).
     CountersOnItself(Counter),
+    /// "Twice the number of …".
+    Times(u32, Box<Amount>),
+    /// "The number of nonbasic lands that player controls", of damage
+    /// dealt to each player: the permanents the filter matches that the
+    /// player being dealt damage controls.
+    ThatPlayerControls(Filter),
 }
 
 /// What damage is dealt to.
@@ -1666,6 +1698,9 @@ pub enum DamageTo {
     /// "To each creature": each permanent the filter matches, dealt
     /// damage at once (CR 120.3).
     Each(Filter),
+    /// "To each player": every player still in the game, at once, each
+    /// the amount counted for them.
+    EachPlayer,
 }
 
 /// What a target slot may be (CR 115.1).
@@ -2793,9 +2828,16 @@ impl<'a> Scope<'a> {
                 n: k,
                 to,
             } if source.quant == Quant::SelfRef && source.filter == i::Filter::default() => {
-                Effect::Damage {
-                    to: self.damage_to(to)?,
-                    n: self.resolved_amount(k)?,
+                if let [i::Recipient::Player(i::Player::Each)] = to.as_slice() {
+                    Effect::Damage {
+                        to: DamageTo::EachPlayer,
+                        n: each_players_amount(k)?,
+                    }
+                } else {
+                    Effect::Damage {
+                        to: self.damage_to(to)?,
+                        n: self.resolved_amount(k)?,
+                    }
                 }
             }
             i::Effect::Scry(k) => Effect::Scry(n(k)?),
