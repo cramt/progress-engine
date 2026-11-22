@@ -607,16 +607,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| { p.one_of(&["remain on the battlefield", "remains on the battlefield"])?; Some(Condition::In { what: what.clone(), zone: Zone::Battlefield }) },
                 |p| { p.one_of(&["is attached to", "are attached to"])?; let to = objects(p)?; Some(Condition::AttachedTo { what: what.clone(), to }) },
                 |p| p.words("died this turn").map(|_| Condition::DidThisTurn(Box::new(Event::Dies(what.clone())))),
-                // "if an Assassin crewed it this turn" (Adrestia): there is
-                // such a creature that crewed it, as the post says it
+                // "if an Assassin crewed it this turn" (Adrestia): a crew
+                // event this turn, the crewer described as it was tapped
                 // ([crewed-it]).
                 |p| {
                     let saddle = p.one_of(&["crewed", "saddled"])? == "saddled";
                     let vehicle = objects(p)?;
                     p.words("this turn")?;
-                    let mut x = what.clone();
-                    x.filter.posts.push(Post::CrewedThisTurn { what: Box::new(vehicle), saddle });
-                    Some(Condition::ThereAre(vec![x]))
+                    Some(Condition::DidThisTurn(Box::new(Event::Crews { by: what.clone(), what: vehicle, saddle })))
                 },
                 // "a creature died under your control this turn": one you
                 // controlled as it died.

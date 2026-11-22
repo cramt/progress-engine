@@ -11218,6 +11218,10 @@ fn event(o: &mut Out, e: &Event) {
             o.verb("become", player_num(who));
             o.w("the monarch");
         }
+        Event::Crews { by, what, saddle } => {
+            obj_subj(o, by, if *saddle { "saddle" } else { "crew" });
+            objects(o, what);
+        }
         Event::Exerts { who, what } => {
             player(o, who);
             o.verb("exert", player_num(who));
@@ -11631,6 +11635,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::BecomesCrewed(x)
         | Event::TurnedFaceUp(x)
         | Event::TappedForMana(x)
+        | Event::Crews { by: x, .. }
         | Event::Countered(x) => Subject::Obj(x),
         Event::Casts { who, .. }
         | Event::Copies { who, .. }
@@ -12235,6 +12240,13 @@ fn condition_said(o: &mut Out, c: &Condition) {
         }
         Condition::YouAreStartingPlayer => o.w("you're the starting player"),
         Condition::DidThisTurn(e) => match &**e {
+            // "if an Assassin crewed it this turn" (Adrestia) ([crewed-it]).
+            Event::Crews { by, what, saddle } => {
+                objects(o, by);
+                o.w(if *saddle { "saddled" } else { "crewed" });
+                objects(o, what);
+                o.w("this turn");
+            }
             // "if you cycled two or more cards this turn".
             Event::Cycles {
                 who,
@@ -12740,18 +12752,6 @@ fn condition_said(o: &mut Out, c: &Condition) {
             } else {
                 "this turn"
             });
-        }
-        // "if an Assassin crewed it this turn" (Adrestia) ([crewed-it]).
-        Condition::ThereAre(v) if matches!(&v[..], [x] if matches!(x.filter.posts.last(), Some(Post::CrewedThisTurn { .. }))) =>
-        {
-            let mut bare = v[0].clone();
-            let Some(Post::CrewedThisTurn { what, saddle }) = bare.filter.posts.pop() else {
-                return;
-            };
-            objects(o, &bare);
-            o.w(if saddle { "saddled" } else { "crewed" });
-            objects(o, &what);
-            o.w("this turn");
         }
         Condition::ThereAre(v) => {
             // The zone each is in is said once, after the last.

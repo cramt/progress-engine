@@ -1698,6 +1698,10 @@ impl Walk for Event {
             Event::BecomesCrewed(f0) => {
                 Walk::walk(f0, v);
             }
+            Event::Crews { by, what, .. } => {
+                Walk::walk(by, v);
+                Walk::walk(what, v);
+            }
             Event::TurnedFaceUp(f0) => {
                 Walk::walk(f0, v);
             }

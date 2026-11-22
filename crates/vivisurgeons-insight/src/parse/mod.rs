@@ -1009,6 +1009,10 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         {
             what
         }
+        // "Whenever this creature crews a Vehicle, that Vehicle gains haste":
+        // the card is said again as "this creature", so the one object is
+        // the Vehicle.
+        Event::Crews { by, what, .. } if by.quant == Quant::SelfRef => what,
         Event::While { event, .. }
         | Event::AndIf { event, .. }
         | Event::InterveningIf { event, .. }

@@ -15,7 +15,7 @@ cost: {3}
 > Whenever Adrestia attacks, if an Assassin crewed it this turn, draw a card. Adrestia becomes an Assassin in addition to its other types until end of turn.
 > Crew 1
 = Keywords([Keyword { name: "islandwalk", param: None }])
-= Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), ThereAre([Objects { quant: One, filter: Filter { alts: [[Subtype("assassin")]], kind: None, posts: [CrewedThisTurn { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, saddle: false }], or: None } }])), effect: [Draw { who: You, n: N(1) }, Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Subtype("assassin")], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), DidThisTurn(Crews { by: Objects { quant: One, filter: Filter { alts: [[Subtype("assassin")]], kind: None, posts: [], or: None } }, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, saddle: false })), effect: [Draw { who: You, n: N(1) }, Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Subtype("assassin")], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(1))) }])
 
 ## Ajani's Aid

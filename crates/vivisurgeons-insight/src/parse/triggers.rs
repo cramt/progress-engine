@@ -364,6 +364,9 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
         |p| { p.one_of(&["becomes level", "become level"])?; let n = number(p)?; Some(Event::BecomesLevel { what: what.clone(), n }) },
         |p| p.one_of(&["is dealt damage", "are dealt damage"]).map(|_| Event::IsDealtDamage(what.clone())),
         |p| p.one_of(&["becomes crewed", "become crewed"]).map(|_| Event::BecomesCrewed(what.clone())),
+        // "Whenever this creature crews a Vehicle": tapped to pay its crew
+        // cost (CR 702.122a).
+        |p| { p.verb("crew")?; let v = objects(p)?; Some(Event::Crews { by: what.clone(), what: v, saddle: false }) },
         |p| p.one_of(&["becomes tapped", "become tapped"]).map(|_| Event::BecomesTapped(what.clone())),
         |p| p.one_of(&["is turned face up", "are turned face up"]).map(|_| Event::TurnedFaceUp(what.clone())),
         |p| p.one_of(&["is tapped for mana", "are tapped for mana"]).map(|_| Event::TappedForMana(what.clone())),

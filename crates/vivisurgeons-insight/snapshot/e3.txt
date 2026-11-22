@@ -824,7 +824,7 @@ cost: {1}{R}
 > Haste
 > Whenever this creature crews a Vehicle, that Vehicle gains haste until end of turn.
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "," after: whenever this creature crews a vehicle
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Crews { by: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, saddle: false }), effect: [Modify { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Spellshift
 face: Spellshift

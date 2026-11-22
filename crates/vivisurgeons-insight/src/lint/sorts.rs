@@ -647,6 +647,7 @@ fn event(e: &Event, out: &mut Vec<(*const Objects, To)>) {
         | Event::YouAttack
         | Event::BecomesTapped(_)
         | Event::BecomesCrewed(_)
+        | Event::Crews { .. }
         | Event::BecomesTarget { .. }
         | Event::Cycles { what: None, .. }
         | Event::CounterPutOn(_)

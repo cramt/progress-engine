@@ -3322,6 +3322,15 @@ pub enum Event {
     /// "Whenever this Vehicle becomes crewed": its crew ability resolved and
     /// it became an artifact creature (CR 702.122a).
     BecomesCrewed(Objects),
+    /// "an Assassin crewed it", "this creature crews a Vehicle": `by` was
+    /// tapped to pay `what`'s crew cost (CR 702.122a), `saddle` its saddle
+    /// cost (CR 702.171a). `by` is described as it was when tapped, so an
+    /// Assassin that has since died still crewed it ([crewed-it]).
+    Crews {
+        by: Objects,
+        what: Objects,
+        saddle: bool,
+    },
     /// "When this creature is turned face up", "Whenever a permanent is
     /// turned face up": by any means (CR 708.8: abilities relating to it
     /// entering don't trigger, since it already entered).
