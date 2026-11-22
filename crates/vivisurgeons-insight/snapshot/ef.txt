@@ -1112,7 +1112,7 @@ face: Worst Fears
 type: Sorcery
 cost: {7}{B}
 > You control target player during that player's next turn. Exile Worst Fears. (You see all cards that player could see and make all decisions for them.)
-= BROKE at "'s" after: you control target player during that player
+= Spell([ControlPlayerNextTurn(Target), Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Yavimaya Kavu
 face: Yavimaya Kavu

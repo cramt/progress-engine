@@ -89,11 +89,11 @@ reports every one. The lists in `milestones/` say where they came from, and
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1800/1801 (99.9%) | pinned; Saw in Half was outside the old corpus |
 | My decks: every card in the 20 decks of cramt/mtg | 1199/1207 (99.3%) | 2496/2504 (99.7%) | reopened by 3 new decks; 1023 cards pinned |
-| Standard after the early-2027 rotation | 3092/3517 (87.9%) | 6606/7055 (93.6%) | |
+| Standard after the early-2027 rotation | 3094/3517 (88.0%) | 6608/7055 (93.7%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4334/5157 (84.0%) | 9530/10421 (91.4%) | |
+| All of Standard | 4336/5157 (84.1%) | 9532/10421 (91.5%) | |
 | EDHREC top 2000 | 1830/1987 (92.1%) | 3663/3847 (95.2%) | |
-| EDHREC top 5000 | 4197/4977 (84.3%) | 9221/10111 (91.2%) | |
+| EDHREC top 5000 | 4199/4977 (84.4%) | 9223/10111 (91.2%) | |
 | Commander precons | 4808/6151 (78.2%) | 10748/12228 (87.9%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
@@ -161,7 +161,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | My decks (pinned) | 2136/2136 (100%) |
 | EDHREC top 2000 | 3662/3663 (99.97%) |
-| All parsed abilities | 51977/52004 (99.9%) |
+| All parsed abilities | 51982/52009 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading

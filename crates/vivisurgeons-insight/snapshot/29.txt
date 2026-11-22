@@ -1059,7 +1059,7 @@ type: Legendary Artifact — Equipment
 cost: {2}
 > Equipped creature gets +1/+1 and has "{15}, Exile The Dominion Bracelet: You control target opponent during their next turn. This ability costs {X} less to activate, where X is this creature's power. Activate only as a sorcery." (You see all cards that player could see and make all decisions for them.)
 > Equip {1}
-= BROKE at "control" after: equipped creature gets <pt> and has " {15} , exile ~ : you
+= Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["15"])), Exile(Objects { quant: Granter, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [ControlPlayerNextTurn(TargetOpponent)], limits: [CostChange { by: Mana(["X"]), less: true, per: Some(PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), cond: None }, SorcerySpeed] } }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
 ## Thran War Machine

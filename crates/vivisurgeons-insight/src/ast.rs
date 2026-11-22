@@ -2294,7 +2294,7 @@ pub enum Effect {
     /// "draw a card and repeat this process": the enclosing `Process` again.
     RepeatProcess,
     /// "you gain control of target opponent during that player's next turn":
-    /// always the controlled player's next turn (CR 723.1).
+    /// always the controlled player's next turn (CR 724.1).
     ControlPlayerNextTurn(Player),
     /// "becomes an artifact creature with power and toughness each equal to
     /// its mana value".

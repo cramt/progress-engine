@@ -591,12 +591,15 @@ fn effect_first(p: &mut P) -> Option<Effect> {
             p.one_of(&["their owner 's library", "their owners ' libraries", "your library"])?;
             Some(Effect::ShuffleAllInto { who, what, zones })
         },
-        // "gain control of target opponent during that player's next turn".
+        // "gain control of target opponent during that player's next turn",
+        // "You control target player during that player's next turn"
+        // (Mindslaver), "… target opponent during their next turn"
+        // ([control-player-turn]).
         |p| {
             p.attempt(|p| p.word("you"));
-            p.words("gain control of")?;
+            p.one_of(&["gain control of", "control"])?;
             let who = player_simple(p)?;
-            p.words("during that player 's next turn")?;
+            p.one_of(&["during that player 's next turn", "during their next turn"])?;
             Some(Effect::ControlPlayerNextTurn(who))
         },
         // "becomes an artifact creature with power and toughness each equal

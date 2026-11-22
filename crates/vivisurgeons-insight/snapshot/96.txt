@@ -170,7 +170,7 @@ cost: {2}{B}
 > Whenever you draw your second card each turn, create a 2/1 black Villain creature token with menace and put a plan counter on this enchantment.
 > When the seventh plan counter is put on this enchantment, sacrifice it. When you do, you control target opponent during their next turn. (You see all cards that player could see and make all decisions for them.)
 = Triggered { trigger: When(DrawsNth { who: You, n: 2 }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [Black], types: ["villain", "creature"], keywords: [Keyword { name: "menace", param: None }], abilities: [], named: None, attacking: None } }, PutCounters { n: N(1), kind: "plan", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "control" after: when the seventh plan counter is put on this enchantment , sacrifice it . when you do , you
+= Triggered { trigger: When(NthCounterPutOn { n: 7, kind: "plan", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, WhenYouDo([ControlPlayerNextTurn(TargetOpponent)])], limits: [] }
 
 ## Cradle of the Accursed
 face: Cradle of the Accursed

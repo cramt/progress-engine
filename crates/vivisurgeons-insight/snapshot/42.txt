@@ -634,7 +634,7 @@ face: Mindslaver
 type: Legendary Artifact
 cost: {6}
 > {4}, {T}, Sacrifice Mindslaver: You control target player during that player's next turn. (You see all cards that player could see and make all decisions for them.)
-= BROKE at "control" after: {4} , {T} , sacrifice ~ : you
+= Activated { cost: [Mana(Mana(["4"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [ControlPlayerNextTurn(Target)], limits: [] }
 
 ## Mistfolk
 face: Mistfolk

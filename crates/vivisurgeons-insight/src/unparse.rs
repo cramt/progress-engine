@@ -2116,6 +2116,20 @@ mod syn {
         alt(o, vec![bare, said]);
     }
 
+    /// Named rewrite [control-player-turn]: "You control target player
+    /// during that player's next turn" (Mindslaver) is "you gain control
+    /// of target player during that player's next turn" (Emrakul, the
+    /// Promised End): one effect, CR 724.1.
+    pub fn control_player_turn(o: &mut Out, gain: Out, control: Out) {
+        alt(o, vec![gain, control]);
+    }
+
+    /// Named rewrite [control-player-turn]: "during their next turn" after
+    /// "target opponent" is "during that player's next turn".
+    pub fn that_players_or_their(o: &mut Out) {
+        alt(o, vec![of("that player's"), of("their")]);
+    }
+
     /// Named rewrite [when-is-whenever]: a printed "When this creature
     /// enters" (Oblivion Ring) is "whenever this creature enters". CR 603.1
     /// writes every trigger "[When/Whenever/At] [trigger condition or event],
@@ -9893,10 +9907,16 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
         }
         Effect::RepeatProcess => o.w("repeat this process"),
         Effect::ControlPlayerNextTurn(who) => {
-            subj(o, &Player::You, "gain", cx);
-            o.w("control of");
+            let gain = out(|o| {
+                subj(o, &Player::You, "gain", cx);
+                o.w("control of");
+            });
+            let control = out(|o| subj(o, &Player::You, "control", cx));
+            syn::control_player_turn(o, gain, control);
             player(o, who);
-            o.w("during that player's next turn");
+            o.w("during");
+            syn::that_players_or_their(o);
+            o.w("next turn");
         }
         Effect::ExtraTurn {
             who,
