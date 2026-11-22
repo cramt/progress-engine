@@ -1038,8 +1038,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 128 of the 500 replay to
-the end and 52.59% of their lines are followed** (16,648 of 31,659), 3
+Worked card by card from there, **on 2026-11-22 130 of the 500 replay to
+the end and 53.28% of their lines are followed** (16,867 of 31,659), 3
 of them relying on a land the log never names (2 to the end), and 137
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -1176,7 +1176,11 @@ type only to a creature, and a quoted ability it "has" added to its
 text, and "when this creature becomes the target of a spell or
 ability", once however many of one spell's slots name it (CR 707.9a–b,
 205.1b, 205.3d, 603.2c: Phantasmal Image, whose 6 games now stop at
-other cards, Phyrexian Metamorph's Phyrexian mana in 2). And
+other cards, Phyrexian Metamorph's Phyrexian mana in 2); a player's
+graveyard exiled, each card linked to the permanent whose ability
+exiled it and a commander among them free to go to the command zone
+(CR 701.13a, 406.2, 607.2a, 903.9a: Tormod's Crypt, whose 4 games go on,
+two of them to the end, and Bojuka Bog). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1190,7 +1194,8 @@ cost" as that plotted card's, and which of the cards drawn this turn
 Sylvan Library chooses, which
 land Flare of Cultivation puts onto the battlefield, and which card was
 cast face down, from the line revealing it or the card with morph a line
-names once it is turned face up, the discard paying an "unless"
+names once it is turned face up, looked for in the hand once its player
+has priority, after the draw a line in their upkeep comes before, the discard paying an "unless"
 from the next discard line, and which face of a two-faced card a line
 names and which copy of an adventurer card it casts, and what Vesuva
 entered as a copy of, and the cards an activation's cost takes from the

@@ -5644,6 +5644,26 @@ impl Game {
                         return;
                     }
                 }
+                Effect::ExileGraveyard(w) => {
+                    let Some(q) = who(w) else { continue };
+                    let cards = std::mem::take(&mut self.players[q.0 as usize].graveyard);
+                    let linked = (!matches!(at.what, Instructions::Spell { .. }))
+                        .then_some(at.object)
+                        .flatten();
+                    for c in cards {
+                        self.put_in_exile(c);
+                        // CR 607.2a: linked to the permanent whose ability
+                        // exiled it.
+                        if let Some(source) = linked {
+                            self.exiled_with.insert(c, source);
+                        }
+                        // CR 903.9a: a commander put into exile may go to
+                        // the command zone.
+                        if self.cards[c.0 as usize].commander {
+                            self.commanders_moved.push_back(c);
+                        }
+                    }
+                }
                 Effect::RevealChooseDiscard { who: w, filter } => {
                     let Some(q) = who(w) else { continue };
                     self.waiting = Waiting::ChooseFromHand {

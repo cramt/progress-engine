@@ -5646,3 +5646,40 @@ fn phantasmal_image_copies_and_is_sacrificed_as_it_becomes_a_target() {
     assert!(game.player(ME).graveyard().contains(&image));
     assert_eq!(game.card(image).unwrap().name, "Phantasmal Image");
 }
+
+/// CR 701.13a, 406.2: Tormod's Crypt, sacrificed as its cost, exiles every
+/// card in the target player's graveyard, itself among them by then.
+#[test]
+fn tormods_crypt_exiles_a_graveyard_and_itself_in_it() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Mogg Fanatic", 15),
+            ("Tormod's Crypt", 15),
+        ],
+        &[("Forest", 60)],
+        &[("Mountain", 1), ("Mogg Fanatic", 1), ("Tormod's Crypt", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Mogg Fanatic", None);
+    resolve(&mut game);
+    let fanatic = creature(&game, "Mogg Fanatic").unwrap();
+    let Decision::Targets { .. } = activate(&mut game, fanatic) else {
+        panic!("a target")
+    };
+    step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    resolve(&mut game);
+    assert_eq!(game.player(ME).graveyard().len(), 1);
+    cast(&mut game, "Tormod's Crypt", None);
+    resolve(&mut game);
+    let crypt = creature(&game, "Tormod's Crypt").unwrap();
+    let Decision::Targets { slots, .. } = activate(&mut game, crypt) else {
+        panic!("a target")
+    };
+    assert!(slots[0].contains(&Target::Player(ME)));
+    step(&mut game, Answer::Targets(vec![Target::Player(ME)]));
+    assert_eq!(game.player(ME).graveyard().len(), 2, "the Crypt sacrificed");
+    resolve(&mut game);
+    assert!(game.player(ME).graveyard().is_empty());
+    assert_eq!(game.exile().len(), 2);
+}

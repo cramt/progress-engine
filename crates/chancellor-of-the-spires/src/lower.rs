@@ -1470,6 +1470,9 @@ pub enum Effect {
         who: Who,
         n: Amount,
     },
+    /// "Exile target player's graveyard": every card in it moved to exile
+    /// (CR 701.13a, 406.2).
+    ExileGraveyard(Who),
     /// "Discard two cards": the player chooses which (CR 701.9a), bound
     /// to `into` for "each land card discarded this way"; "at random",
     /// chance does (CR 701.9b).
@@ -2985,6 +2988,7 @@ impl<'a> Scope<'a> {
                     random: *random,
                 }
             }
+            i::Effect::ExileZone(i::Zone::Graveyard(who)) => Effect::ExileGraveyard(self.who(who)?),
             i::Effect::LoseLife { who, n: k } => Effect::LoseLife {
                 who: self.who(who)?,
                 n: match k {

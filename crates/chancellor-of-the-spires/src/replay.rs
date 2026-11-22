@@ -4253,19 +4253,6 @@ impl Driver<'_> {
             .filter(|e| matches!(e.event, Event::CastsFaceDown { .. }))
             .count() as u32;
         let name = self.face_down_name(i, n)?;
-        let card = match &name {
-            Some(name) => self.in_hand(p, name)?,
-            None => {
-                let game = self.game();
-                let hand = game.player(p).hand();
-                hand.iter().find(|c| game.card(**c).is_none()).copied()
-            }
-        };
-        let Some(card) = card else {
-            return Err(Stop::Diverged(Divergence::NotInHand {
-                card: name.unwrap_or_else(|| "a card to cast face down".into()),
-            }));
-        };
         let what = name.clone().unwrap_or_else(|| "a hidden card".into());
         let turn = self.game().turn();
         while !self.game().stack().is_empty() && !self.resolves_later() {
@@ -4274,20 +4261,41 @@ impl Driver<'_> {
                 break;
             }
         }
+        // The card is looked for in the hand as the player gets priority,
+        // not at the line: the line may come in their upkeep, before the
+        // draw that brings it (an opponent's Rishadan Port activated then).
+        let mut card = None;
         loop {
-            let game = self.game();
-            if game.turn() != turn {
-                return Err(Stop::Diverged(Divergence::NeverOffered {
-                    what: format!("cast {what} face down"),
+            if self.game().turn() != turn {
+                return Err(Stop::Diverged(match card {
+                    None => Divergence::NotInHand {
+                        card: name.unwrap_or_else(|| "a card to cast face down".into()),
+                    },
+                    Some(_) => Divergence::NeverOffered {
+                        what: format!("cast {what} face down"),
+                    },
                 }));
             }
-            if let Decision::Priority { player, actions } = game.decision() {
-                if player == p && actions.contains(&Action::CastFaceDown(card)) {
+            if let Decision::Priority { player, .. } = self.game().decision() {
+                if player == p && card.is_none() {
+                    card = match &name {
+                        Some(name) => self.in_hand(p, name)?,
+                        None => {
+                            let game = self.game();
+                            let hand = game.player(p).hand();
+                            hand.iter().find(|c| game.card(**c).is_none()).copied()
+                        }
+                    };
+                }
+            }
+            let game = self.game();
+            if let (Decision::Priority { player, actions }, Some(c)) = (game.decision(), card) {
+                if player == p && actions.contains(&Action::CastFaceDown(c)) {
                     break;
                 }
                 // One the engine runs no morph of is never offered.
-                if player == p && game.card(card).is_some() {
-                    if let Some(r) = game.refusal(card) {
+                if player == p && game.card(c).is_some() {
+                    if let Some(r) = game.refusal(c) {
                         return Err(Stop::Refused {
                             card: what,
                             node: r.node,
@@ -4298,6 +4306,7 @@ impl Driver<'_> {
             }
             self.pass()?;
         }
+        let card = card.expect("found before breaking");
         self.act(Answer::Act(Action::CastFaceDown(card)))?;
         let paid = self.aim_and_pay(i, &[], &what)?;
         self.face_down.insert(n, card);
