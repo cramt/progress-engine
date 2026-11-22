@@ -10609,6 +10609,11 @@ fn unless_costs(o: &mut Out, cs: &[Cost], n: Num) {
 }
 
 fn life(o: &mut Out, n: &Amount) {
+    // "that player gains no life instead" (Sulfuric Vortex).
+    if *n == Amount::N(0) {
+        o.w("no life");
+        return;
+    }
     // "loses a third of their life, rounded up".
     if let Amount::Third { of, round_up } = n {
         if let Amount::LifeTotal(w) = &**of {
@@ -12530,6 +12535,11 @@ fn condition_said(o: &mut Out, c: &Condition) {
                 syn::did_tense(o, "searched", out(|o| o.verb("search", player_num(who))));
                 zone(o, z);
                 o.w("this turn");
+            }
+            Event::PlaysLand(who) => {
+                player(o, who);
+                syn::did_tense(o, "played", out(|o| o.verb("play", player_num(who))));
+                o.w("a land this turn");
             }
             e => {
                 event(o, e);

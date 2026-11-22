@@ -923,7 +923,7 @@ cost: {1}{R}{R}
 > At the beginning of each player's upkeep, this enchantment deals 2 damage to that player.
 > If a player would gain life, that player gains no life instead.
 = Triggered { trigger: At(Upkeep(Each)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(That)] }], limits: [] }
-= BROKE at "no" after: if a player would gain life , that player gains
+= Static([Replacement { event: GainsLife(APlayer), instead: [GainLife { who: That, n: N(0) }] }])
 
 ## Sultai Runemark
 face: Sultai Runemark

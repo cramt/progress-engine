@@ -706,7 +706,7 @@ cost: {1}{W}
 face: River of Tears
 type: Land
 > {T}: Add {U}. If you played a land this turn, add {B} instead.
-= BROKE at "played" after: {T} : add {U} . if you
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"]))), Instead { cond: DidThisTurn(PlaysLand(You)), then: [AddMana(Symbols(Mana(["B"])))] }], limits: [] }
 
 ## Rootrunner
 face: Rootrunner

@@ -1504,6 +1504,8 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 |p| { p.words("that much life plus")?; let k = number(p)?; Some(Amount::Plus(Box::new(Amount::ThatMany), k)) },
                 |p| { let n = amount(p)?; p.word("life")?; Some(n) },
                 |p| { p.words("life equal to")?; measure(p) },
+                // "that player gains no life instead" (Sulfuric Vortex).
+                |p| p.words("no life").map(|_| Amount::N(0)),
             )?;
             Some(Effect::GainLife { who, n })
         },
