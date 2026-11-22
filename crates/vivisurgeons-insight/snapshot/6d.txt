@@ -699,7 +699,7 @@ cost: {2}{G}
 > Aura spells you cast that target enchanted creature cost {3} less to cast.
 > Enchanted creature gets +2/+2 for each Aura and Equipment attached to it.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "creature" after: equip abilities you activate that target enchanted
+= Static([ActivatedCostChange { kind: Equip, who: You, targeting: Some(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), by: Mana(["3"]), less: true }])
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("aura")]], kind: Some(Spell), posts: [Cast(You), Targets(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], or: None } }, by: Mana(["3"]), less: true, per: None }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("aura")], [Subtype("equipment")]], kind: None, posts: [AttachedToIt], or: None } })) }])
 

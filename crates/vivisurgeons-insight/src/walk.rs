@@ -2680,11 +2680,17 @@ impl Walk for Static {
                     Walk::walk(x0, v);
                 }
             }
-            Static::AbilityCostChange { of, .. } => {
+            Static::AbilityCostChange { of, targeting, .. } => {
                 Walk::walk(of, v);
+                if let Some(x0) = (targeting).as_mut() {
+                    Walk::walk(x0, v);
+                }
             }
-            Static::ActivatedCostChange { who, .. } => {
+            Static::ActivatedCostChange { who, targeting, .. } => {
                 Walk::walk(who, v);
+                if let Some(x0) = (targeting).as_mut() {
+                    Walk::walk(x0, v);
+                }
             }
             Static::ExtraLand(f0) => {
                 Walk::walk(f0, v);

@@ -867,7 +867,7 @@ cost: {1}{G}{W}
 > Activated abilities of Foods you control cost {1} less to activate.
 = Keywords([Keyword { name: "partner with", param: Some(PartnerWith("frodo, adventurous hobbit")) }])
 = Triggered { trigger: At(Combat(Yours)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }], limits: [] }
-= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[Subtype("food")]], kind: None, posts: [Controller(You)], or: None } }, by: Mana(["1"]), less: true }])
+= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[Subtype("food")]], kind: None, posts: [Controller(You)], or: None } }, targeting: None, by: Mana(["1"]), less: true }])
 
 ## Sapphire Dragon // Psionic Pulse
 face: Sapphire Dragon

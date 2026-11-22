@@ -656,27 +656,33 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             p.word("abilities")?;
             let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
             p.verb("activate")?;
+            // "Equip abilities you activate that target this creature".
+            let targeting = p.attempt(|p| { p.words("that target")?; objects(p) });
             p.verb("cost")?;
             let by = mana(p)?;
             let less = p.one_of(&["less", "more"])? == "less";
             p.words("to activate")?;
-            Some(vec![Static::ActivatedCostChange { kind, who, by, less }])
+            Some(vec![Static::ActivatedCostChange { kind, who, targeting, by, less }])
         },
         // "Activated abilities of artifacts you control cost {1} less to
         // activate".
         |p| {
             let kind = match descriptor(p)? { Adj::Ability(k) => k, _ => return None };
             p.words("abilities of")?;
-            let of = objects(p)?;
+            let mut of = objects(p)?;
             // "… of Equipment you control that target this creature": the
-            // abilities target, not the Equipment, which the tree has no
-            // place for.
-            if of.filter.posts.iter().any(|q| matches!(q, Post::Targets(_))) { return None; }
+            // abilities target, not the Equipment.
+            let mut targeting = None;
+            if let Some(i) = of.filter.posts.iter().position(|q| matches!(q, Post::Targets(_))) {
+                if i + 1 != of.filter.posts.len() || of.filter.or.is_some() { return None; }
+                let Some(Post::Targets(t)) = of.filter.posts.pop() else { return None };
+                targeting = Some(*t);
+            }
             p.verb("cost")?;
             let by = mana(p)?;
             let less = p.one_of(&["less", "more"])? == "less";
             p.words("to activate")?;
-            Some(vec![Static::AbilityCostChange { kind, of, by, less }])
+            Some(vec![Static::AbilityCostChange { kind, of, targeting, by, less }])
         },
         // "Activated abilities of artifacts your opponents control can't be
         // activated", perhaps "unless they're mana abilities".

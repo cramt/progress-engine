@@ -963,7 +963,7 @@ cost: {1}{W}
 > Crew 2
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(NonlandCardName)] }])
-= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, by: Mana(["2"]), less: false }])
+= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, targeting: None, by: Mana(["2"]), less: false }])
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 
 ## Smirking Spelljacker

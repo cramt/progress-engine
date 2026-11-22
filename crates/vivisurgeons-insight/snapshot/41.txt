@@ -95,7 +95,7 @@ cost: {R}{W}
 > Equipment spells you cast cost {1} less to cast.
 > Equip abilities you activate cost {1} less to activate.
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= Static([ActivatedCostChange { kind: Equip, who: You, by: Mana(["1"]), less: true }])
+= Static([ActivatedCostChange { kind: Equip, who: You, targeting: None, by: Mana(["1"]), less: true }])
 
 ## Burning Sun's Avatar
 face: Burning Sun's Avatar

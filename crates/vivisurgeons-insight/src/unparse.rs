@@ -14099,10 +14099,20 @@ fn static_other(o: &mut Out, s: &Static) {
                 }],
             );
         }
-        Static::AbilityCostChange { kind, of, by, less } => {
+        Static::AbilityCostChange {
+            kind,
+            of,
+            targeting,
+            by,
+            less,
+        } => {
             adj(o, &Adj::Ability(*kind), None);
             o.w("abilities of");
             objects(o, of);
+            if let Some(t) = targeting {
+                o.w("that target");
+                objects(o, t);
+            }
             o.w("cost");
             mana(o, by);
             o.w(if *less { "less" } else { "more" });
@@ -14111,6 +14121,7 @@ fn static_other(o: &mut Out, s: &Static) {
         Static::ActivatedCostChange {
             kind,
             who,
+            targeting,
             by,
             less,
         } => {
@@ -14118,6 +14129,10 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("abilities");
             player(o, who);
             o.verb("activate", player_num(who));
+            if let Some(t) = targeting {
+                o.w("that target");
+                objects(o, t);
+            }
             o.w("cost");
             mana(o, by);
             o.w(if *less { "less" } else { "more" });

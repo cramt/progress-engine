@@ -229,7 +229,7 @@ face: Dwarven Mauler
 type: Creature — Dwarf Warrior
 cost: {R}
 > Equip abilities you activate that target this creature cost {2} less to activate.
-= BROKE at "creature" after: equip abilities you activate that target this
+= Static([ActivatedCostChange { kind: Equip, who: You, targeting: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), by: Mana(["2"]), less: true }])
 
 ## Enigma Thief
 face: Enigma Thief

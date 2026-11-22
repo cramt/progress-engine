@@ -2768,7 +2768,7 @@ face: Fluctuator
 type: Artifact
 cost: {2}
 > Cycling abilities you activate cost {2} less to activate.
-= Static([ActivatedCostChange { kind: Cycling, who: You, by: Mana(["2"]), less: true }])
+= Static([ActivatedCostChange { kind: Cycling, who: You, targeting: None, by: Mana(["2"]), less: true }])
 
 ## Fomori Vault
 face: Fomori Vault

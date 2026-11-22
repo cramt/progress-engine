@@ -3686,6 +3686,8 @@ pub enum Static {
     AbilityCostChange {
         kind: AbilityKind,
         of: Objects,
+        /// "… that target this creature": only the abilities that target it.
+        targeting: Option<Objects>,
         by: Mana,
         less: bool,
     },
@@ -3696,6 +3698,9 @@ pub enum Static {
     ActivatedCostChange {
         kind: AbilityKind,
         who: Player,
+        /// "Equip abilities you activate that target this creature": only
+        /// the abilities that target it (CR 115.1, 702.6a).
+        targeting: Option<Objects>,
         by: Mana,
         less: bool,
     },

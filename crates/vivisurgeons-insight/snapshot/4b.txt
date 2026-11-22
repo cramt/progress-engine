@@ -116,7 +116,7 @@ cost: {2}{R}
 > Activated abilities of Equipment you control that target this creature cost {1} less to activate.
 = Keywords([Keyword { name: "menace", param: None }])
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= BROKE at "{1}" after: activated abilities of equipment you control that target this creature cost
+= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, targeting: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), by: Mana(["1"]), less: true }])
 
 ## Brazen Wolves
 face: Brazen Wolves

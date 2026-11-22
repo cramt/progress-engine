@@ -221,7 +221,7 @@ cost: {3}{R}{W}
 > During your turn, as long as Cloud is equipped, it has double strike and indestructible. (This creature deals both first-strike and regular combat damage. Damage and effects that say "destroy" don't destroy this creature.)
 > Equip abilities you activate that target Cloud cost {2} less to activate.
 = Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [AsLongAs { order: Leading, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "double strike", param: None }, Keyword { name: "indestructible", param: None }], per: None }] }] }])
-= BROKE at "cost" after: equip abilities you activate that target ~
+= Static([ActivatedCostChange { kind: Equip, who: You, targeting: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), by: Mana(["2"]), less: true }])
 
 ## Consuming Bonfire
 face: Consuming Bonfire

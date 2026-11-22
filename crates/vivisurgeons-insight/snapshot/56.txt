@@ -864,7 +864,7 @@ cost: {U}{B}
 > Ninjutsu abilities you activate cost {1} less to activate.
 > Other Ninja and Rogue creatures you control get +1/+1.
 = Keywords([Keyword { name: "ninjutsu", param: Some(Cost([Mana(Mana(["U", "B"]))])) }])
-= Static([ActivatedCostChange { kind: Ninjutsu, who: You, by: Mana(["1"]), less: true }])
+= Static([ActivatedCostChange { kind: Ninjutsu, who: You, targeting: None, by: Mana(["1"]), less: true }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("ninja"), Type("creature")], [State(Other), Subtype("rogue"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
 
 ## Skirk Prospector

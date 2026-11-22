@@ -424,7 +424,7 @@ cost: {1}{W}
 > Equip abilities you activate that target this creature cost {2} less to activate.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: AnotherTarget, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], limits: [] }
-= BROKE at "creature" after: equip abilities you activate that target this
+= Static([ActivatedCostChange { kind: Equip, who: You, targeting: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), by: Mana(["2"]), less: true }])
 
 ## Illusion Spinners
 face: Illusion Spinners
