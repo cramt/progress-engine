@@ -906,7 +906,7 @@ face: Brass Infiniscope
 type: Artifact
 cost: {4}
 > {T}: Add {C}{C}. When you next cast a spell with {X} in its mana cost this turn, you draw a card and gain half X life, rounded down.
-= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C", "C"]))), With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [XInManaCost], or: None } } }, dur: ThisTurn, then: [Draw { who: You, n: N(1) }, GainLife { who: You, n: Half { of: XOf(Objects { quant: Bound(1) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), round_up: false } }] }] }], limits: [] }
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C", "C"]))), DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [XInManaCost], or: None } } }, dur: ThisTurn, then: [Draw { who: You, n: N(1) }, GainLife { who: You, n: Half { of: XOf(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }), round_up: false } }] }], limits: [] }
 
 ## Brave the Elements
 face: Brave the Elements

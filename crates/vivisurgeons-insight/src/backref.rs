@@ -137,7 +137,7 @@ fn not_object(f: &Filter) -> bool {
 }
 
 /// The verb of the objects an effect makes that no `Objects` names.
-fn made(e: &Effect) -> Option<String> {
+pub(crate) fn made(e: &Effect) -> Option<String> {
     Some(match e {
         Effect::Create { .. }
         | Effect::CreateNamed { .. }
@@ -1712,15 +1712,17 @@ fn resolve_one(
                     note = "a reference before it did what its words say".into();
                 }
             }
-            // "When you next cast a spell with {X} …, gain half X life": the
-            // object of a delayed trigger's event.
+            // "When you next cast a spell with {X} …, you draw a card and
+            // gain half X life" (Brass Infiniscope): the object of a
+            // delayed trigger's event, never what its effects make (the
+            // drawn card).
             Kind::Text(Hint::Triggering) => {
                 for &(l, i) in intros.iter().rev() {
                     let x = get((l, i));
                     let delayed = x
                         .effect_frame
                         .is_some_and(|f| lds[l].c.frames[f].verb.starts_with("Delayed"));
-                    if delayed && compat(r, x) {
+                    if delayed && x.role != Role::Made && compat(r, x) {
                         cands.push(Target::Intro(l, i));
                     }
                 }

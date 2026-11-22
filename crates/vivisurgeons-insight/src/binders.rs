@@ -781,9 +781,14 @@ fn into_reflexive(es: &mut Vec<Effect>) {
         unreachable!("matched above");
     };
     let ids = bind_ids(bind);
+    if ids.len() != bind.len() {
+        return;
+    }
     // A token the ability made before the trigger exists already
-    // (Ratonhnhaké꞉ton, Iroh, Tea Master).
-    if ids.len() != bind.len() || bind.iter().any(|o| o.quant == Quant::Made) {
+    // (Ratonhnhaké꞉ton, Iroh, Tea Master); one the trigger makes is made
+    // each time it resolves.
+    if bind.iter().any(|o| o.quant == Quant::Made) {
+        made_in_trigger(es, &ids);
         return;
     }
     // The path to the innermost trigger whose list alone says them.
@@ -836,6 +841,65 @@ fn into_reflexive(es: &mut Vec<Effect>) {
         .iter()
         .position(|e| says(e, &ids, false))
         .expect("checked above");
+    let rest = list.split_off(k);
+    list.push(Effect::With { bind, then: rest });
+    es.extend(then);
+}
+
+/// "Until end of turn, whenever a creature you control deals combat damage
+/// to a player, copy the exiled card. You may cast the copy" (Surge to
+/// Victory), "Whenever you attack this turn, create two … tokens …
+/// Sacrifice them at the beginning of the next end step" (Dalkovan
+/// Encampment): what a trigger the ability sets up makes, it makes each
+/// time it resolves (CR 603.7, 603.12), so the `Made` binder of the one
+/// effect in that trigger's list that makes something goes inside it,
+/// from that effect on ([delayed-binds-event]). Only along a path of lone
+/// `During`s and triggers, whose events and conditions don't say it.
+fn made_in_trigger(es: &mut Vec<Effect>, ids: &BTreeSet<usize>) {
+    let Some(Effect::With { then, .. }) = es.last() else {
+        return;
+    };
+    let makes = |e: &Effect| crate::backref::made(e).is_some();
+    let mut path: Vec<usize> = Vec::new();
+    let mut cur: Vec<Effect> = then.clone();
+    let k = loop {
+        let mk: Vec<usize> = (0..cur.len()).filter(|&i| makes(&cur[i])).collect();
+        if !path.is_empty() && !mk.is_empty() {
+            match mk[..] {
+                [k] if !cur[..k].iter().any(|e| says(e, ids, false)) => break k,
+                _ => return,
+            }
+        }
+        if cur.len() != 1 || !mk.is_empty() {
+            return;
+        }
+        let mut e = cur.pop().expect("one");
+        if let Effect::During { then, .. } = e {
+            path.push(0);
+            cur = then;
+            continue;
+        }
+        let Some((list, conds, event)) = trigger_list(&mut e) else {
+            return;
+        };
+        if conds.iter().any(|c| says(c, ids, false))
+            || event.is_some_and(|ev| says(&ev, ids, false))
+        {
+            return;
+        }
+        path.push(0);
+        cur = std::mem::take(list);
+    };
+    let Some(Effect::With { bind, mut then }) = es.pop() else {
+        unreachable!("matched above");
+    };
+    let mut list: &mut Vec<Effect> = &mut then;
+    for _ in &path {
+        list = match &mut list[0] {
+            Effect::During { then, .. } => then,
+            e => trigger_list(e).expect("on the path").0,
+        };
+    }
     let rest = list.split_off(k);
     list.push(Effect::With { bind, then: rest });
     es.extend(then);
