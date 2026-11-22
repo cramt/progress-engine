@@ -5911,6 +5911,9 @@ impl Game {
                 })
                 .count() as u32,
             lower::Amount::ThatMuch => at.amount.unwrap_or(0),
+            lower::Amount::CountersOnItself(kind) => {
+                at.object.map_or(0, |o| self.counters_on(o, &kind))
+            }
             lower::Amount::PowerOf(o) => self
                 .now_or_last(at, o)
                 .and_then(|c| c.pt)
@@ -5940,6 +5943,12 @@ impl Game {
     fn objects_on(&self, at: &Resuming, on: &lower::On) -> Vec<ObjectId> {
         match on {
             lower::On::One(o) => self.object(at, *o).into_iter().collect(),
+            lower::On::EachWithManaValue { filter, cmp, n } => {
+                let n = self.amount(at, (**n).clone());
+                let mut preds = filter.0.clone();
+                preds.push(Pred::ManaValue(*cmp, n));
+                self.objects_on(at, &lower::On::Each(Filter(preds)))
+            }
             lower::On::Each(f) => {
                 let all = self.characteristics();
                 let here = at.object.filter(|o| all.contains_key(o));

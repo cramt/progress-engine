@@ -1002,7 +1002,8 @@ chosen and Strategic Planning putting the two not chosen into the
 graveyard, and Elephant Grass's cumulative upkeep asking {1}, then {2}
 and sacrificed, and its "can't attack you" refusing Walking Corpse and
 taxing Grizzly Bears {2}, and Eternal Dragon's plainscycling finding a
-Plains, revealed, for the hand. `tests/oracle.rs` reads Skyknight Squire flying
+Plains, revealed, for the hand, and Powder Keg with one fuse counter
+destroying Raging Goblin and not Grizzly Bears. `tests/oracle.rs` reads Skyknight Squire flying
 and a Knight from its third +1/+1 counter.
 
 ### The milestone
@@ -1030,8 +1031,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-22 101 of the 500 replay to
-the end and 48.92% of their lines are followed** (15,489 of 31,659), 3
+Worked card by card from there, **on 2026-11-22 103 of the 500 replay to
+the end and 49.10% of their lines are followed** (15,546 of 31,659), 3
 of them relying on a land the log never names (2 to the end), and 101
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
@@ -1118,7 +1119,10 @@ checked as attackers are declared and paid before they attack (CR
 508.1c, 508.1h–j: Elephant Grass's "Black creatures can't attack you"
 and {2} for each nonblack attacker); typecycling, its search for a card
 of its type revealed into the hand (CR 702.29e: Eternal Dragon's
-plainscycling). And
+plainscycling); a mana value compared with an amount counted as the
+instruction is followed, the counters on its source as it last existed
+(CR 608.2h: Powder Keg destroying each artifact and creature of mana
+value equal to its fuse counters, sacrificed to pay). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
@@ -1167,8 +1171,10 @@ untapped). One divergence was the engine's own, found by the full
 run: a resolved effect's fixed set held a creature that had left the
 battlefield, and the layers panicked reading it (CR 400.7, fixed). The
 top of the worklist now: Veteran Survivor (6), Adeline, Cunning
-Nightbonder, Fact or Fiction, Michelangelo's Technique and Powder Keg
-(5 each); of the 5 games Eternal Dragon's landcycling stopped, two
+Nightbonder, Fact or Fiction and Michelangelo's Technique (5 each); of
+the 5 games Powder Keg stopped, two replay to the end and three stop at
+other cards (Siege-Gang Commander's sacrifice, Goblin Tinkerer, Circular
+Logic); of the 5 games Eternal Dragon's landcycling stopped, two
 replay to the end and three stop at other cards (Decree of Justice's X,
 Soltari Champion, an exile line of Swords to Plowshares); of the 7 games
 Elephant Grass stopped, two replay to the end, three stop at other cards

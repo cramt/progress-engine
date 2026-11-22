@@ -4817,3 +4817,61 @@ fn plainscycling_searches_for_a_plains_into_the_hand() {
     step(&mut game, Answer::Find(Found::Card(plains)));
     assert!(game.player(ME).hand().contains(&plains));
 }
+
+/// CR 608.2h: Powder Keg's "Destroy each artifact and creature with mana
+/// value equal to the number of fuse counters on this artifact" counts
+/// the counters as it resolves, on the Keg as it last existed, sacrificed
+/// to pay: one fuse counter destroys Raging Goblin, of mana value 1, and
+/// not Grizzly Bears, of 2.
+#[test]
+fn powder_keg_destroys_what_its_fuse_counters_count() {
+    let mut game = deal(
+        &[
+            ("Mountain", 20),
+            ("Forest", 20),
+            ("Raging Goblin", 5),
+            ("Grizzly Bears", 5),
+            ("Powder Keg", 10),
+        ],
+        &[("Island", 60)],
+        &[
+            ("Mountain", 1),
+            ("Forest", 2),
+            ("Raging Goblin", 1),
+            ("Grizzly Bears", 1),
+            ("Powder Keg", 1),
+        ],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Powder Keg", None);
+    resolve(&mut game);
+    let keg_card = to_may(&mut game);
+    assert_eq!(game.card(keg_card).unwrap().name, "Powder Keg");
+    step(&mut game, Answer::May(true));
+    let keg = creature(&game, "Powder Keg").unwrap();
+    let fuse = chancellor_of_the_spires::model::Counter::named("fuse");
+    assert_eq!(game.counters_on(keg, &fuse), 1);
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    resolve(&mut game);
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("priority")
+    };
+    let activate = actions
+        .iter()
+        .find_map(|a| match a {
+            Action::Activate(x) if x.source == keg => Some(*x),
+            _ => None,
+        })
+        .expect("the Keg's ability is offered");
+    step(&mut game, Answer::Act(Action::Activate(activate)));
+    assert!(!game.permanents().contains_key(&keg), "sacrificed to pay");
+    resolve(&mut game);
+    assert_eq!(creature(&game, "Raging Goblin"), None);
+    assert!(creature(&game, "Grizzly Bears").is_some());
+}

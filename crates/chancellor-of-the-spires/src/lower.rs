@@ -1589,6 +1589,15 @@ pub enum Obj {
 pub enum On {
     One(Obj),
     Each(Filter),
+    /// "Each artifact and creature with mana value equal to the number of
+    /// fuse counters on this artifact": each the filter matches whose mana
+    /// value compares so with the amount, counted as the instruction is
+    /// followed (CR 608.2h).
+    EachWithManaValue {
+        filter: Filter,
+        cmp: Cmp,
+        n: Box<Amount>,
+    },
 }
 
 /// How much: a number, or "that much", the amount of the event that
@@ -1623,6 +1632,10 @@ pub enum Amount {
         named: Option<String>,
         filter: CardFilter,
     },
+    /// "The number of fuse counters on this artifact": on the ability's
+    /// source, or as it last existed if it is gone, sacrificed to pay for
+    /// the ability (CR 608.2h).
+    CountersOnItself(Counter),
 }
 
 /// What damage is dealt to.
@@ -2444,8 +2457,33 @@ impl<'a> Scope<'a> {
     /// One object, or "each other Human you control", "all creatures":
     /// each permanent a filter matches, read from the ability's source.
     fn on(&mut self, o: &Objects) -> Result<On, String> {
-        match o.quant {
-            Quant::Each | Quant::All => Ok(On::Each(objects(o)?)),
+        // "With mana value equal to the number of fuse counters on this
+        // artifact": a mana value compared with an amount counted as the
+        // instruction is followed, not a number.
+        let counted = o.filter.posts.iter().position(|p| {
+            matches!(p, Post::With(i::Compare { stat: i::Stat::ManaValue, value, .. })
+                if !matches!(value, i::Amount::N(_)))
+        });
+        match (&o.quant, counted) {
+            (Quant::Each | Quant::All, Some(k)) => {
+                let Post::With(i::Compare { op, value, .. }) = &o.filter.posts[k] else {
+                    unreachable!("found above")
+                };
+                let mut rest = o.clone();
+                rest.filter.posts.remove(k);
+                Ok(On::EachWithManaValue {
+                    filter: objects(&rest)?,
+                    cmp: match op {
+                        i::Op::Eq => Cmp::Eq,
+                        i::Op::Le => Cmp::AtMost,
+                        i::Op::Ge => Cmp::AtLeast,
+                        i::Op::Lt => Cmp::Below,
+                        i::Op::Gt => Cmp::Above,
+                    },
+                    n: Box::new(self.resolved_amount(value)?),
+                })
+            }
+            (Quant::Each | Quant::All, None) => Ok(On::Each(objects(o)?)),
             _ => Ok(On::One(self.obj(o)?)),
         }
     }
@@ -3444,9 +3482,10 @@ impl<'a> Scope<'a> {
             i::Amount::ThatMany if self.amount => Amount::ThatMuch,
             i::Amount::X if self.x.is_some() => self.x.clone().expect("an X"),
             i::Amount::N(n) => Amount::N(*n),
-            i::Amount::CountOf(o) => match cards_in_graveyards(o) {
-                Some(counted) => counted?,
-                None => Amount::CountOf(counted(o)?),
+            i::Amount::CountOf(o) => match (counters_on_itself(o), cards_in_graveyards(o)) {
+                (Some(kind), _) => Amount::CountersOnItself(kind?),
+                (None, Some(counted)) => counted?,
+                (None, None) => Amount::CountOf(counted(o)?),
             },
             other => return Err(format!("an amount of {}", short(other))),
         })
@@ -3870,6 +3909,25 @@ pub fn equip(k: &i::Keyword) -> Option<Result<Activated, String>> {
         }),
         _ => Err("equip to only some creatures".into()),
     })
+}
+
+/// "The number of fuse counters on this artifact": the counter's kind,
+/// or `None` for any other count.
+fn counters_on_itself(o: &Objects) -> Option<Result<Counter, String>> {
+    match (&o.quant, &o.filter) {
+        (
+            Quant::Plural,
+            i::Filter {
+                kind: Some(i::Noun::Counter(Some(kind))),
+                posts,
+                alts,
+                or: None,
+            },
+        ) if alts.is_empty() && matches!(posts.as_slice(), [Post::On(on)] if itself(on)) => {
+            Some(counter(kind).ok_or_else(|| "a count of an unknown counter".to_string()))
+        }
+        _ => None,
+    }
 }
 
 fn itself(o: &Objects) -> bool {
