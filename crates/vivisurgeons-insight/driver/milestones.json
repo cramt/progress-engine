@@ -1,5 +1,10 @@
 [
   {
+    "name": "mtgo-logs",
+    "coverageLabel": "mtgo-logs",
+    "target": "mtgo-logs"
+  },
+  {
     "name": "my-decks",
     "coverageLabel": "my-decks",
     "target": "my-decks"

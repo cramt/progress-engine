@@ -71,7 +71,8 @@ cards (`insight pin` is the human's step; blessing trees leaves the count
 alone). Then `cargo fmt --all --check`, `cargo clippy --all-targets -- -D
 warnings`, `cargo test -p vivisurgeons-insight` (which holds every tree in
 `golden/` and `snapshot/`), and the ratchets against the baseline: round-trip
-failures, abilities parsed, lint per kind, and no lost tree in the snapshot
+failures, abilities parsed, lint per kind the baseline has (a kind landed on main
+mid-batch is left to `cargo test`'s own lint baseline), and no lost tree in the snapshot
 diff. If the Scryfall bulk changed mid-batch, the baseline is measured again
 in a worktree at the baseline commit.
 
@@ -84,7 +85,11 @@ origin's baseline, so the human's commits are not counted as the batch's.
 
 The current milestone is the first in `milestones.json` not both at 100% and
 pinned, where pinned means `golden/<name>.txt` holds as many cards as the
-milestone has. A list that grows reopens its milestone.
+milestone has. A list that grows reopens its milestone. A list added
+mid-batch, with no row in the batch's baseline, waits for the next batch.
+`mtgo-logs` comes first: the cards that keep the most cached Magic Online
+games from being read whole, so Chancellor's replay has those games to play
+(`chancellor-logs coverage --top 150`).
 
 ## Review and triage
 

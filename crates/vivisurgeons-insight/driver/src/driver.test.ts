@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { pinnedCards } from "./gates.ts";
+import { pinnedCards, ratchets } from "./gates.ts";
 import {
   batchCommitOnOrigin,
   preflight,
@@ -54,6 +54,25 @@ test("roundtrip and lint counts", () => {
     "self-comparison": 0,
   });
   assert.throws(() => parseRoundtrip("nothing"));
+});
+
+test("lint ratchet: a kind the baseline lacks landed mid-batch and is not this batch's", () => {
+  const m = (lint: Record<string, number>) =>
+    ({
+      coverage: [
+        {
+          label: "all cards",
+          cards: { ok: 1, total: 2 },
+          abilities: { ok: 1, total: 2 },
+        },
+      ],
+      roundtrip: { ok: 1, parsed: 1, failures: 0 },
+      lint,
+    }) as unknown as Parameters<typeof ratchets>[0];
+  assert.deepEqual(ratchets(m({ a: 2 }), m({ a: 2, fresh: 4 }), []), []);
+  assert.deepEqual(ratchets(m({ a: 2 }), m({ a: 3 }), []), [
+    { gate: "lint", kind: "a", before: 2, after: 3 },
+  ]);
 });
 
 test("failing counts one per rank line, not the indented ones", () => {

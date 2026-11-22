@@ -239,6 +239,9 @@ function baselineLine(m: Measurement): string {
 
 function milestoneStatus(m: Measurement): MilestoneStatus {
   for (const ms of milestones) {
+    // A milestone list added to main mid-batch has no row in that batch's
+    // baseline; the batch keeps the milestone it started on.
+    if (!m.coverage.some((c) => c.label === ms.coverageLabel)) continue;
     const r = row(m.coverage, ms.coverageLabel);
     const done =
       r.cards.ok === r.cards.total && r.abilities.ok === r.abilities.total;

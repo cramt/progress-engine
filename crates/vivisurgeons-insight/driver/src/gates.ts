@@ -147,7 +147,7 @@ async function commandFailures(paths: Paths): Promise<CommandFailure[]> {
   return failures;
 }
 
-function ratchets(
+export function ratchets(
   baseline: Measurement,
   after: Measurement,
   lost: string[],
@@ -164,8 +164,12 @@ function ratchets(
   const now = row(after.coverage, "all cards").abilities.ok;
   if (now < before) failures.push({ gate: "coverage", before, after: now });
   for (const [kind, n] of Object.entries(after.lint)) {
-    const was = baseline.lint[kind] ?? 0;
-    if (n > was) failures.push({ gate: "lint", kind, before: was, after: n });
+    // A kind the baseline lacks landed on main mid-batch, with its count in
+    // tests/lint-baseline.txt, which cargo test already ratchets; reading it
+    // as 0 here parked a batch for a lint it never touched.
+    const was = baseline.lint[kind];
+    if (was !== undefined && n > was)
+      failures.push({ gate: "lint", kind, before: was, after: n });
   }
   if (lost.length > 0) failures.push({ gate: "snapshot-lost", lost });
   return failures;

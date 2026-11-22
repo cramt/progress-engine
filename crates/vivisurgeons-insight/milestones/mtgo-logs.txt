@@ -1,0 +1,150 @@
+# The 149 cards (a 150th, a name the logs print only as "Ragavan (not in the bulk file)", dropped) that keep the most cached Magic Online games (Freeform, Penny Dreadful) from being read whole, so from Chancellor's replay: chancellor-logs coverage --top 150, each blocking 30 to 560 games, taken 2026-11-22.
+Abstruse Appropriation
+Abundant Harvest
+Academy Loremaster
+Ad Nauseam
+All-Seeing Arbiter
+Alpine Moon
+Amalia Benavides Aguirre
+Angel's Grace
+Aquamoeba
+Arixmethes, Slumbering Isle
+As Foretold
+Aven Interrupter
+Aven Mindcensor
+Baral, Chief of Compliance
+Baron Helmut Zemo
+Black Vise
+Bloodfeather Phoenix
+Case of the Uneaten Feast
+Celestial Reunion
+Chain Lightning
+Chandra's Pyreling
+City of Traitors
+Cloak and Dagger, Entwined
+Collected Conjuring
+Cursed Scroll
+Daybreak Coronet
+Defense Grid
+Deification
+Dennick, Pious Apprentice // Dennick, Pious Apparition
+Desecration Demon
+Detention Sphere
+Doom Foretold
+Draconic Roar
+Dragonfire Blade
+Dreadship Reef
+Dwarven Mauler
+Emergent Ultimatum
+Ethersworn Canonist
+Fervent Champion
+Finale of Promise
+Firebender Ascension
+Foil
+Fortified Beachhead
+Fraying Sanity
+Frenzied Baloth
+Gaddock Teeg
+Giada, Font of Hope
+Gideon of the Trials
+Glimpse of Tomorrow
+Grist, Voracious Larva // Grist, the Plague Swarm
+Hogaak, Arisen Necropolis
+Hypergenesis
+Intuition
+Invasion of Arcavios // Invocation of the Founders
+Invoke Despair
+Jegantha, the Wellspring
+Kari Zev, Skyship Raider
+Karn Liberated
+Kaya, Ghost Assassin
+Kellan, Planar Trailblazer
+Kitesail Larcenist
+Kytheon, Hero of Akros // Gideon, Battle-Forged
+Lady Octopus, Inspired Inventor
+Laelia, the Blade Reforged
+Leonin Arbiter
+Leyline of Resonance
+Lightning Storm
+Lightstall Inquisitor
+Liliana of the Veil
+Lost Legacy
+Loxodon Smiter
+Magister of Worth
+Magma Opus
+Mazemind Tome
+Meddling Mage
+Merry, Esquire of Rohan
+Mindslaver
+Mishra, Claimed by Gix
+Momo, Friendly Flier
+Monument to Perfection
+Mosswood Dreadknight // Dread Whispers
+Myr Superion
+Nadu, Winged Wisdom
+Oath of Druids
+Oath of Kaya
+Old-Growth Troll
+Omniscience
+Optimistic Scavenger
+Orcish Lumberjack
+Overwhelmed Apprentice
+Parallax Tide
+Parallax Wave
+Pawpatch Recruit
+Phyrexian Devourer
+Phyrexian Dragon Engine
+Phyrexian Furnace
+Phyrexian Unlife
+Pia Nalaar, Consul of Revival
+Pinnacle Starcage
+Pippin, Guard of the Citadel
+Platinum Angel
+Platinum Emperion
+Porphyry Nodes
+Power Sink
+Restore Balance
+River of Tears
+Roaring Furnace // Steaming Sauna
+Runed Halo
+Sarcomancy
+Sarkhan, Dragon Ascendant
+Sauron's Ransom
+Season of Weaving
+Second Sunrise
+Serra's Emissary
+Shalai, Voice of Plenty
+Silent Gravestone
+Sleep-Cursed Faerie
+Solemnity
+Spellskite
+Spoils of the Vault
+Standstill
+Stasis
+Sulfuric Vortex
+Suspend
+Swans of Bryn Argoll
+Tangle Wire
+Terastodon
+Thran Portal
+Tibalt's Trickery
+Tranquil Frillback
+Tsabo's Web
+Turnabout
+Turn // Burn
+Undiscovered Paradise
+Unstoppable Slasher
+Urza's Bauble
+Vedalken Shackles
+Vision Charm
+Vivid Crag
+Void Winnower
+Wandering Fumarole
+Wheel of Sun and Moon
+Wildgrowth Walker
+Wild Mongrel
+Wilt-Leaf Liege
+Winter Moon
+Wretched Banquet
+Zero Point Ballad
+Zurgo Bellstriker
