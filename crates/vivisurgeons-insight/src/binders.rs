@@ -11,7 +11,8 @@
 //!   ability resolves: a card searched for, revealed, exiled or chosen, a
 //!   token made. It sits in the ability's own list of effects and is in
 //!   scope in `then`, the rest of that list from the effect that
-//!   introduces it.
+//!   introduces it; what only a reflexive trigger moves sits in that
+//!   trigger's list instead ([when-you-do-binds]).
 //! - `Effect::ForEach { each, then }` binds `each` in `then`, always. A
 //!   loop's object something names from outside the loop (or from an
 //!   object lifted out of it) is bound like any other instead.
@@ -705,7 +706,55 @@ impl Visitor for Repoint<'_> {
     }
 }
 
-/// Runs `into_loops` on every ability's own list of effects.
+/// "When you do, target opponent exiles the top five cards of their
+/// library. You may cast up to two spells from among the exiled cards"
+/// (Doom Reigns Supreme): what a reflexive trigger finds, exiles or
+/// chooses comes to exist only as that trigger resolves (CR 603.12), so
+/// a `With` whose binders only a `WhenYouDo` says goes inside it, from
+/// the effect that says them first ([when-you-do-binds]).
+fn into_reflexive(es: &mut Vec<Effect>) {
+    let Some(Effect::With { then, .. }) = es.last_mut() else {
+        return;
+    };
+    into_reflexive(then);
+    let Some(Effect::With { bind, then }) = es.last() else {
+        unreachable!("matched above");
+    };
+    let ids = bind_ids(bind);
+    // A token the ability made before the reflexive trigger exists
+    // already (Ratonhnhaké꞉ton, Iroh, Tea Master).
+    if ids.len() != bind.len() || bind.iter().any(|o| o.quant == Quant::Made) {
+        return;
+    }
+    let saying: Vec<usize> = (0..then.len())
+        .filter(|&i| says(&then[i], &ids, false))
+        .collect();
+    let [at] = saying[..] else { return };
+    let inner_says = |inner: &[Effect]| inner.iter().position(|e| says(e, &ids, false));
+    let movable = match &then[at] {
+        Effect::WhenYouDo(inner) => inner_says(inner).is_some(),
+        Effect::WhenYouDoIf { cond, then: inner } => {
+            !says(cond, &ids, false) && inner_says(inner).is_some()
+        }
+        _ => false,
+    };
+    if !movable {
+        return;
+    }
+    let Some(Effect::With { bind, mut then }) = es.pop() else {
+        unreachable!("matched above");
+    };
+    let (Effect::WhenYouDo(inner) | Effect::WhenYouDoIf { then: inner, .. }) = &mut then[at] else {
+        unreachable!("checked above");
+    };
+    let k = inner_says(inner).expect("checked above");
+    let rest = inner.split_off(k);
+    inner.push(Effect::With { bind, then: rest });
+    es.extend(then);
+}
+
+/// Runs `into_loops` and `into_reflexive` on every ability's own list of
+/// effects.
 struct IntoLoops {
     fresh: usize,
 }
@@ -717,6 +766,7 @@ impl Visitor for IntoLoops {
     fn ability(&mut self, a: &mut Ability) -> bool {
         if let Some(es) = effects_of(a) {
             into_loops(es, &mut self.fresh);
+            into_reflexive(es);
         }
         true
     }
@@ -1208,7 +1258,10 @@ impl Visitor for Unwrap {
         true
     }
     fn effect(&mut self, e: &mut Effect) {
-        if let Effect::ForEach { then, .. } = e {
+        if let Effect::ForEach { then, .. }
+        | Effect::WhenYouDo(then)
+        | Effect::WhenYouDoIf { then, .. } = e
+        {
             splice(then);
         }
     }
