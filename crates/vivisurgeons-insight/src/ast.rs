@@ -3710,6 +3710,12 @@ pub enum Static {
     AdditionalCost(Vec<Cost>),
     AlternativeCost(Vec<Cost>),
     CanBeCommander,
+    /// "Damage can't be prevented.", "Combat damage can't be prevented."
+    /// (`combat`): prevention effects still apply to it but prevent none
+    /// of it (CR 615.12, [damage-cant-be-prevented]).
+    DamageCantBePrevented {
+        combat: bool,
+    },
     /// "A deck can have any number of cards named ~" (`None`), "… up to
     /// nine cards named ~": a deck-construction rule that replaces the
     /// limit of four (CR 100.2a) for this card.

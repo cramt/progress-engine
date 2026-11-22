@@ -341,7 +341,7 @@ cost: {2}{B/R}
 > Damage can't be prevented.
 > All damage is dealt as though its source had wither. (A source with wither deals damage to creatures in the form of -1/-1 counters.)
 = Static([PlayerRestrict { who: Each, rules: [CantGainLife] }])
-= BROKE at "." after: damage can't be prevented
+= Static([DamageCantBePrevented { combat: false }])
 = BROKE at "source" after: all damage is dealt as though its
 
 ## Flame-Wreathed Phoenix

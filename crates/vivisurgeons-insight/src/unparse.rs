@@ -14162,6 +14162,12 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("rather than pay this spell's mana cost");
         }
         Static::CanBeCommander => o.w("~ can be your commander"),
+        Static::DamageCantBePrevented { combat } => {
+            if *combat {
+                o.w("combat");
+            }
+            o.w("damage can't be prevented");
+        }
         Static::DeckCanHave(n) => {
             o.w("a deck can have");
             match n {

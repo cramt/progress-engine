@@ -844,7 +844,7 @@ cost: {1}{R}
 = Keywords([Keyword { name: "riot", param: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("spider")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "riot", param: None }], per: None }])
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }, rule: CantBeCountered }])
-= BROKE at "." after: damage can't be prevented
+= Static([DamageCantBePrevented { combat: false }])
 
 ## Splitskin Doll
 face: Splitskin Doll

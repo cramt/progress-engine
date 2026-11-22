@@ -885,7 +885,7 @@ cost: {2}{R}{R}
 > Damage can't be prevented.
 > When this creature enters, it deals damage to each player equal to the number of nonbasic lands that player controls.
 = Static([PlayerRestrict { who: Each, rules: [CantGainLife] }])
-= BROKE at "." after: damage can't be prevented
+= Static([DamageCantBePrevented { combat: false }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [Controller(That)], or: None } }), to: [Player(Each)] }], limits: [] }
 
 ## Teroh's Vanguard

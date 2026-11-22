@@ -3,6 +3,15 @@
 use super::*;
 
 pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
+    // "Damage can't be prevented." ([damage-cant-be-prevented]).
+    if let Some(s) = p.attempt(|p| {
+        let combat = p.attempt(|p| p.word("combat")).is_some();
+        p.words("damage can't be prevented")?;
+        p.end_sentence()?;
+        Some(vec![Static::DamageCantBePrevented { combat }])
+    }) {
+        return Some(s);
+    }
     // "As this land enters, you may pay 2 life. If you don't, it enters
     // tapped." runs over several sentences, so it reads its own periods.
     if let Some(s) = p.attempt(|p| {

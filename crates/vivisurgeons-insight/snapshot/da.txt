@@ -306,7 +306,7 @@ cost: {G}{G}
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, rule: CantBeCountered }])
-= BROKE at "." after: combat damage can't be prevented
+= Static([DamageCantBePrevented { combat: true }])
 
 ## Fynn, the Fangbearer
 face: Fynn, the Fangbearer

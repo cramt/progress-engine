@@ -645,7 +645,7 @@ cost: {2}{R}{R}
 > Damage can't be prevented.
 = OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Static([PlayerRestrict { who: Each, rules: [CantGainLife] }])
-= BROKE at "." after: damage can't be prevented
+= Static([DamageCantBePrevented { combat: false }])
 
 ## Life // Death
 face: Life
