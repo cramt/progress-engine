@@ -3450,6 +3450,13 @@ pub enum Event {
     DrawsExceptFirstInDrawStep(Player),
     /// "that spell is countered".
     Countered(Objects),
+    /// "Whenever a spell or ability you control counters a spell" (Baral,
+    /// Chief of Compliance): `by` removes `what` from the stack without it
+    /// resolving (CR 701.6a).
+    Counters {
+        by: Objects,
+        what: Objects,
+    },
     /// "you search your library".
     Searches {
         who: Player,

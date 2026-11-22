@@ -64,7 +64,7 @@ cost: {1}{U}
 > Instant and sorcery spells you cast cost {1} less to cast.
 > Whenever a spell or ability you control counters a spell, you may draw a card. If you do, discard a card.
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= BROKE at "counters" after: whenever a spell or ability you control
+= Triggered { trigger: When(Counters { by: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(You)], or: None } }, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
 
 ## Bitter Revelation
 face: Bitter Revelation

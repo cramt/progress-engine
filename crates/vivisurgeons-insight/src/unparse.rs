@@ -11592,6 +11592,10 @@ fn event(o: &mut Out, e: &Event) {
             obj_subj(o, x, "are");
             o.w("countered");
         }
+        Event::Counters { by, what } => {
+            obj_subj(o, by, "counter");
+            objects(o, what);
+        }
         Event::Searches { who, zone: z } => {
             player(o, who);
             o.verb("search", player_num(who));
@@ -11819,6 +11823,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::TurnedFaceUp(x)
         | Event::TappedForMana(x)
         | Event::Crews { by: x, .. }
+        | Event::Counters { by: x, .. }
         | Event::Countered(x) => Subject::Obj(x),
         Event::Casts { who, .. }
         | Event::Copies { who, .. }

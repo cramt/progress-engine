@@ -513,7 +513,7 @@ type: Creature — Merfolk Wizard
 cost: {1}{U}{U}
 > Whenever a spell or ability you control counters a spell, you may create a 1/1 blue Merfolk creature token.
 > Tap seven untapped Merfolk you control: Counter target spell.
-= BROKE at "counters" after: whenever a spell or ability you control
+= Triggered { trigger: When(Counters { by: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(You)], or: None } }, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Blue], types: ["merfolk", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 = Activated { cost: [TapUntapped(Objects { quant: N(N(7)), filter: Filter { alts: [[State(Untapped), Subtype("merfolk")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }], limits: [] }
 
 ## Lumaret's Favor

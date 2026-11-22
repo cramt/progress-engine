@@ -610,6 +610,7 @@ fn event(e: &Event, out: &mut Vec<(*const Objects, To)>) {
         | Event::Exiled(o)
         | Event::ReturnedToHand(o)
         | Event::Countered(o)
+        | Event::Counters { what: o, .. }
         | Event::Cycles { what: Some(o), .. } => put(o, To::Off),
         Event::PutInto { what, to, .. } | Event::Puts { what, to, .. } => put(
             what,

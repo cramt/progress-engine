@@ -1776,6 +1776,10 @@ impl Walk for Event {
             Event::Countered(f0) => {
                 Walk::walk(f0, v);
             }
+            Event::Counters { by, what } => {
+                Walk::walk(by, v);
+                Walk::walk(what, v);
+            }
             Event::Searches { who, zone } => {
                 Walk::walk(who, v);
                 Walk::walk(zone, v);

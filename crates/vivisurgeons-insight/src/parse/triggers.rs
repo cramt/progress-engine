@@ -424,6 +424,8 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
         // "is put into exile" with no "from": from any zone, as "from anywhere" says.
         |p| { p.one_of(&["is put into", "are put into"])?; let to = zone(p)?; Some(Event::PutInto { what: what.clone(), to, from: Zone::Anywhere }) },
         |p| { p.one_of(&["becomes the target of", "become the target of"])?; let of = p.attempt(objects); Some(Event::BecomesTarget { what: what.clone(), of }) },
+        // "Whenever a spell or ability you control counters a spell".
+        |p| { p.verb("counter")?; let v = objects(p)?; Some(Event::Counters { by: what.clone(), what: v }) },
     )
 }
 
