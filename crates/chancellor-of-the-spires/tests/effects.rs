@@ -643,6 +643,57 @@ fn hypnotic_specter_makes_the_opponent_it_damages_discard_at_random() {
     assert!(game.player(THEM).graveyard().contains(&from[0]));
 }
 
+/// CR 113.6m, 108.4a, 503.1a: Squee's upkeep trigger works from my
+/// graveyard, where its effect moves it out of, and nowhere else: in my
+/// hand it does nothing, and discarded to hand size it triggers at my next
+/// upkeep and may return to my hand.
+#[test]
+fn squee_returns_from_the_graveyard_at_my_upkeep() {
+    let mut game = deal(
+        &[("Squee, Goblin Nabob", 60)],
+        &[("Island", 60)],
+        &[("Squee, Goblin Nabob", 7)],
+    );
+    my_next_main(&mut game);
+    assert!(game.stack().is_empty(), "nothing triggers from the hand");
+    assert_eq!(game.player(ME).hand().len(), 8);
+    pass_until(&mut game, THEM, Step::Upkeep);
+    let squee = game.player(ME).graveyard()[0];
+    assert_eq!(game.player(ME).hand().len(), 7);
+    pass_until(&mut game, ME, Step::Upkeep);
+    assert_eq!(game.stack().len(), 1);
+    let d = resolve(&mut game);
+    assert!(matches!(d, Decision::May { player: ME, .. }), "{d:?}");
+    step(&mut game, Answer::May(true));
+    assert!(game.player(ME).hand().contains(&squee));
+    assert!(game.player(ME).graveyard().is_empty());
+}
+
+/// CR 113.6b: Anger's haste works while it is in my graveyard, and the
+/// engine doesn't run it, so once it is discarded there the game refuses
+/// to go on rather than play on without it.
+#[test]
+fn anger_in_a_graveyard_is_refused() {
+    let mut game = deal(&[("Anger", 60)], &[("Island", 60)], &[("Anger", 7)]);
+    my_next_main(&mut game);
+    let refused = (0..200).find_map(|_| {
+        let answer = match game.decision() {
+            Decision::Discard { count, hand, .. } => Answer::Discard(hand[..count].to_vec()),
+            Decision::Attackers { .. } => Answer::Attack(vec![]),
+            _ => Answer::Act(Action::Pass),
+        };
+        game.step(answer).err()
+    });
+    assert!(
+        game.player(ME).graveyard().len() == 1,
+        "discarded to hand size"
+    );
+    match refused {
+        Some(Rejected::Refused { card, .. }) => assert_eq!(card, "Anger"),
+        other => panic!("{other:?}"),
+    }
+}
+
 /// CR 509.1a, 702.9b, 510.1c–d, 704.5g: Grizzly Bears can't block Storm
 /// Crow, which flies; blocking Grizzly Bears they trade, each dealt
 /// lethal damage.

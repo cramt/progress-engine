@@ -181,6 +181,8 @@ struct Known {
     /// Its morph ability, read whether or not the game runs the rest: a
     /// face-down spell is the same 2/2 whatever its card (CR 702.37c).
     morph: Option<Morph>,
+    /// An ability of it works from a graveyard (`lower::works_in_graveyard`).
+    in_graveyard: bool,
 }
 
 /// A card's morph ability (CR 702.37a).
@@ -240,12 +242,14 @@ impl Known {
         });
         let cost =
             ManaCost::parse(&text.mana_cost).map_err(|why| Unrunnable::new(why.clone(), why));
+        let in_graveyard = text.as_card().is_ok_and(|c| lower::works_in_graveyard(&c));
         Known {
             text,
             printed,
             runs,
             cost,
             morph,
+            in_graveyard,
         }
     }
 
@@ -259,6 +263,7 @@ impl Known {
             runs: Err(why.clone()),
             cost: read.cost.clone(),
             morph: read.morph.clone(),
+            in_graveyard: read.in_graveyard,
         }
     }
 
@@ -2482,6 +2487,25 @@ impl Game {
         })
     }
 
+    /// A card in a graveyard with an ability that works there (CR 113.6b:
+    /// Anger's haste), which the engine can't run: every answer would be
+    /// given without it, so the game refuses to go on.
+    fn refused_in_graveyard(&self) -> Option<Rejected> {
+        self.players
+            .iter()
+            .flat_map(|p| &p.graveyard)
+            .find_map(|c| {
+                let k = self.known(*c)?;
+                match &k.runs {
+                    Err(why) if k.in_graveyard => Some(Rejected::Refused {
+                        card: k.text.name.clone(),
+                        refusal: why.clone(),
+                    }),
+                    _ => None,
+                }
+            })
+    }
+
     /// Whether the engine can run this card: why it refuses it if not. A
     /// land is checked as it would be played, any other card as it would
     /// be cast.
@@ -2997,7 +3021,10 @@ impl Game {
     /// Answer the decision and run on to the next one. An answer that isn't
     /// legal leaves the game as it was.
     pub fn step(&mut self, answer: Answer) -> Result<Decision, Rejected> {
-        if let Some(refused) = self.uncounted_graveyard() {
+        if let Some(refused) = self
+            .uncounted_graveyard()
+            .or_else(|| self.refused_in_graveyard())
+        {
             return Err(refused);
         }
         match (self.waiting.clone(), &answer) {
@@ -5609,6 +5636,15 @@ impl Game {
                         }
                     }
                 }
+                Effect::SelfFromGraveyardToHand => {
+                    let card = at.what.card();
+                    let owner = self.owner(card);
+                    let player = &mut self.players[owner.0 as usize];
+                    if player.graveyard.contains(&card) {
+                        player.graveyard.retain(|c| *c != card);
+                        player.hand.push_back(card);
+                    }
+                }
                 Effect::ToOwnersHand(on) => {
                     for o in self.objects_on(&at, &on) {
                         if self.permanents.contains_key(&o) {
@@ -6919,7 +6955,7 @@ impl Game {
                 attacking: self.battlefield.attacking.contains(&id),
             };
             for (n, t) in &runs.triggered {
-                if !chars.abilities.contains(&Ability::Unread(*n)) {
+                if !chars.abilities.contains(&Ability::Unread(*n)) || t.from_graveyard() {
                     continue;
                 }
                 let fired = |e: &TriggerEvent| -> Vec<(Option<ObjectId>, Option<u32>)> {
@@ -7169,6 +7205,42 @@ impl Game {
                         player: None,
                         ordered: false,
                     });
+                }
+            }
+        }
+        // CR 113.6m, 108.4a, 603.3a: a card's ability that moves it out of
+        // its owner's graveyard triggers there, its controller its owner.
+        // Only a step beginning triggers one yet.
+        if let Event::Begins(step) = &event {
+            for (q, player) in self.players.iter().enumerate() {
+                let owner = PlayerId(q as u8);
+                for c in player.graveyard.iter() {
+                    let Some(runs) = self.known(*c).and_then(|k| k.runs.as_ref().ok()) else {
+                        continue;
+                    };
+                    for (n, t) in &runs.triggered {
+                        let TriggerEvent::Begins { step: s, whose } = &t.event else {
+                            continue;
+                        };
+                        let mine = owner == self.active;
+                        let holds = match whose {
+                            lower::Whose::Yours => mine,
+                            lower::Whose::Each => true,
+                            lower::Whose::Opponents => !mine,
+                        };
+                        if t.from_graveyard() && s == step && holds && t.condition.is_none() {
+                            triggered.push(Pending {
+                                source: *c,
+                                object: None,
+                                ability: TriggerOf::Printed(self.printed_up(*c), *n),
+                                controller: owner,
+                                triggering: None,
+                                amount: None,
+                                player: None,
+                                ordered: false,
+                            });
+                        }
+                    }
                 }
             }
         }

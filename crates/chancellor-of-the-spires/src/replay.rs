@@ -1027,6 +1027,35 @@ impl Driver<'_> {
                 self.act(Answer::Act(play))?;
                 self.did(i, format!("played {}", card.name()));
             }
+            // An ability that returned it from the graveyard, which a line
+            // before said it used (Squee's, CR 113.6m): it is in the
+            // engine's hand of that player once that ability resolves.
+            ReturnedToHand {
+                card,
+                owner,
+                from: log::Zone::Graveyard,
+            } => {
+                let p = self.seat(*owner);
+                let name = card.name();
+                let has = |r: &Self| {
+                    let game = r.game.as_ref().expect("set up");
+                    game.player(p)
+                        .hand()
+                        .iter()
+                        .any(|c| game.face_name(*c) == Some(name))
+                };
+                while !has(self) && !self.game().stack().is_empty() {
+                    self.pass()?;
+                }
+                if !has(self) {
+                    return Err(unfollowed(Some(name)));
+                }
+                self.did(
+                    i,
+                    format!("returned {name} from the graveyard by its ability"),
+                );
+                return Ok(Next::Line(i + 1));
+            }
             Casts(cast) => {
                 let Object::Card(card) = &cast.card else {
                     return Err(unfollowed(None));

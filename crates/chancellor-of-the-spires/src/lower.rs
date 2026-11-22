@@ -85,6 +85,44 @@ pub fn printed(c: &crate::deck::CardText) -> Result<Chars, Refusal> {
 
 /// One card, printed: its characteristics, the static abilities that
 /// generate its continuous effects, and the rest of its abilities.
+/// Whether an ability of the card says it works while the card is in a
+/// graveyard ("As long as this card is in your graveyard", Anger's), so
+/// it functions there (CR 113.6b) and a game with the card there runs it
+/// or can't go on.
+pub fn works_in_graveyard(card: &Card) -> bool {
+    use vivisurgeons_insight::walk::{Visitor, Walk};
+    struct Finds(bool);
+    impl Visitor for Finds {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            true
+        }
+        fn ability(&mut self, _: &mut i::Ability) -> bool {
+            true
+        }
+        fn condition(&mut self, c: &mut i::Condition) {
+            if let i::Condition::In {
+                what,
+                zone: i::Zone::Graveyard(_) | i::Zone::OwnersGraveyard,
+            } = c
+            {
+                self.0 |= what.quant == Quant::SelfRef;
+            }
+        }
+    }
+    let face = Face {
+        name: card.name,
+        type_line: card.type_line,
+        text: card.oracle_text,
+    };
+    let mut finds = Finds(false);
+    for line in read_face(&face, card.name) {
+        if let Ok(mut a) = line.parsed {
+            a.walk(&mut finds);
+        }
+    }
+    finds.0
+}
+
 pub fn card(card: &Card) -> Result<Lowered, Refusal> {
     let (types, supertypes, subtypes) = type_line(card.type_line)?;
     let mut lowered = Lowered {
@@ -1416,6 +1454,10 @@ pub enum Effect {
     Exile(On),
     /// "Return target permanent to its owner's hand".
     ToOwnersHand(On),
+    /// "Return this card from your graveyard to your hand": the
+    /// ability's source, if it is still in its owner's graveyard. Such an
+    /// ability functions only there (CR 113.6m, `Triggered::from_graveyard`).
+    SelfFromGraveyardToHand,
     /// "Tap target land", "untap it" (CR 701.26a).
     Tap(On),
     Untap(On),
@@ -1985,6 +2027,23 @@ pub struct Triggered {
     /// happens, the ability triggering only if it holds, and again as it
     /// resolves, doing nothing if it doesn't.
     pub condition: Option<Intervening>,
+}
+
+impl Triggered {
+    /// Whether it functions only in its card's owner's graveyard, its
+    /// effect moving the card out of there (CR 113.6m: Squee's "you may
+    /// return this card from your graveyard to your hand"), and never on
+    /// the battlefield.
+    pub fn from_graveyard(&self) -> bool {
+        fn moves(effects: &[Effect]) -> bool {
+            effects.iter().any(|e| match e {
+                Effect::SelfFromGraveyardToHand => true,
+                Effect::May(_, then) => moves(then),
+                _ => false,
+            })
+        }
+        moves(&self.program.effects)
+    }
 }
 
 /// An intervening "if" (CR 603.4).
@@ -2896,6 +2955,23 @@ impl<'a> Scope<'a> {
                 who: i::Player::You,
                 what,
             } if what.quant == Quant::SelfRef => Effect::Sacrifice(self.obj(what)?),
+            i::Effect::Move {
+                what,
+                from: None,
+                to: i::Zone::Hand(i::Player::You),
+                tapped: false,
+                transformed: false,
+                under: None,
+                order: None,
+            } if what.quant == Quant::SelfRef
+                && what.filter
+                    == (i::Filter {
+                        posts: vec![Post::In(i::Zone::Graveyard(i::Player::You))],
+                        ..i::Filter::default()
+                    }) =>
+            {
+                Effect::SelfFromGraveyardToHand
+            }
             i::Effect::Move {
                 what,
                 from: None,

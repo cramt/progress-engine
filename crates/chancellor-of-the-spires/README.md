@@ -438,7 +438,7 @@ non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**43 of Loam's 90 distinct cards are played or cast and resolved, 32 of
+**44 of Loam's 90 distinct cards are played or cast and resolved, 33 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
@@ -454,14 +454,14 @@ since a search can find up to two, measured 2026-11-04, and Trade Routes,
 since an activated ability can cost a discard, 30 of them from
 2026-11-12, and Izzet Charm, since a modal spell's mode is chosen, 31
 from 2026-11-22, and Desperate Ravings, since a discard can be at
-random, 32 the same day), Blast Zone played too since it
+random, 32 the same day, and Squee, Goblin Nabob, since an ability can
+work from a graveyard, 33), Blast Zone played too since it
 enters with its counter, its abilities carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
 node refused. The most refused: `Trigger::When(Event::Discards)` (4),
-then discarding more than a card, milling, `Effect::Move` from a
-graveyard, modifying by an amount and playing from another zone (3
-each). `tests/game.rs` scripts the rules above, and plays
+then discarding more than a card, milling, modifying by an amount and
+playing from another zone (3 each). `tests/game.rs` scripts the rules above, and plays
 Loam against a goldfish for six turns, casting what it can.
 
 Not yet: most instructions (modal spells, "if", a predefined token or
@@ -1039,8 +1039,8 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-22 128 of the 500 replay to
-the end and 52.34% of their lines are followed** (16,570 of 31,659), 3
-of them relying on a land the log never names (2 to the end), and 133
+the end and 52.25% of their lines are followed** (16,543 of 31,659), 3
+of them relying on a land the log never names (2 to the end), and 137
 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
@@ -1159,7 +1159,11 @@ targets the permanent and countering it unless that player pays (CR
 702.21a: Flowering of the White Tree); damage dealt to an opponent as
 a trigger, "that player" the one dealt it, and a discard at random,
 chance's pick that a replay takes from its log (CR 510.2, 701.9b:
-Hypnotic Specter). And
+Hypnotic Specter); an ability that works from its card's graveyard,
+triggering there at a step's beginning (CR 113.6m: Squee, Goblin
+Nabob's return), and the game refused while a card it can't run has
+one there (CR 113.6b: Anger, Wonder, Bridge from Below), which took 27
+lines and one game to the end that went on without them. And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
