@@ -1294,7 +1294,7 @@ type: Land
 > {T}: Add {U}. This land deals 1 damage to you.
 > Threshold — {U}, {T}, Sacrifice this land: Target player draws three cards, then discards three cards. Activate only if there are seven or more cards in your graveyard.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"]))), Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(You)] }], limits: [] }
-= Labelled { label: "threshold", ability: Activated { cost: [Mana(Mana(["U"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: Target, n: N(3) }, Discard { who: That, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [OnlyIf(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) })] } }
+= Labelled { label: "threshold", ability: Activated { cost: [Mana(Mana(["U"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: Target, n: N(3) }, Discard { who: That, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [OnlyIf(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) })] } }
 
 ## Chain Reaction
 face: Chain Reaction
@@ -2684,7 +2684,7 @@ type: Sorcery
 cost: {R}
 > Draw two cards, then discard two cards.
 > Flashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["2", "R"]))])) }])
 
 ## Fanatic of Rhonas
@@ -3003,7 +3003,7 @@ face: Frantic Search
 type: Instant
 cost: {2}{U}
 > Draw two cards, then discard two cards. Untap up to three lands.
-= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Untap(Objects { quant: UpTo(N(3)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Untap(Objects { quant: UpTo(N(3)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])
 
 ## Frontier Bivouac
 face: Frontier Bivouac
@@ -3054,7 +3054,7 @@ face: Gamble
 type: Sorcery
 cost: {R}
 > Search your library for a card, put that card into your hand, discard a card at random, then shuffle.
-= Spell([With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }, Shuffle(You)] }])
+= Spell([With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }, Shuffle(You)] }])
 
 ## Game Trail
 face: Game Trail
@@ -3089,7 +3089,7 @@ type: Legendary Land
 > {T}: Add {C}.
 > {2}, {T}: Each player draws a card, then discards a card.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: Each, n: N(1) }, Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: Each, n: N(1) }, Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Gemstone Caverns
 face: Gemstone Caverns
@@ -3313,7 +3313,7 @@ face: Greater Good
 type: Enchantment
 cost: {2}{G}{G}
 > Sacrifice a creature: Draw cards equal to the sacrificed creature's power, then discard three cards.
-= Let { bind: [/* sacrificed */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Sacrifice(Objects { quant: Introduced(0) /* sacrificed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: PowerOf(Objects { quant: Bound(0) /* sacrificed */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) }, Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] } }
+= Let { bind: [/* sacrificed */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Sacrifice(Objects { quant: Introduced(0) /* sacrificed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: PowerOf(Objects { quant: Bound(0) /* sacrificed */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) }, Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] } }
 
 ## Green Sun's Zenith
 face: Green Sun's Zenith
@@ -4375,7 +4375,7 @@ type: Artifact — Equipment
 cost: {2}
 > Whenever equipped creature deals combat damage to a player, you may draw two cards. If you do, discard a card.
 > Equip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(2) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(2) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
 ## Maskwood Nexus
@@ -4725,7 +4725,7 @@ type: Artifact
 cost: {0}
 > If this artifact would enter, you may discard a land card instead. If you do, put this artifact onto the battlefield. If you don't, put it into its owner's graveyard.
 > {T}: Add one mana of any color.
-= Static([Replacement { event: Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, instead: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }]), IfYouDont([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersGraveyard, tapped: false, transformed: false, under: None, order: None }])] }])
+= Static([Replacement { event: Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, instead: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }]), IfYouDont([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersGraveyard, tapped: false, transformed: false, under: None, order: None }])] }])
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 
 ## Mox Opal
@@ -5348,7 +5348,7 @@ face: Plaguecrafter
 type: Creature — Human Shaman
 cost: {2}{B}
 > When this creature enters, each player sacrifices a creature or planeswalker of their choice. Each player who can't discards a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: WhoCant(Each), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: WhoCant(Each), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Plateau
 face: Plateau
@@ -5463,7 +5463,7 @@ face: Pull from Tomorrow
 type: Instant
 cost: {X}{U}{U}
 > Draw X cards, then discard a card.
-= Spell([Draw { who: You, n: X }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: X }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Puresteel Paladin
 face: Puresteel Paladin
@@ -6934,7 +6934,7 @@ cost: {3}
 > Whenever equipped creature deals combat damage to a player, that player discards a card and you untap all lands you control.
 > Equip {2}
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "protection", param: Some(Colors([Black, Green])) }], per: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Untap(Objects { quant: All, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Untap(Objects { quant: All, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Sword of Hearth and Home

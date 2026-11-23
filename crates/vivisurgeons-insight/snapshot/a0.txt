@@ -350,7 +350,7 @@ face: Fill with Fright
 type: Sorcery
 cost: {3}{B}
 > Target player discards two cards. Scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Scry(N(2))])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Scry(N(2))])
 
 ## Firemane Commando
 face: Firemane Commando
@@ -805,7 +805,7 @@ face: Prying Eyes
 type: Instant
 cost: {4}{U}{U}
 > Draw four cards, then discard two cards.
-= Spell([Draw { who: You, n: N(4) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(4) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Putrid Cyclops
 face: Putrid Cyclops

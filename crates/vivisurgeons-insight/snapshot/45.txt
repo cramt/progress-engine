@@ -112,7 +112,7 @@ cost: {1}{R}
 > You may exert this creature as it attacks. (It won't untap during your next untap step.)
 > Whenever you exert a creature, you may discard a card. If you do, draw a card.
 = Static([ExertAsAttacks { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [] }])
-= Triggered { trigger: When(Exerts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Exerts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Beledros Witherbloom
 face: Beledros Witherbloom
@@ -348,7 +348,7 @@ cost: {2}{B}
 > Spectacle {B} (You may cast this spell for its spectacle cost rather than its mana cost if an opponent lost life this turn.)
 > Target player reveals their hand. You choose a nonland card from it. That player discards that card.
 = Keywords([Keyword { name: "spectacle", param: Some(Cost([Mana(Mana(["B"]))])) }])
-= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Duskhunter Bat
 face: Duskhunter Bat
@@ -795,7 +795,7 @@ face: Putrefaction
 type: Enchantment
 cost: {4}{B}
 > Whenever a player casts a green or white spell, that player discards a card.
-= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [[Color(Green)], [Color(White)]], kind: Some(Spell), posts: [], or: None } } }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [[Color(Green)], [Color(White)]], kind: Some(Spell), posts: [], or: None } } }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Raccoon Rallier
 face: Raccoon Rallier
@@ -1129,7 +1129,7 @@ face: Wretched Camel
 type: Creature — Zombie Camel
 cost: {1}{B}
 > When this creature dies, if you control a Desert or there is a Desert card in your graveyard, target player discards a card.
-= Triggered { trigger: InterveningIf(When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Or([YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("desert")]], kind: None, posts: [], or: None } }), ThereAre([Objects { quant: One, filter: Filter { alts: [[Subtype("desert")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }])])), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Or([YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("desert")]], kind: None, posts: [], or: None } }), ThereAre([Objects { quant: One, filter: Filter { alts: [[Subtype("desert")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }])])), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Zameck Guildmage
 face: Zameck Guildmage

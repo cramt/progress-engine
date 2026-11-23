@@ -227,7 +227,7 @@ cost: {B}
 > Target player discards a card.
 > Haunt (When this spell card is put into a graveyard after resolving, exile it haunting target creature.)
 > When the creature this card haunts dies, target player discards a card.
-= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = Keywords([Keyword { name: "haunt", param: None }])
 = BROKE at "," after: when the creature this card haunts dies
 
@@ -807,7 +807,7 @@ cost: {3}{U}{U}
 > Flying
 > When this creature enters, draw a card, then discard a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Skyhunter Skirmisher
 face: Skyhunter Skirmisher
@@ -1050,5 +1050,5 @@ cost: {1}{U}{U}
 > Choose one —
 > • Foil Their Scheme — Counter target spell.
 > • Learn Their Secrets — Draw two cards, then discard two cards.
-= Spell([Modal { choose: One, modes: [[Labelled { label: "foil their scheme", then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }], [Labelled { label: "learn their secrets", then: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }]] }])
+= Spell([Modal { choose: One, modes: [[Labelled { label: "foil their scheme", then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }], [Labelled { label: "learn their secrets", then: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }]] }])
 

@@ -573,7 +573,7 @@ type: Legendary Planeswalker — Liliana
 > +2: Each player discards a card.
 > −X: Return target nonlegendary creature card with mana value X from your graveyard to the battlefield.
 > −8: You get an emblem with "Whenever a creature dies, return it to the battlefield under your control at the beginning of the next end step."
-= Loyalty { change: N(2), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Loyalty { change: N(2), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }
 = Loyalty { change: MinusX, effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("legendary"), Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Eq, value: X }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }
 = Loyalty { change: N(-8), effect: [Emblem([Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Dies(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Delayed { step: EndStep(Next), then: [Move { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }], limits: [] } }])] }
 
@@ -1000,7 +1000,7 @@ cost: {4}{B}
 > II — Each opponent discards a card.
 > III — Put target creature or planeswalker card from a graveyard onto the battlefield under your control.
 = Chapter { chapters: [1], effect: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }
-= Chapter { chapters: [2], effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Chapter { chapters: [2], effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }
 = Chapter { chapters: [3], effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }
 
 ## The Master, Mesmerist
@@ -1116,7 +1116,7 @@ face: Whiskerquill Scribe
 type: Creature — Mouse Citizen
 cost: {1}{R}
 > Valiant — Whenever this creature becomes the target of a spell or ability you control for the first time each turn, you may discard a card. If you do, draw a card.
-= Labelled { label: "valiant", ability: Triggered { trigger: When(FirstTimeEachTurn(BecomesTarget { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(You)], or: None } }) })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] } }
+= Labelled { label: "valiant", ability: Triggered { trigger: When(FirstTimeEachTurn(BecomesTarget { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(You)], or: None } }) })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] } }
 
 ## Wild Endeavor
 face: Wild Endeavor

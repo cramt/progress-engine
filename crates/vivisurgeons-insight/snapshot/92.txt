@@ -30,7 +30,7 @@ cost: {1}{B}
 > Choose one —
 > • Target opponent reveals their hand. You choose a nonland permanent card from it. That player discards that card.
 > • Target creature gets -2/-2 until end of turn.
-= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: One, modes: [[RevealHand(TargetOpponent), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }]] }] }])
+= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: One, modes: [[RevealHand(TargetOpponent), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }]] }] }])
 
 ## Back for More
 face: Back for More
@@ -346,7 +346,7 @@ face: Flow of Knowledge
 type: Instant
 cost: {4}{U}
 > Draw a card for each Island you control, then discard two cards.
-= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [Controller(You)], or: None } }, then: [Draw { who: You, n: N(1) }] }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Fog on the Barrow-Downs
 face: Fog on the Barrow-Downs
@@ -380,7 +380,7 @@ cost: {4}{B}{G}{U}
 > Trample
 > Whenever this creature deals damage to an opponent, you draw a card and that opponent discards a card.
 = Keywords([Keyword { name: "trample", param: None }])
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Draw { who: You, n: N(1) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Draw { who: You, n: N(1) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Giant-Sized Flying Ant
 face: Giant-Sized Flying Ant
@@ -1004,7 +1004,7 @@ face: Thoughtflare
 type: Instant
 cost: {3}{U}{R}
 > Draw four cards, then discard two cards.
-= Spell([Draw { who: You, n: N(4) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(4) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Throne of the Grim Captain // The Grim Captain
 face: Throne of the Grim Captain

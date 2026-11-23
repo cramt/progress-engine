@@ -3,7 +3,7 @@ face: Addle
 type: Sorcery
 cost: {1}{B}
 > Choose a color. Target player reveals their hand and you choose a card of that color from it. That player discards that card.
-= Spell([Choose(Color), RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [OfThatColor, FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([Choose(Color), RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [OfThatColor, FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Anax, Hardened in the Forge
 face: Anax, Hardened in the Forge
@@ -277,7 +277,7 @@ cost: {B}
 > • Target player discards a card.
 > • Target creature gets +2/-1 until end of turn.
 > • Target creature gains swampwalk until end of turn. (It can't be blocked as long as defending player controls a Swamp.)
-= Spell([Modal { choose: One, modes: [[Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "swampwalk", param: None }], dur: UntilEndOfTurn }]] }])
+= Spell([Modal { choose: One, modes: [[Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "swampwalk", param: None }], dur: UntilEndOfTurn }]] }])
 
 ## Galactus, Devourer of Worlds
 face: Galactus, Devourer of Worlds
@@ -652,7 +652,7 @@ face: Recoil
 type: Instant
 cost: {1}{U}{B}
 > Return target permanent to its owner's hand. Then that player discards a card.
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Redress Fate
 face: Redress Fate
@@ -698,7 +698,7 @@ face: Fall
 type: Sorcery
 cost: {B}{R}
 > Target player reveals two cards at random from their hand, then discards each nonland card revealed this way.
-= BROKE at "from" after: target player reveals two cards at random
+= Spell([Reveal { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(That))], or: None } } }, Discard { who: That, what: Objects { quant: Each, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [Marked(Revealed)], or: None } } }])
 
 ## Roaring Furnace // Steaming Sauna
 face: Roaring Furnace

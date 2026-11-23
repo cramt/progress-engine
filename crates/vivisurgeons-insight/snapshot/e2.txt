@@ -246,7 +246,7 @@ cost: {3}{B}
 > Shadow (This creature can block or be blocked by only creatures with shadow.)
 > Whenever this creature attacks and isn't blocked, you may sacrifice it. If you do, defending player discards three cards.
 = Keywords([Keyword { name: "shadow", param: None }])
-= Triggered { trigger: When(AttacksUnblocked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, at: None }), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, IfYouDo([Discard { who: DefendingPlayer, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(AttacksUnblocked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, at: None }), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, IfYouDo([Discard { who: DefendingPlayer, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Deadly Complication
 face: Deadly Complication
@@ -663,7 +663,7 @@ face: Mind Twist
 type: Sorcery
 cost: {X}{B}
 > Target player discards X cards at random.
-= Spell([Discard { who: Target, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }])
+= Spell([Discard { who: Target, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }])
 
 ## Morsel Theft
 face: Morsel Theft
@@ -704,7 +704,7 @@ type: Sorcery
 cost: {4}{R}
 > Discard all the cards in your hand. Add {R} for each card discarded this way, then draw that many cards plus one.
 > Will of the Planeswalkers — Starting with you, each player votes for planeswalk or chaos. If planeswalk gets more votes, planeswalk. If chaos gets more votes or the vote is tied, chaos ensues.
-= Spell([Discard { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, random: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }, Draw { who: You, n: Plus(ThatMany, 1) }])
+= Spell([Discard { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }, Draw { who: You, n: Plus(ThatMany, 1) }])
 = BROKE at "ensues" after: will of the planeswalkers — starting with you , each player votes for planeswalk or chaos . if planeswalk gets more votes , planeswalk . if chaos gets more votes or the vote is tied , chaos
 
 ## Perilous Vault
@@ -763,7 +763,7 @@ cost: {4}
 > When this artifact enters, draw two cards, then discard a card.
 > Max speed — Spells you cast cost {1} less to cast.
 = Keywords([Keyword { name: "start your engines!", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = KeywordOn { keyword: MaxSpeed, ability: Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }]) }
 
 ## Rampaging Baloths
@@ -855,7 +855,7 @@ cost: {2}{W}
 > Flying
 > When this creature enters, if {B} was spent to cast it, target player discards a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), ManaSpent { mana: Mana(["B"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), ManaSpent { mana: Mana(["B"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Sickle Ripper
 face: Sickle Ripper
@@ -1036,7 +1036,7 @@ cost: {3}{B}
 > You may exile a black card from your hand rather than pay this spell's mana cost.
 > Target player reveals their hand. You choose a nonland card from it. That player discards that card.
 = Static([AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])])
-= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Vampire Nocturnus
 face: Vampire Nocturnus
@@ -1089,7 +1089,7 @@ face: Vision of Love
 type: Instant
 cost: {1}{R}
 > You may sacrifice an artifact or discard a card. If you do, draw two cards.
-= Spell([May { who: You, then: [Or([Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])] }, IfYouDo([Draw { who: You, n: N(2) }])])
+= Spell([May { who: You, then: [Or([Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])] }, IfYouDo([Draw { who: You, n: N(2) }])])
 
 ## Vow of Lightning
 face: Vow of Lightning

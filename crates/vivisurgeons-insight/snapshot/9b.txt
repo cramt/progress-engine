@@ -246,7 +246,7 @@ cost: {W}{U}{B}
 > • Destroy target enchantment.
 > • Draw two cards.
 > • Target player discards two cards.
-= Spell([Modal { choose: One, modes: [[Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }], [Draw { who: You, n: N(2) }], [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }])
+= Spell([Modal { choose: One, modes: [[Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }], [Draw { who: You, n: N(2) }], [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]] }])
 
 ## Esper Panorama
 face: Esper Panorama
@@ -587,7 +587,7 @@ face: Magus of the Scroll
 type: Creature — Human Wizard
 cost: {R}
 > {3}, {T}: Choose a card name, then reveal a card at random from your hand. If that card has the chosen name, this creature deals 2 damage to any target.
-= BROKE at "random" after: {3} , {T} : choose a card name , then reveal a card at
+= BROKE at "chosen" after: {3} , {T} : choose a card name , then reveal a card at random from your hand . if that card has the
 
 ## Malach of the Dawn
 face: Malach of the Dawn
@@ -917,7 +917,7 @@ face: Smallpox
 type: Sorcery
 cost: {B}{B}
 > Each player loses 1 life, discards a card, sacrifices a creature of their choice, then sacrifices a land of their choice.
-= Spell([LoseLife { who: Each, n: N(1) }, Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [ChosenBy(That)], or: None } } }])
+= Spell([LoseLife { who: Each, n: N(1) }, Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [ChosenBy(That)], or: None } } }])
 
 ## Soulreaper of Mogis
 face: Soulreaper of Mogis

@@ -266,7 +266,7 @@ face: Enhanced Awareness
 type: Instant
 cost: {4}{U}
 > Draw three cards, then discard a card.
-= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Ennis, Debate Moderator
 face: Ennis, Debate Moderator
@@ -623,7 +623,7 @@ cost: {1}{U}
 > Flying
 > {S}, {T}: Draw a card, then discard a card. ({S} can be paid with one mana from a snow source.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Activated { cost: [Mana(Mana(["S"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["S"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Pitiless Horde
 face: Pitiless Horde
@@ -639,7 +639,7 @@ face: Planeswalker's Favor
 type: Enchantment
 cost: {2}{G}
 > {3}{G}: Target opponent reveals a card at random from their hand. Target creature gets +X/+X until end of turn, where X is the revealed card's mana value.
-= BROKE at "random" after: {3} {G} : target opponent reveals a card at
+= Activated { cost: [Mana(Mana(["3", "G"]))], effect: [With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(That))], or: None } }], then: [Reveal { who: TargetOpponent, what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Where { then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), gains: [], dur: UntilEndOfTurn }], x: ManaValueOf(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }) }] }], limits: [] }
 
 ## Prakhata Pillar-Bug
 face: Prakhata Pillar-Bug
@@ -915,7 +915,7 @@ face: Unfulfilled Desires
 type: Enchantment
 cost: {1}{U}{B}
 > {1}, Pay 1 life: Draw a card, then discard a card.
-= Activated { cost: [Mana(Mana(["1"])), PayLife(N(1))], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), PayLife(N(1))], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## University Campus
 face: University Campus

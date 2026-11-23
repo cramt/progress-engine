@@ -66,7 +66,7 @@ cost: {1}{R}
 > Noncreature spells you cast cost {1} less to cast.
 > {2}{R}: Level 3
 > If a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, it deals that much damage plus 2 instead.
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 = Activated { cost: [Mana(Mana(["2", "R"]))], effect: [ClassLevel(2)], limits: [] }
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
 = Activated { cost: [Mana(Mana(["2", "R"]))], effect: [ClassLevel(3)], limits: [] }
@@ -252,7 +252,7 @@ type: Instant
 cost: {3}{R}
 > Discard all the cards in your hand, then draw that many cards.
 > Retrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)
-= Spell([Discard { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, random: false }, Draw { who: You, n: ThatMany }])
+= Spell([Discard { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } } }, Draw { who: You, n: ThatMany }])
 = Keywords([Keyword { name: "retrace", param: None }])
 
 ## Desecration Plague
@@ -268,7 +268,7 @@ type: Instant
 cost: {1}{R}
 > Draw two cards, then discard a card at random.
 > Flashback {2}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["2", "U"]))])) }])
 
 ## Discover the Impossible
@@ -301,7 +301,7 @@ face: Elkin Lair
 type: World Enchantment
 cost: {3}{R}
 > At the beginning of each player's upkeep, that player exiles a card at random from their hand. The player may play that card this turn. At the beginning of the next end step, if the player hasn't played the card, they put it into their graveyard.
-= BROKE at "random" after: at the beginning of each player 's upkeep , that player exiles a card at
+= BROKE at "may" after: at the beginning of each player 's upkeep , that player exiles a card at random from their hand . the player
 
 ## Fleeting Spirit
 face: Fleeting Spirit
@@ -629,7 +629,7 @@ type: Sorcery
 cost: {2}{B}
 > Target player discards two cards.
 > Overload {1}{B} (You may cast this spell for its overload cost. If you do, change "target" in its text to "each.")
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = Keywords([Keyword { name: "overload", param: Some(Cost([Mana(Mana(["1", "B"]))])) }])
 
 ## Mirror Golem
@@ -774,7 +774,7 @@ face: Rush of Inspiration
 type: Instant
 cost: {1}{U/R}{U/R}
 > Draw two cards. Then discard a card at random unless you pay {E}{E} (two energy counters).
-= Spell([Draw { who: You, n: N(2) }, Unless { effect: Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }, who: You, cost: [Energy(2)] }])
+= Spell([Draw { who: You, n: N(2) }, Unless { effect: Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }, who: You, cost: [Energy(2)] }])
 
 ## Rush of Inspiration // Crackling Falls
 face: Crackling Falls
@@ -937,7 +937,7 @@ type: Sorcery
 cost: {3}{R}
 > Return an instant card at random from your graveyard to your hand.
 > Rebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)
-= BROKE at "your" after: return an instant card at random from
+= Spell([Move { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")]], kind: Some(Card), posts: [AtRandom, In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])
 = Keywords([Keyword { name: "rebound", param: None }])
 
 ## Thunderbolts Conspiracy

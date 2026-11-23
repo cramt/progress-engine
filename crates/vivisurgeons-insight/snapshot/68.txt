@@ -283,7 +283,7 @@ face: Ego Drain
 type: Sorcery
 cost: {B}
 > Target opponent reveals their hand. You choose a nonland card from it. That player discards that card. If you don't control a Faerie, exile a card from your hand.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: YouDontControl(Objects { quant: One, filter: Filter { alts: [[Subtype("faerie")]], kind: None, posts: [], or: None } }), then: [Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })] }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, If { order: Leading, cond: YouDontControl(Objects { quant: One, filter: Filter { alts: [[Subtype("faerie")]], kind: None, posts: [], or: None } }), then: [Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })] }] }])
 
 ## Eland Umbra
 face: Eland Umbra
@@ -818,7 +818,7 @@ cost: {1}{U}
 > {T}: Draw a card, then discard a card.
 > {5}{B/P}: Transform Rona. Activate only as a sorcery. ({B/P} can be paid with either {B} or 2 life.)
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Supertype("legendary")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
-= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["5", "B/P"]))], effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [SorcerySpeed] }
 
 ## Rona, Herald of Invasion // Rona, Tolarian Obliterator
@@ -827,7 +827,7 @@ type: Legendary Creature — Phyrexian Wizard
 > Trample
 > Whenever a source deals damage to Rona, that source's controller exiles a card from their hand at random. If it's a land card, you may put it onto the battlefield under your control. Otherwise, you may cast it without paying its mana cost.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "random" after: whenever a source deals damage to ~ , that source 's controller exiles a card from their hand at
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }], ability: Triggered { trigger: When(DealsDamageTo { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }), effect: [With { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That)), AtRandom], or: None } }], then: [Performed { by: ControllerOf(Objects { quant: Bound(1) /* trigger */, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }), effect: Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: You, then: [Move { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }] }, Otherwise([May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, payment: Free, dur: Permanent }] }])] }], limits: [] } }
 
 ## Root Maze
 face: Root Maze
@@ -904,7 +904,7 @@ cost: {2}{B}
 > Choose one —
 > • Target player discards two cards.
 > • Target player draws two cards and loses 2 life.
-= Spell([Modal { choose: One, modes: [[Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }]] }])
+= Spell([Modal { choose: One, modes: [[Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [Draw { who: Target, n: N(2) }, LoseLife { who: That, n: N(2) }]] }])
 
 ## Shriek of Dread
 face: Shriek of Dread

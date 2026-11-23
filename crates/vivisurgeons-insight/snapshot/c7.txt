@@ -126,7 +126,7 @@ cost: {1}{B}
 > Kicker {3}{B} (You may pay an additional {3}{B} as you cast this spell.)
 > When this creature enters, if it was kicked, each opponent discards two cards.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3", "B"]))])) }])
-= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), WasKicked), effect: [Discard { who: EachOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), WasKicked), effect: [Discard { who: EachOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Chandra's Phoenix
 face: Chandra's Phoenix
@@ -294,7 +294,7 @@ cost: {4}{U}
 > Flying
 > Waterbend {4}: Draw a card, then discard a card. (While paying a waterbend cost, you can tap your artifacts and creatures to help. Each one pays for {1}.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Activated { cost: [ActionMana { name: "waterbend", mana: Mana(["4"]) }], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [ActionMana { name: "waterbend", mana: Mana(["4"]) }], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Goblin Gathering
 face: Goblin Gathering
@@ -485,7 +485,7 @@ cost: {2}{B}{R}
 > Whenever this creature becomes blocked, it gets +6/+3 until end of turn.
 > Whenever this creature attacks and isn't blocked, it assigns no combat damage this turn and defending player loses 4 life.
 = Keywords([Keyword { name: "trample", param: None }])
-= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDont([Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDont([Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(1) }])], limits: [] }
 = Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(6), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 = BROKE at "assigns" after: whenever this creature attacks and isn't blocked , it
 
@@ -575,7 +575,7 @@ cost: {1}{B}
 > When this enchantment enters, each opponent sacrifices a creature or Vehicle of their choice. Each opponent who can't discards a card.
 > {2}, Sacrifice this enchantment: You gain life equal to your speed.
 = Keywords([Keyword { name: "start your engines!", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: WhoCant(EachOpponent), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: WhoCant(EachOpponent), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["2"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [GainLife { who: You, n: Speed(You) }], limits: [] }
 
 ## Monster Mashup
@@ -916,7 +916,7 @@ cost: {1}{U}
 > When this creature enters, you get {E}{E} (two energy counters).
 > {T}, Pay {E}: Draw a card, then discard a card.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [GetEnergy(2)], limits: [] }
-= Activated { cost: [Tap, Energy(1)], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap, Energy(1)], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Tendo Ice Bridge
 face: Tendo Ice Bridge

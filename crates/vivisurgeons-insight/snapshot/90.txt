@@ -3,7 +3,7 @@ face: Abyssal Nightstalker
 type: Creature — Nightstalker
 cost: {3}{B}
 > Whenever this creature attacks and isn't blocked, defending player discards a card.
-= Triggered { trigger: When(AttacksUnblocked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, at: None }), effect: [Discard { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(AttacksUnblocked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, at: None }), effect: [Discard { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Angry Rabble
 face: Angry Rabble
@@ -351,7 +351,7 @@ cost: {3}{B}{B}
 > At the beginning of combat on your turn, you may discard a card. If you do, each opponent discards a card.
 > Mayhem {3}{B}{B} (You may cast this card from your graveyard for {3}{B}{B} if you discarded it this turn. Timing rules still apply.)
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "menace", param: None }])
-= Triggered { trigger: At(Combat(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: At(Combat(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 = Keywords([Keyword { name: "mayhem", param: Some(Cost([Mana(Mana(["3", "B", "B"]))])) }])
 
 ## Haunted Dead
@@ -682,7 +682,7 @@ cost: {4}{B}{R}
 > Whenever this creature deals combat damage to a player, that player discards a card at random.
 > {B}: Regenerate this creature.
 = Keywords([Keyword { name: "first strike", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["B"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Razia, Boros Archangel
@@ -828,7 +828,7 @@ cost: {B}{G}{U}
 > • Destroy target monocolored creature.
 > • Destroy target artifact or enchantment.
 > • Draw two cards, then discard a card.
-= Spell([Modal { choose: One, modes: [[Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Color(Monocolored), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }], [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }])
+= Spell([Modal { choose: One, modes: [[Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Color(Monocolored), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }], [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]] }])
 
 ## Talas Scout
 face: Talas Scout
@@ -842,7 +842,7 @@ face: Temur Tawnyback
 type: Creature — Beast
 cost: {2/G}{2/U}{2/R}
 > When this creature enters, draw a card, then discard a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Threnody Singer
 face: Threnody Singer
@@ -933,7 +933,7 @@ face: Venarian Glimmer
 type: Instant
 cost: {X}{U}
 > Target player reveals their hand. You choose a nonland card with mana value X or less from it. That player discards that card.
-= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: X }), FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: X }), FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Viashino Branchrider
 face: Viashino Branchrider

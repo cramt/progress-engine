@@ -53,7 +53,7 @@ face: Arterial Flow
 type: Sorcery
 cost: {1}{B}{B}
 > Each opponent discards two cards. If you control a Vampire, each opponent loses 2 life and you gain 2 life.
-= Spell([Discard { who: EachOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: EachOpponent, n: N(2) }, GainLife { who: You, n: N(2) }] }])
+= Spell([Discard { who: EachOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: EachOpponent, n: N(2) }, GainLife { who: You, n: N(2) }] }])
 
 ## Artifact Possession
 face: Artifact Possession
@@ -191,7 +191,7 @@ face: Chandra's Defeat
 type: Instant
 cost: {R}
 > Chandra's Defeat deals 5 damage to target red creature or red planeswalker. If that permanent is a Chandra planeswalker, you may discard a card. If you do, draw a card.
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Color(Red), Type("creature")], [Color(Red), Type("planeswalker")]], kind: None, posts: [], or: None } }], ability: Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Objects(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Subtype("chandra"), Type("planeswalker")]], kind: None, posts: [], or: None } }, then: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }] }, IfYouDo([Draw { who: You, n: N(1) }])]) }
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Color(Red), Type("creature")], [Color(Red), Type("planeswalker")]], kind: None, posts: [], or: None } }], ability: Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Objects(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, filter: Filter { alts: [[Subtype("chandra"), Type("planeswalker")]], kind: None, posts: [], or: None } }, then: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }] }, IfYouDo([Draw { who: You, n: N(1) }])]) }
 
 ## Charge of the Mites
 face: Charge of the Mites
@@ -694,7 +694,7 @@ type: Sorcery
 cost: {3}{B}
 > Target opponent discards a card.
 > Look at the top five cards of your library. You may reveal a black card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = Spell([With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [LookAtTop { who: You, whose: You, n: N(5) }, With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Card), posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Move { what: Objects { quant: Rest { of: 0 } /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }] }] }])
 
 ## Liliana, Dreadhorde General
@@ -756,7 +756,7 @@ face: Mind Burst
 type: Sorcery
 cost: {1}{B}
 > Target player discards X cards, where X is one plus the number of cards named Mind Burst in all graveyards.
-= Spell([Where { then: [Discard { who: Target, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], x: Plus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Mind Burst")), In(Graveyard(Each))], or: None } }), 1) }])
+= Spell([Where { then: [Discard { who: Target, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], x: Plus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Mind Burst")), In(Graveyard(Each))], or: None } }), 1) }])
 
 ## Moan of the Unhallowed
 face: Moan of the Unhallowed
@@ -820,7 +820,7 @@ type: Legendary Enchantment
 cost: {2}{U}
 > When Oath of Jace enters, draw three cards, then discard two cards.
 > At the beginning of your upkeep, scry X, where X is the number of planeswalkers you control.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Where { then: [Scry(X)], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } }) }], limits: [] }
 
 ## Ogre Recluse

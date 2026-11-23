@@ -367,7 +367,7 @@ cost: {U}{U}
 > +1: You may exile a nonland card with mana value 3 or less from your hand. If you do, it becomes plotted.
 > −6: Until end of turn, whenever you cast a spell, copy it. You may choose new targets for the copy.
 = Static([If { order: Trailing, cond: YourNthTurn([1, 2, 3]), then: [PlayerRestrict { who: You, rules: [CantCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
-= Loyalty { change: N(1), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Loyalty { change: N(1), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }
 = Loyalty { change: N(1), effect: [With { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Hand(You))], or: None } }], then: [May { who: You, then: [Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, IfYouDo([BecomesPlotted(Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } })])] }] }
 = Loyalty { change: N(-6), effect: [During { dur: UntilEndOfTurn, then: [DelayedWhenever { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }, then: [Copy { what: Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }] }] }] }
 
@@ -584,7 +584,7 @@ face: Pilfer
 type: Sorcery
 cost: {1}{B}
 > Target opponent reveals their hand. You choose a nonland card from it. That player discards that card.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Press the Enemy
 face: Press the Enemy

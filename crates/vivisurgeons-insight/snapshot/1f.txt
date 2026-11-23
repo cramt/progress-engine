@@ -47,7 +47,7 @@ face: Ancestral Reminiscence
 type: Sorcery
 cost: {3}{U}
 > Draw three cards, then discard a card.
-= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Angel of Vitality
 face: Angel of Vitality
@@ -534,7 +534,7 @@ cost: {B}
 > When this enchantment enters, each opponent discards a card and loses 2 life.
 > When this enchantment is put into a graveyard from the battlefield, scry 2.
 > {2}{B}: Sacrifice this enchantment.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: EachOpponent, n: N(2) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: EachOpponent, n: N(2) }], limits: [] }
 = Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Battlefield }), effect: [Scry(N(2))], limits: [] }
 = Activated { cost: [Mana(Mana(["2", "B"]))], effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
@@ -556,7 +556,7 @@ cost: {4}{U}
 > Flying
 > When this creature enters, draw a card, then discard a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Illuminate
 face: Illuminate
@@ -612,7 +612,7 @@ cost: {1}{U}{U}
 > −2: Create a 2/1 blue Ninja creature token.
 > −9: You get an emblem with "Whenever a player casts a spell, you create a 2/1 blue Ninja creature token."
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [PutCounters { n: N(1), kind: "loyalty", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Loyalty { change: N(1), effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked, dur: ThisTurn }, Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Loyalty { change: N(1), effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked, dur: ThisTurn }, Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }
 = Loyalty { change: N(-2), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [Blue], types: ["ninja", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }
 = Loyalty { change: N(-9), effect: [Emblem([Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [Blue], types: ["ninja", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }])] }
 
@@ -726,7 +726,7 @@ cost: {1}{B}
 > This creature enters tapped.
 > Raid — When this creature enters, if you attacked this turn, target opponent discards a card.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
-= Labelled { label: "raid", ability: Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouAttackedThisTurn), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] } }
+= Labelled { label: "raid", ability: Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouAttackedThisTurn), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] } }
 
 ## Metamorphic Alteration
 face: Metamorphic Alteration
@@ -1056,7 +1056,7 @@ face: Stern Lesson
 type: Instant
 cost: {2}{U}
 > Draw two cards, then discard a card. Create a tapped Powerstone token. (It's an artifact with "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.")
-= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Create { who: You, n: N(1), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Create { who: You, n: N(1), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }])
 
 ## Stigma Lasher
 face: Stigma Lasher
@@ -1202,7 +1202,7 @@ face: Urborg Mindsucker
 type: Creature — Horror
 cost: {2}{B}
 > {B}, Sacrifice this creature: Target opponent discards a card at random. Activate only as a sorcery.
-= Activated { cost: [Mana(Mana(["B"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["B"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }], limits: [SorcerySpeed] }
 
 ## Valeria Richards, Precocious
 face: Valeria Richards, Precocious
@@ -1272,5 +1272,5 @@ face: Zuran Enchanter
 type: Creature — Human Wizard
 cost: {1}{U}
 > {2}{B}, {T}: Target player discards a card. Activate only during your turn.
-= Activated { cost: [Mana(Mana(["2", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [OnlyDuringYourTurn] }
+= Activated { cost: [Mana(Mana(["2", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [OnlyDuringYourTurn] }
 

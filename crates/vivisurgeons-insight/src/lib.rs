@@ -1053,7 +1053,7 @@ mod tests {
         for (text, cost) in [
             (
                 "Buyback—Pay 3 life, Discard a card at random.",
-                "DiscardAtRandom",
+                "posts: [AtRandom]",
             ),
             ("Replicate—Pay {E}{E}{E}.", "Energy(3)"),
             ("Kicker—Forage.", "ActionAlone(\"forage\")"),

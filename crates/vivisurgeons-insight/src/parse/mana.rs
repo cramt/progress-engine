@@ -56,7 +56,6 @@ pub(super) fn cost(p: &mut P) -> Option<Cost> {
         },
         |p| { p.word("sacrifice")?; objects(p).map(Cost::Sacrifice) },
         |p| p.words("discard your hand").map(|_| Cost::DiscardHand),
-        |p| { p.word("discard")?; let o = objects(p)?; p.words("at random")?; Some(Cost::DiscardAtRandom(o)) },
         |p| { p.word("discard")?; objects(p).map(Cost::Discard) },
         |p| { p.word("pay")?; let n = amount(p)?; p.word("life")?; Some(Cost::PayLife(n)) },
         |p| { p.words("pay any amount of life")?; Some(Cost::PayLife(Amount::AnyAmount)) },

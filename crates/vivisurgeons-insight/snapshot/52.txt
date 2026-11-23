@@ -250,7 +250,7 @@ type: Creature — Phyrexian Human Cleric
 cost: {U}{B}
 > When this creature enters, draw a card, then discard a card.
 > As long as you've drawn two or more cards this turn, this creature gets +1/+0 and has menace.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Static([AsLongAs { order: Leading, cond: AmountIs { n: CardsDrawnThisTurn(You), op: Ge, value: N(2) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }] }])
 
 ## False Prophet
@@ -447,7 +447,7 @@ face: Lamplighter of Selhoff
 type: Creature — Zombie Horror
 cost: {4}{U}
 > When this creature enters, if you control another Zombie, you may draw a card. If you do, discard a card.
-= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Leech Fanatic
 face: Leech Fanatic
@@ -648,7 +648,7 @@ cost: {3}{U}
 > Flying
 > Whenever another artifact you control enters, you may draw a card. If you do, discard a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Rootpath Purifier
 face: Rootpath Purifier
@@ -678,7 +678,7 @@ face: Scepter of Fugue
 type: Artifact
 cost: {B}{B}
 > {1}{B}, {T}: Target player discards a card. Activate only during your turn.
-= Activated { cost: [Mana(Mana(["1", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [OnlyDuringYourTurn] }
+= Activated { cost: [Mana(Mana(["1", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [OnlyDuringYourTurn] }
 
 ## Shambling Swarm
 face: Shambling Swarm

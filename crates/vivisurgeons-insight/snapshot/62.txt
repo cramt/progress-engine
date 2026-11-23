@@ -32,7 +32,7 @@ cost: {4}{U}{U}
 > • Counter target spell.
 > • Draw two cards, then discard a card.
 = Keywords([Keyword { name: "convoke", param: None }])
-= Spell([Modal { choose: OneOrBoth, modes: [[Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }], [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }])
+= Spell([Modal { choose: OneOrBoth, modes: [[Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }], [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]] }])
 
 ## Barrowin of Clan Undurr
 face: Barrowin of Clan Undurr
@@ -153,7 +153,7 @@ face: Cephalid Broker
 type: Creature — Octopus
 cost: {3}{U}
 > {T}: Target player draws two cards, then discards two cards.
-= Activated { cost: [Tap], effect: [Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Chameleon Spirit
 face: Chameleon Spirit
@@ -209,7 +209,7 @@ face: Cryptwailing
 type: Enchantment
 cost: {3}{B}
 > {1}, Exile two creature cards from your graveyard: Target player discards a card. Activate only as a sorcery.
-= Activated { cost: [Mana(Mana(["1"])), Exile(Objects { quant: N(N(2)), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["1"])), Exile(Objects { quant: N(N(2)), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Cyclone Summoner
 face: Cyclone Summoner
@@ -513,7 +513,7 @@ face: Lore Broker
 type: Creature — Human Rogue
 cost: {1}{U}
 > {T}: Each player draws a card, then discards a card.
-= Activated { cost: [Tap], effect: [Draw { who: Each, n: N(1) }, Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: Each, n: N(1) }, Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Lurker
 face: Lurker
@@ -650,7 +650,7 @@ cost: {4}{R}
 > Flying
 > When this creature enters, you may discard a card. If you do, draw a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Primal Amulet // Primal Wellspring
 face: Primal Amulet
@@ -759,7 +759,7 @@ cost: {1}{U}{B}
 > Flying
 > Inspired — Whenever this creature becomes untapped, each opponent discards a card, then each opponent mills a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Mill { who: EachOpponent, n: N(1) }], limits: [] } }
+= Labelled { label: "inspired", ability: Triggered { trigger: When(BecomesUntapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Mill { who: EachOpponent, n: N(1) }], limits: [] } }
 
 ## Snow-Covered Island
 face: Snow-Covered Island

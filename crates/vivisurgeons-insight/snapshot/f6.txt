@@ -95,7 +95,7 @@ face: Cabal Interrogator
 type: Creature — Zombie Wizard
 cost: {1}{B}
 > {X}{B}, {T}: Target player reveals X cards from their hand and you choose one of them. That player discards that card. Activate only as a sorcery.
-= Activated { cost: [Mana(Mana(["X", "B"])), Tap], effect: [With { bind: [/* revealed */ Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }], then: [Reveal { who: Target, what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, With { bind: [/* chosen */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["X", "B"])), Tap], effect: [With { bind: [/* revealed */ Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }], then: [Reveal { who: Target, what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, With { bind: [/* chosen */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }] }], limits: [SorcerySpeed] }
 
 ## Caldera Kavu
 face: Caldera Kavu
@@ -456,7 +456,7 @@ cost: {U/R}{U/R}{U/R}{U/R}
 > Flying
 > Whenever this creature enters or attacks, you may discard a card. If you do, draw a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Lotus-Eye Mystics
 face: Lotus-Eye Mystics
@@ -472,7 +472,7 @@ face: Lumengrid Augur
 type: Creature — Vedalken Wizard
 cost: {3}{U}
 > {1}, {T}: Target player draws a card, then discards a card. If that player discards an artifact card this way, untap this creature.
-= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Draw { who: Target, n: N(1) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: ThisWay(Discards { who: That, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } } }), then: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Draw { who: Target, n: N(1) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, If { order: Leading, cond: ThisWay(Discards { who: That, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } } }), then: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Magical Hack
 face: Magical Hack
@@ -961,7 +961,7 @@ face: Urza's Bauble
 type: Artifact
 cost: {0}
 > {T}, Sacrifice this artifact: Look at a card at random in target player's hand. You draw a card at the beginning of the next turn's upkeep.
-= BROKE at "random" after: {T} , sacrifice this artifact : look at a card at
+= Activated { cost: [Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [LookAt { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(Target))], or: None } }, dur: Permanent }, Delayed { step: Upkeep(NextTurns), then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Vexing Devil
 face: Vexing Devil
@@ -975,7 +975,7 @@ face: Viashino Racketeer
 type: Creature — Lizard Rogue
 cost: {2}{R}
 > When this creature enters, you may discard a card. If you do, draw a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Vicious Kavu
 face: Vicious Kavu

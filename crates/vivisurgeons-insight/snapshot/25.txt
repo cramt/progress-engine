@@ -663,7 +663,7 @@ cost: {B}
 > Buyback {2}{B}{B} (You may pay an additional {2}{B}{B} as you cast this spell. If you do, put this card into your hand as it resolves.)
 > Target player discards a card.
 = Keywords([Keyword { name: "buyback", param: Some(Cost([Mana(Mana(["2", "B", "B"]))])) }])
-= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Mirri the Cursed
 face: Mirri the Cursed
@@ -784,7 +784,7 @@ type: Creature — Merfolk Rogue
 cost: {1}{U}
 > Whenever this creature deals combat damage to a player, that player discards a card.
 > Morph {U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["U"]))])) }])
 
 ## Rites of Initiation
@@ -792,7 +792,7 @@ face: Rites of Initiation
 type: Instant
 cost: {R}
 > Discard any number of cards at random. Creatures you control get +1/+0 until end of turn for each card discarded this way.
-= Spell([Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
+= Spell([Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }])
 
 ## River's Rebuke
 face: River's Rebuke
@@ -852,7 +852,7 @@ face: Shattered Dreams
 type: Sorcery
 cost: {B}
 > Target opponent reveals their hand. You choose an artifact card from it. That player discards that card.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Shoreline Ranger
 face: Shoreline Ranger

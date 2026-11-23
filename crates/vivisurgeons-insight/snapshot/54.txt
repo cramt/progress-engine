@@ -242,7 +242,7 @@ face: Fossil Find
 type: Sorcery
 cost: {R/G}
 > Return a card at random from your graveyard to your hand, then reorder your graveyard as you choose.
-= BROKE at "graveyard" after: return a card at random from your
+= BROKE at "your" after: return a card at random from your graveyard to your hand , then reorder
 
 ## Furnace Spirit
 face: Furnace Spirit
@@ -765,7 +765,7 @@ face: Slavering Nulls
 type: Creature — Goblin Zombie
 cost: {1}{R}
 > Whenever this creature deals combat damage to a player, if you control a Swamp, you may have that player discard a card.
-= Triggered { trigger: InterveningIf(When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: InterveningIf(When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] }
 
 ## Snow-Covered Mountain
 face: Snow-Covered Mountain
@@ -778,7 +778,7 @@ type: Sorcery
 cost: {1}{B}
 > Target opponent reveals their hand. You choose a nonland permanent card from it. That player discards that card.
 > Empower Jace 1. (Put a loyalty counter on a Jace token you control. If you don't control one, first create a blue Jace planeswalker token with "[−1]: Surveil 1" and "[−3]: Draw a card.")
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 = Spell([Action { by: None, name: "empower jace", n: Some(N(1)) }])
 
 ## Spire Barrage

@@ -111,7 +111,7 @@ cost: {5}{R}
 > Trample
 > Whenever this creature deals combat damage to a player, you may discard all the cards in your hand. If you do, draw that many cards.
 = Keywords([Keyword { name: "trample", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: ThatMany }])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } } }] }, IfYouDo([Draw { who: You, n: ThatMany }])], limits: [] }
 
 ## Cartel Aristocrat
 face: Cartel Aristocrat
@@ -476,7 +476,7 @@ cost: {1}{U}
 > Shadow (This creature can block or be blocked by only creatures with shadow.)
 > Whenever this creature deals damage to an opponent, draw a card, then discard a card.
 = Keywords([Keyword { name: "shadow", param: None }])
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Lovestruck Beast // Heart's Desire
 face: Lovestruck Beast
@@ -652,7 +652,7 @@ cost: {U}
 > • Target creature gains islandwalk until end of turn. (It can't be blocked as long as defending player controls an Island.)
 > • Target creature gets +2/-1 until end of turn.
 > • Target player discards a card.
-= Spell([Modal { choose: One, modes: [[Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "islandwalk", param: None }], dur: UntilEndOfTurn }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }])
+= Spell([Modal { choose: One, modes: [[Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "islandwalk", param: None }], dur: UntilEndOfTurn }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]] }])
 
 ## Pretending Poxbearers
 face: Pretending Poxbearers
@@ -675,7 +675,7 @@ face: Psychic Miasma
 type: Sorcery
 cost: {1}{B}
 > Target player discards a card. If a land card is discarded this way, return Psychic Miasma to its owner's hand.
-= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, how: Discarded }, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }])
+= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, how: Discarded }, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }])
 
 ## Quickchange
 face: Quickchange
@@ -766,7 +766,7 @@ type: Legendary Creature — Human Shaman
 cost: {R}{G}
 > Landfall — Whenever a land you control enters, you may discard a card. If you do, draw a card.
 > Summon — {X}, {T}: Return target Saga card with mana value X from your graveyard to the battlefield with a finality counter on it. It gains haste until end of turn. Activate only as a sorcery.
-= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] } }
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] } }
 = Labelled { label: "summon", ability: Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("saga")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Eq, value: X }), In(Graveyard(You))], or: None } }], ability: Activated { cost: [Mana(Mana(["X"])), Tap], effect: [EntersWith { effect: Move { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, n: N(1), kind: "finality" }, Modify { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [SorcerySpeed] } } }
 
 ## Sanctum of Calm Waters
@@ -774,7 +774,7 @@ face: Sanctum of Calm Waters
 type: Legendary Enchantment — Shrine
 cost: {3}{U}
 > At the beginning of your first main phase, you may draw X cards, where X is the number of Shrines you control. If you do, discard a card.
-= Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Where { then: [Draw { who: You, n: X }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("shrine")]], kind: None, posts: [Controller(You)], or: None } }) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Where { then: [Draw { who: You, n: X }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("shrine")]], kind: None, posts: [Controller(You)], or: None } }) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Sanctum of Ugin
 face: Sanctum of Ugin

@@ -230,7 +230,7 @@ type: Sorcery
 cost: {R}{R}
 > As an additional cost to cast this spell, discard X cards at random.
 > Each player sacrifices X lands of their choice. Devastating Dreams deals X damage to each creature.
-= Static([AdditionalCost([DiscardAtRandom(Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])])
+= Static([AdditionalCost([Discard(Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })])])
 = Spell([Sacrifice { who: Each, what: Objects { quant: N(X), filter: Filter { alts: [[Type("land")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
 
 ## Divine Deflection
@@ -629,7 +629,7 @@ face: Reckless Scholar
 type: Creature — Human Wizard
 cost: {2}{U}
 > {T}: Target player draws a card, then discards a card.
-= Activated { cost: [Tap], effect: [Draw { who: Target, n: N(1) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: Target, n: N(1) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Resolute Survivors
 face: Resolute Survivors

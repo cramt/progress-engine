@@ -143,7 +143,7 @@ type: Legendary Artifact
 cost: {2}{R}
 > When Brass's Tunnel-Grinder enters, discard any number of cards, then draw that many cards plus one.
 > At the beginning of your end step, if you descended this turn, put a bore counter on Brass's Tunnel-Grinder. Then if there are three or more bore counters on it, remove those counters and transform it. (You descended if a permanent card was put into your graveyard from anywhere.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: Plus(ThatMany, 1) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: Plus(ThatMany, 1) }], limits: [] }
 = BROKE at "descended" after: at the beginning of your end step , if you
 
 ## Brass's Tunnel-Grinder // Tecutlan, the Searing Rift
@@ -395,7 +395,7 @@ face: Gerrard's Verdict
 type: Sorcery
 cost: {W}{B}
 > Target player discards two cards. You gain 3 life for each land card discarded this way.
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [GainLife { who: You, n: N(3) }] }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [GainLife { who: You, n: N(3) }] }])
 
 ## Giott, King of the Dwarves
 face: Giott, King of the Dwarves
@@ -404,7 +404,7 @@ cost: {R}{W}
 > Double strike
 > Whenever Giott or another Dwarf you control enters and whenever an Equipment you control enters, you may discard a card. If you do, draw a card.
 = Keywords([Keyword { name: "double strike", param: None }])
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Subtype("dwarf")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }])), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Subtype("dwarf")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }])), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Grisly Spectacle
 face: Grisly Spectacle
@@ -469,7 +469,7 @@ cost: {1}{R}
 > When this enchantment enters, you may discard a card. If you do, draw two cards.
 > Max speed — Sacrifice this enchantment: Creatures and Vehicles you control gain haste until end of turn.
 = Keywords([Keyword { name: "start your engines!", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
 = KeywordOn { keyword: MaxSpeed, ability: Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Kor Outfitter

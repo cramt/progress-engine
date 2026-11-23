@@ -469,7 +469,7 @@ cost: {1}{U}
 > Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)
 > Whenever this creature deals combat damage to a player, you may draw a card. If you do, discard a card.
 = Keywords([Keyword { name: "prowess", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Kavu Mauler
 face: Kavu Mauler
@@ -690,7 +690,7 @@ face: Sibsig Icebreakers
 type: Creature — Zombie
 cost: {2}{B}
 > When this creature enters, each player discards a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Siege Modification
 face: Siege Modification

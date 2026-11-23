@@ -388,7 +388,7 @@ face: Humiliate
 type: Sorcery
 cost: {W}{B}
 > Target opponent reveals their hand. You choose a nonland card from it. That player discards that card. Put a +1/+1 counter on a creature you control.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }] }])
 
 ## Hurloon Minotaur
 face: Hurloon Minotaur
@@ -604,7 +604,7 @@ face: Rag Man
 type: Creature — Human Minion
 cost: {2}{B}{B}
 > {B}{B}{B}, {T}: Target opponent reveals their hand and discards a creature card at random. Activate only during your turn.
-= Activated { cost: [Mana(Mana(["B", "B", "B"])), Tap], effect: [RevealHand(TargetOpponent), Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [OnlyDuringYourTurn] }
+= Activated { cost: [Mana(Mana(["B", "B", "B"])), Tap], effect: [RevealHand(TargetOpponent), Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [AtRandom], or: None } } }], limits: [OnlyDuringYourTurn] }
 
 ## Reign of the Pit
 face: Reign of the Pit
@@ -620,7 +620,7 @@ cost: {4}
 > {T}: Add two mana in any combination of {U}, {B}, and/or {R}.
 > {3}, {T}: Draw two cards, then discard a card.
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(2), pick: AnyCombination, within: Some(Listed([Blue, Black, Red])) })], limits: [] }
-= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Rending Flame
 face: Rending Flame

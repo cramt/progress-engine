@@ -351,8 +351,6 @@ pub enum Cost {
         kind: CounterKind,
         among: Objects,
     },
-    /// "Discard a card at random": the payer does not pick the card.
-    DiscardAtRandom(Objects),
     /// "Kicker—Forage": a keyword action with no number, paid as a cost.
     ActionAlone(String),
     /// "Splice onto Arcane—An opponent gains 5 life": a cost paid by
@@ -1257,6 +1255,9 @@ pub enum Post {
     WithSingleTarget,
     /// "of their choice": who picks among the objects named.
     ChosenBy(Player),
+    /// "a card at random": no player picks among the objects named; chance
+    /// does ([at-random]).
+    AtRandom,
     /// "spell you've cast this turn": one already cast.
     CastThisTurn(Player),
     /// "the next spell you cast this turn": one not cast yet.
@@ -1560,7 +1561,6 @@ pub enum Effect {
     Discard {
         who: Player,
         what: Objects,
-        random: bool,
     },
     DiscardHand(Player),
     /// "your life total becomes 15", "… becomes half your starting life

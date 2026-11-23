@@ -366,7 +366,7 @@ face: Hecteyes
 type: Creature — Ooze Horror
 cost: {1}{B}
 > When this creature enters, each opponent discards a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Hired Blade
 face: Hired Blade
@@ -524,7 +524,7 @@ type: Artifact
 cost: {0}
 > If this artifact would enter, you may discard a land card instead. If you do, put this artifact onto the battlefield. If you don't, put it into its owner's graveyard.
 > {T}: Add one mana of any color.
-= Static([Replacement { event: Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, instead: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }]), IfYouDont([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersGraveyard, tapped: false, transformed: false, under: None, order: None }])] }])
+= Static([Replacement { event: Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, instead: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }]), IfYouDont([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersGraveyard, tapped: false, transformed: false, under: None, order: None }])] }])
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 
 ## Mox Opal

@@ -633,7 +633,7 @@ face: Riddlesmith
 type: Creature — Human Artificer
 cost: {1}{U}
 > Whenever you cast an artifact spell, you may draw a card. If you do, discard a card.
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Riveteers Decoy
 face: Riveteers Decoy

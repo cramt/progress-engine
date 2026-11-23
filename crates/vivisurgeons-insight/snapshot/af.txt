@@ -373,7 +373,7 @@ cost: {2}{B}{B}
 > Whenever this creature deals combat damage to a player, that player discards a card.
 = Keywords([Keyword { name: "flying", param: None }])
 = BROKE at "in" after: this creature gets <pt> as long as an opponent has no cards
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Havengul Vampire
 face: Havengul Vampire
@@ -389,7 +389,7 @@ face: Horrifying Revelation
 type: Sorcery
 cost: {B}
 > Target player discards a card, then mills a card.
-= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Mill { who: That, n: N(1) }])
+= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Mill { who: That, n: N(1) }])
 
 ## Host of the Hereafter
 face: Host of the Hereafter
@@ -716,7 +716,7 @@ face: Pyromancy
 type: Enchantment
 cost: {2}{R}{R}
 > {3}, Discard a card at random: This enchantment deals damage to any target equal to the mana value of the discarded card.
-= Let { bind: [/* discarded */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], ability: Activated { cost: [Mana(Mana(["3"])), DiscardAtRandom(Objects { quant: Introduced(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Bound(0) /* discarded */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }
+= Let { bind: [/* discarded */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } }], ability: Activated { cost: [Mana(Mana(["3"])), Discard(Objects { quant: Introduced(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Bound(0) /* discarded */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }
 
 ## Rath's Edge
 face: Rath's Edge

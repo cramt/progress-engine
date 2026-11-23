@@ -26,7 +26,7 @@ cost: {2}
 > Players have no maximum hand size.
 > At the beginning of each player's draw step, that player draws an additional card, then discards a card.
 = BROKE at "." after: players have no maximum hand size
-= Triggered { trigger: At(DrawStep(Each)), effect: [Draw { who: That, n: Additional(N(1)) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: At(DrawStep(Each)), effect: [Draw { who: That, n: Additional(N(1)) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Arborback Stomper
 face: Arborback Stomper
@@ -870,7 +870,7 @@ face: Skullknocker Ogre
 type: Creature — Ogre
 cost: {3}{R}
 > Whenever this creature deals damage to an opponent, that player discards a card at random. If the player does, they draw a card.
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }, IfYouDo([Draw { who: That, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }, IfYouDo([Draw { who: That, n: N(1) }])], limits: [] }
 
 ## Soldevi Excavations
 face: Soldevi Excavations

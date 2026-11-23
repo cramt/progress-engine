@@ -146,7 +146,7 @@ face: Compulsive Research
 type: Sorcery
 cost: {2}{U}
 > Target player draws three cards. Then that player discards two cards unless they discard a land card.
-= Spell([Draw { who: Target, n: N(3) }, Unless { effect: Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: That, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } })] }])
+= Spell([Draw { who: Target, n: N(3) }, Unless { effect: Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: That, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } })] }])
 
 ## Crimson Acolyte
 face: Crimson Acolyte
@@ -466,7 +466,7 @@ face: Kheru Lich Lord
 type: Creature — Zombie Wizard
 cost: {3}{B}{G}{U}
 > At the beginning of your upkeep, you may pay {2}{B}. If you do, return a creature card at random from your graveyard to the battlefield. It gains flying, trample, and haste. Exile that card at the beginning of your next end step. If it would leave the battlefield, exile it instead of putting it anywhere else.
-= BROKE at "at" after: at the beginning of your upkeep , you may pay {2} {B} . if you do , return a creature card
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2", "B"]))] }] }, With { bind: [/* moved */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [AtRandom, In(Graveyard(You))], or: None } }], then: [IfYouDo([Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Modify { what: Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }], dur: Permanent }, Delayed { step: EndStep(YourNext), then: [Exile(Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }]), Replacement { event: Leaves { what: Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }, instead: [InsteadOf { then: Exile(Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), of: Move { what: Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: AnywhereOtherThan(Exile), tapped: false, transformed: false, under: None, order: None } }] }] }], limits: [] }
 
 ## Kjeldoran Warrior
 face: Kjeldoran Warrior
@@ -555,7 +555,7 @@ face: Mindculling
 type: Sorcery
 cost: {5}{U}
 > You draw two cards and target opponent discards two cards.
-= Spell([Draw { who: You, n: N(2) }, Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Mine Bearer
 face: Mine Bearer
@@ -1101,7 +1101,7 @@ face: Wistful Thinking
 type: Sorcery
 cost: {2}{U}
 > Target player draws two cards, then discards four cards.
-= Spell([Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: N(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: N(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Wurmcoil Engine
 face: Wurmcoil Engine

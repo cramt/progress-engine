@@ -6,7 +6,7 @@ cost: {3}
 > Whenever this Vehicle attacks, draw a card, then discard a card.
 > Crew 2 (Tap any number of creatures you control with total power 2 or more: This Vehicle becomes an artifact creature until end of turn.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 
 ## Aethermage's Touch
@@ -209,7 +209,7 @@ cost: {2}
 > At the beginning of your upkeep, you may discard a card. If you do, untap this artifact.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: DoesntUntap(You) }])
 = Activated { cost: [Mana(Mana(["4"])), Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
-= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])], limits: [] }
 
 ## Elder Owyn Lyons
 face: Elder Owyn Lyons
@@ -517,7 +517,7 @@ cost: {U}
 > Islandwalk (This creature can't be blocked as long as defending player controls an Island.)
 > Whenever this creature deals combat damage to a player, that player reveals a card at random from their hand.
 = Keywords([Keyword { name: "islandwalk", param: None }])
-= BROKE at "random" after: whenever this creature deals combat damage to a player , that player reveals a card at
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Reveal { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(That))], or: None } } }], limits: [] }
 
 ## Mishra's Self-Replicator
 face: Mishra's Self-Replicator
@@ -551,7 +551,7 @@ cost: {2}{R}{W}
 > +2: You may discard a card. If you do, draw a card.
 > −2: Exile target enchantment, tapped artifact, or tapped creature.
 > −8: Search your library for an artifact or creature card, put it onto the battlefield, then shuffle. It gains haste. Return it to your hand at the beginning of the next end step.
-= Loyalty { change: N(2), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])] }
+= Loyalty { change: N(2), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])] }
 = Loyalty { change: N(-2), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("enchantment")], [State(Tapped), Type("artifact")], [State(Tapped), Type("creature")]], kind: None, posts: [], or: None } })] }
 = Loyalty { change: N(-8), effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You), Modify { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: Permanent }, Delayed { step: EndStep(Next), then: [Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }] }
 
@@ -991,7 +991,7 @@ face: Thrull Surgeon
 type: Creature — Thrull
 cost: {1}{B}
 > {1}{B}, Sacrifice this creature: Look at target player's hand and choose a card from it. That player discards that card. Activate only as a sorcery.
-= Activated { cost: [Mana(Mana(["1", "B"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [LookAtHand { who: You, whose: Target }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["1", "B"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [LookAtHand { who: You, whose: Target }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [SorcerySpeed] }
 
 ## Tolarian Scholar
 face: Tolarian Scholar

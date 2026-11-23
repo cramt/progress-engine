@@ -21,7 +21,7 @@ face: Amnesia
 type: Sorcery
 cost: {3}{U}{U}{U}
 > Target player reveals their hand and discards all nonland cards.
-= Spell([RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } } }])
 
 ## Apprentice Wizard
 face: Apprentice Wizard
@@ -141,7 +141,7 @@ face: Burning Inquiry
 type: Sorcery
 cost: {R}
 > Each player draws three cards, then discards three cards at random.
-= Spell([Draw { who: Each, n: N(3) }, Discard { who: Each, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }])
+= Spell([Draw { who: Each, n: N(3) }, Discard { who: Each, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }])
 
 ## Cephalid Vandal
 face: Cephalid Vandal
@@ -579,7 +579,7 @@ face: Jalum Tome
 type: Artifact — Book
 cost: {3}
 > {2}, {T}: Draw a card, then discard a card.
-= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Jeska, Warrior Adept
 face: Jeska, Warrior Adept
@@ -997,7 +997,7 @@ type: Creature — Spirit
 cost: {1}{U}
 > When this creature enters, draw a card, then discard a card.
 > Whenever you discard a Spirit card or a card with disturb, put a +1/+1 counter on this creature.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(Discards { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("spirit")]], kind: Some(Card), posts: [], or: Some(Filter { alts: [], kind: Some(Card), posts: [WithKeyword("disturb")], or: None }) } } }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Sidisi's Pet

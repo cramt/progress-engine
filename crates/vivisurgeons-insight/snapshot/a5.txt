@@ -375,7 +375,7 @@ cost: {6}{B}{B}
 > Whenever Gorex attacks or dies, choose a card at random exiled with Gorex and put that card into its owner's hand.
 = Static([OptionalAdditionalCost([Exile(Objects { quant: AnyNumber, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })]), CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }) }])
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= BROKE at "random" after: whenever ~ attacks or dies , choose a card at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Move { what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Grishnákh, Brash Instigator
 face: Grishnákh, Brash Instigator
@@ -540,7 +540,7 @@ type: Artifact — Equipment
 cost: {2}
 > Whenever equipped creature deals combat damage to a player, you may draw two cards. If you do, discard a card.
 > Equip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(2) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(2) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
 ## Merfolk Observer
@@ -885,7 +885,7 @@ cost: {4}{U}{U}
 > Whenever this creature enters or attacks, you may draw a card for each other creature you control that shares a creature type with it. If you do, discard a card.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CreatureType)] }])
 = Static([AlsoIs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Chosen }])
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [May { who: You, then: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You), SharesType { card_type: "creature", with: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], or: None } }, then: [Draw { who: You, n: N(1) }] }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [May { who: You, then: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You), SharesType { card_type: "creature", with: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], or: None } }, then: [Draw { who: You, n: N(1) }] }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Tokka & Rahzar, Terrible Twos
 face: Tokka & Rahzar, Terrible Twos
@@ -974,7 +974,7 @@ type: Artifact
 cost: {1}{B}
 > When this artifact enters, target opponent reveals their hand. You choose an artifact or creature card from it. That player discards that card.
 > Craft with two creatures {5}{B} ({5}{B}, Exile this artifact, Exile the two from among creatures you control and/or creature cards in your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] }
 = Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: N(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["5", "B"]))] }) }])
 
 ## Visage of Dread // Dread Osseosaur

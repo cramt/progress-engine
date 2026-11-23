@@ -69,7 +69,7 @@ face: Balduvian Horde
 type: Creature — Human Barbarian
 cost: {2}{R}{R}
 > When this creature enters, sacrifice it unless you discard a card at random.
-= BROKE at "random" after: when this creature enters , sacrifice it unless you discard a card at
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Unless { effect: Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })] }], limits: [] }
 
 ## Banewhip Punisher
 face: Banewhip Punisher
@@ -192,7 +192,7 @@ face: Cabal Slaver
 type: Creature — Human Cleric
 cost: {2}{B}
 > Whenever a Goblin deals combat damage to a player, that player discards a card.
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Callous Inspector
 face: Callous Inspector

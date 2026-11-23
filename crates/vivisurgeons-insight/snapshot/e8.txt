@@ -151,7 +151,7 @@ cost: {3}{B}{B}
 > Myriad (Whenever this creature attacks, for each opponent other than defending player, you may create a token copy that's tapped and attacking that player or a planeswalker they control. Exile the tokens at end of combat.)
 > Whenever this creature deals combat damage to a player, that player discards a card.
 = Keywords([Keyword { name: "myriad", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Betrayal of Flesh
 face: Betrayal of Flesh
@@ -183,7 +183,7 @@ face: Bloodfire Mentor
 type: Creature — Efreet Shaman
 cost: {2}{R}
 > {2}{U}, {T}: Draw a card, then discard a card.
-= Activated { cost: [Mana(Mana(["2", "U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Blow Your House Down
 face: Blow Your House Down
@@ -441,8 +441,8 @@ cost: {3}{R}{R}
 > If the {2}{R}{R} cost was paid, an opponent discards any number of cards, then draws that many cards.
 > Search your library for up to three cards, put them into your hand, shuffle, then discard three cards at random.
 = Static([AlternativeCost([Mana(Mana(["2", "R", "R"]))])])
-= Spell([If { order: Leading, cond: CostPaid(Mana(["2", "R", "R"])), then: [Discard { who: AnOpponent, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: AnOpponent, n: ThatMany }] }])
-= Spell([With { bind: [/* found */ Objects { quant: UpTo(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You), Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }] }])
+= Spell([If { order: Leading, cond: CostPaid(Mana(["2", "R", "R"])), then: [Discard { who: AnOpponent, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: AnOpponent, n: ThatMany }] }])
+= Spell([With { bind: [/* found */ Objects { quant: UpTo(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You), Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }] }])
 
 ## Fire Urchin
 face: Fire Urchin
@@ -1078,7 +1078,7 @@ type: Legendary Creature — Goblin Villain
 cost: {1}{B/R}{B/R}
 > At the beginning of your upkeep, discard a card, then create a Treasure token.
 > Mayhem {2}{B/R} (You may cast this card from your graveyard for {2}{B/R} if you discarded it this turn. Timing rules still apply.)
-= Triggered { trigger: At(Upkeep(Yours)), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [] }
 = Keywords([Keyword { name: "mayhem", param: Some(Cost([Mana(Mana(["2", "B/R"]))])) }])
 
 ## Unholy Indenture
@@ -1131,7 +1131,7 @@ cost: {1}{R}
 > (As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)
 > I, II — Discard a card, then draw a card.
 > III — Reveal up to five nonland cards from your hand. For each of those cards that has the same mana value as another card revealed this way, create a Treasure token.
-= Chapter { chapters: [1, 2], effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(1) }] }
+= Chapter { chapters: [1, 2], effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(1) }] }
 = BROKE at "the" after: iii — reveal up to five nonland cards from your hand . for each of those cards that has
 
 ## Vibrating Sphere

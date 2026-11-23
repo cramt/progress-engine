@@ -83,7 +83,7 @@ cost: {3}{B}
 > Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)
 > Sacrifice this creature: Target player discards two cards. Activate only as a sorcery.
 = Keywords([Keyword { name: "intimidate", param: None }])
-= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Brenard, Ginger Sculptor
 face: Brenard, Ginger Sculptor
@@ -396,7 +396,7 @@ cost: {1}{R}
 > Menace (This creature can't be blocked except by two or more creatures.)
 > Whenever another creature you control with power 2 or less enters, you may discard a card. If you do, draw a card. Do this only once each turn.
 = Keywords([Keyword { name: "menace", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Le, value: N(2) })], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [DoOnlyOncePerTurn] }
+= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Le, value: N(2) })], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [DoOnlyOncePerTurn] }
 
 ## Jhovall Queen
 face: Jhovall Queen
@@ -808,7 +808,7 @@ face: Trapfinder's Trick
 type: Sorcery
 cost: {1}{U}
 > Target player reveals their hand and discards all Trap cards.
-= Spell([RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [[Subtype("trap")]], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [[Subtype("trap")]], kind: Some(Card), posts: [], or: None } } }])
 
 ## Tymora's Invoker
 face: Tymora's Invoker

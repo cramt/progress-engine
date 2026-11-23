@@ -448,7 +448,7 @@ face: Harsh Scrutiny
 type: Sorcery
 cost: {B}
 > Target opponent reveals their hand. You choose a creature card from it. That player discards that card. Scry 1.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Scry(N(1))] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Scry(N(1))] }])
 
 ## Heaven Sent
 face: Heaven Sent
@@ -635,7 +635,7 @@ face: Mindlash Sliver
 type: Creature — Sliver
 cost: {B}
 > All Slivers have "{1}, Sacrifice this permanent: Each player discards a card."
-= Static([HasAbility { what: Objects { quant: All, filter: Filter { alts: [[Subtype("sliver")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] } }])
+= Static([HasAbility { what: Objects { quant: All, filter: Filter { alts: [[Subtype("sliver")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] } }])
 
 ## Mirri, Weatherlight Duelist
 face: Mirri, Weatherlight Duelist

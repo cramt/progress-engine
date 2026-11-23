@@ -422,7 +422,7 @@ type: Sorcery
 cost: {2}{B}
 > Target opponent discards two cards.
 > Raid — If you attacked this turn, create a Treasure token. (It's an artifact with "{T}, Sacrifice this token: Add one mana of any color.")
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = Labelled { label: "raid", ability: Spell([If { order: Leading, cond: YouAttackedThisTurn, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }]) }
 
 ## Heaven // Earth
@@ -470,7 +470,7 @@ type: Land
 > {1}{B}{R}{R}, {T}, Sacrifice this land: It deals 3 damage to target player. That player discards a card. Activate only as a sorcery.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["B"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "B", "R", "R"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Player(Target)] }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["1", "B", "R", "R"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Player(Target)] }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Infernal Genesis
 face: Infernal Genesis
@@ -651,7 +651,7 @@ face: Monomania
 type: Sorcery
 cost: {3}{B}{B}
 > Target player chooses a card in their hand and discards the rest.
-= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }], then: [Performed { by: Target, effect: Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }, Discard { who: That, what: Objects { quant: Rest { of: 0 } /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, random: false }] }])
+= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }], then: [Performed { by: Target, effect: Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }, Discard { who: That, what: Objects { quant: Rest { of: 0 } /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 
 ## Myojin of Seeing Winds
 face: Myojin of Seeing Winds
@@ -669,7 +669,7 @@ face: Mystic Meditation
 type: Sorcery
 cost: {3}{U}
 > Draw three cards. Then discard two cards unless you discard a creature card.
-= Spell([Draw { who: You, n: N(3) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } })] }])
+= Spell([Draw { who: You, n: N(3) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } })] }])
 
 ## Márton Stromgald
 face: Márton Stromgald
@@ -779,7 +779,7 @@ type: Sorcery
 cost: {2}{W}{B}
 > Target opponent reveals their hand. You choose a nonland card from it. That player discards that card.
 > Put two +1/+1 counters on up to one target creature.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 = Spell([PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }])
 
 ## Resilient Roadrunner

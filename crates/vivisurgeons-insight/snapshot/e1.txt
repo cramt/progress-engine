@@ -46,7 +46,7 @@ face: Breakthrough
 type: Sorcery
 cost: {X}{U}
 > Draw four cards, then choose X cards in your hand and discard the rest.
-= Spell([Draw { who: You, n: N(4) }, With { bind: [/* chosen */ Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: You, what: Objects { quant: Rest { of: 0 } /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, random: false }] }])
+= Spell([Draw { who: You, n: N(4) }, With { bind: [/* chosen */ Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: You, what: Objects { quant: Rest { of: 0 } /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 
 ## Bringer of the Black Dawn
 face: Bringer of the Black Dawn
@@ -226,7 +226,7 @@ cost: {2}{R}
 > II — You may discard a card. If you do, draw a card.
 > III — Creatures you control get +1/+0 until end of turn.
 = Chapter { chapters: [1], effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["ally", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }
-= Chapter { chapters: [2], effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])] }
+= Chapter { chapters: [2], effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])] }
 = Chapter { chapters: [3], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }
 
 ## Gary Clone
@@ -315,7 +315,7 @@ cost: {5}{B}{B}
 > {1}{B}, Sacrifice an artifact: Target creature gets -2/-2 until end of turn.
 = Keywords([Keyword { name: "improvise", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: At(EndStep(Yours)), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: At(EndStep(Yours)), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "B"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Hypnotic Specter
@@ -325,7 +325,7 @@ cost: {1}{B}{B}
 > Flying
 > Whenever this creature deals damage to an opponent, that player discards a card at random.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }], limits: [] }
 
 ## Iconic Shield
 face: Iconic Shield
@@ -420,7 +420,7 @@ cost: {1}{U}
 > {2}, {T}: Copy target instant or sorcery spell you control. You may choose new targets for the copy. Activate only if Kitsa's power is 3 or greater.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Keywords([Keyword { name: "prowess", param: None }])
-= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }], limits: [OnlyIf(AmountIs { n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Ge, value: N(3) })] }
 
 ## Ley Line
@@ -500,7 +500,7 @@ face: Mind Sludge
 type: Sorcery
 cost: {4}{B}
 > Target player discards a card for each Swamp you control.
-= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Mindless Null
 face: Mindless Null
@@ -895,7 +895,7 @@ cost: {2}{U}
 > {1}, {T}: Draw a card, then discard a card.
 > Whenever you discard one or more artifact cards, create a tapped Powerstone token. This ability triggers only once each turn. (The token is an artifact with "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.")
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(Discards { who: You, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } } }), effect: [Create { who: You, n: N(1), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }], limits: [OncePerTurn] }
 
 ## Vault Guardsman

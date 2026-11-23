@@ -552,7 +552,7 @@ type: Legendary Creature — Elf Warrior
 cost: {3}{B}{G}
 > At the beginning of your upkeep, you may have target opponent discard a card at random.
 > Whenever an opponent discards a card, you may create a 1/1 green Elf Warrior creature token.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }] }], limits: [] }
 = Triggered { trigger: When(Discards { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), effect: [May { who: You, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["elf", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 
 ## Necroplasm
@@ -678,7 +678,7 @@ type: Enchantment
 cost: {2}{R}
 > {1}{R}, Discard a card at random: This enchantment deals 1 damage to any target.
 > {1}{R}, Sacrifice this enchantment: It deals 1 damage to any target.
-= Activated { cost: [Mana(Mana(["1", "R"])), DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "R"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "R"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Rampaging Raptor
@@ -870,7 +870,7 @@ face: Tragic Lesson
 type: Instant
 cost: {2}{U}
 > Draw two cards. Then discard a card unless you return a land you control to its owner's hand.
-= Spell([Draw { who: You, n: N(2) }, Unless { effect: Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: You, cost: [ReturnToHand(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })] }])
+= Spell([Draw { who: You, n: N(2) }, Unless { effect: Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: You, cost: [ReturnToHand(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })] }])
 
 ## Tsabo Tavoc
 face: Tsabo Tavoc

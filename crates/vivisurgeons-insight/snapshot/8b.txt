@@ -126,7 +126,7 @@ cost: {2}{R}
 > Riot (This creature enters with your choice of a +1/+1 counter or haste.)
 > Whenever this creature attacks, you may discard a card. If you do, draw a card.
 = Keywords([Keyword { name: "riot", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Cabal Paladin
 face: Cabal Paladin
@@ -176,7 +176,7 @@ cost: {2}{B}
 > Choose one —
 > • Target opponent discards two cards.
 > • Target opponent reveals their hand. You choose a nonland card from it. That player discards that card.
-= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: One, modes: [[Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [RevealHand(TargetOpponent), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }] }])
+= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: One, modes: [[Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [RevealHand(TargetOpponent), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]] }] }])
 
 ## Clockwork Vorrac
 face: Clockwork Vorrac
@@ -217,7 +217,7 @@ type: Creature — Eye Horror
 > Menace
 > When this creature transforms into Revealing Eye, target opponent reveals their hand. You may choose a nonland card from it. If you do, that player discards that card, then draws a card.
 = Keywords([Keyword { name: "menace", param: None }])
-= Triggered { trigger: When(TransformsInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [May { who: You, then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, IfYouDo([Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: That, n: N(1) }])] }], limits: [] }
+= Triggered { trigger: When(TransformsInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [May { who: You, then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, IfYouDo([Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: That, n: N(1) }])] }], limits: [] }
 
 ## Curse of the Bloody Tome
 face: Curse of the Bloody Tome

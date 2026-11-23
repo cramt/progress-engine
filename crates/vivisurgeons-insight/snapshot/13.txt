@@ -97,7 +97,7 @@ cost: {4}{R}{R}
 > +1: Discard a card. If a red card is discarded this way, Chandra deals 4 damage to any target.
 > −2: Each player discards their hand, then draws three cards.
 > −7: Cast any number of red instant and/or sorcery cards from your graveyard without paying their mana costs.
-= Loyalty { change: N(1), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Card), posts: [], or: None } }, how: Discarded }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }
+= Loyalty { change: N(1), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Card), posts: [], or: None } }, how: Discarded }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }
 = Loyalty { change: N(-2), effect: [DiscardHand(Each), Draw { who: Each, n: N(3) }] }
 = Loyalty { change: N(-7), effect: [Cast { verb: Cast, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Color(Red), Type("instant")], [Color(Red), Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, payment: Free, dur: Permanent }] }
 
@@ -270,7 +270,7 @@ face: Fugue
 type: Sorcery
 cost: {3}{B}{B}
 > Target player discards three cards.
-= Spell([Discard { who: Target, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Garruk, Veiled Butcher
 face: Garruk, Veiled Butcher
@@ -474,7 +474,7 @@ face: Minotaur Explorer
 type: Creature — Minotaur Scout
 cost: {1}{R}
 > When this creature enters, sacrifice it unless you discard a card at random.
-= BROKE at "random" after: when this creature enters , sacrifice it unless you discard a card at
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Unless { effect: Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })] }], limits: [] }
 
 ## Mirari's Wake
 face: Mirari's Wake
@@ -707,7 +707,7 @@ face: Stony-Voiced Goblins
 type: Creature — Goblin Bard
 cost: {1}{B}
 > When this creature enters, each opponent discards a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Summon: G.F. Ifrit
 face: Summon: G.F. Ifrit
@@ -716,7 +716,7 @@ cost: {2}{R}
 > (As this Saga enters and after your draw step, add a lore counter. Sacrifice after IV.)
 > I, II — You may discard a card. If you do, draw a card.
 > III, IV — Add {R}.
-= Chapter { chapters: [1, 2], effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])] }
+= Chapter { chapters: [1, 2], effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])] }
 = Chapter { chapters: [3, 4], effect: [AddMana(Symbols(Mana(["R"])))] }
 
 ## Swift Silence

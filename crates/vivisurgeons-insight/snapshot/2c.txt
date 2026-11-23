@@ -640,7 +640,7 @@ cost: {2}{U}
 > Kicker {1}{B} (You may pay an additional {1}{B} as you cast this spell.)
 > Draw two cards. If this spell was kicked, each opponent discards a card.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["1", "B"]))])) }])
-= Spell([Draw { who: You, n: N(2) }, If { order: Leading, cond: WasKicked, then: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([Draw { who: You, n: N(2) }, If { order: Leading, cond: WasKicked, then: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Prophet of the Peak
 face: Prophet of the Peak
@@ -691,7 +691,7 @@ type: Creature — Merfolk Wizard
 cost: {1}{U}
 > {U}, {T}: Draw a card, then discard a card.
 > Delirium — {2}{U}, {T}: Draw a card. Activate only if there are four or more card types among cards in your graveyard.
-= Activated { cost: [Mana(Mana(["U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Labelled { label: "delirium", ability: Activated { cost: [Mana(Mana(["2", "U"])), Tap], effect: [Draw { who: You, n: N(1) }], limits: [OnlyIf(AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) })] } }
 
 ## Ringing Strike Mastery
@@ -825,7 +825,7 @@ cost: {1}{U}
 > Flying, vigilance (Attacking doesn't cause this creature to tap.)
 > {1}{U}, {T}: Draw a card, then discard a card.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
-= Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Sword Coast Sailor
 face: Sword Coast Sailor

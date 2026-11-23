@@ -797,7 +797,7 @@ cost: {4}{B}{G}{U}
 > Flying
 > Whenever Sin enters or attacks, exile a permanent card from your graveyard at random, then create a tapped token that's a copy of that card. If the exiled card is a land card, repeat this process.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "random" after: whenever ~ enters or attacks , exile a permanent card from your graveyard at
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [With { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(Graveyard(You)), AtRandom], or: None } }], then: [Process([Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), CreateCopy { n: N(1), tapped: true, attacking: None, of: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, except: [] }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [RepeatProcess] }])] }], limits: [] }
 
 ## Sire of Stagnation
 face: Sire of Stagnation
@@ -952,7 +952,7 @@ face: Tweeze
 type: Instant
 cost: {2}{R}
 > Tweeze deals 3 damage to any target. You may discard a card. If you do, draw a card.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])])
 
 ## Undercity Shade
 face: Undercity Shade

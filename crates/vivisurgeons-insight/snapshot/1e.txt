@@ -14,7 +14,7 @@ cost: {4}{B}{B}
 > Flying
 > When this creature enters, target player discards two cards.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Aethertow
 face: Aethertow
@@ -358,7 +358,7 @@ cost: {5}{B}
 > At the beginning of your upkeep, each player discards a card.
 = Keywords([Keyword { name: "flying", param: None }])
 = BROKE at "opponents" after: this creature gets <pt> for each card in your
-= Triggered { trigger: At(Upkeep(Yours)), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Engulf the Shore
 face: Engulf the Shore
@@ -732,7 +732,7 @@ cost: {1}{R}
 face: Cosmium Catalyst
 type: Artifact
 > {1}{R}, {T}: Choose an exiled card used to craft this artifact at random. You may cast that card without paying its mana cost.
-= BROKE at "random" after: {1} {R} , {T} : choose an exiled card used to craft this artifact at
+= Activated { cost: [Mana(Mana(["1", "R"])), Tap], effect: [With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Exile), UsedToCraft(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), AtRandom], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
 
 ## Ovinomancer
 face: Ovinomancer
@@ -936,7 +936,7 @@ face: Slate Street Ruffian
 type: Creature — Human Warrior
 cost: {2}{B}
 > Whenever this creature becomes blocked, defending player discards a card.
-= Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Solar Tide
 face: Solar Tide
@@ -1136,7 +1136,7 @@ cost: {1}{B}
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["B", "B"]))])) }])
 = Keywords([Keyword { name: "protection", param: Some(Colors([White])) }])
 = Triggered { trigger: When(Discards { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), WasKicked), effect: [Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), WasKicked), effect: [Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }], limits: [] }
 
 ## Tribute to the World Tree
 face: Tribute to the World Tree

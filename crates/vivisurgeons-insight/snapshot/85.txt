@@ -134,7 +134,7 @@ face: Basilica Bell-Haunt
 type: Creature — Spirit
 cost: {W}{W}{B}{B}
 > When this creature enters, each opponent discards a card and you gain 3 life.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, GainLife { who: You, n: N(3) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, GainLife { who: You, n: N(3) }], limits: [] }
 
 ## Black Vise
 face: Black Vise
@@ -234,7 +234,7 @@ cost: {4}{B}{B}
 > Emerge from artifact {5}{B}{B} (You may cast this spell by sacrificing an artifact and paying the emerge cost reduced by that artifact's mana value.)
 > When this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.
 = BROKE at "{5}" after: emerge from artifact
-= BROKE at "at" after: when this creature enters , target opponent exiles the top card of their library , a card
+= BROKE at "a" after: when this creature enters , target opponent exiles the top card of their library , a card at random from their graveyard , and
 
 ## Crimestopper Sprite
 face: Crimestopper Sprite
@@ -703,7 +703,7 @@ face: Mind Maggots
 type: Creature — Insect
 cost: {3}{B}
 > When this creature enters, discard any number of creature cards. For each card discarded this way, put two +1/+1 counters on this creature.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } } }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Molten Firebird
 face: Molten Firebird

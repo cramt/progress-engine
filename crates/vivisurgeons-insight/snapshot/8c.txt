@@ -5,7 +5,7 @@ cost: {2}{R}
 > Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)
 > Whenever this creature deals combat damage to a player, you may discard a card. If you do, draw a card.
 = Keywords([Keyword { name: "intimidate", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Anthousa, Setessan Hero
 face: Anthousa, Setessan Hero
@@ -358,7 +358,7 @@ face: Encroach
 type: Sorcery
 cost: {B}
 > Target player reveals their hand. You choose a nonbasic land card from it. That player discards that card.
-= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Erdwal Illuminator
 face: Erdwal Illuminator
@@ -614,7 +614,7 @@ cost: {2}{B}{B}
 > Deathtouch
 > Whenever this creature deals combat damage to a player, that player discards a card and you create a tapped 2/2 black Zombie creature token.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Lorescale Coatl
 face: Lorescale Coatl
@@ -655,7 +655,7 @@ face: Mind Slash
 type: Enchantment
 cost: {1}{B}{B}
 > {B}, Sacrifice a creature: Target opponent reveals their hand. You choose a card from it. That player discards that card. Activate only as a sorcery.
-= Activated { cost: [Mana(Mana(["B"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["B"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [SorcerySpeed] }
 
 ## Multiply by Zero
 face: Multiply by Zero
@@ -704,7 +704,7 @@ type: Creature — Human Wizard
 cost: {2}{U}
 > When this creature enters, draw a card, then discard a card.
 > Disturb {3}{U} (You may cast this card from your graveyard transformed for its disturb cost.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "disturb", param: Some(Cost([Mana(Mana(["3", "U"]))])) }])
 
 ## Overwhelmed Archivist // Archive Haunt
@@ -714,7 +714,7 @@ type: Creature — Spirit Wizard
 > Whenever this creature attacks, draw a card, then discard a card.
 > If Archive Haunt would be put into a graveyard from anywhere, exile it instead.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Static([Replacement { event: PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Anywhere }, instead: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Oxidda Scrapmelter
@@ -799,7 +799,7 @@ cost: {4}
 > When Skyship Weatherlight enters, search your library for any number of artifact and/or creature cards, exile them, then shuffle.
 > {4}, {T}: Choose a card at random that was exiled with Skyship Weatherlight. Put that card into its owner's hand.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [With { bind: [/* found */ Objects { quant: AnyNumber, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(You)] }], limits: [] }
-= BROKE at "random" after: {4} , {T} : choose a card at
+= BROKE at "with" after: {4} , {T} : choose a card at random that was exiled
 
 ## Slate of Ancestry
 face: Slate of Ancestry

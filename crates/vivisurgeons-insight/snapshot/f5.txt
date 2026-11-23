@@ -35,7 +35,7 @@ cost: {3}
 > Whenever equipped creature deals combat damage to a player, draw two cards. Then discard two cards unless you discard a Pirate card.
 > Equip {2}. This ability costs {2} less to activate if you have one or fewer cards in hand.
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(2) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Subtype("pirate")]], kind: Some(Card), posts: [], or: None } })] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(2) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Subtype("pirate")]], kind: Some(Card), posts: [], or: None } })] }], limits: [] }
 = KeywordLimits { keyword: Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }, limits: [CostChange { by: Mana(["2"]), less: true, per: None, cond: Some(CardsInHandAtMost(1)) }] }
 
 ## Artifact Blast
@@ -878,7 +878,7 @@ face: Stormbind
 type: Enchantment
 cost: {1}{R}{G}
 > {2}, Discard a card at random: This enchantment deals 2 damage to any target.
-= Activated { cost: [Mana(Mana(["2"])), DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Sunken Citadel
 face: Sunken Citadel
@@ -904,7 +904,7 @@ cost: {B}
 > As an additional cost to cast this spell, sacrifice a creature.
 > Target opponent discards two cards.
 = Static([AdditionalCost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])])
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Terror of the Fairgrounds
 face: Terror of the Fairgrounds
@@ -989,7 +989,7 @@ type: Creature — Orc Rogue
 cost: {3}{R}
 > Whenever this creature attacks, you may discard a card. If you do, draw a card.
 > Dash {2}{R} (You may cast this spell for its dash cost. If you do, it gains haste, and it's returned from the battlefield to its owner's hand at the beginning of the next end step.)
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 = Keywords([Keyword { name: "dash", param: Some(Cost([Mana(Mana(["2", "R"]))])) }])
 
 ## Vesper Ghoul

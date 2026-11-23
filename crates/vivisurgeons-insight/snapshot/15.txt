@@ -477,7 +477,7 @@ cost: {1}{R}{R/W/P}{W}
 > 0: Exile target creature or Equipment card with mana value less than Nahiri's loyalty from your graveyard. Create a token that's a copy of it. That token gains haste. Exile it at the beginning of the next end step.
 = Keywords([Keyword { name: "compleated", param: None }])
 = BROKE at "each" after: N(1) : until your next turn , up to one target creature attacks a player
-= Loyalty { change: N(1), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(1) }] }
+= Loyalty { change: N(1), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(1) }] }
 = BROKE at "loyalty" after: 0 : exile target creature or equipment card with mana value less than ~ 's
 
 ## Nova Hellkite
@@ -544,14 +544,14 @@ face: Psychic Spear
 type: Sorcery
 cost: {B}
 > Target player reveals their hand. You choose a Spirit or Arcane card from it. That player discards that card.
-= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Subtype("spirit")], [Subtype("arcane")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Subtype("spirit")], [Subtype("arcane")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Rain of Revelation
 face: Rain of Revelation
 type: Instant
 cost: {3}{U}
 > Draw three cards, then discard a card.
-= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Raph & Leo, Sibling Rivals
 face: Raph & Leo, Sibling Rivals
@@ -566,7 +566,7 @@ type: Sorcery
 cost: {B}
 > Target player discards a card.
 > Retrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)
-= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = Keywords([Keyword { name: "retrace", param: None }])
 
 ## Raze
@@ -721,7 +721,7 @@ cost: {3}
 > Whenever equipped creature deals combat damage to a player, that player discards a card and you untap all lands you control.
 > Equip {2}
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "protection", param: Some(Colors([Black, Green])) }], per: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Untap(Objects { quant: All, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Untap(Objects { quant: All, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Tanglepool Bridge

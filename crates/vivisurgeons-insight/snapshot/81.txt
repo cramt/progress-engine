@@ -58,7 +58,7 @@ face: Cabal Inquisitor
 type: Creature — Human Minion
 cost: {1}{B}
 > Threshold — {1}{B}, {T}, Exile two cards from your graveyard: Target player discards a card. Activate only as a sorcery and only if there are seven or more cards in your graveyard.
-= Labelled { label: "threshold", ability: Activated { cost: [Mana(Mana(["1", "B"])), Tap, Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed, OnlyIf(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) })] } }
+= Labelled { label: "threshold", ability: Activated { cost: [Mana(Mana(["1", "B"])), Tap, Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed, OnlyIf(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) })] } }
 
 ## Canopy Stalker
 face: Canopy Stalker
@@ -396,7 +396,7 @@ type: Creature — Human Cleric
 cost: {1}{B}
 > Whenever this creature deals combat damage to a player, that player discards a card.
 > Morph {B} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["B"]))])) }])
 
 ## Heat Stroke
@@ -427,7 +427,7 @@ face: Ill-Timed Explosion
 type: Sorcery
 cost: {2}{U}{R}
 > Draw two cards. Then you may discard two cards. When you do, Ill-Timed Explosion deals X damage to each creature, where X is the greatest mana value among cards discarded this way.
-= Spell([Draw { who: You, n: N(2) }, May { who: You, then: [Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, WhenYouDo([Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], x: Greatest { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } } } }])])
+= Spell([Draw { who: You, n: N(2) }, May { who: You, then: [Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, WhenYouDo([Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], x: Greatest { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } } } }])])
 
 ## Insubordination
 face: Insubordination
@@ -515,7 +515,7 @@ cost: {1}{B}{B}
 > Flying
 > When this creature enters, each opponent discards a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Linden, the Steadfast Queen
 face: Linden, the Steadfast Queen

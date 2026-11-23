@@ -6,7 +6,7 @@ type: Land
 > {2}{U}, {T}: Draw a card, then discard a card.
 = Static([EntersTappedUnless { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: YouControl(Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: None, posts: [], or: None } }) }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["2", "U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Agonizing Syphon
 face: Agonizing Syphon
@@ -578,7 +578,7 @@ cost: {4}{B}{B}
 > Flying
 > When this creature enters, you may discard any number of cards. When you do, up to that many target creatures each get -2/-2 until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, WhenYouDo([Modify { what: Objects { quant: Target { n: ThatMany, up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, WhenYouDo([Modify { what: Objects { quant: Target { n: ThatMany, up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }])], limits: [] }
 
 ## Mirran Spy
 face: Mirran Spy
@@ -648,7 +648,7 @@ face: Necrogen Mists
 type: Enchantment
 cost: {2}{B}
 > At the beginning of each player's upkeep, that player discards a card.
-= Triggered { trigger: At(Upkeep(Each)), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: At(Upkeep(Each)), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Noetic Scales
 face: Noetic Scales
@@ -888,7 +888,7 @@ face: Talara's Bane
 type: Sorcery
 cost: {1}{B}
 > Target opponent reveals their hand. You choose a green or white creature card from it. You gain life equal to that creature card's toughness, then that player discards that card.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Color(Green), Type("creature")], [Color(White), Type("creature")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), GainLife { who: You, n: ToughnessOf(Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }) }, Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Color(Green), Type("creature")], [Color(White), Type("creature")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), GainLife { who: You, n: ToughnessOf(Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }) }, Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Tasha, the Witch Queen
 face: Tasha, the Witch Queen

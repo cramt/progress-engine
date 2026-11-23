@@ -132,7 +132,7 @@ face: Chain of Smog
 type: Sorcery
 cost: {1}{B}
 > Target player discards two cards. That player may copy this spell and may choose a new target for that copy.
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, May { who: That, then: [Copy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }] }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, May { who: That, then: [Copy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }] }])
 
 ## Chandra's Revolution
 face: Chandra's Revolution
@@ -728,7 +728,7 @@ cost: {2}{B}{B}
 > Prowl {1}{B} (You may cast this for its prowl cost if you dealt combat damage to a player this turn with a Rogue.)
 > Target player reveals three cards from their hand. You choose two of them. That player discards those cards.
 = Keywords([Keyword { name: "prowl", param: Some(Cost([Mana(Mana(["1", "B"]))])) }])
-= Spell([With { bind: [/* revealed */ Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }], then: [Reveal { who: Target, what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, With { bind: [/* chosen */ Objects { quant: N(N(2)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }] }])
+= Spell([With { bind: [/* revealed */ Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }], then: [Reveal { who: Target, what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, With { bind: [/* chosen */ Objects { quant: N(N(2)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }] }])
 
 ## Oil-Gorger Troll
 face: Oil-Gorger Troll
@@ -928,7 +928,7 @@ face: Stinging Vitriol
 type: Sorcery
 cost: {B}{R}
 > Stinging Vitriol deals 2 damage to target opponent. That player reveals their hand. You choose a nonland card from it. They discard that card.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(TargetOpponent)] }, RevealHand(That), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(That)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(TargetOpponent)] }, RevealHand(That), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(That)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Supply Drop
 face: Supply Drop

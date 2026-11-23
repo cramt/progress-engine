@@ -686,7 +686,7 @@ type: Creature — Dwarf Sorcerer
 cost: {2}{R}
 > When this creature enters, you may discard a card. If you do, draw a card.
 > {T}, Exile a card from your graveyard: Add {R}. When you do, this creature deals 1 damage to each opponent.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 = Activated { cost: [Tap, Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [AddMana(Symbols(Mana(["R"]))), WhenYouDo([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }])], limits: [] }
 
 ## Rumbling Rockslide
@@ -948,7 +948,7 @@ cost: {2}{B}{B}
 > Defender (This creature can't attack.)
 > {2}{B}, {T}: Target player discards a card. Activate only as a sorcery.
 = Keywords([Keyword { name: "defender", param: None }])
-= Activated { cost: [Mana(Mana(["2", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["2", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Wondrous Revival
 face: Wondrous Revival

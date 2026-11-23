@@ -192,7 +192,7 @@ face: Dinrova Horror
 type: Creature — Horror
 cost: {4}{U}{B}
 > When this creature enters, return target permanent to its owner's hand, then that player discards a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Dissipation Field
 face: Dissipation Field

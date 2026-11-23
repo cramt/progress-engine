@@ -67,7 +67,7 @@ face: Bellowing Crier
 type: Creature — Frog Advisor
 cost: {1}{U}
 > When this creature enters, draw a card, then discard a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Benefactor's Draught
 face: Benefactor's Draught
@@ -486,7 +486,7 @@ type: Creature — Ogre Warrior
 cost: {1}{B}{R}
 > Whenever this creature is dealt damage, discard that many cards.
 > Hellbent — Whenever this creature deals combat damage to a player, if you have no cards in hand, that player discards cards equal to the damage.
-= Triggered { trigger: When(IsDealtDamage(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: You, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(IsDealtDamage(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: You, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = BROKE at "equal" after: hellbent — whenever this creature deals combat damage to a player , if you have no cards in hand , that player discards cards
 
 ## Jasmine Seer
@@ -624,7 +624,7 @@ face: Practical Research
 type: Instant
 cost: {3}{U}{R}
 > Draw four cards. Then discard two cards unless you discard an instant or sorcery card.
-= Spell([Draw { who: You, n: N(4) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } })] }])
+= Spell([Draw { who: You, n: N(4) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [], or: None } })] }])
 
 ## Raphael, Most Attitude
 face: Raphael, Most Attitude

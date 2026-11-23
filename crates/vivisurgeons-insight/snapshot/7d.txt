@@ -132,7 +132,7 @@ cost: {1}{B}
 > • Target creature gets -2/-2 until end of turn.
 > • Target opponent loses 2 life and you gain 2 life.
 = Keywords([Keyword { name: "escalate", param: Some(Cost([Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])) }])
-= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: OneOrMore, modes: [[RevealHand(TargetOpponent), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }], [LoseLife { who: TargetOpponent, n: N(2) }, GainLife { who: You, n: N(2) }]] }] }])
+= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: OneOrMore, modes: [[RevealHand(TargetOpponent), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }], [LoseLife { who: TargetOpponent, n: N(2) }, GainLife { who: You, n: N(2) }]] }] }])
 
 ## Confirm Suspicions
 face: Confirm Suspicions
@@ -564,7 +564,7 @@ face: Nezumi Informant
 type: Creature — Rat Rogue
 cost: {1}{B}
 > When this creature enters, each opponent discards a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Nomads en-Kor
 face: Nomads en-Kor
@@ -635,7 +635,7 @@ cost: {1}{U}
 > Equipped creature gets +1/+1 and has "Whenever this creature attacks, draw a card, then discard a card."
 > Equip Pirate {1}
 > Equip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)
-= Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] } }])
+= Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] } }])
 = Keywords([Keyword { name: "equip", param: Some(CostFor { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("pirate")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["1"]))] }) }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
@@ -910,7 +910,7 @@ face: Vicious Rumors
 type: Sorcery
 cost: {B}
 > Vicious Rumors deals 1 damage to each opponent. Each opponent discards a card, then mills a card. You gain 1 life.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Mill { who: EachOpponent, n: N(1) }, GainLife { who: You, n: N(1) }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Mill { who: EachOpponent, n: N(1) }, GainLife { who: You, n: N(1) }])
 
 ## Water Servant
 face: Water Servant

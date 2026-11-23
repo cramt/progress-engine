@@ -316,7 +316,7 @@ cost: {2}{U}
 > Vigilance
 > {2}, {T}: Draw a card, then discard a card.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Goring Ceratops
 face: Goring Ceratops
@@ -487,7 +487,7 @@ type: Artifact
 cost: {1}{R}
 > When this artifact enters, you may discard a card. If you do, draw two cards.
 > {3}, Sacrifice this artifact: Create a tapped 2/2 colorless Robot artifact creature token.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
 = Activated { cost: [Mana(Mana(["3"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Colorless], types: ["robot", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Mer-Ek Nightblade
@@ -530,7 +530,7 @@ face: Muse Seeker
 type: Creature — Elf Wizard
 cost: {1}{U}
 > Opus — Whenever you cast an instant or sorcery spell, draw a card. Then discard a card unless five or more mana was spent to cast that spell.
-= Labelled { label: "opus", ability: Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }], ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Draw { who: You, n: N(1) }, If { order: Trailing, cond: Not(AmountIs { n: ManaSpentToCast(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), op: Ge, value: N(5) }), then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] } } }
+= Labelled { label: "opus", ability: Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }], ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Draw { who: You, n: N(1) }, If { order: Trailing, cond: Not(AmountIs { n: ManaSpentToCast(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), op: Ge, value: N(5) }), then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] } } }
 
 ## Narset, Enlightened Exile
 face: Narset, Enlightened Exile
@@ -587,7 +587,7 @@ cost: {U}{U}{B}{B}
 > Lifelink, ward {1}
 > When this creature enters, look at target player's hand. You may choose a card from it. If you do, that player discards that card, then draws a card.
 = Keywords([Keyword { name: "lifelink", param: None }, Keyword { name: "ward", param: Some(Cost([Mana(Mana(["1"]))])) }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [LookAtHand { who: You, whose: Target }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [May { who: You, then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, IfYouDo([Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: That, n: N(1) }])] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [LookAtHand { who: You, whose: Target }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [May { who: You, then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, IfYouDo([Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: That, n: N(1) }])] }], limits: [] }
 
 ## Omen of the Dead
 face: Omen of the Dead

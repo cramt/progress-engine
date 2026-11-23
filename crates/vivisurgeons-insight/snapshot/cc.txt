@@ -94,7 +94,7 @@ cost: {2}{R}{R}
 > Flying
 > {1}, Discard a card at random: This creature gets +2/+0 until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= Activated { cost: [Mana(Mana(["1"])), DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Carrion Feeder
 face: Carrion Feeder
@@ -915,7 +915,7 @@ cost: {1}{U}{R}
 > +1: Draw a card, then discard a card.
 > +1: Target creature gets +2/+0 and gains first strike and trample until end of turn.
 > −8: Draw four cards. When you do, The Royal Scions deals damage to any target equal to the number of cards in your hand.
-= Loyalty { change: N(1), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Loyalty { change: N(1), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }
 = Loyalty { change: N(1), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [Keyword { name: "first strike", param: None }, Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }] }
 = Loyalty { change: N(-8), effect: [Draw { who: You, n: N(4) }, WhenYouDo([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])] }
 
@@ -924,7 +924,7 @@ face: Thirst for Discovery
 type: Instant
 cost: {2}{U}
 > Draw three cards. Then discard two cards unless you discard a basic land card.
-= Spell([Draw { who: You, n: N(3) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } })] }])
+= Spell([Draw { who: You, n: N(3) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } })] }])
 
 ## Thornplate Intimidator
 face: Thornplate Intimidator
@@ -1023,7 +1023,7 @@ face: Victor, Valgavoth's Seneschal
 type: Legendary Creature — Human Warlock
 cost: {1}{W}{B}
 > Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, surveil 2 if this is the first time this ability has resolved this turn. If it's the second time, each opponent discards a card. If it's the third time, put a creature card from a graveyard onto the battlefield under your control.
-= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [If { order: Trailing, cond: NthResolution(1), then: [Surveil(N(2))] }, If { order: Leading, cond: NthResolution(2), then: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, If { order: Leading, cond: NthResolution(3), then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }], limits: [] } }
+= Labelled { label: "eerie", ability: Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, Unlocks { who: You, what: Fully(Objects { quant: One, filter: Filter { alts: [[Subtype("room")]], kind: None, posts: [], or: None } }) }])), effect: [If { order: Trailing, cond: NthResolution(1), then: [Surveil(N(2))] }, If { order: Leading, cond: NthResolution(2), then: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, If { order: Leading, cond: NthResolution(3), then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }], limits: [] } }
 
 ## Void Maw
 face: Void Maw

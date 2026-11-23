@@ -264,7 +264,7 @@ face: Flaring Cinder
 type: Creature — Elemental Sorcerer
 cost: {1}{U/R}{U/R}
 > When this creature enters and whenever you cast a spell with mana value 4 or greater, you may discard a card. If you do, draw a card.
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } } }])), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(4) })], or: None } } }])), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Foul Imp
 face: Foul Imp
@@ -481,7 +481,7 @@ face: Coil and Catch
 type: Instant — Omen
 cost: {3}{U}
 > Draw three cards, then discard a card. (Then shuffle this card into its owner's library.)
-= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Mindleecher
 face: Mindleecher

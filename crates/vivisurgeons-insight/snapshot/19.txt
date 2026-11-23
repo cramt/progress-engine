@@ -665,7 +665,7 @@ cost: {1}{U}{R}
 > {T}: Draw a card, then discard a card.
 > Whenever you discard an Island, Pirate, or Vehicle card, create a tapped Treasure token.
 = Keywords([Keyword { name: "haste", param: None }])
-= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(Discards { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("island")], [Subtype("pirate")], [Subtype("vehicle")]], kind: Some(Card), posts: [], or: None } } }), effect: [Create { who: You, n: N(1), token: Token { tapped: true, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [] }
 
 ## Minister of Pain

@@ -2277,6 +2277,10 @@ struct Cx {
     continues: Option<Player>,
     /// After "may": the verb is in its base form whoever does it.
     modal: bool,
+    /// The next clause moves what this one chooses, so its zone is said
+    /// "from" as a move's is: "choose a creature card at random from target
+    /// opponent's graveyard. Put that card onto the battlefield" (Tariel).
+    chosen_to_move: bool,
 }
 
 /// One object phrase as text, for a reader that annotates a tree
@@ -3296,11 +3300,6 @@ fn cost_one(o: &mut Out, c: &Cost) {
             counter_noun(o, kind, amount_num(n));
             o.w("from among");
             objects(o, among);
-        }
-        Cost::DiscardAtRandom(x) => {
-            o.w("discard");
-            objects(o, x);
-            o.w("at random");
         }
         Cost::ActionAlone(name) => o.w(name),
         Cost::PlayerGainsLife { who, n } => {
@@ -5742,6 +5741,7 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             syn::their(o);
             o.w("choice");
         }
+        Post::AtRandom => o.w("at random"),
         Post::ChosenBy(p) => {
             o.w("of");
             whose(o, p);
@@ -6524,6 +6524,10 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
         let e = &es[i];
         let cx = Cx {
             continues: implied.clone(),
+            chosen_to_move: matches!(
+                es.get(i + 1),
+                Some(Effect::Move { what, .. }) if matches!(what.quant, Quant::Bound(0) | Quant::Unresolved(Hint::Antecedent))
+            ),
             ..cx.clone()
         };
         let full = match e {
@@ -7802,7 +7806,10 @@ fn obj_subj(o: &mut Out, x: &Objects, verb: &str) {
 }
 
 fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
-    zone_from(moves_from_a_zone(e), || effect_said(o, e, cx))
+    let chosen_to_move = cx.chosen_to_move && matches!(e, Effect::Choose(Choice::Objects(_)));
+    zone_from(chosen_to_move || moves_from_a_zone(e), || {
+        effect_said(o, e, cx)
+    })
 }
 
 fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
@@ -7812,12 +7819,9 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
             subj(o, who, "draw", cx);
             cards(o, n);
         }
-        Effect::Discard { who, what, random } => {
+        Effect::Discard { who, what } => {
             subj(o, who, "discard", cx);
             objects(o, what);
-            if *random {
-                o.w("at random");
-            }
         }
         Effect::DiscardHand(who) => {
             subj(o, who, "discard", cx);
@@ -8264,6 +8268,7 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                 implied: Some(who.clone()),
                 continues: None,
                 modal: true,
+                chosen_to_move: false,
             };
             // "Until end of turn, you may play that card": the permission's
             // duration said first.

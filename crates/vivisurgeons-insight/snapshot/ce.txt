@@ -6,7 +6,7 @@ cost: {3}{B}{G}{U}
 > Whenever this creature deals combat damage to a player, you may draw a card. If you do, discard a card.
 > Morph {2}{B}{G}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["2", "B", "G", "U"]))])) }])
 
 ## Abuna's Chant
@@ -54,7 +54,7 @@ cost: {4}{B}{B}
 > When this creature enters, each opponent discards a card and loses 2 life. You draw a card and gain 2 life.
 = Static([AdditionalCost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])])
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: EachOpponent, n: N(2) }, Draw { who: You, n: N(1) }, GainLife { who: You, n: N(2) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: EachOpponent, n: N(2) }, Draw { who: You, n: N(1) }, GainLife { who: You, n: N(2) }], limits: [] }
 
 ## Archangel of Tithes
 face: Archangel of Tithes
@@ -211,7 +211,7 @@ face: Devour Intellect
 type: Sorcery
 cost: {B}
 > Target opponent discards a card. If mana from a Treasure was spent to cast this spell, instead that player reveals their hand, you choose a nonland card from it, then that player discards that card.
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(That)], or: None } }], then: [Instead { cond: ManaFromSpent { from: Objects { quant: One, filter: Filter { alts: [[Subtype("treasure")]], kind: None, posts: [], or: None } }, on: Cast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }, then: [RevealHand(That), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }] }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(That)], or: None } }], then: [Instead { cond: ManaFromSpent { from: Objects { quant: One, filter: Filter { alts: [[Subtype("treasure")]], kind: None, posts: [], or: None } }, on: Cast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }, then: [RevealHand(That), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }] }])
 
 ## Diplomatic Relations
 face: Diplomatic Relations
@@ -669,7 +669,7 @@ type: Creature — Zombie Rat
 cost: {1}{B}
 > When this creature enters, each player discards a card.
 > Unearth {1}{B} ({1}{B}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "unearth", param: Some(Cost([Mana(Mana(["1", "B"]))])) }])
 
 ## Runaway Carriage
@@ -819,7 +819,7 @@ face: Thirst for Knowledge
 type: Instant
 cost: {2}{U}
 > Draw three cards. Then discard two cards unless you discard an artifact card.
-= Spell([Draw { who: You, n: N(3) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } })] }])
+= Spell([Draw { who: You, n: N(3) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } })] }])
 
 ## Thran Quarry
 face: Thran Quarry

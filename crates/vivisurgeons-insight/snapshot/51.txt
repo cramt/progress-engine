@@ -675,7 +675,7 @@ face: Miasmic Mummy
 type: Creature — Zombie Jackal
 cost: {1}{B}
 > When this creature enters, each player discards a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Mistform Warchief
 face: Mistform Warchief
@@ -760,7 +760,7 @@ cost: {2}{U}
 > Kicker {1}{B} (You may pay an additional {1}{B} as you cast this spell.)
 > Draw three cards, then discard two cards. If this spell was kicked, target player discards two cards.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["1", "B"]))])) }])
-= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: WasKicked, then: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, If { order: Leading, cond: WasKicked, then: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Pyre Charger
 face: Pyre Charger
@@ -965,7 +965,7 @@ face: Soldevi Sage
 type: Creature — Human Wizard
 cost: {1}{U}
 > {T}, Sacrifice two lands: Draw three cards, then discard one of them.
-= Activated { cost: [Tap, Sacrifice(Objects { quant: N(N(2)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, random: false }] }], limits: [] }
+= Activated { cost: [Tap, Sacrifice(Objects { quant: N(N(2)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }] }], limits: [] }
 
 ## Sphere of Law
 face: Sphere of Law

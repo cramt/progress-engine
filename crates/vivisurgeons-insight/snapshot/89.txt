@@ -391,7 +391,7 @@ cost: {3}{G}{G}
 > Shroud (This creature can't be the target of spells or abilities.)
 > At the beginning of your upkeep, if this card is in your graveyard, you may discard a card. If you do, return this card to your hand.
 = Keywords([Keyword { name: "shroud", param: None }])
-= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] }
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] }
 
 ## Gloomlake Verge
 face: Gloomlake Verge
@@ -535,7 +535,7 @@ cost: {U}{R}{W}
 > Whenever you cast a noncreature spell, creatures you control get +1/+1 until end of turn. Untap those creatures.
 > Whenever you cast a noncreature spell, you may draw a card. If you do, discard a card.
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [With { bind: [/* it */ Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }], then: [Modify { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, Untap(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Jill, Shiva's Dominant // Shiva, Warden of Ice
 face: Jill, Shiva's Dominant
@@ -769,7 +769,7 @@ cost: {4}{U}{B}
 > Flying
 > When this creature enters, target opponent discards a card and you draw a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(1) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(1) }], limits: [] }
 
 ## Queen Allenal of Ruadach
 face: Queen Allenal of Ruadach
@@ -935,7 +935,7 @@ type: Instant
 cost: {1}{R}
 > As an additional cost to cast this spell, discard a card at random.
 > Sonic Burst deals 4 damage to any target.
-= Static([AdditionalCost([DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])])
+= Static([AdditionalCost([Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })])])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Steadfast Cathar

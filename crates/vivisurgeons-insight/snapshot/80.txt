@@ -102,7 +102,7 @@ face: Black Cat
 type: Creature — Zombie Cat
 cost: {1}{B}
 > When this creature dies, target opponent discards a card at random.
-= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }], limits: [] }
 
 ## Bladewing the Risen
 face: Bladewing the Risen
@@ -337,7 +337,7 @@ cost: {3}{B}
 > Flying
 > When this creature enters, you may blight 1. If you do, each opponent discards a card. (To blight 1, put a -1/-1 counter on a creature you control.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Action { by: None, name: "blight", n: Some(N(1)) }] }, IfYouDo([Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Action { by: None, name: "blight", n: Some(N(1)) }] }, IfYouDo([Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Dusyut Earthcarver
 face: Dusyut Earthcarver
@@ -381,7 +381,7 @@ type: Sorcery
 cost: {R}
 > Draw two cards, then discard two cards.
 > Flashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["2", "R"]))])) }])
 
 ## Field of Reality
@@ -595,7 +595,7 @@ face: Mind Shatter
 type: Sorcery
 cost: {X}{B}{B}
 > Target player discards X cards at random.
-= Spell([Discard { who: Target, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }])
+= Spell([Discard { who: Target, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }])
 
 ## Minions' Murmurs
 face: Minions' Murmurs
@@ -698,7 +698,7 @@ cost: {1}
 > • Pick a Perk — Put a +1/+1 counter on that creature.
 > • Check Map — Untap up to two target lands.
 > Equip {2}
-= Let { bind: [/* trigger */ Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Attacks(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[Labelled { label: "sort inventory", then: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], [Labelled { label: "pick a perk", then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], [Labelled { label: "check map", then: [Untap(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })] }]] }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Attacks(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[Labelled { label: "sort inventory", then: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], [Labelled { label: "pick a perk", then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], [Labelled { label: "check map", then: [Untap(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })] }]] }], limits: [] } }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Plaguecrafter
@@ -706,7 +706,7 @@ face: Plaguecrafter
 type: Creature — Human Shaman
 cost: {2}{B}
 > When this creature enters, each player sacrifices a creature or planeswalker of their choice. Each player who can't discards a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: WhoCant(Each), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: WhoCant(Each), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Predatory Hunger
 face: Predatory Hunger

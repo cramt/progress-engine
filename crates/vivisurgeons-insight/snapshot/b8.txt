@@ -776,7 +776,7 @@ face: Flush Out
 type: Sorcery — Omen
 cost: {1}{R}
 > Discard a card. If you do, draw two cards. (Then shuffle this card into its owner's library.)
-= Spell([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, IfYouDo([Draw { who: You, n: N(2) }])])
+= Spell([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, IfYouDo([Draw { who: You, n: N(2) }])])
 
 ## Sunken City
 face: Sunken City
@@ -869,7 +869,7 @@ type: Legendary Enchantment
 cost: {B}
 > When Tinybones Joins Up enters, any number of target players each discard a card.
 > Whenever a legendary creature you control enters, any number of target players each mill a card and lose 1 life.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: AnyNumberOfTarget, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: AnyNumberOfTarget, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Mill { who: AnyNumberOfTarget, n: N(1) }, LoseLife { who: AnyNumberOfTarget, n: N(1) }], limits: [] }
 
 ## Trained Arynx

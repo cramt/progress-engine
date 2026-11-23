@@ -672,7 +672,7 @@ cost: {1}{U}{B}{R}
 > When Nicol Bolas enters, each opponent discards a card.
 > {4}{U}{B}{R}: Exile Nicol Bolas, then return him to the battlefield transformed under his owner's control. Activate only as a sorcery.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["4", "U", "B", "R"]))], effect: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: true, under: Some(OwnerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }], limits: [SorcerySpeed] }
 
 ## Nicol Bolas, the Ravager // Nicol Bolas, the Arisen
@@ -701,7 +701,7 @@ face: Noggle Ransacker
 type: Creature — Noggle Rogue
 cost: {2}{U/R}
 > When this creature enters, each player draws two cards, then discards a card at random.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: Each, n: N(2) }, Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: Each, n: N(2) }, Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }], limits: [] }
 
 ## Oracle of Mul Daya
 face: Oracle of Mul Daya

@@ -178,7 +178,7 @@ face: Dark Inquiry
 type: Sorcery
 cost: {2}{B}
 > Target opponent reveals their hand. You choose a nonland card from it. That player discards that card.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Deafening Clarion
 face: Deafening Clarion
@@ -813,7 +813,7 @@ cost: {2}{R}
 > Flying
 > Whenever this creature becomes blocked, defending player discards all the cards in their hand, then draws that many cards.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: DefendingPlayer, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }, random: false }, Draw { who: DefendingPlayer, n: ThatMany }], limits: [] }
+= Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: DefendingPlayer, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } } }, Draw { who: DefendingPlayer, n: ThatMany }], limits: [] }
 
 ## Royal Treatment
 face: Royal Treatment

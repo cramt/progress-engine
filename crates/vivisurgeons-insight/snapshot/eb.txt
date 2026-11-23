@@ -123,7 +123,7 @@ cost: {2}{B}
 > Multikicker {B} (You may pay an additional {B} any number of times as you cast this spell.)
 > When this creature enters, target opponent discards a card for each time it was kicked.
 = Keywords([Keyword { name: "multikicker", param: Some(Cost([Mana(Mana(["B"]))])) }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Repeat { times: TimesKicked, then: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Repeat { times: TimesKicked, then: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] }
 
 ## Bonecrusher Giant // Stomp
 face: Bonecrusher Giant
@@ -294,7 +294,7 @@ cost: {1}{B}
 > Aftermath (Cast this spell only from your graveyard. Then exile it.)
 > Until end of turn, creatures you control gain menace and "Whenever this creature deals combat damage to a player, that player discards a card."
 = Keywords([Keyword { name: "aftermath", param: None }])
-= Spell([During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "menace", param: None }], dur: Permanent }, GrantAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }, dur: Permanent }] }])
+= Spell([During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "menace", param: None }], dur: Permanent }, GrantAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }, dur: Permanent }] }])
 
 ## Enchanted Evening
 face: Enchanted Evening
@@ -706,7 +706,7 @@ cost: {2}{U}{U}
 > When this creature enters, draw two cards, then discard a card.
 > Whenever you cast an instant, sorcery, or Wizard spell, you may have this creature's base power and toughness become 4/1 or 1/4 until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = BROKE at "<pt>" after: whenever you cast an instant , sorcery , or wizard spell , you may have this creature 's base power and toughness become <pt> or
 
 ## Meltdown

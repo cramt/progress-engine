@@ -177,7 +177,7 @@ face: Catalog
 type: Instant
 cost: {2}{U}
 > Draw two cards, then discard a card.
-= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Cathartic Pyre
 face: Cathartic Pyre
@@ -186,7 +186,7 @@ cost: {1}{R}
 > Choose one —
 > • Cathartic Pyre deals 3 damage to target creature or planeswalker.
 > • Discard up to two cards, then draw that many cards.
-= Spell([Modal { choose: One, modes: [[Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }], [Discard { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: ThatMany }]] }])
+= Spell([Modal { choose: One, modes: [[Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }], [Discard { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: ThatMany }]] }])
 
 ## Cavern Crawler
 face: Cavern Crawler
@@ -645,7 +645,7 @@ cost: {2}{U}{B}
 > When this creature enters, return a blue or black creature you control to its owner's hand.
 > When this creature enters, each player discards a card.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: One, filter: Filter { alts: [[Color(Blue), Type("creature")], [Color(Black), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Mind Bend
 face: Mind Bend
@@ -661,7 +661,7 @@ cost: {2}{B}{B}
 > This creature enters with three +1/+1 counters on it.
 > {2}{B}, Remove a +1/+1 counter from this creature: Target player discards a card. Activate only as a sorcery.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(3), kind: "+1/+1" }])
-= Activated { cost: [Mana(Mana(["2", "B"])), RemoveCounters { n: N(1), kind: "+1/+1", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["2", "B"])), RemoveCounters { n: N(1), kind: "+1/+1", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Motion Sickness
 face: Motion Sickness
@@ -749,7 +749,7 @@ cost: {1}{R}
 > Noncreature spells you cast from exile have convoke. (Each creature you tap while casting a noncreature spell from exile pays for {1} or one mana of that creature's color.)
 > At the beginning of your first main phase, you may discard a card. If you do, exile the top two cards of your library, then choose one of them. You may play that card this turn.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [Cast(You), CastFrom(Exile)], or: None } }, pt: None, has: [Keyword { name: "convoke", param: None }], per: None }])
-= Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, With { bind: [/* exiled */ Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, /* chosen */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [IfYouDo([Exile(Objects { quant: Introduced(1) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ThisTurn }] }])] }], limits: [] }
+= Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, With { bind: [/* exiled */ Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }, /* chosen */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [IfYouDo([Exile(Objects { quant: Introduced(1) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ThisTurn }] }])] }], limits: [] }
 
 ## Pedal to the Metal
 face: Pedal to the Metal
@@ -872,7 +872,7 @@ cost: {2}{U}{B}
 > Your opponents play with their hands revealed.
 > Sacrifice this enchantment: Look at target player's hand and choose a card from it. That player discards that card. Activate only as a sorcery.
 = BROKE at "." after: your opponents play with their hands revealed
-= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [LookAtHand { who: You, whose: Target }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [LookAtHand { who: You, whose: Target }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [SorcerySpeed] }
 
 ## Shantotto, Tactician Magician
 face: Shantotto, Tactician Magician

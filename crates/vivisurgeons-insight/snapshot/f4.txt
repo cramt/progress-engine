@@ -5,7 +5,7 @@ cost: {X}{1}{B}
 > As an additional cost to cast this spell, discard X cards.
 > Look at target opponent's hand and choose X cards from it. That player discards those cards.
 = Static([AdditionalCost([Discard(Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])])
-= Spell([LookAtHand { who: You, whose: TargetOpponent }, With { bind: [/* chosen */ Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([LookAtHand { who: You, whose: TargetOpponent }, With { bind: [/* chosen */ Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Absolute Law
 face: Absolute Law
@@ -487,7 +487,7 @@ type: Legendary Creature — Human Peasant Ally
 cost: {U}
 > Whenever Gran-Gran becomes tapped, draw a card, then discard a card.
 > Noncreature spells you cast cost {1} less to cast as long as there are three or more Lesson cards in your graveyard.
-= Triggered { trigger: When(BecomesTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(BecomesTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Static([AsLongAs { order: Trailing, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("lesson")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(3) }, then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }] }])
 
 ## Grave Scrabbler
@@ -775,7 +775,7 @@ cost: {2}{U}{R}
 > Remove three oil counters from this creature: Draw a card. Then you may discard a nonland card. When you discard a card this way, this creature deals 3 damage to target creature or planeswalker. Activate only as a sorcery.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "oil", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Activated { cost: [RemoveCounters { n: N(3), kind: "oil", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Draw { who: You, n: N(1) }, May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }, random: false }] }, WhenThisWay { event: Discards { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }] }], limits: [SorcerySpeed] }
+= Activated { cost: [RemoveCounters { n: N(3), kind: "oil", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Draw { who: You, n: N(1) }, May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } } }] }, WhenThisWay { event: Discards { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }] }], limits: [SorcerySpeed] }
 
 ## Shadows of the Past
 face: Shadows of the Past
@@ -872,7 +872,7 @@ face: Specter's Wail
 type: Sorcery
 cost: {1}{B}
 > Target player discards a card at random.
-= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }])
+= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }])
 
 ## Starfall
 face: Starfall

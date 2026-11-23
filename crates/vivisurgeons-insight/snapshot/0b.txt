@@ -1007,7 +1007,7 @@ face: Wandering Champion
 type: Creature — Human Monk
 cost: {1}{W}
 > Whenever this creature deals combat damage to a player, if you control a blue or red permanent, you may discard a card. If you do, draw a card.
-= Triggered { trigger: InterveningIf(When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Blue)], [Color(Red)]], kind: Some(Permanent), posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: InterveningIf(When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Blue)], [Color(Red)]], kind: Some(Permanent), posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Wasteland Raider
 face: Wasteland Raider

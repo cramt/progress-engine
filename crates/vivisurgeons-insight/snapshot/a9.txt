@@ -3,7 +3,7 @@ face: Akki Ronin
 type: Creature — Goblin Samurai
 cost: {1}{R}
 > Whenever a Samurai or Warrior you control attacks alone, you may discard a card. If you do, draw a card.
-= Triggered { trigger: When(AttacksAlone(Objects { quant: One, filter: Filter { alts: [[Subtype("samurai")], [Subtype("warrior")]], kind: None, posts: [Controller(You)], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(AttacksAlone(Objects { quant: One, filter: Filter { alts: [[Subtype("samurai")], [Subtype("warrior")]], kind: None, posts: [Controller(You)], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Ancient Brass Dragon
 face: Ancient Brass Dragon
@@ -55,7 +55,7 @@ cost: {2}{U}{B}
 > • That player returns a permanent they control to its owner's hand.
 > • That player discards a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }], [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[Performed { by: That, effect: Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }], [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]] }], limits: [] }
 
 ## Boarding Party
 face: Boarding Party
@@ -157,7 +157,7 @@ type: Creature — Elemental Shaman
 cost: {4}{B}
 > {T}: Target player discards a card. Activate only during your turn.
 > Put a -1/-1 counter on this creature: Untap this creature.
-= Activated { cost: [Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [OnlyDuringYourTurn] }
+= Activated { cost: [Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [OnlyDuringYourTurn] }
 = Activated { cost: [PutCounters { n: N(1), kind: "-1/-1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Citanul Druid
@@ -302,7 +302,7 @@ cost: {2}{R}
 > II — You may discard up to two cards. If you do, draw that many cards.
 > III — Exile this Saga, then return it to the battlefield transformed under your control.
 = Chapter { chapters: [1], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Red], types: ["goblin", "shaman", "creature"], keywords: [], abilities: [Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [] }], named: None, attacking: None } }] }
-= Chapter { chapters: [2], effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: ThatMany }])] }
+= Chapter { chapters: [2], effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: ThatMany }])] }
 = Chapter { chapters: [3], effect: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: true, under: Some(You), order: None }] }
 
 ## Fable of the Mirror-Breaker // Reflection of Kiki-Jiki
@@ -528,7 +528,7 @@ cost: {U}{R}
 > Whenever you draw your second card each turn, create a 1/1 blue Faerie creature token with flying.
 > {4}{U}{R}: Draw a card, then discard a card.
 = Triggered { trigger: When(DrawsNth { who: You, n: 2 }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Blue], types: ["faerie", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
-= Activated { cost: [Mana(Mana(["4", "U", "R"]))], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["4", "U", "R"]))], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Jason Bright, Glowing Prophet
 face: Jason Bright, Glowing Prophet
@@ -725,7 +725,7 @@ face: Nebuchadnezzar
 type: Legendary Creature — Human Wizard
 cost: {3}{U}{B}
 > {X}, {T}: Choose a card name. Target opponent reveals X cards at random from their hand. Then that player discards all cards with that name revealed this way. Activate only during your turn.
-= BROKE at "random" after: {X} , {T} : choose a card name . target opponent reveals x cards at
+= Activated { cost: [Mana(Mana(["X"])), Tap], effect: [Choose(CardName), Reveal { who: TargetOpponent, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(That))], or: None } } }, Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName, Marked(Revealed)], or: None } } }], limits: [OnlyDuringYourTurn] }
 
 ## Necromancer's Magemark
 face: Necromancer's Magemark

@@ -146,7 +146,7 @@ type: Creature — Snake Wizard
 cost: {2}{U}
 > When this creature enters, you may draw cards equal to its power. If you do, discard two cards.
 > Eternalize {5}{U}{U} ({5}{U}{U}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a 4/4 black Zombie Snake Wizard with no mana cost. Eternalize only as a sorcery.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: You, n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }, IfYouDo([Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: You, n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }, IfYouDo([Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 = Keywords([Keyword { name: "eternalize", param: Some(Cost([Mana(Mana(["5", "U", "U"]))])) }])
 
 ## Chandra, Fire of Kaladesh // Chandra, Roaring Flame
@@ -200,7 +200,7 @@ face: Cruel Ultimatum
 type: Sorcery
 cost: {U}{U}{B}{B}{B}{R}{R}
 > Target opponent sacrifices a creature of their choice, discards three cards, then loses 5 life. You return a creature card from your graveyard to your hand, draw three cards, then gain 5 life.
-= Spell([Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: TargetOpponent, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: TargetOpponent, n: N(5) }, Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Draw { who: You, n: N(3) }, GainLife { who: You, n: N(5) }])
+= Spell([Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: TargetOpponent, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: TargetOpponent, n: N(5) }, Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Draw { who: You, n: N(3) }, GainLife { who: You, n: N(5) }])
 
 ## Cult Guildmage
 face: Cult Guildmage
@@ -208,7 +208,7 @@ type: Creature — Human Shaman
 cost: {B}{R}
 > {3}{B}, {T}: Target player discards a card. Activate only as a sorcery.
 > {R}, {T}: This creature deals 1 damage to target opponent or planeswalker.
-= Activated { cost: [Mana(Mana(["3", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["3", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 = Activated { cost: [Mana(Mana(["R"])), Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Or([Player(TargetOpponent), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }], limits: [] }
 
 ## Demonfire
@@ -235,7 +235,7 @@ cost: {2}{B}
 > Whenever this creature deals combat damage to a player, that player discards that many cards.
 > Eternalize {4}{B}{B} ({4}{B}{B}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a 4/4 black Zombie Human Wizard with no mana cost. Eternalize only as a sorcery.)
 = Keywords([Keyword { name: "menace", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "eternalize", param: Some(Cost([Mana(Mana(["4", "B", "B"]))])) }])
 
 ## Druid of the Emerald Grove
@@ -408,7 +408,7 @@ cost: {4}{R}
 > Incinerating Blast deals 6 damage to target creature.
 > You may discard a card. If you do, draw a card.
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(6), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
-= Spell([May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])])
+= Spell([May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])])
 
 ## Intrepid Rabbit
 face: Intrepid Rabbit
@@ -448,7 +448,7 @@ cost: {2}{R}{R}{R}
 > +1: Discard up to three cards, then draw that many cards.
 > −8: You get an emblem with "You may cast instant and sorcery spells from your graveyard. If a spell cast this way would be put into your graveyard, exile it instead."
 = BROKE at "this" after: N(1) : add {R} {R} {R} . spend
-= Loyalty { change: N(1), effect: [Discard { who: You, what: Objects { quant: UpTo(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: ThatMany }] }
+= Loyalty { change: N(1), effect: [Discard { who: You, what: Objects { quant: UpTo(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: ThatMany }] }
 = Loyalty { change: N(-8), effect: [Emblem([Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Marked(Cast)], or: None } }], ability: Static([PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, zone: Graveyard(You) }, Replacement { event: PutInto { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }]) }])] }
 
 ## Jhessian Thief
@@ -976,7 +976,7 @@ face: Wrench Mind
 type: Sorcery
 cost: {B}{B}
 > Target player discards two cards unless they discard an artifact card.
-= Spell([Unless { effect: Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: That, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } })] }])
+= Spell([Unless { effect: Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: That, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } })] }])
 
 ## Zack Fair
 face: Zack Fair

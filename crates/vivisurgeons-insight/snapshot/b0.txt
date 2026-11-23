@@ -212,7 +212,7 @@ face: Down for Repairs
 type: Sorcery
 cost: {2}{B}
 > Target opponent reveals their hand. You choose a nonland card from it. That player discards that card. Destroy up to one target Attraction that player controls. (It's put into their junkyard.)
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Destroy { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Subtype("attraction")]], kind: None, posts: [Controller(That)], or: None } }, no_regen: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Destroy { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Subtype("attraction")]], kind: None, posts: [Controller(That)], or: None } }, no_regen: false }] }])
 
 ## Dromoka Captain
 face: Dromoka Captain
@@ -705,7 +705,7 @@ face: Ogre Shaman
 type: Creature — Ogre Shaman
 cost: {3}{R}{R}
 > {2}, Discard a card at random: This creature deals 2 damage to any target.
-= Activated { cost: [Mana(Mana(["2"])), DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Phobian Phantasm
 face: Phobian Phantasm
@@ -793,7 +793,7 @@ type: Sorcery
 cost: {R}{W}
 > You gain 2 life. You may discard a card. If you do, draw two cards.
 > Flashback {2}{R}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([GainLife { who: You, n: N(2) }, May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(2) }])])
+= Spell([GainLife { who: You, n: N(2) }, May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(2) }])])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["2", "R", "W"]))])) }])
 
 ## Pyrrhic Strike
@@ -828,7 +828,7 @@ face: Recall
 type: Sorcery
 cost: {X}{X}{U}
 > Discard X cards, then return a card from your graveyard to your hand for each card discarded this way. Exile Recall.
-= Spell([Discard { who: You, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
+= Spell([Discard { who: You, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Regal Unicorn
 face: Regal Unicorn
@@ -1106,7 +1106,7 @@ cost: {3}{B}
 > • Target opponent sacrifices a creature of their choice.
 > • Target opponent discards two cards.
 > • Target opponent loses 5 life.
-= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: DifferentPlayers(OneOrMore), modes: [[Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }], [Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [LoseLife { who: TargetOpponent, n: N(5) }]] }], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: DifferentPlayers(OneOrMore), modes: [[Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }], [Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [LoseLife { who: TargetOpponent, n: N(5) }]] }], limits: [] }
 
 ## Viridian Emissary
 face: Viridian Emissary

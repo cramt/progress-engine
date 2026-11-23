@@ -17,7 +17,7 @@ cost: {2}{G}
 > When this creature enters, if it was kicked with its {2}{U} kicker, target player discards three cards.
 > When this creature enters, if it was kicked with its {1}{B} kicker, tap target untapped creature and that creature deals damage equal to its power to its controller.
 = Keywords([Keyword { name: "kicker", param: Some(EitherOrBoth([Mana(["2", "U"]), Mana(["1", "B"])])) }])
-= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), KickedWith(Mana(["2", "U"]))), effect: [Discard { who: Target, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), KickedWith(Mana(["2", "U"]))), effect: [Discard { who: Target, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), KickedWith(Mana(["1", "B"]))), effect: [Tap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Damage { source: Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Player(ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }], limits: [] } }
 
 ## Angelic Sleuth
@@ -41,7 +41,7 @@ face: Blackmail
 type: Sorcery
 cost: {B}
 > Target player reveals three cards from their hand and you choose one of them. That player discards that card.
-= Spell([With { bind: [/* revealed */ Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }], then: [Reveal { who: Target, what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, With { bind: [/* chosen */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }] }])
+= Spell([With { bind: [/* revealed */ Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }], then: [Reveal { who: Target, what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, With { bind: [/* chosen */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }] }])
 
 ## Blood Petal Celebrant
 face: Blood Petal Celebrant
@@ -260,7 +260,7 @@ face: Eriette's Whisper
 type: Sorcery
 cost: {3}{B}
 > Target opponent discards two cards. Create a Wicked Role token attached to up to one target creature you control. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1. When this token is put into a graveyard, each opponent loses 1 life.)
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, name: None }])
 
 ## Face of Divinity
 face: Face of Divinity
@@ -555,7 +555,7 @@ face: Loamcrafter Faun
 type: Creature — Satyr Druid
 cost: {2}{G}
 > When this creature enters, you may discard one or more land cards. When you do, return up to that many target nonland permanent cards from your graveyard to your hand.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, random: false }] }, WhenYouDo([Move { what: Objects { quant: Target { n: ThatMany, up_to: true }, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } } }] }, WhenYouDo([Move { what: Objects { quant: Target { n: ThatMany, up_to: true }, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] }
 
 ## Long-Range Sensor
 face: Long-Range Sensor

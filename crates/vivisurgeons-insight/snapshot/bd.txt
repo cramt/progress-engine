@@ -113,7 +113,7 @@ cost: {2}{R}
 > When this Case enters, discard a card, then draw two cards.
 > To solve — You have no cards in hand. (If unsolved, solve at the beginning of your end step.)
 > Solved — At the beginning of your upkeep, discard your hand, then draw two cards.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(2) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(2) }], limits: [] }
 = ToSolve(CardsInHandAtMost(0))
 = KeywordOn { keyword: Solved, ability: Triggered { trigger: At(Upkeep(Yours)), effect: [DiscardHand(You), Draw { who: You, n: N(2) }], limits: [] } }
 
@@ -984,7 +984,7 @@ face: Thought Courier
 type: Creature — Human Wizard
 cost: {1}{U}
 > {T}: Draw a card, then discard a card.
-= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Tiger-Dillo
 face: Tiger-Dillo

@@ -248,7 +248,7 @@ face: Dwarven Strike Force
 type: Creature — Dwarf Berserker
 cost: {4}{R}
 > Discard a card at random: This creature gains first strike and haste until end of turn.
-= Activated { cost: [DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "first strike", param: None }, Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] }
+= Activated { cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "first strike", param: None }, Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Energy Arc
 face: Energy Arc
@@ -498,7 +498,7 @@ face: Hypothesizzle
 type: Instant
 cost: {3}{U}{R}
 > Draw two cards. Then you may discard a nonland card. When you do, Hypothesizzle deals 4 damage to target creature.
-= Spell([Draw { who: You, n: N(2) }, May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } }, random: false }] }, WhenYouDo([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])])
+= Spell([Draw { who: You, n: N(2) }, May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } } }] }, WhenYouDo([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])])
 
 ## Incinerate
 face: Incinerate
@@ -710,7 +710,7 @@ face: Ostracize
 type: Sorcery
 cost: {B}
 > Target opponent reveals their hand. You choose a creature card from it. That player discards that card.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Outlaws' Fury
 face: Outlaws' Fury
@@ -976,7 +976,7 @@ face: Thirst for Meaning
 type: Instant
 cost: {2}{U}
 > Draw three cards. Then discard two cards unless you discard an enchantment card.
-= Spell([Draw { who: You, n: N(3) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: Some(Card), posts: [], or: None } })] }])
+= Spell([Draw { who: You, n: N(3) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: Some(Card), posts: [], or: None } })] }])
 
 ## Three Tree Scribe
 face: Three Tree Scribe

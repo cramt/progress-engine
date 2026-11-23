@@ -209,7 +209,7 @@ type: Enchantment
 cost: {1}{U}{B}
 > When this enchantment enters, you draw a card and each opponent discards a card.
 > Whenever you surveil, return this enchantment to its owner's hand.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(Performs { who: You, action: "surveil" }), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Dokuchi Shadow-Walker
@@ -476,7 +476,7 @@ cost: {1}{B}{B}
 > +1: Each player discards a card.
 > −2: Target player sacrifices a creature.
 > −6: Separate all permanents target player controls into two piles. That player sacrifices all permanents in the pile of their choice.
-= Loyalty { change: N(1), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Loyalty { change: N(1), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }
 = Loyalty { change: N(-2), effect: [Sacrifice { who: Target, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }
 = BROKE at "." after: N(-6) : separate all permanents target player controls into two piles . that player sacrifices all permanents in the pile of their choice
 
@@ -577,7 +577,7 @@ type: Creature — Elemental
 cost: {6}{B}
 > When this creature enters, target player discards two cards.
 > Evoke {3}{B} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "evoke", param: Some(Cost([Mana(Mana(["3", "B"]))])) }])
 
 ## Nefarious Imp
@@ -767,7 +767,7 @@ type: Enchantment — Plan
 cost: {2}{U}
 > Whenever one or more creatures you control become tapped, draw a card, then discard a card and put a plan counter on this enchantment.
 > When the fourth plan counter is put on this enchantment, sacrifice it. When you do, return up to two target instant and/or sorcery cards from your graveyard to your hand.
-= Triggered { trigger: When(BecomesTapped(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, PutCounters { n: N(1), kind: "plan", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(BecomesTapped(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, PutCounters { n: N(1), kind: "plan", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(NthCounterPutOn { n: 4, kind: "plan", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, WhenYouDo([Move { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] }
 
 ## Rhox Pummeler
@@ -803,7 +803,7 @@ face: Sage of the Falls
 type: Creature — Merfolk Wizard
 cost: {4}{U}
 > Whenever this creature or another non-Human creature you control enters, you may draw a card. If you do, discard a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Non("human"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Non("human"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Sarkhan, Fireblood
 face: Sarkhan, Fireblood
@@ -812,7 +812,7 @@ cost: {1}{R}{R}
 > +1: You may discard a card. If you do, draw a card.
 > +1: Add two mana in any combination of colors. Spend this mana only to cast Dragon spells.
 > −7: Create four 5/5 red Dragon creature tokens with flying.
-= Loyalty { change: N(1), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])] }
+= Loyalty { change: N(1), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])] }
 = BROKE at "this" after: N(1) : add two mana in any combination of colors . spend
 = Loyalty { change: N(-7), effect: [Create { who: You, n: N(4), token: Token { tapped: false, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), colors: [Red], types: ["dragon", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }] }
 
@@ -850,7 +850,7 @@ cost: {5}{B}
 > Flying
 > Whenever this creature attacks, defending player discards a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Skeleton Scavengers
 face: Skeleton Scavengers
@@ -1024,7 +1024,7 @@ cost: {3}{U}
 > Teamwork 2 (As an additional cost to cast this spell, you may tap any number of creatures you control with total power 2 or more.)
 > Draw three cards. Then discard a card unless this spell was cast using teamwork.
 = Keywords([Keyword { name: "teamwork", param: Some(N(N(2))) }])
-= Spell([Draw { who: You, n: N(3) }, If { order: Trailing, cond: Not(CastUsing { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, keyword: "teamwork" }), then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([Draw { who: You, n: N(3) }, If { order: Trailing, cond: Not(CastUsing { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, keyword: "teamwork" }), then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Toxic Stench
 face: Toxic Stench

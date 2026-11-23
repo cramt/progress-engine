@@ -839,7 +839,7 @@ face: Rescue Leopard
 type: Creature — Cat
 cost: {2}{R}
 > Whenever this creature becomes tapped, you may discard a card. If you do, draw a card.
-= Triggered { trigger: When(BecomesTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(BecomesTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Saddle of the Cavalier
 face: Saddle of the Cavalier
@@ -1053,7 +1053,7 @@ face: The Nipton Lottery
 type: Sorcery
 cost: {2}{B}{R}
 > Choose a creature at random. You gain control of that creature until end of turn. Untap it. It gains haste until end of turn. Then destroy all other creatures.
-= BROKE at "." after: choose a creature at random
+= BROKE at "creature" after: choose a creature at random . you gain control of that
 
 ## Theorix Metamage // Omit Variables
 face: Theorix Metamage

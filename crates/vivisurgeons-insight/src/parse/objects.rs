@@ -819,6 +819,7 @@ pub(super) fn comparison(p: &mut P) -> Option<(Op, Amount)> {
 
 pub(super) fn post(p: &mut P) -> Option<Post> {
     alt!(p;
+        |p| p.words("at random").map(|_| Post::AtRandom),
         |p| {
             p.word("from")?;
             p.one_of(&["a", "an"])?;

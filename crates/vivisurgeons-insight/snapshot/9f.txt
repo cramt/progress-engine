@@ -177,7 +177,7 @@ cost: {1}{B}
 > Choose one —
 > • Target opponent reveals their hand. You choose a nonland permanent card from it. That player discards that card.
 > • Earthbend 2. (Target land you control becomes a 0/0 creature with haste that's still a land. Put two +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.)
-= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: One, modes: [[RevealHand(TargetOpponent), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [Action { by: None, name: "earthbend", n: Some(N(2)) }]] }] }])
+= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: One, modes: [[RevealHand(TargetOpponent), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [Action { by: None, name: "earthbend", n: Some(N(2)) }]] }] }])
 
 ## Daru Sanctifier
 face: Daru Sanctifier
@@ -204,7 +204,7 @@ face: Discerning Peddler
 type: Creature — Human Rogue
 cost: {1}{R}
 > When this creature enters, you may discard a card. If you do, draw a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Doomskar Titan
 face: Doomskar Titan
@@ -451,7 +451,7 @@ type: Sorcery
 cost: {1}{R}
 > You may discard a card or sacrifice a land. If you do, draw two cards.
 > Plot {1}{R} (You may pay {1}{R} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)
-= Spell([May { who: You, then: [Or([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } } }])] }, IfYouDo([Draw { who: You, n: N(2) }])])
+= Spell([May { who: You, then: [Or([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } } }])] }, IfYouDo([Draw { who: You, n: N(2) }])])
 = Keywords([Keyword { name: "plot", param: Some(Cost([Mana(Mana(["1", "R"]))])) }])
 
 ## Holdout Settlement
@@ -1050,7 +1050,7 @@ face: Wand of Ith
 type: Artifact
 cost: {4}
 > {3}, {T}: Target player reveals a card at random from their hand. If it's a land card, that player discards it unless they pay 1 life. If it isn't a land card, the player discards it unless they pay life equal to its mana value. Activate only during your turn.
-= BROKE at "random" after: {3} , {T} : target player reveals a card at
+= BROKE at "1" after: {3} , {T} : target player reveals a card at random from their hand . if it's a land card , that player discards it unless they pay
 
 ## Wave Goodbye
 face: Wave Goodbye

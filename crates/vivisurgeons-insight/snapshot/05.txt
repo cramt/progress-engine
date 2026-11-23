@@ -571,7 +571,7 @@ cost: {2}{B}{B}
 > +1: Each player discards a card. Each opponent who can't loses 3 life.
 > −3: Target creature gets -X/-X until end of turn, where X is the number of cards in your graveyard.
 > −7: You get an emblem with "At the beginning of combat on your turn, put target creature card from a graveyard onto the battlefield under your control. It gains haste."
-= Loyalty { change: N(1), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: WhoCant(EachOpponent), n: N(3) }] }
+= Loyalty { change: N(1), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: WhoCant(EachOpponent), n: N(3) }] }
 = Loyalty { change: N(-3), effect: [Where { then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: MinusX, toughness: MinusX, signed: true }), gains: [], dur: UntilEndOfTurn }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }] }
 = Loyalty { change: N(-7), effect: [Emblem([Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }], ability: Triggered { trigger: At(Combat(Yours)), effect: [Move { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, Modify { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: Permanent }], limits: [] } }])] }
 
@@ -633,7 +633,7 @@ type: Sorcery
 cost: {3}{B}
 > Target opponent discards two cards.
 > Awaken 3—{5}{B} (If you cast this spell for {5}{B}, also put three +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = Keywords([Keyword { name: "awaken", param: Some(NCost { n: N(3), cost: [Mana(Mana(["5", "B"]))] }) }])
 
 ## Mishra, Tamer of Mak Fawa
@@ -802,7 +802,7 @@ type: Instant — Arcane
 cost: {1}{U}{U}
 > Draw two cards, then discard a card.
 > If you've cast a spell named Peer Through Depths and a spell named Reach Through Mists this turn, you may search your library for a card named The Unspeakable, put it onto the battlefield, then shuffle.
-= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = BROKE at "and" after: if you've cast a spell named peer through depths
 
 ## Skrelv, Defector Mite

@@ -551,7 +551,7 @@ type: Creature — Spirit
 cost: {4}{B}
 > When this creature enters, target player discards a card.
 > Whenever you cast a Spirit or Arcane spell, you may return this creature to its owner's hand.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("spirit")], [Subtype("arcane")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Kitsune Diviner

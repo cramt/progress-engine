@@ -160,7 +160,7 @@ type: Land
 > {T}: Add {U}. This land deals 1 damage to you.
 > Threshold — {U}, {T}, Sacrifice this land: Target player draws three cards, then discards three cards. Activate only if there are seven or more cards in your graveyard.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"]))), Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(You)] }], limits: [] }
-= Labelled { label: "threshold", ability: Activated { cost: [Mana(Mana(["U"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: Target, n: N(3) }, Discard { who: That, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [OnlyIf(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) })] } }
+= Labelled { label: "threshold", ability: Activated { cost: [Mana(Mana(["U"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: Target, n: N(3) }, Discard { who: That, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [OnlyIf(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) })] } }
 
 ## Chrome Courier
 face: Chrome Courier
@@ -274,7 +274,7 @@ face: Deadeye Tormentor
 type: Creature — Human Pirate
 cost: {2}{B}
 > Raid — When this creature enters, if you attacked this turn, target opponent discards a card.
-= Labelled { label: "raid", ability: Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouAttackedThisTurn), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] } }
+= Labelled { label: "raid", ability: Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouAttackedThisTurn), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] } }
 
 ## Desert of the Fervent
 face: Desert of the Fervent
@@ -565,7 +565,7 @@ face: Mind Rot
 type: Sorcery
 cost: {2}{B}
 > Target player discards two cards.
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Minister of Impediments
 face: Minister of Impediments
@@ -605,7 +605,7 @@ cost: {2}{B}{B}
 > Fear (This creature can't be blocked except by artifact creatures and/or black creatures.)
 > Whenever this creature deals damage to a player, that player discards a card.
 = Keywords([Keyword { name: "fear", param: None }])
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(APlayer)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(APlayer)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Phyrexian Vindicator
 face: Phyrexian Vindicator

@@ -62,7 +62,7 @@ face: Azra Oddsmaker
 type: Creature — Azra Warrior
 cost: {1}{B}{R}
 > At the beginning of combat on your turn, you may discard a card. If you do, choose a creature. Whenever that creature deals combat damage to a player this turn, you draw two cards.
-= Triggered { trigger: At(Combat(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [IfYouDo([Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))]), During { dur: ThisTurn, then: [DelayedWhenever { event: DealsCombatDamageToPlayer(Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(2) }] }] }] }], limits: [] }
+= Triggered { trigger: At(Combat(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [IfYouDo([Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))]), During { dur: ThisTurn, then: [DelayedWhenever { event: DealsCombatDamageToPlayer(Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(2) }] }] }] }], limits: [] }
 
 ## Bad Moon
 face: Bad Moon

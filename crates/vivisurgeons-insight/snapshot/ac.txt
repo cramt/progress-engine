@@ -185,7 +185,7 @@ face: Ceta Sanctuary
 type: Enchantment
 cost: {2}{U}
 > At the beginning of your upkeep, if you control a red or green permanent, draw a card, then discard a card. If you control a red permanent and a green permanent, instead draw two cards, then discard a card.
-= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red)], [Color(Green)]], kind: Some(Permanent), posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Instead { cond: And([YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Permanent), posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Green)]], kind: Some(Permanent), posts: [], or: None } })]), then: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red)], [Color(Green)]], kind: Some(Permanent), posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Instead { cond: And([YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Permanent), posts: [], or: None } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Green)]], kind: Some(Permanent), posts: [], or: None } })]), then: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] }
 
 ## Circuitous Route
 face: Circuitous Route
@@ -396,7 +396,7 @@ cost: {1}{U}
 > Flying, vigilance
 > {1}{U}, {T}: Draw a card, then discard a card. This ability costs {1}{U} less to activate if another creature with flying entered the battlefield under your control this turn.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
-= Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [CostChange { by: Mana(["1", "U"]), less: true, per: None, cond: Some(DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, under: Some(You), state: None })) }] }
+= Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [CostChange { by: Mana(["1", "U"]), less: true, per: None, cond: Some(DidThisTurn(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None } }, under: Some(You), state: None })) }] }
 
 ## Forget
 face: Forget
@@ -741,7 +741,7 @@ type: Sorcery
 cost: {3}{B}
 > Target player reveals their hand. You choose a card from it. That player discards that card.
 > Dredge 2 (If you would draw a card, you may mill two cards instead. If you do, return this card from your graveyard to your hand.)
-= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 = Keywords([Keyword { name: "dredge", param: Some(N(N(2))) }])
 
 ## Nightscape Familiar
@@ -887,7 +887,7 @@ face: Rotting Regisaur
 type: Creature — Zombie Dinosaur
 cost: {2}{B}
 > At the beginning of your upkeep, discard a card.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Savor
 face: Savor

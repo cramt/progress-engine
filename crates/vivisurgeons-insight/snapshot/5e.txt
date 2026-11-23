@@ -158,7 +158,7 @@ type: Land
 > {4}, {T}: Draw a card.
 > {6}, {T}: Return target card from your graveyard to your hand.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["4"])), Tap], effect: [Draw { who: You, n: N(1) }], limits: [] }
 = Activated { cost: [Mana(Mana(["6"])), Tap], effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
@@ -342,7 +342,7 @@ face: Fast
 type: Instant
 cost: {2}{R}
 > Discard a card, then draw two cards.
-= Spell([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(2) }])
+= Spell([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(2) }])
 
 ## Fast // Furious
 face: Furious
@@ -383,7 +383,7 @@ cost: {1}{U}
 > Return target creature to its owner's hand.
 > Ferocious — If you control a creature with power 4 or greater, you may draw a card. If you do, discard a card.
 = Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
-= Labelled { label: "ferocious", ability: Spell([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [May { who: You, then: [Draw { who: You, n: N(1) }] }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])]) }
+= Labelled { label: "ferocious", ability: Spell([If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [May { who: You, then: [Draw { who: You, n: N(1) }] }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])]) }
 
 ## Forensic Researcher
 face: Forensic Researcher
@@ -406,14 +406,14 @@ face: Frenetic Ogre
 type: Creature — Ogre
 cost: {4}{R}
 > {R}, Discard a card at random: This creature gets +3/+0 until end of turn.
-= Activated { cost: [Mana(Mana(["R"])), DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["R"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Friendly Fire
 face: Friendly Fire
 type: Instant
 cost: {3}{R}
 > Target creature's controller reveals a card at random from their hand. Friendly Fire deals damage to that creature and that player equal to the revealed card's mana value.
-= BROKE at "random" after: target creature 's controller reveals a card at
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(That))], or: None } }], then: [Reveal { who: ControllerOf(Objects { quant: Introduced(1) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }), to: [Objects(Objects { quant: Bound(1) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Player(That)] }] }]) }
 
 ## Frostcliff Siege
 face: Frostcliff Siege

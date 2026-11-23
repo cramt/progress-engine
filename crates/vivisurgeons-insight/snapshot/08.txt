@@ -217,7 +217,7 @@ face: Disrupting Scepter
 type: Artifact
 cost: {3}
 > {3}, {T}: Target player discards a card. Activate only during your turn.
-= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [OnlyDuringYourTurn] }
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [OnlyDuringYourTurn] }
 
 ## Dromoka's Gift
 face: Dromoka's Gift
@@ -549,7 +549,7 @@ cost: {2}{B}
 > Equipped creature gets +1/+1, is a Ninja in addition to its other types, and has "Whenever this creature deals combat damage to a player, draw a card, then discard a card. That player loses life equal to the discarded card's mana value."
 > Mutsunokami — Equip {2}
 = Keywords([Keyword { name: "job select", param: None }])
-= Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, AlsoIs { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: Listed([Subtype("ninja")]) }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, With { bind: [/* discarded */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Discard { who: You, what: Objects { quant: Introduced(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, random: false }, LoseLife { who: That, n: ManaValueOf(Objects { quant: Bound(0) /* discarded */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }) }] }], limits: [] } }])
+= Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }, AlsoIs { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: Listed([Subtype("ninja")]) }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, With { bind: [/* discarded */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Discard { who: You, what: Objects { quant: Introduced(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, LoseLife { who: That, n: ManaValueOf(Objects { quant: Bound(0) /* discarded */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }) }] }], limits: [] } }])
 = Labelled { label: "mutsunokami", ability: Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }]) }
 
 ## Noggle Bridgebreaker
@@ -750,7 +750,7 @@ face: Shoal Kraken
 type: Creature — Kraken
 cost: {4}{U}
 > Constellation — Whenever an enchantment you control enters, you may draw a card. If you do, discard a card.
-= Labelled { label: "constellation", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] } }
+= Labelled { label: "constellation", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] } }
 
 ## Skyswirl Harrier
 face: Skyswirl Harrier

@@ -680,9 +680,6 @@ impl Walk for Cost {
                 Walk::walk(n, v);
                 Walk::walk(among, v);
             }
-            Cost::DiscardAtRandom(f0) => {
-                Walk::walk(f0, v);
-            }
             Cost::PlayerGainsLife { who, n } => {
                 Walk::walk(who, v);
                 Walk::walk(n, v);
@@ -724,7 +721,7 @@ impl Walk for Effect {
                 Walk::walk(who, v);
                 Walk::walk(n, v);
             }
-            Effect::Discard { who, what, .. } => {
+            Effect::Discard { who, what } => {
                 Walk::walk(who, v);
                 Walk::walk(what, v);
             }

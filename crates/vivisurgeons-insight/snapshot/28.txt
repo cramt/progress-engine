@@ -238,7 +238,7 @@ face: Deception
 type: Sorcery
 cost: {2}{B}
 > Target opponent discards two cards.
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Devastate
 face: Devastate
@@ -361,7 +361,7 @@ face: Ghoulraiser
 type: Creature — Zombie
 cost: {1}{B}{B}
 > When this creature enters, return a Zombie card at random from your graveyard to your hand.
-= BROKE at "at" after: when this creature enters , return a zombie card
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: One, filter: Filter { alts: [[Subtype("zombie")]], kind: Some(Card), posts: [AtRandom, In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Giant Harbinger
 face: Giant Harbinger
@@ -398,7 +398,7 @@ cost: {2}{B}{B}
 > When this creature enters, target opponent reveals their hand. You choose a nonland card from it. That player discards that card.
 > Evoke—Exile a black card from your hand.
 = Keywords([Keyword { name: "menace", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] }
 = Keywords([Keyword { name: "evoke", param: Some(Cost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])) }])
 
 ## Harmattan Efreet
@@ -441,7 +441,7 @@ type: Battle — Siege
 cost: {1}{U}{B}
 > (As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)
 > When this Siege enters, each player mills three cards, then each opponent discards a card and you draw a card. (To mill three cards, a player puts the top three cards of their library into their graveyard.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: Each, n: N(3) }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(1) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: Each, n: N(3) }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(1) }], limits: [] }
 
 ## Invasion of Amonkhet // Lazotep Convert
 face: Lazotep Convert
@@ -668,7 +668,7 @@ face: Pain
 type: Sorcery
 cost: {B}
 > Target player discards a card.
-= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Pain // Suffering
 face: Suffering
@@ -698,7 +698,7 @@ face: Pardic Swordsmith
 type: Creature — Dwarf
 cost: {2}{R}
 > {R}, Discard a card at random: This creature gets +2/+0 until end of turn.
-= Activated { cost: [Mana(Mana(["R"])), DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["R"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Phyrexian War Beast
 face: Phyrexian War Beast

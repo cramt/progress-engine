@@ -215,7 +215,7 @@ type: Land
 > {T}: Add {C}.
 > {1}{U}{R}, {T}: Draw a card, then discard a card.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "U", "R"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "U", "R"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Disciple of Malice
 face: Disciple of Malice
@@ -313,7 +313,7 @@ cost: {2}{R}
 > • Goad target creature.
 > • Discard a card, then draw a card.
 = Triggered { trigger: When(PutInto { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, to: AGraveyard, from: Battlefield }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [Colorless], types: ["artifact"], keywords: [], abilities: [], named: None, attacking: None }, name: "scrap" }], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "R"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [Modal { choose: One, modes: [[PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "menace", param: None }], dur: UntilEndOfTurn }], [ActionOn { who: You, name: "goad", what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(1) }]] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "R"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [Modal { choose: One, modes: [[PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "menace", param: None }], dur: UntilEndOfTurn }], [ActionOn { who: You, name: "goad", what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(1) }]] }], limits: [] }
 
 ## Fatehold Annex
 face: Fatehold Annex
@@ -376,7 +376,7 @@ cost: {4}{U}
 > This spell costs {2} less to cast if you've cast another spell this turn.
 > Draw three cards, then discard a card.
 = Static([If { order: Trailing, cond: DidThisTurn(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
-= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Frilled Cave-Wurm
 face: Frilled Cave-Wurm
@@ -570,7 +570,7 @@ face: Lay Bare the Heart
 type: Sorcery
 cost: {1}{B}
 > Target opponent reveals their hand. You choose a nonlegendary, nonland card from it. That player discards that card.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("legendary"), Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("legendary"), Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Lore Seeker
 face: Lore Seeker
@@ -975,7 +975,7 @@ type: Instant
 cost: {R}
 > As an additional cost to cast this spell, discard a card at random.
 > Sonic Seizure deals 3 damage to any target.
-= Static([AdditionalCost([DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])])
+= Static([AdditionalCost([Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })])])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Speaker of the Heavens
@@ -1062,7 +1062,7 @@ type: Legendary Creature — Human Warrior Ally
 cost: {2}{R}{G}
 > When Toph enters, you may discard a card. If you do, return target instant or sorcery card from your graveyard to your hand.
 > Whenever you cast a spell, earthbend 1. If that spell is a Lesson, put an additional +1/+1 counter on that land. (Target land you control becomes a 0/0 creature with haste that's still a land. Put a +1/+1 counter on it. When it dies or is exiled, return it to the battlefield tapped.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] }
 = BROKE at "<pt>" after: whenever you cast a spell , earthbend 1 . if that spell is a lesson , put an additional
 
 ## Tragic Fall

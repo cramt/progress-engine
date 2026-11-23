@@ -854,7 +854,7 @@ cost: {2}{B}{B}
 > • Each player discards two cards.
 > • Each player loses 4 life.
 > • Each player sacrifices two creatures of their choice.
-= Spell([Modal { choose: OneOrMore, modes: [[Discard { who: Each, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [LoseLife { who: Each, n: N(4) }], [Sacrifice { who: Each, what: Objects { quant: N(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }]] }])
+= Spell([Modal { choose: OneOrMore, modes: [[Discard { who: Each, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [LoseLife { who: Each, n: N(4) }], [Sacrifice { who: Each, what: Objects { quant: N(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }]] }])
 
 ## Ransack
 face: Ransack

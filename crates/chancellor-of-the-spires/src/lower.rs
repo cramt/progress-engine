@@ -411,7 +411,6 @@ pub fn discard_to_enter(event: &i::Event, instead: &[i::Effect]) -> Option<CardF
                 [i::Effect::Discard {
                     who: i::Player::You,
                     what,
-                    random: false,
                 }] => card_filter(what).ok(),
                 _ => None,
             }
@@ -3174,13 +3173,13 @@ impl<'a> Scope<'a> {
                     _ => Amount::N(n(k)?),
                 },
             },
-            i::Effect::Discard { who, what, random }
-                if what.filter
-                    == (i::Filter {
-                        kind: Some(i::Noun::Card),
-                        ..i::Filter::default()
-                    }) =>
+            i::Effect::Discard { who, what }
+                if what.filter.alts.is_empty()
+                    && what.filter.kind == Some(i::Noun::Card)
+                    && what.filter.or.is_none()
+                    && matches!(what.filter.posts.as_slice(), [] | [i::Post::AtRandom]) =>
             {
+                let random = !what.filter.posts.is_empty();
                 let k = match &what.quant {
                     Quant::One => 1,
                     Quant::N(a) => n(a)?,
@@ -3192,7 +3191,7 @@ impl<'a> Scope<'a> {
                     who: self.who(who)?,
                     n: k,
                     into,
-                    random: *random,
+                    random,
                 }
             }
             i::Effect::ExileZone(i::Zone::Graveyard(who)) => Effect::ExileGraveyard(self.who(who)?),
@@ -3625,18 +3624,15 @@ impl<'a> Scope<'a> {
                     Vec::new()
                 })]))
             }
-            i::Effect::Discard {
-                who,
-                what,
-                random: false,
-            } if self.named
-                && what.quant == Quant::All
-                && what.filter
-                    == (i::Filter {
-                        kind: Some(i::Noun::Card),
-                        posts: vec![Post::WithThatName],
-                        ..i::Filter::default()
-                    }) =>
+            i::Effect::Discard { who, what }
+                if self.named
+                    && what.quant == Quant::All
+                    && what.filter
+                        == (i::Filter {
+                            kind: Some(i::Noun::Card),
+                            posts: vec![Post::WithThatName],
+                            ..i::Filter::default()
+                        }) =>
             {
                 Effect::DiscardNamed(self.who(who)?)
             }
@@ -4209,7 +4205,6 @@ impl<'a> Scope<'a> {
                     [i::Effect::Choose(i::Choice::Objects(chosen)), i::Effect::Discard {
                         who: discarder,
                         what,
-                        random: false,
                     }, rest @ ..],
                 ) = (bind.as_slice(), then.as_slice())
                 else {

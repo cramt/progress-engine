@@ -310,7 +310,7 @@ type: Instant
 cost: {1}{R}
 > Discard a card, then draw a card.
 > Rebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)
-= Spell([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(1) }])
+= Spell([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(1) }])
 = Keywords([Keyword { name: "rebound", param: None }])
 
 ## Fearless Halberdier
@@ -375,7 +375,7 @@ type: Sorcery
 cost: {2}{B}
 > Target opponent reveals their hand. You choose a nonland card from it. That player discards that card.
 > Create a tapped Powerstone token. (It's an artifact with "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.")
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 = Spell([Create { who: You, n: N(1), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }])
 
 ## Gossip's Talent
@@ -740,7 +740,7 @@ type: Land
 > {T}: Add {C}.
 > {1}{B}{R}, {T}: Each player discards a card. Activate only as a sorcery.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "B", "R"])), Tap], effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["1", "B", "R"])), Tap], effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Safe Passage
 face: Safe Passage
@@ -923,7 +923,7 @@ type: Instant
 cost: {2}{B}
 > Draw a card, then discard a card. You lose 1 life. If this spell was cast from your hand, create a 0/1 black Wizard creature token with "Whenever you cast a noncreature spell, this token deals 1 damage to each opponent."
 > Rebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)
-= Spell([Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: You, n: N(1) }, If { order: Leading, cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), colors: [Black], types: ["wizard", "creature"], keywords: [], abilities: [Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }], limits: [] }], named: None, attacking: None } }] }])
+= Spell([Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: You, n: N(1) }, If { order: Leading, cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), colors: [Black], types: ["wizard", "creature"], keywords: [], abilities: [Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }], limits: [] }], named: None, attacking: None } }] }])
 = Keywords([Keyword { name: "rebound", param: None }])
 
 ## Treno, Dark City

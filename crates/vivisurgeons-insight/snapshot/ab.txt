@@ -293,7 +293,7 @@ cost: {U/B}{U/B}
 > {3}{U}: Target player draws a card. Activate only as a sorcery.
 > {3}{B}: Target player discards a card. Activate only as a sorcery.
 = Activated { cost: [Mana(Mana(["3", "U"]))], effect: [Draw { who: Target, n: N(1) }], limits: [SorcerySpeed] }
-= Activated { cost: [Mana(Mana(["3", "B"]))], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["3", "B"]))], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Dire Fleet Interloper
 face: Dire Fleet Interloper
@@ -601,7 +601,7 @@ face: Inquisition of Kozilek
 type: Sorcery
 cost: {B}
 > Target player reveals their hand. You choose a nonland card from it with mana value 3 or less. That player discards that card.
-= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target), With(Compare { stat: ManaValue, op: Le, value: N(3) })], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target), With(Compare { stat: ManaValue, op: Le, value: N(3) })], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Jace's Scrutiny
 face: Jace's Scrutiny
@@ -690,14 +690,14 @@ cost: {2}{U}
 > {T}, Discard a nonblack card: Draw a card.
 > {T}, Discard a black card: Draw two cards, then discard one of them.
 = Activated { cost: [Tap, Discard(Objects { quant: One, filter: Filter { alts: [[NonColor(Black)]], kind: Some(Card), posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [] }
-= Activated { cost: [Tap, Discard(Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Card), posts: [], or: None } })], effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, random: false }] }], limits: [] }
+= Activated { cost: [Tap, Discard(Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Card), posts: [], or: None } })], effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }] }], limits: [] }
 
 ## Last One Standing
 face: Last One Standing
 type: Sorcery
 cost: {1}{B}{R}
 > Choose a creature at random, then destroy the rest.
-= BROKE at "," after: choose a creature at random
+= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [AtRandom], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Destroy { what: Objects { quant: Rest { of: 0 } /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }])
 
 ## Lifebane Zombie
 face: Lifebane Zombie
@@ -1033,7 +1033,7 @@ cost: {2}{U}{U}
 > When this creature dies, if it isn't a token, create a token that's a copy of it.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: InterveningIf(When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Not(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
 
 ## Squall Drifter

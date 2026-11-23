@@ -51,7 +51,7 @@ face: Attunement
 type: Enchantment
 cost: {2}{U}
 > Return this enchantment to its owner's hand: Draw three cards, then discard four cards.
-= Activated { cost: [ReturnToHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [ReturnToHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Auratouched Mage
 face: Auratouched Mage
@@ -70,7 +70,7 @@ cost: {B}{G}{U}
 > III — You may discard a card. When you do, return target creature or land card from your graveyard to your hand.
 = Chapter { chapters: [1], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }] }
 = Chapter { chapters: [2], effect: [Mill { who: You, n: N(3) }] }
-= Chapter { chapters: [3], effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, WhenYouDo([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])] }
+= Chapter { chapters: [3], effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, WhenYouDo([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])] }
 
 ## Basri, Devoted Paladin
 face: Basri, Devoted Paladin
@@ -859,7 +859,7 @@ cost: {3}{U}{U}
 > Flying
 > When this creature enters, draw a card, then discard a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Radiant Strike
 face: Radiant Strike
@@ -1056,7 +1056,7 @@ face: Stupor
 type: Sorcery
 cost: {2}{B}
 > Target opponent discards a card at random, then discards a card.
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }, Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }, Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Sunder Shaman
 face: Sunder Shaman
@@ -1119,7 +1119,7 @@ cost: {2}{B}
 > Menace (This creature can't be blocked except by two or more creatures.)
 > When this creature enters, choose target opponent. If they lost life this turn, they reveal their hand, you choose a nonland card from it, and they discard that card. Otherwise, they discard a card.
 = Keywords([Keyword { name: "menace", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Choose(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(That)], or: None } }], then: [If { order: Leading, cond: DidThisTurn(LosesLife(That)), then: [RevealHand(That), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, Otherwise([Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Choose(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(That)], or: None } }], then: [If { order: Leading, cond: DidThisTurn(LosesLife(That)), then: [RevealHand(That), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, Otherwise([Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])] }], limits: [] }
 
 ## Tireless Provisioner
 face: Tireless Provisioner
@@ -1149,7 +1149,7 @@ face: Tsabo's Decree
 type: Instant
 cost: {5}{B}
 > Choose a creature type. Target player reveals their hand and discards all creature cards of that type. Then destroy all creatures of that type that player controls. They can't be regenerated.
-= Spell([Choose(CreatureType), RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [OfThatType], or: None } }, random: false }, Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [OfThatType, Controller(That)], or: None } }, no_regen: true }])
+= Spell([Choose(CreatureType), RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [OfThatType], or: None } } }, Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [OfThatType, Controller(That)], or: None } }, no_regen: true }])
 
 ## Uchuulon
 face: Uchuulon
@@ -1200,8 +1200,8 @@ type: Enchantment
 cost: {2}{R}
 > {1}{W}: Search your library for an enchantment card and reveal that card. Put it into your hand, then discard a card at random. Then shuffle.
 > {1}{U}: Search your library for an instant card and reveal that card. Put it into your hand, then discard a card at random. Then shuffle.
-= Activated { cost: [Mana(Mana(["1", "W"]))], effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }, Shuffle(You)] }], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "U"]))], effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [[Type("instant")]], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }, Shuffle(You)] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "W"]))], effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }, Shuffle(You)] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "U"]))], effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [[Type("instant")]], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }, Shuffle(You)] }], limits: [] }
 
 ## Witness the Future
 face: Witness the Future

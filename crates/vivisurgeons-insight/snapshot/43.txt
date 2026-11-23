@@ -30,7 +30,7 @@ cost: {6}{B}{B}
 > Flying
 > Whenever this creature enters or attacks, target opponent sacrifices a creature or planeswalker of their choice, discards a card, and loses 3 life. You draw a card and gain 3 life.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: TargetOpponent, n: N(3) }, Draw { who: You, n: N(1) }, GainLife { who: You, n: N(3) }], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: TargetOpponent, n: N(3) }, Draw { who: You, n: N(1) }, GainLife { who: You, n: N(3) }], limits: [] }
 
 ## Atarka, World Render
 face: Atarka, World Render
@@ -751,7 +751,7 @@ type: Enchantment
 cost: {3}{U}
 > When this enchantment enters, draw three cards, then discard two cards.
 > At the beginning of your end step, if eight or more cards are in your graveyard, transform this enchantment.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: InterveningIf(At(EndStep(Yours)), In { what: Objects { quant: AtLeast(N(8)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, zone: Graveyard(You) }), effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Sidequest: Card Collection // Magicked Card
@@ -989,7 +989,7 @@ cost: {7}
 > Permanents you control have ward {2}.
 > At the beginning of your end step, mill two cards, then exile a nonland card at random from your graveyard. Copy it. You may cast the copy without paying its mana cost. (A copy of a permanent spell becomes a token.)
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }], per: None }])
-= BROKE at "random" after: at the beginning of your end step , mill two cards , then exile a nonland card at
+= Triggered { trigger: At(EndStep(Yours)), effect: [Mill { who: You, n: N(2) }, With { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [AtRandom, In(Graveyard(You))], or: None } }], then: [Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Copy { what: Objects { quant: Bound(1) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: false }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } }, payment: Free, dur: Permanent }] }] }] }], limits: [] }
 
 ## Words of Wilding
 face: Words of Wilding

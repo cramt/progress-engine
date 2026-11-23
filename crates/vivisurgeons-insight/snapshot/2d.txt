@@ -111,7 +111,7 @@ type: Sorcery
 cost: {B}
 > Choose a nonland card name. Target player reveals their hand and discards all cards with that name.
 > Flashback—Sacrifice a creature. (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Choose(NonlandCardName), RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }, random: false }])
+= Spell([Choose(NonlandCardName), RevealHand(Target), Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } } }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])) }])
 
 ## Callous Deceiver
@@ -504,7 +504,7 @@ face: Insidious Bookworms
 type: Creature — Worm
 cost: {B}
 > When this creature dies, you may pay {1}{B}. If you do, target player discards a card at random.
-= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1", "B"]))] }] }, IfYouDo([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }])], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1", "B"]))] }] }, IfYouDo([Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }])], limits: [] }
 
 ## Jace's Defeat
 face: Jace's Defeat
@@ -913,7 +913,7 @@ type: Legendary Artifact — Vehicle
 cost: {2}{W}{U}
 > {1}, {T}: Draw two cards, then discard a card. Create a 1/1 colorless Pilot creature token with "This token crews Vehicles as though its power were 2 greater."
 > Crew 8 (Tap any number of creatures you control with total power 8 or more: This Vehicle becomes an artifact creature until end of turn.)
-= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["pilot", "creature"], keywords: [], abilities: [Static([PowerGreaterFor { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, keywords: [("crew", Objects { quant: Plural, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } })], by: N(2) }])], named: None, attacking: None } }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Colorless], types: ["pilot", "creature"], keywords: [], abilities: [Static([PowerGreaterFor { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, keywords: [("crew", Objects { quant: Plural, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [], or: None } })], by: N(2) }])], named: None, attacking: None } }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(8))) }])
 
 ## Shriek Raptor
@@ -951,7 +951,7 @@ type: Creature — Spirit
 > {3}{U}: Draw two cards, then discard a card.
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CanBlockOnly(Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None }) }])
-= Activated { cost: [Mana(Mana(["3", "U"]))], effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["3", "U"]))], effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Spiked Corridor // Torture Pit
 face: Spiked Corridor

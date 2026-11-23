@@ -108,7 +108,7 @@ face: Cephalid Sage
 type: Creature — Octopus
 cost: {3}{U}
 > Threshold — As long as there are seven or more cards in your graveyard, this creature has "When this creature enters, draw three cards, then discard two cards."
-= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] } }] }]) }
+= Labelled { label: "threshold", ability: Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [HasAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] } }] }]) }
 
 ## Common Cause
 face: Common Cause
@@ -536,7 +536,7 @@ cost: {3}{U}{U}
 > Flying
 > Whenever another creature dies, you may draw a card. If you do, discard a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Noggle Hedge-Mage
 face: Noggle Hedge-Mage
@@ -623,7 +623,7 @@ cost: {B}{B}{R}
 > First strike
 > {T}: Reveal your hand and discard a card of target opponent's choice. Then that player reveals their hand and discards a card of your choice. Activate only as a sorcery.
 = Keywords([Keyword { name: "first strike", param: None }])
-= Activated { cost: [Tap], effect: [RevealHand(You), Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [ChosenBy(TargetOpponent)], or: None } }, random: false }, RevealHand(That), Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [ChosenBy(You)], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Tap], effect: [RevealHand(You), Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [ChosenBy(TargetOpponent)], or: None } } }, RevealHand(That), Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [ChosenBy(You)], or: None } } }], limits: [SorcerySpeed] }
 
 ## Rescind
 face: Rescind

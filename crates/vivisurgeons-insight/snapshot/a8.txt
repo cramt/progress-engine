@@ -113,7 +113,7 @@ face: Awaken the Erstwhile
 type: Sorcery
 cost: {3}{B}{B}
 > Each player discards all the cards in their hand, then creates that many 2/2 black Zombie creature tokens.
-= Spell([Discard { who: Each, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }, random: false }, Create { who: Each, n: ThatMany, token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }])
+= Spell([Discard { who: Each, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } } }, Create { who: Each, n: ThatMany, token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }])
 
 ## Bhaal, Lord of Murder
 face: Bhaal, Lord of Murder
@@ -544,7 +544,7 @@ cost: {3}{B}{B}
 > +1: Target player discards a card.
 > −2: Search your library for a card, then shuffle and put that card on top.
 > −8: Put all creature cards from all graveyards onto the battlefield under your control.
-= Loyalty { change: N(1), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Loyalty { change: N(1), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }
 = Loyalty { change: N(-2), effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Shuffle(You), Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None }] }] }
 = Loyalty { change: N(-8), effect: [Move { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }
 
@@ -800,7 +800,7 @@ cost: {U}{B}{R}
 > Whenever this creature deals combat damage to a player, that player discards a card.
 > Unearth {1}{B} ({1}{B}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "unearth", param: Some(Cost([Mana(Mana(["1", "B"]))])) }])
 
 ## Seer's Lantern

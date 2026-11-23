@@ -44,7 +44,7 @@ cost: {2}{B}{R}
 > Flying, haste
 > Whenever this creature deals combat damage to a player, that player discards a card.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Body of Knowledge
 face: Body of Knowledge
@@ -296,7 +296,7 @@ type: Sorcery
 cost: {3}{R}
 > Buyback—Pay 3 life, Discard a card at random. (You may pay 3 life and discard a card at random in addition to any other costs as you cast this spell. If you do, put this card into your hand as it resolves.)
 > Destroy target land.
-= Keywords([Keyword { name: "buyback", param: Some(Cost([PayLife(N(3)), DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])) }])
+= Keywords([Keyword { name: "buyback", param: Some(Cost([PayLife(N(3)), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })])) }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, no_regen: false }])
 
 ## Frenetic Sliver
@@ -516,7 +516,7 @@ cost: {B}{R}{R}
 > Whenever this creature deals combat damage to a player, that player discards two cards.
 > At the beginning of the end step, sacrifice this creature.
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Locust Spray
@@ -680,7 +680,7 @@ face: Projektor Inspector
 type: Creature — Human Detective
 cost: {2}{U}
 > Whenever this creature or another Detective you control enters and whenever a Detective you control is turned face up, you may draw a card. If you do, discard a card.
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, TurnedFaceUp(Objects { quant: One, filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [Controller(You)], or: None } })])), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, TurnedFaceUp(Objects { quant: One, filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [Controller(You)], or: None } })])), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Rattleblaze Scarecrow
 face: Rattleblaze Scarecrow

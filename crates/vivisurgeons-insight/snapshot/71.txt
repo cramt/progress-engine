@@ -129,7 +129,7 @@ cost: {2}{B}
 > Kicker—Sacrifice two lands. (You may sacrifice two lands in addition to any other costs as you cast this spell.)
 > Target player discards two cards. If this spell was kicked, that player discards three cards instead.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Sacrifice(Objects { quant: N(N(2)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])) }])
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Instead { cond: WasKicked, then: [Discard { who: That, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Instead { cond: WasKicked, then: [Discard { who: That, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Collective Effort
 face: Collective Effort
@@ -450,7 +450,7 @@ face: Honden of Night's Reach
 type: Legendary Enchantment — Shrine
 cost: {3}{B}
 > At the beginning of your upkeep, target opponent discards a card for each Shrine you control.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("shrine")]], kind: None, posts: [Controller(You)], or: None } }, then: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("shrine")]], kind: None, posts: [Controller(You)], or: None } }, then: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] }
 
 ## Howlgeist
 face: Howlgeist

@@ -433,7 +433,7 @@ type: Artifact
 cost: {2}
 > {B}, Sacrifice this artifact: Target player discards a card. Activate only as a sorcery.
 > When this artifact is put into a graveyard from the battlefield, draw a card.
-= Activated { cost: [Mana(Mana(["B"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["B"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 = Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Battlefield }), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Impossible Man
@@ -955,7 +955,7 @@ cost: {U}{U}
 > Whenever this creature deals damage to an opponent, you may draw a card. If you do, discard a card.
 > {1}{U}: This creature gets +2/-2 until end of turn.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [], or: None }) }])
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "U"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Surveillance Phantasm
@@ -992,7 +992,7 @@ face: Scan the Clouds
 type: Instant — Adventure
 cost: {1}{U}
 > Draw two cards, then discard two cards. (Then exile this card. You may cast the creature later from exile.)
-= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Threefold Thunderhulk
 face: Threefold Thunderhulk

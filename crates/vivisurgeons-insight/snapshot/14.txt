@@ -3,7 +3,7 @@ face: Abandon Attachments
 type: Instant — Lesson
 cost: {1}{U/R}
 > You may discard a card. If you do, draw two cards.
-= Spell([May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(2) }])])
+= Spell([May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(2) }])])
 
 ## Abduction
 face: Abduction
@@ -282,7 +282,7 @@ cost: {3}
 > Whenever this Vehicle deals combat damage to a player, that player discards a card.
 > Crew 3 (Tap any number of creatures you control with total power 3 or more: This Vehicle becomes an artifact creature until end of turn.)
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("pirate")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(3))) }])
 
 ## Feywild Trickster
@@ -379,7 +379,7 @@ type: Legendary Artifact
 cost: {3}
 > {T}: Draw a card, then discard a card.
 > {4}, {T}: Transform Matzalantli. Activate only if there are four or more permanent types among cards in your graveyard. (Artifact, battle, creature, enchantment, land, and planeswalker are permanent types.)
-= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = BROKE at "types" after: {4} , {T} : transform ~ . activate only if there are four or more permanent
 
 ## Matzalantli, the Great Door // The Core
@@ -403,7 +403,7 @@ cost: {3}{B}
 > Devoid (This card has no color.)
 > When this creature enters, you may put a card an opponent owns from exile into that player's graveyard. If you do, each opponent discards a card.
 = Keywords([Keyword { name: "devoid", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(AnOpponent), In(Exile)], or: None } }, from: None, to: Graveyard(That), tapped: false, transformed: false, under: None, order: None }] }, IfYouDo([Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(AnOpponent), In(Exile)], or: None } }, from: None, to: Graveyard(That), tapped: false, transformed: false, under: None, order: None }] }, IfYouDo([Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Mirrorform
 face: Mirrorform

@@ -69,7 +69,7 @@ face: Ashiok's Adept
 type: Creature — Human Wizard
 cost: {2}{B}
 > Heroic — Whenever you cast a spell that targets this creature, each opponent discards a card.
-= Labelled { label: "heroic", ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Targets(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] } }
+= Labelled { label: "heroic", ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Targets(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] } }
 
 ## Assert Authority
 face: Assert Authority
@@ -479,7 +479,7 @@ type: Creature — Ogre Rogue Detective
 cost: {3}{B}
 > When this creature enters, target opponent discards a card.
 > Whenever one or more players discard one or more cards, investigate. This ability triggers only once each turn. (Create a Clue token. It's an artifact with "{2}, Sacrifice this token: Draw a card.")
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = BROKE at "or" after: whenever one or more players discard one
 
 ## Illusions of Grandeur
@@ -554,7 +554,7 @@ cost: {2}{B}{R}
 > II — Each player discards a card.
 > III — Return target creature card from your graveyard to the battlefield. Put a +1/+1 counter on it. It gains haste until your next turn.
 = Chapter { chapters: [1], effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }, WhenYouDo([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])] }
-= Chapter { chapters: [2], effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Chapter { chapters: [2], effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }
 = Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }], ability: Chapter { chapters: [3], effect: [Move { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilYourNextTurn }] } }
 
 ## Kels, Fight Fixer
@@ -856,7 +856,7 @@ face: Reckoner Shakedown
 type: Sorcery
 cost: {2}{B}
 > Target opponent reveals their hand. You may choose a nonland card from it. If you do, that player discards that card. If you don't, put two +1/+1 counters on a creature or Vehicle you control.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [May { who: You, then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, IfYouDo([Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]), IfYouDont([PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } } }])] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [May { who: You, then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, IfYouDo([Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]), IfYouDont([PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } } }])] }])
 
 ## Renegade Freighter
 face: Renegade Freighter
@@ -1092,7 +1092,7 @@ face: Tyrant of Discord
 type: Creature — Elemental
 cost: {4}{R}{R}{R}
 > When this creature enters, target opponent chooses a permanent they control at random and sacrifices it. If a nonland permanent is sacrificed this way, repeat this process.
-= BROKE at "random" after: when this creature enters , target opponent chooses a permanent they control at
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That), AtRandom], or: None } }], then: [Process([Performed { by: TargetOpponent, effect: Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }, Sacrifice { who: TargetOpponent, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, how: Sacrificed }, then: [RepeatProcess] }])] }], limits: [] }
 
 ## Ultimecia, Temporal Threat
 face: Ultimecia, Temporal Threat

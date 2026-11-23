@@ -121,7 +121,7 @@ face: Burglar Rat
 type: Creature — Rat
 cost: {1}{B}
 > When this creature enters, each opponent discards a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Captain Lannery Storm
 face: Captain Lannery Storm
@@ -261,7 +261,7 @@ cost: {1}{U/R}{U/R}
 > Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)
 > Whenever this creature enters or attacks, you may discard a card. If you do, draw a card.
 = Keywords([Keyword { name: "prowess", param: None }])
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Ember Hauler
 face: Ember Hauler
@@ -955,7 +955,7 @@ cost: {R}{G}
 > • Discard a card. If you do, draw a card.
 > • Exile up to one target card from a graveyard.
 = Labelled { label: "domain", ability: Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: NumberOfBasicLandTypes(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }) }]) }
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, IfYouDo([Draw { who: You, n: N(1) }])], [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } })]] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, IfYouDo([Draw { who: You, n: N(1) }])], [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } })]] }], limits: [] }
 
 ## The Elder Dragon War
 face: The Elder Dragon War
@@ -967,7 +967,7 @@ cost: {2}{R}{R}
 > III — Create a 4/4 red Dragon creature token with flying.
 = Keywords([Keyword { name: "read ahead", param: None }])
 = Chapter { chapters: [1], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Player(EachOpponent)] }] }
-= Chapter { chapters: [2], effect: [Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: ThatMany }] }
+= Chapter { chapters: [2], effect: [Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: ThatMany }] }
 = Chapter { chapters: [3], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [Red], types: ["dragon", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }] }
 
 ## Valley Floodcaller

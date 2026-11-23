@@ -421,7 +421,7 @@ type: Battle — Siege
 cost: {3}{U}
 > (As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)
 > When this Siege enters, draw three cards, then discard a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Invasion of Vryn // Overloaded Mage-Ring
 face: Overloaded Mage-Ring
@@ -574,7 +574,7 @@ face: Mental Agony
 type: Sorcery
 cost: {3}{B}
 > Target player discards two cards and loses 2 life.
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: That, n: N(2) }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: That, n: N(2) }])
 
 ## Merrow Skyswimmer
 face: Merrow Skyswimmer
@@ -603,7 +603,7 @@ face: Meteor Storm
 type: Enchantment
 cost: {R}{G}
 > {2}{R}{G}, Discard two cards at random: This enchantment deals 4 damage to any target.
-= Activated { cost: [Mana(Mana(["2", "R", "G"])), DiscardAtRandom(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "R", "G"])), Discard(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Might Weaver
 face: Might Weaver
@@ -823,7 +823,7 @@ face: Ring of Renewal
 type: Artifact
 cost: {5}
 > {5}, {T}: Discard a card at random, then draw two cards.
-= Activated { cost: [Mana(Mana(["5"])), Tap], effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }, Draw { who: You, n: N(2) }], limits: [] }
+= Activated { cost: [Mana(Mana(["5"])), Tap], effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }, Draw { who: You, n: N(2) }], limits: [] }
 
 ## Root-Kin Ally
 face: Root-Kin Ally
@@ -858,7 +858,7 @@ type: Artifact
 cost: {1}{R}
 > When this artifact enters, you may discard a card. If you do, draw two cards.
 > Craft with one or more Dinosaurs {4}{R} ({4}{R}, Exile this artifact, Exile one or more Dinosaurs you control and/or Dinosaur cards from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
 = Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Subtype("dinosaur")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["4", "R"]))] }) }])
 
 ## Saheeli's Lattice // Mastercraft Raptor
@@ -915,7 +915,7 @@ face: Shipwreck Looter
 type: Creature — Human Pirate
 cost: {1}{U}
 > Raid — When this creature enters, if you attacked this turn, you may draw a card. If you do, discard a card.
-= Labelled { label: "raid", ability: Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouAttackedThisTurn), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] } }
+= Labelled { label: "raid", ability: Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouAttackedThisTurn), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] } }
 
 ## Sidequest: Raise a Chocobo // Black Chocobo
 face: Sidequest: Raise a Chocobo
@@ -985,7 +985,7 @@ cost: {2}
 > Whenever this Vehicle attacks or blocks, you may draw a card. If you do, discard a card.
 > Crew 1 (Tap any number of creatures you control with total power 1 or more: This Vehicle becomes an artifact creature until end of turn.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(1))) }])
 
 ## Sokenzan Smelter

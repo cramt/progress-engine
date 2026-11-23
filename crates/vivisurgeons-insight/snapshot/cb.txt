@@ -164,7 +164,7 @@ face: Cragganwick Cremator
 type: Creature — Giant Shaman
 cost: {2}{R}{R}
 > When this creature enters, discard a card at random. If you discard a creature card this way, this creature deals damage equal to that card's power to target player or planeswalker.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }], then: [If { order: Leading, cond: ThisWay(Discards { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }] }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }], then: [If { order: Leading, cond: ThisWay(Discards { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }] }] }], limits: [] }
 
 ## Crash the Ramparts
 face: Crash the Ramparts
@@ -223,7 +223,7 @@ face: Dementia Sliver
 type: Creature — Sliver
 cost: {3}{U}{B}
 > All Slivers have "{T}: Choose a card name. Target opponent reveals a card at random from their hand. If that card has the chosen name, that player discards it. Activate only during your turn."
-= BROKE at "random" after: all slivers have " {T} : choose a card name . target opponent reveals a card at
+= BROKE at "chosen" after: all slivers have " {T} : choose a card name . target opponent reveals a card at random from their hand . if that card has the
 
 ## Disciple of Grace
 face: Disciple of Grace
@@ -539,7 +539,7 @@ face: Mind Drain
 type: Sorcery
 cost: {2}{B}
 > Target opponent discards two cards, mills a card, and loses 1 life. You gain 1 life. (To mill a card, a player puts the top card of their library into their graveyard.)
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Mill { who: TargetOpponent, n: N(1) }, LoseLife { who: TargetOpponent, n: N(1) }, GainLife { who: You, n: N(1) }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Mill { who: TargetOpponent, n: N(1) }, LoseLife { who: TargetOpponent, n: N(1) }, GainLife { who: You, n: N(1) }])
 
 ## Mind Grind
 face: Mind Grind

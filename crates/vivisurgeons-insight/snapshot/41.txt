@@ -86,7 +86,7 @@ face: Brutal Nightstalker
 type: Creature — Nightstalker
 cost: {3}{B}{B}
 > When this creature enters, you may have target opponent discard a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] }
 
 ## Bureau Headmaster
 face: Bureau Headmaster
@@ -678,7 +678,7 @@ type: Creature — Plant Horror
 cost: {4}{B}{B}
 > Bad Breath — When this creature enters, each opponent discards a card, loses 2 life, and exiles the top three cards of their library.
 > Swampcycling {2} ({2}, Discard this card: Search your library for a Swamp card, reveal it, put it into your hand, then shuffle.)
-= Labelled { label: "bad breath", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: EachOpponent, n: N(2) }, Performed { by: EachOpponent, effect: Exile(Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(That))], or: None } }) }], limits: [] } }
+= Labelled { label: "bad breath", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: EachOpponent, n: N(2) }, Performed { by: EachOpponent, effect: Exile(Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(That))], or: None } }) }], limits: [] } }
 = Keywords([Keyword { name: "swampcycling", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Manta Riders
@@ -753,7 +753,7 @@ face: No Way Out
 type: Sorcery
 cost: {2}{B}
 > Target opponent discards two cards. You create a 2/2 black Zombie creature token with decayed. (It can't block. When it attacks, sacrifice it at end of combat.)
-= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [Keyword { name: "decayed", param: None }], abilities: [], named: None, attacking: None } }])
+= Spell([Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [Keyword { name: "decayed", param: None }], abilities: [], named: None, attacking: None } }])
 
 ## Owlin Shieldmage
 face: Owlin Shieldmage
@@ -1009,7 +1009,7 @@ cost: {2}{R}
 > • Summon — Create Phobos, a legendary 3/2 red Horse creature token.
 > • Revelation — Discard two cards, then draw two cards.
 > Equip {2}
-= Let { bind: [/* trigger */ Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Attacks(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[Labelled { label: "bull rush", then: [Modify { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "double strike", param: None }], dur: UntilEndOfTurn }] }], [Labelled { label: "summon", then: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Red], types: ["legendary", "horse", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "phobos" }] }], [Labelled { label: "revelation", then: [Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(2) }] }]] }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Attacks(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[Labelled { label: "bull rush", then: [Modify { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "double strike", param: None }], dur: UntilEndOfTurn }] }], [Labelled { label: "summon", then: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Red], types: ["legendary", "horse", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "phobos" }] }], [Labelled { label: "revelation", then: [Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(2) }] }]] }], limits: [] } }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Theft of Dreams
@@ -1079,7 +1079,7 @@ face: Virus Beetle
 type: Artifact Creature — Insect
 cost: {1}{B}
 > When this creature enters, each opponent discards a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Wander in Death
 face: Wander in Death

@@ -91,7 +91,7 @@ cost: {2}{R}
 > When this Vehicle enters, you may discard a card. If you do, draw a card.
 > Crew 2 (Tap any number of creatures you control with total power 2 or more: This Vehicle becomes an artifact creature until end of turn.)
 = Keywords([Keyword { name: "trample", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 
 ## Blood Ogre
@@ -131,7 +131,7 @@ face: Casey Jones, Vigilante
 type: Legendary Creature — Human Berserker
 cost: {1}{R}{R}
 > When Casey Jones enters, draw three cards. At the beginning of your next upkeep, discard three cards at random.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, Delayed { step: Upkeep(YourNext), then: [Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, Delayed { step: Upkeep(YourNext), then: [Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }] }], limits: [] }
 
 ## Celestial Archon
 face: Celestial Archon
@@ -449,8 +449,8 @@ cost: {3}{B}
 > At the beginning of your end step, you discard a card, lose 2 life, and sacrifice a creature.
 > When this enchantment leaves the battlefield, you discard three cards, lose 6 life, and sacrifice three creatures.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }, GainLife { who: You, n: N(6) }, Create { who: You, n: N(3), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [Black], types: ["bat", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
-= Triggered { trigger: At(EndStep(Yours)), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: You, n: N(2) }, Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
-= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: You, n: N(6) }, Sacrifice { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: At(EndStep(Yours)), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: You, n: N(2) }, Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: You, n: N(6) }, Sacrifice { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Grim Monolith
 face: Grim Monolith
@@ -657,7 +657,7 @@ type: Artifact
 cost: {1}
 > {B}, Sacrifice this artifact: Target player discards a card.
 > {1}, Sacrifice this artifact: Draw a card.
-= Activated { cost: [Mana(Mana(["B"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["B"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Nivix Cyclops
@@ -903,7 +903,7 @@ face: Skullslither Worm
 type: Creature — Worm
 cost: {3}{B}
 > When this creature enters, each opponent discards a card. For each opponent who can't, put two +1/+1 counters on this creature.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [WhoCant], or: None } }, then: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [WhoCant], or: None } }, then: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Skyshroud War Beast
 face: Skyshroud War Beast

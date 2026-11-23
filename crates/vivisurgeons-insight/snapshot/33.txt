@@ -308,7 +308,7 @@ face: Deny Entry
 type: Instant
 cost: {2}{U}
 > Counter target creature spell. Draw a card, then discard a card.
-= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }, unless: None }, Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }, unless: None }, Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Deny Existence
 face: Deny Existence

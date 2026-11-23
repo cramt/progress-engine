@@ -5,7 +5,7 @@ cost: {2}{U}
 > Defender
 > Whenever you cast an instant or sorcery spell, you may draw a card. If you do, discard a card. This ability triggers only once each turn.
 = Keywords([Keyword { name: "defender", param: None }])
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [OncePerTurn] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [OncePerTurn] }
 
 ## Aerial Predation
 face: Aerial Predation
@@ -117,7 +117,7 @@ type: Enchantment
 cost: {1}{R}
 > When this enchantment enters, you may discard a card. If you do, draw two cards.
 > {1}, Sacrifice this enchantment: Creatures you control gain haste until end of turn.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
 = Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Blind with Anger
@@ -347,7 +347,7 @@ cost: {B}
 > Cleave {2}{B} (You may cast this spell for its cleave cost. If you do, remove the words in square brackets.)
 > Target player reveals their hand. You choose a nonland card from it [with mana value 2 or less]. That player discards that card.
 = Keywords([Keyword { name: "cleave", param: Some(Cost([Mana(Mana(["2", "B"]))])) }])
-= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target), Cleave([With(Compare { stat: ManaValue, op: Le, value: N(2) })])], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target), Cleave([With(Compare { stat: ManaValue, op: Le, value: N(2) })])], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Dunerider Outlaw
 face: Dunerider Outlaw
@@ -1255,7 +1255,7 @@ face: Wild Evocation
 type: Enchantment
 cost: {5}{R}
 > At the beginning of each player's upkeep, that player reveals a card at random from their hand. If it's a land card, the player puts it onto the battlefield. Otherwise, the player casts it without paying its mana cost if able.
-= BROKE at "random" after: at the beginning of each player 's upkeep , that player reveals a card at
+= BROKE at "puts" after: at the beginning of each player 's upkeep , that player reveals a card at random from their hand . if it's a land card , the player
 
 ## Word of Binding
 face: Word of Binding

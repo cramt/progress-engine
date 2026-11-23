@@ -52,7 +52,7 @@ type: Legendary Creature — Human Cleric
 cost: {3}{B}{B}
 > Ward—Discard a card at random.
 > Void — Whenever Alpharael attacks, if a nonland permanent left the battlefield this turn or a spell was warped this turn, defending player loses half their life, rounded up.
-= Keywords([Keyword { name: "ward", param: Some(Cost([DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])) }])
+= Keywords([Keyword { name: "ward", param: Some(Cost([Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })])) }])
 = Labelled { label: "void", ability: Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Or([DidThisTurn(Leaves { what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: Battlefield }), DidThisTurn(CastUsing { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, keyword: "warp" })])), effect: [LoseLife { who: DefendingPlayer, n: Half { of: LifeTotal(That), round_up: true } }], limits: [] } }
 
 ## Altar of Bhaal // Bone Offering
@@ -211,7 +211,7 @@ face: Boundary Lands Ranger
 type: Creature — Human Ranger
 cost: {1}{R}
 > At the beginning of combat on your turn, if you control a creature with power 4 or greater, you may discard a card. If you do, draw a card.
-= Triggered { trigger: InterveningIf(At(Combat(Yours)), YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: InterveningIf(At(Combat(Yours)), YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Capital Guard
 face: Capital Guard
@@ -482,7 +482,7 @@ face: Greater Good
 type: Enchantment
 cost: {2}{G}{G}
 > Sacrifice a creature: Draw cards equal to the sacrificed creature's power, then discard three cards.
-= Let { bind: [/* sacrificed */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Sacrifice(Objects { quant: Introduced(0) /* sacrificed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: PowerOf(Objects { quant: Bound(0) /* sacrificed */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) }, Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] } }
+= Let { bind: [/* sacrificed */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Sacrifice(Objects { quant: Introduced(0) /* sacrificed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: PowerOf(Objects { quant: Bound(0) /* sacrificed */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) }, Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] } }
 
 ## Hanweir Lancer
 face: Hanweir Lancer
@@ -796,7 +796,7 @@ face: Ozai's Cruelty
 type: Sorcery — Lesson
 cost: {2}{B}
 > Ozai's Cruelty deals 2 damage to target player. That player discards two cards.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(Target)] }, Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(Target)] }, Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Painter's Studio // Defaced Gallery
 face: Painter's Studio
@@ -1072,7 +1072,7 @@ face: Stadium Tidalmage
 type: Creature — Djinn Sorcerer
 cost: {2}{U}{R}
 > Whenever this creature enters or attacks, you may draw a card. If you do, discard a card.
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Stormsurge Kraken
 face: Stormsurge Kraken

@@ -177,7 +177,7 @@ cost: {2}{R}{R}
 > Flying, trample
 > When this creature enters, search your library for a card, put it into your hand, shuffle, then discard a card at random.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You), Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You), Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }] }], limits: [] }
 
 ## Deep Spawn
 face: Deep Spawn
@@ -374,7 +374,7 @@ face: Storm Reading
 type: Instant — Adventure
 cost: {5}{U}{U}
 > Draw four cards, then discard two cards. (Then exile this card. You may cast the creature later from exile.)
-= Spell([Draw { who: You, n: N(4) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(4) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Game of Chaos
 face: Game of Chaos
@@ -559,7 +559,7 @@ cost: {3}{R}
 > When this creature enters, discard up to two cards, then draw that many cards.
 = Keywords([Keyword { name: "trample", param: None }])
 = Static([SetPower { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: ThatMany }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: ThatMany }], limits: [] }
 
 ## Kitsune Palliator
 face: Kitsune Palliator
@@ -675,7 +675,7 @@ type: Legendary Artifact Creature — Phyrexian Artificer
 > • Creatures you control gain menace and trample until end of turn.
 > • Creatures you don't control get -1/-1 until end of turn.
 > • Create two tapped Powerstone tokens.
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Modal { choose: N(3), modes: [[Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("planeswalker")]], kind: None, posts: [], or: None } }, no_regen: false }], [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "menace", param: None }, Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], [Create { who: You, n: N(2), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }]] }], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Modal { choose: N(3), modes: [[Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("planeswalker")]], kind: None, posts: [], or: None } }, no_regen: false }], [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "menace", param: None }, Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], [Create { who: You, n: N(2), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }]] }], limits: [] }
 
 ## Morgul-Knife Wound
 face: Morgul-Knife Wound
@@ -797,7 +797,7 @@ face: Pillaging Horde
 type: Creature — Human Barbarian
 cost: {2}{R}{R}
 > When this creature enters, sacrifice it unless you discard a card at random.
-= BROKE at "random" after: when this creature enters , sacrifice it unless you discard a card at
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Unless { effect: Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })] }], limits: [] }
 
 ## Powder Ganger
 face: Powder Ganger
@@ -1204,7 +1204,7 @@ cost: {2}{R}
 > Before you shuffle your deck to start the game, you may reveal this card from your deck and exile three or more creature cards you drafted that aren't in your deck.
 > {1}{R}: Choose a card at random you exiled with cards named Volatile Chimera. This creature becomes a copy of that card, except it has this ability.
 = BROKE at "the" after: before you shuffle your deck to start
-= BROKE at "random" after: {1} {R} : choose a card at
+= BROKE at "with" after: {1} {R} : choose a card at random you exiled
 
 ## Wishclaw Talisman
 face: Wishclaw Talisman

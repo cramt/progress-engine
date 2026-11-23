@@ -20,7 +20,7 @@ type: Legendary Creature — Human Cleric
 cost: {1}{U}{B}
 > When Alpharael enters, draw two cards. Then discard two cards unless you discard an artifact card.
 > During your turn, Alpharael has deathtouch.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } })] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Unless { effect: Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: You, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } })] }], limits: [] }
 = Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "deathtouch", param: None }], per: None }] }])
 
 ## Antiquities on the Loose
@@ -261,7 +261,7 @@ face: Elite Instructor
 type: Creature — Human Wizard
 cost: {2}{U}
 > When this creature enters, draw a card, then discard a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Elvish Berserker
 face: Elvish Berserker
@@ -648,7 +648,7 @@ cost: {5}{G}
 = Keywords([Keyword { name: "trample", param: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "trample", param: None }], per: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), colors: [Green], types: ["tyranid", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= Labelled { label: "fast healing", ability: Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] } }
+= Labelled { label: "fast healing", ability: Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])], limits: [] } }
 
 ## Ondu Rising
 face: Ondu Rising

@@ -560,7 +560,7 @@ face: Planeswalker's Scorn
 type: Enchantment
 cost: {2}{B}
 > {3}{B}: Target opponent reveals a card at random from their hand. Target creature gets -X/-X until end of turn, where X is the revealed card's mana value. Activate only as a sorcery.
-= BROKE at "random" after: {3} {B} : target opponent reveals a card at
+= Activated { cost: [Mana(Mana(["3", "B"]))], effect: [With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(That))], or: None } }], then: [Reveal { who: TargetOpponent, what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Where { then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: MinusX, toughness: MinusX, signed: true }), gains: [], dur: UntilEndOfTurn }], x: ManaValueOf(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }) }] }], limits: [SorcerySpeed] }
 
 ## Primal Cocoon
 face: Primal Cocoon
@@ -732,7 +732,7 @@ type: Creature — Human Shaman
 cost: {1}{R}{R}
 > When this creature enters, discard two cards, then draw two cards. For each nonland card discarded this way, create a 1/1 red Elemental creature token.
 > {3}{R}{R}, Exile this card from your graveyard: Create two 1/1 red Elemental creature tokens.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(2) }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(2) }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 = Activated { cost: [Mana(Mana(["3", "R", "R"])), Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } })], effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["elemental", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Segmented Krotiq
@@ -825,7 +825,7 @@ face: Statute of Denial
 type: Instant
 cost: {2}{U}{U}
 > Counter target spell. If you control a blue creature, draw a card, then discard a card.
-= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Blue), Type("creature")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Blue), Type("creature")]], kind: None, posts: [], or: None } }), then: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Stenn, Paranoid Partisan
 face: Stenn, Paranoid Partisan

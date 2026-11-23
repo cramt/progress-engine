@@ -174,7 +174,7 @@ face: Coral Helm
 type: Artifact
 cost: {3}
 > {3}, Discard a card at random: Target creature gets +2/+2 until end of turn.
-= Activated { cost: [Mana(Mana(["3"])), DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["3"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Daxos of Meletis
 face: Daxos of Meletis
@@ -510,7 +510,7 @@ face: Nightsnare
 type: Sorcery
 cost: {3}{B}
 > Target opponent reveals their hand. You may choose a nonland card from it. If you do, that player discards that card. If you don't, that player discards two cards.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [May { who: You, then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, IfYouDo([Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]), IfYouDont([Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [May { who: You, then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, IfYouDo([Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]), IfYouDont([Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])] }])
 
 ## Noble Benefactor
 face: Noble Benefactor
@@ -601,7 +601,7 @@ face: Reap the Past
 type: Sorcery
 cost: {X}{R}{G}
 > Return X cards at random from your graveyard to your hand. Exile Reap the Past.
-= BROKE at "graveyard" after: return x cards at random from your
+= Spell([Move { what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Reconstructed Thopter
 face: Reconstructed Thopter
@@ -717,7 +717,7 @@ cost: {1}{U}
 > Flying
 > {2}, Return a land you control to its owner's hand: Draw a card, then discard a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Activated { cost: [Mana(Mana(["2"])), ReturnToHand(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), ReturnToHand(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Spawn-Gang Commander
 face: Spawn-Gang Commander

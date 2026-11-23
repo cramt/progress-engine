@@ -307,7 +307,7 @@ cost: {5}{B}{B}
 > As an additional cost to cast this spell, sacrifice a creature, discard a card, or pay 4 life.
 > When this creature enters, each opponent sacrifices a creature of their choice, discards a card, and loses 4 life.
 = BROKE at "4" after: as an additional cost to cast this spell , sacrifice a creature , discard a card , or pay
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: EachOpponent, n: N(4) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: EachOpponent, n: N(4) }], limits: [] }
 
 ## Earthrumbler
 face: Earthrumbler
@@ -334,7 +334,7 @@ cost: {U}
 = Keywords([Keyword { name: "level up", param: Some(Cost([Mana(Mana(["1", "U"]))])) }])
 = LevelHeader { from: 1, to: Some(2) }
 = LevelPt(Pt { power: N(0), toughness: N(1), signed: false })
-= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = LevelHeader { from: 3, to: None }
 = LevelPt(Pt { power: N(0), toughness: N(1), signed: false })
 = Activated { cost: [Tap], effect: [Draw { who: You, n: N(1) }], limits: [] }
@@ -1122,5 +1122,5 @@ face: Zhang Liao, Hero of Hefei
 type: Legendary Creature — Human Soldier
 cost: {4}{B}{B}
 > Whenever Zhang Liao deals damage to an opponent, that opponent discards a card.
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 

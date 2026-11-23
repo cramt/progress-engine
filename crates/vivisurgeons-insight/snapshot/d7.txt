@@ -285,7 +285,7 @@ face: Drowned Rusalka
 type: Creature — Spirit
 cost: {U}
 > {U}, Sacrifice a creature: Discard a card, then draw a card.
-= Activated { cost: [Mana(Mana(["U"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(1) }], limits: [] }
+= Activated { cost: [Mana(Mana(["U"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(1) }], limits: [] }
 
 ## Dual Strike
 face: Dual Strike
@@ -508,7 +508,7 @@ face: Illuminate History
 type: Sorcery — Lesson
 cost: {2}{R}{R}
 > Discard any number of cards, then draw that many cards. Then if there are seven or more cards in your graveyard, create a 3/2 red and white Spirit creature token.
-= Spell([Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: ThatMany }, If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Red, White], types: ["spirit", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
+= Spell([Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: ThatMany }, If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Red, White], types: ["spirit", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Incandescent Aria
 face: Incandescent Aria
@@ -586,7 +586,7 @@ face: Keldon Raider
 type: Creature — Human Warrior
 cost: {2}{R}{R}
 > When this creature enters, you may discard a card. If you do, draw a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Knowledge Pool
 face: Knowledge Pool
@@ -701,7 +701,7 @@ type: Enchantment — Room
 cost: {3}{U}{U}
 > When you unlock this door, draw three cards, then discard a card.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Unlocks { who: You, what: ThisDoor }), effect: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Mesa Unicorn
 face: Mesa Unicorn
@@ -1100,7 +1100,7 @@ cost: {2}{R}
 > When this creature enters, if it was kicked with its {1}{B} kicker, target player discards two cards.
 > When this creature enters, if it was kicked with its {G} kicker, destroy target enchantment.
 = Keywords([Keyword { name: "kicker", param: Some(EitherOrBoth([Mana(["1", "B"]), Mana(["G"])])) }])
-= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), KickedWith(Mana(["1", "B"]))), effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), KickedWith(Mana(["1", "B"]))), effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), KickedWith(Mana(["G"]))), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }
 
 ## Torch the Tower

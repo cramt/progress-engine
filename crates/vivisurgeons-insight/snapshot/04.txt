@@ -165,7 +165,7 @@ face: Diplomacy of the Wastes
 type: Sorcery
 cost: {2}{B}
 > Target opponent reveals their hand. You choose a nonland card from it. That player discards that card. If you control a Warrior, that player loses 2 life.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("warrior")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: That, n: N(2) }] }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("warrior")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: That, n: N(2) }] }] }])
 
 ## Disciple of Tevesh Szat
 face: Disciple of Tevesh Szat
@@ -251,7 +251,7 @@ cost: {1}{B}
 > Choose one —
 > • Target opponent reveals their hand. You may choose a creature, enchantment, or planeswalker card from it. That player discards that card.
 > • Target opponent sacrifices an enchantment of their choice.
-= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("enchantment")], [Type("planeswalker")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: One, modes: [[RevealHand(TargetOpponent), May { who: You, then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [ChosenBy(That)], or: None } } }]] }] }])
+= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("enchantment")], [Type("planeswalker")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: One, modes: [[RevealHand(TargetOpponent), May { who: You, then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }, Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [ChosenBy(That)], or: None } } }]] }] }])
 
 ## Eye Spy
 face: Eye Spy

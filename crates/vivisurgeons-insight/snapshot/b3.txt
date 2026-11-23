@@ -211,7 +211,7 @@ face: Draconian Cylix
 type: Artifact
 cost: {3}
 > {2}, {T}, Discard a card at random: Regenerate target creature.
-= Activated { cost: [Mana(Mana(["2"])), Tap, DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Regenerate(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Tap, Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [Regenerate(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Duplicant
 face: Duplicant
@@ -581,7 +581,7 @@ cost: {3}
 > {T}: Add one mana of any color.
 > {1}, {T}, Tap another untapped artifact you control: Draw a card, then discard a card.
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
-= Activated { cost: [Mana(Mana(["1"])), Tap, TapUntapped(Objects { quant: Another, filter: Filter { alts: [[State(Untapped), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Tap, TapUntapped(Objects { quant: Another, filter: Filter { alts: [[State(Untapped), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Nightwing Shade
 face: Nightwing Shade
@@ -855,7 +855,7 @@ face: Sift
 type: Sorcery
 cost: {3}{U}
 > Draw three cards, then discard a card.
-= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Sign in Blood
 face: Sign in Blood
@@ -999,7 +999,7 @@ cost: {1}{G}{U}
 > {T}: Add {G}{U}. Spend this mana only to cast spells with mana value 5 or greater or spells with {X} in their mana costs.
 > {U}, {T}: Draw a card, then discard a card.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G", "U"])))], limits: [SpendOnly { uses: [Cast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(5) })], or: Some(Filter { alts: [], kind: Some(Spell), posts: [XInManaCost], or: None }) } })], then: None }] }
-= Activated { cost: [Mana(Mana(["U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Unleash the Inferno
 face: Unleash the Inferno

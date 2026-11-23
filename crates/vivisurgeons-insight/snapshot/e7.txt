@@ -97,7 +97,7 @@ face: Brilliant Spectrum
 type: Sorcery
 cost: {3}{U}
 > Converge — Draw X cards, where X is the number of colors of mana spent to cast this spell. Then discard two cards.
-= Labelled { label: "converge", ability: Spell([Where { then: [Draw { who: You, n: X }], x: ColorsOfManaSpentToCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]) }
+= Labelled { label: "converge", ability: Spell([Where { then: [Draw { who: You, n: X }], x: ColorsOfManaSpentToCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]) }
 
 ## Callous Giant
 face: Callous Giant
@@ -516,7 +516,7 @@ face: Laquatus's Creativity
 type: Sorcery
 cost: {4}{U}
 > Target player draws cards equal to the number of cards in their hand, then discards that many cards.
-= Spell([Draw { who: Target, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }) }, Discard { who: That, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: Target, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }) }, Discard { who: That, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Lashweed Lurker
 face: Lashweed Lurker
@@ -1026,7 +1026,7 @@ type: Creature — Human Monk
 cost: {2}{U}
 > {U}, {T}: Draw a card, then discard a card.
 > Whenever you cast a noncreature spell, untap this creature.
-= Activated { cost: [Mana(Mana(["U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Zhur-Taa Druid

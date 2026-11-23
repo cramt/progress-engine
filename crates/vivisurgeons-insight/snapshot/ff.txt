@@ -133,7 +133,7 @@ cost: {3}{R}
 > 0: Create a 3/2 colorless Vehicle artifact token with crew 1.
 > −7: You get an emblem with "Whenever an artifact you control enters, this emblem deals 3 damage to any target."
 = Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } }], ability: Triggered { trigger: At(Combat(Yours)), effect: [Choose(Objects(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Becomes { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Type("artifact"), Type("creature")], gains: [Keyword { name: "haste", param: None }], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] } }
-= Loyalty { change: N(2), effect: [May { who: You, then: [Or([Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])] }, IfYouDo([Draw { who: You, n: N(1) }])] }
+= Loyalty { change: N(2), effect: [May { who: You, then: [Or([Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])] }, IfYouDo([Draw { who: You, n: N(1) }])] }
 = Loyalty { change: N(0), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Colorless], types: ["vehicle", "artifact"], keywords: [Keyword { name: "crew", param: Some(N(N(1))) }], abilities: [], named: None, attacking: None } }] }
 = Loyalty { change: N(-7), effect: [Emblem([Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }])] }
 
@@ -204,7 +204,7 @@ cost: {3}{U}{U}
 > • Target player draws two cards, then discards a card.
 = Keywords([Keyword { name: "devoid", param: None }])
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["C"]))])) }])
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Modal { choose: Upgrade { base: One, cond: WasKicked, to: N(2), may: false }, modes: [[Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], [Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Modal { choose: Upgrade { base: One, cond: WasKicked, to: N(2), may: false }, modes: [[Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], [Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]] }], limits: [] }
 
 ## Devastating Summons
 face: Devastating Summons
@@ -222,7 +222,7 @@ cost: {3}{U/B}{U/B}
 > Whenever a blue creature you control enters, you may have target player draw a card.
 > Whenever a black creature you control enters, you may have target player discard a card.
 = Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Color(Blue), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Draw { who: Target, n: N(1) }] }], limits: [] }
-= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Color(Black), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Color(Black), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] }
 
 ## Donatello, the Brains
 face: Donatello, the Brains

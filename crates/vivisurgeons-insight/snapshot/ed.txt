@@ -299,7 +299,7 @@ cost: {3}{B}{B}
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(Opponent)] }])
 = Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(Chosen))], or: None } }) }])
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(APlayer)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(APlayer)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Exhaustion
 face: Exhaustion
@@ -617,7 +617,7 @@ type: Sorcery
 cost: {5}{B}
 > Target player discards three cards.
 > Suspend 4—{B} (Rather than cast this card from your hand, you may pay {B} and exile it with four time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost.)
-= Spell([Discard { who: Target, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(4), cost: [Mana(Mana(["B"]))] }) }])
 
 ## Moderation

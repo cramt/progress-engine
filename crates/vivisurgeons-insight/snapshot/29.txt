@@ -83,7 +83,7 @@ cost: {1}{B}
 > At the beginning of each opponent's upkeep, if that player has one or fewer cards in hand, they lose 2 life.
 > {3}{B}: Level 3
 > At the beginning of your draw step, draw an additional card for each opponent who has one or fewer cards in hand.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Unless { effect: Discard { who: EachOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, who: That, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } })] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Unless { effect: Discard { who: EachOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, who: That, cost: [Discard(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None } })] }], limits: [] }
 = Activated { cost: [Mana(Mana(["B"]))], effect: [ClassLevel(2)], limits: [] }
 = Triggered { trigger: InterveningIf(At(Upkeep(EachOpponent)), PlayerHasAtMost { who: That, at_most: 1, what: CardsInHand }), effect: [LoseLife { who: That, n: N(2) }], limits: [] }
 = Activated { cost: [Mana(Mana(["3", "B"]))], effect: [ClassLevel(3)], limits: [] }
@@ -308,7 +308,7 @@ face: Flay
 type: Sorcery
 cost: {3}{B}
 > Target player discards a card at random. Then that player discards another card at random unless they pay {1}.
-= Spell([With { bind: [/* discarded */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Discard { who: Target, what: Objects { quant: Introduced(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, random: true }, Unless { effect: Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [[OtherThan(Objects { quant: Bound(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } })]], kind: Some(Card), posts: [], or: None } }, random: true }, who: That, cost: [Mana(Mana(["1"]))] }] }])
+= Spell([With { bind: [/* discarded */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } }], then: [Discard { who: Target, what: Objects { quant: Introduced(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Unless { effect: Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [[OtherThan(Objects { quant: Bound(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } })]], kind: Some(Card), posts: [AtRandom], or: None } } }, who: That, cost: [Mana(Mana(["1"]))] }] }])
 
 ## Flight Spellbomb
 face: Flight Spellbomb
@@ -412,7 +412,7 @@ type: Land
 > {T}: Add {C}.
 > {3}, {T}, Sacrifice this land: Return a creature card at random from your graveyard to your hand.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= BROKE at "at" after: {3} , {T} , sacrifice this land : return a creature card
+= Activated { cost: [Mana(Mana(["3"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [AtRandom, In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Havoc Demon
 face: Havoc Demon
@@ -605,7 +605,7 @@ face: Memory Worm
 type: Creature — Alien Worm
 cost: {1}{R}
 > Paradox — Whenever you cast a spell from anywhere other than your hand, this creature deals 2 damage to target player. That player discards a card, then draws a card. Put a +1/+1 counter on this creature.
-= Labelled { label: "paradox", ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(You)))], or: None } } }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(Target)] }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: That, n: N(1) }, PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
+= Labelled { label: "paradox", ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(You)))], or: None } } }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(Target)] }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: That, n: N(1) }, PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
 
 ## Michelangelo, Improviser
 face: Michelangelo, Improviser

@@ -262,7 +262,7 @@ face: Failed Inspection
 type: Instant
 cost: {2}{U}{U}
 > Counter target spell. Draw a card, then discard a card.
-= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }, Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }, Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Fantastic Bounce
 face: Fantastic Bounce
@@ -700,7 +700,7 @@ face: Pore Over the Pages
 type: Sorcery
 cost: {3}{U}{U}
 > Draw three cards, untap up to two lands, then discard a card.
-= Spell([Draw { who: You, n: N(3) }, Untap(Objects { quant: UpTo(N(2)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(3) }, Untap(Objects { quant: UpTo(N(2)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Prishe's Wanderings
 face: Prishe's Wanderings

@@ -199,7 +199,7 @@ cost: {2}{B}
 > At the beginning of each opponent's upkeep, if that player has one or fewer cards in hand, Davriel deals 2 damage to them.
 > −1: Target player discards a card.
 = Triggered { trigger: InterveningIf(At(Upkeep(EachOpponent)), PlayerHasAtMost { who: That, at_most: 1, what: CardsInHand }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(That)] }], limits: [] }
-= Loyalty { change: N(-1), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Loyalty { change: N(-1), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }
 
 ## Dingus Egg
 face: Dingus Egg
@@ -362,7 +362,7 @@ face: Gristle Glutton
 type: Creature — Goblin Scout
 cost: {1}{R}
 > {T}, Blight 1: Discard a card. If you do, draw a card. (To blight 1, put a -1/-1 counter on a creature you control.)
-= Activated { cost: [Tap, Action { name: "blight", n: N(1) }], effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Activated { cost: [Tap, Action { name: "blight", n: N(1) }], effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Guardian Zendikon
 face: Guardian Zendikon
@@ -453,7 +453,7 @@ type: Battle — Siege
 cost: {1}{R}
 > (As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)
 > When this Siege enters, you may discard a card. If you do, draw two cards.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
 
 ## Invasion of Mercadia // Kyren Flamewright
 face: Kyren Flamewright
@@ -641,7 +641,7 @@ face: Improvised Act
 type: Sorcery
 cost: {R}
 > You may discard a card. If you do, draw a card.
-= Spell([May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])])
+= Spell([May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])])
 
 ## Power Fist
 face: Power Fist
@@ -657,7 +657,7 @@ face: Pulse of the Grid
 type: Instant
 cost: {1}{U}{U}
 > Draw two cards, then discard a card. Then if an opponent has more cards in hand than you, return Pulse of the Grid to its owner's hand.
-= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: HasMore { who: AnOpponent, what: CardsInHand, than: You }, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, If { order: Leading, cond: HasMore { who: AnOpponent, what: CardsInHand, than: You }, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }])
 
 ## Ragost, Deft Gastronaut
 face: Ragost, Deft Gastronaut

@@ -777,7 +777,7 @@ face: Scroll of Griselbrand
 type: Artifact
 cost: {1}
 > {1}, Sacrifice this artifact: Target opponent discards a card. If you control a Demon, that player loses 3 life.
-= Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("demon")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: That, n: N(3) }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, If { order: Leading, cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("demon")]], kind: None, posts: [], or: None } }), then: [LoseLife { who: That, n: N(3) }] }], limits: [] }
 
 ## Secret Arcade // Dusty Parlor
 face: Secret Arcade
@@ -922,7 +922,7 @@ cost: {U}{B}
 > Descend 8 — The Ancient One can't attack or block unless there are eight or more permanent cards in your graveyard.
 > {2}{U}{B}: Draw a card, then discard a card. When you discard a card this way, target player mills cards equal to its mana value.
 = BROKE at "8" after: descend
-= Activated { cost: [Mana(Mana(["2", "U", "B"]))], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [WhenThisWay { event: Discards { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Mill { who: Target, n: ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "U", "B"]))], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [WhenThisWay { event: Discards { who: You, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Mill { who: Target, n: ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }] }], limits: [] }
 
 ## The Unbeatable Squirrel Girl
 face: The Unbeatable Squirrel Girl

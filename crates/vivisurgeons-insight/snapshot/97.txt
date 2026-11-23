@@ -94,7 +94,7 @@ face: Bite of the Black Rose
 type: Sorcery
 cost: {3}{B}
 > Will of the council — Starting with you, each player votes for sickness or psychosis. If sickness gets more votes, creatures your opponents control get -2/-2 until end of turn. If psychosis gets more votes or the vote is tied, each opponent discards two cards.
-= Labelled { label: "will of the council", ability: Spell([StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["sickness", "psychosis"]) }] }, If { order: Leading, cond: GetsMoreVotes("sickness"), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }] }, If { order: Leading, cond: Or([GetsMoreVotes("psychosis"), VoteTied]), then: [Discard { who: EachOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }]) }
+= Labelled { label: "will of the council", ability: Spell([StartingWith { first: You, then: [Performed { by: Each, effect: Vote(["sickness", "psychosis"]) }] }, If { order: Leading, cond: GetsMoreVotes("sickness"), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }] }, If { order: Leading, cond: Or([GetsMoreVotes("psychosis"), VoteTied]), then: [Discard { who: EachOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }]) }
 
 ## Bloodrock Cyclops
 face: Bloodrock Cyclops
@@ -174,11 +174,11 @@ cost: {1}{R}
 > Whenever you discard a card, this Class deals 2 damage to each opponent.
 > {1}{R}: Level 3
 > When this Class becomes level 3, search your library for a card, put it into your hand, shuffle, then discard a card at random.
-= Triggered { trigger: When(YouAttack), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(YouAttack), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "R"]))], effect: [ClassLevel(2)], limits: [] }
 = Triggered { trigger: When(Discards { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent)] }], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "R"]))], effect: [ClassLevel(3)], limits: [] }
-= Triggered { trigger: When(BecomesLevel { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: 3 }), effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You), Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }] }], limits: [] }
+= Triggered { trigger: When(BecomesLevel { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: 3 }), effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You), Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }] }], limits: [] }
 
 ## Corrupt Official
 face: Corrupt Official
@@ -187,7 +187,7 @@ cost: {4}{B}
 > {2}{B}: Regenerate this creature.
 > Whenever this creature becomes blocked, defending player discards a card at random.
 = Activated { cost: [Mana(Mana(["2", "B"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
-= Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [] }
+= Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }], limits: [] }
 
 ## Crackling Spellslinger
 face: Crackling Spellslinger
@@ -231,7 +231,7 @@ cost: {2}{U}
 > • Untap target creature.
 > • Draw a card, then discard a card.
 = Keywords([Keyword { name: "flash", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], [Untap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], [Untap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]] }], limits: [] }
 
 ## Downpour
 face: Downpour
@@ -989,7 +989,7 @@ cost: {3}{U}
 > When this Spacecraft enters, draw two cards, then discard a card.
 > Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 8+.)
 > 8+ | Flying
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "station", param: None }])
 = Station { at_least: 8, ability: Keywords([Keyword { name: "flying", param: None }]) }
 

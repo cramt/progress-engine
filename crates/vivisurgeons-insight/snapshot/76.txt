@@ -768,7 +768,7 @@ cost: {4}{U}
 > Flying
 > {4}, Return two lands you control to their owner's hand: Discard all the cards in your hand, then draw that many cards.
 = Keywords([Keyword { name: "flying", param: None }])
-= Activated { cost: [Mana(Mana(["4"])), ReturnToHand(Objects { quant: N(N(2)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Discard { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }, random: false }, Draw { who: You, n: ThatMany }], limits: [] }
+= Activated { cost: [Mana(Mana(["4"])), ReturnToHand(Objects { quant: N(N(2)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Discard { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } } }, Draw { who: You, n: ThatMany }], limits: [] }
 
 ## Starving Revenant
 face: Starving Revenant

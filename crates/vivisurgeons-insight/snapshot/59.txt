@@ -136,7 +136,7 @@ cost: {1}{U}
 > {1}{U}: This creature gets +2/-2 until end of turn.
 > At the beginning of your end step, if you haven't cast a spell from your hand this turn, draw a card, then discard a card.
 = Activated { cost: [Mana(Mana(["1", "U"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
-= Triggered { trigger: InterveningIf(At(EndStep(Yours)), Not(DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } } }))), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), Not(DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } } }))), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Cataclysmic Gearhulk
 face: Cataclysmic Gearhulk
@@ -1143,7 +1143,7 @@ cost: {4}{R}
 > Reach
 > When this creature enters, you may discard a card. When you do, this creature deals 2 damage to any target.
 = Keywords([Keyword { name: "reach", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, WhenYouDo([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, WhenYouDo([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])], limits: [] }
 
 ## Textbook Tabulator
 face: Textbook Tabulator

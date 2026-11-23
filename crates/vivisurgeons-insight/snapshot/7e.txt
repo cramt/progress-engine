@@ -38,7 +38,7 @@ type: Legendary Creature — Elemental Sorcerer
 cost: {1}{R}
 > Whenever this creature enters or transforms into Ashling, Rekindled, you may discard a card. If you do, draw a card.
 > At the beginning of your first main phase, you may pay {U}. If you do, transform Ashling.
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, TransformsInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, TransformsInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 = Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["U"]))] }] }, IfYouDo([Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])], limits: [] }
 
 ## Ashling, Rekindled // Ashling, Rimebound
@@ -208,7 +208,7 @@ cost: {2}{R}
 > Enchant player
 > Whenever a player attacks enchanted player with one or more creatures, that attacking player may discard a card. If the player does, they draw a card.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= Triggered { trigger: When(AttacksWith { who: APlayer, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, at: Some(Enchanted) }), effect: [May { who: AttackingPlayer, then: [Discard { who: AttackingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: AttackingPlayer, n: N(1) }])], limits: [] }
+= Triggered { trigger: When(AttacksWith { who: APlayer, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, at: Some(Enchanted) }), effect: [May { who: AttackingPlayer, then: [Discard { who: AttackingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, IfYouDo([Draw { who: AttackingPlayer, n: N(1) }])], limits: [] }
 
 ## Daretti, Scrap Savant
 face: Daretti, Scrap Savant
@@ -218,7 +218,7 @@ cost: {3}{R}
 > −2: Sacrifice an artifact. If you do, return target artifact card from your graveyard to the battlefield.
 > −10: You get an emblem with "Whenever an artifact is put into your graveyard from the battlefield, return that card to the battlefield at the beginning of the next end step."
 > Daretti, Scrap Savant can be your commander.
-= Loyalty { change: N(2), effect: [Discard { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: ThatMany }] }
+= Loyalty { change: N(2), effect: [Discard { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: ThatMany }] }
 = Loyalty { change: N(-2), effect: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, IfYouDo([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }])] }
 = Loyalty { change: N(-10), effect: [Emblem([Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(PutInto { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Graveyard(You), from: Battlefield }), effect: [Delayed { step: EndStep(Next), then: [Move { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], limits: [] } }])] }
 = Static([CanBeCommander])

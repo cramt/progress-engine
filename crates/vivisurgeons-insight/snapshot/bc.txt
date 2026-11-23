@@ -5,7 +5,7 @@ cost: {2}{B}{B}
 > Flying
 > Whenever this creature deals damage to a player, that player discards a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(APlayer)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(APlayer)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Acolyte Hybrid
 face: Acolyte Hybrid
@@ -175,7 +175,7 @@ type: Legendary Creature — Human Wizard Knight
 cost: {1}{R}{W}{B}
 > When Celes enters, discard any number of cards, then draw that many cards plus one.
 > Whenever one or more other creatures you control enter, if one or more of them entered from a graveyard or was cast from a graveyard, put a +1/+1 counter on each creature you control.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: Plus(ThatMany, 1) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: Plus(ThatMany, 1) }], limits: [] }
 = Let { bind: [/* trigger */ Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, /* trigger2 */ Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], ability: Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: Introduced(1) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), Or([Entered { what: Objects { quant: Introduced(0) /* trigger2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Some(AGraveyard), under: None }, CastFrom { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* trigger2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, zone: AGraveyard }])), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] } }
 
 ## Cleon, Merry Champion
@@ -357,7 +357,7 @@ type: Enchantment Creature — Nightmare
 cost: {1}{R}
 > When this creature enters, discard a card, then draw a card.
 > Delirium — Whenever this creature attacks for the first time each turn, if there are four or more card types among cards in your graveyard, untap target creature. After this phase, there is an additional combat phase.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(1) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(1) }], limits: [] }
 = Labelled { label: "delirium", ability: Triggered { trigger: InterveningIf(When(FirstTimeEachTurn(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }))), AmountIs { n: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(4) }), effect: [Untap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), AdditionalPhases { after: None, phases: [Combat] }], limits: [] } }
 
 ## Follow the Lumarets
@@ -407,8 +407,8 @@ type: Creature — Spirit
 cost: {B}
 > {4}{B}, {T}: Target player discards two cards. Activate only as a sorcery.
 > Channel — {5}{B}{B}, Discard this card: Target player discards four cards. Activate only as a sorcery.
-= Activated { cost: [Mana(Mana(["4", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
-= Labelled { label: "channel", ability: Activated { cost: [Mana(Mana(["5", "B", "B"])), Discard(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Target, what: Objects { quant: N(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] } }
+= Activated { cost: [Mana(Mana(["4", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
+= Labelled { label: "channel", ability: Activated { cost: [Mana(Mana(["5", "B", "B"])), Discard(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Target, what: Objects { quant: N(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] } }
 
 ## Glorifier of Suffering
 face: Glorifier of Suffering
@@ -630,7 +630,7 @@ face: Mind Roots
 type: Sorcery
 cost: {1}{B}{G}
 > Target player discards two cards. Put up to one land card discarded this way onto the battlefield tapped under your control.
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Move { what: Objects { quant: UpTo(N(1)), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: Some(You), order: None }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Move { what: Objects { quant: UpTo(N(1)), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: Some(You), order: None }])
 
 ## Mizzium Tank
 face: Mizzium Tank

@@ -278,7 +278,7 @@ face: Cursed Scroll
 type: Artifact
 cost: {1}
 > {3}, {T}: Choose a card name, then reveal a card at random from your hand. If that card has the chosen name, this artifact deals 2 damage to any target.
-= BROKE at "random" after: {3} , {T} : choose a card name , then reveal a card at
+= BROKE at "chosen" after: {3} , {T} : choose a card name , then reveal a card at random from your hand . if that card has the
 
 ## Deadeye Harpooner
 face: Deadeye Harpooner
@@ -622,7 +622,7 @@ cost: {3}{U}{U}
 > Whenever this permanent enters or attacks, draw two cards, then discard a card.
 = Keywords([Keyword { name: "impending", param: Some(NCost { n: N(4), cost: [Mana(Mana(["1", "U", "U"]))] }) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Plague Boiler
 face: Plague Boiler
@@ -719,7 +719,7 @@ face: Reckless Detective
 type: Creature — Devil Detective
 cost: {1}{R}
 > Whenever this creature attacks, you may sacrifice an artifact or discard a card. If you do, draw a card and this creature gets +2/+0 until end of turn.
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Or([Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])] }, IfYouDo([Draw { who: You, n: N(1) }, Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }])], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Or([Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])] }, IfYouDo([Draw { who: You, n: N(1) }, Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }])], limits: [] }
 
 ## Renegade Map
 face: Renegade Map
@@ -883,7 +883,7 @@ face: Teferi's Protege
 type: Creature — Human Wizard
 cost: {2}{U}
 > {1}{U}, {T}: Draw a card, then discard a card.
-= Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Tenacious Tomeseeker
 face: Tenacious Tomeseeker

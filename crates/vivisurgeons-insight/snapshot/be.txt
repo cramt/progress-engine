@@ -344,7 +344,7 @@ cost: {1}{U}
 > Partner with Jacob Frye (When this creature enters, target player may put Jacob into their hand from their library, then shuffle.)
 > {1}, {T}: Draw a card, then discard a card. When you discard a creature card this way, target creature you control can't be blocked this turn.
 = Keywords([Keyword { name: "partner with", param: Some(PartnerWith("jacob frye")) }])
-= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, WhenThisWay { event: Discards { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } } }, then: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked, dur: ThisTurn }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, WhenThisWay { event: Discards { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } } }, then: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked, dur: ThisTurn }] }], limits: [] }
 
 ## Exhumer Thrull
 face: Exhumer Thrull
@@ -759,7 +759,7 @@ cost: {3}{B}
 > Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)
 > Whenever this creature deals damage to a player, that player discards a card.
 = Keywords([Keyword { name: "swampwalk", param: None }])
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(APlayer)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(APlayer)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Omen of the Sun
 face: Omen of the Sun

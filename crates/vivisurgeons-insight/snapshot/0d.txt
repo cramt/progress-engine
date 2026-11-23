@@ -26,7 +26,7 @@ face: Amok
 type: Enchantment
 cost: {1}{R}
 > {1}, Discard a card at random: Put a +1/+1 counter on target creature.
-= Activated { cost: [Mana(Mana(["1"])), DiscardAtRandom(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } })], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Angelic Voices
 face: Angelic Voices
@@ -211,7 +211,7 @@ face: Dismal Failure
 type: Instant
 cost: {2}{U}{U}
 > Counter target spell. Its controller discards a card.
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], ability: Spell([Counter { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: None }, Discard { who: ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]) }
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], ability: Spell([Counter { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: None }, Discard { who: ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]) }
 
 ## Divergent Equation
 face: Divergent Equation

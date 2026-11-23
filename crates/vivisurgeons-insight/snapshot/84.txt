@@ -269,7 +269,7 @@ face: Dispersal
 type: Instant
 cost: {3}{U}{B}
 > Each opponent returns a nonland permanent they control with the greatest mana value among permanents they control to its owner's hand, then discards a card.
-= Spell([Performed { by: EachOpponent, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(That), GreatestAmong { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That)], or: None } } }], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Performed { by: EachOpponent, effect: Move { what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(That), GreatestAmong { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That)], or: None } } }], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None } }, Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Drana's Silencer
 face: Drana's Silencer
@@ -462,7 +462,7 @@ face: Hymn to Tourach
 type: Sorcery
 cost: {B}{B}
 > Target player discards two cards at random.
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }])
 
 ## Hypnotic Sprite // Mesmeric Glare
 face: Hypnotic Sprite
@@ -634,7 +634,7 @@ cost: {1}{B}{B}
 > Whenever this creature deals combat damage to a player, that player discards that many cards.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "wither", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Notion Thief
 face: Notion Thief
@@ -758,7 +758,7 @@ face: Sanity Gnawers
 type: Creature — Rat
 cost: {1}{B}{R}
 > When this creature enters, target player discards a card at random.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }], limits: [] }
 
 ## Savage Order
 face: Savage Order
@@ -871,7 +871,7 @@ cost: {4}{U}{U}
 > Tap up to two target creatures. Those creatures don't untap during their controller's next untap step.
 > Draw two cards, then discard a card.
 = Let { bind: [/* target */ Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Tap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Restrict { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }]) }
-= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Sokka, Bold Boomeranger
 face: Sokka, Bold Boomeranger
@@ -879,7 +879,7 @@ type: Legendary Creature — Human Warrior Ally
 cost: {U}{R}
 > When Sokka enters, discard up to two cards, then draw that many cards.
 > Whenever you cast an artifact or Lesson spell, put a +1/+1 counter on Sokka.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: ThatMany }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: ThatMany }], limits: [] }
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Subtype("lesson")]], kind: Some(Spell), posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Sorin, Solemn Visitor
@@ -937,7 +937,7 @@ cost: {3}{B}
 > When this Aura enters, target player discards two cards.
 > {B}: Regenerate enchanted creature.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["B"]))], effect: [Regenerate(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Syphon Mind
@@ -945,7 +945,7 @@ face: Syphon Mind
 type: Sorcery
 cost: {3}{B}
 > Each other player discards a card. You draw a card for each card discarded this way.
-= Spell([Discard { who: EachOtherPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Discard { who: EachOtherPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Syr Armont, the Redeemer
 face: Syr Armont, the Redeemer

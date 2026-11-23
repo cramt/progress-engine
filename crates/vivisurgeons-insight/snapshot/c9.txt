@@ -8,7 +8,7 @@ cost: {3}{R}
 > Whenever one or more cards leave your graveyard, this Class deals 2 damage to each opponent.
 > {1}{R}: Level 3
 > Spells you cast from anywhere other than your hand cost {2} less to cast.
-= BROKE at "random" after: at the beginning of your first main phase , mill a card , then exile a card from your graveyard at
+= Triggered { trigger: At(PrecombatMain(Yours)), effect: [Mill { who: You, n: N(1) }, With { bind: [/* exiled */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You)), AtRandom], or: None } }], then: [Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, payment: ManaCost, dur: ThisTurn }] }] }], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "R"]))], effect: [ClassLevel(2)], limits: [] }
 = Triggered { trigger: When(Leaves { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: Graveyard(You) }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent)] }], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "R"]))], effect: [ClassLevel(3)], limits: [] }
@@ -520,7 +520,7 @@ face: Larceny
 type: Enchantment
 cost: {3}{B}{B}
 > Whenever a creature you control deals combat damage to a player, that player discards a card.
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Locthwain Lancer
 face: Locthwain Lancer
@@ -582,8 +582,8 @@ type: Creature — Merfolk Wizard
 cost: {1}{U}
 > When this creature enters, draw a card, then discard a card.
 > {1}{U}, Exile this card from your graveyard: Draw a card, then discard a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "U"])), Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } })], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "U"])), Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } })], effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Mistral Charger
 face: Mistral Charger
@@ -1066,7 +1066,7 @@ cost: {3}{B}
 > Other Zombies you control get +1/+1.
 > {2}{B}, {T}, Sacrifice a creature: Return a Zombie creature card at random from your graveyard to the battlefield. Activate only during your turn and only if there are at least three Zombie creature cards in your graveyard.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
-= BROKE at "at" after: {2} {B} , {T} , sacrifice a creature : return a zombie creature card
+= BROKE at "at" after: {2} {B} , {T} , sacrifice a creature : return a zombie creature card at random from your graveyard to the battlefield . activate only during your turn and only if there are
 
 ## Tomb of Horrors Adventurer
 face: Tomb of Horrors Adventurer

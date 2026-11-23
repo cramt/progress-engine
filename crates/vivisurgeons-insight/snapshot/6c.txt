@@ -33,7 +33,7 @@ cost: {3}{B}
 > When this Aura enters, target opponent discards two cards.
 > Enchanted creature has lifelink.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: TargetOpponent, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }])
 
 ## Augury Owl
@@ -803,7 +803,7 @@ cost: {3}{B}
 > Whenever an opponent discards a card, that player loses 2 life.
 > Raid — At the beginning of your end step, if you attacked this turn, target opponent discards a card.
 = Triggered { trigger: When(Discards { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), effect: [LoseLife { who: That, n: N(2) }], limits: [] }
-= Labelled { label: "raid", ability: Triggered { trigger: InterveningIf(At(EndStep(Yours)), YouAttackedThisTurn), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] } }
+= Labelled { label: "raid", ability: Triggered { trigger: InterveningIf(At(EndStep(Yours)), YouAttackedThisTurn), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] } }
 
 ## Rat Out
 face: Rat Out
@@ -893,7 +893,7 @@ type: Enchantment
 cost: {1}{R}
 > Unreliable Visions — At the beginning of your first main phase, discard a card. If you do, draw a card.
 > Undying Vengeance — Whenever you play a land or cast a spell from anywhere other than your hand, this enchantment deals 1 damage to each opponent.
-= Labelled { label: "unreliable visions", ability: Triggered { trigger: At(PrecombatMain(Yours)), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] } }
+= Labelled { label: "unreliable visions", ability: Triggered { trigger: At(PrecombatMain(Yours)), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] } }
 = Labelled { label: "undying vengeance", ability: Triggered { trigger: When(Or([PlaysLand(You), Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(You)))], or: None } } }])), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }], limits: [] } }
 
 ## Shimmerwilds Growth

@@ -210,7 +210,7 @@ cost: {5}{B}
 > Deathtouch
 > When this creature enters, each opponent discards a card. For each opponent who can't, you gain 4 life.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [WhoCant], or: None } }, then: [GainLife { who: You, n: N(4) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [WhoCant], or: None } }, then: [GainLife { who: You, n: N(4) }] }], limits: [] }
 
 ## Cryptbreaker
 face: Cryptbreaker
@@ -307,7 +307,7 @@ cost: {1}{B}
 > Ninjutsu {1}{B} ({1}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)
 > Whenever this creature deals combat damage to a player, you may discard a creature card. When you do, destroy target creature or planeswalker that player controls.
 = Keywords([Keyword { name: "ninjutsu", param: Some(Cost([Mana(Mana(["1", "B"]))])) }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, random: false }] }, WhenYouDo([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(That)], or: None } }, no_regen: false }])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } } }] }, WhenYouDo([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(That)], or: None } }, no_regen: false }])], limits: [] }
 
 ## Duct Crawler
 face: Duct Crawler
@@ -411,7 +411,7 @@ face: Frightful Delusion
 type: Instant
 cost: {2}{U}
 > Counter target spell unless its controller pays {1}. That player discards a card.
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], ability: Spell([Counter { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["1"]))])) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]) }
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], ability: Spell([Counter { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["1"]))])) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]) }
 
 ## Fruit of the First Tree
 face: Fruit of the First Tree
@@ -453,7 +453,7 @@ type: Legendary Land
 > {T}: Add {C}.
 > {2}, {T}: Each player draws a card, then discards a card.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: Each, n: N(1) }, Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Draw { who: Each, n: N(1) }, Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Hargilde, Kindly Runechanter
 face: Hargilde, Kindly Runechanter
@@ -776,7 +776,7 @@ cost: {3}{B}
 > When this creature enters, each opponent discards a card. For each opponent who can't, you draw a card.
 = Keywords([Keyword { name: "affinity", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [WhoCant], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [WhoCant], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Retaliation
 face: Retaliation

@@ -1038,7 +1038,7 @@ face: Stormscale Anarch
 type: Creature — Lizard Shaman
 cost: {2}{R}{R}
 > {2}{R}, Discard a card at random: This creature deals 2 damage to any target. If the discarded card was multicolored, this creature deals 4 damage instead.
-= Let { bind: [/* discarded */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], ability: Activated { cost: [Mana(Mana(["2", "R"])), DiscardAtRandom(Objects { quant: Introduced(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, Instead { cond: Past(Is { what: Objects { quant: Bound(0) /* discarded */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, filter: Filter { alts: [[Color(Multicolored)]], kind: None, posts: [], or: None } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Same] }] }], limits: [] } }
+= Let { bind: [/* discarded */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } }], ability: Activated { cost: [Mana(Mana(["2", "R"])), Discard(Objects { quant: Introduced(0) /* discarded */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, Instead { cond: Past(Is { what: Objects { quant: Bound(0) /* discarded */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }, filter: Filter { alts: [[Color(Multicolored)]], kind: None, posts: [], or: None } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Same] }] }], limits: [] } }
 
 ## Strategic Betrayal
 face: Strategic Betrayal
@@ -1133,7 +1133,7 @@ face: Traumatic Critique
 type: Instant
 cost: {X}{U}{R}
 > Traumatic Critique deals X damage to any target. Draw two cards, then discard a card.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Twilight Drover
 face: Twilight Drover

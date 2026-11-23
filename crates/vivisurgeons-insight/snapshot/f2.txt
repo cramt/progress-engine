@@ -228,7 +228,7 @@ cost: {1}{U}
 > When this Class becomes level 2, return up to two target artifact cards from your graveyard to your hand.
 > {4}{U}: Level 3
 > At the beginning of combat on your turn, put three +1/+1 counters on target artifact you control. If it isn't a creature, it becomes a 0/0 Robot creature in addition to its other types.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: You, n: N(2) }, Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: You, n: N(2) }, Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["1", "U"]))], effect: [ClassLevel(2)], limits: [] }
 = Triggered { trigger: When(BecomesLevel { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: 2 }), effect: [Move { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 = Activated { cost: [Mana(Mana(["4", "U"]))], effect: [ClassLevel(3)], limits: [] }
@@ -309,7 +309,7 @@ cost: {3}{B}
 > When this creature enters, target opponent discards a card.
 > Whenever an opponent discards a card, that player loses 2 life.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(Discards { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), effect: [LoseLife { who: That, n: N(2) }], limits: [] }
 
 ## Firebolt
@@ -450,7 +450,7 @@ cost: {U}{R}
 > • Counter target noncreature spell unless its controller pays {2}.
 > • Izzet Charm deals 2 damage to target creature.
 > • Draw two cards, then discard two cards.
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } }], ability: Spell([Modal { choose: One, modes: [[Counter { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["2"]))])) }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }]) }
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } }], ability: Spell([Modal { choose: One, modes: [[Counter { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["2"]))])) }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]] }]) }
 
 ## Kalonian Hydra
 face: Kalonian Hydra

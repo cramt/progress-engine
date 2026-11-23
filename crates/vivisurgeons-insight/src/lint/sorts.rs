@@ -693,11 +693,9 @@ fn event(e: &Event, out: &mut Vec<(*const Objects, To)>) {
 /// (`OneOf`) says nothing itself: the walk visits each of them.
 fn cost(c: &Cost) -> Option<(&Objects, To)> {
     match c {
-        Cost::Sacrifice(o)
-        | Cost::Discard(o)
-        | Cost::Exile(o)
-        | Cost::ReturnToHand(o)
-        | Cost::DiscardAtRandom(o) => Some((o, To::Off)),
+        Cost::Sacrifice(o) | Cost::Discard(o) | Cost::Exile(o) | Cost::ReturnToHand(o) => {
+            Some((o, To::Off))
+        }
         Cost::Mana(_)
         | Cost::AmountOfMana(_)
         | Cost::Tap

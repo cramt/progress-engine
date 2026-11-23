@@ -141,7 +141,7 @@ face: Carnage
 type: Sorcery
 cost: {2}{B}{R}
 > Carnage deals 3 damage to target opponent. That player discards two cards.
-= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Player(TargetOpponent)] }, Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Player(TargetOpponent)] }, Discard { who: That, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 
 ## Casting of Bones
 face: Casting of Bones
@@ -150,7 +150,7 @@ cost: {2}{B}
 > Enchant creature
 > When enchanted creature dies, draw three cards, then discard one of them.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Triggered { trigger: When(Dies(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Draw { who: You, n: N(3) }, Discard { who: You, what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }] }], limits: [] }
 
 ## Colossal Heroics
 face: Colossal Heroics
@@ -211,7 +211,7 @@ face: Despise
 type: Sorcery
 cost: {B}
 > Target opponent reveals their hand. You choose a creature or planeswalker card from it. That player discards that card.
-= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Detective of the Month
 face: Detective of the Month
@@ -337,7 +337,7 @@ cost: {R}{G}
 > Whenever you attack with three or more creatures, you may discard a card at random. If you do, draw two cards.
 = Keywords([Keyword { name: "haste", param: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("satyr")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "haste", param: None }], per: None }])
-= Triggered { trigger: When(AttacksWith { who: You, what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, at: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
+= Triggered { trigger: When(AttacksWith { who: You, what: Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, at: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
 
 ## Ghost Quarter
 face: Ghost Quarter
@@ -402,7 +402,7 @@ cost: {2}{B}
 > Defender
 > {3}{B}, {T}: Target opponent loses 2 life, then reveals a card at random from their hand.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "random" after: {3} {B} , {T} : target opponent loses 2 life , then reveals a card at
+= Activated { cost: [Mana(Mana(["3", "B"])), Tap], effect: [LoseLife { who: TargetOpponent, n: N(2) }, Reveal { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(That))], or: None } } }], limits: [] }
 
 ## Hoofprints of the Stag
 face: Hoofprints of the Stag

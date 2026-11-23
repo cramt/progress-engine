@@ -103,7 +103,7 @@ face: Cabal Shrine
 type: Enchantment
 cost: {1}{B}{B}
 > Whenever a player casts a spell, that player discards X cards, where X is the number of cards in all graveyards with the same name as that spell.
-= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], ability: Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Where { then: [Discard { who: That, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(Each)), SameNameAs(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })], or: None } }) }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], ability: Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Where { then: [Discard { who: That, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(Each)), SameNameAs(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })], or: None } }) }], limits: [] } }
 
 ## Caller of the Claw
 face: Caller of the Claw
@@ -204,7 +204,7 @@ cost: {1}{U}
 > {2}{U}: This creature can't be blocked this turn.
 > Whenever this creature deals combat damage to a player, you may draw a card. If you do, discard a card.
 = Activated { cost: [Mana(Mana(["2", "U"]))], effect: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])], limits: [] }
 
 ## Darksteel Forge
 face: Darksteel Forge
@@ -560,7 +560,7 @@ face: Make a Wish
 type: Sorcery
 cost: {3}{G}
 > Return two cards at random from your graveyard to your hand.
-= BROKE at "graveyard" after: return two cards at random from your
+= Spell([Move { what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])
 
 ## Master Pakku
 face: Master Pakku
@@ -814,7 +814,7 @@ type: Legendary Creature — Mutant Villain
 cost: {2}{B/R}
 > At the beginning of your first main phase, you may discard a card. When you do, target creature can't block this turn.
 > Sonic Blast — Whenever a creature an opponent controls dies, Shriek deals 1 damage to that player.
-= Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, WhenYouDo([Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBlock, dur: ThisTurn }])], limits: [] }
+= Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, WhenYouDo([Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBlock, dur: ThisTurn }])], limits: [] }
 = Labelled { label: "sonic blast", ability: Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(That)] }], limits: [] } }
 
 ## Spark Rupture
@@ -851,7 +851,7 @@ face: Splitskin Doll
 type: Artifact Creature — Toy
 cost: {1}{W}
 > When this creature enters, draw a card. Then discard a card unless you control another creature with power 2 or less.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, If { order: Trailing, cond: Not(YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(2) })], or: None } })), then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, If { order: Trailing, cond: Not(YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(2) })], or: None } })), then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] }
 
 ## Starry-Eyed Skyrider
 face: Starry-Eyed Skyrider
@@ -975,7 +975,7 @@ face: Vodalian Hypnotist
 type: Creature — Merfolk Wizard
 cost: {1}{U}
 > {2}{B}, {T}: Target player discards a card. Activate only as a sorcery.
-= Activated { cost: [Mana(Mana(["2", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["2", "B"])), Tap], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Voltage Surge
 face: Voltage Surge
@@ -1019,7 +1019,7 @@ type: Instant — Lesson
 cost: {4}{U}{U}
 > Target player draws two cards, then discards a card.
 > Airbend up to two target creatures. (To airbend a creature, exile it. While it's exiled, its owner may cast it for {2} rather than its mana cost.)
-= Spell([Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([Draw { who: Target, n: N(2) }, Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }])
 = Spell([ActionOn { who: You, name: "airbend", what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }])
 
 ## Wild Jhovall

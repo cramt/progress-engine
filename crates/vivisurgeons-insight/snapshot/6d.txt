@@ -401,7 +401,7 @@ face: Magus of the Bazaar
 type: Creature — Human Wizard
 cost: {1}{U}
 > {T}: Draw two cards, then discard three cards.
-= Activated { cost: [Tap], effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Activated { cost: [Tap], effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Make Mischief
 face: Make Mischief
@@ -444,7 +444,7 @@ cost: {1}{B}{R}
 = Keywords([Keyword { name: "first strike", param: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("minotaur")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }])
 = Static([AsLongAs { order: Leading, cond: CardsInHandAtMost(1), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("minotaur")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Omen of the Hunt
 face: Omen of the Hunt
@@ -498,7 +498,7 @@ cost: {1}{B}{B}
 > −2: Return target creature card with mana value 3 or less from your graveyard to the battlefield.
 > −7: Flip five coins. Target opponent skips their next X turns, where X is the number of coins that came up heads.
 = Loyalty { change: N(1), effect: [Surveil(N(2))] }
-= Loyalty { change: N(-1), effect: [Discard { who: AnyNumberOfTarget, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
+= Loyalty { change: N(-1), effect: [Discard { who: AnyNumberOfTarget, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }
 = Loyalty { change: N(-2), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }
 = BROKE at "five" after: N(-7) : flip
 

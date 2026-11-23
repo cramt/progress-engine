@@ -797,7 +797,7 @@ cost: {2}{B}{B}
 > • Each player loses 1 life and draws a card.
 > • Each player sacrifices a creature of their choice.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: AnyNumber, modes: [[Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [LoseLife { who: Each, n: N(1) }, Draw { who: Each, n: N(1) }], [Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }]] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modal { choose: AnyNumber, modes: [[Discard { who: Each, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [LoseLife { who: Each, n: N(1) }, Draw { who: Each, n: N(1) }], [Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }]] }], limits: [] }
 
 ## Reef Worm
 face: Reef Worm
@@ -1040,7 +1040,7 @@ cost: {5}
 > 10—19 | Draw two cards.
 > 20 | Put a creature card from any graveyard onto the battlefield under your control. When that creature dies, its owner loses the game.
 = BROKE at "the" after: {2} , {T} : roll a d20 and subtract
-= BROKE at "graveyard" after: 1 — 9 | return a card at random from your
+= DieRow { from: 1, to: Some(9), effect: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }
 = DieRow { from: 10, to: Some(19), effect: [Draw { who: You, n: N(2) }] }
 = BROKE at "onto" after: 20 | put a creature card from any graveyard
 
@@ -1051,7 +1051,7 @@ cost: {2}{B}{G}{U}
 > Thranduil has all activated abilities of all Elf cards in your graveyard.
 > Whenever another legendary Elf you control enters, draw two cards, then discard a card.
 = Static([HasAbilitiesOf { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Activated, of: Objects { quant: All, filter: Filter { alts: [[Subtype("elf")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } } }])
-= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Supertype("legendary"), Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Supertype("legendary"), Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Time Sieve
 face: Time Sieve

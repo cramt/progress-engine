@@ -239,7 +239,7 @@ face: Divest
 type: Sorcery
 cost: {B}
 > Target player reveals their hand. You choose an artifact or creature card from it. That player discards that card.
-= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([RevealHand(Target), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [FromHand(Target)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Doc Ock's Henchmen
 face: Doc Ock's Henchmen
@@ -428,7 +428,7 @@ cost: {1}{B}{B}
 > Flying
 > Whenever this creature deals combat damage to a player, you may pay {X}. If you do, that player reveals X cards from their hand and you choose one of them. That player discards that card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["X"]))] }] }, With { bind: [/* revealed */ Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }, /* chosen */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [IfYouDo([Reveal { who: That, what: Objects { quant: Introduced(1) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))]), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["X"]))] }] }, With { bind: [/* revealed */ Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }, /* chosen */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [IfYouDo([Reveal { who: That, what: Objects { quant: Introduced(1) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))]), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [] }
 
 ## Horned Loch-Whale // Lagoon Breach
 face: Horned Loch-Whale
@@ -874,7 +874,7 @@ face: Sink into Takenuma
 type: Sorcery — Arcane
 cost: {3}{B}
 > Sweep — Return any number of Swamps you control to their owner's hand. Target player discards a card for each Swamp returned this way.
-= Labelled { label: "sweep", ability: Spell([Move { what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Marked(Returned)], or: None } }, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }]) }
+= Labelled { label: "sweep", ability: Spell([Move { what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Controller(You)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [Marked(Returned)], or: None } }, then: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }]) }
 
 ## Skatewing Spy
 face: Skatewing Spy
@@ -921,7 +921,7 @@ cost: {2}{R}
 > Choose one or both —
 > • Target player discards any number of cards, then draws that many cards.
 > • Steal the Show deals damage equal to the number of instant and sorcery cards in your graveyard to target creature or planeswalker.
-= Spell([Modal { choose: OneOrBoth, modes: [[Discard { who: Target, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: That, n: ThatMany }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }]] }])
+= Spell([Modal { choose: OneOrBoth, modes: [[Discard { who: Target, what: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: That, n: ThatMany }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } })] }]] }])
 
 ## Stingerquill Annex
 face: Stingerquill Annex
@@ -1015,7 +1015,7 @@ cost: {4}{B}{B}
 > Whenever The Haunt of Hightower attacks, defending player discards a card.
 > Whenever a card is put into an opponent's graveyard from anywhere, put a +1/+1 counter on The Haunt of Hightower.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "lifelink", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: When(PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, to: Graveyard(AnOpponent), from: Anywhere }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## The Master, Formed Anew

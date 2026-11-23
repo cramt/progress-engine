@@ -688,8 +688,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let who = subject_player(p);
             p.verb("discard")?;
             let what = objects(p)?;
-            let random = p.attempt(|p| p.words("at random")).is_some();
-            Some(Effect::Discard { who, what, random })
+            Some(Effect::Discard { who, what })
         },
         // damage
         |p| {

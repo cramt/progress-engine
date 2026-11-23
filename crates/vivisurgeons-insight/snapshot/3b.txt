@@ -343,7 +343,7 @@ face: Haunting Hymn
 type: Instant
 cost: {4}{B}{B}
 > Target player discards two cards. If you cast this spell during your main phase, that player discards four cards instead.
-= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Instead { cond: CastDuring(Main(Yours)), then: [Discard { who: That, what: Objects { quant: N(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }])
+= Spell([Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Instead { cond: CastDuring(Main(Yours)), then: [Discard { who: That, what: Objects { quant: N(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])
 
 ## Herald of the Host
 face: Herald of the Host
@@ -556,7 +556,7 @@ cost: {1}{B}
 > When you sacrifice this Aura, target player discards two cards.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Let { bind: [/* trigger */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Attacks(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] } }
-= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Ordeal of Purphoros
 face: Ordeal of Purphoros
@@ -944,7 +944,7 @@ face: Vodalian Merchant
 type: Creature — Merfolk
 cost: {1}{U}
 > When this creature enters, draw a card, then discard a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Wand of Wonder
 face: Wand of Wonder

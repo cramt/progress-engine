@@ -196,7 +196,7 @@ cost: {1}{U}{B}
 > Choose one —
 > • Target player draws two cards.
 > • Target player discards two cards.
-= Spell([Modal { choose: One, modes: [[Draw { who: Target, n: N(2) }], [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }]] }])
+= Spell([Modal { choose: One, modes: [[Draw { who: Target, n: N(2) }], [Discard { who: Target, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }]] }])
 
 ## Crab Umbra
 face: Crab Umbra
@@ -559,7 +559,7 @@ cost: {3}{R}{R}
 > • Incendiary Command deals 2 damage to each creature.
 > • Destroy target nonbasic land.
 > • Each player discards all the cards in their hand, then draws that many cards.
-= Spell([Modal { choose: N(2), modes: [[Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [], or: None } }, no_regen: false }], [Discard { who: Each, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }, random: false }, Draw { who: Each, n: ThatMany }]] }])
+= Spell([Modal { choose: N(2), modes: [[Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [], or: None } }, no_regen: false }], [Discard { who: Each, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } } }, Draw { who: Each, n: ThatMany }]] }])
 
 ## Intrepid Outlander
 face: Intrepid Outlander
@@ -678,7 +678,7 @@ face: Mindwhip Sliver
 type: Creature — Sliver
 cost: {2}{B}
 > All Slivers have "{2}, Sacrifice this permanent: Target player discards a card at random. Activate only as a sorcery."
-= Static([HasAbility { what: Objects { quant: All, filter: Filter { alts: [[Subtype("sliver")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["2"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: true }], limits: [SorcerySpeed] } }])
+= Static([HasAbility { what: Objects { quant: All, filter: Filter { alts: [[Subtype("sliver")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["2"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Discard { who: Target, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }], limits: [SorcerySpeed] } }])
 
 ## Mistmoon Griffin
 face: Mistmoon Griffin
@@ -1170,7 +1170,7 @@ cost: {2}{B}{B}
 > Horsemanship (This creature can't be blocked except by creatures with horsemanship.)
 > Whenever this creature deals damage to an opponent, that player discards a card.
 = Keywords([Keyword { name: "horsemanship", param: None }])
-= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(AnOpponent)] }), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Winged Boots
 face: Winged Boots

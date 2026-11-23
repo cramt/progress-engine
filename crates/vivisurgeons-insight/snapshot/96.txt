@@ -469,7 +469,7 @@ cost: {4}{B}
 > {1}, Sacrifice a Spirit: Target opponent reveals their hand. You choose a card from it. That player discards that card. Activate only as a sorcery.
 > Soulshift 4 (When this creature dies, you may return target Spirit card with mana value 4 or less from your graveyard to your hand.)
 = Keywords([Keyword { name: "flying", param: None }])
-= Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [], or: None } })], effect: [RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [], or: None } })], effect: [RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], limits: [SorcerySpeed] }
 = Keywords([Keyword { name: "soulshift", param: Some(N(N(4))) }])
 
 ## Heavy Ballista
@@ -594,7 +594,7 @@ cost: {1}{U}{B}
 > Deathtouch, lifelink
 > Whenever Locke Cole deals combat damage to a player, draw a card, then discard a card.
 = Keywords([Keyword { name: "deathtouch", param: None }, Keyword { name: "lifelink", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Lord of the Accursed
 face: Lord of the Accursed
@@ -950,7 +950,7 @@ cost: {1}{B}
 > {3}{B}, {T}: Each opponent discards a card. Activate only as a sorcery.
 = BROKE at "from" after: whenever an opponent discards a card , exile it
 = Let { bind: [/* it */ Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [NotOwnedBy(You), WithCounter(Some("stash"))], or: None } }], ability: Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [PlayFrom { verb: Play, what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }, SpendAsAnyType([Cast(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })])] }]) }
-= Activated { cost: [Mana(Mana(["3", "B"])), Tap], effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["3", "B"])), Tap], effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Titania's Song
 face: Titania's Song
