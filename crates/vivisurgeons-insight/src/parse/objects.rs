@@ -912,6 +912,16 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         |p| { p.word("with")?; let k = keyword_name(p)?; Some(Post::WithKeyword(k)) },
         |p| { p.word("without")?; let k = keyword_name(p)?; Some(Post::WithoutKeyword(k)) },
+        // "Spells your opponents cast from graveyards or from exile" (Aven
+        // Interrupter): either zone, each said with its "from".
+        |p| {
+            if p.in_value { return None; }
+            p.word("from")?;
+            let a = zone(p)?;
+            p.words("or from")?;
+            let b = zone(p)?;
+            Some(Post::In(Zone::AnyOf(vec![a, b])))
+        },
         // "in graveyards and libraries": any zone of either kind.
         |p| {
             if p.one_of(&["in", "from"])? == "from" && p.in_value { return None; }

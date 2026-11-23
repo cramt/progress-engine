@@ -815,7 +815,7 @@ face: Squee, the Immortal
 type: Legendary Creature — Goblin
 cost: {1}{R}{R}
 > You may cast this card from your graveyard or from exile.
-= BROKE at "from" after: you may cast this card from your graveyard or
+= Static([PlayFrom { verb: Cast, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: AnyOf([Graveyard(You), Exile]) }])
 
 ## Squelch
 face: Squelch

@@ -507,7 +507,7 @@ face: Mister Immortal
 type: Legendary Creature — Mutant Hero
 cost: {1}{G}
 > {2}{G}: Return this card from your graveyard or from exile to the battlefield tapped.
-= BROKE at "from" after: {2} {G} : return this card from your graveyard or
+= Activated { cost: [Mana(Mana(["2", "G"]))], effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(AnyOf([Graveyard(You), Exile]))], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }], limits: [] }
 
 ## Mountain Bandit
 face: Mountain Bandit

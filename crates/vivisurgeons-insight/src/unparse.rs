@@ -422,6 +422,13 @@ mod syn {
 
     /// "with the same mana value as the revealed card" or "with mana value
     /// equal to the revealed card's mana value": one comparison.
+    /// "from your graveyard or from exile" or "from your graveyard or
+    /// exile": a list of zones, the preposition said before each or once
+    /// ([zone-each-from]).
+    pub fn zone_each_from(o: &mut Out, each: Out, once: Out) {
+        alt(o, vec![each, once]);
+    }
+
     pub fn same_stat_as(o: &mut Out, equal_to: Out, same_as: Out) {
         alt(o, vec![equal_to, same_as]);
     }
@@ -5424,14 +5431,27 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             syn::on_from(o);
             o.w("the battlefield");
         }
+        Post::In(z @ Zone::AnyOf(v)) => {
+            let each = out(|o| {
+                for (i, x) in v.iter().enumerate() {
+                    if i > 0 {
+                        o.w("or");
+                    }
+                    in_or_from(o, x);
+                    zone(o, &Zone::AnyOf(vec![x.clone()]));
+                }
+            });
+            let once = out(|o| {
+                in_or_from(o, z);
+                zone(o, z);
+            });
+            syn::zone_each_from(o, each, once);
+        }
         Post::In(z) => {
             in_or_from(o, z);
             zone(o, z);
         }
-        Post::CastFrom(z) => {
-            o.w("from");
-            zone(o, z);
-        }
+        Post::CastFrom(z) => from_zone(o, z),
         Post::With(c) => {
             syn::each_with(o);
             compare_words(o, c);
@@ -14585,8 +14605,7 @@ fn static_other(o: &mut Out, s: &Static) {
                 o.w("you may cast");
                 objects(o, what);
                 if let Some(z) = z {
-                    o.w("from");
-                    zone(o, z);
+                    from_zone(o, z);
                 }
                 if c.is_empty() {
                     o.w("without paying");
@@ -15115,13 +15134,36 @@ fn play_from_run(o: &mut Out, ss: &[Static], i: usize) -> Option<usize> {
             objects(o, what);
         }
     }
-    o.w("from");
-    zone(o, z);
+    from_zone(o, z);
     Some(j)
 }
 
 /// "play the top card of your library" (The Lunar Whale): one card from the
 /// top, said with its zone as the parser read it before taking the zone out.
+/// "from your graveyard", "from graveyards or from exile"
+/// ([zone-each-from]).
+fn from_zone(o: &mut Out, z: &Zone) {
+    let Zone::AnyOf(v) = z else {
+        o.w("from");
+        zone(o, z);
+        return;
+    };
+    let each = out(|o| {
+        for (i, x) in v.iter().enumerate() {
+            if i > 0 {
+                o.w("or");
+            }
+            o.w("from");
+            zone(o, &Zone::AnyOf(vec![x.clone()]));
+        }
+    });
+    let once = out(|o| {
+        o.w("from");
+        zone(o, z);
+    });
+    syn::zone_each_from(o, each, once);
+}
+
 fn play_what_from(o: &mut Out, what: &Objects, z: &Zone) {
     if what.quant == Quant::N(Amount::N(1))
         && what.filter.kind == Some(Noun::Card)
@@ -15153,8 +15195,7 @@ fn play_what_from(o: &mut Out, what: &Objects, z: &Zone) {
         }
     }
     objects(o, what);
-    o.w("from");
-    zone(o, z);
+    from_zone(o, z);
 }
 
 fn statics_joined(o: &mut Out, ss: &[Static]) {

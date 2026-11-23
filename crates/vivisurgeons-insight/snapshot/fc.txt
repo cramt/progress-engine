@@ -226,7 +226,7 @@ type: Legendary Creature — Bear Druid
 cost: {G}{U}
 > Spells you cast from your graveyard or from exile cost {2} less to cast.
 > Plotting cards from your hand costs {2} less.
-= BROKE at "from" after: spells you cast from your graveyard or
+= Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(You), CastFrom(AnyOf([Graveyard(You), Exile]))], or: None } }, by: Mana(["2"]), less: true, per: None }])
 = BROKE at "{2}" after: plotting cards from your hand costs
 
 ## Dogged Detective

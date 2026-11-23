@@ -98,7 +98,7 @@ cost: {1}{W}{W}
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
 = Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Exile(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), BecomesPlotted(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] } }
-= BROKE at "from" after: spells your opponents cast from graveyards or
+= Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(EachOpponent), CastFrom(AnyOf([AGraveyard, Exile]))], or: None } }, by: Mana(["2"]), less: false, per: None }])
 
 ## Aven Reedstalker
 face: Aven Reedstalker
