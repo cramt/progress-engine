@@ -3285,6 +3285,7 @@ fn mana_leak_counters_unless_its_controller_pays() {
         cast_as(&mut game, THEM, "Grizzly Bears", None);
         // They pass priority to me with Bears on the stack.
         step(&mut game, Answer::Act(Action::Pass));
+        let leak = in_hand(&game, ME, "Mana Leak").unwrap();
         cast(&mut game, "Mana Leak", Some(vec![Target::Spell(bears)]));
         let Decision::PayUnless {
             player,
@@ -3313,10 +3314,17 @@ fn mana_leak_counters_unless_its_controller_pays() {
             }
             resolve(&mut game);
             assert!(creature(&game, "Grizzly Bears").is_some());
+            assert!(game.countered().is_empty());
         } else {
             step(&mut game, Answer::Pay(Payment::Cancel));
             assert!(game.player(THEM).graveyard().contains(&bears));
             assert!(game.stack().is_empty());
+            // CR 701.6a: the record the replay checks a log's
+            // "counters [Grizzly Bears] with [Mana Leak]" against.
+            assert_eq!(
+                game.countered().iter().copied().collect::<Vec<_>>(),
+                vec![(bears, leak)]
+            );
         }
     }
 }

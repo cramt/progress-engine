@@ -1075,8 +1075,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-23 144 of the 500 replay to
-the end and 56.45% of their lines are followed** (17,870 of 31,659), 3
+Worked card by card from there, **on 2026-11-24 148 of the 500 replay to
+the end and 56.75% of their lines are followed** (17,966 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 151 games have no card the engine refuses before any game (from 21). The
@@ -1284,7 +1284,15 @@ end of turn applies that many times and anything reading an X no cost
 set refuses (CR 118.9, 107.3a, 601.2h: Blazing Shoal and Sickening
 Shoal, whose 7 games go on, two to the end, the rest to Fury of the
 Horde, Shriekmaw's evoke, Geralf's Messenger's undying, Raubahn's ward
-and Wayward Guide-Beast). And
+and Wayward Guide-Beast); a spell countered, which the engine records
+with the card that countered it, the log's "counters [X] with [Y]"
+followed by resolving the stack until a spell of that name has been
+countered by that card, and stopping where it hasn't (CR 701.6a: Mana
+Leak, Spell Snare, Spell Pierce, Archmage's Charm and Disdainful
+Stroke, whose 36 games go on, one to the end and the rest to other
+cards, Malcolm's discard in 3, Cascading Cataracts' mana in 3,
+Snapcaster Mage, Deduce and Swift Response in 2 each; Quest for Pure
+Flame's 4 to Shark Typhoon, Swift Response, Stomp and Malcolm). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

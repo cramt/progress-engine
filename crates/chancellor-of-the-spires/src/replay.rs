@@ -191,6 +191,9 @@ pub enum Divergence {
     Scry { log: usize, engine: usize },
     /// The log's "(X is 12.)" isn't the X the engine's spell has.
     X { log: u32, engine: u32 },
+    /// The log counters a spell the engine let leave the stack otherwise,
+    /// or countered with another card.
+    Countered { card: String },
 }
 
 impl Stop {
@@ -227,7 +230,8 @@ impl Divergence {
             | Divergence::Unpayable { card }
             | Divergence::Targets { card }
             | Divergence::UnloggedTrigger { card }
-            | Divergence::Untriggered { card } => Some(card),
+            | Divergence::Untriggered { card }
+            | Divergence::Countered { card } => Some(card),
             _ => None,
         }
     }
@@ -2142,6 +2146,52 @@ impl Driver<'_> {
                     }
                 }
                 self.did(i, "the counters are on it");
+            }
+            // CR 701.6a: a spell of the name leaves the stack countered, by
+            // the card the line names. What sits above it resolves first,
+            // as the log's lines before this one showed it going on. Two
+            // spells may share the name (Mana Leak on Mana Leak), so it
+            // is the record of what was countered that answers, not one
+            // spell picked beforehand.
+            Counters { spell, with, .. } => {
+                let log::Source::Card(c) = spell else {
+                    return Err(unfollowed(None));
+                };
+                let name = c.name().to_string();
+                // "with Triggered ability from Spellstutter Sprite": the
+                // engine records the permanent's card.
+                let by = match with {
+                    log::Source::Card(w) => w.name().to_string(),
+                    log::Source::Named(n) => {
+                        const FROM: &str = "triggered ability from ";
+                        match n.get(..FROM.len()) {
+                            Some(p) if p.eq_ignore_ascii_case(FROM) => n[FROM.len()..].to_string(),
+                            _ => n.clone(),
+                        }
+                    }
+                };
+                let before = self.game().countered().len();
+                loop {
+                    let game = self.game.as_ref().expect("set up");
+                    let called =
+                        |c: &CardId, n: &str| game.card(*c).is_some_and(|t| t.is_called(n));
+                    if game
+                        .countered()
+                        .iter()
+                        .skip(before)
+                        .any(|(s, w)| called(s, &name) && called(w, &by))
+                    {
+                        break;
+                    }
+                    let there = game.stack().iter().any(
+                        |o| matches!(o, StackObject::Spell { card, .. } if called(card, &name)),
+                    );
+                    if !there {
+                        return Err(Stop::Diverged(Divergence::Countered { card: name }));
+                    }
+                    self.pass()?;
+                }
+                self.did(i, format!("{name} countered by {by} (CR 701.6a)"));
             }
             // CR 608.2b: a spell or ability whose targets are all illegal
             // doesn't resolve; the engine's leaves the stack as it would

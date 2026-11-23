@@ -1961,6 +1961,10 @@ pub struct Game {
     /// "counter that spell or ability unless that player pays", the
     /// spell or ability in its one slot, the player its event's.
     wards: Vector<(Program, Target)>,
+    /// Every spell countered this game (CR 701.6a), with the card whose
+    /// spell or ability countered it, which the replay checks a log's
+    /// "counters [X] with [Y]" against.
+    countered: Vector<(CardId, CardId)>,
     /// The card whose spell or ability most recently finished resolving.
     last_resolved: Option<CardId>,
     /// The permanents one instruction has put onto the battlefield so far,
@@ -2218,6 +2222,7 @@ impl Game {
             shields: Vec::new(),
             delayed: Vector::new(),
             wards: Vector::new(),
+            countered: Vector::new(),
             last_known: OrdMap::new(),
             bottomed: 0,
             left_this_turn: Vector::new(),
@@ -2720,6 +2725,12 @@ impl Game {
     /// card's face's, any other card's own.
     pub fn face_name(&self, c: CardId) -> Option<&str> {
         self.known(c).map(|k| k.text.name.as_str())
+    }
+
+    /// Every spell countered this game, oldest first, each with the card
+    /// whose spell or ability countered it (CR 701.6a).
+    pub fn countered(&self) -> &Vector<(CardId, CardId)> {
+        &self.countered
     }
 
     /// How many libraries an instruction has shuffled this turn.
@@ -6616,6 +6627,7 @@ impl Game {
                         if let Some(k) = on_stack {
                             if let StackObject::Spell { via, .. } = self.stack.remove(k) {
                                 self.off_the_stack(c, via, None);
+                                self.countered.push_back((c, at.what.card()));
                             }
                         }
                     }
