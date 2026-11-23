@@ -306,7 +306,7 @@ face: Diviner's Lockbox
 type: Artifact
 cost: {4}
 > {1}, {T}: Choose a card name, then reveal the top card of your library. If that card has the chosen name, sacrifice this artifact and draw three cards. Activate only as a sorcery.
-= BROKE at "chosen" after: {1} , {T} : choose a card name , then reveal the top card of your library . if that card has the
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Choose(CardName), With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [WithChosenName], or: None } }, then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(3) }] }] }], limits: [SorcerySpeed] }
 
 ## Dryad's Revival
 face: Dryad's Revival

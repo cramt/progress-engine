@@ -1108,7 +1108,7 @@ face: Vexing Arcanix
 type: Artifact
 cost: {4}
 > {3}, {T}: Target player chooses a card name, then reveals the top card of their library. If that card has the chosen name, that player puts it into their hand. Otherwise, they put it into their graveyard and this artifact deals 2 damage to them.
-= BROKE at "chosen" after: {3} , {T} : target player chooses a card name , then reveals the top card of their library . if that card has the
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Performed { by: Target, effect: Choose(CardName) }, With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [RevealTop { who: That, whose: That, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [WithChosenName], or: None } }, then: [Performed { by: That, effect: Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }] }, Otherwise([Performed { by: That, effect: Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(That), tapped: false, transformed: false, under: None, order: None } }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Player(That)] }])] }], limits: [] }
 
 ## Vivien Reid
 face: Vivien Reid

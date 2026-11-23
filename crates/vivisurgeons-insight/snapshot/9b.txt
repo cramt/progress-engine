@@ -587,7 +587,7 @@ face: Magus of the Scroll
 type: Creature — Human Wizard
 cost: {R}
 > {3}, {T}: Choose a card name, then reveal a card at random from your hand. If that card has the chosen name, this creature deals 2 damage to any target.
-= BROKE at "chosen" after: {3} , {T} : choose a card name , then reveal a card at random from your hand . if that card has the
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Choose(CardName), With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(You))], or: None } }], then: [Reveal { who: You, what: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [WithChosenName], or: None } }, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }], limits: [] }
 
 ## Malach of the Dawn
 face: Malach of the Dawn

@@ -12259,6 +12259,18 @@ fn condition_said(o: &mut Out, c: &Condition) {
             );
             o.w("tapped");
         }
+        // "that card has the chosen name" ([has-chosen-name]).
+        Condition::Is { what, filter: f }
+            if !is_bare_antecedent(what)
+                && f.alts.is_empty()
+                && f.kind.is_none()
+                && f.posts == [Post::WithChosenName]
+                && f.or.is_none() =>
+        {
+            objects(o, what);
+            o.verb("have", obj_num(what));
+            o.w("the chosen name");
+        }
         Condition::Is { what, filter: f } => {
             pronoun_or(
                 o,

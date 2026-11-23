@@ -752,6 +752,12 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     let c = Condition::SameName { what: what.clone(), as_any_of };
                     Some(if not { Condition::Not(Box::new(c)) } else { c })
                 },
+                // "If that card has the chosen name" (Cursed Scroll): it is a
+                // card with that name ([has-chosen-name]).
+                |p| {
+                    p.words("has the chosen name")?;
+                    Some(Condition::Is { what: what.clone(), filter: Filter { posts: vec![Post::WithChosenName], ..Filter::default() } })
+                },
                 |p| { p.words("was cast from")?; let zone = zone(p)?; Some(Condition::CastFrom { what: what.clone(), zone }) },
                 |p| { p.words("wasn't cast from")?; let zone = zone(p)?; Some(Condition::Not(Box::new(Condition::CastFrom { what: what.clone(), zone }))) },
                 |p| p.words("wasn't cast").map(|_| Condition::Not(Box::new(Condition::WasCast(what.clone())))),
