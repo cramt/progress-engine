@@ -5359,11 +5359,16 @@ impl Driver<'_> {
         // companion's put into a hand (CR 702.139c), a card's in a
         // graveyard.
         let game = self.game.as_ref().expect("set up");
+        // A companion's is never a permanent's, whatever the stack holds.
+        let companion = text
+            .rules_text()
+            .lines()
+            .any(|l| l.starts_with("Companion"));
         if !game
             .permanents()
             .values()
             .any(|perm| game.card(perm.card).is_some_and(|t| t.name == text.name))
-            && game.stack().is_empty()
+            && (game.stack().is_empty() || companion)
         {
             return Err(Stop::Unfollowed {
                 event: "Activates of a card not on the battlefield".into(),
