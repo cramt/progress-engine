@@ -3638,6 +3638,11 @@ pub enum Event {
         who: Player,
         action: String,
     },
+    /// "Whenever you commit a crime": `who` casts a spell, activates an
+    /// ability or puts a triggered ability on the stack that targets an
+    /// opponent, anything an opponent controls, or a card in an opponent's
+    /// graveyard (CR 700.13).
+    CommitsCrime(Player),
     /// "this creature transforms into ~".
     TransformsInto {
         what: Objects,

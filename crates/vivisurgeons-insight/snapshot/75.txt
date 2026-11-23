@@ -64,7 +64,7 @@ cost: {1}{B}{R}
 > During your turn, outlaws you control have first strike. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are outlaws.)
 > Whenever you commit a crime, create a 1/1 red Mercenary creature token with "{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery." This ability triggers only once each turn.
 = BROKE at "you" after: during your turn , outlaws
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["mercenary", "creature"], keywords: [], abilities: [Activated { cost: [Tap], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [SorcerySpeed] }], named: None, attacking: None } }], limits: [OncePerTurn] }
 
 ## Aven Wind Mage
 face: Aven Wind Mage

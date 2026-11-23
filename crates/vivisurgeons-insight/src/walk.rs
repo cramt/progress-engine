@@ -1932,6 +1932,9 @@ impl Walk for Event {
             Event::Performs { who, .. } => {
                 Walk::walk(who, v);
             }
+            Event::CommitsCrime(f0) => {
+                Walk::walk(f0, v);
+            }
             Event::TransformsInto { what, into } => {
                 Walk::walk(what, v);
                 Walk::walk(into, v);

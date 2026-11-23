@@ -393,7 +393,7 @@ cost: {2}{G}
 > Reach
 > Whenever you commit a crime, look at the top five cards of your library. You may put a land card from among them onto the battlefield tapped. Put the rest on the bottom of your library in a random order. This ability triggers only once each turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
 = Keywords([Keyword { name: "reach", param: None }])
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [LookAtTop { who: You, whose: You, n: N(5) }, With { bind: [/* moved */ Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [May { who: You, then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }, Move { what: Objects { quant: Rest { of: 0 } /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }] }] }], limits: [OncePerTurn] }
 
 ## Fugitive Wizard
 face: Fugitive Wizard

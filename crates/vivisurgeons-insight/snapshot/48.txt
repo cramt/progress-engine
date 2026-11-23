@@ -539,7 +539,7 @@ cost: {1}{U}{B}
 > When this enchantment enters, each opponent loses 1 life, you gain 1 life, and you draw a card.
 > Whenever you commit a crime, you may return this enchantment to its owner's hand. (It returns only from the battlefield. Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [LoseLife { who: EachOpponent, n: N(1) }, GainLife { who: You, n: N(1) }, Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [May { who: You, then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Irencrag Feat
 face: Irencrag Feat

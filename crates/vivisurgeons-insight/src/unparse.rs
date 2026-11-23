@@ -11374,6 +11374,11 @@ fn event(o: &mut Out, e: &Event) {
             o.verb("become", player_num(who));
             o.w("the monarch");
         }
+        Event::CommitsCrime(who) => {
+            player(o, who);
+            o.verb("commit", player_num(who));
+            o.w("a crime");
+        }
         Event::Crews { by, what, saddle } => {
             obj_subj(o, by, if *saddle { "saddle" } else { "crew" });
             objects(o, what);
@@ -11869,6 +11874,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
             ..
         } => Subject::Player(who),
         Event::BecomesMonarch(p)
+        | Event::CommitsCrime(p)
         | Event::GainsLife(p)
         | Event::RollsDice { who: p, .. }
         | Event::LosesLife(p)

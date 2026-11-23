@@ -845,7 +845,7 @@ cost: {2}{B}
 > Deathtouch
 > Whenever you commit a crime, target creature you control gains your choice of menace or lifelink until end of turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [GainsChoiceOf { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, keywords: [Keyword { name: "menace", param: None }, Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Ravaging Horde
 face: Ravaging Horde

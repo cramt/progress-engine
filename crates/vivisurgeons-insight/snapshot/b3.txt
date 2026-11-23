@@ -343,7 +343,7 @@ cost: {1}{G}
 > {T}: Add one mana of any color.
 > Whenever you commit a crime, untap this creature. This ability triggers only once each turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [OncePerTurn] }
 
 ## Haunted Hellride
 face: Haunted Hellride

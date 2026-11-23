@@ -520,7 +520,7 @@ face: Marchesa, Dealer of Death
 type: Legendary Creature — Human Rogue
 cost: {U}{B}{R}
 > Whenever you commit a crime, you may pay {1}. If you do, look at the top two cards of your library. Put one of them into your hand and the other into your graveyard. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1"]))] }] }, With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [IfYouDo([LookAtTop { who: You, whose: You, n: N(2) }]), With { bind: [/* moved */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest { of: 0 } /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }] }] }], limits: [] }
 
 ## Master Splicer
 face: Master Splicer

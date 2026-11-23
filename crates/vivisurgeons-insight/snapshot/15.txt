@@ -71,7 +71,7 @@ cost: {3}
 > Whenever you commit a crime, put a loot counter on this artifact. This ability triggers only once each turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
 > {T}: Add one mana of any color.
 > {2}, {T}, Remove two loot counters from this artifact: Draw a card.
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [PutCounters { n: N(1), kind: "loot", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [OncePerTurn] }
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 = Activated { cost: [Mana(Mana(["2"])), Tap, RemoveCounters { n: N(2), kind: "loot", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Draw { who: You, n: N(1) }], limits: [] }
 

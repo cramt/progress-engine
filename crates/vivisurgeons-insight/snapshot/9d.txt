@@ -449,7 +449,7 @@ cost: {3}{B}{B}
 > Whenever you commit a crime, create two tapped 2/2 blue and black Zombie Rogue creature tokens. This ability triggers only once each turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
 = Keywords([Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"])), PayLife(N(2))])) }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("skeleton")], [Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "menace", param: None }], per: None }])
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [Create { who: You, n: N(2), token: Token { tapped: true, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Blue, Black], types: ["zombie", "rogue", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [OncePerTurn] }
 
 ## Gladewalker Ritualist
 face: Gladewalker Ritualist

@@ -671,7 +671,7 @@ face: Overzealous Muscle
 type: Creature — Ogre Mercenary
 cost: {4}{B}
 > Whenever you commit a crime during your turn, this creature gains indestructible until end of turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime. Damage and effects that say "destroy" don't destroy a creature with indestructible.)
-= BROKE at "turn" after: whenever you commit a crime during your
+= Triggered { trigger: When(While { event: CommitsCrime(You), cond: ItsYourTurn }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Paragon of Modernity
 face: Paragon of Modernity

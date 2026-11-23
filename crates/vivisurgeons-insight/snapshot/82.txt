@@ -701,7 +701,7 @@ type: Legendary Creature — Dwarf Berserker
 cost: {1}{R}
 > Whenever you commit a crime, create a tapped Treasure token. This ability triggers only once each turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
 > Sacrifice three Treasures: Create a 4/4 red Scorpion Dragon creature token with flying and haste. Activate only as a sorcery.
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [Create { who: You, n: N(1), token: Token { tapped: true, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [OncePerTurn] }
 = Activated { cost: [Sacrifice(Objects { quant: N(N(3)), filter: Filter { alts: [[Subtype("treasure")]], kind: None, posts: [], or: None } })], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [Red], types: ["scorpion", "dragon", "creature"], keywords: [Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }], abilities: [], named: None, attacking: None } }], limits: [SorcerySpeed] }
 
 ## Mayhem Devil

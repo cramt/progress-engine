@@ -288,7 +288,7 @@ cost: {B}
 > This creature can't block.
 > Whenever you commit a crime, you may pay {B}. If you do, return this card from your graveyard to the battlefield. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["B"]))] }] }, IfYouDo([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }])], limits: [] }
 
 ## Frantic Firebolt
 face: Frantic Firebolt

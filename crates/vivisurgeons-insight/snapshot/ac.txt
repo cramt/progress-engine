@@ -132,7 +132,7 @@ type: Creature — Vampire Rogue
 cost: {1}{B}
 > Whenever you commit a crime, put a +1/+1 counter on this creature. This ability triggers only once each turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
 > {3}{B}: Target opponent loses 1 life and you gain 1 life.
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [OncePerTurn] }
 = Activated { cost: [Mana(Mana(["3", "B"]))], effect: [LoseLife { who: TargetOpponent, n: N(1) }, GainLife { who: You, n: N(1) }], limits: [] }
 
 ## Blur of Blades

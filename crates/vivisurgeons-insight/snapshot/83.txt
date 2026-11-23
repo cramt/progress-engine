@@ -253,7 +253,7 @@ cost: {1}{U}
 > Whenever you commit a crime, you may draw a card. If you do, discard a card. This ability triggers only once each turn.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
 = Static([SetPower { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: CardsDrawnThisTurn(You) }])
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [OncePerTurn] }
 
 ## Emergency Eject
 face: Emergency Eject

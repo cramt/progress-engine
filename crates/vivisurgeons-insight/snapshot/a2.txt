@@ -480,7 +480,7 @@ face: Lazav, Familiar Stranger
 type: Legendary Creature — Shapeshifter
 cost: {1}{U}{B}
 > Whenever you commit a crime, put a +1/+1 counter on Lazav. Then you may exile a card from a graveyard. If a creature card was exiled this way, you may have Lazav become a copy of that card until end of turn. This ability triggers only once each turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, May { who: You, then: [Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } })] }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }], then: [If { order: Leading, cond: DoneThisWay { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Exiled }, then: [May { who: You, then: [BecomesCopy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, dur: UntilEndOfTurn, except: [] }] }] }] }], limits: [OncePerTurn] }
 
 ## Lich's Caress
 face: Lich's Caress

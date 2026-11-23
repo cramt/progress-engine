@@ -637,7 +637,7 @@ cost: {2}{W}
 > This creature enters with two +1/+1 counters on it.
 > Whenever an opponent commits a crime, proliferate. (They commit a crime if they target an opponent, anything an opponent controls, and/or cards in an opponent's graveyard. To proliferate, you choose any number of permanents and/or players, then give each another counter of each kind already there.)
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }])
-= BROKE at "," after: whenever an opponent commits a crime
+= Triggered { trigger: When(CommitsCrime(AnOpponent)), effect: [Action { by: None, name: "proliferate", n: None }], limits: [] }
 
 ## Pelakka Predation // Pelakka Caverns
 face: Pelakka Predation

@@ -1071,7 +1071,7 @@ type: Legendary Creature — Vampire Rogue
 cost: {1}{B}
 > Whenever you commit a crime, put a +1/+1 counter on Vadmir. This ability triggers only once each turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
 > As long as Vadmir has four or more +1/+1 counters on it, it has menace and lifelink.
-= BROKE at "," after: whenever you commit a crime
+= Triggered { trigger: When(CommitsCrime(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [OncePerTurn] }
 = Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(4) }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }, Keyword { name: "lifelink", param: None }], per: None }] }])
 
 ## Vampiric Link
