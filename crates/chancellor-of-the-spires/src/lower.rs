@@ -1738,6 +1738,19 @@ pub enum Effect {
         n: u32,
         into: Slot,
     },
+    /// "Put up to two creature cards with total mana value 6 or less from
+    /// among them": the controller chooses up to `up_to` of the cards
+    /// bound to `from` that `filter` matches, whose mana values add up to
+    /// no more than `total_mana_value` if it is said, bound to `into`;
+    /// `enters` if an instruction after puts them onto the battlefield.
+    ChooseMatching {
+        from: Slot,
+        up_to: u32,
+        filter: CardFilter,
+        total_mana_value: Option<u32>,
+        enters: bool,
+        into: Slot,
+    },
     /// "An opponent separates those cards into two piles": an opponent
     /// of the controller puts each card bound to `from` into one of two
     /// piles (CR 700.3a), the first bound to `into`, the second the rest.
@@ -1761,11 +1774,13 @@ pub enum Effect {
         who: Who,
     },
     /// "Put them back in any order", "the rest on the bottom of your
-    /// library in any order": the controller orders them (CR 401.4).
+    /// library in any order": the controller orders them (CR 401.4), or
+    /// chance does, "in a random order".
     ToLibrary {
         cards: Cards,
         top: bool,
         from: FoundIn,
+        order: Arranged,
     },
     /// "The rest into your graveyard": each card found goes to its
     /// owner's graveyard (CR 400.3), Strategic Planning's two.
@@ -3736,6 +3751,7 @@ impl<'a> Scope<'a> {
                         cards,
                         top: true,
                         from,
+                        order: Arranged::Chosen,
                     },
                     // "Put the card on top of your library": its owner's,
                     // where a card bound for another's library goes (CR
@@ -3744,6 +3760,7 @@ impl<'a> Scope<'a> {
                         cards,
                         top: true,
                         from,
+                        order: Arranged::Chosen,
                     },
                     (i::Zone::Battlefield, None) => Effect::ToBattlefield {
                         who: match &cards {
@@ -3761,6 +3778,17 @@ impl<'a> Scope<'a> {
                             cards,
                             top: false,
                             from,
+                            order: Arranged::Chosen,
+                        }
+                    }
+                    // "The rest on the bottom of your library in a random
+                    // order": chance orders them, not their owner.
+                    (i::Zone::BottomOfLibrary(i::Player::You), Some(i::Order::Random)) => {
+                        Effect::ToLibrary {
+                            cards,
+                            top: false,
+                            from,
+                            order: Arranged::Random,
                         }
                     }
                     (i::Zone::Graveyard(i::Player::You), None) => {
@@ -3995,6 +4023,68 @@ impl<'a> Scope<'a> {
                 let into = self.new_slot();
                 self.among.insert(into, from);
                 out.push(Effect::ChooseAmong { from, n: 1, into });
+                into
+            }
+            // "Put up to two creature cards with total mana value 6 or
+            // less from among them onto the battlefield": up to that many
+            // of the cards found that the filter matches, their mana
+            // values adding up to no more than the total (CR 202.3).
+            [o] if matches!(o.quant, Quant::UpTo(i::Amount::N(_)))
+                && o.filter.kind == Some(i::Noun::Card)
+                && o.filter
+                    .posts
+                    .iter()
+                    .any(|p| matches!(p, Post::FromAmong(_))) =>
+            {
+                let Quant::UpTo(i::Amount::N(up_to)) = o.quant else {
+                    unreachable!("matched")
+                };
+                let mut from = None;
+                let mut total_mana_value = None;
+                for p in &o.filter.posts {
+                    match p {
+                        Post::FromAmong(among) if from.is_none() => {
+                            from = Some(match self.cards(among)? {
+                                Cards::Bound(s) => s,
+                                _ => {
+                                    return Err(
+                                        "up to some from among several kinds of cards".into()
+                                    )
+                                }
+                            })
+                        }
+                        Post::Total(i::Compare {
+                            stat: i::Stat::ManaValue,
+                            op: i::Op::Le,
+                            value: i::Amount::N(k),
+                        }) if total_mana_value.is_none() => total_mana_value = Some(*k),
+                        _ => return Err(format!("up to some cards {}", short(p))),
+                    }
+                }
+                let from = from.expect("matched");
+                // "Up to two cards": any card, which a filter of no
+                // alternatives isn't.
+                let filter = if o.filter.alts.is_empty() {
+                    CardFilter(vec![Filter::default()])
+                } else {
+                    card_filter(&Objects {
+                        quant: Quant::One,
+                        filter: i::Filter {
+                            posts: Vec::new(),
+                            ..o.filter.clone()
+                        },
+                    })?
+                };
+                let into = self.new_slot();
+                self.among.insert(into, from);
+                out.push(Effect::ChooseMatching {
+                    from,
+                    up_to,
+                    filter,
+                    total_mana_value,
+                    enters: moves_onto_battlefield(then),
+                    into,
+                });
                 into
             }
             // "Choose two cards in your hand drawn this turn".
@@ -4723,9 +4813,39 @@ pub struct OtherCosts {
     /// "Sacrifice a creature", "sacrifice two Mountains": that many
     /// permanents the filter matches, of the caster's (CR 701.21a).
     pub sacrifice: Option<(u32, Filter)>,
+    /// What the cost returns to its owner's hand.
+    pub returned: Option<Returned>,
+}
+
+/// Permanents a spell's cost returns to their owner's hand (CR 601.2h).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Returned {
     /// Gush's "return two Islands you control to their owner's hand":
     /// that many permanents the filter matches, of the caster's.
-    pub returned: Option<(u32, Filter)>,
+    Permanents(u32, Filter),
+    /// Sneak's "returning an unblocked creature you control to its
+    /// owner's hand" (CR 702.190a): an attacking creature of the
+    /// caster's that no creature was declared blocking (CR 509.1h).
+    UnblockedCreature,
+}
+
+/// When a card may be cast for an alternative cost.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CastWhen {
+    /// With the timing its type has (CR 117.1a), or flash's.
+    AsItsType,
+    /// Sneak's "any time you could cast an instant during your declare
+    /// blockers step" (CR 702.190a).
+    YourDeclareBlockers,
+}
+
+/// Who orders cards put into a library together.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Arranged {
+    /// Their owner, as they like (CR 401.4).
+    Chosen,
+    /// Chance: "in a random order".
+    Random,
 }
 
 /// Where a card is cast from by an alternative cost.
@@ -4753,6 +4873,7 @@ pub struct Alternative {
     /// Flashback's "if the resulting spell is an instant or sorcery
     /// spell" (CR 702.34a).
     pub instant_or_sorcery: bool,
+    pub when: CastWhen,
 }
 
 /// A cost written as Insight reads it, of the kinds a spell's cost can be
@@ -4770,7 +4891,8 @@ fn spell_cost(cost: &[i::Cost]) -> Result<(crate::mana::ManaCost, OtherCosts), S
                 other.sacrifice = Some(permanents_paid(o)?);
             }
             i::Cost::ReturnToHand(o) if other.returned.is_none() => {
-                other.returned = Some(permanents_paid(o)?);
+                let (n, filter) = permanents_paid(o)?;
+                other.returned = Some(Returned::Permanents(n, filter));
             }
             other => return Err(format!("a spell's cost of {}", short(other))),
         }
@@ -4815,6 +4937,37 @@ pub fn flashback(k: &i::Keyword) -> Option<Result<Alternative, String>> {
         other,
         exiled: true,
         instant_or_sorcery: true,
+        when: CastWhen::AsItsType,
+    }))
+}
+
+/// "Sneak {3}{G}": "Any time you could cast an instant during your
+/// declare blockers step, you may cast this spell by paying [cost] and
+/// returning an unblocked creature you control to its owner's hand
+/// rather than paying this spell's mana cost" (CR 702.190a). `None` if
+/// the keyword isn't sneak; the node it can't lower if its cost is more
+/// than mana.
+pub fn sneak(k: &i::Keyword) -> Option<Result<Alternative, String>> {
+    if !k.name.eq_ignore_ascii_case("sneak") {
+        return None;
+    }
+    let Some(i::KeywordParam::Cost(cost)) = &k.param else {
+        return Some(Err("sneak without a cost".into()));
+    };
+    let mana = match cost.as_slice() {
+        [i::Cost::Mana(m)] => crate::mana::ManaCost::from_symbols(m),
+        _ => Err("sneak with a cost other than mana".into()),
+    };
+    Some(mana.map(|mana| Alternative {
+        from: CastFrom::Hand,
+        mana,
+        other: OtherCosts {
+            returned: Some(Returned::UnblockedCreature),
+            ..OtherCosts::default()
+        },
+        exiled: false,
+        instant_or_sorcery: false,
+        when: CastWhen::YourDeclareBlockers,
     }))
 }
 
@@ -4904,6 +5057,7 @@ pub fn alternative_cost(parts: &[i::Static]) -> Option<Result<Alternative, Strin
         other,
         exiled: false,
         instant_or_sorcery: false,
+        when: CastWhen::AsItsType,
     }))
 }
 

@@ -1122,6 +1122,20 @@ enum Waiting {
         into: Slot,
         resume: Resuming,
     },
+    /// `player` chooses up to `up_to` of `cards` that `filter` matches,
+    /// their mana values adding up to no more than `total_mana_value`,
+    /// bound to `into`; `enters` if an instruction after puts them onto
+    /// the battlefield.
+    ChooseMatching {
+        player: PlayerId,
+        cards: Vec<CardId>,
+        up_to: u32,
+        filter: CardFilter,
+        total_mana_value: Option<u32>,
+        enters: bool,
+        into: Slot,
+        resume: Resuming,
+    },
     /// `player` orders `cards` to put on top or bottom of a library.
     Arrange {
         player: PlayerId,
@@ -1252,13 +1266,12 @@ enum Waiting {
         count: u32,
         filter: Filter,
     },
-    /// CR 601.2h: `player` returns `count` permanents `filter` matches to
-    /// their owner's hand to pay for `spell`, Gush's cost.
+    /// CR 601.2h: `player` returns the permanents `returned` says to
+    /// their owner's hand to pay for `spell`: Gush's cost, or sneak's.
     ReturnToHand {
         player: PlayerId,
         spell: CardId,
-        count: u32,
-        filter: Filter,
+        returned: lower::Returned,
     },
     /// CR 602.2b, 601.2h: `player` pays the cards the activated ability
     /// of `source` on top of the stack costs, then its mana, `owed`.
@@ -1505,6 +1518,18 @@ pub enum Decision {
         player: PlayerId,
         cards: Vec<CardId>,
         n: usize,
+    },
+    /// "Put up to two creature cards with total mana value 6 or less from
+    /// among them": choose up to `up_to` of `cards` that `filter` matches,
+    /// their mana values (CR 202.3) adding up to no more than
+    /// `total_mana_value` if it is said, answered `Answer::Finds`. A
+    /// hidden card chosen is named as it is (`Found::Hidden`).
+    ChooseMatching {
+        player: PlayerId,
+        cards: Vec<CardId>,
+        up_to: u32,
+        filter: CardFilter,
+        total_mana_value: Option<u32>,
     },
     /// "Put them back in any order" (CR 401.4): `cards` go on top of
     /// their library, or the bottom, in the order `Answer::Arrange` gives,
@@ -1767,6 +1792,9 @@ pub enum Answer {
     Keep(ObjectId),
     /// CR 701.23: what the search found.
     Find(Found),
+    /// To `Decision::ChooseMatching`: the cards chosen, none
+    /// `Found::Nothing`.
+    Finds(Vec<Found>),
     /// CR 614.12a, 119.4: pay the life a permanent's replacement effect
     /// offers as it enters, or not.
     PayLife(bool),
@@ -2499,6 +2527,46 @@ impl Game {
     pub fn stack(&self) -> &Vector<StackObject> {
         &self.stack
     }
+
+    /// Whether the top of the stack may draw a card as it resolves: a
+    /// spell, an ability whose instructions say "draw" (a delayed one's
+    /// counted too) or one with no instructions the engine runs. Outcaster
+    /// Trailblazer's "add one mana of any color" can't.
+    pub fn top_may_draw(&self) -> bool {
+        fn draws(effects: &[Effect]) -> bool {
+            effects.iter().any(|e| match e {
+                Effect::Draw { .. } => true,
+                Effect::Delayed { effects, .. }
+                | Effect::May(_, effects)
+                | Effect::IfCard { then: effects, .. }
+                | Effect::IfTarget { then: effects, .. }
+                | Effect::IfThisTurn { then: effects, .. }
+                | Effect::Kicked { then: effects, .. }
+                | Effect::IfControl { then: effects, .. }
+                | Effect::Unless {
+                    otherwise: effects, ..
+                }
+                | Effect::UnlessLife {
+                    otherwise: effects, ..
+                } => draws(effects),
+                _ => false,
+            })
+        }
+        let what = match self.stack.back() {
+            Some(StackObject::Ability {
+                source,
+                printed,
+                ability,
+                ..
+            }) => Instructions::Activated(*source, *printed, *ability),
+            Some(StackObject::Trigger {
+                source, ability, ..
+            }) => Instructions::Triggered(*source, *ability),
+            _ => return true,
+        };
+        let effects = &self.program(what).effects;
+        effects.is_empty() || draws(effects)
+    }
     /// What an Aura or Equipment on the battlefield is attached to.
     pub fn attached_to(&self, id: ObjectId) -> Option<ObjectId> {
         self.battlefield.objects.get(&id)?.attached_to
@@ -2990,6 +3058,20 @@ impl Game {
                 player: *player,
                 piles: piles.clone(),
             },
+            Waiting::ChooseMatching {
+                player,
+                cards,
+                up_to,
+                filter,
+                total_mana_value,
+                ..
+            } => Decision::ChooseMatching {
+                player: *player,
+                cards: cards.clone(),
+                up_to: *up_to,
+                filter: filter.clone(),
+                total_mana_value: *total_mana_value,
+            },
             Waiting::ChooseAmong {
                 player, cards, n, ..
             } => Decision::ChooseAmong {
@@ -3151,14 +3233,16 @@ impl Game {
             Waiting::ReturnToHand {
                 player,
                 spell,
-                count,
-                filter,
-            } => Decision::ReturnToHand {
-                player: *player,
-                spell: *spell,
-                count: *count,
-                legal: self.sacrificable(*player, filter),
-            },
+                returned,
+            } => {
+                let (count, legal) = self.returnable(*player, returned);
+                Decision::ReturnToHand {
+                    player: *player,
+                    spell: *spell,
+                    count,
+                    legal,
+                }
+            }
             Waiting::PayCards {
                 player,
                 source,
@@ -3716,6 +3800,77 @@ impl Game {
                 self.follow(resume);
             }
             (
+                Waiting::ChooseMatching {
+                    cards,
+                    up_to,
+                    filter,
+                    total_mana_value,
+                    enters,
+                    into,
+                    mut resume,
+                    ..
+                },
+                Answer::Finds(found),
+            ) => {
+                if found.len() > up_to as usize {
+                    return Err(Rejected::Illegal(answer));
+                }
+                // Each chosen once, one of the cards, its name known or
+                // given now for a hidden one.
+                let mut chosen: Vec<(CardId, Option<Face>)> = Vec::new();
+                for f in found {
+                    let (c, named) = match f {
+                        Found::Card(c) if self.known(*c).is_some() => (*c, None),
+                        Found::Hidden(c, text) if self.known(*c).is_none() => {
+                            (*c, Some(Face::of((**text).clone())))
+                        }
+                        _ => return Err(Rejected::Illegal(answer)),
+                    };
+                    if !cards.contains(&c) || chosen.iter().any(|(d, _)| *d == c) {
+                        return Err(Rejected::Illegal(answer));
+                    }
+                    chosen.push((c, named));
+                }
+                let mut total = 0;
+                for (c, named) in &chosen {
+                    let face = named
+                        .clone()
+                        .unwrap_or_else(|| self.cards[c.0 as usize].face.clone());
+                    let known = Arc::clone(face.up().expect("checked known"));
+                    if let Some(refused) = self.breaks_presumption(*c, &known) {
+                        return Err(refused);
+                    }
+                    match known.found_by(&filter, enters) {
+                        Ok(true) => {}
+                        Ok(false) => return Err(Rejected::Illegal(answer)),
+                        Err(refusal) => {
+                            return Err(Rejected::Refused {
+                                card: known.text.name.clone(),
+                                refusal,
+                            })
+                        }
+                    }
+                    // CR 202.3: a card's mana value, from its mana cost.
+                    total += known
+                        .printed
+                        .as_ref()
+                        .expect("a card the filter matched has characteristics")
+                        .mana_value;
+                }
+                if total_mana_value.is_some_and(|most| total > most) {
+                    return Err(Rejected::Illegal(answer));
+                }
+                for (c, named) in &chosen {
+                    if let Some(named) = named {
+                        self.cards[c.0 as usize].face = named.clone();
+                    }
+                }
+                resume
+                    .found
+                    .insert(into, chosen.into_iter().map(|(c, _)| c).collect());
+                self.follow(resume);
+            }
+            (
                 Waiting::Arrange {
                     cards, top, resume, ..
                 },
@@ -4133,12 +4288,11 @@ impl Game {
                 Waiting::ReturnToHand {
                     player,
                     spell,
-                    count,
-                    filter,
+                    returned,
                 },
                 Answer::ReturnToHand(chosen),
             ) => {
-                let legal = self.sacrificable(player, &filter);
+                let (count, legal) = self.returnable(player, &returned);
                 let distinct: BTreeSet<&ObjectId> = chosen.iter().collect();
                 if chosen.len() != count as usize
                     || distinct.len() != chosen.len()
@@ -4412,7 +4566,8 @@ impl Game {
         }
         // CR 118.9, 601.2b: a card cast for an alternative cost, from the
         // zone that cost allows, with the timing its type has (CR
-        // 117.1a); one whose other costs can't be paid isn't (CR 601.2h).
+        // 117.1a) or sneak's (CR 702.190a); one whose other costs can't be
+        // paid isn't (CR 601.2h).
         let zones = [
             (lower::CastFrom::Hand, &player.hand),
             (lower::CastFrom::Graveyard, &player.graveyard),
@@ -4423,28 +4578,34 @@ impl Game {
                     continue;
                 };
                 let Ok(runs) = &known.runs else { continue };
-                if is_land(&known.text.type_line)
-                    || Game::spell_refusal(runs).is_err()
-                    || !(sorcery_speed || self.instant_speed(known))
-                {
+                if is_land(&known.text.type_line) || Game::spell_refusal(runs).is_err() {
                     continue;
                 }
+                let as_its_type = sorcery_speed || self.instant_speed(known);
                 let targetable = self.spell_targetable(runs, p, known.printed.as_ref());
                 let instant_or_sorcery = runs.lowered.chars.is(CardType::Instant)
                     || runs.lowered.chars.is(CardType::Sorcery);
                 for (n, alt) in &runs.alternatives {
+                    // CR 702.190a: sneak's, "any time you could cast an
+                    // instant during your declare blockers step".
+                    let timing = match alt.when {
+                        lower::CastWhen::AsItsType => as_its_type,
+                        lower::CastWhen::YourDeclareBlockers => {
+                            p == self.active && self.step == Step::DeclareBlockers
+                        }
+                    };
                     let payable = player.life >= alt.other.life as i32
                         && alt
                             .other
                             .sacrifice
                             .as_ref()
                             .is_none_or(|(k, f)| self.sacrificable(p, f).len() >= *k as usize)
-                        && alt
-                            .other
-                            .returned
-                            .as_ref()
-                            .is_none_or(|(k, f)| self.sacrificable(p, f).len() >= *k as usize);
+                        && alt.other.returned.as_ref().is_none_or(|r| {
+                            let (k, legal) = self.returnable(p, r);
+                            legal.len() >= k as usize
+                        });
                     if alt.from == from
+                        && timing
                         && (instant_or_sorcery || !alt.instant_or_sorcery)
                         && targetable
                         && payable
@@ -4637,10 +4798,10 @@ impl Game {
     }
 
     /// The zones a card may be cast from by its alternative costs (CR
-    /// 118.9), before any game.
-    pub fn alternatives_of(text: &CardText) -> Vec<lower::CastFrom> {
+    /// 118.9), and when, before any game.
+    pub fn alternatives_of(text: &CardText) -> Vec<(lower::CastFrom, lower::CastWhen)> {
         match &known(text.clone()).runs {
-            Ok(r) => r.alternatives.values().map(|a| a.from).collect(),
+            Ok(r) => r.alternatives.values().map(|a| (a.from, a.when)).collect(),
             Err(_) => Vec::new(),
         }
     }
@@ -5529,15 +5690,53 @@ impl Game {
     /// gone, then the spell becomes cast.
     fn return_or_cast(&mut self, player: PlayerId, spell: CardId) {
         match self.other_costs(spell).returned {
-            Some((count, filter)) => {
+            Some(returned) => {
                 self.waiting = Waiting::ReturnToHand {
                     player,
                     spell,
-                    count,
-                    filter,
+                    returned,
                 }
             }
             None => self.cast_done(player, spell),
+        }
+    }
+
+    /// How many permanents a cost returns to hand, and those of `p`'s it
+    /// may return.
+    fn returnable(&self, p: PlayerId, returned: &lower::Returned) -> (u32, Vec<ObjectId>) {
+        match returned {
+            lower::Returned::Permanents(count, filter) => (*count, self.sacrificable(p, filter)),
+            // CR 509.1h: an attacking creature no creature was declared
+            // blocking is unblocked once blockers are declared, which is
+            // only so from the declare blockers step on, and stays so
+            // until it is removed from combat or the combat ends.
+            lower::Returned::UnblockedCreature => {
+                let declared = matches!(
+                    self.step,
+                    Step::DeclareBlockers
+                        | Step::FirstStrikeDamage
+                        | Step::CombatDamage
+                        | Step::EndOfCombat
+                );
+                let legal = match &self.combat {
+                    Some(combat) if declared => {
+                        let all = self.characteristics();
+                        combat
+                            .attackers
+                            .keys()
+                            .filter(|o| {
+                                !combat.blocked.contains(*o)
+                                    && all.get(*o).is_some_and(|c| {
+                                        c.controller == p && c.is(CardType::Creature)
+                                    })
+                            })
+                            .copied()
+                            .collect()
+                    }
+                    _ => Vec::new(),
+                };
+                (1, legal)
+            }
         }
     }
 
@@ -6610,7 +6809,45 @@ impl Game {
                         self.players[q.0 as usize].hand.push_back(c);
                     }
                 }
-                Effect::ToLibrary { cards, top, from } => {
+                Effect::ChooseMatching {
+                    from,
+                    up_to,
+                    filter,
+                    total_mana_value,
+                    enters,
+                    into,
+                } => {
+                    let cards = self.still_in_library(&at, Cards::Bound(from));
+                    self.waiting = Waiting::ChooseMatching {
+                        player: p,
+                        cards,
+                        up_to,
+                        filter,
+                        total_mana_value,
+                        enters,
+                        into,
+                        resume: at,
+                    };
+                    return;
+                }
+                Effect::ToLibrary {
+                    cards,
+                    top,
+                    from,
+                    order: lower::Arranged::Random,
+                } => {
+                    let mut cards: Vector<CardId> =
+                        self.still_found(&at, cards, from).into_iter().collect();
+                    self.rng.shuffle(&mut cards);
+                    let cards: Vec<CardId> = cards.into_iter().collect();
+                    self.put_in_library(&cards, top);
+                }
+                Effect::ToLibrary {
+                    cards,
+                    top,
+                    from,
+                    order: lower::Arranged::Chosen,
+                } => {
                     let cards = self.still_found(&at, cards, from);
                     match cards.len() {
                         0 => {}
@@ -7638,6 +7875,7 @@ impl Game {
             | Waiting::SeparatePiles { resume: at, .. }
             | Waiting::ChoosePile { resume: at, .. }
             | Waiting::ChooseAmong { resume: at, .. }
+            | Waiting::ChooseMatching { resume: at, .. }
             | Waiting::Arrange { resume: at, .. }
             | Waiting::PutFromHand { resume: at, .. }
             | Waiting::ChooseMana { resume: at, .. }
@@ -9843,6 +10081,22 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                                 runs.alternatives.insert(n, alt);
                             }
                             Err(node) => runs.dormant.push(format!("flashback: {node}")),
+                        }
+                    } else if let Some(alt) = lower::sneak(k) {
+                        // Carried and never offered when the engine can't
+                        // pay it, or a permanent spell cast for it would
+                        // have to enter attacking (CR 702.190b): the card
+                        // is still cast for its mana cost.
+                        let permanent = !(runs.lowered.chars.is(CardType::Instant)
+                            || runs.lowered.chars.is(CardType::Sorcery));
+                        match alt {
+                            Ok(_) if permanent => {
+                                runs.dormant.push("sneak: a permanent spell".into())
+                            }
+                            Ok(alt) => {
+                                runs.alternatives.insert(n, alt);
+                            }
+                            Err(node) => runs.dormant.push(format!("sneak: {node}")),
                         }
                     } else if let Some(equip) = lower::equip(k) {
                         let def = equip.map_err(|node| {

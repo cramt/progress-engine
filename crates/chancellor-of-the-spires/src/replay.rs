@@ -28,7 +28,7 @@ use crate::game::{
     HAND_SIZE,
 };
 use crate::log::{self, Entry, Event, Object};
-use crate::lower::{CastFrom, PaidWith};
+use crate::lower::{CastFrom, CastWhen, PaidWith};
 use crate::mana::short;
 use crate::model::{Ability, Counter, ObjectId, PlayerId};
 
@@ -434,7 +434,7 @@ struct Driver<'a> {
     mentioned: HashSet<String>,
     /// The zones each card the log casts may be cast from by an
     /// alternative cost, as read.
-    alternatives: HashMap<String, Vec<CastFrom>>,
+    alternatives: HashMap<String, Vec<(CastFrom, CastWhen)>>,
     /// The lands the log never names that a search has found so far.
     unseen: Vec<String>,
     /// The game's `presumed` as the replay ended, on the way it reports.
@@ -1247,16 +1247,22 @@ impl Driver<'_> {
                     .entry(text.name.clone())
                     .or_insert_with(|| Game::alternatives_of(&text))
                     .clone();
+                // A line that says nothing of how is never sneak's, which
+                // the log names (CR 702.190a).
+                let unsaid_from_hand = zones.contains(&(CastFrom::Hand, CastWhen::AsItsType));
                 let routes = match via.as_deref() {
                     // Most logs print nothing for Gush's alternative cost,
                     // but a line beside the cast shows what it returned;
                     // Steam Clean's return line is its own instruction.
-                    None if zones.contains(&CastFrom::Hand)
+                    None if unsaid_from_hand
                         && self.returned_for(i, cast.player, card.name()).is_some() =>
                     {
                         vec![Route::Alternative(CastFrom::Hand)]
                     }
-                    None => vec![Route::ManaCost, Route::Alternative(CastFrom::Hand)],
+                    None if unsaid_from_hand => {
+                        vec![Route::ManaCost, Route::Alternative(CastFrom::Hand)]
+                    }
+                    None => vec![Route::ManaCost],
                     Some(v)
                         if v == "from the graveyard"
                             || v.starts_with("with Flashback")
@@ -1264,7 +1270,7 @@ impl Driver<'_> {
                     {
                         vec![Route::Alternative(CastFrom::Graveyard)]
                     }
-                    Some(v) if v.starts_with("by sacrificing ") || v.starts_with("by return ") => {
+                    Some(v) if v.starts_with("by sacrificing ") || returns_to_pay(v) => {
                         vec![Route::Alternative(CastFrom::Hand)]
                     }
                     // Other spells cast without paying a mana cost print
@@ -1320,7 +1326,7 @@ impl Driver<'_> {
                     .into_iter()
                     .filter(|r| match r {
                         Route::ManaCost | Route::Plotted => true,
-                        Route::Alternative(from) => zones.contains(from),
+                        Route::Alternative(from) => zones.iter().any(|(z, _)| z == from),
                     })
                     .collect();
                 let Some((last, before)) = routes.split_last() else {
@@ -1969,7 +1975,7 @@ impl Driver<'_> {
                 .is_some_and(|k| {
                     matches!(&self.entries[i + 1 + k].event,
                         Casts(cast) if cast.player == *player
-                            && cast.via.as_deref().is_none_or(|v| v.starts_with("by return "))
+                            && cast.via.as_deref().is_none_or(returns_to_pay)
                             && matches!(&cast.card, Object::Card(d) if d.name() == c.name()))
                 }) =>
             {
@@ -2681,6 +2687,12 @@ impl Driver<'_> {
             // Cards looked at are hidden alike to the log: which is chosen,
             // and the order they go back in, is nothing it can tell.
             Decision::ChooseAmong { cards, n, .. } => self.choose_among(cards, n),
+            Decision::ChooseMatching {
+                player,
+                cards,
+                up_to,
+                ..
+            } => self.choose_matching(player, cards, up_to),
             Decision::Arrange { cards, .. } => self.act(Answer::Arrange(cards)),
             Decision::PutFromHand { player, .. } => self.put_from_hand(player),
             Decision::DiscardToEnter { player, .. } => self.discard_to_enter(player),
@@ -3926,6 +3938,29 @@ impl Driver<'_> {
                 chosen.push(legal[k]);
             }
         }
+        // One no line names (sneak's unblocked attacker): the first,
+        // and each other gone back to if a later line can't be followed.
+        if count == 1 && chosen.is_empty() && legal.len() > 1 {
+            let others: Vec<Retry> = legal[1..]
+                .iter()
+                .map(|o| {
+                    Retry::Answer(
+                        Answer::ReturnToHand(vec![*o]),
+                        format!("returned {} instead", name(o)),
+                    )
+                })
+                .collect();
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others,
+                knew: self.knew(),
+                back: Back::Any,
+            });
+        }
         for o in &legal {
             if chosen.len() >= count as usize {
                 break;
@@ -4425,6 +4460,7 @@ impl Driver<'_> {
                 | Decision::PayLifeOr { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
+                | Decision::ChooseMatching { .. }
                 | Decision::SeparatePiles { .. }
                 | Decision::ChoosePile { .. }
                 | Decision::ExileFromHand { .. }
@@ -4459,6 +4495,7 @@ impl Driver<'_> {
                 | Decision::PayLifeOr { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
+                | Decision::ChooseMatching { .. }
                 | Decision::SeparatePiles { .. }
                 | Decision::ChoosePile { .. }
                 | Decision::ExileFromHand { .. }
@@ -4526,6 +4563,7 @@ impl Driver<'_> {
                 | Decision::Search { .. }
                 | Decision::Reveal { .. }
                 | Decision::ChooseAmong { .. }
+                | Decision::ChooseMatching { .. }
                 | Decision::SeparatePiles { .. }
                 | Decision::ChoosePile { .. }
                 | Decision::ExileFromHand { .. }
@@ -5001,7 +5039,7 @@ impl Driver<'_> {
             .skip(self.at + 1)
             .take_while(|e| !matches!(e.event, Event::TurnBegins(_)))
             .any(|e| match &e.event {
-                Event::Draws { with: Some(s), .. } => is(s),
+                Event::Draws { with: Some(s), .. } => is(s) && game.top_may_draw(),
                 Event::Reveals {
                     how:
                         log::Reveal::With(s)
@@ -6187,6 +6225,7 @@ impl Driver<'_> {
                     | Decision::PayLifeOr { .. }
                     | Decision::Reveal { .. }
                     | Decision::ChooseAmong { .. }
+                    | Decision::ChooseMatching { .. }
                     | Decision::SeparatePiles { .. }
                     | Decision::ChoosePile { .. }
                     | Decision::ExileFromHand { .. }
@@ -6351,6 +6390,240 @@ impl Driver<'_> {
         }
         self.consumed.insert(k);
         self.act(Answer::Reveal(unnamed))
+    }
+
+    /// "Put up to two creature cards with total mana value 6 or less from
+    /// among them onto the battlefield" (Michelangelo's Technique): the
+    /// log never names the cards chosen. The replay takes the names a line
+    /// shows: the sources of `p`'s triggers on the lines right after it
+    /// (an enters trigger's, so a card taken for one only of those must
+    /// trigger itself), then, as for Goblin Lackey, each card of
+    /// `p`'s a later line shows on the battlefield (a trigger's source, an
+    /// ability activated, an attacker) more times than they have
+    /// permanents of it and lines have cast or played it since, the first
+    /// `CHOSEN_NAMES` in the order they show. It tries as many of them as
+    /// it may choose first, two of one name too, then fewer, then none,
+    /// and only choices whose triggers are those the lines right after
+    /// show: the engine says which the filter and the total allow, and the
+    /// rest are gone back to when a later line can't be followed. With no
+    /// such choice it stops, since a card no line names entered. With no
+    /// name shown and no trigger, none is put: a card no line ever shows
+    /// is nothing the log can tell, as for Goblin Lackey's declined "may".
+    fn choose_matching(&mut self, p: PlayerId, cards: Vec<CardId>, up_to: u32) -> Followed {
+        const CHOSEN_NAMES: usize = 6;
+        // The triggers of `p`'s the lines from this one on show, by
+        // source: the line being followed is the first after the spell.
+        let mut logged: BTreeMap<String, usize> = BTreeMap::new();
+        let mut candidates: Vec<String> = Vec::new();
+        // Names only the trigger lines show: a card taken for one has to
+        // be the source of a trigger itself, not a permanent already
+        // there that saw something else enter (Soul Warden's).
+        let mut by_trigger: BTreeSet<String> = BTreeSet::new();
+        for e in self.entries.iter().skip(self.at) {
+            match &e.event {
+                Event::Chat { .. } | Event::Watching { .. } => {}
+                Event::Trigger(t) if self.seat(t.player) == p => {
+                    if let Some(n) = source_name(t) {
+                        *logged.entry(n.to_string()).or_default() += 1;
+                        if !candidates.iter().any(|c| c == n) {
+                            candidates.push(n.to_string());
+                            by_trigger.insert(n.to_string());
+                        }
+                    }
+                }
+                _ => break,
+            }
+        }
+        let game = self.game.as_ref().expect("set up");
+        let chars = game.characteristics();
+        let on_battlefield = |n: &str| {
+            game.permanents()
+                .iter()
+                .filter(|(id, perm)| {
+                    chars[id].controller == p && game.card(perm.card).is_some_and(|t| t.name == n)
+                })
+                .count()
+        };
+        let mut explained: BTreeMap<String, usize> = BTreeMap::new();
+        for e in self.entries.iter().skip(self.at) {
+            if candidates.len() >= CHOSEN_NAMES {
+                break;
+            }
+            let mine = |q: &log::Player| self.seat(*q) == p;
+            let named: Vec<String> = match &e.event {
+                Event::Casts(c) if mine(&c.player) => {
+                    if let Object::Card(c) = &c.card {
+                        *explained.entry(c.name().to_string()).or_default() += 1;
+                    }
+                    continue;
+                }
+                Event::PlaysLand {
+                    player,
+                    card: Object::Card(c),
+                } if mine(player) => {
+                    *explained.entry(c.name().to_string()).or_default() += 1;
+                    continue;
+                }
+                Event::Trigger(t) if mine(&t.player) => {
+                    source_name(t).map(str::to_string).into_iter().collect()
+                }
+                Event::Activates(a) if mine(&a.player) => match &a.card {
+                    Object::Card(c) => vec![c.name().to_string()],
+                    _ => vec![],
+                },
+                Event::Attacked {
+                    defender: log::Defender::Player(d),
+                    attackers: log::Attackers::Seen(xs),
+                } if !mine(d) => xs
+                    .iter()
+                    .filter_map(|x| match x {
+                        Object::Card(c) => Some(c.name().to_string()),
+                        _ => None,
+                    })
+                    .collect(),
+                _ => vec![],
+            };
+            for n in &named {
+                let shown = named.iter().filter(|m| *m == n).count();
+                let had = on_battlefield(n) + explained.get(n).copied().unwrap_or(0);
+                if shown > had {
+                    by_trigger.remove(n);
+                    if !candidates.contains(n) {
+                        candidates.push(n.clone());
+                    }
+                }
+            }
+        }
+        candidates.truncate(CHOSEN_NAMES);
+        // Each choice of names, the most cards first, a name taken twice
+        // only for two cards of it.
+        let mut choices: Vec<Vec<usize>> = Vec::new();
+        if !candidates.is_empty() {
+            for k in (1..=up_to as usize).rev() {
+                let mut pick = vec![0; k];
+                'next: loop {
+                    choices.push(pick.clone());
+                    for j in (0..k).rev() {
+                        if pick[j] + 1 < candidates.len() {
+                            pick[j] += 1;
+                            for l in j + 1..k {
+                                pick[l] = pick[j];
+                            }
+                            continue 'next;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        choices.push(Vec::new());
+        let before = self.game().clone();
+        let mut answers: Vec<(Answer, String, Option<Game>)> = Vec::new();
+        let mut refused: Vec<(Answer, String, Option<Game>)> = Vec::new();
+        for choice in choices {
+            let mut found: Vec<Found> = Vec::new();
+            let mut used: Vec<CardId> = Vec::new();
+            for &k in &choice {
+                let Ok(text) = self.text(&candidates[k]) else {
+                    break;
+                };
+                let game = self.game.as_ref().expect("set up");
+                let free = |c: &CardId| !used.contains(c);
+                let known = cards
+                    .iter()
+                    .copied()
+                    .filter(free)
+                    .find(|c| game.card(*c).is_some_and(|t| t.name == text.name));
+                let hidden = cards
+                    .iter()
+                    .copied()
+                    .filter(free)
+                    .find(|c| game.card(*c).is_none());
+                match (known, hidden) {
+                    (Some(c), _) => {
+                        used.push(c);
+                        found.push(Found::Card(c));
+                    }
+                    (None, Some(c)) => {
+                        used.push(c);
+                        found.push(Found::Hidden(c, Box::new(text)));
+                    }
+                    (None, None) => break,
+                }
+            }
+            if found.len() != choice.len() {
+                continue;
+            }
+            let mut tried = self.game().clone();
+            let answer = Answer::Finds(found);
+            let said = if choice.is_empty() {
+                "put none of the cards looked at onto the battlefield".to_string()
+            } else {
+                let names: Vec<&str> = choice.iter().map(|k| candidates[*k].as_str()).collect();
+                format!(
+                    "put {} onto the battlefield from among the cards looked at",
+                    names.join(" and ")
+                )
+            };
+            // An illegal choice the filter or the total doesn't allow is
+            // no way at all, and nor is one whose triggers aren't those
+            // the lines show; a refused one is, and stops if it is taken.
+            match tried.step(answer.clone()) {
+                Err(Rejected::Illegal(_)) => continue,
+                Ok(_) => {
+                    let (counted, sources) = triggered_since(&before, &tried, p);
+                    let unseen = choice
+                        .iter()
+                        .zip(&used)
+                        .any(|(k, c)| by_trigger.contains(&candidates[*k]) && !sources.contains(c));
+                    if counted == logged && !unseen {
+                        answers.push((answer, said, Some(tried)));
+                    }
+                }
+                Err(Rejected::Refused { .. }) => refused.push((answer, said, None)),
+            }
+        }
+        // A refused choice may be what happened, but one whose triggers
+        // the lines show comes first.
+        answers.extend(refused);
+        if answers.is_empty() {
+            return Err(Stop::Unfollowed {
+                event:
+                    "a card put onto the battlefield from among cards looked at that no line names"
+                        .into(),
+                card: before
+                    .stack()
+                    .last()
+                    .and_then(|o| match o {
+                        StackObject::Spell { card, .. } => before.card(*card),
+                        _ => None,
+                    })
+                    .map(|t| t.name.clone()),
+            });
+        }
+        let (answer, said, first) = answers.remove(0);
+        if !answers.is_empty() {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others: answers
+                    .into_iter()
+                    .map(|(a, said, _)| Retry::Answer(a, said))
+                    .collect(),
+                knew: self.knew(),
+                back: Back::Any,
+            });
+        }
+        match first {
+            Some(game) => *self.game() = game,
+            None => self.act(answer)?,
+        }
+        let at = self.at;
+        self.did(at, said);
+        Ok(())
     }
 
     /// A card `p` puts onto the battlefield from their hand, which the log
@@ -6586,6 +6859,68 @@ impl Driver<'_> {
 enum Next {
     Line(usize),
     Done,
+}
+
+/// The triggered abilities of `p`'s waiting to be put on the stack in
+/// `after`, or put there since `before`, counted by their source's name,
+/// and their source cards.
+fn triggered_since(
+    before: &Game,
+    after: &Game,
+    p: PlayerId,
+) -> (BTreeMap<String, usize>, BTreeSet<CardId>) {
+    let seen = |g: &Game| -> Option<u32> {
+        g.stack()
+            .iter()
+            .filter_map(|o| match o {
+                StackObject::Trigger { seq, .. } => Some(*seq),
+                _ => None,
+            })
+            .max()
+    };
+    let last = seen(before);
+    let mut counted: BTreeMap<String, usize> = BTreeMap::new();
+    let mut sources: BTreeSet<CardId> = BTreeSet::new();
+    let mut count = |c: CardId| {
+        sources.insert(c);
+        if let Some(t) = after.card(c) {
+            *counted.entry(t.name.clone()).or_default() += 1;
+        }
+    };
+    for t in after.pending().iter().filter(|t| t.controller == p) {
+        count(t.source);
+    }
+    // Waiting to be ordered, or for a target, they are out of `pending`.
+    match after.decision() {
+        Decision::Order { player, triggers } if player == p => {
+            triggers.into_iter().for_each(&mut count);
+        }
+        Decision::Targets { player, card, .. } if player == p => count(card),
+        _ => {}
+    }
+    for o in after.stack() {
+        if let StackObject::Trigger {
+            source,
+            controller,
+            seq,
+            ..
+        } = o
+        {
+            if *controller == p && last.is_none_or(|l| *seq > l) {
+                count(*source);
+            }
+        }
+    }
+    (counted, sources)
+}
+
+/// A cast line's words for an alternative cost that returns permanents to
+/// hand: Gush's "by return two Islands", sneak's "by paying {3G} and
+/// returning an unblocked attacking creature you control to its owner's
+/// hand with sneak".
+fn returns_to_pay(via: &str) -> bool {
+    via.starts_with("by return ")
+        || via.starts_with("by paying ") && via.contains(" and returning ")
 }
 
 fn source_name(t: &log::Trigger) -> Option<&str> {

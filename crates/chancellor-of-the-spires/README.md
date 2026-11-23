@@ -1075,8 +1075,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-23 142 of the 500 replay to
-the end and 55.44% of their lines are followed** (17,551 of 31,659), 3
+Worked card by card from there, **on 2026-11-23 143 of the 500 replay to
+the end and 55.60% of their lines are followed** (17,601 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 148 games have no card the engine refuses before any game (from 21). The
@@ -1250,13 +1250,28 @@ turn, it deals double that damage instead", a replacement effect on
 every damage its controller's sources deal, a spell's controlled by its
 caster, ending in cleanup (CR 614.1a, 112.2, 514.2: Quest for Pure
 Flame, whose 7 games go on, four to the end, the rest stopping at
-Plasma Bolt and Stomp). And
+Plasma Bolt and Stomp); sneak, cast for its cost in its caster's
+declare blockers step by returning an unblocked creature of theirs to
+hand, a permanent spell's sneak carried and never offered until it can
+enter attacking (CR 702.190a–b, 509.1h), and "put up to two creature
+cards with total mana value 6 or less from among them onto the
+battlefield", the rest on the bottom in a random order (CR 202.3:
+Michelangelo's Technique, whose 7 games go on, one to the end, two to
+Devastating Onslaught, one to Magmatic Hellkite and three to a card no
+line names entering). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an
 instruction's, the creature sacrificed for flashback, a land the log never
 names as a hypothesis, which of two permanents of one name an
-activation is of, a winner line resolving what ended the game, and
+activation is of, the cards Michelangelo's Technique puts onto the
+battlefield (the sources of the trigger lines right after it, each a
+source itself, then a card a later line shows on the battlefield more
+times than its player has, as for Goblin Lackey; only choices whose
+triggers are the lines', stopping when none is, and none put when no
+line shows any), the creature sneak returns, another gone back to,
+a trigger that draws nothing (Outcaster Trailblazer's mana) resolved
+before a play though a later line shows its source drawing, a winner line resolving what ended the game, and
 a "becomes plotted" line, which names nobody, as the turn's player's
 plot, unless a card of that name on the stack or in exile and not
 plotted may be an effect's, and a later cast "without paying its mana

@@ -6390,3 +6390,119 @@ fn sheltered_by_ghosts_returns_what_it_exiled_when_its_creature_dies() {
     assert_eq!(game.permanents()[&back].card, card);
     assert_eq!(game.characteristics()[&back].controller, THEM);
 }
+
+/// CR 702.190a, 509.1h, 601.2h: Michelangelo's Technique's sneak is
+/// offered only in its caster's declare blockers step, returning an
+/// unblocked attacking creature of theirs to hand rather than paying its
+/// mana cost. Resolving, it looks at the top eight cards and puts up to
+/// two creature cards of total mana value 6 or less onto the battlefield
+/// (CR 202.3): a land, three cards or a total of 8 aren't legal choices.
+/// The rest go on the bottom.
+#[test]
+fn michelangelos_technique_sneaks_in_for_an_unblocked_attacker() {
+    let mut game = deal(
+        &[
+            ("Forest", 24),
+            ("Grizzly Bears", 12),
+            ("Craw Wurm", 12),
+            ("Michelangelo's Technique", 12),
+        ],
+        &[("Island", 60)],
+        &[
+            ("Forest", 4),
+            ("Grizzly Bears", 1),
+            ("Michelangelo's Technique", 1),
+        ],
+    );
+    let technique = in_hand(&game, ME, "Michelangelo's Technique").unwrap();
+    let sneak = |game: &Game| {
+        let Decision::Priority { actions, .. } = game.decision() else {
+            return None;
+        };
+        actions
+            .into_iter()
+            .find(|a| matches!(a, Action::CastAlternative(c, _) if *c == technique))
+    };
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    assert!(sneak(&game).is_none(), "not in a main phase");
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(bears, THEM)]));
+    assert!(sneak(&game).is_none(), "not before blockers are declared");
+    while game.step_now() < Step::DeclareBlockers {
+        match game.decision() {
+            Decision::Blockers { .. } => step(&mut game, Answer::Block(vec![])),
+            _ => step(&mut game, Answer::Act(Action::Pass)),
+        };
+    }
+    let alt = sneak(&game).expect("offered in my declare blockers step");
+    let mut d = step(&mut game, Answer::Act(alt));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("four Forests pay {3}{G}");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    let Decision::ReturnToHand { count, legal, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!((count, legal.clone()), (1, vec![bears]));
+    step(&mut game, Answer::ReturnToHand(legal));
+    assert!(in_hand(&game, ME, "Grizzly Bears").is_some());
+    let library = game.player(ME).library().len();
+    let d = resolve(&mut game);
+    let Decision::ChooseMatching {
+        cards,
+        up_to,
+        total_mana_value,
+        ..
+    } = d
+    else {
+        panic!("{d:?}")
+    };
+    assert_eq!((cards.len(), up_to, total_mana_value), (8, 2, Some(6)));
+    let of = |name: &str| -> Vec<CardId> {
+        cards
+            .iter()
+            .copied()
+            .filter(|c| game.card(*c).is_some_and(|t| t.name == name))
+            .collect()
+    };
+    let (forests, bears_seen, wurms) = (of("Forest"), of("Grizzly Bears"), of("Craw Wurm"));
+    let illegal = |game: &mut Game, chosen: &[CardId]| {
+        let finds = chosen.iter().map(|c| Found::Card(*c)).collect();
+        assert!(
+            matches!(game.step(Answer::Finds(finds)), Err(Rejected::Illegal(_))),
+            "{chosen:?}"
+        );
+    };
+    let forest = *forests.first().expect("a Forest among the eight");
+    let wurm = *wurms.first().expect("a Craw Wurm among the eight");
+    let bear = *bears_seen.first().expect("a Grizzly Bears among the eight");
+    illegal(&mut game, &[forest]);
+    illegal(&mut game, &[wurm, bear]);
+    if let [a, b, ..] = bears_seen.as_slice() {
+        illegal(&mut game, &[*a, *b, wurm]);
+    }
+    step(&mut game, Answer::Finds(vec![Found::Card(wurm)]));
+    assert!(creature(&game, "Craw Wurm").is_some());
+    // The other seven on the bottom, the library one card shorter.
+    let lib = game.player(ME).library();
+    assert_eq!(lib.len(), library - 1);
+    let mut bottom: Vec<CardId> = lib.iter().rev().take(7).copied().collect();
+    let mut rest: Vec<CardId> = cards.into_iter().filter(|c| *c != wurm).collect();
+    bottom.sort();
+    rest.sort();
+    assert_eq!(bottom, rest);
+}
