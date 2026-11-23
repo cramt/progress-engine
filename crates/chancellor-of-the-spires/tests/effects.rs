@@ -6573,3 +6573,87 @@ fn michelangelos_technique_sneaks_in_for_an_unblocked_attacker() {
     rest.sort();
     assert_eq!(bottom, rest);
 }
+
+/// CR 700.2c, 608.2c: Archdruid's Charm's first mode finds a creature or
+/// land card, put onto the battlefield tapped if it's a land card and
+/// otherwise into the hand; casting it chooses no target, though another
+/// mode has two.
+#[test]
+fn archdruids_charm_puts_a_land_found_onto_the_battlefield_and_a_creature_in_hand() {
+    let mut game = deal(
+        &[
+            ("Forest", 30),
+            ("Grizzly Bears", 15),
+            ("Archdruid's Charm", 15),
+        ],
+        &[("Island", 60)],
+        &[("Forest", 3), ("Archdruid's Charm", 2)],
+    );
+    let charm = |game: &mut Game, find: &str| -> CardId {
+        let c = in_hand(game, ME, "Archdruid's Charm").unwrap();
+        let Decision::Mode { modes, .. } = step(game, Answer::Act(Action::Cast(c))) else {
+            panic!("{:?}", game.decision())
+        };
+        assert!(modes.contains(&0), "{modes:?}");
+        let mut d = step(game, Answer::Mode(0));
+        while let Decision::Pay { actions, .. } = d {
+            d = step(game, Answer::Pay(actions[0]));
+        }
+        let Decision::Search { known, .. } = resolve(game) else {
+            panic!("{:?}", game.decision())
+        };
+        let found = *known
+            .iter()
+            .find(|k| game.card(**k).is_some_and(|t| t.name == find))
+            .expect("in the library");
+        step(game, Answer::Find(Found::Card(found)));
+        found
+    };
+    play(&mut game, "Forest");
+    for _ in 0..2 {
+        my_next_main(&mut game);
+        play(&mut game, "Forest");
+    }
+    let forest = charm(&mut game, "Forest");
+    let entered = game
+        .permanents()
+        .values()
+        .find(|p| p.card == forest)
+        .expect("a land card: onto the battlefield");
+    assert!(entered.tapped);
+    my_next_main(&mut game);
+    let bears = charm(&mut game, "Grizzly Bears");
+    assert!(
+        game.player(ME).hand().contains(&bears),
+        "otherwise: the hand"
+    );
+    assert!(!game.permanents().values().any(|p| p.card == bears));
+}
+
+/// CR 608.2c: Coiling Oracle's "reveal the top card of your library. If
+/// it's a land card, put it onto the battlefield. Otherwise, put that card
+/// into your hand": the "otherwise" only when the "if" didn't hold, each
+/// card it reveals going to just one of the two places.
+#[test]
+fn coiling_oracle_puts_a_land_onto_the_battlefield_and_otherwise_into_hand() {
+    let mut game = deal(
+        &[("Forest", 15), ("Island", 15), ("Coiling Oracle", 30)],
+        &[("Island", 60)],
+        &[("Forest", 1), ("Island", 1), ("Coiling Oracle", 2)],
+    );
+    play(&mut game, "Forest");
+    for _ in 0..2 {
+        my_next_main(&mut game);
+        if in_hand(&game, ME, "Island").is_some() {
+            play(&mut game, "Island");
+        }
+        let top = *game.player(ME).library().front().expect("a library");
+        cast(&mut game, "Coiling Oracle", None);
+        resolve(&mut game);
+        resolve(&mut game);
+        let land = game.card(top).expect("revealed").type_line.contains("Land");
+        let entered = game.permanents().values().any(|p| p.card == top);
+        let held = game.player(ME).hand().contains(&top);
+        assert_eq!((entered, held), (land, !land), "one place, by what it is");
+    }
+}

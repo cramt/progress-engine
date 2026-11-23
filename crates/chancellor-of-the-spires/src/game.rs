@@ -840,6 +840,9 @@ struct Resuming {
     /// The cards its instructions have found, by the slot each binds
     /// (`lower::Slot`).
     found: OrdMap<Slot, Vec<CardId>>,
+    /// What each "if" of a card answered, by its place (`next`), which
+    /// the "Otherwise" after it reads.
+    held: OrdMap<Vec<usize>, bool>,
     /// The card name an instruction chose (CR 201.4), "that name".
     name: Option<String>,
 }
@@ -6039,6 +6042,7 @@ impl Game {
             player,
             next: vec![0],
             found: OrdMap::new(),
+            held: OrdMap::new(),
             name: None,
         };
         // CR 115.6: a slot of "up to one" left empty is no target, so
@@ -7175,17 +7179,74 @@ impl Game {
                         at.next.push(0);
                     }
                 }
-                Effect::IfCard { card, filter, .. } => {
-                    let holds = match at.found.get(&card).map(Vec::as_slice) {
-                        Some([c]) => self
-                            .known(*c)
-                            .and_then(|k| k.printed.as_ref())
-                            .is_some_and(|ch| filter.matches(ch)),
-                        _ => false,
-                    };
-                    if holds {
+                // "Otherwise, …": the answer the "if" before it gave, not
+                // asked again, since what its instructions did may have
+                // changed what the card is (a Phyrexian Metamorph copying).
+                Effect::IfCard {
+                    otherwise: true, ..
+                } => {
+                    let mut asked = here.next.clone();
+                    *asked.last_mut().expect("a cursor") -= 1;
+                    if at.held.get(&asked) == Some(&false) {
                         at = here;
                         at.next.push(0);
+                    }
+                }
+                Effect::IfCard { card, filter, .. } => {
+                    let refuse = |node: &str, why: &str| {
+                        self.unknowable
+                            .borrow_mut()
+                            .get_or_insert_with(|| Rejected::Refused {
+                                card: self
+                                    .face_name(at.what.card())
+                                    .unwrap_or("an instruction")
+                                    .to_string(),
+                                refusal: Unrunnable::new(node, why),
+                            });
+                    };
+                    let holds = match at.found.get(&card).map(Vec::as_slice) {
+                        // Nothing found, as a search may find nothing
+                        // (CR 701.23b) or a library be empty, is no card
+                        // that matches: Thrasios's "Otherwise, draw a card".
+                        None | Some([]) => Some(false),
+                        Some([c]) => match self.known(*c) {
+                            Some(k) => match k.printed.as_ref() {
+                                Some(ch) => Some(filter.matches(ch)),
+                                None => {
+                                    refuse(
+                                        "an \"if\" of a card the engine can't read",
+                                        "asks what a card is, and its characteristics aren't read",
+                                    );
+                                    None
+                                }
+                            },
+                            // A hidden card is neither one that matches
+                            // nor one that doesn't.
+                            None => {
+                                refuse(
+                                    "an \"if\" of a hidden card",
+                                    "asks what a card is, and it is hidden",
+                                );
+                                None
+                            }
+                        },
+                        // "If an instant card is revealed this way" of
+                        // several: whether any is, which nothing lowers.
+                        Some(_) => {
+                            refuse(
+                                "an \"if\" of several cards",
+                                "asks what a card is of several cards",
+                            );
+                            None
+                        }
+                    };
+                    if let Some(h) = holds {
+                        let asked = here.next.clone();
+                        if h {
+                            at = here;
+                            at.next.push(0);
+                        }
+                        at.held.insert(asked, h);
                     }
                 }
             }

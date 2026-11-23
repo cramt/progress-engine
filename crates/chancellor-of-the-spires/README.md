@@ -1076,10 +1076,10 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-23 144 of the 500 replay to
-the end and 55.89% of their lines are followed** (17,694 of 31,659), 3
+the end and 56.01% of their lines are followed** (17,731 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
-and 148 games have no card the engine refuses before any game (from 21). The
+and 151 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1266,7 +1266,18 @@ damage that would be dealt to and dealt by this creature this turn", a
 shield ending in cleanup (CR 615.1, 615.6, 514.2: Deftblade Elite,
 whose 5 games go on, one to the end, the rest to Kor Spiritdancer,
 Student of Warfare's levels, Benevolent Bodyguard and Lurrus's
-companion line). And
+companion line); a card a modal spell's mode finds, which Insight binds
+around all the modes, bound in the modes that read it and bound to
+nothing in the others, and "Otherwise, …" after an "if" of a card, the
+answer that "if" gave and not asked again, nothing found being no card
+that matches and a hidden card, an unread one or several refused
+(CR 700.2c, 608.2c, 701.23b: Archdruid's Charm, whose 5 games go on,
+one to Valakut's triggers off Hour of Promise, which gives up going back
+before trying two more Valakuts and replays past them when they are
+forced, one to Blast Zone's X, one to See Beyond, one to Escape to the
+Wilds and one to Titania's Command's "choose two"; Coiling Oracle,
+Thrasios, Zoologist, Call of the Wild, Lurking Predators, Neurok
+Familiar, Skyward Eye Prophets and Bison Whistle run with it). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an

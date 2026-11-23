@@ -1819,10 +1819,12 @@ pub enum Effect {
         except: Vec<Except>,
     },
     /// "If it's a land card, …": these instructions, only if the card
-    /// bound to `card` matches.
+    /// bound to `card` matches. `otherwise` is the "Otherwise, …" right
+    /// after one (Archdruid's Charm): only if that one's card didn't.
     IfCard {
         card: Slot,
         filter: CardFilter,
+        otherwise: bool,
         then: Vec<Effect>,
     },
     /// Pyroblast's "Counter target spell if it's blue": these instructions
@@ -2320,13 +2322,51 @@ pub fn modes(
     bind: &[Objects],
     effects: &[i::Effect],
 ) -> Option<Result<Vec<Result<Program, String>>, String>> {
-    let [i::Effect::Modal { choose, modes }] = effects else {
+    // Archdruid's Charm's "Search your library for a creature or land
+    // card": Insight binds what a mode finds in a `With` around the whole
+    // `Modal`, the effect it is said in. A `With` does nothing itself, so
+    // it is that `With` around each mode that refers to it; in the others
+    // its binder is in scope bound to nothing, which no instruction reads.
+    let (found, modal) = match effects {
+        [i::Effect::With { bind: found, then }] => (Some(found), then.as_slice()),
+        _ => (None, effects),
+    };
+    let [i::Effect::Modal { choose, modes }] = modal else {
         return None;
     };
-    Some(match choose {
-        i::Choose::One => Ok(modes.iter().map(|m| spell(bind, m)).collect()),
-        other => Err(format!("a modal spell choosing {}", short(other))),
-    })
+    if !matches!(choose, i::Choose::One) {
+        return Some(Err(format!("a modal spell choosing {}", short(choose))));
+    }
+    let Some(found) = found else {
+        return Some(Ok(modes.iter().map(|m| spell(bind, m)).collect()));
+    };
+    Some(Ok(modes
+        .iter()
+        .map(|m| {
+            let wrapped = vec![i::Effect::With {
+                bind: found.clone(),
+                then: m.clone(),
+            }];
+            let tree = i::Ability::Let {
+                bind: bind.to_vec(),
+                ability: Box::new(i::Ability::Spell(wrapped.clone())),
+            };
+            let ours = bind.len()..bind.len() + found.len();
+            let reads = vivisurgeons_insight::binders::bindings(&tree)
+                .refs
+                .values()
+                .flatten()
+                .any(|b| b.is_some_and(|b| ours.contains(&b)));
+            if reads {
+                return spell(bind, &wrapped);
+            }
+            let mut scope = Scope::new(bind);
+            scope.withs.extend(std::iter::repeat_n(None, found.len()));
+            let lowered = scope.effects(m)?;
+            scope.program.effects = lowered;
+            Ok(scope.program)
+        })
+        .collect()))
 }
 
 /// A triggered ability (CR 603), with the `Let` that binds its targets and
@@ -3892,6 +3932,7 @@ impl<'a> Scope<'a> {
             } if self.revealed.is_some() => Effect::IfCard {
                 card: self.revealed.expect("checked"),
                 filter: card_filter(what)?,
+                otherwise: false,
                 then: self.effects(then)?,
             },
             i::Effect::Transform(o) if itself(o) => Effect::Transform,
@@ -3947,6 +3988,7 @@ impl<'a> Scope<'a> {
                         quant: Quant::One,
                         filter: filter.clone(),
                     })?,
+                    otherwise: false,
                     then: self.effects(then)?,
                 }
             }
@@ -4259,6 +4301,31 @@ impl<'a> Scope<'a> {
                     k += 2;
                     continue;
                 }
+            }
+            // "Put it onto the battlefield tapped if it's a land card.
+            // Otherwise, put it into your hand": the second only if the
+            // card didn't match (CR 608.2c, the rules of English).
+            if let Some(i::Effect::Otherwise(otherwise)) = effects.get(k + 1) {
+                let lowered = self.effect(&effects[k])?;
+                let [Effect::IfCard {
+                    card,
+                    filter,
+                    otherwise: false,
+                    ..
+                }] = lowered.as_slice()
+                else {
+                    return Err("an \"Otherwise\" after an \"if\" not of a card found".into());
+                };
+                let (card, filter) = (*card, filter.clone());
+                out.extend(lowered);
+                out.push(Effect::IfCard {
+                    card,
+                    filter,
+                    otherwise: true,
+                    then: self.effects(otherwise)?,
+                });
+                k += 2;
+                continue;
             }
             // "~ deals 2 damage to any target. If this spell was kicked, it
             // deals 4 damage instead": the first only if it wasn't kicked,
