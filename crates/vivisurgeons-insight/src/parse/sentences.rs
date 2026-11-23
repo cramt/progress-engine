@@ -1620,6 +1620,17 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                 then.extend(s);
                 continue;
             }
+            // "When you do, ~ deals X damage to any target, where X is that
+            // creature's power. If the sacrificed creature was a Hamster,
+            // draw X cards" (Minsc & Boo): X is defined only as the
+            // reflexive trigger resolves (CR 603.12), so a later sentence
+            // that says X is in that trigger's scope too ([x-in-reflexive]).
+            if says_x(&s) && !s.iter().any(|e| matches!(e, Effect::Where { .. })) {
+                if let Some(Effect::Where { then: inner, .. }) = then.last_mut() {
+                    inner.extend(s);
+                    continue;
+                }
+            }
         }
         // "Look at the top X cards of your library, where X is your devotion
         // to blue. … If X is greater than or equal to …": X keeps the value

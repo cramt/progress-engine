@@ -8,7 +8,7 @@ permanent-state-off-battlefield 0
 state-of-triggering-spell 0
 equipped-equipment 0
 bare-other 0
-unbound-x 2
+unbound-x 1
 fight-one-object 0
 types-without-card-type 0
-sort-mismatch 3
+sort-mismatch 2

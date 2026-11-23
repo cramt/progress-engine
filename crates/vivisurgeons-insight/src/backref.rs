@@ -1937,6 +1937,39 @@ fn resolve_one(
             note = "a permanent, not a card off the battlefield or the damage's source".into();
         }
     }
+    // "Sacrifice a creature. When you do, ~ deals X damage to any target,
+    // where X is that creature's power" (Minsc & Boo): "any target" may be a
+    // player or a planeswalker, so "that creature" is the object said as a
+    // creature, not the one whose words don't say what it is
+    // ([named-not-any-target]).
+    let (rt, _) = type_words(&r.filter);
+    if cands.len() > 1 && !rt.is_empty() {
+        let words_of = |t: &Target| match t {
+            Target::Intro(l, i) => {
+                let x = get((*l, *i));
+                match (&x.token, &x.obj) {
+                    (Some(tk), _) => token_words(tk).0,
+                    (None, Some(o)) => type_words(&o.filter).0,
+                    _ => BTreeSet::new(),
+                }
+            }
+            _ => BTreeSet::new(),
+        };
+        let any_target = |t: &Target| {
+            matches!(t, Target::Intro(l, i) if get((*l, *i)).obj.as_ref().is_some_and(|o| {
+                matches!(o.quant, Quant::AnyTarget { .. } | Quant::AnyOtherTarget)
+                    && o.filter.alts.is_empty()
+            }))
+        };
+        if cands.iter().any(any_target)
+            && cands
+                .iter()
+                .any(|t| !any_target(t) && !words_of(t).is_disjoint(&rt))
+        {
+            cands.retain(|t| !any_target(t));
+            note = "said as what it is, not any target".into();
+        }
+    }
     // "Whenever this creature becomes blocked by a creature, it deals 2
     // damage to that creature" (Acolyte of the Inferno): a bare "it" dealing
     // damage to a reference said after it, which names the other object, is
@@ -2058,7 +2091,7 @@ fn resolve_one(
                 ) && x
                     .obj
                     .as_ref()
-                    .is_some_and(|o| !targeted(o) && o.filter.kind.is_none() && names_permanent(o))
+                    .is_some_and(|o| o.filter.kind.is_none() && names_permanent(o))
             }
             _ => false,
         };
