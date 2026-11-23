@@ -950,7 +950,7 @@ cost: {4}{W}{W}{W}
 > You and creatures you control have protection from the chosen card type.
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardType)] }])
-= BROKE at "from" after: you and creatures you control have protection
+= Static([YouHave([Keyword { name: "protection", param: Some(Objects(Objects { quant: All, filter: Filter { alts: [], kind: None, posts: [OfChosenType], or: None } })) }]), Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "protection", param: Some(Objects(Objects { quant: All, filter: Filter { alts: [], kind: None, posts: [OfChosenType], or: None } })) }], per: None }])
 
 ## Sheltered Aerie
 face: Sheltered Aerie

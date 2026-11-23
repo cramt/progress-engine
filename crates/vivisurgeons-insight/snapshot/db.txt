@@ -667,7 +667,7 @@ cost: {W}{W}
 > As this enchantment enters, choose a card name.
 > You have protection from the chosen card name. (You can't be targeted, dealt damage, or enchanted by anything with that name.)
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName)] }])
-= BROKE at "name" after: you have protection from the chosen card
+= Static([YouHave([Keyword { name: "protection", param: Some(Objects(Objects { quant: All, filter: Filter { alts: [], kind: None, posts: [WithChosenName], or: None } })) }])])
 
 ## Sagu Mauler
 face: Sagu Mauler

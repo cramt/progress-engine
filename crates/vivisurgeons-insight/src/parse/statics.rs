@@ -553,6 +553,16 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
         },
         |p| p.words("you have no maximum hand size").map(|_| vec![Static::MaxHandSize]),
         |p| { p.words("you have")?; keyword_list(p).map(|k| vec![Static::YouHave(k)]) },
+        // "You and creatures you control have protection from the chosen card
+        // type" (Serra's Emissary): the player has it, and so do the
+        // permanents ([you-and-have]).
+        |p| {
+            p.words("you and")?;
+            let what = objects(p)?;
+            p.word("have")?;
+            let k = keyword_list(p)?;
+            Some(vec![Static::YouHave(k.clone()), Static::Modify { what, pt: None, has: k, per: None }])
+        },
         |p| p.words("~ can be your commander").map(|_| vec![Static::CanBeCommander]),
         |p| {
             p.words("a deck can have")?;

@@ -383,7 +383,7 @@ type: Legendary Creature — Human Scout
 cost: {1}{G}{U}
 > You and permanents you control have protection from Salamanders.
 > At the beginning of your end step, each player who controls the fewest creatures creates a 4/3 blue Salamander Warrior creature token.
-= BROKE at "from" after: you and permanents you control have protection
+= Static([YouHave([Keyword { name: "protection", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Subtype("salamander")]], kind: None, posts: [], or: None } })) }]), Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "protection", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Subtype("salamander")]], kind: None, posts: [], or: None } })) }], per: None }])
 = BROKE at "creatures" after: at the beginning of your end step , each player who controls the fewest
 
 ## Gorma, the Gullet

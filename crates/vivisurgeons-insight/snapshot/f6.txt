@@ -778,7 +778,7 @@ cost: {3}{G}{W}
 > You and Humans you control have hexproof.
 > {2}, Exile a card from your graveyard: Create a 1/1 white Human Soldier creature token.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "." after: you and humans you control have hexproof
+= Static([YouHave([Keyword { name: "hexproof", param: None }]), Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }])
 = Activated { cost: [Mana(Mana(["2"])), Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Sigardian Paladin

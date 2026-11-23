@@ -439,7 +439,7 @@ cost: {1}{R}{G}
 > During your turn, you and this creature have hexproof.
 = Keywords([Keyword { name: "riot", param: None }])
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "this" after: during your turn , you and
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [YouHave([Keyword { name: "hexproof", param: None }]), Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "hexproof", param: None }], per: None }] }])
 
 ## Hamlet Vanguard
 face: Hamlet Vanguard

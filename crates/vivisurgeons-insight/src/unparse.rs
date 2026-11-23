@@ -2915,8 +2915,16 @@ fn keyword(o: &mut Out, k: &Keyword) {
         }
         Some(KeywordParam::Objects(x)) if k.name == "protection" => {
             o.w("protection from");
+            let chosen = |post: Post| Filter {
+                posts: vec![post],
+                ..Filter::default()
+            };
             if x.quant == Quant::All && x.filter == Filter::default() {
                 o.w("everything");
+            } else if x.quant == Quant::All && x.filter == chosen(Post::WithChosenName) {
+                o.w("the chosen card name");
+            } else if x.quant == Quant::All && x.filter == chosen(Post::OfChosenType) {
+                o.w("the chosen card type");
             } else {
                 objects(o, x);
             }
@@ -13679,6 +13687,10 @@ fn statics(o: &mut Out, ss: &[Static]) {
             i = j;
             continue;
         }
+        if let Some(j) = you_and_have(o, ss, i) {
+            i = j;
+            continue;
+        }
         // "can't block or be blocked by non-Spirit creatures": two rules,
         // one object said once.
         if let (
@@ -15036,6 +15048,32 @@ fn unsaid(o: &mut Out, s: &Static) {
 /// A run of PlayFrom from one zone, as one sentence ("you may play lands and
 /// cast spells from the top of your library"), said at `i`; the index after
 /// it, or `None` when `ss[i]` is no PlayFrom.
+/// "You and creatures you control have …": the player's keywords and the
+/// same keywords of the permanents, said once ([you-and-have]). The index
+/// after the pair, if `ss[i]` starts one.
+fn you_and_have(o: &mut Out, ss: &[Static], i: usize) -> Option<usize> {
+    let (
+        Static::YouHave(k),
+        Some(Static::Modify {
+            what,
+            pt: None,
+            has,
+            per: None,
+        }),
+    ) = (&ss[i], ss.get(i + 1))
+    else {
+        return None;
+    };
+    if has != k {
+        return None;
+    }
+    o.w("you and");
+    objects(o, what);
+    o.w("have");
+    keyword_list(o, k);
+    Some(i + 2)
+}
+
 fn play_from_run(o: &mut Out, ss: &[Static], i: usize) -> Option<usize> {
     let Static::PlayFrom { zone: z, .. } = &ss[i] else {
         return None;
@@ -15130,6 +15168,10 @@ fn statics_joined(o: &mut Out, ss: &[Static]) {
             }
         }
         if let Some(j) = play_from_run(o, ss, i) {
+            i = j;
+            continue;
+        }
+        if let Some(j) = you_and_have(o, ss, i) {
             i = j;
             continue;
         }

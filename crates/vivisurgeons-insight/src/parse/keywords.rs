@@ -38,6 +38,16 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
             )) {
                 return Some(Keyword { name: "protection".into(), param: Some(KeywordParam::Color(pal)) });
             }
+            // "protection from the chosen card name" (Runed Halo), "… the
+            // chosen card type" (Serra's Emissary): from every object with
+            // that name, or of that type ([chosen-protection]).
+            if let Some(post) = p.attempt(|p| alt!(p;
+                |p| p.words("the chosen card name").map(|_| Post::WithChosenName),
+                |p| p.words("the chosen card type").map(|_| Post::OfChosenType),
+            )) {
+                let o = Objects { quant: Quant::All, filter: Filter { posts: vec![post], ..Filter::default() } };
+                return Some(Keyword { name: "protection".into(), param: Some(KeywordParam::Objects(Box::new(o))) });
+            }
             let mut cs = Vec::new();
             while let Some(c) = p.peek_word().and_then(color_word) {
                 p.bump();
