@@ -640,7 +640,7 @@ cost: {2}{U}{U}
 > When this enchantment leaves the battlefield, each player returns to the battlefield all cards they own exiled with it.
 = Keywords([Keyword { name: "fading", param: Some(N(N(5))) }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "fade", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], limits: [] }
-= BROKE at "the" after: when this enchantment leaves the battlefield , each player returns to
+= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Performed { by: Each, effect: Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(That), ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }], limits: [] }
 
 ## Porcuparrot
 face: Porcuparrot

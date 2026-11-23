@@ -760,7 +760,7 @@ face: Second Sunrise
 type: Instant
 cost: {1}{W}{W}
 > Each player returns to the battlefield all artifact, creature, enchantment, and land cards in their graveyard that were put there from the battlefield this turn.
-= BROKE at "artifact" after: each player returns to the battlefield all
+= Spell([Performed { by: Each, effect: Move { what: Objects { quant: All, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("enchantment")], [Type("land")]], kind: Some(Card), posts: [In(Graveyard(That)), PutThereFromBattlefieldThisTurn], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }])
 
 ## Seeker
 face: Seeker

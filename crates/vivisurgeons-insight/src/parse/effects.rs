@@ -1788,6 +1788,15 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                     let to = destination(p)?;
                     Some(to.moving(what, from, None))
                 },
+                // "each player returns to the battlefield all cards they own
+                // exiled with it" (Parallax Tide): where first, then what.
+                |p| {
+                    p.verb("return")?;
+                    p.word("to")?;
+                    let to = destination(p)?;
+                    let what = objects(p)?;
+                    Some(to.moving(what, None, None))
+                },
                 // "puts a number of +1/+1 counters on it equal to …" (Oversimplify).
                 |p| { p.verb("put")?; number_of_counters(p) },
                 |p| {

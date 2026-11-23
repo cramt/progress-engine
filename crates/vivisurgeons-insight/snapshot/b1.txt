@@ -638,7 +638,7 @@ cost: {2}{B}
 > When this enchantment leaves the battlefield, each player returns to their hand all cards they own exiled with it.
 = Keywords([Keyword { name: "fading", param: Some(N(N(5))) }])
 = Activated { cost: [RemoveCounters { n: N(1), kind: "fade", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Performed { by: TargetOpponent, effect: Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }) }], limits: [SorcerySpeed] }
-= BROKE at "their" after: when this enchantment leaves the battlefield , each player returns to
+= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Performed { by: Each, effect: Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(That), ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }], limits: [] }
 
 ## Passageway Seer
 face: Passageway Seer
