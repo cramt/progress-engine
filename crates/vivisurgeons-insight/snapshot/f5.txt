@@ -368,7 +368,7 @@ type: Land
 > {1}, Remove X storage counters from this land: Add X mana in any combination of {R} and/or {G}.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
 = Activated { cost: [Mana(Mana(["1"])), Tap], effect: [PutCounters { n: N(1), kind: "storage", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "{R}" after: {1} , remove x storage counters from this land : add x mana in any combination of
+= Activated { cost: [Mana(Mana(["1"])), RemoveCounters { n: X, kind: "storage", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [AddMana(Of { n: X, pick: AnyCombination, within: Some(Listed([Red, Green])) })], limits: [] }
 
 ## Garland, Royal Kidnapper
 face: Garland, Royal Kidnapper

@@ -137,8 +137,8 @@ type: Instant
 cost: {B}
 > As an additional cost to cast this spell, sacrifice a creature.
 > Add X mana in any combination of {B} and/or {R}, where X is the sacrificed creature's mana value.
-= Static([AdditionalCost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])])
-= BROKE at "{B}" after: add x mana in any combination of
+= Let { bind: [/* sacrificed */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([AdditionalCost([Sacrifice(Objects { quant: Introduced(0) /* sacrificed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })])]) }
+= Spell([Where { then: [AddMana(Of { n: X, pick: AnyCombination, within: Some(Listed([Black, Red])) })], x: ManaValueOf(Objects { quant: LinkedBound { line: 0, binder: 0 }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) }])
 
 ## Cathartic Reunion
 face: Cathartic Reunion

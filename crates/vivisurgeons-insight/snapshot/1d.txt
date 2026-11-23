@@ -619,7 +619,7 @@ type: Artifact
 cost: {4}
 > {T}: Add two mana in any combination of {U}, {B}, and/or {R}.
 > {3}, {T}: Draw two cards, then discard a card.
-= BROKE at "{U}" after: {T} : add two mana in any combination of
+= Activated { cost: [Tap], effect: [AddMana(Of { n: N(2), pick: AnyCombination, within: Some(Listed([Blue, Black, Red])) })], limits: [] }
 = Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
 
 ## Rending Flame

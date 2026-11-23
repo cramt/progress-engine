@@ -414,7 +414,7 @@ cost: {2}{R}{G}
 > Haste
 > Whenever one or more creatures you control attack, add that much mana in any combination of {R} and/or {G}. Until end of turn, you don't lose this mana as steps and phases end.
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "{R}" after: whenever one or more creatures you control attack , add that much mana in any combination of
+= Triggered { trigger: When(Attacks(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [AddMana(Of { n: ThatMany, pick: AnyCombination, within: Some(Listed([Red, Green])) }), During { dur: UntilEndOfTurn, then: [KeepsMana { who: You, mana: This }] }], limits: [] }
 
 ## Heart-Piercer Bow
 face: Heart-Piercer Bow

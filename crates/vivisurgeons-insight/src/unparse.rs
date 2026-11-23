@@ -5028,6 +5028,18 @@ fn state_word(s: State) -> &'static str {
     }
 }
 
+fn color_symbol(c: Color) -> &'static str {
+    match c {
+        Color::White => "W",
+        Color::Blue => "U",
+        Color::Black => "B",
+        Color::Red => "R",
+        Color::Green => "G",
+        Color::Colorless => "C",
+        Color::Multicolored | Color::Monocolored => "?",
+    }
+}
+
 fn color_name(c: Color) -> &'static str {
     match c {
         Color::White => "white",
@@ -11123,6 +11135,19 @@ fn mana_pick(o: &mut Out, pick: Pick, within: &Option<Palette>) {
                 objects(o, x);
             });
             syn::colors_of(o, possessive, among);
+            return;
+        }
+        (Pick::AnyCombination, Some(Palette::Listed(cs))) => {
+            o.w("in any combination of");
+            for (i, c) in cs.iter().enumerate() {
+                if i > 0 && cs.len() > 2 {
+                    o.tok(Tok::Comma);
+                }
+                if i + 1 == cs.len() {
+                    o.w("and/or");
+                }
+                o.tok(Tok::Sym(color_symbol(*c).into()));
+            }
             return;
         }
         (Pick::AnyOneColor, _) => o.w("of any one color"),

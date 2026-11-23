@@ -1036,7 +1036,7 @@ type: Legendary Creature — Wizard
 cost: {1}{U}{R}
 > {0}: Add X mana in any combination of {U} and/or {R}, where X is Vivi Ornitier's power. Activate only during your turn and only once each turn.
 > Whenever you cast a noncreature spell, put a +1/+1 counter on Vivi Ornitier and it deals 1 damage to each opponent.
-= BROKE at "{U}" after: {0} : add x mana in any combination of
+= Activated { cost: [Mana(Mana(["0"]))], effect: [Where { then: [AddMana(Of { n: X, pick: AnyCombination, within: Some(Listed([Blue, Red])) })], x: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], limits: [OnlyDuringYourTurn, OncePerTurn] }
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(EachOpponent)] }], limits: [] }
 
 ## Voldaren Epicure

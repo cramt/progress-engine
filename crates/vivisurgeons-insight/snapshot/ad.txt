@@ -653,7 +653,7 @@ face: Orcish Lumberjack
 type: Creature — Orc
 cost: {R}
 > {T}, Sacrifice a Forest: Add three mana in any combination of {R} and/or {G}.
-= BROKE at "{R}" after: {T} , sacrifice a forest : add three mana in any combination of
+= Activated { cost: [Tap, Sacrifice(Objects { quant: One, filter: Filter { alts: [[Subtype("forest")]], kind: None, posts: [], or: None } })], effect: [AddMana(Of { n: N(3), pick: AnyCombination, within: Some(Listed([Red, Green])) })], limits: [] }
 
 ## Ovalchase Daredevil
 face: Ovalchase Daredevil

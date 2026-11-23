@@ -14,6 +14,23 @@ pub(super) fn mana(p: &mut P) -> Option<Mana> {
     (!syms.is_empty()).then_some(Mana(syms))
 }
 
+/// One colored mana symbol read as its color: "{R}" is red.
+fn symbol_color(p: &mut P) -> Option<Color> {
+    let c = match p.peek()? {
+        Tok::Sym(s) => match s.as_str() {
+            "W" => Color::White,
+            "U" => Color::Blue,
+            "B" => Color::Black,
+            "R" => Color::Red,
+            "G" => Color::Green,
+            _ => return None,
+        },
+        _ => return None,
+    };
+    p.bump();
+    Some(c)
+}
+
 pub(super) fn sym(p: &mut P, s: &str) -> Option<()> {
     match p.peek()? {
         Tok::Sym(x) if x == s => {
@@ -351,6 +368,19 @@ pub(super) fn mana_pick(p: &mut P) -> Option<(Pick, Option<Palette>)> {
     alt!(p;
         |p| { p.word("of")?; palette_named(p).map(|c| (Pick::Stated, Some(c))) },
         |p| p.words("of that type").map(|_| (Pick::ThatType, None)),
+        // "in any combination of {R} and/or {G}", "{U}, {B}, and/or {R}"
+        // ([combination-of-symbols]): the colors it may be, as named.
+        |p| {
+            p.words("in any combination of")?;
+            let mut cs = vec![symbol_color(p)?];
+            while let Some(c) = p.attempt(|p| { p.tok(&Tok::Comma)?; symbol_color(p) }) {
+                cs.push(c);
+            }
+            if cs.len() > 1 { p.tok(&Tok::Comma)?; }
+            p.word("and/or")?;
+            cs.push(symbol_color(p)?);
+            Some((Pick::AnyCombination, Some(Palette::Listed(cs))))
+        },
         |p| {
             p.words("of any of")?;
             let o = objects_no_player(p)?;

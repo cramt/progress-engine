@@ -1056,7 +1056,7 @@ cost: {2}{R}{G}
 > +1: Add X mana in any combination of {R} and/or {G}, where X is the number of creatures you control.
 > 0: Create a 2/2 red and green Satyr creature token with haste.
 > −6: Exile the top seven cards of your library. You may put any number of creature and/or land cards from among them onto the battlefield.
-= BROKE at "{R}" after: N(1) : add x mana in any combination of
+= Loyalty { change: N(1), effect: [Where { then: [AddMana(Of { n: X, pick: AnyCombination, within: Some(Listed([Red, Green])) })], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }) }] }
 = Loyalty { change: N(0), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Red, Green], types: ["satyr", "creature"], keywords: [Keyword { name: "haste", param: None }], abilities: [], named: None, attacking: None } }] }
 = Loyalty { change: N(-6), effect: [With { bind: [/* exiled */ Objects { quant: N(N(7)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }], then: [Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), May { who: You, then: [Move { what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [FromAmong(Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }] }
 
