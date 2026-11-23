@@ -6657,3 +6657,104 @@ fn coiling_oracle_puts_a_land_onto_the_battlefield_and_otherwise_into_hand() {
         assert_eq!((entered, held), (land, !land), "one place, by what it is");
     }
 }
+
+/// CR 118.9, 107.3a, 601.2h: Blazing Shoal cast by exiling a red card
+/// with mana value X from the hand rather than paying its mana cost: X is
+/// that card's mana value, 12 for Volcanic Salvo, so Raging Goblin gets
+/// +12/+0.
+#[test]
+fn blazing_shoal_exiles_a_red_card_from_hand_and_its_mana_value_is_x() {
+    let mut game = deal(
+        &[
+            ("Mountain", 30),
+            ("Raging Goblin", 10),
+            ("Blazing Shoal", 10),
+            ("Volcanic Salvo", 10),
+        ],
+        &[("Island", 60)],
+        &[
+            ("Mountain", 1),
+            ("Raging Goblin", 1),
+            ("Blazing Shoal", 1),
+            ("Volcanic Salvo", 1),
+        ],
+    );
+    let shoal = in_hand(&game, ME, "Blazing Shoal").unwrap();
+    let salvo = in_hand(&game, ME, "Volcanic Salvo").unwrap();
+    play(&mut game, "Mountain");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    let goblin = creature(&game, "Raging Goblin").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let alt = actions
+        .into_iter()
+        .find(|a| matches!(a, Action::CastAlternative(c, _) if *c == shoal))
+        .expect("offered");
+    let mut d = step(&mut game, Answer::Act(alt));
+    if let Decision::Targets { .. } = d {
+        d = step(&mut game, Answer::Targets(vec![Target::Object(goblin)]));
+    }
+    if let Decision::Pay { .. } = d {
+        d = step(&mut game, Answer::Pay(Payment::Spend(ManaPool::default())));
+    }
+    let Decision::PayCards { count, legal, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(count, 1);
+    assert!(legal.contains(&salvo));
+    assert!(!legal.contains(&shoal), "on the stack");
+    step(&mut game, Answer::Choose(vec![salvo]));
+    assert!(game.exile().contains(&salvo));
+    resolve(&mut game);
+    assert_eq!(game.characteristics()[&goblin].pt, Some(pt(13, 1)));
+}
+
+/// CR 107.3a, 704.5f: Sickening Shoal's "-X/-X", X the mana value of the
+/// black card it exiled, Grave Titan's 6: their Grizzly Bears dies.
+#[test]
+fn sickening_shoal_gives_minus_x_minus_x_for_the_card_it_exiled() {
+    let mut game = deal_both(
+        &[("Swamp", 40), ("Sickening Shoal", 10), ("Grave Titan", 10)],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Swamp", 3), ("Sickening Shoal", 1), ("Grave Titan", 1)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    let shoal = in_hand(&game, ME, "Sickening Shoal").expect("one kept");
+    let titan = in_hand(&game, ME, "Grave Titan").expect("one kept");
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let alt = actions
+        .iter()
+        .find(|a| matches!(a, Action::CastAlternative(c, _) if *c == shoal))
+        .copied()
+        .expect("offered");
+    let mut d = step(&mut game, Answer::Act(alt));
+    if let Decision::Targets { .. } = d {
+        d = step(&mut game, Answer::Targets(vec![Target::Object(bears)]));
+    }
+    if let Decision::Pay { .. } = d {
+        d = step(&mut game, Answer::Pay(Payment::Spend(ManaPool::default())));
+    }
+    let Decision::PayCards { legal, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert!(legal.contains(&titan));
+    step(&mut game, Answer::Choose(vec![titan]));
+    resolve(&mut game);
+    assert_eq!(creature(&game, "Grizzly Bears"), None, "2/2 at -6/-6");
+}

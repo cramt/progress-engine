@@ -532,6 +532,7 @@ fn a_creature_cast_at_sorcery_speed_resolves_onto_the_battlefield() {
             via: Via::ManaCost,
             kicked: false,
             mode: 0,
+            x: None,
         }]
     );
     assert_eq!(game.player(ME).pool().total(), 0);

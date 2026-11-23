@@ -189,6 +189,8 @@ pub enum Divergence {
     HandSize { log: usize, engine: usize },
     /// The log scries a different number of cards than the engine looks at.
     Scry { log: usize, engine: usize },
+    /// The log's "(X is 12.)" isn't the X the engine's spell has.
+    X { log: u32, engine: u32 },
 }
 
 impl Stop {
@@ -1270,7 +1272,11 @@ impl Driver<'_> {
                     {
                         vec![Route::Alternative(CastFrom::Graveyard)]
                     }
-                    Some(v) if v.starts_with("by sacrificing ") || returns_to_pay(v) => {
+                    Some(v)
+                        if v.starts_with("by sacrificing ")
+                            || v.starts_with("by exiling ")
+                            || returns_to_pay(v) =>
+                    {
                         vec![Route::Alternative(CastFrom::Hand)]
                     }
                     // Other spells cast without paying a mana cost print
@@ -1949,6 +1955,16 @@ impl Driver<'_> {
             // The time counters suspend put on the card it exiled.
             PutsCounters { player, counters } if self.time_counters(*player, counters) => {
                 self.did(i, "the time counters suspend put on it (CR 702.62a)");
+            }
+            // Blazing Shoal's card exiled to pay for it, named as it is
+            // paid (`pay_cards`). Magic Online sometimes names the
+            // caster's opponent as the one exiling, so the cast's line
+            // says whose.
+            Exiles {
+                by: Some(log::ExiledBy::Source(log::Source::Card(c))),
+                ..
+            } if self.casts_next(i, c.name()) => {
+                self.did(i, "exiled to pay for the spell the next line casts");
             }
             // Magic Online sometimes names the activator's opponent as
             // the one exiling, so the activation's line says whose.
@@ -3392,6 +3408,9 @@ impl Driver<'_> {
         if let Decision::Sacrifice { .. } = self.game().decision() {
             self.sacrifice()?;
         }
+        if let Decision::PayCards { .. } = self.game().decision() {
+            self.pay_cards(i)?;
+        }
         if let Decision::ReturnToHand { .. } = self.game().decision() {
             self.return_to_hand()?;
         }
@@ -3472,6 +3491,20 @@ impl Driver<'_> {
             .is_some_and(|e| {
                 matches!(&e.event, Event::Activates(a)
                     if matches!(&a.card, Object::Card(c) if c.name() == name))
+            })
+    }
+
+    /// Whether the next line (chat aside) casts `name` by exiling a card:
+    /// Blazing Shoal's "by exiling a red card with mana value X from your
+    /// hand".
+    fn casts_next(&self, i: usize, name: &str) -> bool {
+        self.entries[i + 1..]
+            .iter()
+            .find(|e| !matches!(e.event, Event::Chat { .. } | Event::Watching { .. }))
+            .is_some_and(|e| {
+                matches!(&e.event, Event::Casts(cast)
+                    if cast.via.as_deref().is_some_and(|v| v.starts_with("by exiling "))
+                        && matches!(&cast.card, Object::Card(c) if c.name() == name))
             })
     }
 
@@ -3767,6 +3800,16 @@ impl Driver<'_> {
                 },
                 PaidWith::ExileFromGraveyard,
             ) if s.name() == source => Some(cards.iter().map(|c| c.name().to_string()).collect()),
+            // "P1 exiles [Volcanic Salvo] with with [Blazing Shoal]." before
+            // the line casting it.
+            (
+                Event::Exiles {
+                    cards,
+                    by: Some(log::ExiledBy::Source(log::Source::Card(s))),
+                    ..
+                },
+                PaidWith::ExileFromHand,
+            ) if s.name() == source => Some(cards.iter().map(|c| c.name().to_string()).collect()),
             _ => None,
         });
         let chosen = match named {
@@ -3774,7 +3817,7 @@ impl Driver<'_> {
                 let mut chosen = Vec::new();
                 for n in &names {
                     let c = match how {
-                        PaidWith::Discard => {
+                        PaidWith::Discard | PaidWith::ExileFromHand => {
                             let text = self.text(n)?;
                             let game = self.game();
                             let hand = game.player(player).hand().clone();
@@ -3820,7 +3863,9 @@ impl Driver<'_> {
                     let Some(c) = c else {
                         let card = n.clone();
                         return Err(Stop::Diverged(match how {
-                            PaidWith::Discard => Divergence::NotInHand { card },
+                            PaidWith::Discard | PaidWith::ExileFromHand => {
+                                Divergence::NotInHand { card }
+                            }
                             PaidWith::ExileFromGraveyard => Divergence::NotInGraveyard { card },
                         }));
                     };
@@ -3828,7 +3873,11 @@ impl Driver<'_> {
                 }
                 chosen
             }
-            None if legal.len() >= count as usize => legal[..count as usize].to_vec(),
+            // A card a spell's cost exiles from the hand sets its X, so
+            // only the log's naming will do.
+            None if legal.len() >= count as usize && how != PaidWith::ExileFromHand => {
+                legal[..count as usize].to_vec()
+            }
             None => {
                 return Err(Stop::Unfollowed {
                     event: "a cost's cards the log never names".into(),
@@ -5258,6 +5307,23 @@ impl Driver<'_> {
             _ => {}
         }
         let paid = self.aim_and_pay(i, &cast.targets, name)?;
+        // Blazing Shoal's X, which the card its cost exiled set.
+        let card = match cast_it {
+            Action::Cast(c) | Action::CastAlternative(c, _) => Some(c),
+            _ => None,
+        };
+        let engine_x = self.game().stack().iter().find_map(|o| match o {
+            StackObject::Spell { card: c, x, .. } if Some(*c) == card => *x,
+            _ => None,
+        });
+        // A spell with no X set and the log printing one (an {X} spell
+        // cast without paying it) is no disagreement: what reads its X
+        // refuses (`Game::amount`).
+        if let (Some(log), Some(engine)) = (cast.x, engine_x) {
+            if log != engine {
+                return Err(Stop::Diverged(Divergence::X { log, engine }));
+            }
+        }
         Ok(if kicked {
             format!("kicked (CR 702.33d), {paid}")
         } else {

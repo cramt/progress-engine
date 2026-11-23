@@ -701,6 +701,9 @@ pub enum StackObject {
         /// The mode chosen of a modal spell (CR 700.2a); 0 for one that
         /// isn't.
         mode: u8,
+        /// Its X, set as it was cast (CR 107.3a): Blazing Shoal's, the
+        /// mana value of the card it exiled. `None` with no X set.
+        x: Option<u32>,
     },
     /// A triggered ability (CR 603.3): the card whose ability it is, by
     /// its index among that card's unread abilities, the permanent it
@@ -768,6 +771,7 @@ enum Instructions {
         via: Via,
         kicked: bool,
         mode: u8,
+        x: Option<u32>,
     },
     /// An activated ability, of the text it is printed on.
     Activated(CardId, Printed, u16),
@@ -845,6 +849,15 @@ struct Resuming {
     held: OrdMap<Vec<usize>, bool>,
     /// The card name an instruction chose (CR 201.4), "that name".
     name: Option<String>,
+}
+
+/// What comes after the cards a cost names are paid.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum AfterCards {
+    /// An activated ability's mana, `owed`.
+    AbilityMana(Option<ManaCost>),
+    /// The rest of a spell's cost, the mana already paid (CR 601.2h).
+    SpellRest,
 }
 
 /// A triggered ability that has triggered and waits to be put on the stack
@@ -1291,13 +1304,14 @@ enum Waiting {
         spell: CardId,
         returned: lower::Returned,
     },
-    /// CR 602.2b, 601.2h: `player` pays the cards the activated ability
-    /// of `source` on top of the stack costs, then its mana, `owed`.
+    /// CR 602.2b, 601.2h: `player` pays the cards `source` costs: the
+    /// activated ability of it on top of the stack, then its mana, or the
+    /// spell it is (Blazing Shoal's exiled card).
     PayCards {
         player: PlayerId,
         source: CardId,
         cards: lower::CardsPaid,
-        owed: Option<ManaCost>,
+        then: AfterCards,
     },
     /// CR 119.4: `player` may pay `life` for the "pay life or" instruction
     /// `at` points to.
@@ -3371,7 +3385,9 @@ impl Game {
     /// or graveyard that might be among them.
     fn payable_cards(&self, p: PlayerId, cards: &lower::CardsPaid) -> (Vec<CardId>, usize) {
         match cards.how {
-            lower::PaidWith::Discard => self.discardable(p, &cards.filter),
+            lower::PaidWith::Discard | lower::PaidWith::ExileFromHand => {
+                self.discardable(p, &cards.filter)
+            }
             // A hidden card there (`presume_graveyard_inert`) may be one,
             // as a hidden card in a hand may be one to discard.
             lower::PaidWith::ExileFromGraveyard => {
@@ -3598,7 +3614,7 @@ impl Game {
                                     filter,
                                 }
                             }
-                            None => self.return_or_cast(player, spell),
+                            None => self.cards_or_return(player, spell),
                         }
                     }
                     (Payment::Cancel, _) => {
@@ -4305,7 +4321,7 @@ impl Game {
                 for o in chosen {
                     self.put_in_graveyard(*o);
                 }
-                self.return_or_cast(player, spell);
+                self.cards_or_return(player, spell);
             }
             (
                 Waiting::ReturnToHand {
@@ -4333,7 +4349,7 @@ impl Game {
                     player,
                     source,
                     cards,
-                    owed,
+                    then,
                 },
                 Answer::Choose(chosen),
             ) => {
@@ -4355,8 +4371,47 @@ impl Game {
                             self.put_in_exile(*c);
                         }
                     }
+                    lower::PaidWith::ExileFromHand => {
+                        let p = &mut self.players[player.0 as usize];
+                        p.hand.retain(|c| !chosen.contains(c));
+                        for c in chosen {
+                            self.put_in_exile(*c);
+                        }
+                    }
                 }
-                self.pay_mana_for_ability(player, source, owed);
+                match then {
+                    AfterCards::AbilityMana(owed) => {
+                        self.pay_mana_for_ability(player, source, owed)
+                    }
+                    AfterCards::SpellRest => {
+                        // CR 107.3a: the X is the exiled card's mana value,
+                        // fixed here as the card is paid rather than
+                        // announced first (CR 601.2b), which allows the
+                        // same casts. Only a card the engine reads is
+                        // legal.
+                        if cards.x_is_mana_value() {
+                            let x = match chosen.as_slice() {
+                                [c] => self
+                                    .known(*c)
+                                    .and_then(|k| k.printed.as_ref())
+                                    .map(|ch| ch.mana_value),
+                                _ => None,
+                            }
+                            .expect("one legal card, read");
+                            for o in self.stack.iter_mut() {
+                                if let StackObject::Spell {
+                                    card, x: spell_x, ..
+                                } = o
+                                {
+                                    if *card == source {
+                                        *spell_x = Some(x);
+                                    }
+                                }
+                            }
+                        }
+                        self.return_or_cast(player, source);
+                    }
+                }
             }
             (Waiting::PayLifeOr { player, life, at }, Answer::PayLife(pay)) => {
                 let mut at = at;
@@ -4626,6 +4681,13 @@ impl Game {
                         && alt.other.returned.as_ref().is_none_or(|r| {
                             let (k, legal) = self.returnable(p, r);
                             legal.len() >= k as usize
+                        })
+                        // A hidden card in the hand may be one; the card
+                        // cast is on the stack as it is paid (CR 601.2a).
+                        && alt.other.cards.as_ref().is_none_or(|k| {
+                            let (legal, unsure) = self.payable_cards(p, k);
+                            let legal = legal.iter().filter(|x| **x != *c).count();
+                            legal + unsure >= k.count as usize
                         });
                     if alt.from == from
                         && timing
@@ -5140,6 +5202,7 @@ impl Game {
                     via: Via::FaceDown,
                     kicked: false,
                     mode: 0,
+                    x: None,
                 });
                 let owed = self.total_cost(p, card, ManaCost::default().plus_generic(3));
                 self.waiting = Waiting::Paying {
@@ -5335,7 +5398,7 @@ impl Game {
                     player: p,
                     source: card,
                     cards,
-                    owed,
+                    then: AfterCards::AbilityMana(owed),
                 }
             }
             None => self.pay_mana_for_ability(p, card, owed),
@@ -5486,6 +5549,7 @@ impl Game {
             via,
             kicked: false,
             mode: 0,
+            x: None,
         });
         // CR 903.8: commander tax is on a cast from the command zone.
         let owed = if from_command {
@@ -5712,6 +5776,22 @@ impl Game {
         }
     }
 
+    /// The cards its cost exiles from the hand, once any permanents it
+    /// sacrifices are gone (CR 601.2h), then those it returns.
+    fn cards_or_return(&mut self, player: PlayerId, spell: CardId) {
+        match self.other_costs(spell).cards {
+            Some(cards) => {
+                self.waiting = Waiting::PayCards {
+                    player,
+                    source: spell,
+                    cards,
+                    then: AfterCards::SpellRest,
+                }
+            }
+            None => self.return_or_cast(player, spell),
+        }
+    }
+
     /// The permanents its cost returns to hand, once any it sacrifices are
     /// gone, then the spell becomes cast.
     fn return_or_cast(&mut self, player: PlayerId, spell: CardId) {
@@ -5922,6 +6002,7 @@ impl Game {
                 via,
                 kicked,
                 mode,
+                x,
             }) => {
                 let permanent = self
                     .known(card)
@@ -5959,6 +6040,7 @@ impl Game {
                             via,
                             kicked,
                             mode,
+                            x,
                         },
                         controller,
                         (None, None, None, None),
@@ -6669,13 +6751,16 @@ impl Game {
                 Effect::UntilEndOfTurn { on, ops, per } => {
                     let ops = match per {
                         None => ops,
-                        Some(f) => {
-                            let all = self.characteristics();
-                            let n = at
-                                .object
-                                .filter(|o| all.contains_key(o))
-                                .map_or(0, |o| self.count(&f, o, &all[&o], &all))
-                                as i32;
+                        Some(per) => {
+                            let n = match per {
+                                lower::Per::Each(f) => {
+                                    let all = self.characteristics();
+                                    at.object
+                                        .filter(|o| all.contains_key(o))
+                                        .map_or(0, |o| self.count(&f, o, &all[&o], &all))
+                                }
+                                lower::Per::X => self.amount(&at, lower::Amount::X),
+                            } as i32;
                             ops.into_iter()
                                 .map(|op| match op {
                                     model::Op::ModifyPt(d) => {
@@ -7347,6 +7432,27 @@ impl Game {
     fn amount(&self, at: &Resuming, n: lower::Amount) -> u32 {
         match n {
             lower::Amount::N(n) => n,
+            lower::Amount::X => match at.what {
+                Instructions::Spell { x: Some(x), .. } => x,
+                // No cost set it: X chosen as it resolves (CR 107.3f) or
+                // 0 for an {X} spell cast without paying it (CR 107.3b),
+                // neither of which the engine asks or knows: refused.
+                _ => {
+                    self.unknowable
+                        .borrow_mut()
+                        .get_or_insert_with(|| Rejected::Refused {
+                            card: self
+                                .face_name(at.what.card())
+                                .unwrap_or("an instruction")
+                                .to_string(),
+                            refusal: Unrunnable::new(
+                                "an X no cost set",
+                                "reads an X that no cost it was cast for set",
+                            ),
+                        });
+                    0
+                }
+            },
             lower::Amount::CountOf(f) => self.objects_on(at, &lower::On::Each(f)).len() as u32,
             lower::Amount::PerFound { each, slot, filter } => {
                 let matching = at

@@ -1699,10 +1699,8 @@ pub enum Effect {
     UntilEndOfTurn {
         on: On,
         ops: Vec<Op>,
-        /// "+2/+0 … for each other attacking Goblin": the modification
-        /// once per permanent the filter matches, read from the ability's
-        /// source and counted as it resolves (CR 608.2h).
-        per: Option<Filter>,
+        /// The modification as many times as `Per` says.
+        per: Option<Per>,
     },
     /// "Target opponent gains control of it": from now on, `who` controls
     /// the permanent (CR 613.1b), a control change that removes it from
@@ -2071,6 +2069,20 @@ pub enum Amount {
     /// dealt to each player: the permanents the filter matches that the
     /// player being dealt damage controls.
     ThatPlayerControls(Filter),
+    /// The spell's X, the value announced or set as it was cast, while it
+    /// is on the stack (CR 107.3a).
+    X,
+}
+
+/// How many times a modification until end of turn applies.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Per {
+    /// "+2/+0 … for each other attacking Goblin": once per permanent the
+    /// filter matches, read from the ability's source and counted as it
+    /// resolves (CR 608.2h).
+    Each(Filter),
+    /// Blazing Shoal's "+X/+0": the spell's X (CR 107.3a).
+    X,
 }
 
 /// What damage is dealt to.
@@ -2309,6 +2321,7 @@ pub enum Intervening {
 /// `Let` that binds its targets, if any.
 pub fn spell(bind: &[Objects], effects: &[i::Effect]) -> Result<Program, String> {
     let mut scope = Scope::new(bind);
+    scope.spell = true;
     let lowered = scope.effects(effects)?;
     scope.program.effects = lowered;
     Ok(scope.program)
@@ -2361,6 +2374,7 @@ pub fn modes(
                 return spell(bind, &wrapped);
             }
             let mut scope = Scope::new(bind);
+            scope.spell = true;
             scope.withs.extend(std::iter::repeat_n(None, found.len()));
             let lowered = scope.effects(m)?;
             scope.program.effects = lowered;
@@ -2894,6 +2908,9 @@ struct Scope<'a> {
     /// The cards an instruction before separated into two piles, and the
     /// slot of the first pile, which "one pile" chooses between.
     piles: Option<(Slot, Slot)>,
+    /// Whether these are a spell's instructions, whose X is the one its
+    /// cost set (CR 107.3a).
+    spell: bool,
 }
 
 impl<'a> Scope<'a> {
@@ -2920,6 +2937,7 @@ impl<'a> Scope<'a> {
             x: None,
             discarded: None,
             piles: None,
+            spell: false,
         }
     }
 
@@ -3507,6 +3525,48 @@ impl<'a> Scope<'a> {
                 }
                 return Ok(each);
             }
+            // "Target creature gets +X/+0 until end of turn": +1/+0 as
+            // many times as the spell's X; "-X/-X", -1/-1.
+            i::Effect::Modify {
+                what,
+                pt: Some(p),
+                gains,
+                dur: i::Duration::UntilEndOfTurn,
+            } if self.spell
+                && self.x.is_none()
+                && p.signed
+                && [p.power, p.toughness]
+                    .iter()
+                    .any(|q| matches!(q, PtPart::X | PtPart::MinusX))
+                && [p.power, p.toughness]
+                    .iter()
+                    .all(|q| matches!(q, PtPart::X | PtPart::MinusX | PtPart::N(0))) =>
+            {
+                let unit = |q: PtPart| match q {
+                    PtPart::X => PtPart::N(1),
+                    PtPart::MinusX => PtPart::N(-1),
+                    q => q,
+                };
+                let once = i::Effect::Modify {
+                    what: what.clone(),
+                    pt: Some(IPt {
+                        power: unit(p.power),
+                        toughness: unit(p.toughness),
+                        signed: true,
+                    }),
+                    gains: Vec::new(),
+                    dur: i::Duration::UntilEndOfTurn,
+                };
+                if !gains.is_empty() {
+                    return Err(format!("{} of ±X and abilities", node()));
+                }
+                let r = resolution(&once).map_err(|_| node())?;
+                Effect::UntilEndOfTurn {
+                    on: self.on(what)?,
+                    ops: r.ops,
+                    per: Some(Per::X),
+                }
+            }
             i::Effect::Modify {
                 what,
                 dur: i::Duration::UntilEndOfTurn,
@@ -3638,7 +3698,7 @@ impl<'a> Scope<'a> {
                     Effect::UntilEndOfTurn {
                         on,
                         ops: r.ops,
-                        per: Some(counted(each)?),
+                        per: Some(Per::Each(counted(each)?)),
                     }
                 }
                 // Glimmerpost's "you gain 1 life for each Locus on the
@@ -4425,6 +4485,10 @@ impl<'a> Scope<'a> {
         Ok(match k {
             i::Amount::ThatMany if self.amount => Amount::ThatMuch,
             i::Amount::X if self.x.is_some() => self.x.clone().expect("an X"),
+            // A spell's X, set as it was cast (CR 107.3a): Blazing Shoal's,
+            // by the card its cost exiled. A spell cast with none set
+            // refuses as it reads it.
+            i::Amount::X if self.spell => Amount::X,
             i::Amount::N(n) => Amount::N(*n),
             i::Amount::CountOf(o) => match (counters_on_itself(o), cards_in_graveyards(o)) {
                 (Some(kind), _) => Amount::CountersOnItself(kind?),
@@ -4737,6 +4801,16 @@ pub struct CardsPaid {
     pub how: PaidWith,
     pub count: u32,
     pub filter: CardFilter,
+    /// Blazing Shoal's "a red card with mana value X": the card's mana
+    /// value is the spell's X, the X its controller announced and the
+    /// card they exile then had to have (CR 107.3a, 601.2b).
+    x_is_mana_value: bool,
+}
+
+impl CardsPaid {
+    pub fn x_is_mana_value(&self) -> bool {
+        self.x_is_mana_value
+    }
 }
 
 /// Where the cards a cost names come from, and where they go.
@@ -4747,6 +4821,8 @@ pub enum PaidWith {
     Discard,
     /// From the graveyard to exile: Grim Lavamancer.
     ExileFromGraveyard,
+    /// From the hand to exile: Blazing Shoal's alternative cost.
+    ExileFromHand,
 }
 
 /// An activated ability that isn't a mana ability (CR 602), lowered: its
@@ -4860,7 +4936,12 @@ fn cards_paid(how: PaidWith, o: &Objects, rest: &[Post]) -> Result<CardsPaid, St
             },
         })?
     };
-    Ok(CardsPaid { how, count, filter })
+    Ok(CardsPaid {
+        how,
+        count,
+        filter,
+        x_is_mana_value: false,
+    })
 }
 
 /// "You may reveal this card from your opening hand. If you do, at the
@@ -4947,6 +5028,8 @@ pub struct OtherCosts {
     pub sacrifice: Option<(u32, Filter)>,
     /// What the cost returns to its owner's hand.
     pub returned: Option<Returned>,
+    /// The cards it exiles from the hand (CR 601.2h).
+    pub cards: Option<CardsPaid>,
 }
 
 /// Permanents a spell's cost returns to their owner's hand (CR 601.2h).
@@ -5025,6 +5108,28 @@ fn spell_cost(cost: &[i::Cost]) -> Result<(crate::mana::ManaCost, OtherCosts), S
             i::Cost::ReturnToHand(o) if other.returned.is_none() => {
                 let (n, filter) = permanents_paid(o)?;
                 other.returned = Some(Returned::Permanents(n, filter));
+            }
+            // "Exile a red card with mana value X from your hand".
+            i::Cost::Exile(o)
+                if other.cards.is_none()
+                    && o.filter.posts.last() == Some(&Post::In(i::Zone::Hand(i::Player::You))) =>
+            {
+                let (_, rest) = o.filter.posts.split_last().expect("a hand");
+                let x = Post::With(i::Compare {
+                    stat: i::Stat::ManaValue,
+                    op: i::Op::Eq,
+                    value: i::Amount::X,
+                });
+                let (rest, x_is_mana_value) = match rest {
+                    [r @ .., last] if *last == x => (r, true),
+                    r => (r, false),
+                };
+                if o.quant != Quant::One && x_is_mana_value {
+                    return Err("X the mana value of several cards".into());
+                }
+                let mut paid = cards_paid(PaidWith::ExileFromHand, o, rest)?;
+                paid.x_is_mana_value = x_is_mana_value;
+                other.cards = Some(paid);
             }
             other => return Err(format!("a spell's cost of {}", short(other))),
         }

@@ -1076,7 +1076,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-23 144 of the 500 replay to
-the end and 56.01% of their lines are followed** (17,731 of 31,659), 3
+the end and 56.45% of their lines are followed** (17,870 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 151 games have no card the engine refuses before any game (from 21). The
@@ -1277,10 +1277,19 @@ before trying two more Valakuts and replays past them when they are
 forced, one to Blast Zone's X, one to See Beyond, one to Escape to the
 Wilds and one to Titania's Command's "choose two"; Coiling Oracle,
 Thrasios, Zoologist, Call of the Wild, Lurking Predators, Neurok
-Familiar, Skyward Eye Prophets and Bison Whistle run with it). And
+Familiar, Skyward Eye Prophets and Bison Whistle run with it); an
+alternative cost exiling a card from the hand, and a spell's X set by
+it, the mana value of the card exiled, which "+X/+0" or "-X/-X" until
+end of turn applies that many times and anything reading an X no cost
+set refuses (CR 118.9, 107.3a, 601.2h: Blazing Shoal and Sickening
+Shoal, whose 7 games go on, two to the end, the rest to Fury of the
+Horde, Shriekmaw's evoke, Geralf's Messenger's undying, Raubahn's ward
+and Wayward Guide-Beast). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
-a search's card from the line that reveals it, a shuffle matched to an
+a search's card from the line that reveals it, the card a Shoal exiles
+from the line before its cast, whoever that line names exiling, with
+the log's "(X is 12.)" checked against the engine's X, a shuffle matched to an
 instruction's, the creature sacrificed for flashback, a land the log never
 names as a hypothesis, which of two permanents of one name an
 activation is of, the cards Michelangelo's Technique puts onto the
