@@ -773,6 +773,7 @@ fn trigger_list(e: &mut Effect) -> Option<(&mut Vec<Effect>, Vec<Condition>, Opt
     Some(match e {
         Effect::WhenYouDo(then) => (then, Vec::new(), None),
         Effect::WhenYouDoIf { cond, then } => (then, vec![cond.clone()], None),
+        Effect::WhenThisWay { event, then } => (then, Vec::new(), Some(event.clone())),
         Effect::Delayed { then, .. } => (then, Vec::new(), None),
         Effect::DelayedWhen { event, then }
         | Effect::DelayedWhenever { event, then }
@@ -1518,6 +1519,7 @@ impl Visitor for Unwrap {
         if let Effect::ForEach { then, .. }
         | Effect::WhenYouDo(then)
         | Effect::WhenYouDoIf { then, .. }
+        | Effect::WhenThisWay { then, .. }
         | Effect::Delayed { then, .. }
         | Effect::DelayedWhen { then, .. }
         | Effect::DelayedWhenever { then, .. }

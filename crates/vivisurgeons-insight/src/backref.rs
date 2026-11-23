@@ -112,6 +112,9 @@ pub fn reference(o: &Objects) -> Option<Kind> {
 }
 
 /// A target, chosen as the spell or ability is put on the stack.
+/// Reflexive triggers' effects, by `verb_of`.
+const REFLEXIVE: [&str; 3] = ["WhenYouDo", "WhenYouDoIf", "WhenThisWay"];
+
 fn targeted(o: &Objects) -> bool {
     matches!(
         o.quant,
@@ -2463,7 +2466,14 @@ impl Analysis {
             decl: e.decl,
             scope_root: e.scope_root,
             top_effect: e.top_effect,
-            cast_time: e.obj.as_ref().is_some_and(targeted),
+            // A reflexive trigger's targets are chosen as it is put on the
+            // stack (CR 603.12), not as the ability is: they are bound in
+            // that trigger ([when-you-do-binds]).
+            cast_time: e.obj.as_ref().is_some_and(targeted)
+                && !e.frames.iter().any(|&f| {
+                    let c = &self.lines[line].c.frames[f];
+                    c.kind == Fk::Effect && REFLEXIVE.contains(&c.verb.as_str())
+                }),
             each_of_loop: e.each_of_loop,
         }
     }

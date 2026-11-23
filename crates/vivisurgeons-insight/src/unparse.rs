@@ -8271,17 +8271,29 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                 chosen_to_move: false,
             };
             // "Until end of turn, you may play that card": the permission's
-            // duration said first.
-            if let [Effect::Cast { dur: d, .. }] = &then[..] {
-                if !matches!(d, Duration::Permanent | Duration::ThisTurn) {
+            // duration said first. "… If that spell would be put into your
+            // graveyard, exile it instead" (Sins of the Past): what the
+            // option holds after the cast, in sentences of its own.
+            if let [Effect::Cast { dur: d, .. }, rest @ ..] = &then[..] {
+                // Elder Brain's "play lands and cast spells" is two casts.
+                if !matches!(d, Duration::Permanent | Duration::ThisTurn)
+                    && !rest.iter().any(|e| matches!(e, Effect::Cast { .. }))
+                {
                     let mut bare = then[0].clone();
                     if let Effect::Cast { dur, .. } = &mut bare {
                         *dur = Duration::Permanent;
                     }
+                    let after = |o: &mut Out| {
+                        if !rest.is_empty() {
+                            o.w(".");
+                            clauses(o, rest, cx);
+                        }
+                    };
                     let trail = out(|o| {
                         player(o, who);
                         o.w("may");
-                        clauses(o, then, &inner);
+                        clauses(o, &then[..1], &inner);
+                        after(o);
                     });
                     let lead = out(|o| {
                         dur(o, d);
@@ -8289,6 +8301,7 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                         player(o, who);
                         o.w("may");
                         clauses(o, &[bare], &inner);
+                        after(o);
                     });
                     syn::position(o, trail, lead);
                     return;

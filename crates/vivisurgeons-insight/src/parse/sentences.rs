@@ -2116,8 +2116,13 @@ fn brings_in(e: &Effect) -> bool {
 /// flip, target Orc creature gets +2/+0 …. If you lose the flip, it gets
 /// -0/-2" (Orcish Captain) are two cases side by side.
 fn acts_on_target(e: &Effect) -> bool {
-    e.sole_object()
-        .is_some_and(|o| matches!(o.quant, Quant::Target { .. }))
+    let target = |o: &Objects| matches!(o.quant, Quant::Target { .. });
+    match e {
+        // "When you do, you may cast target instant or sorcery card … If
+        // that spell would be put into a graveyard, …" (Halo Forager).
+        Effect::Cast { what, .. } => target(what),
+        _ => e.sole_object().is_some_and(|o| target(&o)),
+    }
 }
 
 /// Whether an effect is first said of a bare "it", "them" or "that
@@ -2200,6 +2205,14 @@ fn refers_back(e: &Effect) -> bool {
                 })
         }
         Effect::ForEach { each, .. } => it(each),
+        // "When you do, you may cast target instant or sorcery card … If
+        // that spell would be put into a graveyard, exile it instead" (Halo
+        // Forager): a replacement of what happens to the object the branch
+        // brought in is set up only in that branch.
+        Effect::Replacement { event, .. } => match &**event {
+            Event::PutInto { what, .. } | Event::Leaves { what, .. } => it(what),
+            _ => false,
+        },
         // "When you do, exile the top two cards of your library. Until the
         // end of your next turn, you may play those cards" (Anep).
         Effect::Delayed { then, .. } | Effect::During { then, .. } | Effect::If { then, .. } => {
