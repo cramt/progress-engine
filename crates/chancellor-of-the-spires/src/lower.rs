@@ -1616,6 +1616,20 @@ pub enum Effect {
     /// "Tap target land", "untap it" (CR 701.26a).
     Tap(On),
     Untap(On),
+    /// Provoke's "block this creature this combat if able": a requirement
+    /// on `blocker` (CR 509.1c, 702.39a) for this combat.
+    MustBlock {
+        blocker: Obj,
+        attacker: Obj,
+    },
+    /// "Prevent all combat damage that would be dealt to and dealt by this
+    /// creature this turn" (CR 615.1): a shield around `of` until the
+    /// turn ends, on the combat damage dealt to it if `to`, by it if `by`.
+    PreventCombatDamage {
+        of: Obj,
+        to: bool,
+        by: bool,
+    },
     /// "Untap up to three lands": its controller chooses as it resolves
     /// up to `n` of the tapped permanents `on` matches, and untaps them
     /// (CR 608.2d, 701.26b).
@@ -2636,7 +2650,7 @@ fn intervening(cond: &i::Condition, bind: &[Objects]) -> Result<Intervening, Str
 
 /// The keywords that are triggered abilities and that the engine runs,
 /// written out as their rules define them: exalted (CR 702.83a), prowess
-/// (CR 702.108a), training (CR 702.149a), and echo and cumulative upkeep
+/// (CR 702.108a), training (CR 702.149a), provoke (CR 702.39a), and echo and cumulative upkeep
 /// for mana (CR 702.30a, 702.24a). `None` for any other keyword.
 pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
     if k.name.eq_ignore_ascii_case("cumulative upkeep") {
@@ -2710,6 +2724,29 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                     ops: plus_one,
                     per: None,
                 }],
+            },
+            condition: None,
+        }),
+        // CR 702.39a: "Whenever this creature attacks, you may choose to
+        // have target creature defending player controls block this
+        // creature this combat if able. If you do, untap that creature."
+        "provoke" => Some(Triggered {
+            event: TriggerEvent::Attacks(Filter(vec![Pred::Itself])),
+            program: Program {
+                targets: vec![TargetSpec::Permanent(Filter(vec![
+                    Pred::Is(Prop::Type(CardType::Creature)),
+                    Pred::DefendingControls,
+                ]))],
+                effects: vec![Effect::May(
+                    Who::You,
+                    vec![
+                        Effect::MustBlock {
+                            blocker: Obj::Target(0),
+                            attacker: Obj::Itself,
+                        },
+                        Effect::Untap(On::One(Obj::Target(0))),
+                    ],
+                )],
             },
             condition: None,
         }),
@@ -3193,6 +3230,39 @@ impl<'a> Scope<'a> {
             },
             i::Effect::Destroy { what, .. } => Effect::Destroy(self.on(what)?),
             i::Effect::Tap(what) => Effect::Tap(self.on(what)?),
+            // "Prevent all combat damage that would be dealt to and dealt
+            // by this creature this turn": one object, both ways (as
+            // Insight renders it), or one way. Damage to one object by
+            // another, a number of damage, other damage or durations, and
+            // players are refused.
+            i::Effect::Prevent {
+                combat_only: true,
+                n: None,
+                to,
+                by,
+                dur: i::Duration::ThisTurn,
+            } => {
+                let to = match to.as_deref() {
+                    None => None,
+                    Some([i::Recipient::Objects(o)]) => Some(o),
+                    Some(_) => return Err("combat damage prevented to other than an object".into()),
+                };
+                let of = match (to, by) {
+                    (Some(a), Some(b)) if a != b => {
+                        return Err("combat damage prevented to one object by another".into())
+                    }
+                    (Some(o), _) | (None, Some(o)) => o,
+                    (None, None) => return Err("all combat damage prevented".into()),
+                };
+                let On::One(of) = self.on(of)? else {
+                    return Err("combat damage prevented to or by each of a kind".into());
+                };
+                Effect::PreventCombatDamage {
+                    of,
+                    to: to.is_some(),
+                    by: by.is_some(),
+                }
+            }
             i::Effect::Untap(what) => match what.quant {
                 Quant::UpTo(i::Amount::N(n)) => {
                     let all = Objects {

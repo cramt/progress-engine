@@ -1075,8 +1075,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-23 143 of the 500 replay to
-the end and 55.60% of their lines are followed** (17,601 of 31,659), 3
+Worked card by card from there, **on 2026-11-23 144 of the 500 replay to
+the end and 55.89% of their lines are followed** (17,694 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 148 games have no card the engine refuses before any game (from 21). The
@@ -1258,7 +1258,15 @@ cards with total mana value 6 or less from among them onto the
 battlefield", the rest on the bottom in a random order (CR 202.3:
 Michelangelo's Technique, whose 7 games go on, one to the end, two to
 Devastating Onslaught, one to Magmatic Hellkite and three to a card no
-line names entering). And
+line names entering); provoke, a requirement on blocking that a
+declaration must obey as often as it can without breaking a
+restriction, its target untapped, and "defending player" the one the
+creature attacked (CR 702.39a, 509.1c, 508.5), and "prevent all combat
+damage that would be dealt to and dealt by this creature this turn", a
+shield ending in cleanup (CR 615.1, 615.6, 514.2: Deftblade Elite,
+whose 5 games go on, one to the end, the rest to Kor Spiritdancer,
+Student of Warfare's levels, Benevolent Bodyguard and Lurrus's
+companion line). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, a shuffle matched to an

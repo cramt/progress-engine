@@ -186,6 +186,9 @@ impl Run<'_> {
                             source_chosen: self.state.objects[&source].chosen_type.as_ref(),
                             token: self.state.objects[*id].token,
                             attacking: self.state.attacking.contains(*id),
+                            // The layers see no combat; only provoke's target, which the
+                            // game checks, says "defending player".
+                            source_defending: None,
                         })
                     })
             })
@@ -210,6 +213,7 @@ impl Run<'_> {
             source_chosen: self.state.objects[&source].chosen_type.as_ref(),
             token: self.state.objects[&id].token,
             attacking: self.state.attacking.contains(&id),
+            source_defending: None,
         })
     }
 
@@ -413,6 +417,7 @@ impl Run<'_> {
                             source_chosen: self.state.objects[&source].chosen_type.as_ref(),
                             token: self.state.objects[*id].token,
                             attacking: self.state.attacking.contains(*id),
+                            source_defending: None,
                         })
                     })
                     .count()

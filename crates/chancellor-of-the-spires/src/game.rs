@@ -926,6 +926,15 @@ enum Event {
     },
 }
 
+/// "Prevent all combat damage that would be dealt to and dealt by this
+/// creature this turn" (CR 615.1): the object, and which way.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Shield {
+    of: ObjectId,
+    to: bool,
+    by: bool,
+}
+
 /// The combat phase's state (CR 506): who attacks whom, who blocks what.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Combat {
@@ -938,6 +947,12 @@ struct Combat {
     blocked: OrdSet<ObjectId>,
     /// The creatures that dealt first-strike damage (CR 510.4).
     struck: OrdSet<ObjectId>,
+    /// Each creature declared as an attacker and the player it attacked,
+    /// kept after it is removed from combat or leaves (CR 508.5).
+    defended: OrdMap<ObjectId, PlayerId>,
+    /// Requirements on blocking this combat (CR 509.1c): each blocker,
+    /// and the attacker it blocks if able (provoke's, CR 702.39a).
+    must_block: Vector<(ObjectId, ObjectId)>,
 }
 
 /// Combat damage assigned before it is dealt (CR 510.1–510.2): the source,
@@ -1943,6 +1958,9 @@ pub struct Game {
     /// double that damage … instead": for each, the player whose sources
     /// it watches and the multiplier, ending in cleanup (CR 514.2).
     damage_multipliers: Vec<(PlayerId, u32)>,
+    /// Prevention shields until the turn ends (CR 615.1a, 514.2): the
+    /// combat damage dealt to an object, or by it.
+    shields: Vec<Shield>,
     /// Cards an instruction put on the bottom of a library this turn.
     bottomed: u32,
     /// The permanents that left the battlefield this turn, as they last
@@ -2180,6 +2198,7 @@ impl Game {
             combat: None,
             until_end_of_turn: Vec::new(),
             damage_multipliers: Vec::new(),
+            shields: Vec::new(),
             delayed: Vector::new(),
             wards: Vector::new(),
             last_known: OrdMap::new(),
@@ -2992,7 +3011,7 @@ impl Game {
                     card: *card,
                     slots: slots
                         .iter()
-                        .map(|s| self.legal_targets(s, controller, source.as_ref()))
+                        .map(|s| self.legal_targets(s, controller, source.as_ref(), object))
                         .collect(),
                 }
             }
@@ -3406,6 +3425,7 @@ impl Game {
                         source_chosen: None,
                         token: self.battlefield.objects[*o].token,
                         attacking: self.battlefield.attacking.contains(*o),
+                        source_defending: None,
                     })
             })
             .map(|(o, _)| *o)
@@ -3624,7 +3644,7 @@ impl Game {
                 let source = self.source_chars(card, object);
                 let legal = chosen.len() == slots.len()
                     && slots.iter().zip(chosen).all(|(s, t)| {
-                        self.legal_targets(s, controller, source.as_ref())
+                        self.legal_targets(s, controller, source.as_ref(), object)
                             .contains(t)
                     });
                 if !legal {
@@ -3958,7 +3978,7 @@ impl Game {
                 Payment::SpendPayingLife(..) => unreachable!("its life paid"),
             },
             (Waiting::Blockers { player, rest }, Answer::Block(declared)) => {
-                if !self.legal_blocks(player, declared) {
+                if !self.legal_blocks(player, declared)? {
                     return Err(Rejected::Illegal(answer));
                 }
                 let combat = self.combat.get_or_insert_with(Combat::default);
@@ -4743,7 +4763,7 @@ impl Game {
                     .program
                     .targets
                     .iter()
-                    .any(|t| self.legal_targets(t, p, source).is_empty())
+                    .any(|t| self.legal_targets(t, p, source, Some(id)).is_empty())
                 {
                     continue;
                 }
@@ -4978,6 +4998,7 @@ impl Game {
                     source_chosen: self.battlefield.objects[src].chosen_type.as_ref(),
                     token: self.battlefield.objects[&id].token,
                     attacking: self.battlefield.attacking.contains(&id),
+                    source_defending: self.defending(*src),
                 };
                 if chars.abilities.contains(&Ability::Unread(*n)) && t.tapped.matches(&seen) {
                     extra.add_all(&t.adds);
@@ -5010,6 +5031,7 @@ impl Game {
                             source_chosen: self.battlefield.objects[&source].chosen_type.as_ref(),
                             token: self.battlefield.objects[*o].token,
                             attacking: self.battlefield.attacking.contains(*o),
+                            source_defending: self.defending(source),
                         })
                     })
             })
@@ -5036,6 +5058,7 @@ impl Game {
                     source_chosen: self.battlefield.objects[&source].chosen_type.as_ref(),
                     token: self.battlefield.objects[*o].token,
                     attacking: self.battlefield.attacking.contains(*o),
+                    source_defending: self.defending(source),
                 })
             })
             .count() as u32
@@ -5505,7 +5528,7 @@ impl Game {
             program
                 .targets
                 .iter()
-                .all(|t| !self.legal_targets(t, p, source).is_empty())
+                .all(|t| !self.legal_targets(t, p, source, None).is_empty())
         };
         match &runs.spell {
             None => true,
@@ -5532,7 +5555,7 @@ impl Game {
                     program
                         .targets
                         .iter()
-                        .all(|t| !self.legal_targets(t, p, source.as_ref()).is_empty())
+                        .all(|t| !self.legal_targets(t, p, source.as_ref(), None).is_empty())
                 })
             })
             .map(|(k, _)| k as u8)
@@ -5911,7 +5934,7 @@ impl Game {
                     match to {
                         Target::Object(o)
                             if self
-                                .legal_targets(&spec, controller, source.as_ref())
+                                .legal_targets(&spec, controller, source.as_ref(), None)
                                 .contains(to) =>
                         {
                             let (tapped, _, _) = self.entering(card, controller);
@@ -6000,7 +6023,7 @@ impl Game {
                 .iter()
                 .zip(&slots)
                 .map(|(t, s)| {
-                    self.legal_targets(s, controller, source.as_ref())
+                    self.legal_targets(s, controller, source.as_ref(), object)
                         .contains(t)
                         .then_some(*t)
                 })
@@ -6602,6 +6625,21 @@ impl Game {
                     fired: false,
                 }),
                 Effect::MultiplyDamageThisTurn { by } => self.damage_multipliers.push((p, by)),
+                // CR 702.39a: "this combat", so with the combat.
+                Effect::MustBlock { blocker, attacker } => {
+                    if let (Some(b), Some(a)) =
+                        (self.object(&at, blocker), self.object(&at, attacker))
+                    {
+                        if let Some(combat) = self.combat.as_mut() {
+                            combat.must_block.push_back((b, a));
+                        }
+                    }
+                }
+                Effect::PreventCombatDamage { of, to, by } => {
+                    if let Some(of) = self.object(&at, of) {
+                        self.shields.push(Shield { of, to, by });
+                    }
+                }
                 Effect::Scry(n) => {
                     let cards: Vec<CardId> = self
                         .player(p)
@@ -6888,6 +6926,7 @@ impl Game {
                                         source_chosen: None,
                                         token: self.battlefield.objects[*o].token,
                                         attacking: self.battlefield.attacking.contains(*o),
+                                        source_defending: None,
                                     })
                                 })
                         })
@@ -7374,6 +7413,7 @@ impl Game {
                                 .and_then(|s| self.battlefield.objects[&s].chosen_type.as_ref()),
                             token: self.battlefield.objects[*o].token,
                             attacking: self.battlefield.attacking.contains(*o),
+                            source_defending: self.defending(source),
                         })
                     })
                     .map(|(o, _)| *o)
@@ -7546,7 +7586,15 @@ impl Game {
     /// controls (CR 115.1, 115.4): players still in the game, and
     /// permanents. Nothing on the engine's battlefield has hexproof, shroud
     /// or protection, which are refused as they are read.
-    fn legal_targets(&self, spec: &TargetSpec, p: PlayerId, source: Option<&Chars>) -> Vec<Target> {
+    /// `object` is the source's permanent, if it is one: "defending player"
+    /// is the player it is attacking (CR 508.5).
+    fn legal_targets(
+        &self,
+        spec: &TargetSpec,
+        p: PlayerId,
+        source: Option<&Chars>,
+        object: Option<ObjectId>,
+    ) -> Vec<Target> {
         // CR 115.4, 702.11c: a player with hexproof can't be the target
         // of an opponent's spell or ability; CR 702.18a: one with shroud
         // can't be anyone's.
@@ -7582,6 +7630,9 @@ impl Game {
                 filter.0.iter().all(|pred| match pred {
                     Pred::YouControl => c.controller == p,
                     Pred::OpponentsControl => c.controller != p,
+                    Pred::DefendingControls => {
+                        object.and_then(|o| self.defending(o)) == Some(c.controller)
+                    }
                     other => Filter(vec![other.clone()]).matches_card(c),
                 })
             }),
@@ -7681,7 +7732,7 @@ impl Game {
                 legal
             }
             TargetSpec::UpToOne(spec) => {
-                let mut legal = self.legal_targets(spec, p, source);
+                let mut legal = self.legal_targets(spec, p, source, object);
                 legal.push(Target::Nothing);
                 legal
             }
@@ -7739,7 +7790,7 @@ impl Game {
                 // removed from the stack.
                 let source = self.source_chars(first.source, first.object);
                 if slots.iter().any(|s| {
-                    self.legal_targets(s, first.controller, source.as_ref())
+                    self.legal_targets(s, first.controller, source.as_ref(), first.object)
                         .is_empty()
                 }) {
                     continue;
@@ -7937,6 +7988,7 @@ impl Game {
                 source_chosen: self.battlefield.objects[src].chosen_type.as_ref(),
                 token: self.battlefield.objects[&id].token,
                 attacking: self.battlefield.attacking.contains(&id),
+                source_defending: self.defending(*src),
             };
             for (n, t) in &runs.triggered {
                 if !chars.abilities.contains(&Ability::Unread(*n)) || t.from_graveyard() {
@@ -7992,6 +8044,7 @@ impl Game {
                                 source_chosen: self.battlefield.objects[src].chosen_type.as_ref(),
                                 token: l.token,
                                 attacking: false,
+                                source_defending: self.defending(*src),
                             })
                             .then_some((None, None))
                             .into_iter()
@@ -8163,6 +8216,7 @@ impl Game {
                         source_chosen: None,
                         token: l.token,
                         attacking: false,
+                        source_defending: self.defending(*id),
                     };
                     if l.chars.abilities.contains(&Ability::Unread(*n)) && f.matches(&seen) {
                         triggered.push(Pending {
@@ -8308,6 +8362,7 @@ impl Game {
                                 .and_then(|x| x.chosen_type.as_ref()),
                             token: self.battlefield.objects[*o].token,
                             attacking: self.battlefield.attacking.contains(*o),
+                            source_defending: self.defending(source),
                         })
                     })
             })
@@ -8395,6 +8450,7 @@ impl Game {
                                 source_chosen: source.chosen_type.as_ref(),
                                 token: self.battlefield.objects[a].token,
                                 attacking: false,
+                                source_defending: self.defending(*id),
                             })
                     })
                     .count() as u32;
@@ -8423,52 +8479,143 @@ impl Game {
             .collect()
     }
 
+    /// The player `o` is attacking, or was until it was removed from
+    /// combat or left (CR 508.5): "defending player" for its abilities.
+    fn defending(&self, o: ObjectId) -> Option<PlayerId> {
+        self.combat.as_ref()?.defended.get(&o).copied()
+    }
+
     /// CR 509.1a–c: each blocker one of `p`'s untapped creatures, blocking
-    /// one creature attacking `p`; a creature with flying blocked only by
-    /// creatures with flying or reach (CR 702.9b), one with menace by two
-    /// or more (CR 702.111b), and one with protection by none with its
-    /// quality (CR 702.16f).
-    fn legal_blocks(&self, p: PlayerId, declared: &[(ObjectId, ObjectId)]) -> bool {
+    /// one creature attacking `p`, no restriction disobeyed, and as many
+    /// requirements obeyed as any such declaration could (CR 509.1c:
+    /// provoke's, CR 702.39a).
+    fn legal_blocks(
+        &self,
+        p: PlayerId,
+        declared: &[(ObjectId, ObjectId)],
+    ) -> Result<bool, Rejected> {
         let Decision::Blockers { can, attackers, .. } = self.decision() else {
-            return false;
+            return Ok(false);
         };
         let chars = self.characteristics();
         let mut seen = BTreeSet::new();
         let shape = declared.iter().all(|(b, a)| {
             can.contains(b) && attackers.contains(a) && seen.insert(*b) && chars[b].controller == p
         });
-        shape
-            && attackers.iter().all(|a| {
-                let by: Vec<ObjectId> = declared
-                    .iter()
-                    .filter(|(_, x)| x == a)
-                    .map(|(b, _)| *b)
-                    .collect();
-                let flying = chars[a].has(Keyword::Flying);
-                let menace = chars[a].has(Keyword::Menace);
-                // CR 702.14c: the defending player controls a land of a
-                // type it walks.
-                let walked = chars.values().any(|c| {
-                    c.controller == p
-                        && c.is(CardType::Land)
-                        && c.subtypes.iter().any(|s| {
-                            matches!(s, Subtype::BasicLand(t)
-                                if chars[a].has(Keyword::Landwalk(*t)))
-                        })
-                });
-                // CR 702.16f.
-                (!walked || by.is_empty())
-                    && (!menace || by.is_empty() || by.len() >= 2)
-                    && by.iter().all(|b| !chars[a].protected_from(&chars[b]))
-                    // CR 702.28b.
-                    && by
-                        .iter()
-                        .all(|b| chars[a].has(Keyword::Shadow) == chars[b].has(Keyword::Shadow))
-                    && (!flying
-                        || by
-                            .iter()
-                            .all(|b| chars[b].has(Keyword::Flying) || chars[b].has(Keyword::Reach)))
+        if !shape || !self.unrestricted(&chars, p, &attackers, declared) {
+            return Ok(false);
+        }
+        // Each requirement counts, so one made twice (two instances of
+        // provoke, CR 702.39b) is obeyed twice by one block.
+        let mut required: BTreeMap<(ObjectId, ObjectId), usize> = BTreeMap::new();
+        for r in self.combat.iter().flat_map(|c| &c.must_block) {
+            let (b, a) = r;
+            if can.contains(b) && chars[b].controller == p && attackers.contains(a) {
+                *required.entry(*r).or_insert(0) += 1;
+            }
+        }
+        let required: Vec<((ObjectId, ObjectId), usize)> = required.into_iter().collect();
+        if required.len() > 16 {
+            return Err(Rejected::Refused {
+                card: "a requirement to block".into(),
+                refusal: Unrunnable::new(
+                    "more than 16 requirements to block",
+                    "the game can't weigh more than 16 requirements to block (CR 509.1c) yet",
+                ),
+            });
+        }
+        let obeyed = |d: &[(ObjectId, ObjectId)]| -> usize {
+            required
+                .iter()
+                .filter(|(r, _)| d.contains(r))
+                .map(|(_, n)| n)
+                .sum()
+        };
+        let here = obeyed(declared);
+        // Every set of requirements one declaration could obey, each blocker
+        // in one: if one obeying more than this one can be completed to a
+        // declaration with no restriction disobeyed, this one is illegal.
+        Ok((0u32..1 << required.len()).all(|bits| {
+            let set: Vec<(ObjectId, ObjectId)> = (0..required.len())
+                .filter(|k| bits & (1 << k) != 0)
+                .map(|k| required[k].0)
+                .collect();
+            let mut blockers = BTreeSet::new();
+            obeyed(&set) <= here
+                || !set.iter().all(|(b, _)| blockers.insert(*b))
+                || !self.completes(&chars, p, &can, &attackers, set)
+        }))
+    }
+
+    /// Whether blocks with these, and perhaps more of `can` (a creature
+    /// with menace needs a second), disobey no restriction.
+    fn completes(
+        &self,
+        chars: &BTreeMap<ObjectId, Chars>,
+        p: PlayerId,
+        can: &[ObjectId],
+        attackers: &[ObjectId],
+        declared: Vec<(ObjectId, ObjectId)>,
+    ) -> bool {
+        if self.unrestricted(chars, p, attackers, &declared) {
+            return true;
+        }
+        let Some(lone) = attackers.iter().find(|a| {
+            chars[*a].has(Keyword::Menace) && declared.iter().filter(|(_, x)| x == *a).count() == 1
+        }) else {
+            return false;
+        };
+        can.iter()
+            .filter(|c| chars[*c].controller == p && !declared.iter().any(|(b, _)| b == *c))
+            .any(|c| {
+                let mut more = declared.clone();
+                more.push((*c, *lone));
+                self.completes(chars, p, can, attackers, more)
             })
+    }
+
+    /// No restriction on blocking disobeyed: a creature with flying
+    /// blocked only by creatures with flying or reach (CR 702.9b), one
+    /// with menace by two or more (CR 702.111b), and one with protection
+    /// by none with its quality (CR 702.16f).
+    fn unrestricted(
+        &self,
+        chars: &BTreeMap<ObjectId, Chars>,
+        p: PlayerId,
+        attackers: &[ObjectId],
+        declared: &[(ObjectId, ObjectId)],
+    ) -> bool {
+        attackers.iter().all(|a| {
+            let by: Vec<ObjectId> = declared
+                .iter()
+                .filter(|(_, x)| x == a)
+                .map(|(b, _)| *b)
+                .collect();
+            let flying = chars[a].has(Keyword::Flying);
+            let menace = chars[a].has(Keyword::Menace);
+            // CR 702.14c: the defending player controls a land of a
+            // type it walks.
+            let walked = chars.values().any(|c| {
+                c.controller == p
+                    && c.is(CardType::Land)
+                    && c.subtypes.iter().any(|s| {
+                        matches!(s, Subtype::BasicLand(t)
+                            if chars[a].has(Keyword::Landwalk(*t)))
+                    })
+            });
+            (!walked || by.is_empty())
+                && (!menace || by.is_empty() || by.len() >= 2)
+                // CR 702.16f.
+                && by.iter().all(|b| !chars[a].protected_from(&chars[b]))
+                // CR 702.28b.
+                && by
+                    .iter()
+                    .all(|b| chars[a].has(Keyword::Shadow) == chars[b].has(Keyword::Shadow))
+                && (!flying
+                    || by
+                        .iter()
+                        .all(|b| chars[b].has(Keyword::Flying) || chars[b].has(Keyword::Reach)))
+        })
     }
 
     /// CR 508.1b–f, 508.1m: the attackers attack, tapping unless they
@@ -8479,6 +8626,7 @@ impl Game {
         let mut combat = Combat::default();
         for (a, d) in declared {
             combat.attackers.insert(*a, *d);
+            combat.defended.insert(*a, *d);
             if !chars[a].has(Keyword::Vigilance) {
                 self.tap(*a);
             }
@@ -8627,9 +8775,15 @@ impl Game {
         let mut hit_players: Vec<(ObjectId, PlayerId, PlayerId)> = Vec::new();
         let mut dealt_by: Vec<(ObjectId, u32)> = Vec::new();
         for s in &sources {
+            // CR 615.6: damage a shield prevents is never dealt.
+            let shielded = |t: &Target| {
+                self.shields
+                    .iter()
+                    .any(|sh| (sh.by && sh.of == *s) || (sh.to && *t == Target::Object(sh.of)))
+            };
             let hits: Vec<(Target, u32)> = assigned
                 .iter()
-                .filter(|(x, _, _)| x == s)
+                .filter(|(x, t, _)| x == s && !shielded(t))
                 .map(|(_, t, n)| (*t, *n))
                 .collect();
             let source = chars.get(s).cloned();
@@ -8783,6 +8937,7 @@ impl Game {
                                 source_chosen: None,
                                 token: would.objects[*o].token,
                                 attacking: would.attacking.contains(*o),
+                                source_defending: self.defending(id),
                             })
                         })
                 })
@@ -8852,6 +9007,7 @@ impl Game {
                         source_chosen: None,
                         token: would.objects[*o].token,
                         attacking: would.attacking.contains(*o),
+                        source_defending: self.defending(id),
                     })
             })
             .map(|(o, _)| *o)
@@ -9313,6 +9469,7 @@ impl Game {
                     let ended = std::mem::take(&mut self.until_end_of_turn);
                     self.battlefield.end(&ended);
                     self.damage_multipliers.clear();
+                    self.shields.clear();
                     let ids: Vec<ObjectId> = self.permanents.keys().copied().collect();
                     for id in ids {
                         if let Some(perm) = self.permanents.get_mut(&id) {

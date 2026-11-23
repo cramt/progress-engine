@@ -235,6 +235,10 @@ pub enum Pred {
     /// "your opponents control": a player other than the source's
     /// controller controls it (CR 102.2).
     OpponentsControl,
+    /// "defending player controls": the player the source is attacking,
+    /// or was this combat, controls it (CR 508.5). Only provoke's target
+    /// says it (`lower::keyword_trigger`).
+    DefendingControls,
     /// "nontoken": a card or a copy of one, not a token (CR 111.1).
     Nontoken,
     /// "enchanted creature", "equipped creature": what the source is attached to.
@@ -295,6 +299,8 @@ pub struct Seen<'a> {
     pub token: bool,
     /// Whether it is an attacking creature (CR 506.4).
     pub attacking: bool,
+    /// The player the source is attacking, or was this combat (CR 508.5).
+    pub source_defending: Option<PlayerId>,
 }
 
 impl Filter {
@@ -320,6 +326,7 @@ impl Filter {
             Pred::Itself => s.id == s.source,
             Pred::YouControl => s.chars.controller == s.source_chars.controller,
             Pred::OpponentsControl => s.chars.controller != s.source_chars.controller,
+            Pred::DefendingControls => s.source_defending == Some(s.chars.controller),
             Pred::AttachedTo => s.source_attached_to == Some(s.id),
             Pred::OfChosenType => s
                 .source_chosen

@@ -771,6 +771,73 @@ fn blocks_obey_flying_and_blocked_creatures_trade() {
     assert_eq!(game.player(THEM).life(), 18);
 }
 
+/// CR 702.39a, 509.1c, 615.1a: Deftblade Elite attacks and provokes the
+/// Grizzly Bears, which then must block it, no block at all being
+/// illegal; its "{1}{W}: Prevent all combat damage that would be dealt to
+/// and dealt by this creature this turn" leaves both alive.
+#[test]
+fn provoke_makes_its_target_block_and_deftblade_prevents_the_damage() {
+    let mut game = deal_both(
+        &[("Plains", 40), ("Deftblade Elite", 20)],
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Plains", 3), ("Deftblade Elite", 1)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Plains");
+    cast(&mut game, "Deftblade Elite", None);
+    resolve(&mut game);
+    let elite = creature(&game, "Deftblade Elite").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    to_attackers(&mut game);
+    let d = step(&mut game, Answer::Attack(vec![(elite, THEM)]));
+    let Decision::Targets { player, slots, .. } = d else {
+        panic!("provoke's target: {d:?}")
+    };
+    assert_eq!(player, ME);
+    assert_eq!(
+        slots,
+        vec![vec![Target::Object(bears)]],
+        "a creature THEM controls"
+    );
+    step(&mut game, Answer::Targets(vec![Target::Object(bears)]));
+    let d = resolve(&mut game);
+    assert!(matches!(d, Decision::May { .. }), "{d:?}");
+    step(&mut game, Answer::May(true));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert!(game.step(Answer::Block(vec![])).is_err(), "it must block");
+    step(&mut game, Answer::Block(vec![(bears, elite)]));
+    let mut d = activate(&mut game, elite);
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .unwrap_or_else(|| panic!("a way to pay: {actions:?}"));
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    through_combat(&mut game);
+    assert!(game.permanents().contains_key(&elite));
+    assert!(game.permanents().contains_key(&bears));
+    assert_eq!(game.permanents()[&bears].damage, 0);
+}
+
 /// CR 509.3c, 603.2c, 613.1b, 506.4, 302.6: Goblin Cadets' "Whenever this
 /// creature blocks or becomes blocked, target opponent gains control of
 /// it" triggers once as Grizzly Bears block it; resolving, its controller's
