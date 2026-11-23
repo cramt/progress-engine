@@ -2964,13 +2964,19 @@ pub fn each_player_creates(es: &mut Vec<Effect>) {
 /// creatures" are every creature chosen in the loop, `Each` with
 /// `Marked(Chosen)`, not the last one alone ([each-player-chose]).
 pub fn chosen_for_each_player(es: &mut [Effect]) {
-    struct Those(Vec<Vec<Adj>>);
+    /// The chosen object's adjectives, and its noun when the loop is over
+    /// objects: "you choose a nonland card from it for each card discarded
+    /// this way. That player discards those cards" (Last Rites) says the
+    /// chosen cards by their noun alone.
+    struct Those(Vec<Vec<Adj>>, Option<Noun>);
     impl crate::walk::Visitor for Those {
         fn enter(&mut self, o: &mut Objects) -> bool {
+            let said = o.filter.alts == self.0
+                || (self.1.is_some() && o.filter.alts.is_empty() && o.filter.kind == self.1);
             if o.quant == Quant::Unresolved(Hint::Antecedent)
                 && o.filter.posts.is_empty()
                 && o.filter.or.is_none()
-                && o.filter.alts == self.0
+                && said
             {
                 o.quant = Quant::Each;
                 o.filter.posts.push(Post::Marked(Marked::Chosen));
@@ -2980,18 +2986,23 @@ pub fn chosen_for_each_player(es: &mut [Effect]) {
     }
     let Some(i) = es.iter().position(|e| {
         matches!(e, Effect::ForEach { each, then, .. }
-            if matches!(each.filter.kind, Some(Noun::Opponent | Noun::Player))
-                && matches!(&then[..], [Effect::Choose(Choice::Objects(_))]))
+            if matches!(&then[..], [Effect::Choose(Choice::Objects(x))]
+                if x.quant == Quant::One
+                    || matches!(each.filter.kind, Some(Noun::Opponent | Noun::Player))))
     }) else {
         return;
     };
-    let Effect::ForEach { then, .. } = &es[i] else {
+    let Effect::ForEach { each, then, .. } = &es[i] else {
         return;
     };
     let [Effect::Choose(Choice::Objects(x))] = &then[..] else {
         return;
     };
-    let mut v = Those(x.filter.alts.clone());
+    let players = matches!(each.filter.kind, Some(Noun::Opponent | Noun::Player));
+    let mut v = Those(
+        x.filter.alts.clone(),
+        if players { None } else { x.filter.kind.clone() },
+    );
     for e in &mut es[i + 1..] {
         // "That creature's owner puts it …" (Tolarian Contempt): one
         // creature at a time, said in the singular; left alone.
