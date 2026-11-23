@@ -2638,6 +2638,12 @@ fn ability_into(o: &mut Out, a: &Ability) {
             o.tok(Tok::Dash);
             ability_into(o, a);
         }
+        Ability::ToSolve(c) => {
+            o.w("to solve");
+            o.tok(Tok::Dash);
+            condition(o, c);
+            o.tok(Tok::Period);
+        }
         Ability::Labelled { label, ability } => {
             o.w(label);
             o.tok(Tok::Dash);

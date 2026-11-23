@@ -764,6 +764,14 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             let inner = ability(p, spell)?;
             Some(Ability::Harnessed(Box::new(inner)))
         },
+        // "To solve — You control three or more artifacts." ([to-solve]).
+        |p| {
+            p.words("to solve")?;
+            p.tok(&Tok::Dash)?;
+            let c = condition(p)?;
+            p.end_sentence()?;
+            Some(Ability::ToSolve(c))
+        },
         // "Max speed — …", "Exhaust — {3}: …": a keyword before the dash,
         // not an ability word, since it adds rules to the ability (CR
         // 702.178a, 702.177a).

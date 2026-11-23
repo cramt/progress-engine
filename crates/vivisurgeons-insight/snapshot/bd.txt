@@ -114,7 +114,7 @@ cost: {2}{R}
 > To solve — You have no cards in hand. (If unsolved, solve at the beginning of your end step.)
 > Solved — At the beginning of your upkeep, discard your hand, then draw two cards.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(2) }], limits: [] }
-= BROKE at "." after: to solve — you have no cards in hand
+= ToSolve(CardsInHandAtMost(0))
 = KeywordOn { keyword: Solved, ability: Triggered { trigger: At(Upkeep(Yours)), effect: [DiscardHand(You), Draw { who: You, n: N(2) }], limits: [] } }
 
 ## Ceremonial Knife

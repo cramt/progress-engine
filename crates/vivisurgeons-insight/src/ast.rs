@@ -167,6 +167,10 @@ pub enum Ability {
         keyword: Prefix,
         ability: Box<Ability>,
     },
+    /// "To solve — You control three or more artifacts.": CR 719.3a, "At
+    /// the beginning of your end step, if [condition] and this Case is not
+    /// solved, this Case becomes solved."
+    ToSolve(Condition),
     /// An ability word or a flavour word: a label with no rules meaning.
     Labelled {
         label: String,

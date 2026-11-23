@@ -100,7 +100,7 @@ cost: {3}{G}
 > To solve — You control seven or more lands. (If unsolved, solve at the beginning of your end step.)
 > Solved — You may look at the top card of your library any time, and you may play lands and cast creature and enchantment spells from the top of your library.
 = Static([ExtraLand(N(1))])
-= Labelled { label: "to solve", ability: Static([Control(Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })]) }
+= ToSolve(YouControl(Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }))
 = KeywordOn { keyword: Solved, ability: Static([LookAtTopAnyTime, PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, zone: TopOfLibrary(You) }, PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")], [Type("enchantment")]], kind: Some(Spell), posts: [], or: None } }, zone: TopOfLibrary(You) }]) }
 
 ## Cleric of Chill Depths

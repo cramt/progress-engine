@@ -62,7 +62,7 @@ cost: {2}{G}
 > To solve — Creatures you control have total power 8 or greater. (If unsolved, solve at the beginning of your end step.)
 > Solved — Whenever you attack, put a +1/+1 counter on target attacking creature. It gains trample until end of turn.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [DistributeCounters { n: N(2), kind: "+1/+1", among: Objects { quant: Target { n: Between(1, 2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
-= BROKE at "8" after: to solve — creatures you control have total power
+= ToSolve(Total { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, cmp: Compare { stat: Power, op: Ge, value: N(8) } })
 = KeywordOn { keyword: Solved, ability: Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(YouAttack), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [] } } }
 
 ## Cinderbones

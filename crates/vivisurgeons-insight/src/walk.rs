@@ -134,6 +134,9 @@ impl Walk for Ability {
             Ability::KeywordOn { ability, .. } => {
                 Walk::walk(&mut **ability, v);
             }
+            Ability::ToSolve(f0) => {
+                Walk::walk(f0, v);
+            }
             Ability::Labelled { ability, .. } => {
                 Walk::walk(&mut **ability, v);
             }

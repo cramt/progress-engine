@@ -166,7 +166,7 @@ cost: {U}
 > To solve — You control three or more artifacts. (If unsolved, solve at the beginning of your end step.)
 > Solved — {2}{U}, Sacrifice this Case: Put four +1/+1 counters on target noncreature artifact. It becomes a 0/0 Bird creature with flying in addition to its other types.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Action { by: None, name: "investigate", n: None }], limits: [] }
-= Labelled { label: "to solve", ability: Static([Control(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })]) }
+= ToSolve(YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }))
 = KeywordOn { keyword: Solved, ability: Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Mana(Mana(["2", "U"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [PutCounters { n: N(4), kind: "+1/+1", on: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Becomes { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(0), signed: false }), types: [Subtype("bird"), Type("creature")], gains: [Keyword { name: "flying", param: None }], keeps: OtherTypes, dur: Permanent }], limits: [] } } }
 
 ## Clamor Shaman

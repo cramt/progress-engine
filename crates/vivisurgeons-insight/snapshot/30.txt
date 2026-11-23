@@ -141,7 +141,7 @@ cost: {1}{U}{U}
 > To solve — There are fifteen or more cards in your graveyard. (If unsolved, solve at the beginning of your end step.)
 > Solved — Whenever you cast a nonlegendary creature spell, copy that spell. (The copy becomes a token.)
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Surveil(N(1))], limits: [] }
-= BROKE at "your" after: to solve — there are fifteen or more cards in
+= ToSolve(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(15) })
 = KeywordOn { keyword: Solved, ability: Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Non("legendary"), Type("creature")]], kind: Some(Spell), posts: [], or: None } }], ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Copy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: false }], limits: [] } } }
 
 ## Chandra's Incinerator
