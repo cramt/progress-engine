@@ -14282,7 +14282,7 @@ fn static_other(o: &mut Out, s: &Static) {
             of,
             targeting,
             by,
-            less,
+            shift,
         } => {
             adj(o, &Adj::Ability(*kind), None);
             o.w("abilities of");
@@ -14293,8 +14293,14 @@ fn static_other(o: &mut Out, s: &Static) {
             }
             o.w("cost");
             mana(o, by);
-            o.w(if *less { "less" } else { "more" });
+            o.w(match shift {
+                CostShift::More => "more",
+                CostShift::Less | CostShift::LessToAtLeastOne => "less",
+            });
             o.w("to activate");
+            if *shift == CostShift::LessToAtLeastOne {
+                o.w(". this effect can't reduce the mana in that cost to less than one mana");
+            }
         }
         Static::ActivatedCostChange {
             kind,

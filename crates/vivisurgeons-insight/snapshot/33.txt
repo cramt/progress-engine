@@ -355,7 +355,7 @@ type: Artifact
 cost: {2}
 > Activated abilities of creature cards in your graveyard cost {1} less to activate.
 > Tap an untapped Zombie you control: Target player mills a card.
-= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, targeting: None, by: Mana(["1"]), less: true }])
+= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, targeting: None, by: Mana(["1"]), shift: Less }])
 = Activated { cost: [TapUntapped(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Mill { who: Target, n: N(1) }], limits: [] }
 
 ## Evangel of Heliod

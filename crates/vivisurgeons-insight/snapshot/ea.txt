@@ -639,7 +639,7 @@ cost: {X}{G}{G}
 > Activated abilities of artifact tokens you control cost {1} less to activate.
 > When Mutagen Man enters, create X Mutagen tokens. (They're artifacts with "{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target creature. Activate only as a sorcery.")
 = Keywords([Keyword { name: "trample", param: None }])
-= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: Some(Token), posts: [Controller(You)], or: None } }, targeting: None, by: Mana(["1"]), less: true }])
+= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: Some(Token), posts: [Controller(You)], or: None } }, targeting: None, by: Mana(["1"]), shift: Less }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: X, token: Token { tapped: false, pt: None, colors: [], types: ["mutagen"], keywords: [], abilities: [], named: Some("mutagen"), attacking: None } }], limits: [] }
 
 ## Nature's Kiss

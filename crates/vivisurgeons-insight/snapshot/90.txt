@@ -368,7 +368,7 @@ face: Heartstone
 type: Artifact
 cost: {3}
 > Activated abilities of creatures cost {1} less to activate. This effect can't reduce the mana in that cost to less than one mana.
-= BROKE at "can't" after: activated abilities of creatures cost {1} less to activate . this effect
+= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, targeting: None, by: Mana(["1"]), shift: LessToAtLeastOne }])
 
 ## Horned Sliver
 face: Horned Sliver

@@ -265,7 +265,7 @@ type: Artifact
 cost: {3}
 > Dynastic Command Node — As long as you control your commander, activated abilities of cards in your graveyard cost {2} less to activate. This effect can't reduce the mana in that ability's activation cost to less than one mana.
 > Translocation Protocols — {3}, {T}: Mill three cards.
-= BROKE at "can't" after: dynastic command node — as long as you control your commander , activated abilities of cards in your graveyard cost {2} less to activate . this effect
+= BROKE at "ability" after: dynastic command node — as long as you control your commander , activated abilities of cards in your graveyard cost {2} less to activate . this effect can't reduce the mana in that
 = Labelled { label: "translocation protocols", ability: Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Mill { who: You, n: N(3) }], limits: [] } }
 
 ## Dance with Calamity

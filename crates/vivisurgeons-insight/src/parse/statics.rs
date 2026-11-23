@@ -692,7 +692,18 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             let by = mana(p)?;
             let less = p.one_of(&["less", "more"])? == "less";
             p.words("to activate")?;
-            Some(vec![Static::AbilityCostChange { kind, of, targeting, by, less }])
+            let floor = less
+                && p.attempt(|p| {
+                    p.end_sentence()?;
+                    p.words("this effect can't reduce the mana in that cost to less than one mana")
+                })
+                .is_some();
+            let shift = match (less, floor) {
+                (false, _) => CostShift::More,
+                (true, false) => CostShift::Less,
+                (true, true) => CostShift::LessToAtLeastOne,
+            };
+            Some(vec![Static::AbilityCostChange { kind, of, targeting, by, shift }])
         },
         // "Activated abilities of artifacts your opponents control can't be
         // activated", perhaps "unless they're mana abilities".

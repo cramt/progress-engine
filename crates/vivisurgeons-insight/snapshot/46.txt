@@ -604,7 +604,7 @@ cost: {W}
 > Activated abilities of enchanted creature cost {3} more to activate.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Let { bind: [/* enchanted */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([Restrict { what: Objects { quant: Introduced(0) /* enchanted */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackOrBlock, who: ControllerOf(Objects { quant: Bound(0) /* enchanted */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["3"]))], per: None } }]) }
-= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, targeting: None, by: Mana(["3"]), less: false }])
+= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, targeting: None, by: Mana(["3"]), shift: More }])
 
 ## Parting Thoughts
 face: Parting Thoughts

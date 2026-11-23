@@ -146,7 +146,7 @@ type: Creature — Goblin Advisor
 cost: {1}{R}{G}
 > Exhaust abilities of other permanents you control cost {2} less to activate.
 > Exhaust — {4}{R}{G}: Creatures and Vehicles you control gain trample until end of turn. Put two +1/+1 counters on this creature. (Activate each exhaust ability only once.)
-= Static([AbilityCostChange { kind: Exhaust, of: Objects { quant: Plural, filter: Filter { alts: [[State(Other)]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, targeting: None, by: Mana(["2"]), less: true }])
+= Static([AbilityCostChange { kind: Exhaust, of: Objects { quant: Plural, filter: Filter { alts: [[State(Other)]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, targeting: None, by: Mana(["2"]), shift: Less }])
 = KeywordOn { keyword: Exhaust, ability: Activated { cost: [Mana(Mana(["4", "R", "G"]))], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }, PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
 
 ## Bounty of the Luxa

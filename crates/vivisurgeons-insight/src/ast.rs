@@ -1105,6 +1105,18 @@ pub enum State {
     Suspended,
 }
 
+/// Which way a cost change moves a cost (CR 601.2f).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum CostShift {
+    More,
+    Less,
+    /// "… cost {2} less to activate. This effect can't reduce the mana in
+    /// that cost to less than one mana" (Training Grounds): a reduction
+    /// that leaves at least one mana of a cost that had some
+    /// ([cost-floor-one]).
+    LessToAtLeastOne,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Noun {
     Permanent,
@@ -3757,7 +3769,7 @@ pub enum Static {
         /// "… that target this creature": only the abilities that target it.
         targeting: Option<Objects>,
         by: Mana,
-        less: bool,
+        shift: CostShift,
     },
     /// "Cycling abilities you activate cost {2} less to activate": every
     /// such ability that player activates, from any zone, apart from the

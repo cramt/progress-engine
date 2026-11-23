@@ -412,7 +412,7 @@ cost: {2}{B}
 > White spells cost {3} more to cast.
 > Activated abilities of white enchantments cost {3} more to activate.
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Color(White)]], kind: Some(Spell), posts: [], or: None } }, by: Mana(["3"]), less: false, per: None }])
-= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[Color(White), Type("enchantment")]], kind: None, posts: [], or: None } }, targeting: None, by: Mana(["3"]), less: false }])
+= Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[Color(White), Type("enchantment")]], kind: None, posts: [], or: None } }, targeting: None, by: Mana(["3"]), shift: More }])
 
 ## Gluttonous Hellkite
 face: Gluttonous Hellkite

@@ -246,7 +246,7 @@ cost: {1}{W}
 > First strike
 > Loyalty abilities of planeswalkers your opponents control cost {1} more to activate.
 = Keywords([Keyword { name: "first strike", param: None }])
-= Static([AbilityCostChange { kind: Loyalty, of: Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, targeting: None, by: Mana(["1"]), less: false }])
+= Static([AbilityCostChange { kind: Loyalty, of: Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, targeting: None, by: Mana(["1"]), shift: More }])
 
 ## Elvish Fury
 face: Elvish Fury
