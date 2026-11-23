@@ -777,6 +777,9 @@ fn trigger_list(e: &mut Effect) -> Option<(&mut Vec<Effect>, Vec<Condition>, Opt
         Effect::DelayedWhen { event, then }
         | Effect::DelayedWhenever { event, then }
         | Effect::DelayedNext { event, then, .. } => (then, Vec::new(), Some(event.clone())),
+        // Not a trigger, but each pass of "repeat this process" finds its
+        // own objects as a trigger's resolution does ([repeat-process]).
+        Effect::Process(then) => (then, Vec::new(), None),
         _ => return None,
     })
 }
@@ -1518,7 +1521,8 @@ impl Visitor for Unwrap {
         | Effect::Delayed { then, .. }
         | Effect::DelayedWhen { then, .. }
         | Effect::DelayedWhenever { then, .. }
-        | Effect::DelayedNext { then, .. } = e
+        | Effect::DelayedNext { then, .. }
+        | Effect::Process(then) = e
         {
             splice(then);
         }
