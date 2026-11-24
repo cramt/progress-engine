@@ -58,6 +58,11 @@ Forty-five threads in a row then found the tree dirty and stopped.
      from Scryfall (`POST /cards/collection`) or `chancellor-logs card NAME`.
    - The engine refuses by name what it can't do. Never guess to get a line
      through: a refused card is honest, a wrong game is not.
+     `unwrap_or(0)`, `map_or(0, …)`, `_ => 0`, `unwrap_or_default()` and
+     their `false` kin are that guess in code: an unknown read as none.
+     `tests/silent_zero.rs` fails when one is added without
+     `// zero: <why zero is the rule's answer>` on it or the line above.
+     Refuse instead, or write the reason; never raise the baseline.
    - A replay inference (which card a fetchland found, a choice the log never
      prints) goes in `replay.rs`, never in the engine.
    - Stop at about 15 commits or 3 hours, whichever comes first.

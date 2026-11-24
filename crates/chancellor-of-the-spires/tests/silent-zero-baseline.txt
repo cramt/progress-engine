@@ -1,0 +1,9 @@
+# Unmarked silent zeros per file of src/; tests/silent_zero.rs fails if one rises.
+# Mark a deliberate one with `// zero: <why>`. Lower with
+# UPDATE_SILENT_ZERO=1 cargo test -p chancellor-of-the-spires --test silent_zero
+bin/chancellor-logs.rs 2
+game.rs 29
+layers.rs 3
+log.rs 1
+lower.rs 4
+replay.rs 24
