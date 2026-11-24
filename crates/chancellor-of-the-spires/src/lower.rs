@@ -1687,6 +1687,9 @@ pub enum Effect {
     MultiplyDamageThisTurn {
         by: u32,
     },
+    /// "Damage can't be prevented this turn" (Stomp): until cleanup (CR
+    /// 514.2), prevention effects prevent no damage (CR 615.12).
+    DamageCantBePreventedThisTurn,
     /// The controller scries (CR 701.22a).
     Scry(u32),
     /// "Draw a card at the beginning of the next turn's upkeep": a
@@ -2240,8 +2243,9 @@ pub enum TriggerEvent {
     /// "When this creature becomes the target of a spell or ability": a
     /// permanent the filter matches becomes a target of a spell or
     /// ability anyone controls, once however many of its slots name it
-    /// (CR 603.2c).
-    BecomesTarget(Filter),
+    /// (CR 603.2c); `spell`, of a spell only (Bonecrusher Giant), whose
+    /// controller the event names.
+    BecomesTarget { filter: Filter, spell: bool },
     /// "When this creature transforms into ~": a permanent the filter
     /// matches transforms, the ability on the face it transformed into
     /// (CR 701.27e).
@@ -2471,7 +2475,17 @@ pub fn triggered(
         TriggerEvent::Casts { .. }
             | TriggerEvent::Draws { .. }
             | TriggerEvent::DealsDamageToPlayer { .. }
+            | TriggerEvent::BecomesTarget { spell: true, .. }
     );
+    // "That spell's controller": the spell whose target it became, which
+    // the event names with its controller.
+    if let (TriggerEvent::BecomesTarget { spell: true, .. }, i::Trigger::When(e)) =
+        (&event, trigger)
+    {
+        if let i::Event::BecomesTarget { of: Some(of), .. } = &**e {
+            scope.event_spell = binder(of, bind);
+        }
+    }
     let lowered = scope.effects(effect)?;
     scope.program.effects = lowered;
     Ok(Triggered {
@@ -2479,6 +2493,17 @@ pub fn triggered(
         program: scope.program,
         condition,
     })
+}
+
+/// "A spell", unqualified.
+fn any_spell() -> Objects {
+    Objects {
+        quant: Quant::One,
+        filter: i::Filter {
+            kind: Some(i::Noun::Spell),
+            ..Default::default()
+        },
+    }
 }
 
 /// What a "when" trigger's event lowers to, an "or" to each of its
@@ -2542,7 +2567,18 @@ fn when(e: &i::Event, bound: &dyn Fn(&Objects) -> Objects) -> Result<TriggerEven
                 ..Default::default()
             }) =>
         {
-            TriggerEvent::BecomesTarget(entering(what)?)
+            TriggerEvent::BecomesTarget {
+                filter: entering(what)?,
+                spell: false,
+            }
+        }
+        // "Whenever this creature becomes the target of a spell": the
+        // spell a `Let` binds, of any kind.
+        i::Event::BecomesTarget { what, of: Some(of) } if bound(of) == any_spell() => {
+            TriggerEvent::BecomesTarget {
+                filter: entering(what)?,
+                spell: true,
+            }
         }
         i::Event::Cycles {
             who: i::Player::You,
@@ -2903,6 +2939,9 @@ struct Scope<'a> {
     /// Whether the trigger event names a player, a spell's caster, whom
     /// "that player" names.
     caster: bool,
+    /// The binder of the spell whose target the trigger's permanent
+    /// became, "that spell".
+    event_spell: Option<usize>,
     program: Program,
     /// The `With` binders in scope, outermost first: the slot each binds,
     /// or `None` for one nothing the engine runs reads.
@@ -2953,6 +2992,7 @@ impl<'a> Scope<'a> {
             player: None,
             amount: false,
             caster: false,
+            event_spell: None,
             program: Program::default(),
             withs: Vec::new(),
             slots: 0,
@@ -3207,6 +3247,11 @@ impl<'a> Scope<'a> {
                     .map(Who::Target)
                     .ok_or_else(|| "Player::That".into())
             }
+            i::Player::ControllerOf(o)
+                if self.event_spell.is_some() && binder(o, self.bind) == self.event_spell =>
+            {
+                return Ok(Who::EventPlayer)
+            }
             i::Player::ControllerOf(o) => return Ok(Who::ControllerOf(self.obj(o)?)),
             other => return Err(format!("Player::{}", short(other))),
         };
@@ -3414,6 +3459,9 @@ impl<'a> Scope<'a> {
                 _ => Effect::Untap(self.on(what)?),
             },
             i::Effect::Exile(what) => Effect::Exile(self.on(what)?),
+            i::Effect::DamageCantBePrevented(i::Duration::ThisTurn) => {
+                Effect::DamageCantBePreventedThisTurn
+            }
             i::Effect::ExileUntilLeaves { what, until } if itself(until) => {
                 Effect::ExileUntilLeaves(self.on(what)?)
             }

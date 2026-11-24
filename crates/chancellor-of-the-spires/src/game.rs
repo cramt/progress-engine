@@ -946,8 +946,13 @@ enum Event {
     Drew(PlayerId),
     /// This permanent became tapped (CR 701.26a).
     BecameTapped(ObjectId),
-    /// This permanent became a target of a spell or ability (CR 115.1).
-    BecameTarget(ObjectId),
+    /// This permanent became a target of a spell or ability (CR 115.1),
+    /// a spell or not, whose controller this player is.
+    BecameTarget {
+        object: ObjectId,
+        spell: bool,
+        controller: PlayerId,
+    },
     /// These creatures were declared as blockers, and these attackers
     /// became blocked (CR 509.1h, 509.1i).
     Blocked {
@@ -2017,6 +2022,9 @@ pub struct Game {
     /// double that damage … instead": for each, the player whose sources
     /// it watches and the multiplier, ending in cleanup (CR 514.2).
     damage_multipliers: Vec<(PlayerId, u32)>,
+    /// "Damage can't be prevented this turn": the prevention effects apply
+    /// and prevent nothing (CR 615.12), until cleanup (CR 514.2).
+    unpreventable: bool,
     /// Prevention shields until the turn ends (CR 615.1a, 514.2): the
     /// combat damage dealt to an object, or by it.
     shields: Vec<Shield>,
@@ -2257,6 +2265,7 @@ impl Game {
             combat: None,
             until_end_of_turn: Vec::new(),
             damage_multipliers: Vec::new(),
+            unpreventable: false,
             shields: Vec::new(),
             delayed: Vector::new(),
             wards: Vector::new(),
@@ -6209,7 +6218,7 @@ impl Game {
         player.pool.add_all(&a.adds);
         // CR 120.3a, 120.3f: its damage to its controller is life lost,
         // and gained back if it has lifelink; CR 615.6: none, prevented.
-        let damage = if self.you_have(p, ForYou::PreventAllDamage) {
+        let damage = if !self.unpreventable && self.you_have(p, ForYou::PreventAllDamage) {
             0
         } else {
             self.replaced_damage(p, damage)
@@ -7020,6 +7029,7 @@ impl Game {
                     fired: false,
                 }),
                 Effect::MultiplyDamageThisTurn { by } => self.damage_multipliers.push((p, by)),
+                Effect::DamageCantBePreventedThisTurn => self.unpreventable = true,
                 // CR 702.39a: "this combat", so with the combat.
                 Effect::MustBlock { blocker, attacker } => {
                     if let (Some(b), Some(a)) =
@@ -8050,12 +8060,14 @@ impl Game {
             let n = &self.replaced_damage(by, *n);
             // CR 702.16e: damage from a source with the quality is
             // prevented.
-            let prevented = match (to, source) {
-                (Target::Object(o), Some(s)) => now.get(o).is_some_and(|c| c.protected_from(s)),
-                // CR 615.1a.
-                (Target::Player(q), _) => self.you_have(*q, ForYou::PreventAllDamage),
-                _ => false,
-            };
+            // CR 615.12: none, while damage can't be prevented.
+            let prevented = !self.unpreventable
+                && match (to, source) {
+                    (Target::Object(o), Some(s)) => now.get(o).is_some_and(|c| c.protected_from(s)),
+                    // CR 615.1a.
+                    (Target::Player(q), _) => self.you_have(*q, ForYou::PreventAllDamage),
+                    _ => false,
+                };
             if *n == 0 || prevented {
                 continue;
             }
@@ -8406,7 +8418,11 @@ impl Game {
             .filter(|o| seen.insert(*o))
             .collect();
         for o in &targeted {
-            self.trigger_on(Event::BecameTarget(*o));
+            self.trigger_on(Event::BecameTarget {
+                object: *o,
+                spell: matches!(of, Target::Spell(_)),
+                controller,
+            });
         }
         let all = self.characteristics();
         for o in targeted {
@@ -8650,8 +8666,15 @@ impl Game {
                             .then_some((None, None))
                             .into_iter()
                             .collect(),
-                        (TriggerEvent::BecomesTarget(f), Event::BecameTarget(id)) => {
-                            (all.contains_key(id) && f.matches(&seen(*id)))
+                        (
+                            TriggerEvent::BecomesTarget { filter: f, spell },
+                            Event::BecameTarget {
+                                object: id,
+                                spell: by_spell,
+                                ..
+                            },
+                        ) => {
+                            ((!spell || *by_spell) && all.contains_key(id) && f.matches(&seen(*id)))
                                 .then_some((Some(*id), None))
                                 .into_iter()
                                 .collect()
@@ -8711,6 +8734,7 @@ impl Game {
                     Event::Cast { controller, .. } => Some(*controller),
                     Event::Drew(q) => Some(*q),
                     Event::DamagedPlayer { player, .. } => Some(*player),
+                    Event::BecameTarget { controller, .. } => Some(*controller),
                     _ => None,
                 };
                 // CR 603.4: an intervening "if" checked as it triggers.
@@ -9313,11 +9337,14 @@ impl Game {
         let mut hit_players: Vec<(ObjectId, PlayerId, PlayerId)> = Vec::new();
         let mut dealt_by: Vec<(ObjectId, u32)> = Vec::new();
         for s in &sources {
-            // CR 615.6: damage a shield prevents is never dealt.
+            // CR 615.6: damage a shield prevents is never dealt; CR
+            // 615.12: none, while damage can't be prevented.
             let shielded = |t: &Target| {
-                self.shields
-                    .iter()
-                    .any(|sh| (sh.by && sh.of == *s) || (sh.to && *t == Target::Object(sh.of)))
+                !self.unpreventable
+                    && self
+                        .shields
+                        .iter()
+                        .any(|sh| (sh.by && sh.of == *s) || (sh.to && *t == Target::Object(sh.of)))
             };
             let hits: Vec<(Target, u32)> = assigned
                 .iter()
@@ -10007,6 +10034,7 @@ impl Game {
                     let ended = std::mem::take(&mut self.until_end_of_turn);
                     self.battlefield.end(&ended);
                     self.damage_multipliers.clear();
+                    self.unpreventable = false;
                     self.shields.clear();
                     let ids: Vec<ObjectId> = self.permanents.keys().copied().collect();
                     for id in ids {

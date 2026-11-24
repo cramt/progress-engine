@@ -1076,11 +1076,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-24 155 of the 500 replay to
-the end and 58.15% of their lines are followed** (18,409 of 31,659), 3
+Worked card by card from there, **on 2026-11-24 157 of the 500 replay to
+the end and 58.27% of their lines are followed** (18,447 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
-and 154 games have no card the engine refuses before any game (from 21). The
+and 156 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1327,7 +1327,13 @@ cost still needs (CR 602.2b, 601.2g–h, 701.21a, 733.1: Siege-Gang
 Commander, Ravenous Baloth, Goblin Sledder and Dust Bowl, whose 7 games
 go on, two to the end, three to Chain of Vapor, Recurring Nightmare and
 Tempting Wurm, and two to lines the replay doesn't follow, a trigger
-removed for want of targets and a land played). And
+removed for want of targets and a land played); "damage can't be
+prevented this turn", the prevention effects applying and preventing
+nothing until cleanup, and "whenever this creature becomes the target of
+a spell" apart from a spell or ability, "that spell's controller" the
+one whose spell targeted it (CR 615.12, 514.2, 603.2c, 115.1: Bonecrusher
+Giant // Stomp, whose 3 games go on, two to the end and one to Senu,
+Keen-Eyed Protector). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

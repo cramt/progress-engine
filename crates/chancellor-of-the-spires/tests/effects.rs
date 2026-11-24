@@ -61,6 +61,27 @@ fn two_faced(name: &str) -> Option<CardText> {
                 None,
             ),
         ),
+        "Bonecrusher Giant // Stomp" => (
+            TwoFaced::Adventure,
+            face(
+                "Bonecrusher Giant",
+                "Creature — Giant",
+                "{2}{R}",
+                "Whenever this creature becomes the target of a spell, this creature deals 2 damage to that spell's controller.",
+                3,
+                Some(Color::Red),
+                Some(pt(4, 3)),
+            ),
+            face(
+                "Stomp",
+                "Instant — Adventure",
+                "{1}{R}",
+                "Damage can't be prevented this turn. Stomp deals 2 damage to any target.",
+                2,
+                Some(Color::Red),
+                None,
+            ),
+        ),
         "Scalding Viper // Steam Clean" => (
             TwoFaced::Adventure,
             face(
@@ -7281,4 +7302,93 @@ fn condemn_bottoms_an_attacker_and_its_controller_gains_its_toughness() {
     assert!(creature(&game, "Savannah Lions").is_none());
     assert_eq!(game.player(ME).library().back(), Some(&card));
     assert_eq!(game.player(ME).life(), life + 1);
+}
+
+const GIANT: &str = "Bonecrusher Giant // Stomp";
+
+/// The Giant on my battlefield by turn three, Silver Knight (protection
+/// from red, first strike) on theirs, and my fifth Mountain played.
+fn giant_against_the_knight() -> (
+    Game,
+    chancellor_of_the_spires::model::ObjectId,
+    chancellor_of_the_spires::model::ObjectId,
+) {
+    let mut game = deal_both(
+        &[("Mountain", 40), (GIANT, 20)],
+        &[("Plains", 40), ("Silver Knight", 20)],
+        &[("Mountain", 5), (GIANT, 2)],
+        &[("Plains", 2), ("Silver Knight", 1)],
+    );
+    play(&mut game, "Mountain");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Plains");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Plains");
+    cast_as(&mut game, THEM, "Silver Knight", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, GIANT, None);
+    resolve(&mut game);
+    for _ in 0..2 {
+        my_next_main(&mut game);
+        play(&mut game, "Mountain");
+    }
+    let giant = creature(&game, GIANT).unwrap();
+    let knight = creature(&game, "Silver Knight").unwrap();
+    (game, giant, knight)
+}
+
+/// CR 615.12, 702.16e, 514.2: after Stomp's "Damage can't be prevented
+/// this turn", Silver Knight's protection from red still applies but
+/// prevents nothing, so blocking Bonecrusher Giant it is dealt the
+/// Giant's 4 and dies.
+#[test]
+fn stomp_lets_damage_through_protection_this_turn() {
+    let (mut game, giant, knight) = giant_against_the_knight();
+    let stomp = in_hand(&game, ME, GIANT).unwrap();
+    let d = step(&mut game, Answer::Act(Action::CastBack(stomp)));
+    let d = match d {
+        Decision::Targets { .. } => step(&mut game, Answer::Targets(vec![Target::Player(THEM)])),
+        d => panic!("{d:?}"),
+    };
+    pay(&mut game, d);
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(giant, THEM)]));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    step(&mut game, Answer::Block(vec![(knight, giant)]));
+    while game.step_now() < Step::EndOfCombat {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert!(!game.permanents().contains_key(&knight), "not prevented");
+    assert_eq!(game.permanents()[&giant].damage, 2, "first strike");
+}
+
+/// CR 603.2, 115.1: Bonecrusher Giant becoming the target of a spell, my
+/// own Stomp, deals 2 damage to that spell's controller, me; then Stomp
+/// deals it 2.
+#[test]
+fn bonecrusher_giant_damages_the_controller_of_a_spell_targeting_it() {
+    let (mut game, giant, _) = giant_against_the_knight();
+    let stomp = in_hand(&game, ME, GIANT).unwrap();
+    let d = step(&mut game, Answer::Act(Action::CastBack(stomp)));
+    let d = match d {
+        Decision::Targets { .. } => step(&mut game, Answer::Targets(vec![Target::Object(giant)])),
+        d => panic!("{d:?}"),
+    };
+    pay(&mut game, d);
+    assert_eq!(game.stack().len(), 2, "Stomp and the Giant's trigger");
+    resolve(&mut game);
+    assert_eq!(game.player(ME).life(), 18);
+    resolve(&mut game);
+    assert_eq!(game.permanents()[&giant].damage, 2);
 }
