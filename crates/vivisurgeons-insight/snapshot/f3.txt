@@ -1255,7 +1255,7 @@ face: Wild Evocation
 type: Enchantment
 cost: {5}{R}
 > At the beginning of each player's upkeep, that player reveals a card at random from their hand. If it's a land card, the player puts it onto the battlefield. Otherwise, the player casts it without paying its mana cost if able.
-= BROKE at "puts" after: at the beginning of each player 's upkeep , that player reveals a card at random from their hand . if it's a land card , the player
+= BROKE at "it" after: at the beginning of each player 's upkeep , that player reveals a card at random from their hand . if it's a land card , the player puts it onto the battlefield . otherwise , the player casts
 
 ## Word of Binding
 face: Word of Binding

@@ -762,6 +762,11 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                     let joiner = p.one_of(&[", then", ", and then", ", and", "and then", "and", ","])?;
                     if !p.peek_word().is_some_and(|w| IMPERATIVE.contains(&w)) { return None; }
                     let e = effect(p)?;
+                    // "You may reveal up to two creature and/or land cards
+                    // from among them, then put the rest on the bottom"
+                    // (Zimone's Experiment): the rest goes whether or not
+                    // the option was taken ([rest-outside-may]).
+                    if matches!(&e, Effect::Move { what, .. } if what.quant == Quant::Unresolved(Hint::Rest)) { return None; }
                     Some((joiner, suffixed(p, e)))
                 }) {
                     if joiner == "and" {
@@ -1217,8 +1222,19 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
     if let Some(v) = p.attempt(simultaneously) {
         return Some(v);
     }
+    // "they reveal cards … until …, put that card onto the battlefield, then
+    // shuffle" (Reweave): the singular "they" agrees with a bare verb as a
+    // plural subject does, so the bare verbs after it are still theirs
+    // ([they-continues]).
+    let mut they_subject = p.peek_word() == Some("they");
     let mut v = clause(p)?;
-    while let Some((joiner, more)) = p.attempt(|p| {
+    while let Some((joiner, more, they_next)) = p.attempt(|p| {
+        // `It gains "At the beginning of your end step, …." Then put the
+        // rest …` (Aethermage's Touch): the quoted ability's period ended
+        // the sentence, so the "Then" starts the next one.
+        if p.after_quoted_period() {
+            return None;
+        }
         let joiner = p.one_of(&[
             ", and then",
             ", then",
@@ -1239,7 +1255,7 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
                     | Player::NTarget { .. }
                     | Player::EachOf(_)
             )
-        );
+        ) || they_subject && v.iter().rev().find_map(subject_of) == Some(Player::That);
         let agrees = |w: &str| {
             THIRD_PERSON.contains(&w)
                 || plural
@@ -1251,7 +1267,14 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         let continues = p.peek_word().is_some_and(agrees);
         // A continued target is the one chosen ([continued-subject]).
         let who = if continues {
-            v.last().and_then(subject_of).map(continued_player)
+            // After a "they", a clause with no player of its own ("put that
+            // card onto the battlefield") leaves them the subject.
+            if they_subject {
+                v.iter().rev().find_map(subject_of)
+            } else {
+                v.last().and_then(subject_of)
+            }
+            .map(continued_player)
         } else {
             p.implied.clone()
         };
@@ -1294,8 +1317,9 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
                 o
             });
         }
-        Some((joiner, c))
+        Some((joiner, c, if continues { they_subject } else { they }))
     }) {
+        they_subject = they_next;
         let mut more = more;
         listed(&v, &mut more);
         // "exile it at end of combat, then return it to the battlefield
@@ -2185,6 +2209,9 @@ fn refers_back(e: &Effect) -> bool {
         | Effect::Sacrifice { what, .. }
         | Effect::Destroy { what, .. }
         | Effect::Exile(what)
+        // "If you do, look at that player's hand and choose a card from it.
+        // The player discards that card." (Leshrac's Sigil): the chosen card.
+        | Effect::Discard { what, .. }
         | Effect::Tap(what)
         | Effect::Untap(what)
         // "If you do, put it onto the battlefield under your control. It's a

@@ -634,7 +634,7 @@ type: Enchantment
 cost: {B}{B}
 > Whenever an opponent casts a green spell, you may pay {B}{B}. If you do, look at that player's hand and choose a card from it. The player discards that card.
 > {B}{B}: Return this enchantment to its owner's hand.
-= BROKE at "card" after: whenever an opponent casts a green spell , you may pay {B} {B} . if you do , look at that player 's hand and choose a card from it . the player discards that
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [[Color(Green)]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["B", "B"]))] }] }, IfYouDo([LookAtHand { who: You, whose: That }, With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(That)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }])], limits: [] }
 = Activated { cost: [Mana(Mana(["B", "B"]))], effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Liliana's Contract

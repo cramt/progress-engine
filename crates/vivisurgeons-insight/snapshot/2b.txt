@@ -932,7 +932,7 @@ cost: {1}{G}{G}
 > At the beginning of your upkeep, sacrifice this enchantment unless you pay {G}.
 > Whenever a player puts a Swamp onto the battlefield, this enchantment deals 3 damage to that player unless the player puts a -1/-1 counter on a creature they control.
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Unless { effect: Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, who: You, cost: [Mana(Mana(["G"]))] }], limits: [] }
-= BROKE at "puts" after: whenever a player puts a swamp onto the battlefield , this enchantment deals 3 damage to that player unless the player
+= BROKE at "." after: whenever a player puts a swamp onto the battlefield , this enchantment deals 3 damage to that player unless the player puts a <pt> counter on a creature they control
 
 ## Thraben Exorcism
 face: Thraben Exorcism

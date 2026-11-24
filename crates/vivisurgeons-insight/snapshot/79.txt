@@ -370,7 +370,7 @@ face: Gate to the Aether
 type: Artifact
 cost: {6}
 > At the beginning of each player's upkeep, that player reveals the top card of their library. If it's an artifact, creature, enchantment, or land card, the player may put it onto the battlefield.
-= BROKE at "may" after: at the beginning of each player 's upkeep , that player reveals the top card of their library . if it's an artifact , creature , enchantment , or land card , the player
+= Triggered { trigger: At(Upkeep(Each)), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [RevealTop { who: That, whose: That, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("enchantment")], [Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [May { who: That, then: [Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }] }], limits: [] }
 
 ## Giant Adephage
 face: Giant Adephage

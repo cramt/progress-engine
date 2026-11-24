@@ -824,7 +824,7 @@ face: Shapeshifter's Marrow
 type: Enchantment
 cost: {2}{U}{U}
 > At the beginning of each opponent's upkeep, that player reveals the top card of their library. If it's a creature card, the player puts the card into their graveyard and this enchantment becomes a copy of that card. (If it does, it loses this ability.)
-= BROKE at "puts" after: at the beginning of each opponent 's upkeep , that player reveals the top card of their library . if it's a creature card , the player
+= Triggered { trigger: At(Upkeep(EachOpponent)), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [RevealTop { who: That, whose: That, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Performed { by: That, effect: Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Graveyard(That), tapped: false, transformed: false, under: None, order: None } }, BecomesCopy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, dur: Permanent, except: [] }] }] }], limits: [] }
 
 ## Silent Arbiter
 face: Silent Arbiter

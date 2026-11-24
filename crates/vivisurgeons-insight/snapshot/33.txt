@@ -799,7 +799,7 @@ cost: {6}
 > Players can't draw cards.
 > At the beginning of each player's draw step, that player exiles the top card of their library. If it's a land card, the player puts it onto the battlefield. Otherwise, the player casts it without paying its mana cost if able.
 = BROKE at "." after: players can't draw cards
-= BROKE at "puts" after: at the beginning of each player 's draw step , that player exiles the top card of their library . if it's a land card , the player
+= BROKE at "it" after: at the beginning of each player 's draw step , that player exiles the top card of their library . if it's a land card , the player puts it onto the battlefield . otherwise , the player casts
 
 ## Ore-Scale Guardian
 face: Ore-Scale Guardian

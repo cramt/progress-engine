@@ -103,6 +103,13 @@ fn player_read(p: &mut P) -> Option<Player> {
         |p| p.words("that attacking player").map(|_| Player::AttackingPlayer),
         |p| p.words("that player").map(|_| Player::That),
         |p| p.words("those players").map(|_| Player::That),
+        // "then the player shuffles" (Rootwater Thief): the player named
+        // before, as "that player" ([that-player]); "the player who …" and
+        // "the player with …" describe one instead.
+        |p| {
+            p.words("the player")?;
+            (!matches!(p.peek_word(), Some("who" | "with" | "of" | "to" | "that"))).then_some(Player::That)
+        },
         that_opponent,
         |p| p.words("the chosen player").map(|_| Player::Chosen),
         |p| p.words("defending player").map(|_| Player::DefendingPlayer),

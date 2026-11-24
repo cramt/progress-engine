@@ -226,6 +226,22 @@ impl<'a> P<'a> {
 
     /// A sentence's period, which Oracle text leaves out after a closing
     /// quote whose ability ended with its own: `gains "{T}: Add {C}."`
+    /// Just after a closing quote whose ability ended in a period:
+    /// `… hand." Then put …`.
+    fn after_quoted_period(&self) -> bool {
+        let before = &self.t[..self.i];
+        let quotes = before
+            .iter()
+            .rev()
+            .take_while(|t| **t == Tok::Quote)
+            .count();
+        let open = before.iter().filter(|t| **t == Tok::Quote).count() % 2 == 1;
+        !open
+            && quotes > 0
+            && before.len() > quotes
+            && before[before.len() - quotes - 1] == Tok::Period
+    }
+
     fn end_sentence(&mut self) -> Option<()> {
         if self.tok(&Tok::Period).is_some() {
             return Some(());
@@ -2785,13 +2801,13 @@ impl Visitor for EachItself {
         true
     }
     fn effect(&mut self, e: &mut Effect) {
-        let (each, n) = match e {
-            Effect::PutCounters { n, on, .. } => (&*on, n),
+        let (each, n, to) = match e {
+            Effect::PutCounters { n, on, .. } => (&*on, n, None),
             Effect::Damage {
                 source: Some(src),
                 n,
-                ..
-            } => (&*src, n),
+                to,
+            } => (&*src, n, Some(to)),
             _ => return,
         };
         if !matches!(each.quant, Quant::Each | Quant::All | Quant::Plural) {
@@ -2808,6 +2824,16 @@ impl Visitor for EachItself {
         if let Amount::PowerOf(x) | Amount::ToughnessOf(x) | Amount::ManaValueOf(x) = n {
             if one(x) {
                 x.quant = Quant::Itself;
+            }
+        }
+        // Rakdos Charm: "Each creature deals 1 damage to its controller":
+        // each source deals its damage to its own controller, not to the
+        // controller of the whole set ([each-itself]).
+        for r in to.into_iter().flatten() {
+            if let Recipient::Player(Player::ControllerOf(x) | Player::OwnerOf(x)) = r {
+                if one(x) {
+                    x.quant = Quant::Itself;
+                }
             }
         }
     }

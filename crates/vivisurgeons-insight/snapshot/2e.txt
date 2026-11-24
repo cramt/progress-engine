@@ -824,7 +824,7 @@ cost: {B}{R}
 > • Exile target player's graveyard.
 > • Destroy target artifact.
 > • Each creature deals 1 damage to its controller.
-= Spell([Modal { choose: One, modes: [[ExileZone(Graveyard(Target))], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, no_regen: false }], [With { bind: [/* it */ Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [Damage { source: Some(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(ControllerOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }] }]] }])
+= Spell([Modal { choose: One, modes: [[ExileZone(Graveyard(Target))], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, no_regen: false }], [Damage { source: Some(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: N(1), to: [Player(ControllerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }))] }]] }])
 
 ## Rancid Rats
 face: Rancid Rats
