@@ -609,7 +609,7 @@ type: Sorcery
 cost: {1}{R}{R}
 > Each player shuffles the cards from their hand into their library, then draws that many cards.
 > Metalcraft — If you control three or more artifacts, Molten Psyche deals damage to each opponent equal to the number of cards that player has drawn this turn.
-= Spell([ShuffleInto { who: Each, what: Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } } }, Draw { who: Each, n: ThatMany }])
+= Spell([ShuffleInto { who: Each, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } } }, Draw { who: Each, n: ThatMany }])
 = BROKE at "drawn" after: metalcraft — if you control three or more artifacts , ~ deals damage to each opponent equal to the number of cards that player has
 
 ## Nahiri's Machinations

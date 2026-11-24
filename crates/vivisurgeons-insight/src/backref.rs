@@ -2252,6 +2252,18 @@ fn new_quant(r: &Resolved, o: &Objects) -> Option<Quant> {
     {
         return Some(Quant::All);
     }
+    // "shuffle the cards from your hand into your library" (Whirlpool
+    // Rider), "puts the cards in their hand on the bottom of their library"
+    // (Teferi's Puzzle Box) with no cards before them: every card in that
+    // hand, a set by where it is, not a pointer ([cards-in-hand]).
+    if r.pick.is_none()
+        && h == Hint::Antecedent
+        && o.filter.kind == Some(Noun::Card)
+        && o.filter.alts.is_empty()
+        && matches!(&o.filter.posts[..], [Post::In(Zone::Hand(_))])
+    {
+        return Some(Quant::All);
+    }
     if matches!(r.pick, Some(Target::Enclosing(_))) {
         return Some(Quant::Itself);
     }

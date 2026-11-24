@@ -916,8 +916,8 @@ type: Creature — Merfolk Warrior
 cost: {2}{U}
 > When this creature enters, shuffle the cards from your hand into your library, then draw that many cards.
 > {R}, Sacrifice this creature: Each player shuffles the cards from their hand into their library, then draws that many cards.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ShuffleInto { who: You, what: Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } } }, Draw { who: You, n: ThatMany }], limits: [] }
-= Activated { cost: [Mana(Mana(["R"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [ShuffleInto { who: Each, what: Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } } }, Draw { who: Each, n: ThatMany }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ShuffleInto { who: You, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } } }, Draw { who: You, n: ThatMany }], limits: [] }
+= Activated { cost: [Mana(Mana(["R"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [ShuffleInto { who: Each, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } } }, Draw { who: Each, n: ThatMany }], limits: [] }
 
 ## Witty Roastmaster
 face: Witty Roastmaster

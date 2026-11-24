@@ -161,7 +161,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | My decks (pinned) | 2136/2136 (100%) |
 | EDHREC top 2000 | 3668/3669 (99.97%) |
-| All parsed abilities | 52090/52117 (99.9%) |
+| All parsed abilities | 52092/52117 (99.95%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -200,7 +200,7 @@ own" (in Two-Headed Giant a teammate owns cards too), "choose target
 opponent" as "choose an opponent" (which does not target), a Saga's "II —"
 as an ability word, a sorcery's "The next Dragon spell you cast costs …" as
 a static, and a bare "its graveyard" as its controller's (CR 400.3 makes it
-the owner's). The 27 corpus abilities that still do not round-trip are
+the owner's). The 25 corpus abilities that still do not round-trip are
 listed by `insight roundtrip`. Twelve of them say a zone "in" or "from" where
 Oracle is not consistent with itself ("reveal any number of artifact cards in
 your hand", Metalworker; "… from your hand", Arsenal Thresher): the renderer
@@ -240,7 +240,7 @@ each in text order (`src/walk.rs`):
 
 | Kind | What it finds | Corpus |
 |---|---|---|
-| unresolved-reference | "it", "that creature" that no object said before it fits, so the tree points it at nothing (`Quant::Unresolved`). Every other reference names the binder of the object it means ([binders]): a target, a card drawn, milled or looked at, an earlier paragraph's object (CR 608.2c), a linked ability's (CR 607.2a). "Those players" and "those counters" are no objects and are not counted | 53 |
+| unresolved-reference | "it", "that creature" that no object said before it fits, so the tree points it at nothing (`Quant::Unresolved`). Every other reference names the binder of the object it means ([binders]): a target, a card drawn, milled or looked at, an earlier paragraph's object (CR 608.2c), a linked ability's (CR 607.2a). "Those players" and "those counters" are no objects and are not counted | 44 |
 | dangling-that-player | "that player" with no player before it. A player named by the trigger ("deals combat damage to a player", "each player's upkeep") or by an owner's zone counts, and the player of the same effect does ([that-player-in-effect]) | 2 |
 | self-comparison | both sides of a comparison the same expression | 0 |
 | spell-in-zone | a spell in a zone other than the stack (CR 112.1) | 0 |

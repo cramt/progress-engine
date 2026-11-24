@@ -793,7 +793,7 @@ face: Teferi's Puzzle Box
 type: Artifact
 cost: {4}
 > At the beginning of each player's draw step, that player puts the cards in their hand on the bottom of their library in any order, then draws that many cards.
-= Triggered { trigger: At(DrawStep(Each)), effect: [Performed { by: That, effect: Move { what: Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }, from: None, to: BottomOfLibrary(That), tapped: false, transformed: false, under: None, order: Some(Any) } }, Draw { who: That, n: ThatMany }], limits: [] }
+= Triggered { trigger: At(DrawStep(Each)), effect: [Performed { by: That, effect: Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }, from: None, to: BottomOfLibrary(That), tapped: false, transformed: false, under: None, order: Some(Any) } }, Draw { who: That, n: ThatMany }], limits: [] }
 
 ## The Horus Heresy
 face: The Horus Heresy

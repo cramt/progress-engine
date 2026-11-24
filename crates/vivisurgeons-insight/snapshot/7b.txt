@@ -985,7 +985,7 @@ face: Winds of Change
 type: Sorcery
 cost: {R}
 > Each player shuffles the cards from their hand into their library, then draws that many cards.
-= Spell([ShuffleInto { who: Each, what: Objects { quant: Unresolved(Antecedent), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } } }, Draw { who: Each, n: ThatMany }])
+= Spell([ShuffleInto { who: Each, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } } }, Draw { who: Each, n: ThatMany }])
 
 ## Winnow
 face: Winnow

@@ -1757,6 +1757,37 @@ mod syn {
         any_of(o, &["all", "all the"]);
     }
 
+    /// "shuffle the cards from your hand into your library" is every card
+    /// in that hand, "all cards from your hand" ([cards-in-hand]).
+    pub fn cards_in_hand(o: &mut Out, cards: Out) {
+        // The zone's word is the renderer's pick ("from" after a verb
+        // that moves it), and "in" says the same hand.
+        let in_hand = Out(cards
+            .0
+            .iter()
+            .map(|p| match p {
+                Piece::Toks(t) if t[..] == [Tok::Word("from".into())] => {
+                    Piece::Toks(vec![Tok::Word("in".into())])
+                }
+                p => p.clone(),
+            })
+            .collect());
+        let with = |art: &str, c: &Out| {
+            let mut x = of(art);
+            x.add(c.clone());
+            x
+        };
+        alt(
+            o,
+            vec![
+                with("all", &cards),
+                with("all the", &cards),
+                with("the", &cards),
+                with("the", &in_hand),
+            ],
+        );
+    }
+
     /// "a graveyard", "graveyards" in "target cards from graveyards": a
     /// card is in one graveyard either way, the noun's number agrees with
     /// the cards'.
@@ -4450,6 +4481,14 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             o.w("each");
             filter(o, f, n);
         }
+        Quant::All
+            if f.kind == Some(Noun::Card)
+                && f.alts.is_empty()
+                && matches!(&f.posts[..], [Post::In(Zone::Hand(_))]) =>
+        {
+            let cards = out(|o| filter(o, f, n));
+            syn::cards_in_hand(o, cards);
+        }
         Quant::All => {
             syn::all_the(o);
             filter(o, f, n);
@@ -7090,6 +7129,15 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                 let no_verb = out(|o| o.0.extend(full.0.iter().skip(n + 1).cloned()));
                 let alone = out(|o| syn::gapped(o, pred.clone(), no_verb));
                 syn::subject(o, subject, alone, pred);
+            }
+            // "They put that card onto the battlefield and the rest on the
+            // bottom of their library" (Wild Magic Surge, Proteus Staff).
+            (Some(Effect::Performed { effect: pm, .. }), Effect::Move { what: rest, .. })
+                if matches!(**pm, Effect::Move { .. })
+                    && matches!(rest.quant, Quant::Rest { .. }) =>
+            {
+                let without = out(|o| move_put_rest(o, e, false));
+                syn::gapped(o, full, without);
             }
             // "put two into your hand and the rest on the bottom".
             (Some(Effect::Move { .. } | Effect::EntersAttacking(_)), Effect::Move { .. })
