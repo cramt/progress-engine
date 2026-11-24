@@ -2828,19 +2828,12 @@ impl Visitor for EachItself {
             } => (&*src, n, Some(to)),
             _ => return,
         };
-        if !matches!(each.quant, Quant::Each | Quant::All | Quant::Plural) {
+        if !is_each(each) {
             return;
         }
-        let theirs: Vec<&Adj> = kinds(&each.filter);
-        let one = |x: &Objects| {
-            x.quant == Quant::Unresolved(Hint::Antecedent)
-                && x.filter.posts.is_empty()
-                && x.filter.or.is_none()
-                && x.filter.kind.is_none()
-                && kinds(&x.filter).iter().all(|a| theirs.contains(a))
-        };
+        let each = each.clone();
         if let Amount::PowerOf(x) | Amount::ToughnessOf(x) | Amount::ManaValueOf(x) = n {
-            if one(x) {
+            if each_one(&each, x) {
                 x.quant = Quant::Itself;
             }
         }
@@ -2849,12 +2842,49 @@ impl Visitor for EachItself {
         // controller of the whole set ([each-itself]).
         for r in to.into_iter().flatten() {
             if let Recipient::Player(Player::ControllerOf(x) | Player::OwnerOf(x)) = r {
-                if one(x) {
+                if each_one(&each, x) {
                     x.quant = Quant::Itself;
                 }
             }
         }
     }
+    // Kentaro: "You may pay {X} rather than pay the mana cost for Samurai
+    // spells you cast, where X is that spell's mana value"; Sliver
+    // Gravemother: "Each Sliver creature card in your graveyard has encore
+    // {X}, where X is its mana value". A static's X said of its plural
+    // subject is worked out for each one, not once for the set.
+    fn statik(&mut self, s: &mut Static) {
+        let Static::Where { inner, x } = s else {
+            return;
+        };
+        let each = match &**inner {
+            Static::CastPaying { what, .. } | Static::Modify { what, .. } => what,
+            _ => return,
+        };
+        if !is_each(each) {
+            return;
+        }
+        if let Amount::PowerOf(o) | Amount::ToughnessOf(o) | Amount::ManaValueOf(o) = x {
+            if each_one(each, o) {
+                o.quant = Quant::Itself;
+            }
+        }
+    }
+}
+
+fn is_each(o: &Objects) -> bool {
+    matches!(o.quant, Quant::Each | Quant::All | Quant::Plural)
+}
+
+/// A bare "its" or "that <noun>" that can only be one of `each`: said with
+/// none of its own posts, and with no kind or type `each` lacks.
+fn each_one(each: &Objects, x: &Objects) -> bool {
+    let theirs = kinds(&each.filter);
+    x.quant == Quant::Unresolved(Hint::Antecedent)
+        && x.filter.posts.is_empty()
+        && x.filter.or.is_none()
+        && (x.filter.kind.is_none() || x.filter.kind == each.filter.kind)
+        && kinds(&x.filter).iter().all(|a| theirs.contains(a))
 }
 
 /// Corrosion: "put a rust counter on each artifact target opponent

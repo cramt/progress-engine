@@ -650,7 +650,7 @@ cost: {1}{W}
 > Bushido 1 (Whenever this creature blocks or becomes blocked, it gets +1/+1 until end of turn.)
 > You may pay {X} rather than pay the mana cost for Samurai spells you cast, where X is that spell's mana value.
 = Keywords([Keyword { name: "bushido", param: Some(N(N(1))) }])
-= Let { bind: [/* it */ Objects { quant: Plural, filter: Filter { alts: [[Subtype("samurai")]], kind: Some(Spell), posts: [Cast(You)], or: None } }], ability: Static([Where { inner: CastPaying { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: None, cost: [Mana(Mana(["X"]))], rather: true }, x: ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }]) }
+= Static([Where { inner: CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("samurai")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, zone: None, cost: [Mana(Mana(["X"]))], rather: true }, x: ManaValueOf(Objects { quant: Itself, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }])
 
 ## Korlessa, Scale Singer
 face: Korlessa, Scale Singer

@@ -870,7 +870,7 @@ cost: {W}{U}{B}{R}{G}
 > Each Sliver creature card in your graveyard has encore {X}, where X is its mana value.
 > Encore {5} ({5}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)
 = BROKE at "\"" after: the
-= Let { bind: [/* it */ Objects { quant: Each, filter: Filter { alts: [[Subtype("sliver"), Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }], ability: Static([Where { inner: Modify { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "encore", param: Some(Cost([Mana(Mana(["X"]))])) }], per: None }, x: ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }]) }
+= Static([Where { inner: Modify { what: Objects { quant: Each, filter: Filter { alts: [[Subtype("sliver"), Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, pt: None, has: [Keyword { name: "encore", param: Some(Cost([Mana(Mana(["X"]))])) }], per: None }, x: ManaValueOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }])
 = Keywords([Keyword { name: "encore", param: Some(Cost([Mana(Mana(["5"]))])) }])
 
 ## Sphere Grid
