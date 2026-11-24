@@ -2796,7 +2796,9 @@ impl Driver<'_> {
                 player, card, owed, ..
             } => self.pay_unless(player, card, owed),
             Decision::PayAttack { player, owed, .. } => self.pay_attack(player, owed, "an attack"),
-            Decision::PayLifeOr { player, card, .. } => self.pay_life_or(player, card),
+            Decision::PayLifeOr {
+                player, card, ward, ..
+            } => self.pay_life_or(player, card, ward),
             Decision::ChooseMana {
                 player, options, ..
             } => self.choose_mana(player, options),
@@ -3063,11 +3065,25 @@ impl Driver<'_> {
         if aims.is_empty() && slots.iter().all(|s| s.contains(&Target::Nothing)) {
             return Ok(vec![Target::Nothing; slots.len()]);
         }
-        if aims.len() != slots.len() {
+        // Fewer named than slots: the "up to one" slots left empty, only
+        // when exactly that many may be, so which ones is never a guess
+        // (Raubahn's trigger naming only the attacker, no Equipment).
+        let upto = slots
+            .iter()
+            .filter(|s| s.contains(&Target::Nothing))
+            .count();
+        let skip_upto = aims.len() < slots.len() && slots.len() - aims.len() == upto;
+        if aims.len() != slots.len() && !skip_upto {
             return Err(wrong());
         }
         let mut out = Vec::new();
-        for (aim, legal) in aims.iter().zip(slots) {
+        let mut aims = aims.iter();
+        for legal in slots {
+            if skip_upto && legal.contains(&Target::Nothing) {
+                out.push(Target::Nothing);
+                continue;
+            }
+            let aim = aims.next().ok_or_else(wrong)?;
             let t = match &aim.target {
                 // An ability on the stack: "Triggered ability from Phyrexian
                 // Dreadnought", or an activated one by its source's name.
@@ -6324,8 +6340,35 @@ impl Driver<'_> {
     /// "Pay 4 life or put the card on top of your library": the next line
     /// of `p`'s this turn not yet read that answers one, "kept a card."
     /// for the life paid or "put a card on top of …'s library." for not.
-    fn pay_life_or(&mut self, p: PlayerId, card: CardId) -> Followed {
+    fn pay_life_or(&mut self, p: PlayerId, card: CardId, ward: bool) -> Followed {
         let name = self.name_of(card);
+        // A ward's life paid is never printed, only the spell or ability
+        // countered when it isn't: not paid, with a checkpoint to go back
+        // and pay if a later line can't be followed then (CR 702.21a), as
+        // for a ward of mana.
+        if ward {
+            let mut paid = self.game().clone();
+            paid.step(Answer::PayLife(true))
+                .map_err(|_| Stop::Illegal {
+                    what: "paying life for a ward".into(),
+                })?;
+            self.checkpoints.push(Checkpoint {
+                game: paid,
+                entry: self.at,
+                trace: self.trace.len(),
+                resume: self.at,
+                others: vec![Retry::Take(format!("paid life for {name}'s ward"))],
+                knew: self.knew(),
+                back: Back::Any,
+            });
+            self.act(Answer::PayLife(false))?;
+            let at = self.at;
+            self.did(
+                at,
+                format!("didn't pay life for {name}'s ward (CR 118.12a)"),
+            );
+            return Ok(());
+        }
         let said = self
             .entries
             .iter()

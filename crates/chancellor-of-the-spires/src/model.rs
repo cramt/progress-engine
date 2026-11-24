@@ -107,10 +107,23 @@ pub enum Keyword {
     /// "Mountainwalk" (CR 702.14a): unblockable while the defending
     /// player controls a land of that basic land type (CR 702.14c).
     Landwalk(BasicLandType),
-    /// "Ward {2}" (CR 702.21a): whenever it becomes the target of a spell
-    /// or ability an opponent controls, that spell or ability is countered
-    /// unless its controller pays this much generic mana.
-    Ward(u32),
+    /// "Ward {2}", "Ward—Pay 2 life" (CR 702.21a): whenever it becomes the
+    /// target of a spell or ability an opponent controls, that spell or
+    /// ability is countered unless its controller pays the cost.
+    Ward(WardCost),
+}
+
+/// What a ward asks of the player whose spell or ability targeted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum WardCost {
+    /// "Ward {2}": this much generic mana.
+    Mana(u32),
+    /// "Ward—Pay 2 life".
+    Life(u32),
+    /// "Ward—Pay life equal to Raubahn's power": the warded permanent's
+    /// power as the ward resolves (CR 702.21b), or as it last existed (CR
+    /// 608.2h).
+    LifeEqualToPower,
 }
 
 /// What a protection ability protects from (CR 702.16a).

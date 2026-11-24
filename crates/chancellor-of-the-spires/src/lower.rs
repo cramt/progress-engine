@@ -775,20 +775,26 @@ fn keyword(k: &i::Keyword) -> Option<Vec<Keyword>> {
             _ => None,
         };
     }
-    // CR 702.21a: a ward of generic mana; one of coloured mana or of
-    // another cost isn't read.
+    // CR 702.21a: a ward of generic mana, of a number of life or of life
+    // equal to its own power; one of coloured mana or of another cost
+    // isn't read.
     if name == "ward" {
         let i::KeywordParam::Cost(cost) = k.param.as_ref()? else {
             return None;
         };
-        let [i::Cost::Mana(m)] = cost.as_slice() else {
-            return None;
+        let ward = match cost.as_slice() {
+            [i::Cost::Mana(m)] => {
+                let cost = crate::mana::ManaCost::from_symbols(m).ok()?;
+                if !cost.shards.is_empty() {
+                    return None;
+                }
+                WardCost::Mana(cost.generic)
+            }
+            [i::Cost::PayLife(i::Amount::N(n))] => WardCost::Life(*n),
+            [i::Cost::PayLife(i::Amount::PowerOf(o))] if itself(o) => WardCost::LifeEqualToPower,
+            _ => return None,
         };
-        let cost = crate::mana::ManaCost::from_symbols(m).ok()?;
-        return cost
-            .shards
-            .is_empty()
-            .then_some(vec![Keyword::Ward(cost.generic)]);
+        return Some(vec![Keyword::Ward(ward)]);
     }
     if k.param.is_some() {
         return None;
@@ -1903,10 +1909,12 @@ pub enum Effect {
         cost: UnlessCost,
         otherwise: Vec<Effect>,
     },
-    /// "Attach this permanent to target creature you control": the
-    /// ability's source becomes attached to it, unless it already is (CR
-    /// 701.3a–b).
+    /// "Attach this permanent to target creature you control", "attach up
+    /// to one target Equipment you control to target attacking creature":
+    /// the Equipment `what` names becomes attached to `to`, unless it
+    /// already is or couldn't equip it (CR 701.3a–b, 301.5c).
     Attach {
+        what: Obj,
         to: Obj,
     },
     /// "Choose two cards in your hand drawn this turn": the controller
@@ -1929,7 +1937,7 @@ pub enum Effect {
     /// instructions are followed.
     UnlessLife {
         who: Who,
-        life: u32,
+        life: Amount,
         otherwise: Vec<Effect>,
     },
     /// "Choose a nonland card name": the controller names a card of the
@@ -3197,7 +3205,6 @@ impl<'a> Scope<'a> {
             } => {
                 let spec = match graveyard_card(o) {
                     Some(spec) => spec?,
-                    None if up_to => return Err("up to one target permanent".into()),
                     None => TargetSpec::Permanent(target_filter(o)?),
                 };
                 Ok(Obj::Target(self.slot(if up_to {
@@ -3416,6 +3423,23 @@ impl<'a> Scope<'a> {
                 attacking: false,
             },
             i::Effect::Destroy { what, .. } => Effect::Destroy(self.on(what)?),
+            // "Attach up to one target Equipment you control to target
+            // attacking creature": a target Equipment, the only kind of
+            // object the game attaches; an Aura's rules differ (CR 303.4).
+            i::Effect::Attach { what, to }
+                if matches!(what.quant, Quant::Target { .. })
+                    && !what.filter.alts.is_empty()
+                    && what.filter.alts.iter().all(|alt| {
+                        alt.iter().any(
+                            |a| matches!(a, Adj::Subtype(s) if s.eq_ignore_ascii_case("equipment")),
+                        )
+                    }) =>
+            {
+                Effect::Attach {
+                    what: self.obj(what)?,
+                    to: self.obj(to)?,
+                }
+            }
             i::Effect::Tap(what) => Effect::Tap(self.on(what)?),
             // "Prevent all combat damage that would be dealt to and dealt
             // by this creature this turn": one object, both ways (as
@@ -3829,7 +3853,7 @@ impl<'a> Scope<'a> {
                 };
                 Effect::UnlessLife {
                     who: self.who(who)?,
-                    life: *life,
+                    life: Amount::N(*life),
                     otherwise: self.effect(otherwise)?,
                 }
             }
@@ -5321,7 +5345,10 @@ pub fn equip(k: &i::Keyword) -> Option<Result<Activated, String>> {
                     Pred::Is(Prop::Type(CardType::Creature)),
                     Pred::YouControl,
                 ]))],
-                effects: vec![Effect::Attach { to: Obj::Target(0) }],
+                effects: vec![Effect::Attach {
+                    what: Obj::Itself,
+                    to: Obj::Target(0),
+                }],
             },
             limits: ActivationLimits {
                 sorcery_speed: true,

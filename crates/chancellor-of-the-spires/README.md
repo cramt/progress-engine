@@ -1076,11 +1076,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-24 160 of the 500 replay to
-the end and 58.60% of their lines are followed** (18,553 of 31,659), 3
+Worked card by card from there, **on 2026-11-24 162 of the 500 replay to
+the end and 58.73% of their lines are followed** (18,592 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (1 to the end),
-and 161 games have no card the engine refuses before any game (from 21). The
+and 163 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1339,7 +1339,15 @@ them, a negative power compared as it is and an amount of a target gone
 not found, so what it guards isn't done (CR 608.2h, 107.1b, 608.2b:
 Ghastly Demise against the cards in its caster's graveyard, Overload's
 mana value 2 or less or 5 if kicked, whose 11 games go on, three to the
-end and three to Cursed Scroll). And
+end and three to Cursed Scroll); ward of life, a number or the
+permanent's power as the ward resolves, the replay taking it unpaid
+unless a later line needs it paid, "attach up to one target Equipment
+you control to target attacking creature", an Equipment moving only onto
+a creature it could equip, and "up to one target" permanent, left empty
+dealt no damage (CR 702.21a–b, 119.4, 701.3a–b, 301.5c, 115.6: Raubahn,
+Bull of Ala Mhigo, whose 17 games go on, one to the end and two each to
+Dragonfire Blade, Kellan, Planar Trailblazer and Heartless Act, and Zul
+Ashur, Lich Lord's one to the end). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

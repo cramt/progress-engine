@@ -7474,3 +7474,93 @@ fn overload_kicked_destroys_a_bigger_artifact() {
         );
     }
 }
+
+const RAUBAHN: &str = "Raubahn, Bull of Ala Mhigo";
+
+/// CR 702.21a–b, 119.4: Raubahn's "Ward—Pay life equal to Raubahn's
+/// power" counters their Lightning Bolt unless they pay 2 life, its power
+/// as the ward resolves; paid, the Bolt resolves and Raubahn, 2/2, dies.
+#[test]
+fn raubahns_ward_asks_life_equal_to_its_power() {
+    for pays in [false, true] {
+        let mut game = deal_both(
+            &[("Mountain", 40), (RAUBAHN, 20)],
+            &[("Mountain", 40), ("Lightning Bolt", 20)],
+            &[("Mountain", 2), (RAUBAHN, 1)],
+            &[("Mountain", 2), ("Lightning Bolt", 1)],
+        );
+        play(&mut game, "Mountain");
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, "Mountain");
+        my_next_main(&mut game);
+        play(&mut game, "Mountain");
+        cast(&mut game, RAUBAHN, None);
+        resolve(&mut game);
+        let raubahn = creature(&game, RAUBAHN).unwrap();
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        let bolt = in_hand(&game, THEM, "Lightning Bolt").unwrap();
+        cast_as(
+            &mut game,
+            THEM,
+            "Lightning Bolt",
+            Some(vec![Target::Object(raubahn)]),
+        );
+        assert_eq!(game.stack().len(), 2, "ward triggered over the Bolt");
+        let Decision::PayLifeOr { player, life, .. } = resolve(&mut game) else {
+            panic!("{:?}", game.decision())
+        };
+        assert_eq!((player, life), (THEM, 2));
+        step(&mut game, Answer::PayLife(pays));
+        if pays {
+            assert_eq!(game.player(THEM).life(), 18);
+            resolve(&mut game);
+            assert!(creature(&game, RAUBAHN).is_none());
+        } else {
+            assert_eq!(game.player(THEM).life(), 20);
+            assert!(game.player(THEM).graveyard().contains(&bolt));
+            assert!(game.stack().is_empty());
+            assert!(creature(&game, RAUBAHN).is_some());
+        }
+    }
+}
+
+/// CR 701.3a, 115.6: Raubahn attacking attaches up to one target
+/// Equipment I control, Bonesplitter, to target attacking creature,
+/// itself, which then has +2/+0.
+#[test]
+fn raubahn_attacking_attaches_an_equipment_to_an_attacker() {
+    let mut game = deal(
+        &[("Mountain", 40), (RAUBAHN, 10), ("Bonesplitter", 10)],
+        &[("Forest", 60)],
+        &[("Mountain", 3), (RAUBAHN, 1), ("Bonesplitter", 1)],
+    );
+    play(&mut game, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, RAUBAHN, None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Bonesplitter", None);
+    resolve(&mut game);
+    let raubahn = creature(&game, RAUBAHN).unwrap();
+    let splitter = creature(&game, "Bonesplitter").unwrap();
+    to_attackers(&mut game);
+    let d = step(&mut game, Answer::Attack(vec![(raubahn, THEM)]));
+    let Decision::Targets { slots, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(
+        slots,
+        vec![
+            vec![Target::Object(splitter), Target::Nothing],
+            vec![Target::Object(raubahn)]
+        ]
+    );
+    step(
+        &mut game,
+        Answer::Targets(vec![Target::Object(splitter), Target::Object(raubahn)]),
+    );
+    resolve(&mut game);
+    assert_eq!(game.characteristics()[&raubahn].pt, Some(pt(4, 2)));
+}

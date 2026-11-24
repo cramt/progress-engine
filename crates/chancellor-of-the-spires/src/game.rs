@@ -65,7 +65,7 @@ use crate::mana::{self as m, short};
 pub use crate::mana::{Mana, ManaCost, ManaPool, Shard};
 use crate::model::{
     self, Ability, CardType, Chars, Cmp, Color, Counter, Filter, Keyword, ObjectId, PlayerId, Pred,
-    Seen, State, Subtype, Supertype, Timestamp, YouControl,
+    Seen, State, Subtype, Supertype, Timestamp, WardCost, YouControl,
 };
 
 /// CR 103.4.
@@ -1703,6 +1703,9 @@ pub enum Decision {
         player: PlayerId,
         card: CardId,
         life: u32,
+        /// Whether it is a ward's "counter it unless that player pays"
+        /// (CR 702.21a), `card` the warded permanent's.
+        ward: bool,
     },
     /// CR 118.12a: pay `owed` for `card`'s "unless", activating mana
     /// abilities first, or not: answered `Answer::Pay`, `Payment::Cancel`
@@ -3364,6 +3367,7 @@ impl Game {
                 player: *player,
                 card: at.what.card(),
                 life: *life,
+                ward: matches!(at.what, Instructions::Triggered(_, TriggerOf::Ward(_))),
             },
             Waiting::PayUnless { player, owed, at } => Decision::PayUnless {
                 player: *player,
@@ -6806,14 +6810,24 @@ impl Game {
                         }
                     }
                 }
-                // CR 701.26a.
-                Effect::Attach { to } => {
-                    let (Some(what), Some(to)) = (at.object, self.named(&at, to)) else {
+                // CR 701.3a–b: an Equipment moves onto a creature it could
+                // equip, never itself or as a creature (CR 301.5c), nor
+                // onto one with protection from it (CR 702.16d); onto
+                // anything else, or what it is already on, it doesn't move.
+                Effect::Attach { what, to } => {
+                    let (Some(what), Some(to)) = (self.named(&at, what), self.named(&at, to))
+                    else {
                         continue;
                     };
-                    let there = |o| self.permanents.contains_key(&o);
-                    if there(what)
-                        && there(to)
+                    let all = self.characteristics();
+                    let (Some(w), Some(t)) = (all.get(&what), all.get(&to)) else {
+                        continue;
+                    };
+                    let equips = w.subtypes.contains(&Subtype::Other("Equipment".into()))
+                        && !w.is(CardType::Creature)
+                        && t.is(CardType::Creature)
+                        && !t.protected_from(w);
+                    if equips
                         && what != to
                         && self.battlefield.objects[&what].attached_to != Some(to)
                     {
@@ -7360,6 +7374,7 @@ impl Game {
                 // CR 118.12a: they may pay; if they don't, what follows.
                 Effect::UnlessLife { who: w, life, .. } => {
                     let Some(q) = who(w) else { continue };
+                    let life = self.amount(&at, life);
                     // CR 119.4: with too little life, the rest is followed.
                     if self.player(q).life < life as i32 {
                         at = here;
@@ -7914,7 +7929,9 @@ impl Game {
     /// which can't be found (CR 608.2b); one of an object the engine has
     /// no record of is refused.
     fn compared(&self, at: &Resuming, n: lower::Amount) -> Option<i64> {
-        let illegal = |o: Obj| matches!(o, Obj::Target(s) if at.targets[s].is_none());
+        // CR 115.6: an "up to one" left empty is no target, and nothing
+        // is read of it, as of an illegal one.
+        let illegal = |o: Obj| matches!(o, Obj::Target(s) if matches!(at.targets[s], None | Some(Target::Nothing)));
         let pt = |o: Obj, what: &str| {
             if illegal(o) {
                 return None;
@@ -8114,7 +8131,15 @@ impl Game {
                     (Target::Player(q), _) => self.you_have(*q, ForYou::PreventAllDamage),
                     _ => false,
                 };
-            if *n == 0 || prevented {
+            // Only a player or a permanent is dealt damage: an "up to one
+            // target" left empty (CR 115.6) or a permanent gone is dealt
+            // none, so lifelink and "deals damage" don't count it.
+            let there = match to {
+                Target::Player(_) => true,
+                Target::Object(o) => self.permanents.contains_key(o),
+                Target::Spell(_) | Target::Ability(_) | Target::Card(_) | Target::Nothing => false,
+            };
+            if *n == 0 || prevented || !there {
                 continue;
             }
             total += n;
@@ -8477,20 +8502,37 @@ impl Game {
                 continue;
             }
             for a in &c.abilities {
-                let Ability::Keyword(Keyword::Ward(n)) = a else {
+                let Ability::Keyword(Keyword::Ward(cost)) = a else {
                     continue;
+                };
+                let otherwise = vec![Effect::Counter(0)];
+                let unless = match *cost {
+                    WardCost::Mana(n) => Effect::Unless {
+                        who: Who::EventPlayer,
+                        cost: lower::UnlessCost::Mana(ManaCost {
+                            generic: n,
+                            shards: Vec::new(),
+                        }),
+                        otherwise,
+                    },
+                    WardCost::Life(n) => Effect::UnlessLife {
+                        who: Who::EventPlayer,
+                        life: lower::Amount::N(n),
+                        otherwise,
+                    },
+                    // CR 702.21b: the power as the ward resolves, the
+                    // permanent's own, as it last existed if it is gone
+                    // (CR 608.2h).
+                    WardCost::LifeEqualToPower => Effect::UnlessLife {
+                        who: Who::EventPlayer,
+                        life: lower::Amount::PowerOf(Obj::Itself),
+                        otherwise,
+                    },
                 };
                 self.wards.push_back((
                     Program {
                         targets: Vec::new(),
-                        effects: vec![Effect::Unless {
-                            who: Who::EventPlayer,
-                            cost: lower::UnlessCost::Mana(ManaCost {
-                                generic: *n,
-                                shards: Vec::new(),
-                            }),
-                            otherwise: vec![Effect::Counter(0)],
-                        }],
+                        effects: vec![unless],
                     },
                     of,
                 ));
