@@ -402,7 +402,7 @@ type: Artifact
 cost: {4}
 > You don't lose the game for having 0 or less life.
 > Whenever you lose life, sacrifice a permanent for each 1 life you lost. (Damage causes loss of life.)
-= BROKE at "0" after: you don't lose the game for having
+= Static([PlayerRestrict { who: You, rules: [NoLossForZeroLife] }])
 = BROKE at "you" after: whenever you lose life , sacrifice a permanent for each 1 life
 
 ## Lifecrafter's Bestiary

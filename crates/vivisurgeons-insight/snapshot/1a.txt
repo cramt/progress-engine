@@ -623,7 +623,7 @@ type: Enchantment
 cost: {2}{W}
 > You don't lose the game for having 0 or less life.
 > As long as you have 0 or less life, all damage is dealt to you as though its source had infect. (Damage is dealt to you in the form of poison counters.)
-= BROKE at "0" after: you don't lose the game for having
+= Static([PlayerRestrict { who: You, rules: [NoLossForZeroLife] }])
 = BROKE at "is" after: as long as you have 0 or less life , all damage
 
 ## Pillar of the Paruns

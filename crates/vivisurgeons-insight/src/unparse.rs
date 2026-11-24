@@ -7959,6 +7959,11 @@ fn player_rule(o: &mut Out, r: &PlayerRule) {
         PlayerRule::CantGainLife => o.w("gain life"),
         PlayerRule::CantLoseLife => o.w("lose life"),
         PlayerRule::CantLoseGame => o.w("lose the game"),
+        PlayerRule::NoLossForZeroLife => {
+            o.w("lose the game for having");
+            syn::number(o, 0);
+            o.w("or less life");
+        }
         PlayerRule::CantWinGame => o.w("win the game"),
         PlayerRule::CantSearchLibraries => o.w("search libraries"),
         PlayerRule::CantGetCounters => o.w("get counters"),
@@ -14548,6 +14553,15 @@ fn static_other(o: &mut Out, s: &Static) {
                 o.w("can't be cast");
             });
             syn::cant_be_cast(o, active, passive);
+        }
+        Static::PlayerRestrict { who, rules } if rules[..] == [PlayerRule::NoLossForZeroLife] => {
+            player(o, who);
+            o.w(if *who == Player::You {
+                "don't"
+            } else {
+                "doesn't"
+            });
+            player_rule(o, &rules[0]);
         }
         Static::PlayerRestrict { who, rules } => {
             let each = out(|o| {

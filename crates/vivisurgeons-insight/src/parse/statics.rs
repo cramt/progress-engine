@@ -546,6 +546,16 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             p.words("life total can't change")?;
             Some(vec![Static::PlayerRestrict { who, rules: vec![PlayerRule::CantGainLife, PlayerRule::CantLoseLife] }])
         },
+        // "You don't lose the game for having 0 or less life" (Phyrexian
+        // Unlife, Lich) ([no-loss-at-zero-life]).
+        |p| {
+            let who = player(p)?;
+            p.one_of(&["don't", "doesn't"])?;
+            p.words("lose the game for having")?;
+            (number(p)? == 0).then_some(())?;
+            p.words("or less life")?;
+            Some(vec![Static::PlayerRestrict { who, rules: vec![PlayerRule::NoLossForZeroLife] }])
+        },
         |p| {
             let who = player(p)?;
             let mut rules = vec![player_rule(p)?];

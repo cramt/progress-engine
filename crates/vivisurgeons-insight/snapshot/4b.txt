@@ -917,7 +917,7 @@ cost: {X}{W}{W}
 > You don't lose the game for having 0 or less life.
 > At the beginning of your upkeep, sacrifice this enchantment if there are no echo counters on it. Otherwise, target opponent may choose that for each 1 damage that would be dealt to you until your next upkeep, you remove an echo counter from this enchantment instead.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: X, kind: "echo" }])
-= BROKE at "0" after: you don't lose the game for having
+= Static([PlayerRestrict { who: You, rules: [NoLossForZeroLife] }])
 = BROKE at "each" after: at the beginning of your upkeep , sacrifice this enchantment if there are no echo counters on it . otherwise , target opponent may choose that for
 
 ## Spike Weaver

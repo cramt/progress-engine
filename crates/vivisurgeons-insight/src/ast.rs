@@ -2817,6 +2817,11 @@ pub enum PlayerRule {
     /// "can't lose the game", "can't win the game": no way to win or lose
     /// (CR 104.2, 104.3) ends the game for that player ([cant-lose-win]).
     CantLoseGame,
+    /// "don't lose the game for having 0 or less life": the state-based
+    /// action that makes a player at 0 or less life lose (CR 704.5a) does
+    /// nothing to them, and any other way to lose still does
+    /// ([no-loss-at-zero-life]).
+    NoLossForZeroLife,
     CantWinGame,
     CantSearchLibraries,
     /// "That player can't get counters".

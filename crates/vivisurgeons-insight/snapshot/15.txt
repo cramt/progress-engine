@@ -448,7 +448,7 @@ cost: {B}{B}{B}{B}
 > Whenever you're dealt damage, sacrifice that many nontoken permanents. If you can't, you lose the game.
 > When this enchantment is put into a graveyard from the battlefield, you lose the game.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [LoseLife { who: You, n: LifeTotal(You) }] }])
-= BROKE at "0" after: you don't lose the game for having
+= Static([PlayerRestrict { who: You, rules: [NoLossForZeroLife] }])
 = Static([Replacement { event: GainsLife(You), instead: [Draw { who: You, n: ThatMany }] }])
 = BROKE at "," after: whenever you're dealt damage
 = Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Battlefield }), effect: [LoseGame(You)], limits: [] }
