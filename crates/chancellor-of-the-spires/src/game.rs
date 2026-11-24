@@ -6471,6 +6471,22 @@ impl Game {
                     };
                     return;
                 }
+                // CR 110.2a: under the control of the player putting it
+                // there. Followed again once it has entered, when it is no
+                // longer in the graveyard.
+                Effect::FromGraveyardToBattlefield { slot, tapped } => {
+                    if let Some(Target::Card(c)) = at.targets[slot] {
+                        let owner = self.owner(c);
+                        let graveyard = &mut self.players[owner.0 as usize].graveyard;
+                        if graveyard.contains(&c) {
+                            graveyard.retain(|x| *x != c);
+                            self.entering.get_or_insert_with(Vec::new);
+                            self.enter(c, p, tapped, Then::Resume(here));
+                            return;
+                        }
+                    }
+                    self.entered();
+                }
                 // One card at a time, each entering as it would alone;
                 // what has moved is no longer in the library.
                 Effect::ToBattlefield {
@@ -7683,6 +7699,38 @@ impl Game {
                 .now_or_last(at, o)
                 .and_then(|c| c.pt)
                 .map_or(0, |p| p.power.max(0) as u32),
+            lower::Amount::TargetCardManaValue(s) => {
+                // The card's own face, never the copiable values it took
+                // on entering: what it was in the graveyard (CR 608.2h,
+                // 707.2).
+                let printed = match at.targets.get(s).copied().flatten() {
+                    Some(Target::Card(c)) => self.cards[c.0 as usize]
+                        .face
+                        .up()
+                        .and_then(|k| k.printed.as_ref()),
+                    _ => None,
+                };
+                match printed {
+                    Some(ch) => ch.mana_value,
+                    // A target gone does nothing (CR 608.2b), but an
+                    // amount of it can't be read as anything.
+                    None => {
+                        self.unknowable
+                            .borrow_mut()
+                            .get_or_insert_with(|| Rejected::Refused {
+                                card: self
+                                    .face_name(at.what.card())
+                                    .unwrap_or("an instruction")
+                                    .to_string(),
+                                refusal: Unrunnable::new(
+                                    "the mana value of a target card gone or unknown",
+                                    "reads the mana value of a target card it can't see",
+                                ),
+                            });
+                        0
+                    }
+                }
+            }
             lower::Amount::ManaValueOf(s) => match at.found.get(&s).map(Vec::as_slice) {
                 Some([c]) => self
                     .known(*c)

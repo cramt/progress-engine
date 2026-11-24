@@ -1076,8 +1076,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-24 150 of the 500 replay to
-the end and 57.45% of their lines are followed** (18,189 of 31,659), 3
+Worked card by card from there, **on 2026-11-24 153 of the 500 replay to
+the end and 57.69% of their lines are followed** (18,263 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 151 games have no card the engine refuses before any game (from 21). The
@@ -1311,7 +1311,11 @@ and the ability's instructions reading it, "put X charge counters" too
 (CR 107.3a, 107.3k, 107.4b: Pernicious Deed and Blast Zone, whose 6
 games go on, one to the end, two to Blast Zone's refused "Destroy each
 nonland permanent", the rest to Arch of Orazca, Ravenous Baloth and
-Siege-Gang Commander). And
+Siege-Gang Commander); a target creature card from a graveyard put
+onto the battlefield under its caster's control, and the life lost by
+that card's mana value as it was in the graveyard, whatever it entered
+as a copy of (CR 110.2a, 608.2h: Reanimate, whose 3 games go on, two to
+the end and one to Ghastly Demise). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

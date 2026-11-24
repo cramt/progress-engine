@@ -1563,6 +1563,14 @@ pub enum Effect {
         tapped: bool,
         who: Who,
     },
+    /// Reanimate's "Put target creature card from a graveyard onto the
+    /// battlefield under your control": the card targeted in that slot,
+    /// if it is still there (CR 608.2b), entering under the controller of
+    /// the spell or ability (CR 110.2a).
+    FromGraveyardToBattlefield {
+        slot: usize,
+        tapped: bool,
+    },
     /// "Then shuffle": a player's library (CR 701.24a).
     Shuffle(Who),
     /// "Draw two cards" (CR 121.2), the number worked out as it is
@@ -2052,6 +2060,9 @@ pub enum Amount {
     ThatMuch,
     /// "Its mana value": of the card bound there.
     ManaValueOf(Slot),
+    /// "That card's mana value": of the card in a graveyard targeted in
+    /// that slot, as it last existed there (CR 608.2h).
+    TargetCardManaValue(usize),
     /// "Equal to its power": of the object, or as it last existed (CR
     /// 608.2h).
     PowerOf(Obj),
@@ -3056,6 +3067,9 @@ impl<'a> Scope<'a> {
             .checked_sub(1 + i)
             .ok_or("a reference out of scope")?;
         if let Some(s) = self.bound[b] {
+            if matches!(self.program.targets[s], TargetSpec::GraveyardCard { .. }) {
+                return Err("a target card in a graveyard read as a permanent".into());
+            }
             return Ok(s);
         }
         let o = &self.bind[b];
@@ -3073,6 +3087,45 @@ impl<'a> Scope<'a> {
         let s = self.slot(spec);
         self.bound[b] = Some(s);
         Ok(s)
+    }
+
+    /// The slot of a target binder that is a card in a graveyard
+    /// ("target creature card from a graveyard"), made the first time it
+    /// is named; `None` if the reference names something else. Only the
+    /// instructions that read a card there use it: any other refuses it
+    /// in `binder`.
+    fn graveyard_binder(&mut self, o: &Objects) -> Option<Result<usize, String>> {
+        let (Quant::Introduced(i) | Quant::Bound(i)) = o.quant else {
+            return None;
+        };
+        if o.filter.alts.iter().any(|a| !a.is_empty())
+            || !o.filter.posts.is_empty()
+            || self.found(i.into()).is_some()
+        {
+            return None;
+        }
+        let i = (i as usize).checked_sub(self.withs.len())?;
+        let b = self.bind.len().checked_sub(1 + i)?;
+        if let Some(s) = self.bound[b] {
+            return matches!(self.program.targets[s], TargetSpec::GraveyardCard { .. })
+                .then_some(Ok(s));
+        }
+        let bound = &self.bind[b];
+        if bound.quant
+            != (Quant::Target {
+                n: i::Amount::N(1),
+                up_to: false,
+            })
+        {
+            return None;
+        }
+        let spec = match graveyard_card(bound)? {
+            Ok(spec) => spec,
+            Err(e) => return Some(Err(e)),
+        };
+        let s = self.slot(spec);
+        self.bound[b] = Some(s);
+        Some(Ok(s))
     }
 
     fn obj(&mut self, o: &Objects) -> Result<Obj, String> {
@@ -3272,6 +3325,11 @@ impl<'a> Scope<'a> {
             i::Effect::LoseLife { who, n: k } => Effect::LoseLife {
                 who: self.who(who)?,
                 n: match k {
+                    i::Amount::ManaValueOf(o) if self.graveyard_binder(o).is_some() => {
+                        Amount::TargetCardManaValue(
+                            self.graveyard_binder(o).expect("a graveyard binder")?,
+                        )
+                    }
                     i::Amount::ManaValueOf(o) => match self.cards(o)? {
                         Cards::Bound(slot) => Amount::ManaValueOf(slot),
                         _ => return Err("the mana value of several cards".into()),
@@ -3374,6 +3432,18 @@ impl<'a> Scope<'a> {
             {
                 Effect::SelfFromGraveyardToHand
             }
+            i::Effect::Move {
+                what,
+                from: None,
+                to: i::Zone::Battlefield,
+                tapped,
+                transformed: false,
+                under: Some(i::Player::You),
+                order: None,
+            } if self.graveyard_binder(what).is_some() => Effect::FromGraveyardToBattlefield {
+                slot: self.graveyard_binder(what).expect("a graveyard binder")?,
+                tapped: *tapped,
+            },
             i::Effect::Move {
                 what,
                 from: None,

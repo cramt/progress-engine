@@ -7020,3 +7020,34 @@ fn blast_zone_pays_its_x_twice_and_puts_x_charge_counters() {
     resolve(&mut game);
     assert_eq!(game.counters_on(zone, &charge), 2);
 }
+
+/// CR 110.2a, 608.2h: Reanimate puts a creature card from a graveyard onto
+/// the battlefield under its caster's control, whoever owns it, and its
+/// caster loses life equal to its mana value: 6 for an opponent's Craw
+/// Wurm.
+#[test]
+fn reanimate_returns_a_creature_card_and_costs_its_mana_value_in_life() {
+    let mut game = deal(
+        &[("Swamp", 30), ("Reanimate", 30)],
+        &[("Craw Wurm", 60)],
+        &[("Swamp", 1), ("Reanimate", 1)],
+    );
+    play(&mut game, "Swamp");
+    // They play no land, so their hand overflows into their graveyard.
+    my_next_main(&mut game);
+    let wurm = game
+        .player(THEM)
+        .graveyard()
+        .iter()
+        .copied()
+        .find(|c| game.card(*c).is_some_and(|t| t.name == "Craw Wurm"))
+        .expect("discarded to hand size");
+    let life = game.player(ME).life();
+    cast(&mut game, "Reanimate", Some(vec![Target::Card(wurm)]));
+    resolve(&mut game);
+    let id = creature(&game, "Craw Wurm").expect("on the battlefield");
+    assert_eq!(game.characteristics()[&id].controller, ME);
+    assert_eq!(game.owner(wurm), THEM);
+    assert!(!game.player(THEM).graveyard().contains(&wurm));
+    assert_eq!(game.player(ME).life(), life - 6);
+}
