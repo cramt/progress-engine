@@ -7392,3 +7392,85 @@ fn bonecrusher_giant_damages_the_controller_of_a_spell_targeting_it() {
     resolve(&mut game);
     assert_eq!(game.permanents()[&giant].damage, 2);
 }
+
+/// CR 608.2c, 608.2h: Ghastly Demise destroys its target only if the
+/// target's toughness is at most the number of cards in my graveyard, as
+/// it resolves. The first, with my graveyard empty, leaves Savannah Lions
+/// (toughness 1); the second, with the first in it, destroys them.
+#[test]
+fn ghastly_demise_destroys_only_what_my_graveyard_outnumbers() {
+    let mut game = deal_both(
+        &[("Swamp", 40), ("Ghastly Demise", 20)],
+        &[("Plains", 40), ("Savannah Lions", 20)],
+        &[("Swamp", 2), ("Ghastly Demise", 2)],
+        &[("Plains", 1), ("Savannah Lions", 1)],
+    );
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Plains");
+    cast_as(&mut game, THEM, "Savannah Lions", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    let lions = creature(&game, "Savannah Lions").unwrap();
+    cast(
+        &mut game,
+        "Ghastly Demise",
+        Some(vec![Target::Object(lions)]),
+    );
+    resolve(&mut game);
+    assert_eq!(game.player(ME).graveyard().len(), 1);
+    assert!(creature(&game, "Savannah Lions").is_some());
+    cast(
+        &mut game,
+        "Ghastly Demise",
+        Some(vec![Target::Object(lions)]),
+    );
+    resolve(&mut game);
+    assert!(creature(&game, "Savannah Lions").is_none());
+}
+
+/// CR 702.33d, 608.2c: Overload destroys an artifact with mana value 2 or
+/// less, or 5 or less if it was kicked. Su-Chi, mana value 4, survives it
+/// unkicked and is destroyed by it kicked.
+#[test]
+fn overload_kicked_destroys_a_bigger_artifact() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Overload", 10), ("Su-Chi", 10)],
+        &[("Forest", 60)],
+        &[("Mountain", 5), ("Overload", 1), ("Su-Chi", 1)],
+    );
+    play(&mut game, "Mountain");
+    for _ in 0..3 {
+        my_next_main(&mut game);
+        play(&mut game, "Mountain");
+    }
+    cast(&mut game, "Su-Chi", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    let su_chi = creature(&game, "Su-Chi").unwrap();
+    let overload = in_hand(&game, ME, "Overload").unwrap();
+    for (kicked, survives) in [(false, true), (true, false)] {
+        let mut game = game.clone();
+        let d = step(&mut game, Answer::Act(Action::Cast(overload)));
+        assert!(matches!(d, Decision::Kicker { .. }), "{d:?}");
+        step(&mut game, Answer::Kick(kicked));
+        let mut d = step(&mut game, Answer::Targets(vec![Target::Object(su_chi)]));
+        while let Decision::Pay { actions, .. } = d {
+            let pay = actions
+                .iter()
+                .find(|a| matches!(a, Payment::Spend(_)))
+                .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+                .copied()
+                .unwrap();
+            d = step(&mut game, Answer::Pay(pay));
+        }
+        resolve(&mut game);
+        assert_eq!(
+            creature(&game, "Su-Chi").is_some(),
+            survives,
+            "kicked {kicked}"
+        );
+    }
+}

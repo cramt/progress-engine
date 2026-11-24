@@ -890,6 +890,16 @@ fn defined(a: &i::Amount) -> Result<DefinedCount, String> {
     }
 }
 
+fn cmp(op: i::Op) -> Cmp {
+    match op {
+        i::Op::Eq => Cmp::Eq,
+        i::Op::Le => Cmp::AtMost,
+        i::Op::Ge => Cmp::AtLeast,
+        i::Op::Lt => Cmp::Below,
+        i::Op::Gt => Cmp::Above,
+    }
+}
+
 /// "Three or more": a comparison with a number as a count.
 fn count_of(op: i::Op, v: u32) -> Result<Count, String> {
     Ok(match op {
@@ -1398,13 +1408,7 @@ fn objects(o: &Objects) -> Result<Filter, String> {
                 op,
                 value: i::Amount::N(v),
             }) => {
-                let cmp = match op {
-                    i::Op::Eq => Cmp::Eq,
-                    i::Op::Le => Cmp::AtMost,
-                    i::Op::Ge => Cmp::AtLeast,
-                    i::Op::Lt => Cmp::Below,
-                    i::Op::Gt => Cmp::Above,
-                };
+                let cmp = cmp(*op);
                 match stat {
                     i::Stat::Power => Pred::Power(cmp, *v),
                     _ => Pred::ManaValue(cmp, *v),
@@ -1870,13 +1874,17 @@ pub enum Effect {
         was: bool,
         then: Vec<Effect>,
     },
-    /// "If there are four or more chorus counters on ~, …": these
-    /// instructions, only if the amount, counted as they are followed,
-    /// is as many as the condition says, of a permanent gone as it last
-    /// existed (CR 608.2h).
+    /// "If there are four or more chorus counters on ~, …", "if its
+    /// mana value is 2 or less": these instructions, only if `n` compares
+    /// with `than` as `cmp` says, both worked out as they are followed,
+    /// of an object gone as it last existed (CR 608.2h). A negative power
+    /// is compared as it is (CR 107.1b), and an amount of an illegal
+    /// target can't be found, so the instructions aren't followed (CR
+    /// 608.2b).
     IfAmount {
         n: Amount,
-        count: Count,
+        cmp: Cmp,
+        than: Amount,
         then: Vec<Effect>,
     },
     /// "Then if you control four or more lands, …": these instructions,
@@ -2074,6 +2082,9 @@ pub enum Amount {
     PowerOf(Obj),
     /// "Equal to its toughness", the same way.
     ToughnessOf(Obj),
+    /// "If its mana value is 2 or less": of the object, or as it last
+    /// existed (CR 608.2h).
+    ManaValueOfObj(Obj),
     /// "Gain 3 life for each land card discarded this way": `each` for
     /// each card bound to `slot` that `filter` matches.
     PerFound {
@@ -3218,13 +3229,7 @@ impl<'a> Scope<'a> {
                 rest.filter.posts.remove(k);
                 Ok(On::EachWithManaValue {
                     filter: objects(&rest)?,
-                    cmp: match op {
-                        i::Op::Eq => Cmp::Eq,
-                        i::Op::Le => Cmp::AtMost,
-                        i::Op::Ge => Cmp::AtLeast,
-                        i::Op::Lt => Cmp::Below,
-                        i::Op::Gt => Cmp::Above,
-                    },
+                    cmp: cmp(*op),
                     n: Box::new(self.resolved_amount(value)?),
                 })
             }
@@ -4161,18 +4166,17 @@ impl<'a> Scope<'a> {
                 was: true,
                 then: self.effects(then)?,
             },
+            // "If there are four or more chorus counters on ~", "if its
+            // toughness is less than or equal to the number of cards in
+            // your graveyard": two amounts compared as it is followed.
             i::Effect::If {
-                cond:
-                    i::Condition::AmountIs {
-                        n: k,
-                        op,
-                        value: i::Amount::N(v),
-                    },
+                cond: i::Condition::AmountIs { n: k, op, value },
                 then,
                 ..
-            } if counters_on_itself_amount(k) => Effect::IfAmount {
-                n: self.resolved_amount(k)?,
-                count: count_of(*op, *v)?,
+            } => Effect::IfAmount {
+                n: self.compared_amount(k)?,
+                cmp: cmp(*op),
+                than: self.compared_amount(value)?,
                 then: self.effects(then)?,
             },
             i::Effect::If {
@@ -4733,6 +4737,30 @@ impl<'a> Scope<'a> {
         })
     }
 
+    /// An amount an "if" compares: one `resolved_amount` reads, or the
+    /// power, toughness or mana value of one permanent: the ability's
+    /// source or a target permanent. A target spell or a card found where
+    /// it isn't one is refused here, since the game reads only
+    /// permanents' characteristics.
+    fn compared_amount(&mut self, k: &i::Amount) -> Result<Amount, String> {
+        let mut permanent = |o: &Objects| match self.obj(o)? {
+            obj @ Obj::Itself => Ok(obj),
+            obj @ Obj::Target(s) if matches!(self.program.targets[s], TargetSpec::Permanent(_)) => {
+                Ok(obj)
+            }
+            _ => Err(format!(
+                "an \"if\" comparing an amount of {}",
+                short(&o.quant)
+            )),
+        };
+        Ok(match k {
+            i::Amount::PowerOf(o) => Amount::PowerOf(permanent(o)?),
+            i::Amount::ToughnessOf(o) => Amount::ToughnessOf(permanent(o)?),
+            i::Amount::ManaValueOf(o) => Amount::ManaValueOfObj(permanent(o)?),
+            k => self.resolved_amount(k)?,
+        })
+    }
+
     /// "a nonland card from it with mana value 3 or less", from `who`'s
     /// hand.
     fn card_in_hand(&mut self, o: &Objects, who: Who) -> Result<CardFilter, String> {
@@ -4746,13 +4774,7 @@ impl<'a> Scope<'a> {
                     op,
                     value: i::Amount::N(v),
                 }) => {
-                    let cmp = match op {
-                        i::Op::Eq => Cmp::Eq,
-                        i::Op::Le => Cmp::AtMost,
-                        i::Op::Ge => Cmp::AtLeast,
-                        i::Op::Lt => Cmp::Below,
-                        i::Op::Gt => Cmp::Above,
-                    };
+                    let cmp = cmp(*op);
                     mana_value = Some(Pred::ManaValue(cmp, *v));
                 }
                 other => rest.push(other.clone()),
@@ -4964,13 +4986,7 @@ fn spell_filter(o: &Objects) -> Result<CardFilter, String> {
                 op,
                 value: i::Amount::N(v),
             }) => {
-                let cmp = match op {
-                    i::Op::Eq => Cmp::Eq,
-                    i::Op::Le => Cmp::AtMost,
-                    i::Op::Ge => Cmp::AtLeast,
-                    i::Op::Lt => Cmp::Below,
-                    i::Op::Gt => Cmp::Above,
-                };
+                let cmp = cmp(*op);
                 mana_value = Some(Pred::ManaValue(cmp, *v));
             }
             other => return Err(format!("a target spell {}", short(other))),
@@ -5333,12 +5349,6 @@ fn counters_on_itself(o: &Objects) -> Option<Result<Counter, String>> {
         }
         _ => None,
     }
-}
-
-/// "The number of chorus counters on ~", the one amount an "if" over an
-/// amount is read for so far.
-fn counters_on_itself_amount(k: &i::Amount) -> bool {
-    matches!(k, i::Amount::CountOf(o) if counters_on_itself(o).is_some())
 }
 
 fn itself(o: &Objects) -> bool {

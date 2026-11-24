@@ -7319,8 +7319,14 @@ impl Game {
                         player.graveyard.push_back(c);
                     }
                 }
-                Effect::IfAmount { n, count, .. } => {
-                    if count.holds(self.amount(&at, n)) {
+                Effect::IfAmount { n, cmp, than, .. } => {
+                    let holds = match (self.compared(&at, n), self.compared(&at, than)) {
+                        (Some(n), Some(than)) => cmp.holds_signed(n, than),
+                        // CR 608.2b: an amount of an illegal target can't
+                        // be found, and what needs it doesn't happen.
+                        _ => false,
+                    };
+                    if holds {
                         at = here;
                         at.next.push(0);
                     }
@@ -7838,27 +7844,19 @@ impl Game {
             lower::Amount::CountersOnItself(kind) => {
                 at.object.map_or(0, |o| self.counters_on(o, &kind))
             }
-            lower::Amount::PowerOf(o) => self
-                .now_or_last(at, o)
-                .and_then(|c| c.pt)
-                .map_or(0, |p| p.power.max(0) as u32),
-            // CR 107.1b: a negative toughness gains no life. One with no
-            // toughness, or that the engine has no record of, is refused.
+            // CR 107.1b: a negative power or toughness gains no life. One with none, or that the engine has no
+            // record of, is refused.
+            lower::Amount::PowerOf(o) => match self.now_or_last(at, o).and_then(|c| c.pt) {
+                Some(p) => p.power.max(0) as u32,
+                None => {
+                    self.refuse_reading(at, "power");
+                    0
+                }
+            },
             lower::Amount::ToughnessOf(o) => match self.now_or_last(at, o).and_then(|c| c.pt) {
                 Some(p) => p.toughness.max(0) as u32,
                 None => {
-                    self.unknowable
-                        .borrow_mut()
-                        .get_or_insert_with(|| Rejected::Refused {
-                            card: self
-                                .face_name(at.what.card())
-                                .unwrap_or("an instruction")
-                                .to_string(),
-                            refusal: Unrunnable::new(
-                                "the toughness of what has none",
-                                "reads the toughness of an object with none it knows",
-                            ),
-                        });
+                    self.refuse_reading(at, "toughness");
                     0
                 }
             },
@@ -7894,6 +7892,13 @@ impl Game {
                     }
                 }
             }
+            lower::Amount::ManaValueOfObj(o) => match self.now_or_last(at, o) {
+                Some(c) => c.mana_value,
+                None => {
+                    self.refuse_reading(at, "mana value");
+                    0
+                }
+            },
             lower::Amount::ManaValueOf(s) => match at.found.get(&s).map(Vec::as_slice) {
                 Some([c]) => self
                     .known(*c)
@@ -7902,6 +7907,47 @@ impl Game {
                 _ => 0,
             },
         }
+    }
+
+    /// An amount an "if" compares, signed: a negative power is compared
+    /// as it is (CR 107.1b). `None` if it is of a target illegal now,
+    /// which can't be found (CR 608.2b); one of an object the engine has
+    /// no record of is refused.
+    fn compared(&self, at: &Resuming, n: lower::Amount) -> Option<i64> {
+        let illegal = |o: Obj| matches!(o, Obj::Target(s) if at.targets[s].is_none());
+        let pt = |o: Obj, what: &str| {
+            if illegal(o) {
+                return None;
+            }
+            let pt = self.now_or_last(at, o).and_then(|c| c.pt);
+            if pt.is_none() {
+                self.refuse_reading(at, what);
+            }
+            Some(pt.map_or((0, 0), |p| (p.power, p.toughness)))
+        };
+        Some(match n {
+            lower::Amount::PowerOf(o) => i64::from(pt(o, "power")?.0),
+            lower::Amount::ToughnessOf(o) => i64::from(pt(o, "toughness")?.1),
+            lower::Amount::ManaValueOfObj(o) if illegal(o) => return None,
+            n => i64::from(self.amount(at, n)),
+        })
+    }
+
+    /// Refuse an instruction that reads `what` of an object the engine has
+    /// no record of, rather than read it as 0.
+    fn refuse_reading(&self, at: &Resuming, what: &str) {
+        self.unknowable
+            .borrow_mut()
+            .get_or_insert_with(|| Rejected::Refused {
+                card: self
+                    .face_name(at.what.card())
+                    .unwrap_or("an instruction")
+                    .to_string(),
+                refusal: Unrunnable::new(
+                    format!("the {what} of what has none"),
+                    format!("reads the {what} of an object with none it knows"),
+                ),
+            });
     }
 
     /// The permanent an instruction names, if it is still on the

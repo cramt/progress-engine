@@ -268,7 +268,9 @@ pub enum Cmp {
 }
 
 impl Cmp {
-    pub fn holds(self, n: u32, than: u32) -> bool {
+    /// The comparison of two signed values: an "if" can compare a negative
+    /// power (CR 107.1b).
+    pub fn holds_signed(self, n: i64, than: i64) -> bool {
         match self {
             Cmp::Eq => n == than,
             Cmp::AtMost => n <= than,
@@ -276,6 +278,10 @@ impl Cmp {
             Cmp::Below => n < than,
             Cmp::Above => n > than,
         }
+    }
+
+    pub fn holds(self, n: u32, than: u32) -> bool {
+        self.holds_signed(n.into(), than.into())
     }
 }
 
