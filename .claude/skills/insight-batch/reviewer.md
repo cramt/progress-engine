@@ -7,8 +7,9 @@ whole text below the line as its prompt.
 
 Kind note for `new`: "These abilities did not parse before this batch, so
 `regression` is always false." For `changed`: "Each tree shows its old form
-(`-`) and its new one (`+`). Judge the new one, and say whether the old one was
-right."
+(`-`) and its new one (`+`). Judge the whole new tree, not only the part that
+moved: a fault the old tree already had is still a finding, with `regression:
+false`. Say whether the old one was right."
 
 ---
 
@@ -50,6 +51,9 @@ says to count, and check that it is the object the text means. "It" after
 comment is only a label and can be wrong, so follow the index, not the label.
 Check too that each binder sits where its object exists. A binder whose object
 is chosen inside a "When you do" or a delayed trigger must sit inside it.
+Before proposing a binding other than the tree's, check the `<semantics>` row
+that settles that shape (such as `[branch-binds]` or `[done-this-way]`); a tree
+that follows a settled row is right.
 
 Be specific and terse. A finding the writer can't act on is noise.
 
