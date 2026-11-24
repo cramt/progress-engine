@@ -1532,6 +1532,11 @@ pub enum Effect {
     /// Suspend's "you may play it without paying its mana cost": the
     /// exiled card whose ability this is is cast (CR 702.62a, 702.62d).
     CastSuspended,
+    /// "You may cast the discarded card without paying its mana cost":
+    /// the card bound to the slot cast as the instruction resolves, by an
+    /// alternative cost of none (CR 608.2g, 118.9). Read, but not run:
+    /// reaching it refuses by name.
+    CastWithoutPaying(Slot),
     /// "Search your library for a Mountain or Forest card": `who`
     /// searches their library and may find a card the filter matches (CR
     /// 701.23a–b), bound to `into`. `enters` if an instruction after puts
@@ -1850,6 +1855,15 @@ pub enum Effect {
         was: bool,
         then: Vec<Effect>,
     },
+    /// "If there are four or more chorus counters on ~, …": these
+    /// instructions, only if the amount, counted as they are followed,
+    /// is as many as the condition says, of a permanent gone as it last
+    /// existed (CR 608.2h).
+    IfAmount {
+        n: Amount,
+        count: Count,
+        then: Vec<Effect>,
+    },
     /// "Then if you control four or more lands, …": these instructions,
     /// only if the controller controls as many permanents as the condition
     /// counts as it is followed.
@@ -1936,6 +1950,7 @@ impl Effect {
             | Effect::IfCard { then, .. }
             | Effect::IfTarget { then, .. }
             | Effect::IfControl { then, .. }
+            | Effect::IfAmount { then, .. }
             | Effect::Kicked { then, .. }
             | Effect::IfThisTurn { then, .. }
             | Effect::Unless {
@@ -3736,6 +3751,29 @@ impl<'a> Scope<'a> {
             {
                 Effect::DiscardNamed(self.who(who)?)
             }
+            i::Effect::Cast {
+                verb: i::CastVerb::Cast,
+                what,
+                payment: i::Payment::Free,
+                dur: i::Duration::Permanent,
+            } if matches!(
+                what.filter.posts.as_slice(),
+                [Post::Marked(i::Marked::Discarded)]
+            ) && what.filter.alts.is_empty()
+                && what.filter.or.is_none()
+                && what.filter.kind == Some(i::Noun::Card) =>
+            {
+                let slot = self
+                    .discarded
+                    .ok_or("a card discarded by nothing the engine binds")?;
+                match self.cards(&Objects {
+                    quant: what.quant.clone(),
+                    filter: i::Filter::default(),
+                })? {
+                    Cards::Bound(s) if s == slot => Effect::CastWithoutPaying(slot),
+                    _ => return Err("casting a card other than the one discarded".into()),
+                }
+            }
             i::Effect::With { bind, then } => return self.with(bind, then),
             i::Effect::During {
                 dur: i::Duration::ThisTurn,
@@ -3972,6 +4010,20 @@ impl<'a> Scope<'a> {
                 then: self.effects(then)?,
             },
             i::Effect::If {
+                cond:
+                    i::Condition::AmountIs {
+                        n: k,
+                        op,
+                        value: i::Amount::N(v),
+                    },
+                then,
+                ..
+            } if counters_on_itself_amount(k) => Effect::IfAmount {
+                n: self.resolved_amount(k)?,
+                count: count_of(*op, *v)?,
+                then: self.effects(then)?,
+            },
+            i::Effect::If {
                 cond: i::Condition::YouControl(o),
                 then,
                 ..
@@ -4109,6 +4161,35 @@ impl<'a> Scope<'a> {
                 let s = self.new_slot();
                 self.made = Some(s);
                 s
+            }
+            // "Draw a card, then discard a card. … cast the discarded
+            // card": the card discarded, which the player chooses (CR
+            // 701.9b), bound for what follows.
+            [o] if o.quant == Quant::One
+                && o.filter
+                    == (i::Filter {
+                        kind: Some(i::Noun::Card),
+                        ..i::Filter::default()
+                    })
+                && matches!(then.first(), Some(i::Effect::Discard { what, .. })
+                    if what.quant == Quant::Introduced(0) && what.filter == i::Filter::default()) =>
+            {
+                let Some(i::Effect::Discard { who, .. }) = then.first() else {
+                    unreachable!("matched")
+                };
+                let into = self.new_slot();
+                self.discarded = Some(into);
+                out.push(Effect::Discard {
+                    who: self.who(who)?,
+                    n: 1,
+                    into,
+                    random: false,
+                });
+                self.withs.push(Some(into));
+                let lowered = self.effects(&then[1..]);
+                self.withs.pop();
+                out.extend(lowered?);
+                return Ok(out);
             }
             // "Search your library for a basic land card": the card the
             // search finds, which it describes.
@@ -5011,6 +5092,12 @@ fn counters_on_itself(o: &Objects) -> Option<Result<Counter, String>> {
         }
         _ => None,
     }
+}
+
+/// "The number of chorus counters on ~", the one amount an "if" over an
+/// amount is read for so far.
+fn counters_on_itself_amount(k: &i::Amount) -> bool {
+    matches!(k, i::Amount::CountOf(o) if counters_on_itself(o).is_some())
 }
 
 fn itself(o: &Objects) -> bool {

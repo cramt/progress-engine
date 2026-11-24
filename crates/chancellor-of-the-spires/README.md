@@ -1076,7 +1076,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-24 148 of the 500 replay to
-the end and 56.75% of their lines are followed** (17,966 of 31,659), 3
+the end and 56.93% of their lines are followed** (18,024 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 151 games have no card the engine refuses before any game (from 21). The
@@ -1292,7 +1292,14 @@ Leak, Spell Snare, Spell Pierce, Archmage's Charm and Disdainful
 Stroke, whose 36 games go on, one to the end and the rest to other
 cards, Malcolm's discard in 3, Cascading Cataracts' mana in 3,
 Snapcaster Mage, Deduce and Swift Response in 2 each; Quest for Pure
-Flame's 4 to Shark Typhoon, Swift Response, Stomp and Malcolm). And
+Flame's 4 to Shark Typhoon, Swift Response, Stomp and Malcolm); "discard
+a card" bound for what follows, an "if" over the counters on the
+permanent counted as it resolves, and a card cast while an instruction
+resolves read and refused by name as it is reached (CR 701.9b, 608.2h,
+608.2g: Malcolm, Alluring Scoundrel, whose 5 games go on to other cards,
+Aang's Iceberg in 2, Chrome Host Seedshark, Choking Tethers and
+Spectacular Pileup, none reaching its free cast at four chorus
+counters). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

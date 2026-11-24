@@ -2584,6 +2584,7 @@ impl Game {
                 | Effect::IfThisTurn { then: effects, .. }
                 | Effect::Kicked { then: effects, .. }
                 | Effect::IfControl { then: effects, .. }
+                | Effect::IfAmount { then: effects, .. }
                 | Effect::Unless {
                     otherwise: effects, ..
                 }
@@ -6295,6 +6296,21 @@ impl Game {
                         }
                     }
                 }
+                // CR 608.2g: a spell cast while another resolves, which
+                // this engine doesn't do yet.
+                Effect::CastWithoutPaying(_) => {
+                    self.halted = Some(Rejected::Refused {
+                        card: self
+                            .face_name(at.what.card())
+                            .unwrap_or("a spell")
+                            .to_string(),
+                        refusal: Unrunnable::new(
+                            "CastWithoutPaying",
+                            "casts a card while its instruction resolves (CR 608.2g)",
+                        ),
+                    });
+                    return;
+                }
                 // CR 702.62a, 702.62d: "if it's exiled", cast from exile
                 // without paying its mana cost; the ability is done.
                 Effect::CastSuspended => {
@@ -7009,6 +7025,12 @@ impl Game {
                         player.library.retain(|x| *x != c);
                         player.hand.retain(|x| *x != c);
                         player.graveyard.push_back(c);
+                    }
+                }
+                Effect::IfAmount { n, count, .. } => {
+                    if count.holds(self.amount(&at, n)) {
+                        at = here;
+                        at.next.push(0);
                     }
                 }
                 Effect::IfControl { control, .. } => {

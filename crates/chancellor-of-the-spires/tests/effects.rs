@@ -6766,3 +6766,82 @@ fn sickening_shoal_gives_minus_x_minus_x_for_the_card_it_exiled() {
     resolve(&mut game);
     assert_eq!(creature(&game, "Grizzly Bears"), None, "2/2 at -6/-6");
 }
+
+/// CR 701.9b, 608.2h, 608.2g: Malcolm's combat damage puts a chorus
+/// counter on it, draws and discards the card its controller chooses; the
+/// cast of that card waits on four chorus counters, which three hits don't
+/// reach; at the fourth it may be declined, and taken it refuses by name,
+/// since this engine doesn't cast a card while an instruction resolves.
+#[test]
+fn malcolm_discards_the_card_chosen_and_refuses_the_free_cast_at_four_counters() {
+    let mut game = deal(
+        &[("Island", 40), ("Malcolm, Alluring Scoundrel", 20)],
+        &[("Forest", 60)],
+        &[("Island", 2), ("Malcolm, Alluring Scoundrel", 1)],
+    );
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    cast(&mut game, "Malcolm, Alluring Scoundrel", None);
+    resolve(&mut game);
+    let malcolm = creature(&game, "Malcolm, Alluring Scoundrel").unwrap();
+    for hit in 1..=4u32 {
+        my_next_main(&mut game);
+        to_attackers(&mut game);
+        step(&mut game, Answer::Attack(vec![(malcolm, THEM)]));
+        let d = (0..20)
+            .find_map(|_| match game.decision() {
+                d @ Decision::Discard { .. } => Some(d),
+                Decision::Blockers { .. } => {
+                    step(&mut game, Answer::Block(vec![]));
+                    None
+                }
+                _ => {
+                    step(&mut game, Answer::Act(Action::Pass));
+                    None
+                }
+            })
+            .expect("a discard");
+        let Decision::Discard {
+            player,
+            count,
+            random,
+            hand,
+        } = d
+        else {
+            unreachable!()
+        };
+        assert_eq!((player, count, random), (ME, 1, false));
+        assert_eq!(
+            game.counters_on(
+                malcolm,
+                &chancellor_of_the_spires::model::Counter::Named("chorus".into())
+            ),
+            hit
+        );
+        let card = *hand.last().unwrap();
+        match game.step(Answer::Discard(vec![card])) {
+            Ok(_) if hit < 4 => {
+                assert!(game.player(ME).graveyard().contains(&card));
+                assert!(game.stack().is_empty());
+                through_combat(&mut game);
+            }
+            Ok(Decision::May { player: ME, .. }) if hit == 4 => {
+                assert!(game.player(ME).graveyard().contains(&card));
+                let mut declined = game.clone();
+                declined.step(Answer::May(false)).unwrap();
+                assert!(declined.player(ME).graveyard().contains(&card));
+                match game.step(Answer::May(true)) {
+                    Err(Rejected::Refused { card, refusal }) => {
+                        assert_eq!(card, "Malcolm, Alluring Scoundrel");
+                        assert_eq!(refusal.node, "CastWithoutPaying");
+                    }
+                    r => panic!("{r:?}"),
+                }
+                return;
+            }
+            r => panic!("hit {hit}: {r:?}"),
+        }
+    }
+    panic!("the fourth hit refuses");
+}
