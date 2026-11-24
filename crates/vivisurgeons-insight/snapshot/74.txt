@@ -103,7 +103,7 @@ cost: {2}{U}
 > At the beginning of your upkeep, put a time counter on this enchantment.
 > Once each turn, you may pay {0} rather than pay the mana cost for a spell you cast with mana value X or less, where X is the number of time counters on this enchantment.
 = Triggered { trigger: At(Upkeep(Yours)), effect: [PutCounters { n: N(1), kind: "time", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "x" after: once each turn , you may pay {0} rather than pay the mana cost for a spell you cast with mana value x or less , where
+= Static([Once { yours: false, then: [Where { inner: CastPaying { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(You), With(Compare { stat: ManaValue, op: Le, value: X })], or: None } }, zone: None, cost: [Mana(Mana(["0"]))], rather: true }, x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("time"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) }] }])
 
 ## Assassin's Trophy
 face: Assassin's Trophy

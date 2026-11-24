@@ -857,7 +857,15 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             }
             p.words("rather than pay the mana cost for")?;
             let what = objects(p)?;
-            Some(vec![Static::CastPaying { what, zone: None, cost: paid, rather: true }])
+            let cast = Static::CastPaying { what, zone: None, cost: paid, rather: true };
+            // "… for a spell you cast with mana value X or less, where X is
+            // the number of time counters on this enchantment" (As
+            // Foretold): X defined for the permission, as for a static
+            // bonus ([where-x-binds]).
+            if let Some(x) = p.attempt(|p| { p.words(", where x is")?; measure(p) }) {
+                return Some(vec![Static::Where { inner: Box::new(cast), x }]);
+            }
+            Some(vec![cast])
         },
         // "You may cast this card from your graveyard by paying {2}{W} rather
         // than paying its mana cost" (Raffine's Guidance).
