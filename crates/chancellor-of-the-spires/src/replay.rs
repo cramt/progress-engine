@@ -1623,6 +1623,16 @@ impl Driver<'_> {
                 self.aim_alike(i, &a.targets)?;
                 let activation = self.activation(p, card.name(), &said, paid, on_stack)?;
                 self.act(Answer::Act(Action::Activate(activation)))?;
+                // An {X} in its cost: the X the line prints (CR 107.3a).
+                if let Decision::AnnounceX { .. } = self.game().decision() {
+                    let Some(x) = a.x else {
+                        return Err(Stop::Unfollowed {
+                            event: "Activates without the X its cost announces".into(),
+                            card: Some(card.name().to_string()),
+                        });
+                    };
+                    self.act(Answer::X(x))?;
+                }
                 let paid = match self.game().decision() {
                     Decision::Targets { .. } | Decision::Pay { .. } | Decision::PayCards { .. } => {
                         format!(", {}", self.aim_and_pay(i, &a.targets, card.name())?)
@@ -2781,6 +2791,7 @@ impl Driver<'_> {
             } => self.enter_as_copy(player, card, &of, may),
             d @ (Decision::Pay { .. }
             | Decision::Kicker { .. }
+            | Decision::AnnounceX { .. }
             | Decision::Mode { .. }
             | Decision::Mulligan { .. }
             | Decision::Bottom { .. }
@@ -5551,6 +5562,41 @@ impl Driver<'_> {
                             _ => None,
                         })
                         .collect();
+                    // The line's text read more like one of the card's
+                    // abilities the engine refuses than any it offers:
+                    // that one, refused by name, never another of its
+                    // abilities in its place (Blast Zone's "Destroy each
+                    // nonland permanent" beside its "{X}{X}" one).
+                    let text_of = |a: &Activation| match a.ability {
+                        Ability::Unread(n) => {
+                            game.ability_text(game.permanents()[&a.source].card, n)
+                        }
+                        _ => None,
+                    };
+                    let offered_best = offered
+                        .iter()
+                        .filter_map(text_of)
+                        .map(|t| shared_words(said, t))
+                        .max()
+                        .unwrap_or(0);
+                    if let Some(&c) = named.first() {
+                        let refused = game
+                            .refused_activations(c)
+                            .into_iter()
+                            .filter_map(|(n, r)| {
+                                Some((shared_words(said, game.ability_text(c, n)?), r))
+                            })
+                            .max_by_key(|(score, _)| *score);
+                        if let Some((score, r)) = refused {
+                            if score > offered_best {
+                                return Err(Stop::Refused {
+                                    card: name.to_string(),
+                                    node: r.node,
+                                    why: r.why,
+                                });
+                            }
+                        }
+                    }
                     if let Some(first) = offered.first() {
                         if offered.iter().all(|a| a.ability == first.ability) {
                             let first = *first;

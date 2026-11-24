@@ -740,6 +740,10 @@ pub enum StackObject {
         controller: PlayerId,
         /// Chosen as it was activated (CR 602.2b, 601.2c), by slot.
         targets: Vec<Target>,
+        /// The X announced for an {X} in its activation cost, its own
+        /// whatever X another activation of it had (CR 107.3a, 107.3k);
+        /// `None` with no {X} in its cost.
+        x: Option<u32>,
         /// As a trigger's: which ability on the stack this is.
         seq: u32,
     },
@@ -773,8 +777,9 @@ enum Instructions {
         mode: u8,
         x: Option<u32>,
     },
-    /// An activated ability, of the text it is printed on.
-    Activated(CardId, Printed, u16),
+    /// An activated ability, of the text it is printed on, and the X
+    /// announced for an {X} in its cost (CR 107.3a).
+    Activated(CardId, Printed, u16, Option<u32>),
     Triggered(CardId, TriggerOf),
 }
 
@@ -1073,6 +1078,18 @@ enum Waiting {
         card: CardId,
         base: ManaCost,
         from_command: bool,
+    },
+    /// CR 602.2b, 601.2b, 107.3a: `player` activating `card`'s ability
+    /// from `object` announces the X for the `symbols` {X} in its cost,
+    /// before its targets are chosen and `cards` and `owed` paid.
+    AnnounceX {
+        player: PlayerId,
+        card: CardId,
+        object: ObjectId,
+        symbols: u32,
+        slots: Vec<TargetSpec>,
+        cards: Option<lower::CardsPaid>,
+        owed: Option<ManaCost>,
     },
     /// CR 514.1, or an instruction (CR 701.9a), which `then` goes on with,
     /// the cards discarded bound to its slot.
@@ -1441,6 +1458,13 @@ pub enum Decision {
         player: PlayerId,
         card: CardId,
         cost: ManaCost,
+    },
+    /// CR 602.2b, 107.3a: `player` activating an ability of `card` with
+    /// {X} in its cost announces X, answered `Answer::X`: any number,
+    /// each {X} then costing that much generic mana (CR 107.4b).
+    AnnounceX {
+        player: PlayerId,
+        card: CardId,
     },
     /// CR 614.12a, 205.3m: as `card` enters, `player` chooses a creature
     /// type, answered `Answer::CreatureType`.
@@ -1832,6 +1856,8 @@ pub enum Answer {
     PayLife(bool),
     /// CR 601.2b: `true` pays the spell's kicker.
     Kick(bool),
+    /// CR 107.3a: the X announced.
+    X(u32),
     /// CR 700.2a: the mode chosen, by its index in the spell's text.
     Mode(u8),
     /// CR 601.2c: one target per slot.
@@ -2599,8 +2625,9 @@ impl Game {
                 source,
                 printed,
                 ability,
+                x,
                 ..
-            }) => Instructions::Activated(*source, *printed, *ability),
+            }) => Instructions::Activated(*source, *printed, *ability, *x),
             Some(StackObject::Trigger {
                 source, ability, ..
             }) => Instructions::Triggered(*source, *ability),
@@ -3238,6 +3265,10 @@ impl Game {
                 player: *player,
                 card: *card,
                 modes: self.choosable_modes(*player, *card),
+            },
+            Waiting::AnnounceX { player, card, .. } => Decision::AnnounceX {
+                player: *player,
+                card: *card,
             },
             Waiting::Kicker { player, card, .. } => Decision::Kicker {
                 player: *player,
@@ -4174,6 +4205,28 @@ impl Game {
                 self.kicker_or_targets(player, card, base, from_command);
             }
             (
+                Waiting::AnnounceX {
+                    player,
+                    card,
+                    object,
+                    symbols,
+                    slots,
+                    cards,
+                    owed,
+                },
+                Answer::X(x),
+            ) => {
+                let Some(more) = x.checked_mul(symbols) else {
+                    return Err(Rejected::Illegal(answer));
+                };
+                if let Some(StackObject::Ability { x: announced, .. }) = self.stack.back_mut() {
+                    *announced = Some(*x);
+                }
+                let owed = owed.unwrap_or_default().plus_generic(more);
+                let owed = (owed != ManaCost::default()).then_some(owed);
+                self.ability_targets(player, card, object, slots, cards, owed);
+            }
+            (
                 Waiting::Kicker {
                     player,
                     card,
@@ -4922,6 +4975,19 @@ impl Game {
         }
     }
 
+    /// This card's activated abilities the engine can't run, by their
+    /// index among its unread abilities, each with why.
+    pub fn refused_activations(&self, c: CardId) -> Vec<(u16, Unrunnable)> {
+        match self.known(c).map(|k| &k.runs) {
+            Some(Ok(runs)) => runs
+                .activated
+                .iter()
+                .filter_map(|(n, a)| Some((*n, a.clone().err()?)))
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
     /// CR 117.1a, 304.1, 702.8a: an instant, or a card with flash.
     fn instant_speed(&self, entry: &Known) -> bool {
         match &entry.runs {
@@ -5329,6 +5395,7 @@ impl Game {
                     ability: n,
                     controller: p,
                     targets: Vec::new(),
+                    x: None,
                     seq: self.abilities,
                 });
                 // "When you cycle this card": from the graveyard it went
@@ -5399,6 +5466,7 @@ impl Game {
                     ability: n,
                     controller: p,
                     targets: Vec::new(),
+                    x: None,
                     seq: self.abilities,
                 });
                 if cost.tap {
@@ -5413,23 +5481,49 @@ impl Game {
                     // CR 701.21a.
                     self.put_in_graveyard(a.source);
                 }
-                if slots.is_empty() {
-                    self.pay_ability(p, card, cost.cards, cost.mana);
-                } else {
-                    self.waiting = Waiting::Targets {
+                if cost.x > 0 {
+                    self.waiting = Waiting::AnnounceX {
                         player: p,
                         card,
+                        object: a.source,
+                        symbols: cost.x,
                         slots,
-                        choosing: Choosing::Ability {
-                            object: a.source,
-                            cards: cost.cards,
-                            owed: cost.mana,
-                        },
+                        cards: cost.cards,
+                        owed: cost.mana,
                     };
+                } else {
+                    self.ability_targets(p, card, a.source, slots, cost.cards, cost.mana);
                 }
             }
         }
         Ok(())
+    }
+
+    /// An activated ability's targets chosen, if it has any (CR 602.2b,
+    /// 601.2c), then its cost paid.
+    fn ability_targets(
+        &mut self,
+        p: PlayerId,
+        card: CardId,
+        object: ObjectId,
+        slots: Vec<TargetSpec>,
+        cards: Option<lower::CardsPaid>,
+        owed: Option<ManaCost>,
+    ) {
+        if slots.is_empty() {
+            self.pay_ability(p, card, cards, owed);
+        } else {
+            self.waiting = Waiting::Targets {
+                player: p,
+                card,
+                slots,
+                choosing: Choosing::Ability {
+                    object,
+                    cards,
+                    owed,
+                },
+            };
+        }
     }
 
     /// An activated ability's cards paid, if its cost names any (CR
@@ -6104,9 +6198,10 @@ impl Game {
                 ability,
                 controller,
                 targets,
+                x,
                 ..
             }) => self.begin_resolving(
-                Instructions::Activated(source, printed, ability),
+                Instructions::Activated(source, printed, ability, x),
                 controller,
                 (object, None, None, None),
                 targets,
@@ -6234,7 +6329,7 @@ impl Game {
                     None => &NONE,
                 }
             }
-            Instructions::Activated(c, side, n) => {
+            Instructions::Activated(c, side, n, _) => {
                 match self.face_runs(c, side).activated.get(&n) {
                     Some(Ok(def)) => &def.program,
                     _ => match &self.face_runs(c, side).cycling {
@@ -6809,6 +6904,7 @@ impl Game {
                     }
                 }
                 Effect::PutCounters { on, counter, n } => {
+                    let n = self.amount(&at, n);
                     for o in self.objects_on(&at, &on) {
                         self.battlefield.put_counters(o, counter.clone(), n);
                     }
@@ -7284,7 +7380,7 @@ impl Game {
                 // ability was put on the stack.
                 Effect::Transform => {
                     let side = match at.what {
-                        Instructions::Activated(_, printed, _)
+                        Instructions::Activated(_, printed, ..)
                         | Instructions::Triggered(_, TriggerOf::Printed(printed, _)) => {
                             Some(printed)
                         }
@@ -7305,7 +7401,7 @@ impl Game {
                     let copied = self.object(&at, of).and_then(|o| self.copiable(o));
                     if let (Some(id), Some(copied)) = (me, copied) {
                         let this = match at.what {
-                            Instructions::Activated(c, printed, n) => self
+                            Instructions::Activated(c, printed, n, _) => self
                                 .printed(c, printed)
                                 .runs
                                 .as_ref()
@@ -7504,7 +7600,7 @@ impl Game {
         match n {
             lower::Amount::N(n) => n,
             lower::Amount::X => match at.what {
-                Instructions::Spell { x: Some(x), .. } => x,
+                Instructions::Spell { x: Some(x), .. } | Instructions::Activated(.., Some(x)) => x,
                 // No cost set it: X chosen as it resolves (CR 107.3f) or
                 // 0 for an {X} spell cast without paying it (CR 107.3b),
                 // neither of which the engine asks or knows: refused.

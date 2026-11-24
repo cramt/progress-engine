@@ -6915,3 +6915,108 @@ fn barbarian_ring_deals_its_damage_only_at_threshold() {
     }
     panic!("never reached threshold");
 }
+
+/// Pays what an activation owes with the first payment offered each time.
+fn pay_all(game: &mut Game, mut d: Decision) -> Decision {
+    while let Decision::Pay { actions, .. } = &d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        d = step(game, Answer::Pay(pay));
+    }
+    d
+}
+
+fn untapped_lands(game: &Game, p: PlayerId) -> usize {
+    game.permanents()
+        .values()
+        .filter(|perm| {
+            game.owner(perm.card) == p
+                && !perm.tapped
+                && game
+                    .card(perm.card)
+                    .is_some_and(|t| ["Forest", "Swamp", "Mountain"].contains(&t.name.as_str()))
+        })
+        .count()
+}
+
+/// CR 602.2b, 107.3a: Pernicious Deed's "{X}, Sacrifice this
+/// enchantment" announces X as it is activated, costs X mana, and
+/// destroys each artifact, creature and enchantment of mana value X or
+/// less: Llanowar Elves at 1, not Grizzly Bears at 2.
+#[test]
+fn pernicious_deed_destroys_up_to_the_x_announced_as_it_was_activated() {
+    let mut game = deal_both(
+        &[("Forest", 25), ("Swamp", 25), ("Pernicious Deed", 10)],
+        &[
+            ("Forest", 30),
+            ("Llanowar Elves", 15),
+            ("Grizzly Bears", 15),
+        ],
+        &[("Forest", 2), ("Swamp", 1), ("Pernicious Deed", 1)],
+        &[("Forest", 2), ("Llanowar Elves", 1), ("Grizzly Bears", 1)],
+    );
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Llanowar Elves", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Pernicious Deed", None);
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    my_next_main(&mut game);
+    if let Some(land) = ["Forest", "Swamp"]
+        .into_iter()
+        .find(|l| in_hand(&game, ME, l).is_some())
+    {
+        play(&mut game, land);
+    }
+    let lands = untapped_lands(&game, ME);
+    let deed = creature(&game, "Pernicious Deed").unwrap();
+    let d = activate(&mut game, deed);
+    assert!(matches!(d, Decision::AnnounceX { .. }), "{d:?}");
+    let d = step(&mut game, Answer::X(1));
+    pay_all(&mut game, d);
+    assert_eq!(untapped_lands(&game, ME), lands - 1, "X is one mana");
+    resolve(&mut game);
+    assert!(creature(&game, "Llanowar Elves").is_none(), "mana value 1");
+    assert!(creature(&game, "Grizzly Bears").is_some(), "mana value 2");
+    assert!(creature(&game, "Pernicious Deed").is_none(), "sacrificed");
+}
+
+/// CR 107.3a, 107.3i: Blast Zone's "{X}{X}, {T}: Put X charge counters on
+/// this land" costs X twice over for the one X announced.
+#[test]
+fn blast_zone_pays_its_x_twice_and_puts_x_charge_counters() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Blast Zone", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 2), ("Blast Zone", 1)],
+    );
+    play(&mut game, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Blast Zone");
+    let zone = creature(&game, "Blast Zone").unwrap();
+    let charge = chancellor_of_the_spires::model::Counter::Named("charge".into());
+    assert_eq!(game.counters_on(zone, &charge), 1, "enters with one");
+    let d = activate(&mut game, zone);
+    assert!(matches!(d, Decision::AnnounceX { .. }), "{d:?}");
+    let d = step(&mut game, Answer::X(1));
+    pay_all(&mut game, d);
+    assert_eq!(untapped_lands(&game, ME), 0, "{{X}}{{X}} at 1 is two mana");
+    resolve(&mut game);
+    assert_eq!(game.counters_on(zone, &charge), 2);
+}

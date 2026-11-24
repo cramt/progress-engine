@@ -1692,11 +1692,11 @@ pub enum Effect {
     /// "Add one mana of any color": the one its controller chooses of
     /// these, as it resolves (CR 106.3, 608.2d).
     AddManaOf(Vec<crate::mana::ManaPool>),
-    /// CR 122.1, 122.6.
+    /// CR 122.1, 122.6: Blast Zone's X counted as it resolves.
     PutCounters {
         on: On,
         counter: Counter,
-        n: u32,
+        n: Amount,
     },
     /// "Target creature gets +3/+3 until end of turn": a continuous effect
     /// on the object as it resolves (CR 611.2c), ending in cleanup (CR
@@ -2336,7 +2336,7 @@ pub enum Intervening {
 /// `Let` that binds its targets, if any.
 pub fn spell(bind: &[Objects], effects: &[i::Effect]) -> Result<Program, String> {
     let mut scope = Scope::new(bind);
-    scope.spell = true;
+    scope.cost_x = true;
     let lowered = scope.effects(effects)?;
     scope.program.effects = lowered;
     Ok(scope.program)
@@ -2389,7 +2389,7 @@ pub fn modes(
                 return spell(bind, &wrapped);
             }
             let mut scope = Scope::new(bind);
-            scope.spell = true;
+            scope.cost_x = true;
             scope.withs.extend(std::iter::repeat_n(None, found.len()));
             let lowered = scope.effects(m)?;
             scope.program.effects = lowered;
@@ -2740,7 +2740,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                     Effect::PutCounters {
                         on: On::One(Obj::Itself),
                         counter: age.clone(),
-                        n: 1,
+                        n: Amount::N(1),
                     },
                     Effect::Unless {
                         who: Who::You,
@@ -2825,7 +2825,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 effects: vec![Effect::PutCounters {
                     on: On::One(Obj::Itself),
                     counter: Counter::PlusOne,
-                    n: 1,
+                    n: Amount::N(1),
                 }],
             },
             condition: None,
@@ -2923,9 +2923,9 @@ struct Scope<'a> {
     /// The cards an instruction before separated into two piles, and the
     /// slot of the first pile, which "one pile" chooses between.
     piles: Option<(Slot, Slot)>,
-    /// Whether these are a spell's instructions, whose X is the one its
-    /// cost set (CR 107.3a).
-    spell: bool,
+    /// Whether a cost sets these instructions' X (CR 107.3a): a spell's,
+    /// or an activated ability's with {X} in its activation cost.
+    cost_x: bool,
 }
 
 impl<'a> Scope<'a> {
@@ -2952,7 +2952,7 @@ impl<'a> Scope<'a> {
             x: None,
             discarded: None,
             piles: None,
-            spell: false,
+            cost_x: false,
         }
     }
 
@@ -3524,7 +3524,10 @@ impl<'a> Scope<'a> {
             i::Effect::PutCounters { n: k, kind, on } => Effect::PutCounters {
                 on: self.on(on)?,
                 counter: counter(kind).ok_or_else(node)?,
-                n: n(k)?,
+                n: match k {
+                    i::Amount::X => self.resolved_amount(k)?,
+                    k => Amount::N(n(k)?),
+                },
             },
             // "Put a +1/+1 counter and a double strike counter on ~": each
             // kind put on in turn.
@@ -3535,7 +3538,7 @@ impl<'a> Scope<'a> {
                     each.push(Effect::PutCounters {
                         on: on.clone(),
                         counter: counter(kind).ok_or_else(node)?,
-                        n: n(k)?,
+                        n: Amount::N(n(k)?),
                     });
                 }
                 return Ok(each);
@@ -3547,7 +3550,7 @@ impl<'a> Scope<'a> {
                 pt: Some(p),
                 gains,
                 dur: i::Duration::UntilEndOfTurn,
-            } if self.spell
+            } if self.cost_x
                 && self.x.is_none()
                 && p.signed
                 && [p.power, p.toughness]
@@ -4566,10 +4569,11 @@ impl<'a> Scope<'a> {
         Ok(match k {
             i::Amount::ThatMany if self.amount => Amount::ThatMuch,
             i::Amount::X if self.x.is_some() => self.x.clone().expect("an X"),
-            // A spell's X, set as it was cast (CR 107.3a): Blazing Shoal's,
-            // by the card its cost exiled. A spell cast with none set
-            // refuses as it reads it.
-            i::Amount::X if self.spell => Amount::X,
+            // The X a cost set (CR 107.3a): a spell's, Blazing Shoal's by
+            // the card its cost exiled, or the one announced for an {X}
+            // in an activation cost. One with none set refuses as it
+            // reads it.
+            i::Amount::X if self.cost_x => Amount::X,
             i::Amount::N(n) => Amount::N(*n),
             i::Amount::CountOf(o) => match (counters_on_itself(o), cards_in_graveyards(o)) {
                 (Some(kind), _) => Amount::CountersOnItself(kind?),
@@ -4872,6 +4876,10 @@ pub struct ActivationCost {
     /// taken off its source as it is activated, so one without as many
     /// can't be (CR 602.2b, 118.3).
     pub remove_counters: Option<(Counter, u32)>,
+    /// How many {X} its mana cost has, each paid with the X announced as
+    /// it is activated, the same X for each (CR 107.3a, 107.3i). Pernicious
+    /// Deed's "{X}" is 1, Blast Zone's "{X}{X}" 2.
+    pub x: u32,
 }
 
 /// Cards an activated ability's cost moves out of a zone of its
@@ -4950,11 +4958,13 @@ pub fn activated(
             other => return Err(format!("an activated ability limited by {}", short(other))),
         }
     }
+    let cost = activation_cost(cost)?;
     let mut scope = Scope::new(bind);
+    scope.cost_x = cost.x > 0;
     let effects = scope.effects(effect)?;
     scope.program.effects = effects;
     Ok(Activated {
-        cost: activation_cost(cost)?,
+        cost,
         program: scope.program,
         limits: limited,
     })
@@ -5034,7 +5044,12 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
             i::Cost::PayLife(i::Amount::N(n)) => paid.life += n,
             i::Cost::Sacrifice(o) if itself(o) => paid.sacrifice = true,
             i::Cost::Mana(m) if paid.mana.is_none() => {
-                paid.mana = Some(crate::mana::ManaCost::from_symbols(m)?)
+                // The {X}s are counted apart, since the X is announced as
+                // it is activated; any other variable symbol refuses in
+                // `from_symbols`.
+                let (xs, rest): (Vec<_>, Vec<_>) = m.0.iter().cloned().partition(|s| s == "X");
+                paid.x = xs.len() as u32;
+                paid.mana = Some(crate::mana::ManaCost::from_symbols(&i::Mana(rest))?)
             }
             i::Cost::Discard(o) if paid.cards.is_none() && o.filter.posts.is_empty() => {
                 paid.cards = Some(cards_paid(PaidWith::Discard, o, &o.filter.posts)?)

@@ -1077,7 +1077,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-24 150 of the 500 replay to
-the end and 57.30% of their lines are followed** (18,142 of 31,659), 3
+the end and 57.45% of their lines are followed** (18,189 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 151 games have no card the engine refuses before any game (from 21). The
@@ -1305,12 +1305,21 @@ offered only while it does: threshold's seven cards in its controller's
 graveyard and "an opponent controls more lands than you" (CR 602.5:
 Barbarian Ring and Weathered Wayfarer, whose 6 games go on, two to the
 end, the rest to Ramosian Sergeant, Reckless Abandon, Ravenous Baloth
-and a cast the replay doesn't follow). And
+and a cast the replay doesn't follow); an {X} in an activation cost, X
+announced as the ability is activated, each {X} that much generic mana,
+and the ability's instructions reading it, "put X charge counters" too
+(CR 107.3a, 107.3k, 107.4b: Pernicious Deed and Blast Zone, whose 6
+games go on, one to the end, two to Blast Zone's refused "Destroy each
+nonland permanent", the rest to Arch of Orazca, Ravenous Baloth and
+Siege-Gang Commander). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles
 from the line before its cast, whoever that line names exiling, with
-the log's "(X is 12.)" checked against the engine's X, a shuffle matched to an
+the log's "(X is 12.)" checked against the engine's X, and an
+ability's X announced as the log's "(X is 1)" says, a line whose text
+reads more like an ability the engine refuses than any it offers stopped
+at that refusal, a shuffle matched to an
 instruction's, the creature sacrificed for flashback, a land the log never
 names as a hypothesis, which of two permanents of one name an
 activation is of, the cards Michelangelo's Technique puts onto the

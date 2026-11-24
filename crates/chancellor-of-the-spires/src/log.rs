@@ -1306,6 +1306,14 @@ fn x_value(s: &str) -> (&str, Option<u32>) {
     (s, None)
 }
 
+/// A leading "(X is 1) ", as older logs print an ability's X, taken off.
+fn leading_x(s: &str) -> (&str, Option<u32>) {
+    s.strip_prefix("(X is ")
+        .and_then(|r| r.split_once(") "))
+        .and_then(|(n, r)| Some((r, Some(n.parse().ok()?))))
+        .unwrap_or((s, None))
+}
+
 /// List separators: "[A] and [B]", "[A], [B], and [C]".
 fn separator(s: &str) -> Option<&str> {
     s.strip_prefix(", and ")
@@ -2307,12 +2315,20 @@ impl Reader {
     /// `[X] targeting [Y]. (text) (text).`
     fn activation(&self, player: Player, s: &str) -> Option<Activation> {
         let (card, rest) = self.object(s)?;
-        let (rest, x) = x_value(rest);
+        let (rest, mut x) = x_value(rest);
         let mut modes = Vec::new();
         let (ability, targets) = if let Some(r) = rest.strip_prefix(" targeting ") {
             let (aims, text) = self.aims_and_text(r.strip_suffix('.').unwrap_or(r))?;
             (text.unwrap_or_default(), aims)
         } else if let Some(r) = rest.strip_prefix(". ") {
+            // Older logs print the X ahead of the text: ". (X is 1) ( …)."
+            let r = match leading_x(r) {
+                (r, Some(n)) if x.is_none() => {
+                    x = Some(n);
+                    r
+                }
+                _ => r,
+            };
             (
                 trailing_text(r.strip_suffix('.').unwrap_or(r))??,
                 Vec::new(),
@@ -2821,6 +2837,19 @@ mod tests {
             panic!()
         };
         assert_eq!((a.ability.as_str(), a.x), ("Monstrosity X.", Some(4)));
+        let Event::Activates(a) = one(
+            "alice activates an ability of [Pernicious Deed]. (X is 1) ( Destroy each artifact, \
+             creature, and enchantment with mana value X or less.).",
+        ) else {
+            panic!()
+        };
+        assert_eq!(
+            (a.ability.as_str(), a.x),
+            (
+                "Destroy each artifact, creature, and enchantment with mana value X or less.",
+                Some(1)
+            )
+        );
         assert_eq!(
             one(
                 "alice puts a triggered ability from [Aether Vial] onto the stack (At the \
