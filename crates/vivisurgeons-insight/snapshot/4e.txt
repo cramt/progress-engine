@@ -674,7 +674,7 @@ cost: {X}{G}{U}
 > When this creature enters, target creature attacks target opponent this turn if able.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "ravenous", param: None }])
-= BROKE at "target" after: when this creature enters , target creature attacks
+= BROKE at "this" after: when this creature enters , target creature attacks target opponent
 
 ## Resolute Blademaster
 face: Resolute Blademaster

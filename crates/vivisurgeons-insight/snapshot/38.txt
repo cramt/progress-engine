@@ -894,7 +894,7 @@ face: Sizzling Soloist
 type: Creature — Human Citizen
 cost: {3}{R}
 > Alliance — Whenever another creature you control enters, target creature an opponent controls can't block this turn. If this is the second time this ability has resolved this turn, that creature attacks during its controller's next combat phase if able.
-= BROKE at "during" after: alliance — whenever another creature you control enters , target creature an opponent controls can't block this turn . if this is the second time this ability has resolved this turn , that creature attacks
+= BROKE at "its" after: alliance — whenever another creature you control enters , target creature an opponent controls can't block this turn . if this is the second time this ability has resolved this turn , that creature attacks during
 
 ## Skull Skaab
 face: Skull Skaab

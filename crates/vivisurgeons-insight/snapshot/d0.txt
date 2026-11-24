@@ -21,7 +21,7 @@ face: Alluring Siren
 type: Creature — Siren
 cost: {1}{U}
 > {T}: Target creature an opponent controls attacks you this turn if able.
-= BROKE at "you" after: {T} : target creature an opponent controls attacks
+= BROKE at "this" after: {T} : target creature an opponent controls attacks you
 
 ## Almighty Brushwagg
 face: Almighty Brushwagg

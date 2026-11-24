@@ -518,6 +518,12 @@ pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
         |p| p.words("must be blocked if able").map(|_| Restriction::MustBeBlocked),
         |p| p.one_of(&["attacks each combat if able", "attack each combat if able"]).map(|_| Restriction::AttacksEachCombat),
         |p| p.one_of(&["attacks this turn if able", "attack this turn if able"]).map(|_| Restriction::AttacksThisTurn),
+        |p| {
+            p.verb("attack")?;
+            let whom = objects(p)?;
+            p.words("during its controller 's next turn if able")?;
+            Some(Restriction::AttacksNextTurn(whom))
+        },
         |p| p.one_of(&["blocks each combat if able", "block each combat if able"]).map(|_| Restriction::BlocksEachCombat),
         |p| p.one_of(&["doesn't untap during your untap step", "don't untap during your untap step"]).map(|_| Restriction::DoesntUntap(Player::You)),
         |p| p.words("doesn't untap during its controller 's untap step").map(|_| Restriction::DoesntUntap(Player::ControllerOf(Box::new(antecedent())))),

@@ -1031,7 +1031,7 @@ cost: {3}{R}
 > II — Choose two target players. Until your next turn, each creature they control attacks the other chosen player each combat if able.
 > III — This Saga deals X damage to any target and X damage to any other target, where X is the number of artifacts you control.
 = Chapter { chapters: [1], effect: [Create { who: You, n: N(2), token: Token { tapped: true, pt: None, colors: [], types: ["powerstone"], keywords: [], abilities: [], named: Some("powerstone"), attacking: None } }] }
-= BROKE at "the" after: ii — choose two target players . until your next turn , each creature they control attacks
+= BROKE at "player" after: ii — choose two target players . until your next turn , each creature they control attacks the other chosen
 = BROKE at "x" after: iii — this saga deals x damage to any target and x damage to any other target , where
 
 ## The Modern Age // Vector Glider

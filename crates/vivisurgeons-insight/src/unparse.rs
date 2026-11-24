@@ -7686,6 +7686,13 @@ fn restriction(o: &mut Out, r: &Restriction, n: Num) {
             o.verb("attack", n);
             o.w("this turn if able");
         }
+        Restriction::AttacksNextTurn(whom) => {
+            o.verb("attack", n);
+            objects(o, whom);
+            o.w("during its controller");
+            o.tok(Tok::Possessive);
+            o.w("next turn if able");
+        }
         Restriction::BlocksEachCombat => {
             o.verb("block", n);
             o.w("each combat if able");

@@ -1027,7 +1027,7 @@ cost: {5}{U}{U}
 > Return a land you control to its owner's hand: Untap this creature. It gains hexproof until end of turn.
 > Landfall — Whenever a land you control enters, target creature an opponent controls attacks during its controller's next combat phase if able.
 = Activated { cost: [ReturnToHand(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "hexproof", param: None }], dur: UntilEndOfTurn }], limits: [] }
-= BROKE at "during" after: landfall — whenever a land you control enters , target creature an opponent controls attacks
+= BROKE at "its" after: landfall — whenever a land you control enters , target creature an opponent controls attacks during
 
 ## Tuinvale Guide
 face: Tuinvale Guide

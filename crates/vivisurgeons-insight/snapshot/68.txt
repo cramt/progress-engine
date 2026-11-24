@@ -275,7 +275,7 @@ type: Creature — Siren
 cost: {2}{U}
 > {U}, {T}: Target creature attacks target opponent this turn if able.
 > Morph {U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
-= BROKE at "target" after: {U} , {T} : target creature attacks
+= BROKE at "this" after: {U} , {T} : target creature attacks target opponent
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["U"]))])) }])
 
 ## Ego Drain

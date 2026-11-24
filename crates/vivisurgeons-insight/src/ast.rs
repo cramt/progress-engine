@@ -3269,6 +3269,10 @@ pub enum Restriction {
     DoesntUntap(Player),
     AttacksEachCombat,
     AttacksThisTurn,
+    /// "attacks ~ during its controller's next turn if able" (Kytheon,
+    /// Hero of Akros's +2): a requirement on that turn's attacks (CR
+    /// 508.1d), and on what it attacks.
+    AttacksNextTurn(Objects),
     BlocksEachCombat,
     CantBeTheTargetOf(Filter),
     CantBeRegenerated,

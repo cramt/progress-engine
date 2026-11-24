@@ -449,7 +449,7 @@ cost: {2}{U}{U}
 > Cast this spell only during the declare blockers step on an opponent's turn.
 > Remove all attacking creatures from combat and untap them. After this phase, there is an additional combat phase. Each of those creatures attacks that combat if able. They can't attack you or planeswalkers you control that combat.
 = BROKE at "blockers" after: cast this spell only during the declare
-= BROKE at "that" after: remove all attacking creatures from combat and untap them . after this phase , there is an additional combat phase . each of those creatures attacks
+= BROKE at "if" after: remove all attacking creatures from combat and untap them . after this phase , there is an additional combat phase . each of those creatures attacks that combat
 
 ## Infectious Host
 face: Infectious Host

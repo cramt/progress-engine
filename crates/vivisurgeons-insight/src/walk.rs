@@ -2567,6 +2567,9 @@ impl Walk for Restriction {
             Restriction::DoesntUntap(f0) => {
                 Walk::walk(f0, v);
             }
+            Restriction::AttacksNextTurn(f0) => {
+                Walk::walk(f0, v);
+            }
             Restriction::CantBeTheTargetOf(f0) => {
                 Walk::walk(f0, v);
             }

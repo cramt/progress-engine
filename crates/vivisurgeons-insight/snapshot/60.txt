@@ -435,7 +435,7 @@ cost: {2}{R}
 > Max speed — {T}: Add {R} for each Goblin you control.
 = Keywords([Keyword { name: "start your engines!", param: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("goblin")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }])
-= BROKE at "combat" after: at the beginning of combat on your turn , create a <pt> red goblin creature token . that token attacks this
+= BROKE at "if" after: at the beginning of combat on your turn , create a <pt> red goblin creature token . that token attacks this combat
 = KeywordOn { keyword: MaxSpeed, ability: Activated { cost: [Tap], effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [Controller(You)], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }], limits: [] } }
 
 ## Hulking Metamorph

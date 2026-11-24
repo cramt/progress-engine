@@ -476,7 +476,7 @@ cost: {1}{R}{R/W/P}{W}
 > +1: Discard a card, then draw a card.
 > 0: Exile target creature or Equipment card with mana value less than Nahiri's loyalty from your graveyard. Create a token that's a copy of it. That token gains haste. Exile it at the beginning of the next end step.
 = Keywords([Keyword { name: "compleated", param: None }])
-= BROKE at "each" after: N(1) : until your next turn , up to one target creature attacks a player
+= BROKE at "combat" after: N(1) : until your next turn , up to one target creature attacks a player each
 = Loyalty { change: N(1), effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, Draw { who: You, n: N(1) }] }
 = BROKE at "loyalty" after: 0 : exile target creature or equipment card with mana value less than ~ 's
 

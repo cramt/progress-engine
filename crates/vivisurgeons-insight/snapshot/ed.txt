@@ -158,7 +158,7 @@ face: Boros Battleshaper
 type: Creature — Minotaur Soldier
 cost: {5}{R}{W}
 > At the beginning of each combat, up to one target creature attacks or blocks this combat if able and up to one target creature can't attack or block this combat.
-= BROKE at "or" after: at the beginning of each combat , up to one target creature attacks
+= BROKE at "blocks" after: at the beginning of each combat , up to one target creature attacks or
 
 ## Bred for the Hunt
 face: Bred for the Hunt
