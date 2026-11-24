@@ -251,6 +251,8 @@ each in text order (`src/walk.rs`):
 | unbound-x | an X that no mana, additional, keyword or activation cost defines, no "where X is", and no cost the ability asks for ("you may pay {X}", CR 107.3a, 107.3f), or the X of the spell that triggered the ability (CR 107.3e) | 1 |
 | fight-one-object | one object fighting itself | 0 |
 | types-without-card-type | "is a black Dragon" read as a list of types with subtypes and no card type | 0 |
+| sort-mismatch | a reference bound to an object its words can't name, or one effect whose two sides are the same binder (`src/lint/sorts.rs`) | 2 |
+| branch-binder-outside | a `With` binding an object that only one mode or one `May`, `IfYouDo`, `IfYouDont` or `If` branch inside it says, so it is described before the choice that decides whether it exists ([branch-binds]). The decision is `binders::into_branch`'s own (`branch_moves`), asked of every `With`, so its exceptions hold: a target, a binder several modes say, a token made before the branch, what a "may" looked at. The 4 are a pass's found card inside a `ForEach` that only the pass's "may" says (From the Ashes, Wave of Vitriol, Clarion Ultimatum, Krenko's Buzzcrusher), lists `into_branch` does not visit | 4 |
 
 The zeros are kinds earlier rounds fixed (Wild-Magic Sorcerer's spell in
 exile, Sage-Eye Avengers comparing its power with its own), and the lint

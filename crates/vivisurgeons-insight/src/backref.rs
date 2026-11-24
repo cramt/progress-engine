@@ -115,7 +115,7 @@ pub fn reference(o: &Objects) -> Option<Kind> {
 /// Reflexive triggers' effects, by `verb_of`.
 const REFLEXIVE: [&str; 3] = ["WhenYouDo", "WhenYouDoIf", "WhenThisWay"];
 
-fn targeted(o: &Objects) -> bool {
+pub(crate) fn targeted(o: &Objects) -> bool {
     matches!(
         o.quant,
         Quant::Target { .. }

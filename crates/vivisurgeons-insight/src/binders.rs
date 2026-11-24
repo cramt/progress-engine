@@ -969,14 +969,55 @@ fn into_branch(es: &mut Vec<Effect>) {
     let Some(Effect::With { bind, then }) = es.last() else {
         unreachable!("matched above");
     };
-    if bind_ids(bind).len() != bind.len() {
+    let mut moves = branch_moves(bind, then);
+    if moves.is_empty() {
         return;
+    }
+    let Some(Effect::With { bind, mut then }) = es.pop() else {
+        unreachable!("matched above");
+    };
+    let moved: BTreeSet<usize> = moves.iter().flat_map(|(_, _, ks)| ks.clone()).collect();
+    // Innermost and latest first, so an earlier split leaves a later
+    // path's indices where they were.
+    moves.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+    for (path, first, ks) in moves {
+        let mut list: &mut Vec<Effect> = &mut then;
+        for &(i, j) in &path {
+            list = branches(&mut list[i]).swap_remove(j);
+        }
+        let rest = list.split_off(first);
+        let bound = ks.iter().map(|&k| bind[k].clone()).collect();
+        list.push(Effect::With {
+            bind: bound,
+            then: rest,
+        });
+    }
+    let kept: Vec<Objects> = bind
+        .into_iter()
+        .enumerate()
+        .filter(|(k, _)| !moved.contains(k))
+        .map(|(_, o)| o)
+        .collect();
+    if kept.is_empty() {
+        es.extend(then);
+    } else {
+        es.push(Effect::With { bind: kept, then });
+    }
+}
+
+/// Which binders of `With { bind, then }` belong inside one branch of
+/// `then` ([branch-binds]), and where each goes: what `into_branch` moves,
+/// and what the `branch-binder-outside` lint finds left outside. `bind`'s
+/// entries carry their temporary ids.
+fn branch_moves(bind: &[Objects], then: &[Effect]) -> Vec<BranchMove> {
+    if bind_ids(bind).len() != bind.len() {
+        return Vec::new();
     }
     // The path of (effect, branch) steps to the innermost branch whose list
     // alone says `ids`, and in it the effect that says them first.
     let path_of = |ids: &BTreeSet<usize>, made: bool| -> Option<(Vec<(usize, usize)>, usize)> {
         let mut path = Vec::new();
-        let mut cur: Vec<Effect> = then.clone();
+        let mut cur: Vec<Effect> = then.to_vec();
         loop {
             let at: Vec<usize> = (0..cur.len())
                 .filter(|&i| says(&cur[i], ids, false))
@@ -1041,8 +1082,14 @@ fn into_branch(es: &mut Vec<Effect>) {
     // it made ("If you do, you may put a creature card … from among them",
     // Call to the Kindred) may be what the list before it looked at: only a
     // mode, which nothing outside it can have made, takes a made binder.
+    // A reflexive trigger's target is chosen as the trigger is put on the
+    // stack (CR 603.12, 601.2c), before any "may" in it is answered
+    // (Halo Forager), so it never moves into a branch.
     let place = |ks: &[usize]| -> Option<(Vec<(usize, usize)>, usize)> {
         let members: Vec<Objects> = ks.iter().map(|&k| bind[k].clone()).collect();
+        if members.iter().any(crate::backref::targeted) {
+            return None;
+        }
         let made = members.iter().any(|o| o.quant == Quant::Made);
         let (path, first) = path_of(&bind_ids(&members), made)?;
         let only_mode = matches!(then[path[0].0], Effect::Modal { .. })
@@ -1082,38 +1129,89 @@ fn into_branch(es: &mut Vec<Effect>) {
             }
         }
     }
-    if moves.is_empty() {
-        return;
+    moves
+}
+
+/// How many `With`s of a bound tree hold a binder that only one mode or
+/// branch inside them says ([branch-binds]): the `With`s `into_branch`
+/// would still split. The tree is read back into temporary ids, each
+/// binder numbered in walk order, so the decision is `into_branch`'s own.
+/// Every `With` is asked, also those `into_branch` never visits (inside a
+/// trigger or a branch), so what that pass misses is found too.
+pub fn branch_binders_outside(a: &Ability) -> usize {
+    if !has_binders(a) {
+        return 0;
     }
-    let Some(Effect::With { bind, mut then }) = es.pop() else {
-        unreachable!("matched above");
-    };
-    let moved: BTreeSet<usize> = moves.iter().flat_map(|(_, _, ks)| ks.clone()).collect();
-    // Innermost and latest first, so an earlier split leaves a later
-    // path's indices where they were.
-    moves.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
-    for (path, first, ks) in moves {
-        let mut list: &mut Vec<Effect> = &mut then;
-        for &(i, j) in &path {
-            list = branches(&mut list[i]).swap_remove(j);
+    let b = bindings(a);
+    let mut a = a.clone();
+    a.walk(&mut Renumber {
+        decl: 0,
+        binders: b
+            .binders
+            .iter()
+            .enumerate()
+            .map(|(k, info)| (info.decl, k))
+            .collect(),
+        refs: &b.refs,
+    });
+    struct Outside(usize);
+    impl Visitor for Outside {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            true
         }
-        let rest = list.split_off(first);
-        let bound = ks.iter().map(|&k| bind[k].clone()).collect();
-        list.push(Effect::With {
-            bind: bound,
-            then: rest,
-        });
+        fn ability(&mut self, _: &mut Ability) -> bool {
+            true
+        }
+        fn effect(&mut self, e: &mut Effect) {
+            if let Effect::With { bind, then } = e {
+                if !branch_moves(bind, then).is_empty() {
+                    self.0 += 1;
+                }
+            }
+        }
     }
-    let kept: Vec<Objects> = bind
-        .into_iter()
-        .enumerate()
-        .filter(|(k, _)| !moved.contains(k))
-        .map(|(_, o)| o)
-        .collect();
-    if kept.is_empty() {
-        es.extend(then);
-    } else {
-        es.push(Effect::With { bind: kept, then });
+    let mut v = Outside(0);
+    a.walk(&mut v);
+    v.0
+}
+
+/// A bound tree back in the form the binder passes read it in: each
+/// binder marked with its number, every reference to it naming that number.
+struct Renumber<'a> {
+    decl: usize,
+    /// By the binder's object in walk order: its number.
+    binders: BTreeMap<usize, usize>,
+    refs: &'a BTreeMap<usize, Vec<Option<usize>>>,
+}
+
+impl Visitor for Renumber<'_> {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        let d = self.decl;
+        self.decl += 1;
+        if let Some(&k) = self.binders.get(&d) {
+            mark(o, k);
+        }
+        if let Some(named) = self.refs.get(&d) {
+            let id = |n: Option<usize>| n.and_then(|k| u8::try_from(k).ok()).unwrap_or(u8::MAX);
+            match &mut o.quant {
+                Quant::Bound(i) | Quant::Introduced(i) | Quant::Rest { of: i } => {
+                    *i = id(named.first().copied().flatten())
+                }
+                Quant::Bounds(ps) => {
+                    let mut named = named.iter().copied();
+                    for p in ps.iter_mut() {
+                        if let Pointer::Bound(i) = p {
+                            *i = id(named.next().flatten());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
     }
 }
 /// Runs `into_loops`, `into_reflexive` and `into_branch` on every ability's own list of

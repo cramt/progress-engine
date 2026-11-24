@@ -46,10 +46,16 @@ pub enum Kind {
     /// card" bound to any target), or one effect whose two sides are the
     /// same binder (an Equipment attached to itself) ([sorts]).
     SortMismatch,
+    /// A `With` binding an object that only one mode of a `Modal`, or only
+    /// one `May`, `IfYouDo`, `IfYouDont` or `If` branch inside it says,
+    /// bound outside that branch: described before the choice that decides
+    /// whether it exists ([branch-binds]). The `With`s
+    /// `binders::into_branch` would still split, by its own decision.
+    BranchBinderOutside,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 12] = [
+    pub const ALL: [Kind; 13] = [
         Kind::UnresolvedReference,
         Kind::DanglingThatPlayer,
         Kind::SelfComparison,
@@ -62,6 +68,7 @@ impl Kind {
         Kind::FightOneObject,
         Kind::TypesWithoutCardType,
         Kind::SortMismatch,
+        Kind::BranchBinderOutside,
     ];
 
     pub fn name(self) -> &'static str {
@@ -78,6 +85,7 @@ impl Kind {
             Kind::FightOneObject => "fight-one-object",
             Kind::TypesWithoutCardType => "types-without-card-type",
             Kind::SortMismatch => "sort-mismatch",
+            Kind::BranchBinderOutside => "branch-binder-outside",
         }
     }
 
@@ -187,6 +195,11 @@ fn names_anything(a: &Ability) -> bool {
 pub fn lint(a: &Ability, cx: Context) -> Vec<Kind> {
     let mut out = Vec::new();
     scope(a.clone(), cx, &mut out);
+    // Read once over the bound tree, granted abilities and all, as it
+    // reads the binders where they stand rather than where the text says.
+    for _ in 0..crate::binders::branch_binders_outside(a) {
+        out.push(Kind::BranchBinderOutside);
+    }
     out
 }
 
@@ -860,5 +873,130 @@ mod tests {
         assert_eq!(kinds(each(Player::You)), [Kind::DanglingThatPlayer]);
         // "Target player gains 1 life for each artifact they control".
         assert_eq!(kinds(each(Player::Target)), []);
+    }
+
+    /// The face's `n`-th ability, read and bound.
+    fn read(name: &str, type_line: &str, text: &str, n: usize) -> Ability {
+        let face = crate::Face {
+            name,
+            type_line,
+            text,
+        };
+        let mut lines = crate::read_face(&face, name);
+        match lines.swap_remove(n).parsed {
+            Ok(a) => a,
+            Err(b) => panic!("{name} broke at {:?} after {}", b.at, b.read),
+        }
+    }
+
+    fn effects(a: &mut Ability) -> &mut Vec<Effect> {
+        match a {
+            Ability::Let { ability, .. } => effects(ability),
+            a => a.effects_mut().expect("a list of effects"),
+        }
+    }
+
+    /// The tree as it was before [branch-binds]: the `With` that ends one
+    /// branch's list bound around the ability's whole list instead. No
+    /// binder stands between the two places, so no index moves.
+    fn hoist(a: &mut Ability, at: Branch) {
+        let es = effects(a);
+        let Some(Effect::With { bind, then }) = branch(es, at).pop() else {
+            panic!("the branch ends in no With");
+        };
+        branch(es, at).extend(then);
+        let all = std::mem::take(es);
+        es.push(Effect::With { bind, then: all });
+    }
+
+    #[derive(Clone, Copy)]
+    enum Branch {
+        /// The list of an `IfYouDo` at this place.
+        IfYouDo(usize),
+        /// The mode of the `Modal` first in the list.
+        Mode(usize),
+    }
+
+    fn branch(es: &mut [Effect], at: Branch) -> &mut Vec<Effect> {
+        match (at, es) {
+            (Branch::IfYouDo(i), es) => match &mut es[i] {
+                Effect::IfYouDo(then) => then,
+                e => panic!("not IfYouDo: {e:?}"),
+            },
+            (Branch::Mode(k), es) => match &mut es[0] {
+                Effect::Modal { modes, .. } => &mut modes[k],
+                e => panic!("not Modal: {e:?}"),
+            },
+        }
+    }
+
+    fn outside(a: &Ability) -> usize {
+        lint(a, Context::default())
+            .into_iter()
+            .filter(|k| *k == Kind::BranchBinderOutside)
+            .count()
+    }
+
+    const THRASHER: &str = "Noncreature spells you cast from exile have convoke.\nAt the beginning of your first main phase, you may discard a card. If you do, exile the top two cards of your library, then choose one of them. You may play that card this turn.";
+    const MARDU: &str = "Choose one —\n• Mardu Charm deals 4 damage to target creature.\n• Create two 1/1 white Warrior creature tokens. They gain first strike until end of turn.\n• Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player discards that card.";
+
+    #[test]
+    fn a_binder_only_one_branch_says_bound_outside_it_is_flagged() {
+        // Party Thrasher as b38 had it: the exiled cards and the one
+        // chosen bound before "If you do".
+        let mut a = read("Party Thrasher", "Creature — Lizard Wizard", THRASHER, 1);
+        assert_eq!(outside(&a), 0);
+        hoist(&mut a, Branch::IfYouDo(1));
+        assert_eq!(outside(&a), 1);
+
+        // Mardu Charm's chosen card bound around the modes, and its
+        // Warriors: a token moves into the one mode that makes it.
+        let charm = read("Mardu Charm", "Instant", MARDU, 0);
+        assert_eq!(outside(&charm), 0);
+        for k in [1, 2] {
+            let mut a = charm.clone();
+            hoist(&mut a, Branch::Mode(k));
+            assert_eq!(outside(&a), 1, "mode {k}");
+        }
+    }
+
+    #[test]
+    fn a_binder_two_branches_say_or_a_may_looked_at_is_not_flagged() {
+        // The chosen card said by two modes stays around both.
+        let mut a = read("Mardu Charm", "Instant", MARDU, 0);
+        hoist(&mut a, Branch::Mode(2));
+        let Effect::With { then, .. } = &mut effects(&mut a)[0] else {
+            panic!("hoisted");
+        };
+        let discard = branch(then, Branch::Mode(2))
+            .last()
+            .cloned()
+            .expect("the discard");
+        branch(then, Branch::Mode(0)).push(discard);
+        assert_eq!(outside(&a), 0);
+
+        // Call to the Kindred: what the "may" looked at stays around the
+        // "If you do" that puts one from among them.
+        let a = read(
+            "Call to the Kindred",
+            "Enchantment — Aura",
+            "Enchant creature\nAt the beginning of your upkeep, you may look at the top five cards of your library. If you do, you may put a creature card that shares a creature type with enchanted creature from among them onto the battlefield, then you put the rest of those cards on the bottom of your library in any order.",
+            1,
+        );
+        assert!(
+            matches!(&effects(&mut a.clone())[0], Effect::With { .. }),
+            "the looked-at cards are bound around the May: {a:?}"
+        );
+        assert_eq!(outside(&a), 0);
+
+        // Halo Forager: the reflexive trigger's target is chosen as it is
+        // put on the stack, before its "you may cast" is answered.
+        let a = read(
+            "Halo Forager",
+            "Creature — Faerie Rogue",
+            "Flying\nWhen this creature enters, you may pay {X}. When you do, you may cast target instant or sorcery card with mana value X from a graveyard without paying its mana cost. If that spell would be put into a graveyard, exile it instead.",
+            1,
+        );
+        assert_eq!(outside(&a), 0);
     }
 }
