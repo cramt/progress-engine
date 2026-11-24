@@ -173,6 +173,9 @@ impl Walk for Adj {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
         match self {
+            Adj::ColorFrom(f0) => {
+                Walk::walk(f0, v);
+            }
             Adj::OtherThan(f0) => {
                 Walk::walk(&mut **f0, v);
             }

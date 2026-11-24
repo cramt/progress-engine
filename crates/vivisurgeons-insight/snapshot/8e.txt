@@ -232,7 +232,7 @@ cost: {1}{U}
 > When Denethor enters, scry 2.
 > {3}{R}, {T}, Sacrifice Denethor: Target player becomes the monarch. Denethor deals 3 damage to any target.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Scry(N(2))], limits: [] }
-= BROKE at "the" after: {3} {R} , {T} , sacrifice ~ : target player becomes
+= BROKE at "monarch" after: {3} {R} , {T} , sacrifice ~ : target player becomes the
 
 ## Diabolic Tutor
 face: Diabolic Tutor

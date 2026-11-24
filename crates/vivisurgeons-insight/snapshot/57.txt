@@ -688,7 +688,7 @@ face: Shyft
 type: Creature — Shapeshifter
 cost: {4}{U}
 > At the beginning of your upkeep, you may have this creature become the color or colors of your choice. (This effect lasts indefinitely.)
-= BROKE at "the" after: at the beginning of your upkeep , you may have this creature become
+= BROKE at "or" after: at the beginning of your upkeep , you may have this creature become the color
 
 ## Silversmote Ghoul
 face: Silversmote Ghoul

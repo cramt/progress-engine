@@ -957,7 +957,7 @@ type: Instant
 cost: {1}{U}
 > Any number of target creatures become the color of your choice until end of turn.
 > Draw a card.
-= BROKE at "color" after: any number of target creatures become the
+= Spell([Becomes { what: Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Team Avatar

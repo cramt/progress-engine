@@ -241,7 +241,7 @@ cost: {1}{U}
 > Flying
 > {T}: Target land becomes the basic land type of your choice until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "the" after: {T} : target land becomes
+= BROKE at "basic" after: {T} : target land becomes the
 
 ## Excavated Wall
 face: Excavated Wall

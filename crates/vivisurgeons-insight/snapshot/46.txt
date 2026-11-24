@@ -923,7 +923,7 @@ type: Land
 > {T}: Add {C}.
 > {T}: Target land you control becomes the basic land type of your choice until end of turn.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= BROKE at "the" after: {T} : target land you control becomes
+= BROKE at "basic" after: {T} : target land you control becomes the
 
 ## Unstoppable Ash
 face: Unstoppable Ash

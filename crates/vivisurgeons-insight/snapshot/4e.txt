@@ -517,7 +517,7 @@ cost: {1}{U}
 > Enchant creature
 > {1}: Enchanted creature becomes the creature type of your choice until end of turn.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "the" after: {1} : enchanted creature becomes
+= BROKE at "creature" after: {1} : enchanted creature becomes the
 
 ## Mizzix, Replica Rider
 face: Mizzix, Replica Rider

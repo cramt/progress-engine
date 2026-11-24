@@ -415,7 +415,7 @@ cost: {3}{G}{G}
 > This spell can't be countered.
 > {G}: This creature becomes the color of your choice until end of turn.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
-= BROKE at "the" after: {G} : this creature becomes
+= Activated { cost: [Mana(Mana(["G"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 
 ## Kyodai, Soul of Kamigawa
 face: Kyodai, Soul of Kamigawa

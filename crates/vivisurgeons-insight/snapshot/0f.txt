@@ -704,7 +704,7 @@ type: Legendary Artifact — Vehicle
 > Whenever you become the monarch, convert Starscream.
 = Keywords([Keyword { name: "living metal", param: None }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "menace", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "the" after: whenever ~ deals combat damage to a player , if there is no monarch , that player becomes
+= BROKE at "monarch" after: whenever ~ deals combat damage to a player , if there is no monarch , that player becomes the
 = BROKE at "~" after: whenever you become the monarch , convert
 
 ## Syncopate

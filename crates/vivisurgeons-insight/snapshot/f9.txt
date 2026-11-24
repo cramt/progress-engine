@@ -802,7 +802,7 @@ face: Tidal Visionary
 type: Creature — Merfolk Wizard
 cost: {U}
 > {T}: Target creature becomes the color of your choice until end of turn.
-= BROKE at "the" after: {T} : target creature becomes
+= Activated { cost: [Tap], effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 
 ## Turtleshell Changeling
 face: Turtleshell Changeling

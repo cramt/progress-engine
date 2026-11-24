@@ -604,7 +604,7 @@ face: Mystic Compass
 type: Artifact
 cost: {2}
 > {1}, {T}: Target land becomes the basic land type of your choice until end of turn.
-= BROKE at "the" after: {1} , {T} : target land becomes
+= BROKE at "basic" after: {1} , {T} : target land becomes the
 
 ## Mystic Snake
 face: Mystic Snake

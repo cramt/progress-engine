@@ -912,7 +912,7 @@ face: Swirling Spriggan
 type: Creature — Goblin Shaman
 cost: {2}{G}{G}
 > {G/U}{G/U}: Target creature you control becomes the color or colors of your choice until end of turn.
-= BROKE at "the" after: {G/U} {G/U} : target creature you control becomes
+= BROKE at "or" after: {G/U} {G/U} : target creature you control becomes the color
 
 ## Temur Battlecrier
 face: Temur Battlecrier

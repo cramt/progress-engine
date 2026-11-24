@@ -597,7 +597,7 @@ cost: {5}{U}{U}
 > Flying
 > {1}: This creature becomes the creature type of your choice until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "the" after: {1} : this creature becomes
+= BROKE at "creature" after: {1} : this creature becomes the
 
 ## Mole Module
 face: Mole Module

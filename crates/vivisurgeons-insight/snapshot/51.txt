@@ -684,7 +684,7 @@ cost: {2}{U}
 > Creature spells you cast that share a creature type with this creature cost {1} less to cast.
 > {T}: This creature becomes the creature type of your choice until end of turn.
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [Cast(You), SharesType { card_type: "creature", with: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= BROKE at "the" after: {T} : this creature becomes
+= BROKE at "creature" after: {T} : this creature becomes the
 
 ## Molly Hayes, Runaway
 face: Molly Hayes, Runaway

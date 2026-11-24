@@ -579,7 +579,7 @@ type: Legendary Creature — Lizard Mutant
 cost: {1}{U}{U}
 > {1}, Discard a card: Until end of turn, Mondo Gecko becomes the color of your choice and gains hexproof from that color.
 > Whenever Mondo Gecko deals combat damage to a player, draw a card for each color among permanents you control.
-= BROKE at "the" after: {1} , discard a card : until end of turn , ~ becomes
+= Activated { cost: [Mana(Mana(["1"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [Keyword { name: "hexproof", param: Some(Color(That)) }], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEachColor { among: ColorsOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }), then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Moonring Island

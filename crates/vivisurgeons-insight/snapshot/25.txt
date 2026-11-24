@@ -724,7 +724,7 @@ cost: {U}
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3", "G"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([If { order: Leading, cond: WasKicked, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }] }])
-= BROKE at "the" after: {T} : target land you control becomes
+= BROKE at "basic" after: {T} : target land you control becomes the
 
 ## Pulsating Illusion
 face: Pulsating Illusion

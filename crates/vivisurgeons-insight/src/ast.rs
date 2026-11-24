@@ -1023,6 +1023,9 @@ pub struct Filter {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Adj {
     Color(Color),
+    /// "becomes the color of your choice": one color of a palette, picked as
+    /// the effect happens (CR 105.3) ([color-of-choice]).
+    ColorFrom(Palette),
     /// "a permanent spell": one that will enter the battlefield as a
     /// permanent, an artifact, battle, creature, enchantment, or
     /// planeswalker spell (CR 110.4b).
@@ -2490,7 +2493,7 @@ impl Keeps {
         // only the types an effect sets; CR 105.3 sets the color).
         let types: Vec<Adj> = types
             .iter()
-            .filter(|a| !matches!(a, Adj::Color(_)))
+            .filter(|a| !matches!(a, Adj::Color(_) | Adj::ColorFrom(_)))
             .cloned()
             .collect();
         let types = &types[..];

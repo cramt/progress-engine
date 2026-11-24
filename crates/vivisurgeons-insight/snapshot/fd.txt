@@ -1076,7 +1076,7 @@ face: Tideshaper Mystic
 type: Creature — Merfolk Wizard
 cost: {U}
 > {T}: Target land becomes the basic land type of your choice until end of turn. Activate only during your turn.
-= BROKE at "the" after: {T} : target land becomes
+= BROKE at "basic" after: {T} : target land becomes the
 
 ## Treasury Thrull
 face: Treasury Thrull

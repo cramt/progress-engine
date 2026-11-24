@@ -27,6 +27,10 @@ pub(super) fn duration(p: &mut P) -> Option<Duration> {
 /// creature" is two colors and one creature (CR 105.2).
 pub(super) fn becomes_types(p: &mut P) -> Vec<Adj> {
     let mut types = Vec::new();
+    // "becomes the color of your choice" ([color-of-choice]).
+    if p.attempt(|p| p.words("the color of your choice")).is_some() {
+        types.push(Adj::ColorFrom(Palette::ChoiceOf(Player::You)));
+    }
     while let Some(a) = p.attempt(|p| {
         if matches!(types.last(), Some(Adj::Color(_))) && p.attempt(|p| p.word("and")).is_some() {
             return descriptor(p).filter(|a| matches!(a, Adj::Color(_)));

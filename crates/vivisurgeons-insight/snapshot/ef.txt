@@ -790,7 +790,7 @@ cost: {3}
 > {T}: Add one mana of any color.
 > {T}: Target creature becomes the color or colors of your choice until end of turn.
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
-= BROKE at "the" after: {T} : target creature becomes
+= BROKE at "or" after: {T} : target creature becomes the color
 
 ## Seal of Cleansing
 face: Seal of Cleansing

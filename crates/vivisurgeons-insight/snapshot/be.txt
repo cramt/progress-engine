@@ -1136,7 +1136,7 @@ face: Vodalian Mystic
 type: Creature — Merfolk Wizard
 cost: {1}{U}
 > {T}: Target instant or sorcery spell becomes the color of your choice.
-= BROKE at "the" after: {T} : target instant or sorcery spell becomes
+= Activated { cost: [Tap], effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: Permanent }], limits: [] }
 
 ## Voidwing Hybrid
 face: Voidwing Hybrid

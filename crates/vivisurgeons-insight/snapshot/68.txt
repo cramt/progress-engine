@@ -685,7 +685,7 @@ cost: {1}
 > When this artifact enters, you gain 3 life.
 > {T}: Until end of turn, target land you control becomes the basic land type of your choice in addition to its other types.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [GainLife { who: You, n: N(3) }], limits: [] }
-= BROKE at "the" after: {T} : until end of turn , target land you control becomes
+= BROKE at "basic" after: {T} : until end of turn , target land you control becomes the
 
 ## Necroduality
 face: Necroduality

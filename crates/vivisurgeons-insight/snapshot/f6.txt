@@ -104,7 +104,7 @@ cost: {2}{R}
 > {1}{B}: This creature gets +1/+1 until end of turn.
 > {G}: This creature becomes the color of your choice until end of turn.
 = Activated { cost: [Mana(Mana(["1", "B"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
-= BROKE at "the" after: {G} : this creature becomes
+= Activated { cost: [Mana(Mana(["G"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 
 ## Canal Monitor
 face: Canal Monitor

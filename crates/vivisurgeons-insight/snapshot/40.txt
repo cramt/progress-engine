@@ -506,7 +506,7 @@ face: Grixis Illusionist
 type: Creature — Human Wizard
 cost: {U}
 > {T}: Target land you control becomes the basic land type of your choice until end of turn.
-= BROKE at "the" after: {T} : target land you control becomes
+= BROKE at "basic" after: {T} : target land you control becomes the
 
 ## Hama Pashar, Ruin Seeker
 face: Hama Pashar, Ruin Seeker

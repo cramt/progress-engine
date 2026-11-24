@@ -392,7 +392,7 @@ cost: {5}{U}
 > Gain control of target monocolored creature.
 > Forecast — {1}{U}, Reveal this card from your hand: Target creature becomes the color or colors of your choice until end of turn. (Activate only during your upkeep and only once each turn.)
 = Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Color(Monocolored), Type("creature")]], kind: None, posts: [], or: None } }, dur: Permanent }])
-= BROKE at "the" after: forecast — {1} {U} , reveal this card from your hand : target creature becomes
+= BROKE at "or" after: forecast — {1} {U} , reveal this card from your hand : target creature becomes the color
 
 ## Guma
 face: Guma
@@ -655,7 +655,7 @@ cost: {3}{U}{U}
 > {1}: This creature becomes the creature type of your choice until end of turn.
 > Morph {3}{U}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "the" after: {1} : this creature becomes
+= BROKE at "creature" after: {1} : this creature becomes the
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["3", "U", "U"]))])) }])
 
 ## Mockery of Nature

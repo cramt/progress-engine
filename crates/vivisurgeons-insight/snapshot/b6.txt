@@ -716,7 +716,7 @@ cost: {2}{U}
 > Flash
 > When this creature enters, target permanent becomes the color or colors of your choice until end of turn.
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "the" after: when this creature enters , target permanent becomes
+= BROKE at "or" after: when this creature enters , target permanent becomes the color
 
 ## Proud Mentor
 face: Proud Mentor

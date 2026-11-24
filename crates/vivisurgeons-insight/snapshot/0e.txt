@@ -596,7 +596,7 @@ cost: {2}{U}
 > This creature has defender as long as it's a Wall.
 > {1}: This creature becomes the creature type of your choice until end of turn.
 = Static([AsLongAs { order: Trailing, cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("wall")]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "defender", param: None }], per: None }] }])
-= BROKE at "the" after: {1} : this creature becomes
+= BROKE at "creature" after: {1} : this creature becomes the
 
 ## Mistwalker
 face: Mistwalker

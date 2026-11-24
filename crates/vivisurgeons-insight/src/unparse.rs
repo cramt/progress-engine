@@ -5091,6 +5091,7 @@ fn printed_groups(alts: &[Vec<Adj>]) -> Vec<Vec<Adj>> {
 fn adj(o: &mut Out, a: &Adj, noun: Option<Num>) {
     let word = match a {
         Adj::Color(c) => color_name(*c).to_string(),
+        Adj::ColorFrom(p) => out(|o| palette_named(o, p)).text(),
         Adj::Permanent => "permanent".into(),
         Adj::Non(s) if crate::vocab::vocab().subtypes.contains(s) => format!("non-{s}"),
         Adj::Non(s) => format!("non{s}"),

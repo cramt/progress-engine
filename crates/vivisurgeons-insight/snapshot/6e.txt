@@ -21,7 +21,7 @@ face: Alchor's Tomb
 type: Artifact
 cost: {4}
 > {2}, {T}: Target permanent you control becomes the color of your choice. (This effect lasts indefinitely.)
-= BROKE at "the" after: {2} , {T} : target permanent you control becomes
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: Permanent }], limits: [] }
 
 ## Apple of Eden, Isu Relic
 face: Apple of Eden, Isu Relic

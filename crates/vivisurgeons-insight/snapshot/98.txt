@@ -438,7 +438,7 @@ face: Illusion
 type: Instant
 cost: {U}
 > Target spell or permanent becomes the color of your choice until end of turn.
-= BROKE at "of" after: target spell or permanent becomes the color
+= Spell([Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: Some(Filter { alts: [], kind: Some(Permanent), posts: [], or: None }) } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }])
 
 ## Illusion // Reality
 face: Reality

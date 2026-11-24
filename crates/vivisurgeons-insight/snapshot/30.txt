@@ -788,7 +788,7 @@ face: Sea Snidd
 type: Creature — Beast
 cost: {4}{U}
 > {T}: Target land becomes the basic land type of your choice until end of turn.
-= BROKE at "the" after: {T} : target land becomes
+= BROKE at "basic" after: {T} : target land becomes the
 
 ## Secret Invasion
 face: Secret Invasion

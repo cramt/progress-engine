@@ -669,7 +669,7 @@ type: Artifact
 cost: {2}
 > When this artifact enters, draw a card, then choose a color. This artifact becomes the chosen color.
 > {3}, {T}: Draw a card. Activate only if there are five colors among permanents you control.
-= BROKE at "the" after: when this artifact enters , draw a card , then choose a color . this artifact becomes
+= BROKE at "chosen" after: when this artifact enters , draw a card , then choose a color . this artifact becomes the
 = BROKE at "colors" after: {3} , {T} : draw a card . activate only if there are five
 
 ## Pygmy Hippo

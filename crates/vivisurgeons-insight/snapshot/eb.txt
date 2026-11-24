@@ -278,7 +278,7 @@ cost: {U}
 > Enchant creature
 > {0}: Enchanted creature becomes the color or colors of your choice. Activate only once each turn.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "the" after: {0} : enchanted creature becomes
+= BROKE at "or" after: {0} : enchanted creature becomes the color
 
 ## Driven // Despair
 face: Driven

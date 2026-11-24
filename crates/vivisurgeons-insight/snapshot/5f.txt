@@ -90,7 +90,7 @@ face: Blind Seer
 type: Legendary Creature — Human Wizard
 cost: {2}{U}{U}
 > {1}{U}: Target spell or permanent becomes the color of your choice until end of turn.
-= BROKE at "the" after: {1} {U} : target spell or permanent becomes
+= Activated { cost: [Mana(Mana(["1", "U"]))], effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: Some(Filter { alts: [], kind: Some(Permanent), posts: [], or: None }) } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 
 ## Cargo Ship
 face: Cargo Ship

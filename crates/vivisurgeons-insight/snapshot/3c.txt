@@ -743,7 +743,7 @@ cost: {3}{U}
 > Flying
 > {1}: This creature becomes the color of your choice until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "the" after: {1} : this creature becomes
+= Activated { cost: [Mana(Mana(["1"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 
 ## Ramunap Excavator
 face: Ramunap Excavator

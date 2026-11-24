@@ -587,7 +587,7 @@ type: Creature — Illusion
 cost: {1}{U}
 > {1}: This creature becomes the creature type of your choice until end of turn.
 > {2}{U}{U}: This creature gets +2/+2 and gains flying until end of turn.
-= BROKE at "the" after: {1} : this creature becomes
+= BROKE at "creature" after: {1} : this creature becomes the
 = Activated { cost: [Mana(Mana(["2", "U", "U"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Misty Mountains Raider

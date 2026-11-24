@@ -328,7 +328,7 @@ face: Distorting Lens
 type: Artifact
 cost: {2}
 > {T}: Target permanent becomes the color of your choice until end of turn.
-= BROKE at "the" after: {T} : target permanent becomes
+= Activated { cost: [Tap], effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 
 ## Doorkeeper Thrull
 face: Doorkeeper Thrull

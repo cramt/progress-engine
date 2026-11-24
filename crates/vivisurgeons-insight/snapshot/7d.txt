@@ -516,7 +516,7 @@ face: Mistform Sliver
 type: Creature — Illusion Sliver
 cost: {1}{U}
 > All Slivers have "{1}: This permanent becomes the creature type of your choice in addition to its other types until end of turn."
-= BROKE at "the" after: all slivers have " {1} : this permanent becomes
+= BROKE at "creature" after: all slivers have " {1} : this permanent becomes the
 
 ## Morgue Theft
 face: Morgue Theft

@@ -647,7 +647,7 @@ cost: {4}{U}
 > {1}: This creature becomes the creature type of your choice until end of turn.
 > {2}{U}{U}, {T}: Choose a creature type. Each creature you control becomes that type until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "the" after: {1} : this creature becomes
+= BROKE at "creature" after: {1} : this creature becomes the
 = BROKE at "that" after: {2} {U} {U} , {T} : choose a creature type . each creature you control becomes
 
 ## Monsoon

@@ -377,7 +377,7 @@ cost: {2}{U}{B}
 > When Garland enters, target opponent becomes the monarch.
 > Whenever an opponent becomes the monarch, gain control of target creature that player controls for as long as they're the monarch.
 > Creatures you control but don't own get +2/+2 and can't be sacrificed.
-= BROKE at "the" after: when ~ enters , target opponent becomes
+= BROKE at "monarch" after: when ~ enters , target opponent becomes the
 = BROKE at "the" after: whenever an opponent becomes the monarch , gain control of target creature that player controls for as long as they're
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }, Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), NotOwnedBy(You)], or: None } }, rule: CantBeSacrificed }])
 
