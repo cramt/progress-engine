@@ -856,6 +856,15 @@ struct Resuming {
     name: Option<String>,
 }
 
+/// What paying a sacrifice is part of.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AfterSacrifice {
+    /// A spell's cost, its cards and returns still to pay (CR 601.2h).
+    SpellRest,
+    /// An activated ability's cost, the last of it (CR 602.2b).
+    Ability,
+}
+
 /// What comes after the cards a cost names are paid.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum AfterCards {
@@ -1307,12 +1316,15 @@ enum Waiting {
         resume: Resuming,
     },
     /// CR 601.2h: `player` sacrifices `count` permanents `filter`
-    /// matches to pay for `spell`, the rest of its cost paid.
+    /// matches to pay for `spell`, the rest of its cost paid, or for the
+    /// activated ability of `spell` on top of the stack, its mana paid
+    /// (CR 602.2b).
     Sacrifice {
         player: PlayerId,
         spell: CardId,
         count: u32,
         filter: Filter,
+        then: AfterSacrifice,
     },
     /// CR 601.2h: `player` returns the permanents `returned` says to
     /// their owner's hand to pay for `spell`: Gush's cost, or sneak's.
@@ -3224,12 +3236,12 @@ impl Game {
                 player,
                 spell,
                 owed,
-                ..
+                paying,
             } => Decision::Pay {
                 player: *player,
                 spell: *spell,
                 owed: owed.clone(),
-                actions: self.payments(*player, owed),
+                actions: self.payments_toward(*player, *spell, *paying, owed),
             },
             Waiting::ReturnCommander { owner, card, .. } => Decision::ReturnCommander {
                 player: *owner,
@@ -3303,6 +3315,7 @@ impl Game {
                 spell,
                 count,
                 filter,
+                ..
             } => Decision::Sacrifice {
                 player: *player,
                 spell: *spell,
@@ -3589,7 +3602,10 @@ impl Game {
                     paying,
                 },
                 Answer::Pay(pay),
-            ) if self.payments(player, &owed).contains(pay) => {
+            ) if self
+                .payments_toward(player, spell, paying, &owed)
+                .contains(pay) =>
+            {
                 match (self.pay_life(player, *pay), paying) {
                     (Payment::Mana(a), _) => self.activate(player, a),
                     // CR 602.2b: an ability activated, its activator gets
@@ -3597,9 +3613,7 @@ impl Game {
                     (Payment::Spend(spent), Paying::Ability) => {
                         let pool = &mut self.players[player.0 as usize].pool;
                         *pool = pool.minus(&spent);
-                        self.before_cast = None;
-                        self.became_targets();
-                        self.give_priority(player, 0);
+                        self.sacrifice_for_ability(player, spell);
                     }
                     // CR 702.37e, 116.3: turned face up without the stack, and
                     // its controller gets priority again.
@@ -3655,6 +3669,7 @@ impl Game {
                                     spell,
                                     count,
                                     filter,
+                                    then: AfterSacrifice::SpellRest,
                                 }
                             }
                             None => self.cards_or_return(player, spell),
@@ -4372,6 +4387,7 @@ impl Game {
                     spell,
                     count,
                     filter,
+                    then,
                 },
                 Answer::Sacrifice(chosen),
             ) => {
@@ -4386,7 +4402,10 @@ impl Game {
                 for o in chosen {
                     self.put_in_graveyard(*o);
                 }
-                self.cards_or_return(player, spell);
+                match then {
+                    AfterSacrifice::SpellRest => self.cards_or_return(player, spell),
+                    AfterSacrifice::Ability => self.ability_activated(player),
+                }
             }
             (
                 Waiting::ReturnToHand {
@@ -4870,9 +4889,16 @@ impl Game {
                     .remove_counters
                     .as_ref()
                     .is_some_and(|(kind, n)| self.counters_on(id, kind) < *n);
+                // CR 118.3: the source sacrificed for itself is still here.
+                let sacrifice_short = def
+                    .cost
+                    .sacrifice_others
+                    .as_ref()
+                    .is_some_and(|(n, f)| self.sacrificable(p, f).len() < *n as usize);
                 if def.cost.tap && (perm.tapped || sick)
                     || cards_short
                     || counters_short
+                    || sacrifice_short
                     || def.cost.life > 0 && player.life < def.cost.life as i32
                     || def.limits.once_per_turn && self.used.contains(&(id, *k))
                     || def.limits.power_up && self.powered_up.contains(&(id, *k))
@@ -5244,6 +5270,61 @@ impl Game {
             .count() as u32
     }
 
+    /// The payments toward a spell's or ability's mana, less a mana
+    /// ability that would sacrifice a permanent the rest of its cost needs:
+    /// that cost could then not be paid, and the whole activation or cast
+    /// would be reversed (CR 601.2h, 733.1), so it is never begun.
+    fn payments_toward(
+        &self,
+        p: PlayerId,
+        spell: CardId,
+        paying: Paying,
+        owed: &ManaCost,
+    ) -> Vec<Payment> {
+        let mut out = self.payments(p, owed);
+        if let Some((count, filter)) = self.sacrifice_owed(spell, paying) {
+            let legal = self.sacrificable(p, &filter);
+            if legal.len() <= count as usize {
+                out.retain(|pay| {
+                    !matches!(pay, Payment::Mana(m)
+                        if m.sacrifices.is_some_and(|o| legal.contains(&o)))
+                });
+            }
+        }
+        out
+    }
+
+    /// The permanents the rest of a spell's or ability's cost sacrifices,
+    /// once its mana is paid.
+    fn sacrifice_owed(&self, spell: CardId, paying: Paying) -> Option<(u32, Filter)> {
+        match paying {
+            Paying::Spell { .. } => self.other_costs(spell).sacrifice,
+            Paying::Ability => self.ability_sacrifice(),
+            Paying::FaceUp(_) | Paying::Suspend | Paying::Plot => None,
+        }
+    }
+
+    /// What the activated ability on top of the stack, being activated,
+    /// sacrifices besides its source (CR 602.2b).
+    fn ability_sacrifice(&self) -> Option<(u32, Filter)> {
+        let Some(StackObject::Ability {
+            source,
+            printed,
+            ability,
+            ..
+        }) = self.stack.back()
+        else {
+            unreachable!("an ability being activated is on top of the stack")
+        };
+        let runs = self.face_runs(*source, *printed);
+        match runs.activated.get(ability) {
+            Some(Ok(def)) => def.cost.sacrifice_others.clone(),
+            // Cycling's cost discards, and sacrifices nothing (CR 702.29a).
+            None if runs.cycling.as_ref().is_some_and(|(k, _)| k == ability) => None,
+            _ => unreachable!("only an ability that runs is activated"),
+        }
+    }
+
     fn payments(&self, p: PlayerId, owed: &ManaCost) -> Vec<Payment> {
         let mut out: Vec<Payment> = self
             .mana_activations(p)
@@ -5561,12 +5642,34 @@ impl Game {
                     paying: Paying::Ability,
                 }
             }
-            None => {
-                self.before_cast = None;
-                self.became_targets();
-                self.give_priority(p, 0);
-            }
+            None => self.sacrifice_for_ability(p, card),
         }
+    }
+
+    /// The permanents an activated ability's cost sacrifices, last, so a
+    /// creature tapped for its mana can be one of them (CR 601.2g–h,
+    /// 602.2b).
+    fn sacrifice_for_ability(&mut self, p: PlayerId, card: CardId) {
+        match self.ability_sacrifice() {
+            Some((count, filter)) => {
+                self.waiting = Waiting::Sacrifice {
+                    player: p,
+                    spell: card,
+                    count,
+                    filter,
+                    then: AfterSacrifice::Ability,
+                }
+            }
+            None => self.ability_activated(p),
+        }
+    }
+
+    /// CR 602.2b, 601.2i: the ability is activated, and its activator gets
+    /// priority again (CR 117.3c).
+    fn ability_activated(&mut self, p: PlayerId) {
+        self.before_cast = None;
+        self.became_targets();
+        self.give_priority(p, 0);
     }
 
     /// CR 305.1: a land played by `side`, which is up as it enters (CR
@@ -6003,10 +6106,14 @@ impl Game {
     }
 
     /// The permanents `player` could sacrifice for the spell on the stack
-    /// that is `spell`, and how many its cost sacrifices (Fireblast's two
-    /// Mountains), if it sacrifices any.
+    /// that is `spell`, or the ability of it being activated, its mana
+    /// being paid, and how many its cost sacrifices (Fireblast's two
+    /// Mountains, Siege-Gang Commander's Goblin), if it sacrifices any.
     pub fn sacrificed_for(&self, player: PlayerId, spell: CardId) -> Option<(u32, Vec<ObjectId>)> {
-        let (count, filter) = self.other_costs(spell).sacrifice?;
+        let Waiting::Paying { paying, .. } = &self.waiting else {
+            return None;
+        };
+        let (count, filter) = self.sacrifice_owed(spell, *paying)?;
         Some((count, self.sacrificable(player, &filter)))
     }
 

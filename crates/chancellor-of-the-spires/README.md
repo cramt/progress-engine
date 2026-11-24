@@ -1076,11 +1076,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-24 153 of the 500 replay to
-the end and 57.80% of their lines are followed** (18,300 of 31,659), 3
+Worked card by card from there, **on 2026-11-24 155 of the 500 replay to
+the end and 58.15% of their lines are followed** (18,409 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
-and 151 games have no card the engine refuses before any game (from 21). The
+and 154 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1319,7 +1319,15 @@ the end and one to Ghastly Demise); "target attacking creature" read
 from combat, a permanent put on the bottom of its owner's library, and
 "its controller gains life equal to its toughness" as it last existed
 (CR 508.1k, 400.3, 608.2h: Condemn, whose 3 games go on to Damn's
-overload, Jirina and Plunder the Trollshaws). And
+overload, Jirina and Plunder the Trollshaws); an activated ability's
+cost sacrificing other permanents a filter matches, the source among
+them, paid after its mana so a creature tapped for that mana can be one,
+and no mana ability offered toward it that would sacrifice what the
+cost still needs (CR 602.2b, 601.2g–h, 701.21a, 733.1: Siege-Gang
+Commander, Ravenous Baloth, Goblin Sledder and Dust Bowl, whose 7 games
+go on, two to the end, three to Chain of Vapor, Recurring Nightmare and
+Tempting Wurm, and two to lines the replay doesn't follow, a trigger
+removed for want of targets and a land played). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles
@@ -1327,7 +1335,9 @@ from the line before its cast, whoever that line names exiling, with
 the log's "(X is 12.)" checked against the engine's X, and an
 ability's X announced as the log's "(X is 1)" says, a line whose text
 reads more like an ability the engine refuses than any it offers stopped
-at that refusal, "puts [X] on bottom of their library with [Y]" followed
+at that refusal, a -0/-1 counter put by a mana ability the replay
+activated accepted once it left its permanent dead (Wall of Roots's
+fifth), "puts [X] on bottom of their library with [Y]" followed
 by resolving the stack until it is there, a shuffle matched to an
 instruction's, the creature sacrificed for flashback, a land the log never
 names as a hypothesis, which of two permanents of one name an

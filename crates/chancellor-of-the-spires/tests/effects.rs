@@ -2114,6 +2114,189 @@ fn mogg_fanatic_sacrifices_itself_to_deal_one_damage_to_a_target() {
     assert_eq!(game.player(THEM).life(), 19);
 }
 
+/// CR 602.2b, 601.2h, 701.21a: Siege-Gang Commander's "{1}{R}, Sacrifice
+/// a Goblin: It deals 2 damage to any target" takes its target, then its
+/// mana, then a Goblin of its controller's, itself one of them; with no
+/// Goblin left it can't be activated.
+#[test]
+fn siege_gang_commander_sacrifices_a_goblin_for_two_damage() {
+    let mut game = deal(
+        &[("Mountain", 56), ("Siege-Gang Commander", 4)],
+        &[("Forest", 60)],
+        &[("Mountain", 6), ("Siege-Gang Commander", 1)],
+    );
+    play(&mut game, "Mountain");
+    for _ in 0..4 {
+        my_next_main(&mut game);
+        play(&mut game, "Mountain");
+    }
+    cast(&mut game, "Siege-Gang Commander", None);
+    resolve(&mut game);
+    resolve(&mut game);
+    for _ in 0..2 {
+        my_next_main(&mut game);
+        play(&mut game, "Mountain");
+    }
+    let sgc = creature(&game, "Siege-Gang Commander").unwrap();
+    let goblins: Vec<_> = game
+        .characteristics()
+        .iter()
+        .filter(|(_, c)| c.controller == ME && c.is(CardType::Creature))
+        .map(|(o, _)| *o)
+        .collect();
+    assert_eq!(goblins.len(), 4, "itself and three tokens");
+    let Decision::Targets { .. } = activate(&mut game, sgc) else {
+        panic!("a target: {:?}", game.decision())
+    };
+    let mut d = step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .unwrap();
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    let Decision::Sacrifice { count, legal, .. } = d else {
+        panic!("a sacrifice: {d:?}")
+    };
+    assert_eq!(count, 1);
+    assert_eq!(
+        legal
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>(),
+        goblins.iter().copied().collect(),
+        "any Goblin of mine, itself too"
+    );
+    assert!(
+        game.clone().step(Answer::Sacrifice(vec![])).is_err(),
+        "one Goblin, not none"
+    );
+    step(&mut game, Answer::Sacrifice(vec![sgc]));
+    assert!(
+        !game.permanents().contains_key(&sgc),
+        "sacrificed as a cost"
+    );
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 18, "as it last existed");
+}
+
+/// CR 601.2h, 733.1: paying Siege-Gang Commander's {1}{R} with Skirk
+/// Prospector's "Sacrifice a Goblin: Add {R}", the Prospector can't
+/// sacrifice the last Goblin the ability's own cost needs, which would
+/// leave that cost unpaid and the activation reversed.
+#[test]
+fn a_mana_ability_cant_sacrifice_what_the_cost_still_needs() {
+    let mut game = deal(
+        &[
+            ("Mountain", 52),
+            ("Siege-Gang Commander", 4),
+            ("Skirk Prospector", 4),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 5),
+            ("Siege-Gang Commander", 1),
+            ("Skirk Prospector", 1),
+        ],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Skirk Prospector", None);
+    resolve(&mut game);
+    // Five for the Commander, one for the ability's {1}.
+    for _ in 0..5 {
+        my_next_main(&mut game);
+        play(&mut game, "Mountain");
+    }
+    // Paid with Mountains, not the Prospector.
+    let c = in_hand(&game, ME, "Siege-Gang Commander").unwrap();
+    let mut d = step(&mut game, Answer::Act(Action::Cast(c)));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| {
+                actions
+                    .iter()
+                    .find(|a| matches!(a, Payment::Mana(m) if m.sacrifices.is_none()))
+            })
+            .copied()
+            .unwrap();
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    resolve(&mut game);
+    // Its enters trigger waits on the stack: no tokens yet.
+    let sgc = creature(&game, "Siege-Gang Commander").unwrap();
+    let skirk = creature(&game, "Skirk Prospector").unwrap();
+    let Decision::Targets { .. } = activate(&mut game, sgc) else {
+        panic!("a target: {:?}", game.decision())
+    };
+    let d = step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    let Decision::Pay { actions, .. } = d else {
+        panic!("{d:?}")
+    };
+    let skirk_sacrificing = |actions: &[Payment], o| {
+        actions
+            .iter()
+            .find(|a| matches!(a, Payment::Mana(m) if m.source == skirk && m.sacrifices == Some(o)))
+            .copied()
+    };
+    let first = skirk_sacrificing(&actions, sgc).expect("two Goblins: one may go for mana");
+    let Decision::Pay { actions, .. } = step(&mut game, Answer::Pay(first)) else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(
+        skirk_sacrificing(&actions, skirk).is_none(),
+        "the last Goblin is the cost's"
+    );
+    let mut d = game.decision();
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| {
+                actions
+                    .iter()
+                    .find(|a| matches!(a, Payment::Mana(m) if m.sacrifices.is_none()))
+            })
+            .copied()
+            .unwrap();
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    let Decision::Sacrifice { legal, .. } = d else {
+        panic!("a sacrifice: {d:?}")
+    };
+    assert_eq!(legal, vec![skirk]);
+}
+
+/// CR 602.2b, 701.21a: Ravenous Baloth's "Sacrifice a Beast: You gain 4
+/// life", with no mana or target, asks for the Beast straight away.
+#[test]
+fn ravenous_baloth_sacrifices_a_beast_for_four_life() {
+    let mut game = deal(
+        &[("Forest", 40), ("Ravenous Baloth", 20)],
+        &[("Forest", 60)],
+        &[("Forest", 4), ("Ravenous Baloth", 1)],
+    );
+    play(&mut game, "Forest");
+    for _ in 0..3 {
+        my_next_main(&mut game);
+        play(&mut game, "Forest");
+    }
+    cast(&mut game, "Ravenous Baloth", None);
+    resolve(&mut game);
+    let baloth = creature(&game, "Ravenous Baloth").unwrap();
+    let Decision::Sacrifice { count, legal, .. } = activate(&mut game, baloth) else {
+        panic!("a sacrifice: {:?}", game.decision())
+    };
+    assert_eq!((count, legal), (1, vec![baloth]));
+    step(&mut game, Answer::Sacrifice(vec![baloth]));
+    resolve(&mut game);
+    assert_eq!(game.player(ME).life(), 24);
+}
+
 /// CR 602.2b, 118.3: Triskelion enters with three +1/+1 counters (CR
 /// 614.1c), and "Remove a +1/+1 counter from this creature: It deals 1
 /// damage to any target" takes one off as each activation is paid; with

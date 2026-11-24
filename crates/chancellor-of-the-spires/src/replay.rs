@@ -1637,7 +1637,10 @@ impl Driver<'_> {
                     self.act(Answer::X(x))?;
                 }
                 let paid = match self.game().decision() {
-                    Decision::Targets { .. } | Decision::Pay { .. } | Decision::PayCards { .. } => {
+                    Decision::Targets { .. }
+                    | Decision::Pay { .. }
+                    | Decision::PayCards { .. }
+                    | Decision::Sacrifice { .. } => {
                         format!(", {}", self.aim_and_pay(i, &a.targets, card.name())?)
                     }
                     _ if !a.targets.is_empty() => {
@@ -1877,7 +1880,7 @@ impl Driver<'_> {
             // which the log prints as it is activated.
             RemovesCounters { player, counters } => {
                 let p = self.seat(*player);
-                if !self.counter_cost_mana(p, counters, true)? {
+                if self.counter_cost_mana(p, counters, true)?.is_none() {
                     return Err(unfollowed(None));
                 }
                 self.did(i, "a mana ability's counter removed (CR 602.2b)");
@@ -2160,7 +2163,8 @@ impl Driver<'_> {
                 // A counter put as a mana ability's cost (Wall of Roots's
                 // -0/-1), which the log prints as it is activated: the
                 // mana floats until what it pays for is cast.
-                if !self.counter_mana(p, counters)? {
+                let mut activated = self.counter_mana(p, counters)?;
+                if activated.is_none() {
                     // What resolves on the stack this turn until the
                     // counters are there, and no further: a second trigger
                     // waiting is the next line's.
@@ -2191,9 +2195,14 @@ impl Driver<'_> {
                         }
                         self.pass()?;
                     }
-                    self.counter_mana(p, counters)?;
+                    activated = self.counter_mana(p, counters)?;
                 }
-                if let Some(what) = self.counters_missing(counters)? {
+                // The mana ability the replay activated put the counter on
+                // its source itself, and its last -0/-1 can leave that dead
+                // to state-based actions (CR 704.5f) before it is looked
+                // for, as a fifth leaves Wall of Roots 0/0.
+                let gone = activated.is_some_and(|o| !self.game().permanents().contains_key(&o));
+                if let (false, Some(what)) = (gone, self.counters_missing(counters)?) {
                     return Err(Stop::Diverged(Divergence::NeverOffered { what }));
                 }
                 // Those the log has shown now, so the next line's are more.
@@ -3487,6 +3496,10 @@ impl Driver<'_> {
         }
         if let Decision::PayCards { .. } = self.game().decision() {
             self.pay_cards(i)?;
+        }
+        // An ability's sacrifice with no mana to pay before it.
+        if let Decision::Sacrifice { .. } = self.game().decision() {
+            self.sacrifice()?;
         }
         if !matches!(self.game().decision(), Decision::Pay { .. }) {
             return Ok("no mana to pay".into());
@@ -5737,8 +5750,13 @@ impl Driver<'_> {
 
     /// A line putting one counter on a permanent of `p`'s whose mana
     /// ability costs that counter: the ability activated now, if `p` has
-    /// priority, the first mana it offers taken. Whether it was.
-    fn counter_mana(&mut self, p: PlayerId, counters: &[log::Counted]) -> Result<bool, Stop> {
+    /// priority, the first mana it offers taken. The permanent whose it
+    /// was, if it was.
+    fn counter_mana(
+        &mut self,
+        p: PlayerId,
+        counters: &[log::Counted],
+    ) -> Result<Option<ObjectId>, Stop> {
         self.counter_cost_mana(p, counters, false)
     }
 
@@ -5749,15 +5767,15 @@ impl Driver<'_> {
         p: PlayerId,
         counters: &[log::Counted],
         removes: bool,
-    ) -> Result<bool, Stop> {
+    ) -> Result<Option<ObjectId>, Stop> {
         let [counted] = counters else {
-            return Ok(false);
+            return Ok(None);
         };
         let log::Target::Object(Object::Card(c)) = &counted.on else {
-            return Ok(false);
+            return Ok(None);
         };
         if counted.count != 1 {
-            return Ok(false);
+            return Ok(None);
         }
         let name = self.permanent_name(c)?;
         let kind = counter_kind(&counted.kind);
@@ -5798,14 +5816,14 @@ impl Driver<'_> {
                 || passed.step(Answer::Act(Action::Pass)).is_err()
                 || offered(&passed).is_empty()
             {
-                return Ok(false);
+                return Ok(None);
             }
             self.act(Answer::Act(Action::Pass))?;
         }
         self.pass_to_main_for_next_cast(p)?;
         let mut mana = offered(self.game.as_ref().expect("set up"));
         if mana.is_empty() {
-            return Ok(false);
+            return Ok(None);
         }
         // Which mana it made the log doesn't say: what the next spell
         // asks first, the rest gone back to.
@@ -5833,7 +5851,7 @@ impl Driver<'_> {
             });
         }
         self.act(Answer::Act(Action::Mana(mana[0])))?;
-        Ok(true)
+        Ok(Some(mana[0].source))
     }
 
     /// Which of the permanents of one name the line activates `ability`

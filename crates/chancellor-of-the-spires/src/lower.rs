@@ -4970,6 +4970,10 @@ pub struct ActivationCost {
     pub tap: bool,
     pub life: u32,
     pub sacrifice: bool,
+    /// Siege-Gang Commander's "Sacrifice a Goblin": that many permanents
+    /// the filter matches, of the activator's, the source among them if it
+    /// matches (CR 602.2b, 601.2h, 701.21a).
+    pub sacrifice_others: Option<(u32, Filter)>,
     /// "{1}, {T}: …": mana paid as the ability is activated (CR 602.2b,
     /// 601.2g–h).
     pub mana: Option<crate::mana::ManaCost>,
@@ -5146,6 +5150,9 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
             i::Cost::Tap => paid.tap = true,
             i::Cost::PayLife(i::Amount::N(n)) => paid.life += n,
             i::Cost::Sacrifice(o) if itself(o) => paid.sacrifice = true,
+            i::Cost::Sacrifice(o) if paid.sacrifice_others.is_none() => {
+                paid.sacrifice_others = Some(permanents_paid(o)?)
+            }
             i::Cost::Mana(m) if paid.mana.is_none() => {
                 // The {X}s are counted apart, since the X is announced as
                 // it is activated; any other variable symbol refuses in
@@ -5173,6 +5180,11 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
             }
             other => return Err(format!("an activation cost of {}", short(other))),
         }
+    }
+    // The source, sacrificed as it is activated, would be counted again
+    // among the others.
+    if paid.sacrifice && paid.sacrifice_others.is_some() {
+        return Err("an activation cost sacrificing itself and another".into());
     }
     Ok(paid)
 }
@@ -5417,8 +5429,23 @@ fn permanents_paid(o: &Objects) -> Result<(u32, Filter), String> {
         quant: Quant::All,
         filter: o.filter.clone(),
     })?;
-    if f.0.iter().any(|p| matches!(p, Pred::Itself | Pred::Other)) {
-        return Err("a cost relative to its source".into());
+    // Read against each permanent as if it were the source, so anything
+    // relative to the source, or to a player other than its controller,
+    // would match the wrong permanents or none.
+    if let Some(p) = f.0.iter().find(|p| {
+        !matches!(
+            p,
+            Pred::Is(_)
+                | Pred::IsNot(_)
+                | Pred::IsAny(_)
+                | Pred::YouControl
+                | Pred::Nontoken
+                | Pred::ManaValue(..)
+                | Pred::Power(..)
+                | Pred::Attacking
+        )
+    }) {
+        return Err(format!("a cost of permanents {p:?}"));
     }
     if !f.0.contains(&Pred::YouControl) {
         f.0.push(Pred::YouControl);
