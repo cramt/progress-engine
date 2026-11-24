@@ -4001,7 +4001,13 @@ fn possessive_of(o: &mut Out, x: &Objects) {
 }
 
 fn is_bare_antecedent(x: &Objects) -> bool {
-    x.quant == Quant::Unresolved(Hint::Antecedent) && x.filter == Filter::default()
+    // A bare `Bounds` is whichever of its objects there is, said "it" as
+    // `objects_plain` says it ([or-either-object]: "its controller" after
+    // "Whenever enchanted creature attacks or blocks").
+    matches!(
+        x.quant,
+        Quant::Unresolved(Hint::Antecedent) | Quant::Bounds(_)
+    ) && x.filter == Filter::default()
 }
 
 /// The card itself with nothing more said, which the text may name or

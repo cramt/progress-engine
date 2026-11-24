@@ -855,7 +855,7 @@ face: Powerstone Minefield
 type: Enchantment
 cost: {2}{R}{W}
 > Whenever a creature attacks or blocks, this enchantment deals 2 damage to it.
-= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Or([Attacks(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Blocks(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, /* trigger2 */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Or([Attacks(Objects { quant: Introduced(0) /* trigger2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: Introduced(1) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Bounds([Bound(1), Bound(0)]) /* trigger, trigger2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }
 
 ## Purify
 face: Purify

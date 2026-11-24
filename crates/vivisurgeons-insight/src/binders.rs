@@ -76,7 +76,7 @@ fn wrapper(a: &Ability) -> bool {
     )
 }
 
-fn count_objects<T: Walk + Clone>(x: &T) -> usize {
+pub(crate) fn count_objects<T: Walk + Clone>(x: &T) -> usize {
     struct N(usize);
     impl Visitor for N {
         fn enter(&mut self, _: &mut Objects) -> bool {

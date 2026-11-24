@@ -890,7 +890,7 @@ cost: {B}
 > Enchant creature
 > Whenever enchanted creature attacks or blocks, its controller loses 2 life.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Let { bind: [/* trigger */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Or([Attacks(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Blocks(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [LoseLife { who: ControllerOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2) }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, /* trigger2 */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Or([Attacks(Objects { quant: Introduced(0) /* trigger2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: Introduced(1) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [LoseLife { who: ControllerOf(Objects { quant: Bounds([Bound(1), Bound(0)]) /* trigger, trigger2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2) }], limits: [] } }
 
 ## Skillful Lunge
 face: Skillful Lunge

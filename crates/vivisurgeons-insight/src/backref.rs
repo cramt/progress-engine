@@ -264,6 +264,9 @@ struct Ev {
     /// It is said in an attack event: the event's number, and whether it is
     /// what is attacked rather than the attacker ([attack-recipient]).
     attack: Option<(usize, bool)>,
+    /// It is said in one option of a trigger event's `Or`: the `Or`'s number
+    /// and the option's ([or-either-object]).
+    trigger_option: Option<(usize, usize)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -333,6 +336,10 @@ struct Collect {
     /// number and whether each is a recipient.
     attack_next: Vec<(Objects, usize, bool)>,
     attacks: usize,
+    /// The objects of each option of a trigger event's `Or`, by walk order:
+    /// (first, past the last, the `Or`'s number, the option).
+    trigger_options: Vec<(usize, usize, usize, usize)>,
+    trigger_ors: usize,
 }
 
 const EXISTENTIAL: [&str; 18] = [
@@ -382,6 +389,8 @@ impl Collect {
             controller_next: false,
             attack_next: Vec::new(),
             attacks: 0,
+            trigger_options: Vec::new(),
+            trigger_ors: 0,
         }
     }
 
@@ -476,6 +485,32 @@ impl Collect {
             .collect();
     }
 
+    /// "Whenever you cast an instant or sorcery spell … or activate an
+    /// ability …" (Bill Potts): the trigger event is an `Or`, walked option
+    /// by option from the next object on, so each option's objects are a
+    /// run of walk order.
+    fn trigger_or_said(&mut self, e: Option<&Event>) {
+        let Some(Event::Or(opts)) = e.map(attack_event) else {
+            return;
+        };
+        let n = self.trigger_ors;
+        self.trigger_ors += 1;
+        let mut at = self.decl;
+        for (k, opt) in opts.iter().enumerate() {
+            let len = crate::binders::count_objects(opt);
+            self.trigger_options.push((at, at + len, n, k));
+            at += len;
+        }
+    }
+
+    fn trigger_option(&self, decl: Option<usize>) -> Option<(usize, usize)> {
+        let d = decl?;
+        self.trigger_options
+            .iter()
+            .find(|(a, b, ..)| (*a..*b).contains(&d))
+            .map(|&(.., n, k)| (n, k))
+    }
+
     fn effect_frame(&self) -> Option<usize> {
         self.stack
             .iter()
@@ -519,6 +554,7 @@ impl Collect {
             controller_of: false,
             attached: false,
             attack: None,
+            trigger_option: self.trigger_option(decl),
         });
         id
     }
@@ -615,6 +651,7 @@ impl Visitor for Collect {
     fn ability(&mut self, a: &mut Ability) -> bool {
         if let Ability::Triggered { trigger, .. } = a {
             self.attack_said(trigger_event(trigger));
+            self.trigger_or_said(trigger_event(trigger));
         }
         if self.top {
             self.top = matches!(
@@ -2090,23 +2127,42 @@ fn resolve_one(
     // your hand" (Coax from the Blind Eternities): after an `Or` whose
     // options each introduce an object, a reference from outside it is
     // whichever was taken, the nearest that fits from each option
-    // ([or-either-object]).
-    if k == Kind::Text(Hint::Antecedent) {
+    // ([or-either-object]). A trigger event's `Or` is one too: "Whenever
+    // you cast an instant or sorcery spell … or activate an ability …, copy
+    // that spell or ability" (Bill Potts) copies whichever was put on the
+    // stack, and so is the trigger's object said as such (Unbound Flourishing).
+    let antecedent = k == Kind::Text(Hint::Antecedent);
+    if antecedent || k == Kind::Text(Hint::Triggering) {
         let frames = &ld.c.frames;
+        #[derive(Clone, Copy, PartialEq)]
+        enum OrAt {
+            Frame(usize),
+            Trigger(usize),
+        }
         let or = match cands.first() {
-            Some(Target::Intro(l, i)) if *l == li => get((*l, *i))
-                .frames
-                .iter()
-                .rev()
-                .copied()
-                .find(|&f| frames[f].verb == "Or")
-                .filter(|f| !e.frames.contains(f)),
+            Some(Target::Intro(l, i)) if *l == li => {
+                let x = get((*l, *i));
+                x.frames
+                    .iter()
+                    .rev()
+                    .copied()
+                    .find(|&f| frames[f].verb == "Or")
+                    .filter(|f| antecedent && !e.frames.contains(f))
+                    .map(OrAt::Frame)
+                    .or_else(|| {
+                        let (n, _) = x.trigger_option?;
+                        (e.trigger_option.map(|t| t.0) != Some(n)).then_some(OrAt::Trigger(n))
+                    })
+            }
             _ => None,
         };
         if let Some(or) = or {
-            let option = |x: &Ev| {
-                let at = x.frames.iter().position(|&f| f == or)?;
-                x.frames.get(at + 1).copied()
+            let option = |x: &Ev| match or {
+                OrAt::Frame(or) => {
+                    let at = x.frames.iter().position(|&f| f == or)?;
+                    x.frames.get(at + 1).copied()
+                }
+                OrAt::Trigger(n) => x.trigger_option.filter(|t| t.0 == n).map(|t| t.1),
             };
             let mut seen = Vec::new();
             let mut set = Vec::new();
@@ -2691,6 +2747,7 @@ pub fn fits(r: &Objects, b: &Objects) -> bool {
         controller_of: false,
         attached: false,
         attack: None,
+        trigger_option: None,
     };
     // "cast target nonland permanent card …, and mana … to cast that
     // spell": a card cast is the spell.
