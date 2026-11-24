@@ -1731,7 +1731,23 @@ fn resolve_one(
                 }
             }
         }
-        Kind::Text(Hint::Pool) => push_pool(&mut cands, &|_| true),
+        // "you may put a creature card that shares a creature type with
+        // enchanted creature from among them" (Call to the Kindred): the
+        // pool the card is chosen from is never part of that card's own
+        // description, so an object said inside the same object as the
+        // reference is no pool ([pool-not-own-words]).
+        Kind::Text(Hint::Pool) => {
+            let own = e.anc.last().copied();
+            let inside: Vec<&Ev> =
+                ld.c.evs
+                    .iter()
+                    .filter(|x| own.is_some_and(|a| x.anc.contains(&a)))
+                    .collect();
+            push_pool(&mut cands, &|x| !inside.iter().any(|y| std::ptr::eq(*y, x)));
+            if cands.is_empty() {
+                push_pool(&mut cands, &|_| true);
+            }
+        }
         // "the rest": what the nearest choice left, of the pool it chose
         // from.
         Kind::Text(Hint::Rest) => {
