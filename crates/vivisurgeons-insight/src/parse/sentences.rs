@@ -1280,7 +1280,20 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         };
         let deals = p.peek_word() == Some("deals");
         let they = p.peek_word() == Some("they");
+        let mover = who.clone().filter(|w| continues && *w != Player::You);
         let mut c = clause_as(p, who)?;
+        // "they reveal cards …, put that card onto the battlefield, then
+        // shuffle" (Reweave): a `Move` has no player of its own, so the
+        // continued player who puts the card is said by `Performed`, as
+        // "that player … puts it" is; bare, the card was yours to put
+        // ([continued-subject]).
+        if let (Some(by), [Effect::Move { .. }]) = (mover, &c[..]) {
+            let m = c.pop()?;
+            c.push(Effect::Performed {
+                by,
+                effect: Box::new(m),
+            });
+        }
         // "that creature's controller may play that card and they may spend
         // mana as though it were mana of any color" (Curse of Hospitality):
         // "they" after a player named by an object's controller or owner is
