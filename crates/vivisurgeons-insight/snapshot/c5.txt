@@ -287,7 +287,7 @@ type: Artifact Creature — Phyrexian Construct
 cost: {2}{B}{R}
 > Whenever you cast an instant or sorcery spell that targets only a single nonland permanent an opponent controls, if another opponent controls one or more nonland permanents that spell could target, choose one of those permanents. Copy that spell. The copy targets the chosen permanent.
 > {1}{B}: Regenerate this creature.
-= BROKE at "a" after: whenever you cast an instant or sorcery spell that targets only
+= BROKE at "controls" after: whenever you cast an instant or sorcery spell that targets only a single nonland permanent an opponent controls , if another opponent
 = Activated { cost: [Mana(Mana(["1", "B"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Eyeblight Assassin

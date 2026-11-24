@@ -108,7 +108,7 @@ face: Beamsplitter Mage
 type: Creature — Vedalken Wizard
 cost: {U}{R}
 > Whenever you cast an instant or sorcery spell that targets only this creature, if you control one or more other creatures that spell could target, choose one of those creatures. Copy that spell. The copy targets the chosen creature.
-= BROKE at "this" after: whenever you cast an instant or sorcery spell that targets only
+= BROKE at "spell" after: whenever you cast an instant or sorcery spell that targets only this creature , if you control one or more other creatures that
 
 ## Belltower Sphinx
 face: Belltower Sphinx

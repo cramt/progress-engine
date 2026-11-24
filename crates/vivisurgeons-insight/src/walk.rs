@@ -2314,6 +2314,9 @@ impl Walk for Post {
             Post::Targets(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Post::TargetsOnly(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Post::TargetsRecipient(f0) => {
                 Walk::walk(&mut **f0, v);
             }

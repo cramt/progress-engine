@@ -919,7 +919,7 @@ cost: {3}{U}{U}
 > Flying
 > {U}: Change the target of target spell or ability that targets only this creature. The new target must be a creature.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "this" after: {U} : change the target of target spell or ability that targets only
+= BROKE at "target" after: {U} : change the target of target spell or ability that targets only this creature . the new
 
 ## Simic Fluxmage
 face: Simic Fluxmage

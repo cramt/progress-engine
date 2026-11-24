@@ -1190,6 +1190,11 @@ pub enum Post {
     Named(PrintedName),
     /// "spells your opponents cast that target this creature".
     Targets(Box<Objects>),
+    /// "an instant or sorcery spell that targets only a single creature
+    /// you control" (Leyline of Resonance), "a spell that targets only this
+    /// creature": every target it has is that one object, chosen once or
+    /// more (the Leyline's ruling: "all the same creature you control").
+    TargetsOnly(Box<Objects>),
     /// "a spell or ability that targets you or a creature you control"
     /// (Siren Stormtamer), "a spell that targets you": what it targets may
     /// be a player.

@@ -811,7 +811,7 @@ face: Radiate
 type: Instant
 cost: {3}{R}{R}
 > Choose target instant or sorcery spell that targets only a single permanent or player. Copy that spell for each other permanent or player the spell could target. Each copy targets a different one of those permanents and players.
-= BROKE at "a" after: choose target instant or sorcery spell that targets only
+= BROKE at "spell" after: choose target instant or sorcery spell that targets only a single permanent or player . copy that spell for each other permanent or player the
 
 ## Red Room Recruit
 face: Red Room Recruit

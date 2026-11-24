@@ -784,7 +784,7 @@ cost: {3}{R}{R}
 > Flash
 > When this creature enters, if you cast it from your hand, choose target spell or ability that targets only a single permanent or player. Copy that spell or ability for each other permanent or player the spell or ability could target. Each copy targets a different one of those permanents and players.
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "a" after: when this creature enters , if you cast it from your hand , choose target spell or ability that targets only
+= BROKE at "spell" after: when this creature enters , if you cast it from your hand , choose target spell or ability that targets only a single permanent or player . copy that spell or ability for each other permanent or player the
 
 ## Ravager Wurm
 face: Ravager Wurm

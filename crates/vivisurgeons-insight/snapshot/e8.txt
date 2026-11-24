@@ -824,7 +824,7 @@ cost: {5}
 > When this creature enters, create two 3/3 colorless Golem artifact creature tokens.
 > Whenever a player casts an instant or sorcery spell that targets only a single Golem, that player copies that spell for each other Golem that spell could target. Each copy targets a different one of those Golems.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Colorless], types: ["golem", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= BROKE at "a" after: whenever a player casts an instant or sorcery spell that targets only
+= BROKE at "copies" after: whenever a player casts an instant or sorcery spell that targets only a single golem , that player
 
 ## Psionic Gift
 face: Psionic Gift

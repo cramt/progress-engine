@@ -5583,6 +5583,17 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.verb("target", n);
             recipient(o, r);
         }
+        Post::TargetsOnly(x) => {
+            o.w("that");
+            o.verb("target", n);
+            o.w("only");
+            if x.quant == Quant::One {
+                o.w("a single");
+                filter(o, &x.filter, Num::Sg);
+            } else {
+                objects(o, x);
+            }
+        }
         // "that's a land card", "that are black or red": the verb agrees
         // with the objects.
         Post::ThatIs(f) if n == Num::Pl => {

@@ -531,7 +531,7 @@ cost: {3}{R}{R}
 > Flying
 > Whenever a player casts an instant or sorcery spell that targets only this creature, that player copies that spell for each other creature they control that the spell could target. Each copy targets a different one of those creatures.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "this" after: whenever a player casts an instant or sorcery spell that targets only
+= BROKE at "copies" after: whenever a player casts an instant or sorcery spell that targets only this creature , that player
 
 ## Mizzix of the Izmagnus
 face: Mizzix of the Izmagnus

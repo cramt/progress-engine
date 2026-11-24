@@ -1149,5 +1149,5 @@ face: Zada, Hedron Grinder
 type: Legendary Creature — Goblin Ally
 cost: {3}{R}
 > Whenever you cast an instant or sorcery spell that targets only Zada, copy that spell for each other creature you control that the spell could target. Each copy targets a different one of those creatures.
-= BROKE at "~" after: whenever you cast an instant or sorcery spell that targets only
+= BROKE at "the" after: whenever you cast an instant or sorcery spell that targets only ~ , copy that spell for each other creature you control that
 

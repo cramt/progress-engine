@@ -1986,6 +1986,31 @@ fn resolve_one(
             cands.retain(|t| !any_target(t));
             note = "said as what it is, not any target".into();
         }
+        // "Whenever you cast a spell that targets only a single creature,
+        // gain control of that creature" (Loki, God of Lies): a spell whose
+        // words give it no type is "that spell", so "that creature" is the
+        // object the spell targets, said as a creature ([targets-only]).
+        let untyped_spell = |t: &Target| {
+            matches!(t, Target::Intro(l, i) if get((*l, *i)).obj.as_ref().is_some_and(|o| {
+                o.filter.kind == Some(Noun::Spell) && type_words(&o.filter).0.is_empty()
+            }))
+        };
+        // The object said as that type must not be a spell itself: "If you
+        // cast a spell this way, that artifact enters tapped" (Edgar) is the
+        // spell cast, not the permission's "artifact spell" description.
+        let not_spell = |t: &Target| {
+            matches!(t, Target::Intro(l, i) if get((*l, *i)).obj.as_ref().is_some_and(|o| {
+                o.filter.kind != Some(Noun::Spell)
+            }))
+        };
+        if cands.iter().any(untyped_spell)
+            && cands
+                .iter()
+                .any(|t| not_spell(t) && !words_of(t).is_disjoint(&rt))
+        {
+            cands.retain(|t| !untyped_spell(t));
+            note = "said as what it is, not the spell".into();
+        }
     }
     // "Whenever this creature becomes blocked by a creature, it deals 2
     // damage to that creature" (Acolyte of the Inferno): a bare "it" dealing

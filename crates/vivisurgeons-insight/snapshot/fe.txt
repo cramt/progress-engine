@@ -57,7 +57,7 @@ type: Legendary Creature — Human
 cost: {3}{R}
 > Whenever you cast an instant or sorcery spell that targets only Bill Potts or activate an ability that targets only Bill Potts, copy that spell or ability. You may choose new targets for the copy. This ability triggers only once each turn.
 > Doctor's companion (You can have two commanders if the other is the Doctor.)
-= BROKE at "~" after: whenever you cast an instant or sorcery spell that targets only
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Ability), posts: [TargetsOnly(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], ability: Triggered { trigger: When(Or([Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [TargetsOnly(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }, Activates { who: You, what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])), effect: [Copy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }, may_choose_new_targets: true }], limits: [OncePerTurn] } }
 = Keywords([Keyword { name: "doctor's companion", param: None }])
 
 ## Blighted Woodland

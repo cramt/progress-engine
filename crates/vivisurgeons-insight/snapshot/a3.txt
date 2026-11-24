@@ -356,7 +356,7 @@ cost: {G}{U}
 > Flying
 > Whenever a player casts a spell that targets only a single creature other than Ivy, you may copy that spell. The copy targets Ivy. (A copy of an Aura spell becomes a token.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "a" after: whenever a player casts a spell that targets only
+= BROKE at "~" after: whenever a player casts a spell that targets only a single creature other than
 
 ## Jace Reawakened
 face: Jace Reawakened

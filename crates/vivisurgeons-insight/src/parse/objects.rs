@@ -1150,6 +1150,16 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             };
             Some(Post::TargetsRecipient(Box::new(r)))
         },
+        // "that targets only a single creature you control", "that targets
+        // only this creature": one object, every target ([targets-only]).
+        |p| {
+            p.one_of(&["that target only", "that targets only"])?;
+            let o = alt!(p;
+                |p| { p.words("a single")?; filter(p).map(|filter| Objects { quant: Quant::One, filter }) },
+                |p| objects(p).filter(|o| matches!(o.quant, Quant::SelfRef | Quant::Unresolved(_))),
+            )?;
+            Some(Post::TargetsOnly(Box::new(o)))
+        },
         |p| { p.one_of(&["that target", "that targets"])?; objects(p).map(|o| Post::Targets(Box::new(o))) },
         // "a spell that's exactly two colors", "that isn't exactly two colors".
         |p| {

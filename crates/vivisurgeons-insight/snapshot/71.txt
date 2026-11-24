@@ -473,7 +473,7 @@ face: Imodane, the Pyrohammer
 type: Legendary Creature — Human Knight
 cost: {2}{R}{R}
 > Whenever an instant or sorcery spell you control that targets only a single creature deals damage to that creature, Imodane deals that much damage to each opponent.
-= BROKE at "a" after: whenever an instant or sorcery spell you control that targets only
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Controller(You), TargetsOnly(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, to: [Objects(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Player(EachOpponent)] }], limits: [] } }
 
 ## Indulgent Tormentor
 face: Indulgent Tormentor

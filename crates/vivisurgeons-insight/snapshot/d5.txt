@@ -338,7 +338,7 @@ cost: {2}{R}
 > When this enchantment enters, create a 1/1 red Soldier creature token with haste.
 > Whenever you cast a spell that targets only a single creature you control, create a 1/1 red Soldier creature token with haste, then copy that spell. The copy targets that token.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["soldier", "creature"], keywords: [Keyword { name: "haste", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
-= BROKE at "a" after: whenever you cast a spell that targets only
+= BROKE at "targets" after: whenever you cast a spell that targets only a single creature you control , create a <pt> red soldier creature token with haste , then copy that spell . the copy
 
 ## Glarb, Calamity's Augur
 face: Glarb, Calamity's Augur
