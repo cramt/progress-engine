@@ -1011,39 +1011,75 @@ fn into_branch(es: &mut Vec<Effect>) {
         };
         Some((path, first))
     };
+    // "reveals X cards … and you choose one of them" (Hollow Specter): a
+    // binder another binder's words say goes with that one, so the two
+    // move as one group or stay together ("Exile the top three cards …
+    // Choose one of them" inside one mode, You Find Some Prisoners).
+    let mut group: Vec<usize> = (0..bind.len()).collect();
+    fn root(g: &mut [usize], mut x: usize) -> usize {
+        while g[x] != x {
+            x = g[x];
+        }
+        x
+    }
+    for k in 0..bind.len() {
+        let ids = bind_ids(std::slice::from_ref(&bind[k]));
+        for (j, b) in bind.iter().enumerate() {
+            if j != k && says(b, &ids, false) {
+                let (a, b) = (root(&mut group, j), root(&mut group, k));
+                group[a.max(b)] = a.min(b);
+            }
+        }
+    }
+    let mut groups: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for k in 0..bind.len() {
+        let r = root(&mut group, k);
+        groups.entry(r).or_default().push(k);
+    }
+    // Where binders `ks` go together, if anywhere: a token the list around
+    // the branch makes exists before it, and what a "may" or an "if" says
+    // it made ("If you do, you may put a creature card … from among them",
+    // Call to the Kindred) may be what the list before it looked at: only a
+    // mode, which nothing outside it can have made, takes a made binder.
+    let place = |ks: &[usize]| -> Option<(Vec<(usize, usize)>, usize)> {
+        let members: Vec<Objects> = ks.iter().map(|&k| bind[k].clone()).collect();
+        let made = members.iter().any(|o| o.quant == Quant::Made);
+        let (path, first) = path_of(&bind_ids(&members), made)?;
+        let only_mode = matches!(then[path[0].0], Effect::Modal { .. })
+            && !then
+                .iter()
+                .enumerate()
+                .any(|(i, e)| i != path[0].0 && crate::backref::made(e).is_some());
+        (!made || only_mode).then_some((path, first))
+    };
+    // A group that one branch alone says moves whole; otherwise each
+    // binder no other binder's words say may still move on its own.
     let mut moves: Vec<BranchMove> = Vec::new();
-    for (k, o) in bind.iter().enumerate() {
-        let ids = bind_ids(std::slice::from_ref(o));
-        let made = o.quant == Quant::Made;
-        // "reveals X cards … and you choose one of them" (Hollow Specter):
-        // a binder another binder's words say stays with that one.
-        if bind
-            .iter()
-            .enumerate()
-            .any(|(j, b)| j != k && says(b, &ids, false))
-        {
-            continue;
+    for ks in groups.into_values() {
+        let mut each: Vec<BranchMove> = Vec::new();
+        match place(&ks).filter(|_| ks.len() > 1) {
+            Some((path, first)) => each.push((path, first, ks)),
+            None => {
+                for k in ks {
+                    let ids = bind_ids(std::slice::from_ref(&bind[k]));
+                    let said_by_another = bind
+                        .iter()
+                        .enumerate()
+                        .any(|(j, b)| j != k && says(b, &ids, false));
+                    if let Some((path, first)) = place(&[k]).filter(|_| !said_by_another) {
+                        each.push((path, first, vec![k]));
+                    }
+                }
+            }
         }
-        let Some((path, first)) = path_of(&ids, made) else {
-            continue;
-        };
-        // A token the list around the branch makes exists before it, and
-        // what a "may" or an "if" says it made ("If you do, you may put a
-        // creature card … from among them", Call to the Kindred) may be
-        // what the list before it looked at: only a mode, which nothing
-        // outside it can have made, takes a made binder.
-        if made
-            && (!matches!(then[path[0].0], Effect::Modal { .. })
-                || then
-                    .iter()
-                    .enumerate()
-                    .any(|(i, e)| i != path[0].0 && crate::backref::made(e).is_some()))
-        {
-            continue;
-        }
-        match moves.iter_mut().find(|(p, f, _)| *p == path && *f == first) {
-            Some((_, _, ks)) => ks.push(k),
-            None => moves.push((path, first, vec![k])),
+        for (path, first, ks) in each {
+            match moves.iter_mut().find(|(p, f, _)| *p == path && *f == first) {
+                Some((_, _, v)) => {
+                    v.extend(ks);
+                    v.sort_unstable();
+                }
+                None => moves.push((path, first, ks)),
+            }
         }
     }
     if moves.is_empty() {
