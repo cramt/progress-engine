@@ -142,7 +142,7 @@ face: Candlekeep Inspiration
 type: Sorcery
 cost: {4}{U}
 > Until end of turn, creatures you control have base power and toughness X/X, where X is the number of cards you own in exile and in your graveyard that are instant cards, are sorcery cards, and/or have an Adventure.
-= BROKE at "x" after: until end of turn , creatures you control have base power and toughness <pt> , where
+= BROKE at "your" after: until end of turn , creatures you control have base power and toughness <pt> , where x is the number of cards you own in exile and in
 
 ## Cogwork Wrestler
 face: Cogwork Wrestler
@@ -938,7 +938,7 @@ face: Synchronized Spellcraft
 type: Instant
 cost: {4}{R}
 > Synchronized Spellcraft deals 4 damage to target creature and X damage to that creature's controller, where X is the number of creatures in your party. (Your party consists of up to one each of Cleric, Rogue, Warrior, and Wizard.)
-= BROKE at "x" after: ~ deals 4 damage to target creature and x damage to that creature 's controller , where
+= BROKE at "party" after: ~ deals 4 damage to target creature and x damage to that creature 's controller , where x is the number of creatures in your
 
 ## Teething Wurmlet
 face: Teething Wurmlet

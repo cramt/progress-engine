@@ -90,7 +90,7 @@ face: Black Hole
 type: Sorcery
 cost: {3}{B}
 > Destroy target creature and up to X other target creatures, where X is the number of Attractions you've visited this turn.
-= BROKE at "x" after: destroy target creature and up to x other target creatures , where
+= BROKE at "visited" after: destroy target creature and up to x other target creatures , where x is the number of attractions you've
 
 ## Blackblade Reforged
 face: Blackblade Reforged

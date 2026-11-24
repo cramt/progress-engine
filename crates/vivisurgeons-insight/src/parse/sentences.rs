@@ -863,6 +863,18 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
     );
     let mut v = v?;
     continue_target(&mut v);
+    // "This Saga deals X damage to any target and X damage to any other
+    // target, where X is …", "creatures you control have base power and
+    // toughness X/X, where X is …": a clause read as several effects at
+    // once defines X for all of them ([where-x-binds]). A single effect
+    // read here took no suffix of its own.
+    if let Some(x) = p.attempt(|p| {
+        p.attempt(|p| p.tok(&Tok::Comma));
+        p.words("where x is")?;
+        measure(p)
+    }) {
+        return Some(vec![Effect::Where { then: v, x }]);
+    }
     Some(v)
 }
 

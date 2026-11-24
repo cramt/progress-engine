@@ -961,7 +961,7 @@ face: Sparksmith
 type: Creature — Goblin
 cost: {1}{R}
 > {T}: This creature deals X damage to target creature and X damage to you, where X is the number of Goblins on the battlefield.
-= BROKE at "x" after: {T} : this creature deals x damage to target creature and x damage to you , where
+= Activated { cost: [Tap], effect: [Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Player(You)] }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [In(Battlefield)], or: None } }) }], limits: [] }
 
 ## Spiked Baloth
 face: Spiked Baloth

@@ -585,7 +585,7 @@ cost: {1}{G}
 > Whenever you draw your second card each turn, create a 2/2 green Cat creature token.
 > {4}{G}{G}: Until end of turn, creatures you control have base power and toughness X/X, where X is the number of cards in your hand.
 = Triggered { trigger: When(DrawsNth { who: You, n: 2 }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["cat", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= BROKE at "x" after: {4} {G} {G} : until end of turn , creatures you control have base power and toughness <pt> , where
+= Activated { cost: [Mana(Mana(["4", "G", "G"]))], effect: [During { dur: UntilEndOfTurn, then: [Where { then: [Becomes { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: false }), types: [], gains: [], keeps: OtherTypes, dur: Permanent }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }) }] }], limits: [] }
 
 ## Karmic Guide
 face: Karmic Guide

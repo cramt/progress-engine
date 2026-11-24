@@ -997,7 +997,7 @@ cost: {2}{B}
 > Ward—Pay 3 life.
 > Whenever The Meep attacks, you may sacrifice another creature. If you do, creatures you control have base power and toughness X/X until end of turn, where X is the sacrificed creature's mana value.
 = Keywords([Keyword { name: "ward", param: Some(Cost([PayLife(N(3))])) }])
-= BROKE at "x" after: whenever ~ attacks , you may sacrifice another creature . if you do , creatures you control have base power and toughness <pt> until end of turn , where
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [With { bind: [/* sacrificed */ Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: Introduced(0) /* sacrificed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, IfYouDo([Where { then: [Becomes { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: false }), types: [], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], x: ManaValueOf(Objects { quant: Bound(0) /* sacrificed */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) }])] }], limits: [] }
 
 ## Tomb Fortress
 face: Tomb Fortress
