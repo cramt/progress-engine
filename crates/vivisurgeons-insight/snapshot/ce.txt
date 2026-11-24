@@ -204,7 +204,7 @@ cost: {2}{B}
 > Vanishing 3 (This creature enters with three time counters on it. At the beginning of your upkeep, remove a time counter from it. When the last is removed, sacrifice it.)
 > When this creature dies, if it had no time counters on it, create a 6/1 green Insect creature token with shroud. (It can't be the target of spells or abilities.)
 = Keywords([Keyword { name: "vanishing", param: Some(N(N(3))) }])
-= BROKE at "no" after: when this creature dies , if it had
+= Triggered { trigger: InterveningIf(When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Past(Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("time") }))), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(6), toughness: N(1), signed: false }), colors: [Green], types: ["insect", "creature"], keywords: [Keyword { name: "shroud", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Devour Intellect
 face: Devour Intellect

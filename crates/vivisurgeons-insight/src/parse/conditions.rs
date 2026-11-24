@@ -717,12 +717,15 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     Some(Condition::AmountIs { n: Amount::CountOf(Box::new(counters)), op: Op::Ge, value: Amount::N(value) })
                 },
                 // "if this enchantment has no charge counters on it".
+                // "When this creature dies, if it had no counters on it"
+                // (Unstoppable Slasher): as it was when it left.
                 |p| {
-                    p.one_of(&["has no", "have no"])?;
+                    let past = p.one_of(&["has no", "have no", "had no"])? == "had no";
                     let kind = p.attempt(counter_kind);
                     p.words("counters on")?;
                     p.one_of(&["it", "them"])?;
-                    Some(Condition::Not(Box::new(Condition::HasCounter { what: what.clone(), kind })))
+                    let c = Condition::Not(Box::new(Condition::HasCounter { what: what.clone(), kind }));
+                    Some(if past { Condition::Past(Box::new(c)) } else { c })
                 },
                 // "if it had counters on it": as it was when it left.
                 |p| {

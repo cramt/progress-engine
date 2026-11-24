@@ -13367,6 +13367,15 @@ fn past(o: &mut Out, c: &Condition) {
                 o.verb("weren't", obj_num(what));
                 is_predicate(o, f);
             }
+            // "if it had no counters on it" (Unstoppable Slasher).
+            Condition::HasCounter { what, kind } => {
+                objects(o, what);
+                o.w("had no");
+                if let Some(k) = kind {
+                    counter_kind(o, k);
+                }
+                o.w("counters on it");
+            }
             c => condition(o, c),
         },
         Condition::HasCounter { what, kind } => {

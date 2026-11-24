@@ -1096,7 +1096,7 @@ cost: {2}{B}
 > When this creature dies, if it had no counters on it, return it to the battlefield tapped under its owner's control with two stun counters on it.
 = Keywords([Keyword { name: "deathtouch", param: None }])
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: That, n: Half { of: LifeTotal(That), round_up: true } }], limits: [] }
-= BROKE at "no" after: when this creature dies , if it had
+= Triggered { trigger: InterveningIf(When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Past(Not(HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: None }))), effect: [EntersWith { effect: Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: Some(OwnerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, n: N(2), kind: "stun" }], limits: [] }
 
 ## Uurg, Spawn of Turg
 face: Uurg, Spawn of Turg
