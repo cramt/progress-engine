@@ -6730,6 +6730,32 @@ impl Game {
                         }
                     }
                 }
+                // CR 400.3: its owner's library, whoever controls it. A
+                // commander may go to the command zone instead (CR
+                // 903.9b), a choice the engine doesn't ask: refused.
+                Effect::ToOwnersLibraryBottom(on) => {
+                    for o in self.objects_on(&at, &on) {
+                        let Some(perm) = self.permanents.get(&o) else {
+                            continue;
+                        };
+                        if self.cards[perm.card.0 as usize].commander {
+                            self.unknowable.borrow_mut().get_or_insert_with(|| {
+                                Rejected::Refused {
+                                    card: self
+                                        .face_name(at.what.card())
+                                        .unwrap_or("an instruction")
+                                        .to_string(),
+                                    refusal: Unrunnable::new(
+                                        "a commander put into a library",
+                                        "puts a commander into a library, which its owner may replace",
+                                    ),
+                                }
+                            });
+                            continue;
+                        }
+                        self.leave_battlefield(o, Zone::LibraryBottom);
+                    }
+                }
                 // CR 701.21a: only a permanent its controller controls.
                 Effect::Sacrifice(o) => {
                     if let Some(o) = self.object(&at, o) {
@@ -7699,6 +7725,26 @@ impl Game {
                 .now_or_last(at, o)
                 .and_then(|c| c.pt)
                 .map_or(0, |p| p.power.max(0) as u32),
+            // CR 107.1b: a negative toughness gains no life. One with no
+            // toughness, or that the engine has no record of, is refused.
+            lower::Amount::ToughnessOf(o) => match self.now_or_last(at, o).and_then(|c| c.pt) {
+                Some(p) => p.toughness.max(0) as u32,
+                None => {
+                    self.unknowable
+                        .borrow_mut()
+                        .get_or_insert_with(|| Rejected::Refused {
+                            card: self
+                                .face_name(at.what.card())
+                                .unwrap_or("an instruction")
+                                .to_string(),
+                            refusal: Unrunnable::new(
+                                "the toughness of what has none",
+                                "reads the toughness of an object with none it knows",
+                            ),
+                        });
+                    0
+                }
+            },
             lower::Amount::TargetCardManaValue(s) => {
                 // The card's own face, never the copiable values it took
                 // on entering: what it was in the graveyard (CR 608.2h,
@@ -7992,11 +8038,12 @@ impl Game {
         // CR 702.16b: not a permanent with protection from the source;
         // CR 702.18a, 702.11b: nor one with shroud, nor with hexproof
         // unless its controller's.
-        let permanents = |f: &dyn Fn(&Chars) -> bool| -> Vec<Target> {
+        let permanents = |f: &dyn Fn(ObjectId, &Chars) -> bool| -> Vec<Target> {
             self.characteristics()
                 .into_iter()
-                .filter(|(_, c)| {
-                    f(c) && !source.is_some_and(|s| c.protected_from(s))
+                .filter(|(o, c)| {
+                    f(*o, c)
+                        && !source.is_some_and(|s| c.protected_from(s))
                         && !c.has(Keyword::Shroud)
                         && !(c.has(Keyword::Hexproof) && c.controller != p)
                 })
@@ -8008,9 +8055,11 @@ impl Game {
                 .filter(|q| !opponent || *q != p)
                 .map(Target::Player)
                 .collect(),
-            TargetSpec::Permanent(filter) => permanents(&|c| {
+            TargetSpec::Permanent(filter) => permanents(&|o, c| {
                 filter.0.iter().all(|pred| match pred {
                     Pred::YouControl => c.controller == p,
+                    // CR 508.1k: an attacking creature, from combat.
+                    Pred::Attacking => self.battlefield.attacking.contains(&o),
                     Pred::OpponentsControl => c.controller != p,
                     Pred::DefendingControls => {
                         object.and_then(|o| self.defending(o)) == Some(c.controller)
@@ -8020,7 +8069,7 @@ impl Game {
             }),
             TargetSpec::Any => players()
                 .map(Target::Player)
-                .chain(permanents(&|c| {
+                .chain(permanents(&|_, c| {
                     c.is(CardType::Creature)
                         || c.is(CardType::Planeswalker)
                         || c.is(CardType::Battle)
@@ -8028,7 +8077,7 @@ impl Game {
                 .collect(),
             TargetSpec::PlayerOrPlaneswalker => players()
                 .map(Target::Player)
-                .chain(permanents(&|c| c.is(CardType::Planeswalker)))
+                .chain(permanents(&|_, c| c.is(CardType::Planeswalker)))
                 .collect(),
             // CR 115.5: a spell can't target itself, and the one whose
             // mode or targets are being chosen is on top of the stack.
@@ -10243,6 +10292,7 @@ impl Game {
                 self.returned += 1;
             }
             Zone::Exile => self.put_in_exile(perm.card),
+            Zone::LibraryBottom => player.library.push_back(perm.card),
         }
         if to != Zone::Hand && self.cards[perm.card.0 as usize].commander {
             self.commanders_moved.push_back(perm.card);
@@ -10977,6 +11027,8 @@ enum Zone {
     Graveyard,
     Exile,
     Hand,
+    /// The bottom of its owner's library, the end a draw takes last.
+    LibraryBottom,
 }
 
 /// A permanent as it last existed on the battlefield (CR 608.2h, 113.7a).

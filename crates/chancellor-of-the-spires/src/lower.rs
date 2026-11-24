@@ -1622,6 +1622,9 @@ pub enum Effect {
     ExileUntilLeaves(On),
     /// "Return target permanent to its owner's hand".
     ToOwnersHand(On),
+    /// Condemn's "Put target attacking creature on the bottom of its
+    /// owner's library" (CR 400.3): one target permanent.
+    ToOwnersLibraryBottom(On),
     /// "Return this card from your graveyard to your hand": the
     /// ability's source, if it is still in its owner's graveyard. Such an
     /// ability functions only there (CR 113.6m, `Triggered::from_graveyard`).
@@ -2066,6 +2069,8 @@ pub enum Amount {
     /// "Equal to its power": of the object, or as it last existed (CR
     /// 608.2h).
     PowerOf(Obj),
+    /// "Equal to its toughness", the same way.
+    ToughnessOf(Obj),
     /// "Gain 3 life for each land card discarded this way": `each` for
     /// each card bound to `slot` that `filter` matches.
     PerFound {
@@ -3344,6 +3349,7 @@ impl<'a> Scope<'a> {
                 who: self.who(who)?,
                 n: match k {
                     i::Amount::PowerOf(o) => Amount::PowerOf(self.obj(o)?),
+                    i::Amount::ToughnessOf(o) => Amount::ToughnessOf(self.obj(o)?),
                     // "You gain that much life": the event's amount.
                     i::Amount::ThatMany if self.amount => Amount::ThatMuch,
                     k => Amount::N(n(k)?),
@@ -3444,6 +3450,30 @@ impl<'a> Scope<'a> {
                 slot: self.graveyard_binder(what).expect("a graveyard binder")?,
                 tapped: *tapped,
             },
+            i::Effect::Move {
+                what,
+                from: None,
+                to: i::Zone::OwnersLibraryBottom,
+                tapped: false,
+                transformed: false,
+                under: None,
+                order: None,
+            } if !matches!(what.quant, Quant::Rest { .. })
+                && matches!(what.filter.kind, None | Some(i::Noun::Permanent)) =>
+            {
+                // One target permanent. Several at once are ordered by
+                // their owner (CR 401.4), which isn't asked, and the
+                // source itself or a card found may not be a permanent
+                // by then.
+                match self.on(what)? {
+                    on @ On::One(Obj::Target(_)) => Effect::ToOwnersLibraryBottom(on),
+                    _ => {
+                        return Err(
+                            "putting other than one target on the bottom of a library".into()
+                        )
+                    }
+                }
+            }
             i::Effect::Move {
                 what,
                 from: None,
@@ -4731,6 +4761,8 @@ fn target_filter(o: &Objects) -> Result<Filter, String> {
                 | Pred::YouControl
                 | Pred::OpponentsControl
                 | Pred::ManaValue(..)
+                // Read from combat, not from the source (CR 508.1k).
+                | Pred::Attacking
         )
     }) {
         return Err("a target relative to its source".into());

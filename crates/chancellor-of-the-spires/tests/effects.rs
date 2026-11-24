@@ -7051,3 +7051,51 @@ fn reanimate_returns_a_creature_card_and_costs_its_mana_value_in_life() {
     assert!(!game.player(THEM).graveyard().contains(&wurm));
     assert_eq!(game.player(ME).life(), life - 6);
 }
+
+/// CR 400.3, 608.2h: Condemn puts the attacking creature on the bottom of
+/// its owner's library, and its controller gains life equal to its
+/// toughness as it last existed: 1 for Savannah Lions.
+#[test]
+fn condemn_bottoms_an_attacker_and_its_controller_gains_its_toughness() {
+    let mut game = deal_both(
+        &[("Plains", 40), ("Savannah Lions", 20)],
+        &[("Plains", 40), ("Condemn", 20)],
+        &[("Plains", 1), ("Savannah Lions", 1)],
+        &[("Plains", 1), ("Condemn", 1)],
+    );
+    play(&mut game, "Plains");
+    cast(&mut game, "Savannah Lions", None);
+    resolve(&mut game);
+    let lions = creature(&game, "Savannah Lions").unwrap();
+    let card = game.permanents()[&lions].card;
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Plains");
+    my_next_main(&mut game);
+    // CR 508.1k: not yet attacking, so no target for it.
+    step(&mut game, Answer::Act(Action::Pass));
+    let Decision::Priority { player, actions } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(player, THEM);
+    assert!(
+        !actions.iter().any(|a| matches!(a, Action::Cast(c)
+            if game.card(*c).is_some_and(|t| t.name == "Condemn"))),
+        "Condemn offered with no attacking creature"
+    );
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(lions, THEM)]));
+    while !matches!(game.decision(), Decision::Priority { player, .. } if player == THEM) {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    let life = game.player(ME).life();
+    cast_as(
+        &mut game,
+        THEM,
+        "Condemn",
+        Some(vec![Target::Object(lions)]),
+    );
+    resolve(&mut game);
+    assert!(creature(&game, "Savannah Lions").is_none());
+    assert_eq!(game.player(ME).library().back(), Some(&card));
+    assert_eq!(game.player(ME).life(), life + 1);
+}

@@ -1077,7 +1077,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-24 153 of the 500 replay to
-the end and 57.69% of their lines are followed** (18,263 of 31,659), 3
+the end and 57.80% of their lines are followed** (18,300 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 151 games have no card the engine refuses before any game (from 21). The
@@ -1315,7 +1315,11 @@ Siege-Gang Commander); a target creature card from a graveyard put
 onto the battlefield under its caster's control, and the life lost by
 that card's mana value as it was in the graveyard, whatever it entered
 as a copy of (CR 110.2a, 608.2h: Reanimate, whose 3 games go on, two to
-the end and one to Ghastly Demise). And
+the end and one to Ghastly Demise); "target attacking creature" read
+from combat, a permanent put on the bottom of its owner's library, and
+"its controller gains life equal to its toughness" as it last existed
+(CR 508.1k, 400.3, 608.2h: Condemn, whose 3 games go on to Damn's
+overload, Jirina and Plunder the Trollshaws). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles
@@ -1323,7 +1327,8 @@ from the line before its cast, whoever that line names exiling, with
 the log's "(X is 12.)" checked against the engine's X, and an
 ability's X announced as the log's "(X is 1)" says, a line whose text
 reads more like an ability the engine refuses than any it offers stopped
-at that refusal, a shuffle matched to an
+at that refusal, "puts [X] on bottom of their library with [Y]" followed
+by resolving the stack until it is there, a shuffle matched to an
 instruction's, the creature sacrificed for flashback, a land the log never
 names as a hypothesis, which of two permanents of one name an
 activation is of, the cards Michelangelo's Technique puts onto the

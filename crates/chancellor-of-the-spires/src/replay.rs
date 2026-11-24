@@ -194,6 +194,9 @@ pub enum Divergence {
     /// The log counters a spell the engine let leave the stack otherwise,
     /// or countered with another card.
     Countered { card: String },
+    /// The log puts a permanent on the bottom of a library with a spell
+    /// the engine resolved without putting it there.
+    Bottomed { card: String },
 }
 
 impl Stop {
@@ -2080,6 +2083,50 @@ impl Driver<'_> {
                 }
                 self.returned = (turn, seen);
                 self.did(i, format!("{} returned to a hand", cards.len()));
+            }
+            // A permanent a spell put on the bottom of its owner's library,
+            // the line naming both (Condemn's): the stack resolves until a
+            // card of that name is newly at the bottom of a library, and
+            // stops where the spell has left the stack without it.
+            PutsInLibrary {
+                cards: log::Moved::Seen(cards),
+                end: log::End::Bottom,
+                by: Some(log::Source::Card(by)),
+                ..
+            } if cards.len() == 1 => {
+                let name = cards[0].name().to_string();
+                let bottoms = |game: &Game| -> Vec<Option<CardId>> {
+                    (0..game.players().len())
+                        .map(|q| game.player(PlayerId(q as u8)).library().back().copied())
+                        .collect()
+                };
+                let before = bottoms(self.game());
+                loop {
+                    let game = self.game.as_ref().expect("set up");
+                    let called =
+                        |c: &CardId, n: &str| game.card(*c).is_some_and(|t| t.is_called(n));
+                    if bottoms(game)
+                        .iter()
+                        .zip(&before)
+                        .any(|(now, was)| now != was && now.is_some_and(|c| called(&c, &name)))
+                    {
+                        break;
+                    }
+                    let there = game.stack().iter().any(
+                        |o| matches!(o, StackObject::Spell { card, .. } if called(card, by.name())),
+                    );
+                    if !there {
+                        return Err(Stop::Diverged(Divergence::Bottomed { card: name }));
+                    }
+                    self.pass()?;
+                }
+                self.did(
+                    i,
+                    format!(
+                        "{name} put on the bottom of its owner's library by {} (CR 400.3)",
+                        by.name()
+                    ),
+                );
             }
             // Cards an instruction put on the bottom, which the engine
             // must have put there this turn.
