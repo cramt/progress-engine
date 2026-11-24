@@ -68,6 +68,7 @@ import type {
   Report,
   State,
 } from "./types.ts";
+import { PROJECTS, transcriptDirs, usageBetween } from "./usage.ts";
 
 const DRIVER = dirname(dirname(fileURLToPath(import.meta.url)));
 const REPO = resolve(DRIVER, "../../..");
@@ -491,8 +492,11 @@ function record(
       unreviewed,
     },
     queue: { length: q.queue.length, closed },
-    // A T3 Code thread can't read its own spend; see README.md.
-    costUsd: null,
+    usage: usageBetween(
+      transcriptDirs(REPO, PROJECTS),
+      new Date(f.startedAt),
+      new Date(),
+    ),
   };
   appendFileSync(file("metrics.jsonl"), `${JSON.stringify(metrics)}\n`);
   log(

@@ -116,14 +116,18 @@ skill runs a method review sub-agent that rewrites `method-notes.md`.
 | `method-notes.md` | Written by the method review; in every brief. |
 | `queue.jsonl`, `backlog.jsonl` | Findings waiting for a writer. |
 | `escalations.md` | Decisions for the human: card exclusions, milestones to pin, unpushed or abandoned batches, git refusals, stops. |
-| `metrics.jsonl` | One line per batch: `batch`, `outcome` (`pushed`, `failed`, `unpushed`, `empty`, `abandoned`, `refused`), `startedAt`, `endedAt`, `commits`, `overall`, `milestone`, round-trip, lint, findings, queue, `costUsd`. |
+| `metrics.jsonl` | One line per batch: `batch`, `outcome` (`pushed`, `failed`, `unpushed`, `empty`, `abandoned`, `refused`), `startedAt`, `endedAt`, `commits`, `overall`, `milestone`, round-trip, lint, findings, queue, `usage` (tokens, from 2026-11-24; `costUsd` before batch 27). |
 | `batches/<n>/` | Baseline and after snapshots, `brief.md`, `gates-<sha>.md`, `report.json`, and `review/` with the inputs and findings. |
 
 ## What the loop driver did that this one doesn't
 
-- **Cost.** A thread can't read its own spend, so `costUsd` is `null` from
-  this driver on and `lifetimeCostUsd` stays where the loop driver left it.
-  There is no per-batch cost cap either; the quota gate is what bounds spend.
+- **Cost in dollars.** A thread can't read its own spend, so `costUsd` is
+  `null` from this driver on and `lifetimeCostUsd` stays where the loop
+  driver left it. `finish` records tokens instead, read from Claude Code's
+  transcripts of the clone over the batch's window (`src/usage.ts`, which
+  also runs alone for any window, Chancellor's batches included). Batches 27
+  to 43 have neither. There is no per-batch cost cap; the quota gate is what
+  bounds spend.
 - **Hooks.** Pushing, pinning and editing `decisions.md` were denied as the
   writer tried; now they are rules in the skill, and the gates catch each
   after the fact. The reviewers' read-only-three-files rule is the prompt's
