@@ -3780,6 +3780,15 @@ pub enum Static {
         by: Mana,
         shift: CostShift,
     },
+    /// "Mana abilities of this land cost an additional 1 life to activate"
+    /// (Thran Portal): an additional cost, paid with the activation cost
+    /// (CR 118.8), where `AbilityCostChange` is a cost increase, which is
+    /// mana only (CR 601.2f).
+    AbilityAdditionalCost {
+        kind: AbilityKind,
+        of: Objects,
+        cost: Vec<Cost>,
+    },
     /// "Cycling abilities you activate cost {2} less to activate": every
     /// such ability that player activates, from any zone, apart from the
     /// abilities of some objects: a cycling card in hand has an owner and

@@ -689,6 +689,21 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                 targeting = Some(*t);
             }
             p.verb("cost")?;
+            // "Mana abilities of this land cost an additional 1 life to
+            // activate" (Thran Portal), "… cost an additional "Sacrifice a
+            // land" to activate": an additional cost, not an increase.
+            if let Some(cost) = p.attempt(|p| {
+                p.words("an additional")?;
+                let cost = alt!(p;
+                    |p| { let n = amount(p)?; p.word("life")?; Some(vec![Cost::PayLife(n)]) },
+                    |p| { p.tok(&Tok::Quote)?; let c = costs(p)?; p.tok(&Tok::Quote)?; Some(c) },
+                )?;
+                p.words("to activate")?;
+                Some(cost)
+            }) {
+                if targeting.is_some() { return None; }
+                return Some(vec![Static::AbilityAdditionalCost { kind, of, cost }]);
+            }
             let by = mana(p)?;
             let less = p.one_of(&["less", "more"])? == "less";
             p.words("to activate")?;

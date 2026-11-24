@@ -455,6 +455,7 @@ fn listed_not_characteristics(s: &i::Static) -> bool {
             | CostChange { .. }
             | CostChangePer { .. }
             | AbilityCostChange { .. }
+            | AbilityAdditionalCost { .. }
             | ActivatedCostChange { .. }
             | AdditionalCost { .. }
             | AdditionalCostFor { .. }

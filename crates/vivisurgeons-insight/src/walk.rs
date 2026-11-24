@@ -2709,6 +2709,12 @@ impl Walk for Static {
                     Walk::walk(x0, v);
                 }
             }
+            Static::AbilityAdditionalCost { of, cost, .. } => {
+                Walk::walk(of, v);
+                for x0 in (cost).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Static::ActivatedCostChange { who, targeting, .. } => {
                 Walk::walk(who, v);
                 if let Some(x0) = (targeting).as_mut() {

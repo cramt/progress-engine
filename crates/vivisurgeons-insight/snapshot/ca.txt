@@ -144,7 +144,7 @@ face: Brutal Suppression
 type: Enchantment
 cost: {R}
 > Activated abilities of nontoken Rebels cost an additional "Sacrifice a land" to activate.
-= BROKE at "additional" after: activated abilities of nontoken rebels cost an
+= Static([AbilityAdditionalCost { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [[State(Nontoken), Subtype("rebel")]], kind: None, posts: [], or: None } }, cost: [Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })] }])
 
 ## Burning Shield Askari
 face: Burning Shield Askari

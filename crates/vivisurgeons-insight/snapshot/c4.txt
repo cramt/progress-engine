@@ -997,7 +997,7 @@ type: Land — Gate
 = Static([EntersTappedUnless { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: YouControl(Objects { quant: AtMost(N(2)), filter: Filter { alts: [[State(Other), Type("land")]], kind: None, posts: [], or: None } }) }])
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(BasicLandType)] }])
 = Static([AlsoIs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Chosen }])
-= BROKE at "additional" after: mana abilities of this land cost an
+= Static([AbilityAdditionalCost { kind: Mana, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cost: [PayLife(N(1))] }])
 
 ## Titania's Command
 face: Titania's Command

@@ -14427,6 +14427,24 @@ fn static_other(o: &mut Out, s: &Static) {
                 o.w(". this effect can't reduce the mana in that cost to less than one mana");
             }
         }
+        Static::AbilityAdditionalCost { kind, of, cost: c } => {
+            adj(o, &Adj::Ability(*kind), None);
+            o.w("abilities of");
+            objects(o, of);
+            o.w("cost an additional");
+            match &c[..] {
+                [Cost::PayLife(k)] => {
+                    amount(o, k);
+                    o.w("life");
+                }
+                c => {
+                    o.tok(Tok::Quote);
+                    costs(o, c);
+                    o.tok(Tok::Quote);
+                }
+            }
+            o.w("to activate");
+        }
         Static::ActivatedCostChange {
             kind,
             who,
