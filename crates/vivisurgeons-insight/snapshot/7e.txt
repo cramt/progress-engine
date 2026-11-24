@@ -673,7 +673,7 @@ face: Platinum Emperion
 type: Artifact Creature — Golem
 cost: {8}
 > Your life total can't change. (You can't gain or lose life. You can't pay any amount of life except 0.)
-= BROKE at "." after: your life total can't change
+= Static([PlayerRestrict { who: You, rules: [CantGainLife, CantLoseLife] }])
 
 ## Plea for Guidance
 face: Plea for Guidance

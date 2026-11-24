@@ -344,7 +344,7 @@ face: Everybody Lives!
 type: Instant
 cost: {1}{W}
 > All creatures gain hexproof and indestructible until end of turn. Players gain hexproof until end of turn. Players can't lose life this turn and players can't lose the game or win the game this turn.
-= BROKE at "life" after: all creatures gain hexproof and indestructible until end of turn . players gain hexproof until end of turn . players can't lose
+= BROKE at "or" after: all creatures gain hexproof and indestructible until end of turn . players gain hexproof until end of turn . players can't lose life this turn and players can't lose the game
 
 ## Fire Nation Cadets
 face: Fire Nation Cadets

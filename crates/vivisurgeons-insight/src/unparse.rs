@@ -2176,6 +2176,13 @@ mod syn {
         alt(o, vec![of("that player's"), of("their")]);
     }
 
+    /// Named rewrite [life-total-cant-change]: "Your life total can't
+    /// change" (Platinum Emperion) is "you can't gain or lose life", as its
+    /// reminder text says, CR 119.7 and 119.8's two rules.
+    pub fn life_total_cant_change(o: &mut Out, each: Out, total: Out) {
+        alt(o, vec![each, total]);
+    }
+
     /// Named rewrite [when-is-whenever]: a printed "When this creature
     /// enters" (Oblivion Ring) is "whenever this creature enters". CR 603.1
     /// writes every trigger "[When/Whenever/At] [trigger condition or event],
@@ -7944,6 +7951,7 @@ fn player_rule(o: &mut Out, r: &PlayerRule) {
             o.w("each turn");
         }
         PlayerRule::CantGainLife => o.w("gain life"),
+        PlayerRule::CantLoseLife => o.w("lose life"),
         PlayerRule::CantLoseGame => o.w("lose the game"),
         PlayerRule::CantWinGame => o.w("win the game"),
         PlayerRule::CantSearchLibraries => o.w("search libraries"),
@@ -14523,13 +14531,24 @@ fn static_other(o: &mut Out, s: &Static) {
             syn::cant_be_cast(o, active, passive);
         }
         Static::PlayerRestrict { who, rules } => {
-            player(o, who);
-            o.w("can't");
-            for (i, r) in rules.iter().enumerate() {
-                if i > 0 {
-                    o.w("or");
+            let each = out(|o| {
+                player(o, who);
+                o.w("can't");
+                for (i, r) in rules.iter().enumerate() {
+                    if i > 0 {
+                        o.w("or");
+                    }
+                    player_rule(o, r);
                 }
-                player_rule(o, r);
+            });
+            if rules[..] == [PlayerRule::CantGainLife, PlayerRule::CantLoseLife] {
+                let total = out(|o| {
+                    whose(o, who);
+                    o.w("life total can't change");
+                });
+                syn::life_total_cant_change(o, each, total);
+            } else {
+                o.add(each);
             }
         }
         Static::UntapDuring { what, step: s } => {

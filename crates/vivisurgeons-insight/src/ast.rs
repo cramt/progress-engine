@@ -2811,6 +2811,9 @@ pub enum PlayerRule {
         what: Filter,
     },
     CantGainLife,
+    /// "can't lose life": no exchange or new life total lowers it, and no
+    /// life can be paid (CR 119.8).
+    CantLoseLife,
     /// "can't lose the game", "can't win the game": no way to win or lose
     /// (CR 104.2, 104.3) ends the game for that player ([cant-lose-win]).
     CantLoseGame,

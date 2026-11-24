@@ -526,6 +526,14 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             p.words("on each of your turns")?;
             Some(vec![Static::ExtraLand(n)])
         },
+        // "Your life total can't change. (You can't gain or lose life. …)"
+        // (Platinum Emperion): the reminder text's two rules
+        // ([life-total-cant-change]).
+        |p| {
+            let who = super::objects::whose(p)?;
+            p.words("life total can't change")?;
+            Some(vec![Static::PlayerRestrict { who, rules: vec![PlayerRule::CantGainLife, PlayerRule::CantLoseLife] }])
+        },
         |p| {
             let who = player(p)?;
             let mut rules = vec![player_rule(p)?];
@@ -1629,6 +1637,7 @@ pub(super) fn player_rule_bare(p: &mut P) -> Option<PlayerRule> {
             Some(PlayerRule::CantCastMoreThanEachTurn { n, what })
         },
         |p| p.words("gain life").map(|_| PlayerRule::CantGainLife),
+        |p| p.words("lose life").map(|_| PlayerRule::CantLoseLife),
         |p| p.words("lose the game").map(|_| PlayerRule::CantLoseGame),
         |p| p.words("win the game").map(|_| PlayerRule::CantWinGame),
         |p| p.words("get counters").map(|_| PlayerRule::CantGetCounters),

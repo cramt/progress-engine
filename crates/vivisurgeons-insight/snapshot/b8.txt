@@ -182,7 +182,7 @@ cost: {2}{W}
 > Up to one target creature you control gains protection from each of your opponents until end of turn. Draw a card. (It can't be blocked, targeted, dealt damage, enchanted, or equipped by anything controlled by those players.)
 > Fateful hour — If you have 5 or less life, you can't lose life this turn, you can't lose the game this turn, and your opponents can't win the game this turn.
 = BROKE at "until" after: up to one target creature you control gains protection from each of your opponents
-= BROKE at "life" after: fateful hour — if you have 5 or less life , you can't lose
+= Labelled { label: "fateful hour", ability: Spell([If { order: Leading, cond: LifeAtMost(5), then: [PlayerRestrict { who: You, rule: CantLoseLife, dur: ThisTurn }, PlayerRestrict { who: You, rule: CantLoseGame, dur: ThisTurn }, PlayerRestrict { who: EachOpponent, rule: CantWinGame, dur: ThisTurn }] }]) }
 
 ## Cunning Geysermage
 face: Cunning Geysermage
