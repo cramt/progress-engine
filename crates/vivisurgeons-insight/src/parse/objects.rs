@@ -1828,6 +1828,7 @@ fn marked_this_way(p: &mut P) -> Option<Marked> {
     alt!(p;
         marked,
         |p| p.word("cast").map(|_| Marked::Cast),
+        |p| p.word("played").map(|_| Marked::Played),
         |p| p.word("tapped").map(|_| Marked::Tapped),
         |p| p.word("removed").map(|_| Marked::Removed),
         |p| p.word("manifested").map(|_| Marked::Manifested),

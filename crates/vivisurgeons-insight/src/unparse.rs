@@ -967,6 +967,14 @@ mod syn {
         alt(o, vec![verb_alone, full]);
     }
 
+    /// `subject` with the subject said first: "may" alone reads only after
+    /// "and", so the first form, the one printed, keeps the player.
+    pub fn subject_first(o: &mut Out, said: Out, verb_alone: Out, verb_after: Out) {
+        let mut full = said;
+        full.add(verb_after);
+        alt(o, vec![full, verb_alone]);
+    }
+
     /// One subject with a list of predicates, or each predicate its own
     /// sentence with the subject said again: "Equipped creature gets
     /// +1/+1 and has flying" holds the same statics as two sentences.
@@ -4247,6 +4255,20 @@ fn subj(o: &mut Out, who: &Player, verb: &str, cx: &Cx) {
     }
 }
 
+/// "each opponent exiles a card from their hand and may play that card"
+/// (Lightstall Inquisitor): a "may" continuing the clause before it leaves
+/// its subject unsaid, as a third-person verb does ([continued-subject]).
+fn may_subject(o: &mut Out, who: &Player, cx: &Cx) {
+    let said = out(|o| player(o, who));
+    let after = out(|o| o.w("may"));
+    if *who != Player::You && continues_player(cx, who) {
+        syn::subject_first(o, said, out(|o| o.w("may")), after);
+    } else {
+        o.add(said);
+        o.add(after);
+    }
+}
+
 // ---------------------------------------------------------------- objects
 
 fn obj_num(x: &Objects) -> Num {
@@ -4919,6 +4941,7 @@ fn marked_word(m: Marked) -> &'static str {
         Marked::PutOntoBattlefield => "put onto the battlefield",
         Marked::Manifested => "manifested",
         Marked::Cast => "cast",
+        Marked::Played => "played",
         Marked::Cycled => "cycled",
     }
 }
@@ -8423,8 +8446,7 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                         }
                     };
                     let trail = out(|o| {
-                        player(o, who);
-                        o.w("may");
+                        may_subject(o, who, cx);
                         clauses(o, &then[..1], &inner);
                         after(o);
                     });
@@ -8440,8 +8462,7 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                     return;
                 }
             }
-            player(o, who);
-            o.w("may");
+            may_subject(o, who, cx);
             // "You may put a creature card … onto the battlefield. That
             // creature gains haste.": the steps after the option, said in
             // its sentence or in sentences of their own.

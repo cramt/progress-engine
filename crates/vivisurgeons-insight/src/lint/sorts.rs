@@ -247,6 +247,7 @@ fn gone(m: Marked) -> bool {
         | Marked::Tapped
         | Marked::Removed
         | Marked::PutOntoBattlefield
+        | Marked::Played
         | Marked::Manifested => false,
     }
 }

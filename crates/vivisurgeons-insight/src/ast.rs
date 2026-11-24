@@ -1469,6 +1469,9 @@ pub enum Marked {
     /// "the exiled cards that weren't cast this way": what an earlier "you
     /// may cast that card" cast.
     Cast,
+    /// "Each land played this way enters tapped" (Lightstall Inquisitor):
+    /// what an earlier "may play that card" played as a land.
+    Played,
     /// "the cycled card": the card whose cycling ability the event is.
     Cycled,
 }
@@ -2923,36 +2926,51 @@ fn player_loop_objects(who: &Player) -> Option<Objects> {
 /// pass per player, `ForEach { players, [Create { who: That }, Performed {
 /// by: That, .. }] }`. Read as two loops, `Created` was every player's
 /// token, and each total went on all of them ([each-player-creates]).
+///
+/// "each opponent exiles a card from their hand and may play that card"
+/// (Lightstall Inquisitor) is the same: each opponent may play the card that
+/// opponent exiled, `ForEach { players, [Performed { by: That, .. }, May {
+/// who: That, .. }] }`.
 pub fn each_player_creates(es: &mut Vec<Effect>) {
-    struct HasCreated(bool);
-    impl crate::walk::Visitor for HasCreated {
+    struct HasRef(Hint, bool);
+    impl crate::walk::Visitor for HasRef {
         fn enter(&mut self, o: &mut Objects) -> bool {
-            self.0 |= o.quant == Quant::Unresolved(Hint::Created);
+            self.1 |= o.quant == Quant::Unresolved(self.0);
             true
         }
     }
+    let refers = |e: &Effect, h: Hint| {
+        let mut e = e.clone();
+        let mut has = HasRef(h, false);
+        crate::walk::Walk::walk(&mut e, &mut has);
+        has.1
+    };
     let mut i = 0;
     while i + 1 < es.len() {
         let pair = match (&es[i], &es[i + 1]) {
             (Effect::Create { who, .. }, Effect::Performed { by, effect }) if who == by => {
-                let mut e = (**effect).clone();
-                let mut has = HasCreated(false);
-                crate::walk::Walk::walk(&mut e, &mut has);
-                has.0
+                refers(effect, Hint::Created)
+            }
+            (Effect::Performed { by, .. }, Effect::May { who, then }) if who == by => {
+                then.iter().any(|e| refers(e, Hint::Antecedent))
             }
             _ => false,
         };
         let each = match &es[i] {
-            Effect::Create { who, .. } if pair => player_loop_objects(who),
+            Effect::Create { who, .. } | Effect::Performed { by: who, .. } if pair => {
+                player_loop_objects(who)
+            }
             _ => None,
         };
         if let Some(each) = each {
             let mut then: Vec<Effect> = es.drain(i..i + 2).collect();
-            if let Effect::Create { who, .. } = &mut then[0] {
-                *who = Player::That;
-            }
-            if let Effect::Performed { by, .. } = &mut then[1] {
-                *by = Player::That;
+            for e in then.iter_mut() {
+                if let Effect::Create { who, .. }
+                | Effect::Performed { by: who, .. }
+                | Effect::May { who, .. } = e
+                {
+                    *who = Player::That;
+                }
             }
             es.insert(
                 i,
@@ -3142,6 +3160,11 @@ pub fn each_player_creates_said(es: &mut Vec<Effect>) {
                     who: Player::That, ..
                 }, Effect::Performed {
                     by: Player::That, ..
+                }]
+                | [Effect::Performed {
+                    by: Player::That, ..
+                }, Effect::May {
+                    who: Player::That, ..
                 }] => [Player::Each, Player::EachOpponent]
                     .into_iter()
                     .find(|p| player_loop_objects(p).as_ref() == Some(each)),
@@ -3153,11 +3176,13 @@ pub fn each_player_creates_said(es: &mut Vec<Effect>) {
             let Effect::ForEach { mut then, .. } = es.remove(i) else {
                 unreachable!()
             };
-            if let Effect::Create { who: w, .. } = &mut then[0] {
-                *w = who.clone();
-            }
-            if let Effect::Performed { by, .. } = &mut then[1] {
-                *by = who;
+            for e in then.iter_mut() {
+                if let Effect::Create { who: w, .. }
+                | Effect::Performed { by: w, .. }
+                | Effect::May { who: w, .. } = e
+                {
+                    *w = who.clone();
+                }
             }
             es.splice(i..i, then);
             i += 2;

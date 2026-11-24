@@ -873,7 +873,8 @@ fn verb_matches(how: Marked, verb: &str) -> bool {
         Marked::Removed => has("RemoveCounters"),
         Marked::PutOntoBattlefield => has("Move>Battlefield") || has("PutOnto"),
         Marked::Manifested => has("manifest") || has("cloak"),
-        Marked::Cast => has("Cast"),
+        // A land is played through the same `Cast { verb: Play }`.
+        Marked::Cast | Marked::Played => has("Cast"),
         Marked::Cycled => has("@trigger"),
     }
 }

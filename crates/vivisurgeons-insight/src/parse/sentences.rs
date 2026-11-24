@@ -1288,7 +1288,10 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
                             .is_some_and(|b| b == w || b.strip_suffix('e') == Some(w))
                     })
         };
-        let continues = p.peek_word().is_some_and(agrees);
+        // "each opponent exiles a card from their hand and may play that
+        // card" (Lightstall Inquisitor): a modal agrees with any subject,
+        // so "may" continues it as a third-person verb does.
+        let continues = p.peek_word().is_some_and(|w| agrees(w) || w == "may");
         // A continued target is the one chosen ([continued-subject]).
         let who = if continues {
             // After a "they", a clause with no player of its own ("put that
