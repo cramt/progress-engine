@@ -4922,8 +4922,9 @@ pub struct Activated {
 pub struct ActivationLimits {
     /// "Activate only once each turn" (CR 602.5b).
     pub once_per_turn: bool,
-    /// "Activate only if an opponent lost life this turn" (CR 602.5).
-    pub opponent_lost_life: bool,
+    /// "Activate only if …": each condition must hold as it would begin
+    /// to be activated, or it is prohibited (CR 602.5).
+    pub only_if: Vec<OnlyIf>,
     /// "Activate only as a sorcery": in its controller's main phase with
     /// the stack empty (CR 602.5d, 307.1).
     pub sorcery_speed: bool,
@@ -4945,11 +4946,7 @@ pub fn activated(
     for l in limits {
         match l {
             i::Limit::OncePerTurn => limited.once_per_turn = true,
-            i::Limit::OnlyIf(i::Condition::DidThisTurn(e))
-                if matches!(&**e, i::Event::LosesLife(i::Player::AnOpponent)) =>
-            {
-                limited.opponent_lost_life = true
-            }
+            i::Limit::OnlyIf(c) => limited.only_if.push(only_if(c)?),
             other => return Err(format!("an activated ability limited by {}", short(other))),
         }
     }
@@ -4960,6 +4957,72 @@ pub fn activated(
         cost: activation_cost(cost)?,
         program: scope.program,
         limits: limited,
+    })
+}
+
+/// What an "Activate only if" asks of the game, read from the ability's
+/// controller (CR 602.5).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum OnlyIf {
+    /// "an opponent lost life this turn".
+    OpponentLostLife,
+    /// Threshold's "there are seven or more cards in your graveyard".
+    CardsInYourGraveyard(Count),
+    /// "an opponent controls more lands than you": some opponent controls
+    /// more permanents the filter matches than its controller does.
+    OpponentControlsMore(Filter),
+}
+
+fn only_if(c: &i::Condition) -> Result<OnlyIf, String> {
+    Ok(match c {
+        i::Condition::DidThisTurn(e)
+            if matches!(&**e, i::Event::LosesLife(i::Player::AnOpponent)) =>
+        {
+            OnlyIf::OpponentLostLife
+        }
+        i::Condition::AmountIs {
+            n: i::Amount::CountOf(o),
+            op,
+            value: i::Amount::N(v),
+        } => match cards_in_graveyards(o) {
+            Some(Ok(Amount::CardsInGraveyards {
+                whose: Whose::Yours,
+                named: None,
+                filter,
+            })) if filter == CardFilter(vec![Filter::default()]) => {
+                OnlyIf::CardsInYourGraveyard(count_of(*op, *v)?)
+            }
+            Some(Err(node)) => return Err(node),
+            _ => return Err("an activated ability limited by OnlyIf(AmountIs)".into()),
+        },
+        i::Condition::ControlsMore {
+            who: i::Player::AnOpponent,
+            what,
+            than: i::Player::You,
+        } => {
+            let f = objects(&Objects {
+                quant: Quant::All,
+                filter: what.clone(),
+            })?;
+            // Counted per player, so a filter that says whose, or reads
+            // its source, would count something else.
+            if f.0
+                .iter()
+                .any(|p| !matches!(p, Pred::Is(_) | Pred::IsNot(_) | Pred::IsAny(_)))
+            {
+                return Err(
+                    "an activated ability limited by OnlyIf(ControlsMore) of a relative filter"
+                        .into(),
+                );
+            }
+            OnlyIf::OpponentControlsMore(f)
+        }
+        other => {
+            return Err(format!(
+                "an activated ability limited by OnlyIf({})",
+                short(other)
+            ))
+        }
     })
 }
 

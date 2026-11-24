@@ -6845,3 +6845,73 @@ fn malcolm_discards_the_card_chosen_and_refuses_the_free_cast_at_four_counters()
     }
     panic!("the fourth hit refuses");
 }
+
+/// Whether `source` offers an ability other than a mana ability now.
+fn activatable(game: &Game, source: chancellor_of_the_spires::model::ObjectId) -> bool {
+    match game.decision() {
+        Decision::Priority { actions, .. } => actions
+            .iter()
+            .any(|a| matches!(a, Action::Activate(x) if x.source == source)),
+        _ => false,
+    }
+}
+
+/// CR 602.5: Weathered Wayfarer's "Activate only if an opponent controls
+/// more lands than you" is offered only once they have more.
+#[test]
+fn weathered_wayfarer_searches_only_while_an_opponent_has_more_lands() {
+    let mut game = deal_both(
+        &[("Plains", 50), ("Weathered Wayfarer", 10)],
+        &[("Forest", 60)],
+        &[("Plains", 1), ("Weathered Wayfarer", 1)],
+        &[("Forest", 2)],
+    );
+    play(&mut game, "Plains");
+    cast(&mut game, "Weathered Wayfarer", None);
+    resolve(&mut game);
+    let wayfarer = creature(&game, "Weathered Wayfarer").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    assert!(!activatable(&game, wayfarer), "one land each");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    my_next_main(&mut game);
+    assert!(activatable(&game, wayfarer), "two lands to my one");
+}
+
+/// CR 602.5, 207.2c: Barbarian Ring's threshold ability is offered only
+/// with seven or more cards in its controller's graveyard.
+#[test]
+fn barbarian_ring_deals_its_damage_only_at_threshold() {
+    let mut game = deal(
+        &[("Mountain", 50), ("Barbarian Ring", 10)],
+        &[("Forest", 60)],
+        &[("Mountain", 1), ("Barbarian Ring", 1)],
+    );
+    play(&mut game, "Barbarian Ring");
+    let ring = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| {
+            game.card(p.card)
+                .is_some_and(|t| t.name == "Barbarian Ring")
+        })
+        .map(|(o, _)| *o)
+        .unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    for _ in 0..20 {
+        let cards = game.player(ME).graveyard().len();
+        assert_eq!(
+            activatable(&game, ring),
+            cards >= 7,
+            "{cards} in the graveyard"
+        );
+        if cards >= 7 {
+            return;
+        }
+        my_next_main(&mut game);
+    }
+    panic!("never reached threshold");
+}

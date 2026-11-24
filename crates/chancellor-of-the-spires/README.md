@@ -447,7 +447,7 @@ non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**45 of Loam's 90 distinct cards are played or cast and resolved, 34 of
+**45 of Loam's 90 distinct cards are played or cast and resolved, 35 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
@@ -465,7 +465,8 @@ since an activated ability can cost a discard, 30 of them from
 from 2026-11-22, and Desperate Ravings, since a discard can be at
 random, 32 the same day, and Squee, Goblin Nabob, since an ability can
 work from a graveyard, 33, and Frantic Search, since "untap up to three
-lands" is chosen as it resolves, 34), Blast Zone played too since it
+lands" is chosen as it resolves, 34, and Cephalid Coliseum, since an
+activated ability can be limited to threshold, 35, 2026-11-24), Blast Zone played too since it
 enters with its counter, its abilities carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
@@ -1075,8 +1076,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-24 148 of the 500 replay to
-the end and 56.93% of their lines are followed** (18,024 of 31,659), 3
+Worked card by card from there, **on 2026-11-24 150 of the 500 replay to
+the end and 57.30% of their lines are followed** (18,142 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 9 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 151 games have no card the engine refuses before any game (from 21). The
@@ -1299,7 +1300,12 @@ resolves read and refused by name as it is reached (CR 701.9b, 608.2h,
 608.2g: Malcolm, Alluring Scoundrel, whose 5 games go on to other cards,
 Aang's Iceberg in 2, Chrome Host Seedshark, Choking Tethers and
 Spectacular Pileup, none reaching its free cast at four chorus
-counters). And
+counters); an activated ability limited to when a condition holds,
+offered only while it does: threshold's seven cards in its controller's
+graveyard and "an opponent controls more lands than you" (CR 602.5:
+Barbarian Ring and Weathered Wayfarer, whose 6 games go on, two to the
+end, the rest to Ramosian Sergeant, Reckless Abandon, Ravenous Baloth
+and a cast the replay doesn't follow). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

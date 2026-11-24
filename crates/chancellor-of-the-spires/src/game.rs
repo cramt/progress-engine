@@ -4808,11 +4808,6 @@ impl Game {
                 let Ability::Unread(k) = ability else {
                     continue;
                 };
-                let opponent_lost = self
-                    .players
-                    .iter()
-                    .enumerate()
-                    .any(|(q, pl)| q != p.0 as usize && pl.lost_life);
                 let cards_short = def.cost.cards.as_ref().is_some_and(|c| {
                     let (legal, unsure) = self.payable_cards(p, c);
                     legal.len() + unsure < c.count as usize
@@ -4828,7 +4823,11 @@ impl Game {
                     || def.cost.life > 0 && player.life < def.cost.life as i32
                     || def.limits.once_per_turn && self.used.contains(&(id, *k))
                     || def.limits.power_up && self.powered_up.contains(&(id, *k))
-                    || def.limits.opponent_lost_life && !opponent_lost
+                    || !def
+                        .limits
+                        .only_if
+                        .iter()
+                        .all(|c| self.only_if_holds(c, p, id, &chars))
                     || def.limits.sorcery_speed
                         && !(p == self.active && self.step.is_main() && self.stack.is_empty())
                 {
@@ -5114,6 +5113,44 @@ impl Game {
             })
             .count();
         c.count.holds(n as u32)
+    }
+
+    /// Whether an "Activate only if" lets `p` begin to activate the
+    /// ability of `source` now (CR 602.5).
+    fn only_if_holds(
+        &self,
+        c: &lower::OnlyIf,
+        p: PlayerId,
+        source: ObjectId,
+        source_chars: &Chars,
+    ) -> bool {
+        match c {
+            lower::OnlyIf::OpponentLostLife => self
+                .players
+                .iter()
+                .enumerate()
+                .any(|(q, pl)| q != p.0 as usize && pl.lost_life),
+            // A hidden card in a graveyard is still a card there.
+            lower::OnlyIf::CardsInYourGraveyard(count) => {
+                count.holds(self.player(p).graveyard.len() as u32)
+            }
+            lower::OnlyIf::OpponentControlsMore(filter) => {
+                let all = self.characteristics();
+                let controls = |q: PlayerId| {
+                    let theirs = all
+                        .iter()
+                        .filter(|(_, ch)| ch.controller == q)
+                        .map(|(o, ch)| (*o, ch.clone()))
+                        .collect();
+                    self.count(filter, source, source_chars, &theirs)
+                };
+                let mine = controls(p);
+                (0..self.players.len())
+                    .map(|q| PlayerId(q as u8))
+                    .filter(|q| *q != p)
+                    .any(|q| controls(q) > mine)
+            }
+        }
     }
 
     /// How many permanents `filter` matches, read from `source` (CR 608.2h).
