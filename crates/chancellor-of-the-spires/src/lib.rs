@@ -13,6 +13,7 @@ pub mod log;
 pub mod lower;
 pub mod mana;
 pub mod model;
+pub mod ratchet;
 pub mod replay;
 
 pub use layers::characteristics;

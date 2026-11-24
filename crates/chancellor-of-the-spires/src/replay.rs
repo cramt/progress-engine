@@ -41,7 +41,7 @@ pub const DECK_SIZE: usize = 60;
 /// and make again when a later spell can't be paid for, per game. It was
 /// 64 until a fetchland's find twelve lines before an unpayable Mana Leak
 /// sat behind more later choices than that (game 933380242).
-const BACKTRACKS: usize = 512;
+pub const BACKTRACKS: usize = 512;
 /// The most ways to read one combat's blocks the replay lists: past it, it
 /// stops by name rather than drop some untried.
 const BLOCK_READINGS: usize = 4096;
@@ -90,13 +90,43 @@ pub enum End {
     Finished,
     /// The first line the engine wouldn't follow, by its index.
     Stopped { entry: usize, stop: Stop },
+    /// No way of following the log got past `diverged`'s line but by
+    /// diverging there, and the replay ends at an earlier line on a way
+    /// that stopped at `stop`, a refusal to go on with a card no one has
+    /// named in a graveyard: that way may be the game's, so its refusal is
+    /// what stops the game. But if it isn't, the divergence is the
+    /// engine's, so it is reported beside the refusal, never only behind
+    /// it (game 924320202: an Accumulated Knowledge refused at line 83 on
+    /// one pile, a discard of 1 card where the engine asks for 4 at line
+    /// 85 on every other).
+    Masked {
+        entry: usize,
+        stop: Stop,
+        diverged: MaskedDivergence,
+    },
+}
+
+/// The divergence a refusal is reported in front of (`End::Masked`): the
+/// line the furthest way diverged at, and how.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MaskedDivergence {
+    pub entry: usize,
+    pub divergence: Divergence,
 }
 
 impl End {
     pub fn stop(&self) -> Option<&Stop> {
         match self {
             End::Finished => None,
-            End::Stopped { stop, .. } => Some(stop),
+            End::Stopped { stop, .. } | End::Masked { stop, .. } => Some(stop),
+        }
+    }
+
+    /// The line the replay stopped at, if it did.
+    pub fn entry(&self) -> Option<usize> {
+        match self {
+            End::Finished => None,
+            End::Stopped { entry, .. } | End::Masked { entry, .. } => Some(*entry),
         }
     }
 }
@@ -249,7 +279,7 @@ impl fmt::Display for Stop {
             Stop::Diverged(d) => write!(f, "diverged: {d:?}"),
             Stop::GaveUp(d) => write!(
                 f,
-                "gave up going back after {BACKTRACKS} tries, with earlier choices untried: {d:?}"
+                "gave up going back, out of tries with earlier choices untried: {d:?}"
             ),
             Stop::Unfollowed { event, card } => match card {
                 Some(c) => write!(f, "doesn't follow {event} ({c})"),
@@ -267,6 +297,19 @@ pub fn replay(
     g: &log::Game,
     cards: &mut dyn FnMut(&str) -> Option<CardText>,
     unseen: &[UnseenLand],
+) -> Replay {
+    replay_searching(m, g, cards, unseen, BACKTRACKS)
+}
+
+/// As `replay`, going back at most `backtracks` times rather than
+/// `BACKTRACKS`: the batch gate reruns a game that newly gives up with a
+/// bigger budget, to tell the search from the engine.
+pub fn replay_searching(
+    m: &log::Match,
+    g: &log::Game,
+    cards: &mut dyn FnMut(&str) -> Option<CardText>,
+    unseen: &[UnseenLand],
+    backtracks: usize,
 ) -> Replay {
     let mentioned = m
         .games
@@ -308,6 +351,7 @@ pub fn replay(
         entries: g.entries.clone(),
         respond: None,
         presumed: 0,
+        budget: backtracks,
     };
     let end = r.run(m, g);
     Replay {
@@ -448,6 +492,8 @@ struct Driver<'a> {
     unseen: Vec<String>,
     /// The game's `presumed` as the replay ended, on the way it reports.
     presumed: usize,
+    /// How many times it may go back (`BACKTRACKS`).
+    budget: usize,
     /// The turn, and the permanents the replay activated an ability of in
     /// it.
     activated: (u32, Vec<ObjectId>),
@@ -719,7 +765,7 @@ impl Driver<'_> {
                     // Only a choice made earlier can make a later payment
                     // or play impossible, or lose the game early, so only
                     // then is it worth going back.
-                    let retry = backtracks < BACKTRACKS;
+                    let retry = backtracks < self.budget;
                     // The latest choice that could have caused this; any
                     // after it are of a game gone back from.
                     let cause = |b: Back| match b {
@@ -812,22 +858,36 @@ impl Driver<'_> {
                             // has named in a graveyard, which the engine
                             // refuses to go on with, may be the game's
                             // (Fact or Fiction's pile), and that refusal
-                            // is what stops it.
-                            let (at, stop, trace, unseen, presumed) =
-                                match (stop, refused_at.take()) {
-                                    (Stop::Diverged(_), Some(refused)) if !untried => refused,
-                                    (stop, _) => (at, stop, trace, unseen, presumed),
-                                };
-                            // Only a way tried and every way left untried
-                            // tells a divergence from a search too big.
-                            let stop = match stop {
-                                Stop::Diverged(d) if untried => Stop::GaveUp(d),
-                                stop => stop,
+                            // is what stops it, the divergence beside it.
+                            let (end, trace, unseen, presumed) = match (stop, refused_at.take()) {
+                                (Stop::Diverged(divergence), Some(refused)) if !untried => {
+                                    let (entry, stop, trace, unseen, presumed) = refused;
+                                    let diverged = MaskedDivergence {
+                                        entry: at,
+                                        divergence,
+                                    };
+                                    let end = End::Masked {
+                                        entry,
+                                        stop,
+                                        diverged,
+                                    };
+                                    (end, trace, unseen, presumed)
+                                }
+                                // Only a way tried and every way left
+                                // untried tells a divergence from a search
+                                // too big.
+                                (Stop::Diverged(d), _) if untried => {
+                                    let stop = Stop::GaveUp(d);
+                                    (End::Stopped { entry: at, stop }, trace, unseen, presumed)
+                                }
+                                (stop, _) => {
+                                    (End::Stopped { entry: at, stop }, trace, unseen, presumed)
+                                }
                             };
                             self.trace = trace;
                             self.unseen = unseen;
                             self.presumed = presumed;
-                            return End::Stopped { entry: at, stop };
+                            return end;
                         }
                     }
                 }

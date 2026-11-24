@@ -2455,3 +2455,74 @@ fn accumulated_knowledge_refuses_to_count_a_graveyard_holding_fact_or_fictions_h
     );
     assert!(r.presumed > 0);
 }
+
+/// Fact or Fiction cast at the end of bob's turn, its piles unprinted. A
+/// pile of fewer than five leaves hidden cards in alice's graveyard, and
+/// Accumulated Knowledge counting them is refused; taking all five gets
+/// past it, to a cleanup discarding 3 where the log discards 1. The
+/// refusal may be the game's, so it stops the replay, but every way past
+/// it diverged, and that divergence is reported beside it (`End::Masked`),
+/// never hidden behind it.
+#[test]
+fn a_divergence_every_way_past_a_refusal_met_is_reported_beside_it() {
+    let (g, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 4: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 4: bob
+        bob draws a card.
+        bob plays [Swamp].
+        alice casts [Fact or Fiction].
+        Turn 5: alice
+        alice draws a card.
+        alice plays [Island].
+        alice casts [Accumulated Knowledge].
+        alice draws a card with [Accumulated Knowledge].
+        alice discards [Island].
+        Turn 5: bob
+        bob draws a card.
+        bob has conceded from the game.
+    ");
+    let End::Masked {
+        entry,
+        stop,
+        diverged,
+    } = &r.end
+    else {
+        panic!("{:?}", r.end)
+    };
+    assert!(
+        matches!(stop, Stop::Refused { node, .. } if node == "Amount::CardsInGraveyards"),
+        "{stop:?}"
+    );
+    assert_eq!(
+        g.entries[*entry].text,
+        "alice draws a card with [Accumulated Knowledge]."
+    );
+    assert_eq!(g.entries[diverged.entry].text, "alice discards [Island].");
+    assert_eq!(
+        diverged.divergence,
+        Divergence::Discards { log: 1, engine: 3 }
+    );
+}

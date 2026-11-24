@@ -29,6 +29,7 @@ mod native {
     use chancellor_of_the_spires::deck::{self, CardText};
     use chancellor_of_the_spires::game::Game;
     use chancellor_of_the_spires::log;
+    use chancellor_of_the_spires::ratchet::{self, Allowed, Breach, Ended, GameEnd};
     use chancellor_of_the_spires::replay::{self as r, End};
     use chip_scryfall::bulk::BulkCard;
     use chip_scryfall::index::Index;
@@ -44,7 +45,7 @@ mod native {
     /// The margin keeps it under that whatever the clock does.
     const GAP: Duration = Duration::from_millis(1050);
 
-    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID] [--finished F] [--lines F] | chancellor-logs milestone [--bulk F] [--games N] | chancellor-logs card NAME...";
+    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID] [--finished F] [--lines F] [--json F] | chancellor-logs gate BASELINE.json AFTER.json [--allow F] [--bulk F] | chancellor-logs milestone [--bulk F] [--games N] | chancellor-logs card NAME...";
 
     pub fn main() -> Result<()> {
         let args: Vec<String> = std::env::args().skip(1).collect();
@@ -52,6 +53,7 @@ mod native {
             Some("fetch") => fetch(&args[1..]),
             Some("coverage") => coverage(&args[1..]),
             Some("replay") => replay(&args[1..]),
+            Some("gate") => gate(&args[1..]),
             Some("milestone") => milestone(&args[1..]),
             Some("card") => card(&args[1..]),
             _ => bail!("{USAGE}"),
@@ -430,14 +432,16 @@ mod native {
 
     /// Every cached game the replay plays: it parses into events whole,
     /// Insight reads every card it names whole, and it reaches a first
-    /// turn. `f` gets each replayed; `turnless` counts the games that
-    /// pass the first two and not the third, and the return is how many
-    /// games were read at all.
+    /// turn. `f` gets each replayed, going back at most `budget` times
+    /// (`replay::BACKTRACKS`); `turnless` counts the games that pass the
+    /// first two and not the third, and the return is how many games were
+    /// read at all.
     fn each_replayed(
         names: &mut Names,
         texts: &HashMap<String, CardText>,
         modern: &[r::UnseenLand],
-        only: Option<u64>,
+        only: Option<&BTreeSet<u64>>,
+        budget: usize,
         turnless: &mut usize,
         mut f: impl FnMut(&log::Match, &log::Game, &r::Replay, &mut Names),
     ) -> Result<usize> {
@@ -450,7 +454,7 @@ mod native {
             };
             for g in &m.games {
                 games += 1;
-                if only.is_some_and(|o| o != g.id) || !names.whole(g) {
+                if only.is_some_and(|o| !o.contains(&g.id)) || !names.whole(g) {
                     continue;
                 }
                 // An empty log, or a concession during the mulligans, is
@@ -466,7 +470,7 @@ mod native {
                 let replayed = {
                     let mut cards = |name: &str| texts.get(&names.read(name).0).cloned();
                     let unseen = if is_modern(&m) { modern } else { &[] };
-                    r::replay(&m, g, &mut cards, unseen)
+                    r::replay_searching(&m, g, &mut cards, unseen, budget)
                 };
                 f(&m, g, &replayed, names);
             }
@@ -567,6 +571,7 @@ mod native {
             &texts,
             &modern,
             None,
+            r::BACKTRACKS,
             &mut turnless,
             |_, g, replayed, names| {
                 if matches!(replayed.end.stop(), Some(r::Stop::Setup(_))) {
@@ -651,6 +656,8 @@ mod native {
         // Where to write each game's lines followed and its stop, so two
         // runs can be diffed for a game a change made follow fewer.
         let mut lines_to: Option<String> = None;
+        // Where to write each milestone game's end, for `gate`.
+        let mut json_to: Option<String> = None;
         let mut it = args.iter();
         while let Some(a) = it.next() {
             match a.as_str() {
@@ -661,12 +668,20 @@ mod native {
                     finished_to = Some(it.next().context("--finished needs a path")?.clone())
                 }
                 "--lines" => lines_to = Some(it.next().context("--lines needs a path")?.clone()),
+                "--json" => json_to = Some(it.next().context("--json needs a path")?.clone()),
                 other => bail!("unknown argument {other}\n{USAGE}"),
             }
         }
         let mut names = Names::load(&bulk)?;
         let (texts, modern) = cards_and_lands(&bulk)?;
         let milestones = read_milestones()?;
+        let mut ends: Vec<ratchet::MilestoneGames> = milestones
+            .iter()
+            .map(|ms| ratchet::MilestoneGames {
+                name: ms.name.clone(),
+                games: Vec::new(),
+            })
+            .collect();
         let mut per_game: Vec<(u64, usize, String, usize, String)> = Vec::new();
 
         let mut eligible = 0;
@@ -691,11 +706,13 @@ mod native {
         let mut within: Vec<MilestoneRun> = milestones.iter().map(|_| Default::default()).collect();
         // What the engine makes of each card, before any game.
         let mut reads: HashMap<String, Option<String>> = HashMap::new();
+        let only_set: Option<BTreeSet<u64>> = only.map(|o| BTreeSet::from([o]));
         let games = each_replayed(
             &mut names,
             &texts,
             &modern,
-            only,
+            only_set.as_ref(),
+            r::BACKTRACKS,
             &mut turnless,
             |m, g, replayed, names| {
                 eligible += 1;
@@ -706,19 +723,17 @@ mod native {
                     unseen.0 += 1;
                     unseen.1 += (replayed.end == End::Finished) as usize;
                 }
-                let (stop_at, turn) = match &replayed.end {
-                    End::Finished => (None, turn_at(g, g.entries.len())),
-                    End::Stopped { entry, .. } => (Some(*entry), turn_at(g, *entry)),
-                };
+                let stop_at = replayed.end.entry();
+                let turn = turn_at(g, stop_at.unwrap_or(g.entries.len()));
                 let these = stop_at.unwrap_or(g.entries.len());
                 per_game.push((
                     g.id,
                     these,
                     replayed.unseen.join(","),
                     g.entries.len(),
-                    match &replayed.end {
-                        End::Finished => "finished".into(),
-                        End::Stopped { stop, .. } => format!(
+                    match replayed.end.stop() {
+                        None => "finished".into(),
+                        Some(stop) => format!(
                             "{stop}\t{}",
                             g.entries
                                 .get(these)
@@ -735,10 +750,11 @@ mod native {
                         .map_or(String::new(), |e| anonymise(&e.text, &m.players));
                     format!("game {} line: {line}", g.id)
                 };
-                for (ms, run) in milestones.iter().zip(&mut within) {
+                for ((ms, run), ends) in milestones.iter().zip(&mut within).zip(&mut ends) {
                     if !ms.games.contains(&g.id) {
                         continue;
                     }
+                    ends.games.push(GameEnd::of(g, replayed));
                     run.seen += 1;
                     let refused: Vec<String> = game_cards(g, names)
                         .into_iter()
@@ -765,8 +781,16 @@ mod native {
                         run.presumed.0 += 1;
                         run.presumed.1 += (replayed.end == End::Finished) as usize;
                     }
-                    match (&replayed.end, stop_at) {
-                        (End::Stopped { stop, .. }, Some(at)) => {
+                    if let End::Masked { stop, diverged, .. } = &replayed.end {
+                        run.masked.push(format!(
+                            "{stop}\n        {}\n        every way past it diverged: {:?}\n        {}",
+                            example(stop_at.expect("stopped")),
+                            diverged.divergence,
+                            example(diverged.entry)
+                        ));
+                    }
+                    match (replayed.end.stop(), stop_at) {
+                        (Some(stop), Some(at)) => {
                             let key = match stop.card() {
                                 Some(c) => format!("{c}: {}", stop.kind()),
                                 None => stop.kind(),
@@ -789,8 +813,8 @@ mod native {
                     }
                 }
                 let row = reached.entry(turn).or_default();
-                match (&replayed.end, stop_at) {
-                    (End::Stopped { stop, .. }, Some(at)) => {
+                match (replayed.end.stop(), stop_at) {
+                    (Some(stop), Some(at)) => {
                         row.1 += 1;
                         let r = reasons
                             .entry(stop.kind())
@@ -829,6 +853,14 @@ mod native {
                 })
                 .collect();
             std::fs::write(&path, rows).with_context(|| format!("writing {path}"))?;
+        }
+        if let Some(path) = json_to {
+            for ms in &mut ends {
+                ms.games.sort_by_key(|g| g.game);
+            }
+            let json = facet_json::to_string(&ratchet::Run { milestones: ends })
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            std::fs::write(&path, json).with_context(|| format!("writing {path}"))?;
         }
         println!(
             "{eligible} of {games} games replayed: those that parse into events whole, whose every card Insight reads whole, and that reach a first turn ({turnless} more don't: empty logs and concessions during the mulligans)"
@@ -901,6 +933,13 @@ mod native {
             for d in &run.gave_up {
                 println!("        {d}");
             }
+            println!(
+                "  divergences masked by a refusal, a refusal on one way stopping the game where every way past it diverged ({}):",
+                run.masked.len()
+            );
+            for d in &run.masked {
+                println!("        {d}");
+            }
             println!("  stops of games with no card refused:");
             for c in &run.clean {
                 println!("        {c}");
@@ -939,6 +978,129 @@ mod native {
         Ok(())
     }
 
+    /// How many times `BACKTRACKS` the gate reruns a game that newly gives
+    /// up with, to tell the search from the engine.
+    const RERUN: usize = 64;
+
+    /// `gate BASELINE AFTER [--allow F]`: two runs' `replay --json`, and
+    /// every milestone game a change broke (`ratchet::check`), failing if
+    /// any. A game that newly gives up is replayed again going back `RERUN`
+    /// times as often, and passes if it then gets past its line without
+    /// diverging: its stop was the search, not the engine.
+    fn gate(args: &[String]) -> Result<()> {
+        let mut bulk = corpus::cache("oracle-cards.jsonl");
+        let mut allow: Option<String> = None;
+        let mut runs = Vec::new();
+        let mut it = args.iter();
+        while let Some(a) = it.next() {
+            match a.as_str() {
+                "--bulk" => bulk = it.next().context("--bulk needs a path")?.clone(),
+                "--allow" => allow = Some(it.next().context("--allow needs a path")?.clone()),
+                path if !path.starts_with("--") => runs.push(path.to_string()),
+                other => bail!("unknown argument {other}\n{USAGE}"),
+            }
+        }
+        let [baseline, after] = runs.as_slice() else {
+            bail!("gate needs a baseline and an after run\n{USAGE}");
+        };
+        let read = |path: &str| -> Result<ratchet::Run> {
+            let text = fs::read_to_string(path).with_context(|| format!("reading {path}"))?;
+            facet_json::from_str(&text).map_err(|e| anyhow::anyhow!("{path}: {e}"))
+        };
+        let (baseline, after) = (read(baseline)?, read(after)?);
+        // A batch that has allowed nothing has no allow file yet, and its
+        // gate is the same command as one that has.
+        let allowed = match allow.filter(|path| std::path::Path::new(path).exists()) {
+            Some(path) => Allowed::parse(
+                &fs::read_to_string(&path).with_context(|| format!("reading {path}"))?,
+            )
+            .map_err(|e| anyhow::anyhow!("{path}: {e}"))?,
+            None => Allowed::default(),
+        };
+        for ms in &after.milestones {
+            let count = |f: &dyn Fn(&GameEnd) -> bool| ms.games.iter().filter(|g| f(g)).count();
+            let stopped = |kind| move |g: &GameEnd| matches!(&g.end, Ended::Stopped { stop, .. } if *stop == kind);
+            println!(
+                "{}: {} games, {} to the end, {} lines followed, {} divergences, {} masked by a refusal, {} gave up going back, {} presuming a card in a graveyard",
+                ms.name,
+                ms.games.len(),
+                count(&|g| g.end == Ended::Finished),
+                ms.games.iter().map(GameEnd::followed).sum::<usize>(),
+                count(&stopped(ratchet::StopKind::Diverged)),
+                count(&|g| matches!(g.end, Ended::Masked { .. })),
+                count(&stopped(ratchet::StopKind::GaveUp)),
+                count(&|g| g.presumed > 0),
+            );
+        }
+        let verdict = ratchet::check(&baseline, &after, &allowed);
+        for (breach, why) in &verdict.allowed {
+            println!("allowed: {breach}\n    because {why}");
+        }
+        for unused in &verdict.unused {
+            println!("an allowance no game needed: {unused}");
+        }
+        let (gave_up, mut breaches): (Vec<Breach>, Vec<Breach>) = verdict
+            .breaches
+            .into_iter()
+            .partition(|b| matches!(b, Breach::GivesUp { .. }));
+        if !gave_up.is_empty() {
+            let games: BTreeSet<u64> = gave_up.iter().map(Breach::game).collect();
+            let mut names = Names::load(&bulk)?;
+            let (texts, modern) = cards_and_lands(&bulk)?;
+            let mut rerun: HashMap<u64, End> = HashMap::new();
+            let mut turnless = 0;
+            each_replayed(
+                &mut names,
+                &texts,
+                &modern,
+                Some(&games),
+                r::BACKTRACKS * RERUN,
+                &mut turnless,
+                |_, g, replayed, _| {
+                    rerun.insert(g.id, replayed.end.clone());
+                },
+            )?;
+            for breach in gave_up {
+                let Breach::GivesUp { game, at, .. } = &breach else {
+                    unreachable!("partitioned")
+                };
+                let end = rerun.get(game);
+                let past = end.is_some_and(|e| {
+                    e.entry().is_none_or(|entry| entry > *at)
+                        && !matches!(e, End::Masked { .. })
+                        && !matches!(e.stop(), Some(r::Stop::Diverged(_)))
+                });
+                let said = end.map_or("not replayed".to_string(), |e| format!("{}", Ended::of(e)));
+                if past {
+                    println!(
+                        "the search: {breach}\n    going back {} times, now {said}",
+                        r::BACKTRACKS * RERUN
+                    );
+                } else {
+                    println!(
+                        "not shown the search: {breach}\n    going back {} times, still {said}",
+                        r::BACKTRACKS * RERUN
+                    );
+                    breaches.push(breach);
+                }
+            }
+        }
+        breaches.sort_by_key(Breach::game);
+        for breach in &breaches {
+            println!("FAIL {breach}");
+        }
+        if !breaches.is_empty() {
+            let games: BTreeSet<u64> = breaches.iter().map(Breach::game).collect();
+            bail!(
+                "the gate failed: {} breaches in {} milestone games",
+                breaches.len(),
+                games.len()
+            );
+        }
+        println!("the gate passes");
+        Ok(())
+    }
+
     #[derive(Default)]
     struct MilestoneRun {
         seen: usize,
@@ -958,6 +1120,9 @@ mod native {
         diverged: Vec<String>,
         /// Every stop where the replay ran out of tries going back.
         gave_up: Vec<String>,
+        /// Every refusal reported in front of a divergence
+        /// (`End::Masked`), with it.
+        masked: Vec<String>,
         /// Games by how many of their cards the engine refuses.
         refusing: std::collections::BTreeMap<usize, usize>,
         /// Each refused card: the games it is in, and those it is the
@@ -968,10 +1133,7 @@ mod native {
     /// One game's replay, line by line, with what the engine did.
     fn print_game(m: &log::Match, g: &log::Game, replayed: &r::Replay) {
         println!("game {} (game {} of the match)", g.id, g.number);
-        let last = match &replayed.end {
-            End::Stopped { entry, .. } => *entry,
-            End::Finished => g.entries.len(),
-        };
+        let last = replayed.end.entry().unwrap_or(g.entries.len());
         for t in replayed
             .trace
             .iter()
@@ -1001,6 +1163,14 @@ mod native {
         match &replayed.end {
             End::Finished => println!("replayed to the end"),
             End::Stopped { entry, stop } => println!("stopped at line {entry}: {stop}"),
+            End::Masked {
+                entry,
+                stop,
+                diverged,
+            } => println!(
+                "stopped at line {entry}: {stop}\nevery way past it diverged at line {}: {:?}",
+                diverged.entry, diverged.divergence
+            ),
         }
     }
 

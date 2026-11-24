@@ -44,7 +44,7 @@ Forty-five threads in a row then found the tree dirty and stopped.
    name it in your handoff and leave it. Then `git pull --ff-only`. If that
    fails (the network, not the tree), report it and end the thread. Build with `cargo build --release
    -p chancellor-of-the-spires --bin chancellor-logs`, then write the baseline:
-   `target/release/chancellor-logs replay --top 40 > <state>/batches/<n>/baseline.txt`.
+   `target/release/chancellor-logs replay --top 40 --json <state>/batches/<n>/baseline.json > <state>/batches/<n>/baseline.txt`.
    Read `<state>/handoff.md` (the last writer's notes) whole.
 2. **Write.** Work the milestone's worklist from the top: the card blocking the
    most games first, unless the handoff says why not. For each, find the
@@ -69,17 +69,44 @@ Forty-five threads in a row then found the tree dirty and stopped.
      Run each command on its own and read its exit status. A pipe through
      `sort`, `grep` or `tail` returns the last command's status: batch 18's
      gate passed with a failing test that way.
-   - Rerun the replay into `<state>/batches/<n>/after.txt`. Against the
-     baseline, the milestone's **games to the end** and **lines followed** must
-     not fall, and **divergences** (the engine disagreeing with the log) must
-     stay 0. **Gave up going back** (a disagreement met once the replay ran
-     out of tries, earlier choices untried) must not rise without the game
-     named in the handoff and shown to be the search, not the engine: force
-     the finds it needed and watch it replay past the line. A divergence is a bug to fix before pushing: the engine's, or the
-     replay's inference. One exception: a commit that turns a silent guess
-     into a refusal may lower lines followed. The lines it gave up were
-     followed by luck. Name the game and the line that was wrong in the
-     commit body and the handoff.
+   - Rerun the replay: `target/release/chancellor-logs replay --top 40
+     --json <state>/batches/<n>/after.json > <state>/batches/<n>/after.txt`.
+     Then run the ratchet on its own and read its exit status:
+     `target/release/chancellor-logs gate <state>/batches/<n>/baseline.json
+     <state>/batches/<n>/after.json --allow <state>/batches/<n>/allow.txt`
+     (a missing allow file allows nothing). Nonzero is red,
+     whatever the totals say. It checks every milestone game, not the
+     counts, because a count hides a game that finished traded for one
+     that diverged. Each `FAIL` line names a game and what it did:
+     - **diverges**: the engine disagrees with the log on every way the
+       replay tried. A bug to fix before pushing, the engine's or the
+       replay's inference (`--game ID` shows it line by line).
+     - **a divergence masked by a refusal**: a way stopped at a refusal of
+       a card no one named in a graveyard, and every way past it diverged.
+       The refusal stops the game, but the divergence is just as wrong if
+       that way isn't the game's. Fix it as a divergence.
+     - **gives up going back**: the gate has already replayed the game
+       going back 64 times as often as the replay does. It fails only if
+       that still doesn't get past the line. Force the finds the game
+       needs by hand. If it then replays past the line, it is the search:
+       add `gave-up <game> <the finds forced, the line it got past>` to
+       `allow.txt`. If it doesn't, it is a divergence.
+     - **follows N lines, from M**: a game lost lines. The only exception
+       is a commit that turns a silent guess into a refusal, whose lost
+       lines were followed by luck. The gate accepts it only where the
+       game now stops at a refusal and `allow.txt` has `refusal <game>
+       <the line that was wrong>`. Name the same in the commit body and
+       the handoff. Any other loss is a regression to fix.
+     - **newly presumes**: the game now relies on a card no one named in
+       a graveyard having no ability there (`Game::presume_graveyard_inert`).
+       Read the game and check that no card it could be acts from the
+       graveyard. Then add `presumed <game> <why that is safe>`, or make
+       the engine refuse there.
+     - **no longer replayed**: Insight or the parser lost the game. Fix
+       that.
+     `allow.txt` is one line per allowance, `<kind> <game> <why>`, and the
+     gate fails on a line without a reason. Copy every line of it into the
+     handoff. The gate lists allowances that no game used. Delete those.
    - **Review.** Hand each rule's diff to one read-only sub-agent that has not
      seen your reasoning. Brief it with the diff only, not your argument, and
      have it check that each cited rule says what the code does (quoted from

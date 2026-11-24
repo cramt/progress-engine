@@ -610,7 +610,7 @@ Lage), dungeons, and digital-only cards.
 
 ### Replay
 
-`chancellor-logs replay [--top N] [--game ID] [--finished F] [--lines F]` plays the cached games
+`chancellor-logs replay [--top N] [--game ID] [--finished F] [--lines F] [--json F]` plays the cached games
 through the engine with `replay::replay`: a two-player constructed game,
 20 life, the starting player from "chooses to play first" (or a skipped
 first draw, or turn 1's player), the London mulligans the log shows, and
@@ -916,13 +916,33 @@ searches back, and with those finds forced it replays past both. Nor is it one w
 the engine refused got anywhere: that way may be the game's, so the
 furthest refusal of a card no one has named in a graveyard is what
 stops it (a Fact or Fiction pile whose size agrees with the log but
-leaves hidden cards in the graveyard, where every other size diverges). `--game ID` prints one game line by line with what the engine
+leaves hidden cards in the graveyard, where every other size diverges).
+That way may not be the game's, though, so the divergence every other way
+met is kept beside the refusal (`End::Masked`), and the report lists
+these as **divergences masked by a refusal**, apart from the divergences:
+game 924320202 stops at line 83, Accumulated Knowledge refused, and every
+way past it discards 1 card at line 85 where the engine asks for 4. `--game ID` prints one game line by line with what the engine
 did and each player's life as it ended; `--finished F` writes the ids of the games replayed to the end, to
 diff against a run before a change for a finished game it broke, and
 `--lines F` each game's lines followed, its lines, its stop and the lands
 the log never names it relied on, one game a row, to diff for a game a
-change made follow fewer; the report ranks stops by games, with an example line, players
+change made follow fewer, and `--json F` each milestone game's end, its
+stop by kind, its lines and the cards it presumed in a graveyard
+(`ratchet::Run`); the report ranks stops by games, with an example line, players
 renamed P1 and P2.
+
+`chancellor-logs gate BASELINE.json AFTER.json [--allow F]` is the ratchet
+a batch passes (`.claude/skills/chancellor-batch`): it compares two
+`--json` runs game by game, since totals hide a finished game traded for
+a diverging one, and exits nonzero naming each milestone game that newly
+diverges, newly has a divergence masked by a refusal, newly gives up going
+back, follows fewer lines, newly presumes a card in a graveyard, or is no
+longer replayed. A game that newly gives up is replayed again going back
+64 times as often, and passes if it then gets past its line. The allow
+file is the batch's, one `<kind> <game> <why>` a line: `refusal` lets a
+game that now stops at a refusal follow fewer lines (a silent guess made a
+refusal), `gave-up` a give-up shown to be the search by forcing the finds,
+and `presumed` a new presumption read and found safe.
 
 **Of 1,061 games replayed, 85 replay to the end** (82 to the log's winner
 line), 66 of them past the first turn, and **31.62% of their lines are
