@@ -10574,11 +10574,15 @@ fn replacement(o: &mut Out, would_words: Out, instead: &[Effect], cx: &Cx) {
         Some(Effect::InsteadOf { .. }) | Some(Effect::ProducesInstead { .. })
     ) || matches!(head.first(), Some(Effect::PreventThatDamage))
     {
-        forms.push(out(|o| {
-            o.add(opening.clone());
-            clauses(o, head, cx);
-            rest(o);
-        }));
+        // Printed first: the clauses' own "instead" needs no other.
+        forms.insert(
+            0,
+            out(|o| {
+                o.add(opening.clone());
+                clauses(o, head, cx);
+                rest(o);
+            }),
+        );
     }
     syn::instead(o, forms);
 }

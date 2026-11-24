@@ -333,6 +333,18 @@ pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
             )?;
             Some(Event::CountersPut { by, n, kind, on })
         },
+        // "If a spell or ability an opponent controls causes you to discard
+        // this card, put it onto the battlefield instead of putting it into
+        // your graveyard" (Obstinate Baloth): no "would", since the discard
+        // happens and only where the card goes is replaced.
+        |p| {
+            let by = objects(p)?;
+            p.verb("cause")?;
+            let who = player(p)?;
+            p.words("to discard")?;
+            let what = objects(p)?;
+            Some(Event::CausedBy { by, event: Box::new(Event::Discards { who, what }) })
+        },
         // "If a land is tapped for two or more mana": no "would", since the
         // replacement is on the mana it produces.
         |p| {

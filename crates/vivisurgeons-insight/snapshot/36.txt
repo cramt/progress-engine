@@ -207,7 +207,7 @@ face: Dodecapod
 type: Artifact Creature — Golem
 cost: {4}
 > If a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield with two +1/+1 counters on it instead of putting it into your graveyard.
-= BROKE at "it" after: if a spell or ability an opponent controls causes you to discard this card , put
+= Static([Replacement { event: CausedBy { by: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }, event: Discards { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } } }, instead: [InsteadOf { then: EntersWith { effect: Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, n: N(2), kind: "+1/+1" }, of: Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None } }] }])
 
 ## Dramatic Reversal
 face: Dramatic Reversal

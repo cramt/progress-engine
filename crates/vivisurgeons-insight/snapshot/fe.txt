@@ -755,7 +755,7 @@ cost: {2}{G}{G}
 = Keywords([Keyword { name: "hexproof", param: None }])
 = Static([PlayerRestrict { who: You, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } })] }])
 = Activated { cost: [Mana(Mana(["2"]))], effect: [Loses { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }], dur: UntilEndOfTurn }], limits: [AnyPlayerMayActivate] }
-= BROKE at "it" after: if a spell or ability an opponent controls causes you to discard this card , put
+= Static([Replacement { event: CausedBy { by: Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }, event: Discards { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } } }, instead: [InsteadOf { then: Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, of: Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None } }] }])
 
 ## Nurturing Licid
 face: Nurturing Licid
