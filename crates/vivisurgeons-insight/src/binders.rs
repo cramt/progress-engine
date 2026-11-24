@@ -927,7 +927,160 @@ fn made_in_trigger(es: &mut Vec<Effect>, ids: &BTreeSet<usize>) {
     es.extend(then);
 }
 
-/// Runs `into_loops` and `into_reflexive` on every ability's own list of
+/// A branch of `e` that happens only on some resolutions: a mode, an
+/// option taken or declined, an "if" whose condition is true. Its list of
+/// effects, and whether `e` says anything outside its lists.
+fn branches(e: &mut Effect) -> Vec<&mut Vec<Effect>> {
+    match e {
+        Effect::Modal { modes, .. } => modes.iter_mut().collect(),
+        Effect::May { then, .. } | Effect::IfYouDo(then) | Effect::IfYouDont(then) => vec![then],
+        Effect::If { then, .. } => vec![then],
+        _ => Vec::new(),
+    }
+}
+
+/// Whether `e` says one of `ids` outside its branches (an `If`'s
+/// condition).
+fn says_outside_branches(e: &Effect, ids: &BTreeSet<usize>) -> bool {
+    match e {
+        Effect::If { cond, .. } => says(cond, ids, false),
+        _ => false,
+    }
+}
+
+/// Where a binder of `into_branch` goes: the (effect, branch) steps to its
+/// branch, the effect there it is bound from, and the binders.
+type BranchMove = (Vec<(usize, usize)>, usize, Vec<usize>);
+
+/// "Choose one — … • Target opponent reveals their hand. You choose a
+/// noncreature, nonland card from it. That player discards that card"
+/// (Mardu Charm), "you may pay {2}{B}. If you do, return a creature card at
+/// random from your graveyard to the battlefield. It gains flying …"
+/// (Kheru Lich Lord): an object that only one mode, or only the option
+/// taken or the case an "if" names, says comes to exist only where that
+/// branch happens, so its binder is bound inside the branch, from the
+/// effect that says it first ([branch-binds]). A binder every mode or both
+/// sides say stays where it is. Each binder of a `With` goes on its own.
+fn into_branch(es: &mut Vec<Effect>) {
+    let Some(Effect::With { then, .. }) = es.last_mut() else {
+        return;
+    };
+    into_branch(then);
+    let Some(Effect::With { bind, then }) = es.last() else {
+        unreachable!("matched above");
+    };
+    if bind_ids(bind).len() != bind.len() {
+        return;
+    }
+    // The path of (effect, branch) steps to the innermost branch whose list
+    // alone says `ids`, and in it the effect that says them first.
+    let path_of = |ids: &BTreeSet<usize>, made: bool| -> Option<(Vec<(usize, usize)>, usize)> {
+        let mut path = Vec::new();
+        let mut cur: Vec<Effect> = then.clone();
+        loop {
+            let at: Vec<usize> = (0..cur.len())
+                .filter(|&i| says(&cur[i], ids, false))
+                .collect();
+            let [i] = at[..] else { break };
+            let mut e = cur[i].clone();
+            if says_outside_branches(&e, ids) {
+                break;
+            }
+            let lists = branches(&mut e);
+            let inside: Vec<usize> = (0..lists.len())
+                .filter(|&j| lists[j].iter().any(|x| says(x, ids, false)))
+                .collect();
+            let [j] = inside[..] else { break };
+            path.push((i, j));
+            cur = lists[j].clone();
+        }
+        if path.is_empty() {
+            return None;
+        }
+        // A token a branch makes is made by its one maker there.
+        let first = if made {
+            let mk: Vec<usize> = (0..cur.len())
+                .filter(|&k| crate::backref::made(&cur[k]).is_some())
+                .collect();
+            match mk[..] {
+                [k] if !cur[..k].iter().any(|e| says(e, ids, false)) => k,
+                _ => return None,
+            }
+        } else {
+            cur.iter().position(|e| says(e, ids, false))?
+        };
+        Some((path, first))
+    };
+    let mut moves: Vec<BranchMove> = Vec::new();
+    for (k, o) in bind.iter().enumerate() {
+        let ids = bind_ids(std::slice::from_ref(o));
+        let made = o.quant == Quant::Made;
+        // "reveals X cards … and you choose one of them" (Hollow Specter):
+        // a binder another binder's words say stays with that one.
+        if bind
+            .iter()
+            .enumerate()
+            .any(|(j, b)| j != k && says(b, &ids, false))
+        {
+            continue;
+        }
+        let Some((path, first)) = path_of(&ids, made) else {
+            continue;
+        };
+        // A token the list around the branch makes exists before it, and
+        // what a "may" or an "if" says it made ("If you do, you may put a
+        // creature card … from among them", Call to the Kindred) may be
+        // what the list before it looked at: only a mode, which nothing
+        // outside it can have made, takes a made binder.
+        if made
+            && (!matches!(then[path[0].0], Effect::Modal { .. })
+                || then
+                    .iter()
+                    .enumerate()
+                    .any(|(i, e)| i != path[0].0 && crate::backref::made(e).is_some()))
+        {
+            continue;
+        }
+        match moves.iter_mut().find(|(p, f, _)| *p == path && *f == first) {
+            Some((_, _, ks)) => ks.push(k),
+            None => moves.push((path, first, vec![k])),
+        }
+    }
+    if moves.is_empty() {
+        return;
+    }
+    let Some(Effect::With { bind, mut then }) = es.pop() else {
+        unreachable!("matched above");
+    };
+    let moved: BTreeSet<usize> = moves.iter().flat_map(|(_, _, ks)| ks.clone()).collect();
+    // Innermost and latest first, so an earlier split leaves a later
+    // path's indices where they were.
+    moves.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+    for (path, first, ks) in moves {
+        let mut list: &mut Vec<Effect> = &mut then;
+        for &(i, j) in &path {
+            list = branches(&mut list[i]).swap_remove(j);
+        }
+        let rest = list.split_off(first);
+        let bound = ks.iter().map(|&k| bind[k].clone()).collect();
+        list.push(Effect::With {
+            bind: bound,
+            then: rest,
+        });
+    }
+    let kept: Vec<Objects> = bind
+        .into_iter()
+        .enumerate()
+        .filter(|(k, _)| !moved.contains(k))
+        .map(|(_, o)| o)
+        .collect();
+    if kept.is_empty() {
+        es.extend(then);
+    } else {
+        es.push(Effect::With { bind: kept, then });
+    }
+}
+/// Runs `into_loops`, `into_reflexive` and `into_branch` on every ability's own list of
 /// effects.
 struct IntoLoops {
     fresh: usize,
@@ -941,6 +1094,7 @@ impl Visitor for IntoLoops {
         if let Some(es) = effects_of(a) {
             into_loops(es, &mut self.fresh);
             into_reflexive(es);
+            into_branch(es);
         }
         true
     }
@@ -1524,9 +1678,16 @@ impl Visitor for Unwrap {
         | Effect::DelayedWhen { then, .. }
         | Effect::DelayedWhenever { then, .. }
         | Effect::DelayedNext { then, .. }
-        | Effect::Process(then) = e
+        | Effect::Process(then)
+        | Effect::May { then, .. }
+        | Effect::IfYouDo(then)
+        | Effect::IfYouDont(then)
+        | Effect::If { then, .. } = e
         {
             splice(then);
+        }
+        if let Effect::Modal { modes, .. } = e {
+            modes.iter_mut().for_each(splice);
         }
     }
     fn ability(&mut self, a: &mut Ability) -> bool {

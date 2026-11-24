@@ -177,7 +177,7 @@ cost: {1}{B}
 > Choose one —
 > • Target opponent reveals their hand. You choose a nonland permanent card from it. That player discards that card.
 > • Earthbend 2. (Target land you control becomes a 0/0 creature with haste that's still a land. Put two +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.)
-= Spell([With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [FromHand(TargetOpponent)], or: None } }], then: [Modal { choose: One, modes: [[RevealHand(TargetOpponent), Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], [Action { by: None, name: "earthbend", n: Some(N(2)) }]] }] }])
+= Spell([Modal { choose: One, modes: [[RevealHand(TargetOpponent), With { bind: [/* chosen */ Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [FromHand(TargetOpponent)], or: None } }], then: [Choose(Objects(Objects { quant: Introduced(0) /* chosen */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Discard { who: That, what: Objects { quant: Bound(0) /* chosen */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }], [Action { by: None, name: "earthbend", n: Some(N(2)) }]] }])
 
 ## Daru Sanctifier
 face: Daru Sanctifier
