@@ -54,6 +54,9 @@ is chosen inside a "When you do" or a delayed trigger must sit inside it.
 Before proposing a binding other than the tree's, check the `<semantics>` row
 that settles that shape (such as `[branch-binds]` or `[done-this-way]`); a tree
 that follows a settled row is right.
+After a subject other than you ("that player", "its controller"), every verb
+joined to it by "and" or "then" has that subject too, including who orders
+cards "in any order": check each such verb sits in its `Performed`.
 
 Be specific and terse. A finding the writer can't act on is noise.
 
