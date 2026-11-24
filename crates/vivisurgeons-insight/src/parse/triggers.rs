@@ -409,6 +409,9 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
         |p| { p.verb("deal")?; p.words("combat damage")?; (p.peek() == Some(&Tok::Comma) || p.peek_word() == Some("during")).then(|| Event::DealsCombatDamage(what.clone())) },
         |p| { p.one_of(&["is exiled", "are exiled"])?; Some(Event::Exiled(what.clone())) },
         |p| { p.one_of(&["is returned to hand", "are returned to hand"])?; Some(Event::ReturnedToHand(what.clone())) },
+        // "Whenever a source you control deals noncombat damage to an opponent"
+        // (Chandra's Pyreling): damage not dealt as a result of combat (CR 120.2a, 120.2b).
+        |p| { p.verb("deal")?; p.words("noncombat damage to")?; let to = recipients(p)?; Some(Event::DealsNoncombatDamageTo { what: what.clone(), to }) },
         |p| { p.verb("deal")?; p.words("damage to")?; let to = recipients(p)?; Some(Event::DealsDamageTo { what: what.clone(), to }) },
         |p| { p.verb("deal")?; p.word("damage")?; Some(Event::DealsDamage(what.clone())) },
         |p| { p.one_of(&["becomes level", "become level"])?; let n = number(p)?; Some(Event::BecomesLevel { what: what.clone(), n }) },

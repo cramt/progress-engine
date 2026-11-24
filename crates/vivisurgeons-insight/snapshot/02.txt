@@ -306,7 +306,7 @@ cost: {4}{R}{R}
 > When this creature enters, it deals 4 damage to each opponent.
 > Delirium — Whenever a source you control deals noncombat damage to an opponent, if there are four or more card types among cards in your graveyard, this creature deals that amount of damage to target creature that player controls.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Player(EachOpponent)] }], limits: [] }
-= BROKE at "damage" after: delirium — whenever a source you control deals noncombat
+= BROKE at "amount" after: delirium — whenever a source you control deals noncombat damage to an opponent , if there are four or more card types among cards in your graveyard , this creature deals that
 
 ## Fire Nation Salvagers
 face: Fire Nation Salvagers

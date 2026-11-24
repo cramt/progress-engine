@@ -792,7 +792,7 @@ cost: {4}{U}{R}
 > Whenever a source you control deals noncombat damage to an opponent, you draw that many cards.
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([MaxHandSize])
-= BROKE at "damage" after: whenever a source you control deals noncombat
+= Triggered { trigger: When(DealsNoncombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }, to: [Player(AnOpponent)] }), effect: [Draw { who: You, n: ThatMany }], limits: [] }
 
 ## Novijen, Heart of Progress
 face: Novijen, Heart of Progress

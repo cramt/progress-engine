@@ -153,7 +153,7 @@ cost: {5}{R}
 > Whenever a source you control deals noncombat damage to an opponent, this creature deals that much damage to target creature or planeswalker that player controls.
 = BROKE at "amount" after: this spell costs {X} less to cast , where x is the total
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "damage" after: whenever a source you control deals noncombat
+= Triggered { trigger: When(DealsNoncombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }, to: [Player(AnOpponent)] }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(That)], or: None } })] }], limits: [] }
 
 ## Cinder Crawler
 face: Cinder Crawler

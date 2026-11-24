@@ -857,7 +857,7 @@ type: Legendary Creature — Human Mercenary
 cost: {R}{W}
 > Whenever a source you control deals noncombat damage to a creature equal to that creature's toughness, draw a card.
 > {X}, {T}: If a source you control would deal noncombat damage to a permanent or player this turn, it deals that much damage plus X instead.
-= BROKE at "damage" after: whenever a source you control deals noncombat
+= BROKE at "to" after: whenever a source you control deals noncombat damage to a creature equal
 = BROKE at "x" after: {X} , {T} : if a source you control would deal noncombat damage to a permanent or player this turn , it deals that much damage plus
 
 ## Tam, Mindful First-Year

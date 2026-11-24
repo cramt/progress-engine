@@ -612,7 +612,7 @@ cost: {2}{R}
 > Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)
 > Whenever a source you control deals noncombat damage to one or more of your opponents during your turn, you create a 1/1 red Elemental creature token. This ability triggers only once each turn.
 = Keywords([Keyword { name: "prowess", param: None }])
-= BROKE at "damage" after: whenever a source you control deals noncombat
+= BROKE at "your" after: whenever a source you control deals noncombat damage to one or more of
 
 ## Moonblade Shinobi
 face: Moonblade Shinobi

@@ -107,7 +107,7 @@ face: Chandra's Pyreling
 type: Creature — Elemental Lizard
 cost: {1}{R}
 > Whenever a source you control deals noncombat damage to an opponent, this creature gets +1/+0 and gains double strike until end of turn. (It deals both first-strike and regular combat damage.)
-= BROKE at "damage" after: whenever a source you control deals noncombat
+= Triggered { trigger: When(DealsNoncombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [Controller(You)], or: None } }, to: [Player(AnOpponent)] }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [Keyword { name: "double strike", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Chaos Harlequin
 face: Chaos Harlequin

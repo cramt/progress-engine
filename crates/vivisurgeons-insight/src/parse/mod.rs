@@ -1095,7 +1095,7 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         {
             what
         }
-        Event::DealsDamageTo { what, to }
+        Event::DealsDamageTo { what, to } | Event::DealsNoncombatDamageTo { what, to }
             if !to.iter().any(may_be_creature)
                 && (typed(what) || !to.iter().any(names_object)) =>
         {
@@ -2215,7 +2215,9 @@ fn damages_a_player(e: &Event) -> bool {
     let named = |r: &Recipient| matches!(r, Recipient::Player(p) if *p != Player::You);
     match e {
         Event::DealsCombatDamageTo { to, .. } => named(to),
-        Event::DealsDamageTo { to, .. } => to.iter().any(named),
+        Event::DealsDamageTo { to, .. } | Event::DealsNoncombatDamageTo { to, .. } => {
+            to.iter().any(named)
+        }
         _ => false,
     }
 }
