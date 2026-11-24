@@ -772,6 +772,9 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                     if joiner == "and" {
                         if let Some(a) = then.last_mut() { play_and_cast_from(a, &e); }
                     }
+                    let mut e = [e];
+                    searched_both(&then, &mut e);
+                    let [e] = e;
                     then.push(e);
                 }
                 Some(then)
@@ -2478,32 +2481,57 @@ fn last_token(e: &mut [Effect]) -> Option<&mut Token> {
 /// creatures named Kobolds of Kher Keep, then an opponent gains control of
 /// them": after a verb said once for two or more objects, the references
 /// back that open the next clause are all of them ([listed-objects]).
-fn listed(before: &[Effect], after: &mut [Effect]) {
-    struct Them {
-        done: bool,
+/// "Search your library for a Forest card and a Plains card, put them onto
+/// the battlefield tapped" (Krosan Verge), "… reveal them, put them into
+/// your hand": "them" is both cards searched for, through any reveal or
+/// move of them since ([search-and-or]). Whether it marked one.
+fn searched_both(before: &[Effect], after: &mut [Effect]) -> bool {
+    let of_them = |e: &Effect| {
+        matches!(e, Effect::Reveal { what, .. } | Effect::Move { what, .. }
+            if what.quant == Quant::Unresolved(Hint::Listed))
+    };
+    if !matches!(
+        before.iter().rev().find(|e| !of_them(e)),
+        Some(Effect::Search { and, .. }) if !and.is_empty()
+    ) {
+        return false;
     }
-    impl Visitor for Them {
-        fn enter(&mut self, o: &mut Objects) -> bool {
-            if self.done {
-                return false;
-            }
-            match o.quant {
-                Quant::Unresolved(Hint::Antecedent) => o.quant = Quant::Unresolved(Hint::Listed),
-                // "one of those cards".
-                _ => {
-                    self.done = true;
-                    for p in &mut o.filter.posts {
-                        if let Post::FromAmong(x) = p {
-                            if x.quant == Quant::Unresolved(Hint::Antecedent) {
-                                x.quant = Quant::Unresolved(Hint::Listed);
-                            }
+    let Some(first) = after.first_mut() else {
+        return false;
+    };
+    let before = format!("{first:?}");
+    first.walk(&mut Them { done: false });
+    format!("{first:?}") != before
+}
+
+struct Them {
+    done: bool,
+}
+
+impl Visitor for Them {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if self.done {
+            return false;
+        }
+        match o.quant {
+            Quant::Unresolved(Hint::Antecedent) => o.quant = Quant::Unresolved(Hint::Listed),
+            // "one of those cards".
+            _ => {
+                self.done = true;
+                for p in &mut o.filter.posts {
+                    if let Post::FromAmong(x) = p {
+                        if x.quant == Quant::Unresolved(Hint::Antecedent) {
+                            x.quant = Quant::Unresolved(Hint::Listed);
                         }
                     }
                 }
             }
-            false
         }
+        false
     }
+}
+
+fn listed(before: &[Effect], after: &mut [Effect]) {
     let verb = |e: &Effect| match e {
         Effect::Destroy { .. } => Some(0),
         Effect::Exile(_) => Some(1),
@@ -2521,6 +2549,9 @@ fn listed(before: &[Effect], after: &mut [Effect]) {
         }
         _ => false,
     };
+    if searched_both(before, after) {
+        return;
+    }
     let Some(last) = before.last().and_then(verb) else {
         if branched {
             if let Some(first) = after.first_mut() {

@@ -303,7 +303,7 @@ type: Sorcery
 cost: {4}{G}
 > Search your library for up to two basic land cards and/or Gate cards, put them onto the battlefield tapped, then shuffle.
 > You take the initiative.
-= BROKE at "and/or" after: search your library for up to two basic land cards
+= BROKE at "them" after: search your library for up to two basic land cards and/or gate cards , put
 = Spell([Designation("initiative")])
 
 ## Eye of Ramos

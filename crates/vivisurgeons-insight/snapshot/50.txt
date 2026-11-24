@@ -51,7 +51,7 @@ type: Land
 > {1}{R}{R}{W}, {T}, Sacrifice this land: Search your library for an Aura card and/or an Equipment card, reveal them, put them into your hand, then shuffle.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["W"])))], limits: [] }
-= BROKE at "and/or" after: {1} {R} {R} {W} , {T} , sacrifice this land : search your library for an aura card
+= Activated { cost: [Mana(Mana(["1", "R", "R", "W"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [With { bind: [/* found */ Objects { quant: UpTo(N(1)), filter: Filter { alts: [[Subtype("aura")]], kind: Some(Card), posts: [], or: None } }, /* found2 */ Objects { quant: UpTo(N(1)), filter: Filter { alts: [[Subtype("equipment")]], kind: Some(Card), posts: [], or: None } }], then: [Search { who: You, zones: [Library(You)], what: Objects { quant: Introduced(1) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [Objects { quant: Introduced(0) /* found2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } }] }, Reveal { who: You, what: Objects { quant: Bounds([Bound(1), Bound(0)]) /* found, found2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Bounds([Bound(1), Bound(0)]) /* found, found2 */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You)] }], limits: [] }
 
 ## Bladed Ambassador
 face: Bladed Ambassador

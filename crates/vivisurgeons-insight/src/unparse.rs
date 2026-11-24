@@ -8166,10 +8166,21 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                 }
             }
             o.w("for");
-            objects(o, what);
+            // [search-and-or]: "up to one X and up to one Y" is said "an X
+            // and/or a Y".
+            let one = |x: &Objects| x.quant == Quant::UpTo(Amount::N(1));
+            let either = !and.is_empty() && one(what) && and.iter().all(one);
+            let said = |x: &Objects| {
+                let mut x = x.clone();
+                if either {
+                    x.quant = Quant::One;
+                }
+                x
+            };
+            objects(o, &said(what));
             for x in and {
-                o.w("and");
-                objects(o, x);
+                o.w(if either { "and/or" } else { "and" });
+                objects(o, &said(x));
             }
         }
         Effect::Scry(n) => {

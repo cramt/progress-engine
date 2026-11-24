@@ -688,7 +688,7 @@ face: Reach the Horizon
 type: Sorcery
 cost: {3}{G}
 > Search your library for up to two basic land cards and/or Town cards with different names, put them onto the battlefield tapped, then shuffle.
-= BROKE at "and/or" after: search your library for up to two basic land cards
+= BROKE at "them" after: search your library for up to two basic land cards and/or town cards with different names , put
 
 ## Rebellion of the Flamekin
 face: Rebellion of the Flamekin

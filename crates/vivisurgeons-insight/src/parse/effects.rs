@@ -1544,10 +1544,21 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 |p| p.word("library").map(|_| vec![Zone::Library(whose.clone())]),
             )?;
             p.word("for")?;
-            let what = objects(p)?;
+            let mut what = objects(p)?;
             let mut and = vec![];
-            while let Some(more) = p.attempt(|p| { p.word("and")?; objects(p) }) {
+            let mut either = false;
+            while let Some((j, more)) = p.attempt(|p| { let j = p.one_of(&["and/or", "and"])?; Some((j, objects(p)?)) }) {
+                either |= j == "and/or";
                 and.push(more);
+            }
+            // "a card named Alpine Watchdog and/or a card named Igneous Cur"
+            // (Alpine Houndmaster): either card or both, so each is up to
+            // one ([search-and-or]).
+            if either {
+                for x in std::iter::once(&mut what).chain(and.iter_mut()) {
+                    if x.quant != Quant::One { return None; }
+                    x.quant = Quant::UpTo(Amount::N(1));
+                }
             }
             Some(Effect::Search { who, zones, what, and })
         },
@@ -2300,7 +2311,7 @@ fn number_of_counters(p: &mut P) -> Option<Effect> {
 /// effect's first word belongs to the name (the lexer folds case, so the
 /// capitals that would say so are gone).
 pub(super) fn named_card(p: &mut P) -> Option<String> {
-    const STOPS: [&str; 3] = [",", "with", "and"];
+    const STOPS: [&str; 4] = [",", "with", "and", "and/or"];
     const EFFECT_STARTS: [&str; 10] = [
         "exile",
         "you",

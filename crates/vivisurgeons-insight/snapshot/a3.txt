@@ -461,7 +461,7 @@ face: Map the Frontier
 type: Sorcery
 cost: {3}{G}
 > Search your library for up to two basic land cards and/or Desert cards, put them onto the battlefield tapped, then shuffle.
-= BROKE at "and/or" after: search your library for up to two basic land cards
+= BROKE at "them" after: search your library for up to two basic land cards and/or desert cards , put
 
 ## Mirror Sheen
 face: Mirror Sheen

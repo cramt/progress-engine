@@ -634,7 +634,7 @@ face: Navigation Orb
 type: Artifact
 cost: {3}
 > {2}, {T}, Sacrifice this artifact: Search your library for up to two basic land cards and/or Gate cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.
-= BROKE at "and/or" after: {2} , {T} , sacrifice this artifact : search your library for up to two basic land cards
+= BROKE at "those" after: {2} , {T} , sacrifice this artifact : search your library for up to two basic land cards and/or gate cards , reveal
 
 ## Nexus Wardens
 face: Nexus Wardens

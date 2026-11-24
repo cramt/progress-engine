@@ -192,7 +192,7 @@ face: Circuitous Route
 type: Sorcery
 cost: {3}{G}
 > Search your library for up to two basic land cards and/or Gate cards, put them onto the battlefield tapped, then shuffle.
-= BROKE at "and/or" after: search your library for up to two basic land cards
+= BROKE at "them" after: search your library for up to two basic land cards and/or gate cards , put
 
 ## Claws of Wirewood
 face: Claws of Wirewood
