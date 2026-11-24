@@ -2059,6 +2059,51 @@ fn resolve_one(
             }
         }
     }
+    // "You may reveal an Eldrazi card you own from outside the game or
+    // choose a face-up Eldrazi card you own in exile. Put that card into
+    // your hand" (Coax from the Blind Eternities): after an `Or` whose
+    // options each introduce an object, a reference from outside it is
+    // whichever was taken, the nearest that fits from each option
+    // ([or-either-object]).
+    if k == Kind::Text(Hint::Antecedent) {
+        let frames = &ld.c.frames;
+        let or = match cands.first() {
+            Some(Target::Intro(l, i)) if *l == li => get((*l, *i))
+                .frames
+                .iter()
+                .rev()
+                .copied()
+                .find(|&f| frames[f].verb == "Or")
+                .filter(|f| !e.frames.contains(f)),
+            _ => None,
+        };
+        if let Some(or) = or {
+            let option = |x: &Ev| {
+                let at = x.frames.iter().position(|&f| f == or)?;
+                x.frames.get(at + 1).copied()
+            };
+            let mut seen = Vec::new();
+            let mut set = Vec::new();
+            for t in &cands {
+                if let Target::Intro(l, i) = t {
+                    if *l != li {
+                        continue;
+                    }
+                    if let Some(o) = option(get((*l, *i))) {
+                        if !seen.contains(&o) {
+                            seen.push(o);
+                            set.push(t.clone());
+                        }
+                    }
+                }
+            }
+            if set.len() >= 2 {
+                cands.retain(|t| !set.contains(t));
+                cands.insert(0, Target::Set(set));
+                note = "whichever option was taken".into();
+            }
+        }
+    }
     // "For each of those creatures, its controller reveals cards … until
     // they reveal a creature card, puts that card onto the battlefield,
     // then shuffles the rest" (Divergent Transformations): a card in a
