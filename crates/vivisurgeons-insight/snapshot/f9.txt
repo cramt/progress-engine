@@ -532,7 +532,7 @@ cost: {1}{U}{U}
 > Flying
 > {2}: This creature loses flying until end of turn. Any player may activate this ability.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "may" after: {2} : this creature loses flying until end of turn . any player
+= Activated { cost: [Mana(Mana(["2"]))], effect: [LoseKeywords { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, keywords: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], limits: [AnyPlayerMayActivate] }
 
 ## Roiling Dragonstorm
 face: Roiling Dragonstorm

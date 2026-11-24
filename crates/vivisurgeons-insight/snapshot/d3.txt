@@ -361,7 +361,7 @@ face: Endbringer's Revel
 type: Enchantment
 cost: {2}{B}
 > {4}: Return target creature card from a graveyard to its owner's hand. Any player may activate this ability but only as a sorcery.
-= BROKE at "may" after: {4} : return target creature card from a graveyard to its owner 's hand . any player
+= Activated { cost: [Mana(Mana(["4"]))], effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [AnyPlayerMayActivate, SorcerySpeed] }
 
 ## Eusocial Engineering
 face: Eusocial Engineering

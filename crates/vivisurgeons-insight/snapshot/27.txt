@@ -117,7 +117,7 @@ cost: {2}{R}
 > Double strike (This creature deals both first-strike and regular combat damage.)
 > {4}: Double Casey Jones's power until end of turn. Any player may activate this ability.
 = Keywords([Keyword { name: "double strike", param: None }])
-= BROKE at "may" after: {4} : double ~ 's power until end of turn . any player
+= Activated { cost: [Mana(Mana(["4"]))], effect: [Double { stats: [Power], of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [AnyPlayerMayActivate] }
 
 ## Catalyst Stone
 face: Catalyst Stone

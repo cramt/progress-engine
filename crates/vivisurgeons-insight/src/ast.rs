@@ -422,6 +422,11 @@ pub enum Limit {
     X(XLimit),
     /// "This ability can't be copied."
     CantBeCopied,
+    /// "Any player may activate this ability": not only its controller
+    /// (CR 602.2), and the player who activates it controls it (CR
+    /// 602.2a). Activation limits after it ("but only as a sorcery") follow
+    /// it in the list.
+    AnyPlayerMayActivate,
 }
 
 /// A bound on a chosen X (CR 107.3a).

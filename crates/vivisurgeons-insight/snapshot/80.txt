@@ -824,7 +824,7 @@ face: Sailmonger
 type: Creature — Human Monger
 cost: {3}{U}
 > {2}: Target creature gains flying until end of turn. Any player may activate this ability.
-= BROKE at "may" after: {2} : target creature gains flying until end of turn . any player
+= Activated { cost: [Mana(Mana(["2"]))], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], limits: [AnyPlayerMayActivate] }
 
 ## Samurai Enforcers
 face: Samurai Enforcers

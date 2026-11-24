@@ -610,7 +610,7 @@ face: Mercenaries
 type: Creature — Human Mercenary
 cost: {3}{W}
 > {3}: The next time this creature would deal damage to you this turn, prevent that damage. Any player may activate this ability.
-= BROKE at "may" after: {3} : the next time this creature would deal damage to you this turn , prevent that damage . any player
+= Activated { cost: [Mana(Mana(["3"]))], effect: [NextTime { event: DealsDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: [Player(You)] }, dur: ThisTurn, then: [PreventThatDamage] }], limits: [AnyPlayerMayActivate] }
 
 ## Mindleech Ghoul
 face: Mindleech Ghoul

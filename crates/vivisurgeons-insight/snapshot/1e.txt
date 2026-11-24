@@ -1227,7 +1227,7 @@ face: Well of Knowledge
 type: Artifact
 cost: {3}
 > {2}: Draw a card. Any player may activate this ability but only during their draw step.
-= BROKE at "may" after: {2} : draw a card . any player
+= BROKE at "their" after: {2} : draw a card . any player may activate this ability but only during
 
 ## Wild Wasteland
 face: Wild Wasteland

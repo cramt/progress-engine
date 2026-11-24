@@ -509,7 +509,7 @@ cost: {1}{R}{R}
 > At the beginning of each player's end step, put a charge counter on this enchantment for each untapped land that player controls.
 > Remove a charge counter from this enchantment: Add {C}. Any player may activate this ability but only during their turn before the end step.
 = Triggered { trigger: At(EndStep(Each)), effect: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Untapped), Type("land")]], kind: None, posts: [Controller(That)], or: None } }, then: [PutCounters { n: N(1), kind: "charge", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
-= BROKE at "may" after: remove a charge counter from this enchantment : add {C} . any player
+= BROKE at "their" after: remove a charge counter from this enchantment : add {C} . any player may activate this ability but only during
 
 ## March of Progress
 face: March of Progress

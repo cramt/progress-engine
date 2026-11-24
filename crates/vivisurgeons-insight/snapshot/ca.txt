@@ -753,7 +753,7 @@ face: Saproling Cluster
 type: Enchantment
 cost: {1}{G}
 > {1}, Discard a card: Create a 1/1 green Saproling creature token. Any player may activate this ability.
-= BROKE at "may" after: {1} , discard a card : create a <pt> green saproling creature token . any player
+= Activated { cost: [Mana(Mana(["1"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["saproling", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [AnyPlayerMayActivate] }
 
 ## Second Sunrise
 face: Second Sunrise

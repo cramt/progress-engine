@@ -1141,5 +1141,5 @@ cost: {2}{R}{R}
 > First strike
 > {2}: This creature loses first strike until end of turn. Any player may activate this ability.
 = Keywords([Keyword { name: "first strike", param: None }])
-= BROKE at "may" after: {2} : this creature loses first strike until end of turn . any player
+= Activated { cost: [Mana(Mana(["2"]))], effect: [LoseKeywords { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, keywords: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }], limits: [AnyPlayerMayActivate] }
 

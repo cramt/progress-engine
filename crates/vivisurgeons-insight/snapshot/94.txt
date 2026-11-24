@@ -370,8 +370,8 @@ type: Creature — Ogre
 cost: {2}{R}
 > {1}: This creature gets +1/+1 until end of turn. Any player may activate this ability.
 > {1}: This creature gets -1/-1 until end of turn. Any player may activate this ability.
-= BROKE at "may" after: {1} : this creature gets <pt> until end of turn . any player
-= BROKE at "may" after: {1} : this creature gets <pt> until end of turn . any player
+= Activated { cost: [Mana(Mana(["1"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [AnyPlayerMayActivate] }
+= Activated { cost: [Mana(Mana(["1"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [AnyPlayerMayActivate] }
 
 ## Gavony Dawnguard
 face: Gavony Dawnguard

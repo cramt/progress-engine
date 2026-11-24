@@ -196,7 +196,7 @@ cost: {X}{G}
 > This creature enters with X +1/+1 counters on it.
 > {3}: Put a +1/+1 counter on this creature. Any player may activate this ability.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: X, kind: "+1/+1" }])
-= BROKE at "may" after: {3} : put a <pt> counter on this creature . any player
+= Activated { cost: [Mana(Mana(["3"]))], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [AnyPlayerMayActivate] }
 
 ## Flamewake Phoenix
 face: Flamewake Phoenix
@@ -611,7 +611,7 @@ cost: {1}{B}
 > Flying
 > Discard a card: This creature gets -2/-0 until end of turn. Any player may activate this ability.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "may" after: discard a card : this creature gets <pt> until end of turn . any player
+= Activated { cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [AnyPlayerMayActivate] }
 
 ## Ouphe Vandals
 face: Ouphe Vandals

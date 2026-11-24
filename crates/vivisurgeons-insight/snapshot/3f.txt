@@ -542,7 +542,7 @@ cost: {4}
 > {3}: Remove a time counter from this artifact. Any player may activate this ability but only during any upkeep step.
 = Triggered { trigger: At(Upkeep(Yours)), effect: [PutCounters { n: N(1), kind: "time", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Static([Modify { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("time"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })) }])
-= BROKE at "may" after: {3} : remove a time counter from this artifact . any player
+= BROKE at "any" after: {3} : remove a time counter from this artifact . any player may activate this ability but only during
 
 ## Inherited Envelope
 face: Inherited Envelope

@@ -256,7 +256,7 @@ face: Excavation
 type: Enchantment
 cost: {1}{U}
 > {1}, Sacrifice a land: Draw a card. Any player may activate this ability.
-= BROKE at "may" after: {1} , sacrifice a land : draw a card . any player
+= Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [AnyPlayerMayActivate] }
 
 ## Exhibition Tidecaller
 face: Exhibition Tidecaller

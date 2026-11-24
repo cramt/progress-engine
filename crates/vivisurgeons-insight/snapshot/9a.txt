@@ -266,7 +266,7 @@ cost: {3}{B}
 > Assist (Another player can pay up to {3} of this spell's cost.)
 > {2}: This creature gets +1/+1 until end of turn. Any player may activate this ability.
 = Keywords([Keyword { name: "assist", param: None }])
-= BROKE at "may" after: {2} : this creature gets <pt> until end of turn . any player
+= Activated { cost: [Mana(Mana(["2"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [AnyPlayerMayActivate] }
 
 ## Fear of Death
 face: Fear of Death

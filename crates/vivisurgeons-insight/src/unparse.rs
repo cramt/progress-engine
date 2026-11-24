@@ -2728,6 +2728,22 @@ fn limits(o: &mut Out, ls: &[Limit], triggered: bool) {
     while i < ls.len() {
         let l = &ls[i];
         i += 1;
+        // "Any player may activate this ability but only as a sorcery.": the
+        // activation limits after it said in its sentence.
+        if *l == Limit::AnyPlayerMayActivate {
+            o.w("any player may activate this ability");
+            if let Some(first) = ls.get(i).and_then(|l| activate_only(l, triggered)) {
+                o.w("but only");
+                o.add(first);
+                i += 1;
+                while let Some(next) = ls.get(i).and_then(|l| activate_only(l, triggered)) {
+                    syn::only_again(o, next);
+                    i += 1;
+                }
+            }
+            o.tok(Tok::Period);
+            continue;
+        }
         // "Activate only if … and only once each turn.": "activate only"
         // said once for the limits after it.
         if let Some(first) = activate_only(l, triggered) {
@@ -2746,7 +2762,8 @@ fn limits(o: &mut Out, ls: &[Limit], triggered: bool) {
             | Limit::Once
             | Limit::OnlyDuringYourTurn
             | Limit::OnlyDuringYourUpkeep
-            | Limit::OnlyIf(_) => unreachable!("an activation limit"),
+            | Limit::OnlyIf(_)
+            | Limit::AnyPlayerMayActivate => unreachable!("an activation limit"),
             Limit::OncePerTurn => o.w("this ability triggers only once each turn"),
             Limit::TwicePerTurn => o.w("this ability triggers only twice each turn"),
             Limit::SpendOnly { uses, then } => {

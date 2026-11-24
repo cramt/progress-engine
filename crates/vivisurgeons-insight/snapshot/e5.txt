@@ -1044,7 +1044,7 @@ cost: {4}{G}
 > Trample
 > {3}: This creature loses trample until end of turn. Any player may activate this ability.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "may" after: {3} : this creature loses trample until end of turn . any player
+= Activated { cost: [Mana(Mana(["3"]))], effect: [LoseKeywords { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, keywords: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [AnyPlayerMayActivate] }
 
 ## Viridian Revel
 face: Viridian Revel

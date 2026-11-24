@@ -57,7 +57,7 @@ cost: {6}
 > {4}: Remove a doom counter from this artifact. Any player may activate this ability but only during any upkeep step.
 = Triggered { trigger: At(Upkeep(Yours)), effect: [PutCounters { n: N(1), kind: "doom", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: At(DrawStep(Yours)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("doom"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), to: [Player(Each)] }], limits: [] }
-= BROKE at "may" after: {4} : remove a doom counter from this artifact . any player
+= BROKE at "any" after: {4} : remove a doom counter from this artifact . any player may activate this ability but only during
 
 ## Ascending Aven
 face: Ascending Aven

@@ -906,7 +906,7 @@ cost: {2}{R}
 > When there are no creatures on the battlefield, sacrifice this enchantment.
 > {2}: This enchantment deals 1 damage to target creature. Any player may activate this ability but only as a sorcery.
 = Triggered { trigger: State(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }), op: Eq, value: N(0) }), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "may" after: {2} : this enchantment deals 1 damage to target creature . any player
+= Activated { cost: [Mana(Mana(["2"]))], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [AnyPlayerMayActivate, SorcerySpeed] }
 
 ## Teferi's Imp
 face: Teferi's Imp

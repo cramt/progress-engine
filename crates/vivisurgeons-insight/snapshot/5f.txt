@@ -930,7 +930,7 @@ type: Enchantment
 cost: {2}{B}{B}
 > Pay 5 life: Destroy this enchantment. Any player may activate this ability but only during their turn.
 > Discard a card: Target player puts a card from their hand on top of their library. Activate only as a sorcery.
-= BROKE at "may" after: pay 5 life : destroy this enchantment . any player
+= BROKE at "their" after: pay 5 life : destroy this enchantment . any player may activate this ability but only during
 = Activated { cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Performed { by: Target, effect: Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }, from: None, to: TopOfLibrary(That), tapped: false, transformed: false, under: None, order: None } }], limits: [SorcerySpeed] }
 
 ## Wingrattle Scarecrow
@@ -973,7 +973,7 @@ cost: {1}{B}{R}
 > {3}: Xantcha's controller loses 2 life and you draw a card. Any player may activate this ability.
 = BROKE at "opponent" after: ~ enters under the control of an
 = BROKE at "owner" after: ~ attacks each combat if able and can't attack its
-= BROKE at "may" after: {3} : ~ 's controller loses 2 life and you draw a card . any player
+= Activated { cost: [Mana(Mana(["3"]))], effect: [LoseLife { who: ControllerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2) }, Draw { who: You, n: N(1) }], limits: [AnyPlayerMayActivate] }
 
 ## Zebra Unicorn
 face: Zebra Unicorn

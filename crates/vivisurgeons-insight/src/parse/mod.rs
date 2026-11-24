@@ -370,6 +370,24 @@ fn limits(p: &mut P) -> Vec<Limit> {
     let mut v = Vec::new();
     while let Some(l) = p.attempt(|p| {
         let l = alt!(p;
+            // "Any player may activate this ability", "… but only as a
+            // sorcery": who may activate it, then when (CR 602.2: only the
+            // controller, "unless the object specifically says otherwise";
+            // [any-player-activates]).
+            |p| {
+                p.words("any player may activate this ability")?;
+                let mut v = vec![Limit::AnyPlayerMayActivate];
+                if p.attempt(|p| p.words("but only")).is_some() {
+                    v.push(activate_only(p)?);
+                    while let Some(l) = p.attempt(|p| {
+                        p.one_of(&[", and only", "and only"])?;
+                        activate_only(p)
+                    }) {
+                        v.push(l);
+                    }
+                }
+                Some(v)
+            },
             // "Activate only if … and only once each turn": "activate only"
             // said once for several limits.
             |p| {

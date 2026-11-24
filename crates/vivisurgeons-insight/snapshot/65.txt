@@ -1001,7 +1001,7 @@ face: Warmonger
 type: Creature — Minotaur Monger
 cost: {3}{R}
 > {2}: This creature deals 1 damage to each creature without flying and each player. Any player may activate this ability.
-= BROKE at "may" after: {2} : this creature deals 1 damage to each creature without flying and each player . any player
+= Activated { cost: [Mana(Mana(["2"]))], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithoutKeyword("flying")], or: None } }), Player(Each)] }], limits: [AnyPlayerMayActivate] }
 
 ## Woodland Wanderer
 face: Woodland Wanderer
