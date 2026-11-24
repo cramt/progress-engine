@@ -7050,30 +7050,52 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                     let last = j + 1 == types.len();
                     adj(o, a, (last && noun && n == Num::Pl).then_some(Num::Pl));
                 }
-                o.w("with");
                 let len = gains.len() + granted.len();
-                for (j, kw) in gains.iter().enumerate() {
-                    list_sep(o, j, len, "and");
-                    keyword(o, kw);
-                }
-                for (j, a) in granted.iter().enumerate() {
-                    let at = gains.len() + j;
-                    syn::quote_list_sep(o, at, len, j > 0);
-                    quoted(o, a);
-                }
-                // Nothing said after a closing quote: the quote ends the
-                // sentence, and "It's still a land." starts the next.
-                match k {
-                    Keeps::Listed(v) if *d == Duration::Permanent => {
-                        o.w("it's still a");
-                        for a in v {
-                            adj(o, a, None);
+                let body = out(|o| {
+                    for (j, kw) in gains.iter().enumerate() {
+                        list_sep(o, j, len, "and");
+                        keyword(o, kw);
+                    }
+                    for (j, a) in granted.iter().enumerate() {
+                        let at = gains.len() + j;
+                        syn::quote_list_sep(o, at, len, j > 0);
+                        quoted(o, a);
+                    }
+                });
+                let with = out(|o| {
+                    o.w("with");
+                    o.add(body.clone());
+                    // Nothing said after a closing quote: the quote ends the
+                    // sentence, and "It's still a land." starts the next.
+                    match k {
+                        Keeps::Listed(v) if *d == Duration::Permanent => {
+                            o.w("it's still a");
+                            for a in v {
+                                adj(o, a, None);
+                            }
                         }
+                        _ if *k != Keeps::implied_by(types) || *d != Duration::Permanent => {
+                            keeps_then_dur(o, k, types, d);
+                        }
+                        _ => {}
                     }
-                    _ if *k != Keeps::implied_by(types) || *d != Duration::Permanent => {
-                        keeps_then_dur(o, k, types, d);
+                });
+                // "… becomes a Bear creature in addition to its other types
+                // and gains "…"" (Beorn's Hospitality, Kellan): the same
+                // grant as a second verb ([becomes-and-gains]).
+                let and_gains = out(|o| {
+                    if !matches!(k, Keeps::Listed(_)) {
+                        keeps_then_dur(o, k, types, &Duration::Permanent);
                     }
-                    _ => {}
+                    o.w("and");
+                    o.verb("gain", n);
+                    o.add(body);
+                    dur(o, d);
+                });
+                if matches!(k, Keeps::Listed(_)) {
+                    o.add(with);
+                } else {
+                    syn::becomes_with(o, with, and_gains);
                 }
                 last = Out(o.0[start..].to_vec());
                 i += 1 + granted.len();

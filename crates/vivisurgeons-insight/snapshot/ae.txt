@@ -563,7 +563,7 @@ cost: {U}{U}
 > Whenever you cast a blue spell, if Hydro-Man is a creature, he gets +1/+1 until end of turn.
 > At the beginning of your end step, untap Hydro-Man. Until your next turn, he becomes a land and gains "{T}: Add {U}." (He's not a creature during that time.)
 = Triggered { trigger: InterveningIf(When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Spell), posts: [], or: None } } }), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
-= BROKE at "\"" after: at the beginning of your end step , untap ~ . until your next turn , he becomes a land and gains
+= Triggered { trigger: At(EndStep(Yours)), effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), During { dur: UntilYourNextTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Type("land")], gains: [], keeps: Supertypes, dur: Permanent }, GrantAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"])))], limits: [] }, dur: Permanent }] }], limits: [] }
 
 ## Imposing Visage
 face: Imposing Visage

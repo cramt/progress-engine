@@ -959,7 +959,7 @@ face: Shade's Breath
 type: Instant
 cost: {1}{B}
 > Until end of turn, each creature you control becomes a black Shade and gains "{B}: This creature gets +1/+1 until end of turn."
-= BROKE at "\"" after: until end of turn , each creature you control becomes a black shade and gains
+= Spell([During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, types: [Color(Black), Subtype("shade")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }, GrantAbility { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Mana(Mana(["B"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }, dur: Permanent }] }])
 
 ## Shambleshark
 face: Shambleshark

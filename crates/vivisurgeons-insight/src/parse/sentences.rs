@@ -427,10 +427,19 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let pt = p.attempt(|p| match p.peek()? { Tok::Pt(pt) if !pt.signed => { let pt = *pt; p.bump(); Some(pt) } _ => None });
             let types = becomes_types(p);
             if types.is_empty() && pt.is_none() { return None; }
-            p.word("with")?;
+            // "… becomes a Human Faerie Detective and gains "Whenever …""
+            // (Kellan, Planar Trailblazer), "… becomes a Bear creature in
+            // addition to its other types and gains "…"" (Beorn's
+            // Hospitality): the same grant as "with", said as a second verb
+            // of the one subject ([becomes-and-gains]).
+            let kept = p.attempt(keeps);
+            alt!(p; |p| p.word("with"), |p| { p.word("and")?; p.verb("gain") })?;
             let (gains, abilities) = keywords_then_quoted(p)?;
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            let keeps = p.attempt(still).unwrap_or_else(|| Keeps::implied_by(&types));
+            let keeps = match kept {
+                Some(k) => k,
+                None => p.attempt(still).unwrap_or_else(|| Keeps::implied_by(&types)),
+            };
             let mut v = vec![Effect::Becomes { what: what.clone(), pt, types, gains, keeps, dur: dur.clone() }];
             v.extend(abilities.into_iter().map(|a| Effect::GrantAbility { what: what.clone(), ability: Box::new(a), dur: dur.clone() }));
             Some(v)
