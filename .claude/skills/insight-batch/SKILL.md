@@ -10,6 +10,18 @@ subcommands decide everything a script can: the baseline, the gates, pushing
 or parking, triage and metrics. You write grammar, dispatch the reviewers and
 keep the handoff. A batch ends when `triage` says nothing is in flight.
 
+## Nobody answers
+
+The first message is the only one a person sends. Ending a turn ends the
+batch, and the runner starts the next one in a new thread minutes later. So
+never end a turn to ask, to hold, or to wait for a go: nobody will give it.
+Every choice is yours. Make the call the brief and the handoff point to,
+write it in the handoff, and keep working. Questions that really are the
+human's go in report.json's `escalations`, and the batch carries on.
+Waiting on a background subcommand is not a pause: you are woken when it
+ends, and you carry on from there. A batch ends only where the steps below
+say so.
+
 ## Running the subcommands
 
 Every subcommand is, from the repo root (your cwd, the runner's clone, on main):

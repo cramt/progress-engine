@@ -16,11 +16,33 @@ Your cwd is the runner's clone, on main. `<state>` is the state dir your
 prompt names. Run cargo through `nix develop --command`. Long commands (the
 replay, the test suite) go in the background; wait for their notice.
 
+## Nobody answers
+
+The first message is the only one a person sends. Ending a turn ends the
+batch, and the runner starts the next one in a new thread minutes later. So
+never end a turn to ask, to hold, or to wait for a go: nobody will give it.
+Every choice is yours. Make the call the skill and the handoff point to,
+write it in the handoff, and keep working. Waiting on a background command is
+not a pause: you are woken when it ends, and you carry on from there. A batch
+ends only at step 6, or at a stop step 1 names.
+
+Batch 18 broke this. It "held" while its gate ran, then held again when the
+gate came back red, and ended its turn with uncommitted work in the tree.
+Forty-five threads in a row then found the tree dirty and stopped.
+
 ## Steps
 
-1. **Start.** `git pull --ff-only`, and stop if the tree is dirty or the pull
-   refuses (report it and end the thread). Pick the batch number `n`: one more
-   than the highest under `<state>/batches/`. Build with `cargo build --release
+1. **Start.** Pick the batch number `n`: one more than the highest under
+   `<state>/batches/`, and make that directory. Only batches write in this
+   clone, so a dirty tree or commits ahead of `origin/main` are an earlier
+   batch that died partway. Adopt that work and keep going. Save it first:
+   `git diff HEAD > <state>/batches/<n>/inherited.diff`, and
+   `git format-patch origin/main -o <state>/batches/<n>/inherited/` for the
+   commits. Then `git fetch` and `git reset --hard origin/main`. If the last
+   handoff or the diff says what the work was for, apply it again
+   (`git apply`) and make it your first card, gated like your own. Otherwise
+   name it in your handoff and leave it. Then `git pull --ff-only`. If that
+   fails (the network, not the tree), report it and end the thread. Build with `cargo build --release
    -p chancellor-of-the-spires --bin chancellor-logs`, then write the baseline:
    `target/release/chancellor-logs replay --top 40 > <state>/batches/<n>/baseline.txt`.
    Read `<state>/handoff.md` (the last writer's notes) whole.
@@ -44,6 +66,9 @@ replay, the test suite) go in the background; wait for their notice.
      `cargo test -p chancellor-of-the-spires`, and if you touched Insight,
      `cargo test -p vivisurgeons-insight` and `insight lint --counts` with no
      count above `crates/vivisurgeons-insight/tests/lint-baseline.txt`.
+     Run each command on its own and read its exit status. A pipe through
+     `sort`, `grep` or `tail` returns the last command's status: batch 18's
+     gate passed with a failing test that way.
    - Rerun the replay into `<state>/batches/<n>/after.txt`. Against the
      baseline, the milestone's **games to the end** and **lines followed** must
      not fall, and **divergences** (the engine disagreeing with the log) must
