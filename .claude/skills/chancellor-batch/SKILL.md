@@ -114,8 +114,12 @@ Forty-five threads in a row then found the tree dirty and stopped.
      for a **silent guess**: a value the engine can't know, defaulted (a
      `filter_map` that drops unknowns, a `*` read as 0, a type assumed) where
      it should refuse by name. The replay can't catch these, because a guess
-     that matches the log looks like progress. Fix what it finds before you
-     push. If you leave something, put it at the top of the handoff.
+     that matches the log looks like progress. For a diff to `replay.rs`, it
+     also asks whether the change can make a divergence look like another
+     kind of stop, or drop a candidate without stopping by name: a fixed cap
+     (`CHOSEN_NAMES`, `BLOCK_READINGS`, `BACKTRACKS`) or options deduplicated
+     by card name. Batch 12's `refused_at` hid a divergence that way, and no
+     review saw it. Fix what it finds before you push. If you leave something, put it at the top of the handoff.
    - A gate you can't pass: drop or revert the commit that broke it and say so
      in the handoff.
 4. **Commit and push.** One commit per rule, its subject a lowercase claim
