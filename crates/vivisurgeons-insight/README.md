@@ -242,7 +242,7 @@ each in text order (`src/walk.rs`):
 |---|---|---|
 | unresolved-reference | "it", "that creature" that no object said before it fits, so the tree points it at nothing (`Quant::Unresolved`). Every other reference names the binder of the object it means ([binders]): a target, a card drawn, milled or looked at, an earlier paragraph's object (CR 608.2c), a linked ability's (CR 607.2a). "Those players" and "those counters" are no objects and are not counted | 43 |
 | dangling-that-player | "that player" with no player before it. A player named by the trigger ("deals combat damage to a player", "each player's upkeep") or by an owner's zone counts, and the player of the same effect does ([that-player-in-effect]) | 2 |
-| self-comparison | both sides of a comparison the same expression | 0 |
+| self-comparison | both sides of a comparison the same expression, or a filter that relates the object it tests to itself, which every object passes: "cards with the same name as the exiled card" read `SameNameAs(Itself)` (Pick the Brain), "a card that shares a card type with the cycled card" read `SharesType { with: Itself }` (Unpredictable Cyclone). Inside an amount `Itself` is the object the amount is worked out for, so "for each other creature with the same name as that creature" is not one | 2 |
 | spell-in-zone | a spell in a zone other than the stack (CR 112.1) | 0 |
 | permanent-state-off-battlefield | a spell or card that is tapped, attacking, enchanted or equipped | 0 |
 | state-of-triggering-spell | a permanent's state tested of the spell that triggered the ability | 0 |
@@ -253,11 +253,13 @@ each in text order (`src/walk.rs`):
 | types-without-card-type | "is a black Dragon" read as a list of types with subtypes and no card type | 0 |
 | sort-mismatch | a reference bound to an object its words can't name, or one effect whose two sides are the same binder (`src/lint/sorts.rs`) | 2 |
 | branch-binder-outside | a `With` binding an object that only one mode or one `May`, `IfYouDo`, `IfYouDont` or `If` branch inside it says, so it is described before the choice that decides whether it exists ([branch-binds]). The decision is `binders::into_branch`'s own (`branch_moves`), asked of every `With`, so its exceptions hold: a target, a binder several modes say, a token made before the branch, what a "may" looked at. The 4 are a pass's found card inside a `ForEach` that only the pass's "may" says (From the Ashes, Wave of Vitriol, Clarion Ultimatum, Krenko's Buzzcrusher), lists `into_branch` does not visit | 4 |
+| plural-bound-property | a property of one object (owner, controller, mana cost, mana value, power, toughness, base power, X) read off a binder that holds a set ([each-itself]): "return those cards to the battlefield under their owner's control", "the flashback cost is equal to its mana cost", "creatures can't attack you unless their controller pays" read one owner, cost or controller for the whole set where each object has its own (`Itself`). A `ForEach`'s binder is one object at a time, "the total power of those creatures" is `Total`, and "those players" (`Player::Those`) are several, so none of them is one. All 67 are faults, 13 of them pinned and listed in `tests/lint.rs`'s `PINNED_FAULTS`: 32 returns under "their owner's control" (Ghostway, Golden Argosy, Mechtitan Core, Safe Haven, Mysterious Limousine, Open the Vaults …), 18 attack and block taxes (Propaganda, Ghostly Prison, War Tax, Hum of the Radix's "its controller" …), 8 flashback and escape costs (Past in Flames, Underworld Breach, Will of the Jeskai, Lier …), 3 P/T equal to its mana value (March of the Machines, Opalescence, Starfield of Nyx) and Trial of a Time Lord, Seeds of Innocence, Alpha Brawl, Ravenous Gigantotherium | 67 |
 
 The zeros are kinds earlier rounds fixed (Wild-Magic Sorcerer's spell in
 exile, Sage-Eye Avengers comparing its power with its own), and the lint
 holds them there. `tests/lint.rs` holds the pinned trees to no violation of
-any kind, and the rest of the corpus to `tests/lint-baseline.txt`: a count
+any kind but its `PINNED_FAULTS` (trees pinned before a lint saw them, a
+list that only shrinks), and the rest of the corpus to `tests/lint-baseline.txt`: a count
 that rises fails the test, and a count that falls is lowered with
 `UPDATE_LINT=1 cargo test -p vivisurgeons-insight --test lint`. A golden
 file carries each face's mana cost (`cost:`) for the X check.

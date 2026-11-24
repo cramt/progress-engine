@@ -11,6 +11,7 @@ use crate::ast::*;
 use crate::golden::Entry;
 use crate::walk::{Visitor, Walk};
 
+pub mod plural;
 pub mod sorts;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -20,7 +21,12 @@ pub enum Kind {
     UnresolvedReference,
     /// "that player" with no player said before it in the ability.
     DanglingThatPlayer,
-    /// Both sides of a comparison are the same expression.
+    /// Both sides of a comparison are the same expression, or an object a
+    /// filter tests related to itself: "a card that shares a card type
+    /// with the cycled card" read `SharesType { with: Itself }`, "cards with
+    /// the same name as the exiled card" read `SameNameAs(Itself)`, which
+    /// every object passes ([each-itself]: `Itself` in a filter is the
+    /// object tested).
     SelfComparison,
     /// A spell in a zone other than the stack: a spell is a card on the
     /// stack (CR 112.1), so where it was is `CastFrom`.
@@ -52,10 +58,15 @@ pub enum Kind {
     /// whether it exists ([branch-binds]). The `With`s
     /// `binders::into_branch` would still split, by its own decision.
     BranchBinderOutside,
+    /// A property of one object (its owner, controller, mana cost, mana
+    /// value, power, toughness, base power, X) read off a binder that holds
+    /// a set: "return those cards under their owner's control" is each
+    /// card's own owner, `OwnerOf(Itself)`, not one for all ([each-itself]).
+    PluralBoundProperty,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 13] = [
+    pub const ALL: [Kind; 14] = [
         Kind::UnresolvedReference,
         Kind::DanglingThatPlayer,
         Kind::SelfComparison,
@@ -69,6 +80,7 @@ impl Kind {
         Kind::TypesWithoutCardType,
         Kind::SortMismatch,
         Kind::BranchBinderOutside,
+        Kind::PluralBoundProperty,
     ];
 
     pub fn name(self) -> &'static str {
@@ -86,6 +98,7 @@ impl Kind {
             Kind::TypesWithoutCardType => "types-without-card-type",
             Kind::SortMismatch => "sort-mismatch",
             Kind::BranchBinderOutside => "branch-binder-outside",
+            Kind::PluralBoundProperty => "plural-bound-property",
         }
     }
 
@@ -200,6 +213,9 @@ pub fn lint(a: &Ability, cx: Context) -> Vec<Kind> {
     for _ in 0..crate::binders::branch_binders_outside(a) {
         out.push(Kind::BranchBinderOutside);
     }
+    for _ in 0..plural::count(a) {
+        out.push(Kind::PluralBoundProperty);
+    }
     out
 }
 
@@ -225,6 +241,7 @@ fn scope(a: Ability, cx: Context, out: &mut Vec<Kind>) {
         x_chosen: false,
         x_used: false,
         effects: 0,
+        amounts: 0,
         pending: Vec::new(),
     };
     match core(&a) {
@@ -286,6 +303,10 @@ struct Lint {
     x_used: bool,
     /// How deep in effects the walk is.
     effects: u32,
+    /// How deep in amounts the walk is: an object counted inside one may
+    /// say `Itself` of the object the amount is worked out for ("for each
+    /// other creature with the same name as that creature").
+    amounts: u32,
     /// The depth of each "that player" said before any player: "deals
     /// damage to target player equal to the number of cards in that
     /// player's hand", "Each player loses 1 life for each creature they
@@ -349,6 +370,9 @@ impl Visitor for Lint {
             self.players += 1;
         }
         filter(&o.filter, &mut self.out);
+        if self.amounts == 0 && related_to_itself(&o.filter) {
+            self.out.push(Kind::SelfComparison);
+        }
         if (o.quant == Quant::Unresolved(Hint::Triggering) || at_trigger)
             && self.triggering_spell
             && permanent_state(&o.filter)
@@ -473,7 +497,12 @@ impl Visitor for Lint {
         }
     }
 
+    fn amount_done(&mut self, _: &mut Amount) {
+        self.amounts -= 1;
+    }
+
     fn amount(&mut self, a: &mut Amount) {
+        self.amounts += 1;
         if *a == Amount::X && self.wheres == 0 && !self.x_chosen {
             self.x_used = true;
         }
@@ -488,6 +517,30 @@ fn stat_of(stat: Stat, a: &Amount) -> Option<&Objects> {
         | (Stat::ManaValue, Amount::ManaValueOf(o)) => Some(o),
         _ => None,
     }
+}
+
+/// A filter that relates the object it tests to that same object, so
+/// every object passes it (or, for "other than", none does).
+fn related_to_itself(f: &Filter) -> bool {
+    let itself = |o: &Objects| o.quant == Quant::Itself;
+    let mut g = Some(f);
+    while let Some(h) = g {
+        let post = h.posts.iter().any(|p| match p {
+            Post::SameNameAs(o) | Post::SharesColor(Some(o)) => itself(o),
+            Post::SharesType { with: Some(o), .. } => itself(o),
+            _ => false,
+        });
+        let adj = h
+            .alts
+            .iter()
+            .flatten()
+            .any(|a| matches!(a, Adj::OtherThan(o) if itself(o)));
+        if post || adj {
+            return true;
+        }
+        g = h.or.as_deref();
+    }
+    false
 }
 
 fn singular(o: &Objects) -> bool {
@@ -998,5 +1051,73 @@ mod tests {
             1,
         );
         assert_eq!(outside(&a), 0);
+    }
+
+    fn count(kind: Kind, name: &str, type_line: &str, text: &str, n: usize) -> usize {
+        lint(&read(name, type_line, text, n), Context::default())
+            .into_iter()
+            .filter(|k| *k == kind)
+            .count()
+    }
+
+    fn plural(name: &str, type_line: &str, text: &str, n: usize) -> usize {
+        count(Kind::PluralBoundProperty, name, type_line, text, n)
+    }
+
+    #[test]
+    fn each_objects_own_property_read_off_the_whole_set_is_flagged() {
+        // The tree reads one owner for every card exiled with the land.
+        let haven = "{2}, {T}: Exile target creature you control.\nAt the beginning of your upkeep, you may sacrifice this land. If you do, return each card exiled with this land to the battlefield under its owner's control.";
+        assert_eq!(plural("Safe Haven", "Land", haven, 1), 1);
+        // One flashback cost for all of them: the set's mana cost.
+        let flames = "Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.\nFlashback {4}{R}";
+        assert_eq!(plural("Past in Flames", "Sorcery", flames, 0), 1);
+        // A static's "their controller", said of every creature.
+        let propaganda = "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you.";
+        assert_eq!(plural("Propaganda", "Enchantment", propaganda, 0), 1);
+        // The controller and the mana value of each destroyed artifact.
+        let seeds = "Destroy all artifacts. They can't be regenerated. The controller of each of those artifacts gains life equal to its mana value.";
+        assert_eq!(plural("Seeds of Innocence", "Sorcery", seeds, 0), 2);
+    }
+
+    #[test]
+    fn a_singular_binder_a_pass_of_for_each_or_a_total_is_not_flagged() {
+        // One target: its owner is one player.
+        let ephemerate = "Exile target creature you control, then return it to the battlefield under its owner's control.\nRebound";
+        assert_eq!(plural("Ephemerate", "Instant", ephemerate, 0), 0);
+        // "For each attacking creature, its owner": a `ForEach` binds one
+        // creature at a time.
+        let spouts = "For each attacking creature, its owner puts it on their choice of the top or bottom of their library.";
+        assert_eq!(plural("Aetherspouts", "Instant", spouts, 0), 0);
+        // "The total mana value of those cards" is the set's, one number.
+        let dreadhorde = "Choose any number of target creature and/or planeswalker cards in graveyards. Command the Dreadhorde deals damage to you equal to the total mana value of those cards. Put them onto the battlefield under your control.";
+        assert_eq!(
+            plural("Command the Dreadhorde", "Sorcery", dreadhorde, 0),
+            0
+        );
+        // "Those players": the controllers of a set are several players
+        // ([those-players]).
+        let winds = "Overload {4}{W}{W}\nExile target creature you don't control. For each creature exiled this way, its controller searches their library for a basic land card. Those players put those cards onto the battlefield tapped, then shuffle.";
+        assert_eq!(plural("Winds of Abandon", "Sorcery", winds, 1), 0);
+    }
+
+    fn itself(name: &str, type_line: &str, text: &str, n: usize) -> usize {
+        count(Kind::SelfComparison, name, type_line, text, n)
+    }
+
+    #[test]
+    fn a_filter_relating_an_object_to_itself_is_flagged() {
+        // "the same name as the exiled card", read as the card searched
+        // for: every card has its own name.
+        let brain = "Target opponent reveals their hand. You choose a nonland card from it and exile that card.\nDelirium — If there are four or more card types among cards in your graveyard, search that player's graveyard, hand, and library for any number of cards with the same name as the exiled card, exile those cards, then that player shuffles.";
+        assert_eq!(itself("Pick the Brain", "Sorcery", brain, 1), 1);
+        // Inside an amount `Itself` is the object the amount is worked out
+        // for, so "each other creature with the same name as that creature"
+        // and "each other creature that shares a creature type with it"
+        // compare two objects.
+        let mirror = "The \"legend rule\" doesn't apply to permanents you control.\nEach legendary creature you control gets +1/+1.\nEach nontoken creature you control gets +1/+1 for each other creature you control with the same name as that creature.";
+        assert_eq!(itself("Mirror Box", "Artifact", mirror, 2), 0);
+        let coat = "Each creature gets +1/+1 for each other creature on the battlefield that shares at least one creature type with it.";
+        assert_eq!(itself("Coat of Arms", "Artifact", coat, 0), 0);
     }
 }
