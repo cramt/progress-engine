@@ -668,6 +668,24 @@ pub(crate) fn adds(add: &i::ManaAdd) -> Result<Adds, String> {
             Some(i::Palette::CommanderIdentity) => Adds::CommanderIdentity,
             Some(other) => return Err(format!("mana of a color {}", short(other))),
         },
+        // "Add three mana of any one color": one color chosen for all of it
+        // (CR 106.1a), as many of it as it says.
+        i::ManaAdd::Of {
+            n: i::Amount::N(n),
+            pick: i::Pick::AnyOneColor,
+            within: None,
+        } => Adds::Options(
+            [
+                Color::White,
+                Color::Blue,
+                Color::Black,
+                Color::Red,
+                Color::Green,
+            ]
+            .into_iter()
+            .map(|c| ManaPool::of(std::iter::repeat_n(Mana::of_color(c), *n as usize)))
+            .collect(),
+        ),
         other => return Err(format!("adding mana by {}", short(other))),
     })
 }

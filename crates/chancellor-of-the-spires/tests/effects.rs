@@ -2856,6 +2856,45 @@ fn a_mana_ability_limited_by_what_you_control_is_offered_only_then() {
     assert_eq!(adds(&game), vec!["{G}", "{G}{G}{G}{G}"]);
 }
 
+/// CR 106.1a: Black Lotus's "Add three mana of any one color" is three of
+/// one color chosen, five ways, never a mix.
+#[test]
+fn three_mana_of_any_one_color() {
+    let mut game = deal(
+        &[("Black Lotus", 30), ("Island", 30)],
+        &[("Mountain", 60)],
+        &[("Black Lotus", 1), ("Island", 1)],
+    );
+    cast(&mut game, "Black Lotus", None);
+    resolve(&mut game);
+    let lotus = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| game.card(p.card).is_some_and(|t| t.name == "Black Lotus"))
+        .map(|(id, _)| *id)
+        .unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!()
+    };
+    let adds: Vec<String> = actions
+        .iter()
+        .filter_map(|a| match a {
+            Action::Mana(m) if m.source == lotus => Some(m.adds.to_string()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        adds,
+        vec![
+            "{W}{W}{W}",
+            "{U}{U}{U}",
+            "{B}{B}{B}",
+            "{R}{R}{R}",
+            "{G}{G}{G}"
+        ]
+    );
+}
+
 /// CR 305.1, 614.15: River of Tears adds {U}, or {B} instead once I've
 /// played a land this turn: itself, the turn it's played, and the Island
 /// played the turn after, but not before that Island.

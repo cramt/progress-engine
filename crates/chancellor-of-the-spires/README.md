@@ -1096,11 +1096,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-25 162 of the 500 replay to
-the end and 58.86% of their lines are followed** (18,634 of 31,659), 3
+Worked card by card from there, **on 2026-11-25 163 of the 500 replay to
+the end and 59.00% of their lines are followed** (18,679 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (1 to the end),
-and 163 games have no card the engine refuses before any game (from 21). The
+and 164 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1376,7 +1376,9 @@ Cutthroat, whose 4 games go on, to Cascading Cataracts's mana, Sword of
 Fire and Ice, Enduring Curiosity and a discard to Disfigure's line); a
 mana ability's own "instead" once its controller has played a land this
 turn (CR 305.4, 614.15: River of Tears, in no milestone game but 3 of
-the rest). And
+the rest); and "three mana of any one color" (CR 106.1a: Lotus Bloom,
+whose 3 games go on, one to the end and the others to Atarka's Command
+and Professional Face-Breaker). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles
