@@ -275,7 +275,12 @@ impl Known {
         });
         let cost =
             ManaCost::parse(&text.mana_cost).map_err(|why| Unrunnable::new(why.clone(), why));
-        let in_graveyard = text.as_card().is_ok_and(|c| lower::works_in_graveyard(&c));
+        // A text that isn't a card's Insight can read is judged by its
+        // words, never taken to work nowhere.
+        let in_graveyard = match text.as_card() {
+            Ok(c) => lower::works_in_graveyard(&c),
+            Err(_) => lower::says_graveyard_zone(&text.rules_text()),
+        };
         Known {
             text,
             printed,
@@ -2542,7 +2547,7 @@ impl Game {
     /// Whether `owner` has shown a card with an ability that says it works
     /// while the card is in a graveyard (CR 113.6b: Anger's haste, Wonder's
     /// flying). Such a static changes what a creature can do without the
-    /// log ever printing it, so a missing haste or trample never conflicts
+    /// log ever printing it, so a missing flying or trample never conflicts
     /// with a later line, and a hidden card of that player's in a graveyard
     /// may be another copy: the presumption that it has no such ability
     /// doesn't hold.
@@ -2953,7 +2958,7 @@ impl Game {
                         return Some(Rejected::Refused {
                             card: "a hidden card".into(),
                             refusal: Unrunnable::new(
-                                "a hidden card in a graveyard",
+                                "a hidden card in a graveyard beside a graveyard static",
                                 "a card no one has named is in a graveyard, and its owner has \
                                  shown a card whose ability works there unseen by the log \
                                  (CR 113.6b), so it isn't presumed to have none",

@@ -198,11 +198,21 @@ pub fn works_in_graveyard(card: &Card) -> bool {
     };
     let mut finds = Finds(false);
     for line in read_face(&face, card.name) {
-        if let Ok(mut a) = line.parsed {
-            a.walk(&mut finds);
+        match line.parsed {
+            Ok(mut a) => a.walk(&mut finds),
+            // A line Insight can't read may still say its zone: taken as
+            // one that does, rather than as none.
+            Err(_) => finds.0 |= says_graveyard_zone(&line.text),
         }
     }
     finds.0
+}
+
+/// Whether a card's words say it is in a graveyard ("as long as ~ is in
+/// your graveyard"), read without Insight, where Insight can't.
+pub fn says_graveyard_zone(text: &str) -> bool {
+    let text = text.to_lowercase();
+    text.contains("in your graveyard") || text.contains("in a graveyard")
 }
 
 pub fn card(card: &Card) -> Result<Lowered, Refusal> {

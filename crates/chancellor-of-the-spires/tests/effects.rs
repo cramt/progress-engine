@@ -6009,7 +6009,10 @@ fn a_hidden_card_isnt_presumed_inert_beside_a_shown_graveyard_static() {
     match game.step(Answer::Act(Action::Pass)) {
         Err(Rejected::Refused { card, refusal }) => {
             assert_eq!(card, "a hidden card");
-            assert_eq!(refusal.node, "a hidden card in a graveyard");
+            assert_eq!(
+                refusal.node,
+                "a hidden card in a graveyard beside a graveyard static"
+            );
             assert!(refusal.why.contains("113.6b"), "{}", refusal.why);
         }
         other => panic!("{other:?}"),
