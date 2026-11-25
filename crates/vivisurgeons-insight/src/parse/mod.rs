@@ -3117,8 +3117,16 @@ struct OtherMarkedCards;
 
 impl Visitor for OtherMarkedCards {
     fn enter(&mut self, o: &mut Objects) -> bool {
+        // "return each other card exiled with this Vehicle" (Mysterious
+        // Limousine, Mimic Vat, Northampton Farm): the permanent is never
+        // exiled with itself, so "other" excludes the card named before.
+        let exiled_with_self =
+            |q: &Post| matches!(q, Post::ExiledWith(w) if w.quant == Quant::SelfRef);
         let marked = o.filter.kind == Some(Noun::Card)
-            && o.filter.posts.iter().any(|q| matches!(q, Post::Marked(_)));
+            && o.filter
+                .posts
+                .iter()
+                .any(|q| matches!(q, Post::Marked(_)) || exiled_with_self(q));
         if marked {
             other_than(o, &antecedent(), None);
         }
