@@ -1192,7 +1192,9 @@ enum Waiting {
     /// `player` chooses up to `up_to` of `cards` that `filter` matches,
     /// their mana values adding up to no more than `total_mana_value`,
     /// bound to `into`; `enters` if an instruction after puts them onto
-    /// the battlefield.
+    /// the battlefield. `hands` are the players who choose from their own
+    /// hand after `player`, in APNAP order, their cards bound beside
+    /// `player`'s (CR 101.4: Tempting Wurm's each opponent).
     ChooseMatching {
         player: PlayerId,
         cards: Vec<CardId>,
@@ -1201,6 +1203,7 @@ enum Waiting {
         total_mana_value: Option<u32>,
         enters: bool,
         into: Slot,
+        hands: Vec<PlayerId>,
         resume: Resuming,
     },
     /// `player` orders `cards` to put on top or bottom of a library.
@@ -3946,6 +3949,7 @@ impl Game {
                     total_mana_value,
                     enters,
                     into,
+                    hands,
                     mut resume,
                     ..
                 },
@@ -4006,8 +4010,25 @@ impl Game {
                 }
                 resume
                     .found
-                    .insert(into, chosen.into_iter().map(|(c, _)| c).collect());
-                self.follow(resume);
+                    .entry(into)
+                    .or_default()
+                    .extend(chosen.into_iter().map(|(c, _)| c));
+                match hands.split_first() {
+                    Some((q, rest)) => {
+                        self.waiting = Waiting::ChooseMatching {
+                            player: *q,
+                            cards: self.player(*q).hand.iter().copied().collect(),
+                            up_to: self.player(*q).hand.len() as u32,
+                            filter,
+                            total_mana_value,
+                            enters,
+                            into,
+                            hands: rest.to_vec(),
+                            resume,
+                        }
+                    }
+                    None => self.follow(resume),
+                }
             }
             (
                 Waiting::Arrange {
@@ -6653,6 +6674,22 @@ impl Game {
                     }
                     self.entered();
                 }
+                // CR 110.2a: under the control of the player who put it,
+                // its owner, whose hand it was in.
+                Effect::HandsToBattlefield { cards, tapped } => {
+                    if let Some(c) = self
+                        .still_found(&at, cards, lower::FoundIn::Hand)
+                        .first()
+                        .copied()
+                    {
+                        let owner = self.owner(c);
+                        self.players[owner.0 as usize].hand.retain(|x| *x != c);
+                        self.entering.get_or_insert_with(Vec::new);
+                        self.enter(c, owner, tapped, Then::Resume(here));
+                        return;
+                    }
+                    self.entered();
+                }
                 // CR 701.24a.
                 Effect::Shuffle(w) => {
                     let Some(q) = who(w) else { continue };
@@ -7316,9 +7353,43 @@ impl Game {
                         total_mana_value,
                         enters,
                         into,
+                        hands: Vec::new(),
                         resume: at,
                     };
                     return;
+                }
+                Effect::PutFromHands {
+                    whose,
+                    filter,
+                    into,
+                } => {
+                    // CR 101.4: in APNAP order. One with no card in hand
+                    // has none to choose, and choosing none is the "may"
+                    // declined (CR 107.1c).
+                    let n = self.players.len();
+                    let choosers: Vec<PlayerId> = (0..n)
+                        .map(|k| PlayerId(((self.active.0 as usize + k) % n) as u8))
+                        .filter(|q| match whose {
+                            lower::Whose::Yours => *q == p,
+                            lower::Whose::Opponents => *q != p,
+                            lower::Whose::Each => true,
+                        })
+                        .filter(|q| !self.player(*q).left && !self.player(*q).hand.is_empty())
+                        .collect();
+                    if let Some((q, rest)) = choosers.split_first() {
+                        self.waiting = Waiting::ChooseMatching {
+                            player: *q,
+                            cards: self.player(*q).hand.iter().copied().collect(),
+                            up_to: self.player(*q).hand.len() as u32,
+                            filter,
+                            total_mana_value: None,
+                            enters: true,
+                            into,
+                            hands: rest.to_vec(),
+                            resume: at,
+                        };
+                        return;
+                    }
                 }
                 Effect::ToLibrary {
                     cards,

@@ -1096,11 +1096,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-25 163 of the 500 replay to
-the end and 59.00% of their lines are followed** (18,679 of 31,659), 3
+Worked card by card from there, **on 2026-11-25 167 of the 500 replay to
+the end and 59.33% of their lines are followed** (18,783 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (1 to the end),
-and 164 games have no card the engine refuses before any game (from 21). The
+and 167 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1378,7 +1378,12 @@ mana ability's own "instead" once its controller has played a land this
 turn (CR 305.4, 614.15: River of Tears, in no milestone game but 3 of
 the rest); and "three mana of any one color" (CR 106.1a: Lotus Bloom,
 whose 3 games go on, one to the end and the others to Atarka's Command
-and Professional Face-Breaker). And
+and Professional Face-Breaker); and each opponent putting any number of
+the cards of their hand a filter matches onto the battlefield, chosen in
+APNAP order, none included, and entering at once under the control of the
+player who put each (CR 107.1c, 101.4, 110.2a: Tempting Wurm, whose 6
+games go on, four to the end, one to Phyrexian Negator and one to
+Anger). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles
@@ -1397,7 +1402,9 @@ battlefield (the sources of the trigger lines right after it, each a
 source itself, then a card a later line shows on the battlefield more
 times than its player has, as for Goblin Lackey; only choices whose
 triggers are the lines', stopping when none is, and none put when no
-line shows any), the creature sneak returns, another gone back to,
+line shows any, nor tried when one by the end of its player's next turn
+does; Tempting Wurm's opponent's cards from their hand the same way),
+the creature sneak returns, another gone back to,
 a trigger that draws nothing (Outcaster Trailblazer's mana) resolved
 before a play though a later line shows its source drawing, a winner line resolving what ended the game, and
 a "becomes plotted" line, which names nobody, as the turn's player's

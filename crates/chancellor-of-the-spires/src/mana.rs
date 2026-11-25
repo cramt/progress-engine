@@ -668,8 +668,9 @@ pub(crate) fn adds(add: &i::ManaAdd) -> Result<Adds, String> {
             Some(i::Palette::CommanderIdentity) => Adds::CommanderIdentity,
             Some(other) => return Err(format!("mana of a color {}", short(other))),
         },
-        // "Add three mana of any one color": one color chosen for all of it
-        // (CR 106.1a), as many of it as it says.
+        // "Add three mana of any one color": the card's "one" is one of the
+        // five colors (CR 106.1a) chosen for all of it, as many of it as it
+        // says.
         i::ManaAdd::Of {
             n: i::Amount::N(n),
             pick: i::Pick::AnyOneColor,

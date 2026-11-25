@@ -1763,6 +1763,23 @@ pub enum Effect {
         /// instruction is followed (CR 608.2h).
         mana_value: Option<Counter>,
     },
+    /// "Each opponent may put any number of artifact, creature,
+    /// enchantment, and/or land cards from their hand": each player
+    /// `whose` names, relative to the controller, chooses any number of
+    /// the cards of their own hand that `filter` matches, zero included
+    /// (CR 107.1c), in APNAP order (CR 101.4), all bound to `into`.
+    PutFromHands {
+        whose: Whose,
+        filter: CardFilter,
+        into: Slot,
+    },
+    /// "…onto the battlefield", after `PutFromHands`: each of the cards
+    /// still in its owner's hand enters under that owner's control, the
+    /// player who put it (CR 110.2a), all at once (CR 101.4).
+    HandsToBattlefield {
+        cards: Cards,
+        tapped: bool,
+    },
     /// "Reveal the top card of your library": the top `n` cards of
     /// `whose` library are revealed (CR 701.20a), and bound to `into`.
     /// `blind` if nothing the instruction goes on to do reads what they
@@ -4086,6 +4103,50 @@ impl<'a> Scope<'a> {
                 },
                 p => self.who(p)?,
             }),
+            // "Each opponent may put any number of artifact, creature,
+            // enchantment, and/or land cards from their hand onto the
+            // battlefield" (Tempting Wurm): no card is a choice "any
+            // number" offers (CR 107.1c), so the "may" is in the choice.
+            i::Effect::May {
+                who: by @ (i::Player::EachOpponent | i::Player::Each),
+                then,
+            } => match then.as_slice() {
+                [i::Effect::Move {
+                    what,
+                    from: None,
+                    to: i::Zone::Battlefield,
+                    tapped,
+                    transformed: false,
+                    under: None,
+                    order: None,
+                }] if what.quant == Quant::AnyNumber
+                    && what.filter.posts == [Post::In(i::Zone::Hand(i::Player::That))] =>
+                {
+                    let filter = hand_card(&Objects {
+                        quant: Quant::One,
+                        filter: i::Filter {
+                            posts: Vec::new(),
+                            ..what.filter.clone()
+                        },
+                    })?;
+                    let into = self.new_slot();
+                    return Ok(vec![
+                        Effect::PutFromHands {
+                            whose: match by {
+                                i::Player::Each => Whose::Each,
+                                _ => Whose::Opponents,
+                            },
+                            filter,
+                            into,
+                        },
+                        Effect::HandsToBattlefield {
+                            cards: Cards::Bound(into),
+                            tapped: *tapped,
+                        },
+                    ]);
+                }
+                _ => return Err(format!("a \"may\" of Player::{}", short(by))),
+            },
             i::Effect::May { who, then } => {
                 let who = self.who(who)?;
                 Effect::May(who, self.effects(then)?)

@@ -1357,6 +1357,86 @@ fn goblin_lackey_may_be_declined() {
     assert!(matches!(game.decision(), Decision::Priority { .. }));
 }
 
+/// CR 107.1c, 101.4, 110.2a: Tempting Wurm's enters trigger has its
+/// opponent choose any number of the artifact, creature, enchantment and
+/// land cards of their hand, none included; an instant isn't one. What
+/// they choose enters under their control, all at once, so Soul Warden
+/// sees the Grizzly Bears beside it enter (CR 603.6a).
+#[test]
+fn tempting_wurm_lets_its_opponent_put_permanents_from_their_hand() {
+    let mut game = deal_both(
+        &[("Forest", 30), ("Tempting Wurm", 30)],
+        &[
+            ("Island", 15),
+            ("Grizzly Bears", 15),
+            ("Soul Warden", 15),
+            ("Lightning Bolt", 15),
+        ],
+        &[("Forest", 2), ("Tempting Wurm", 1)],
+        &[
+            ("Island", 1),
+            ("Grizzly Bears", 1),
+            ("Soul Warden", 1),
+            ("Lightning Bolt", 1),
+        ],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Tempting Wurm", None);
+    resolve(&mut game);
+    let d = resolve(&mut game);
+    let Decision::ChooseMatching {
+        player,
+        cards,
+        up_to,
+        total_mana_value,
+        ..
+    } = d
+    else {
+        panic!("{d:?}")
+    };
+    assert_eq!(player, THEM);
+    assert_eq!(cards.len(), game.player(THEM).hand().len());
+    assert_eq!((up_to as usize, total_mana_value), (cards.len(), None));
+    let theirs = |name: &str| in_hand(&game, THEM, name).expect("in their hand");
+    let (island, bears, warden, bolt) = (
+        theirs("Island"),
+        theirs("Grizzly Bears"),
+        theirs("Soul Warden"),
+        theirs("Lightning Bolt"),
+    );
+    assert!(matches!(
+        game.step(Answer::Finds(vec![Found::Card(bears), Found::Card(bolt)])),
+        Err(Rejected::Illegal(_))
+    ));
+    let mut none = game.clone();
+    step(&mut none, Answer::Finds(vec![]));
+    assert!(creature(&none, "Grizzly Bears").is_none());
+    step(
+        &mut game,
+        Answer::Finds(vec![
+            Found::Card(island),
+            Found::Card(bears),
+            Found::Card(warden),
+        ]),
+    );
+    let chars = game.characteristics();
+    for name in ["Island", "Grizzly Bears", "Soul Warden"] {
+        let id = creature(&game, name).unwrap_or_else(|| panic!("{name} entered"));
+        assert_eq!(chars[&id].controller, THEM, "{name}");
+    }
+    assert!(in_hand(&game, THEM, "Lightning Bolt").is_some());
+    assert_eq!(
+        chars[&creature(&game, "Tempting Wurm").unwrap()].controller,
+        ME
+    );
+    // Soul Warden's trigger, for the Bears only: it doesn't see itself.
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 21);
+    assert!(game.stack().is_empty());
+}
+
 /// Pass until a "may" is asked, and say whose card's.
 fn to_may(game: &mut Game) -> CardId {
     for _ in 0..200 {

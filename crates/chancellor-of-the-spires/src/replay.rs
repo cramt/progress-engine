@@ -6744,8 +6744,26 @@ impl Driver<'_> {
     /// such choice it stops, since a card no line names entered. With no
     /// name shown and no trigger, none is put: a card no line ever shows
     /// is nothing the log can tell, as for Goblin Lackey's declined "may".
+    /// With a name a line shows by the end of `p`'s next turn, none is
+    /// never tried: it would leave that line unexplained.
+    /// The cards chosen among may be `p`'s hand: Tempting Wurm's "each
+    /// opponent may put any number of … cards from their hand", whose
+    /// enters triggers are the lines after it.
     fn choose_matching(&mut self, p: PlayerId, cards: Vec<CardId>, up_to: u32) -> Followed {
         const CHOSEN_NAMES: usize = 6;
+        let among = if !cards.is_empty()
+            && cards.iter().all(|c| {
+                self.game
+                    .as_ref()
+                    .expect("set up")
+                    .player(p)
+                    .hand()
+                    .contains(c)
+            }) {
+            "from their hand"
+        } else {
+            "from among the cards looked at"
+        };
         // The triggers of `p`'s the lines from this one on show, by
         // source: the line being followed is the first after the spell.
         let mut logged: BTreeMap<String, usize> = BTreeMap::new();
@@ -6780,12 +6798,25 @@ impl Driver<'_> {
                 .count()
         };
         let mut explained: BTreeMap<String, usize> = BTreeMap::new();
+        // The names a line shows by the end of `p`'s next turn, or of this
+        // one if it is theirs: soon enough that none put is no way.
+        let mut soon: BTreeSet<String> = BTreeSet::new();
+        let mut theirs_begun = game.active() == p;
+        let mut in_window = true;
         for e in self.entries.iter().skip(self.at) {
             if candidates.len() >= CHOSEN_NAMES {
                 break;
             }
             let mine = |q: &log::Player| self.seat(*q) == p;
             let named: Vec<String> = match &e.event {
+                Event::TurnBegins(t) => {
+                    if mine(&t.active) {
+                        theirs_begun = true;
+                    } else if theirs_begun {
+                        in_window = false;
+                    }
+                    continue;
+                }
                 Event::Casts(c) if mine(&c.player) => {
                     if let Object::Card(c) = &c.card {
                         *explained.entry(c.name().to_string()).or_default() += 1;
@@ -6823,6 +6854,9 @@ impl Driver<'_> {
                 let had = on_battlefield(n) + explained.get(n).copied().unwrap_or(0);
                 if shown > had {
                     by_trigger.remove(n);
+                    if in_window {
+                        soon.insert(n.clone());
+                    }
                     if !candidates.contains(n) {
                         candidates.push(n.clone());
                     }
@@ -6851,7 +6885,18 @@ impl Driver<'_> {
                 }
             }
         }
-        choices.push(Vec::new());
+        // None put leaves a card a line soon after shows on the
+        // battlefield with nothing to explain it (Tempting Wurm's opponent
+        // attacking with a Phyrexian Negator no line casts in their next
+        // turn), so it is no way then. A name only a line further on
+        // shows may have come some other way (stolen, reanimated), and
+        // none stays the last way tried.
+        if !candidates
+            .iter()
+            .any(|c| soon.contains(c) && !by_trigger.contains(c))
+        {
+            choices.push(Vec::new());
+        }
         let before = self.game().clone();
         let mut answers: Vec<(Answer, String, Option<Game>)> = Vec::new();
         let mut refused: Vec<(Answer, String, Option<Game>)> = Vec::new();
@@ -6892,13 +6937,10 @@ impl Driver<'_> {
             let mut tried = self.game().clone();
             let answer = Answer::Finds(found);
             let said = if choice.is_empty() {
-                "put none of the cards looked at onto the battlefield".to_string()
+                format!("put none onto the battlefield {among}")
             } else {
                 let names: Vec<&str> = choice.iter().map(|k| candidates[*k].as_str()).collect();
-                format!(
-                    "put {} onto the battlefield from among the cards looked at",
-                    names.join(" and ")
-                )
+                format!("put {} onto the battlefield {among}", names.join(" and "))
             };
             // An illegal choice the filter or the total doesn't allow is
             // no way at all, and nor is one whose triggers aren't those
@@ -6923,9 +6965,7 @@ impl Driver<'_> {
         answers.extend(refused);
         if answers.is_empty() {
             return Err(Stop::Unfollowed {
-                event:
-                    "a card put onto the battlefield from among cards looked at that no line names"
-                        .into(),
+                event: format!("a card put onto the battlefield {among} that no line names"),
                 card: before
                     .stack()
                     .last()
