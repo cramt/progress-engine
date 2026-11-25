@@ -125,6 +125,12 @@ Forty-five threads in a row then found the tree dirty and stopped.
      (`CHOSEN_NAMES`, `BLOCK_READINGS`, `BACKTRACKS`) or options deduplicated
      by card name. Batch 12's `refused_at` hid a divergence that way, and no
      review saw it. Fix what it finds before you push. If you leave something, put it at the top of the handoff.
+   - **Revert check.** Before you commit a rule, reverse its `src/` change
+     (`git diff -- crates/chancellor-of-the-spires/src > r.patch && git apply -R r.patch`),
+     run its new tests and watch each fail, then `git apply r.patch`. A branch
+     that no test fails without is untested, however it reads: test it or drop
+     it. Batch 22's "in your graveyard" fallback and batch 21's empty up-to slot
+     shipped that way.
    - A gate you can't pass: drop or revert the commit that broke it and say so
      in the handoff.
 4. **Commit and push.** One commit per rule, its subject a lowercase claim
