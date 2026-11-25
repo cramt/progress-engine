@@ -806,7 +806,7 @@ cost: {4}{G}{G}
 > Whenever this creature mutates, destroy target noncreature permanent. Its controller creates a 3/3 green Beast creature token.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["3", "G"]))])) }])
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Permanent), posts: [], or: None } }], ability: Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Destroy { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }, Create { who: ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green], types: ["beast", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] } }
 
 ## Secret Identity
 face: Secret Identity

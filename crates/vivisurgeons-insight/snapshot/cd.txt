@@ -492,7 +492,7 @@ cost: {4}{B}{B}
 > Whenever this creature mutates, exile the top card of each opponent's library face down. You may look at and play those cards for as long as they remain exiled.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["4", "B"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [With { bind: [/* exiled */ Objects { quant: NFromEach(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(EachOpponent))], or: None } }], then: [ExileFaceDown(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), May { who: You, then: [LookAt { who: You, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, dur: ForAsLongAs(In { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }) }, Cast { verb: Play, what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ForAsLongAs(In { what: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }) }] }] }], limits: [] }
 
 ## Mogg Squad
 face: Mogg Squad

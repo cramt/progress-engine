@@ -740,7 +740,7 @@ cost: {R}{W}
 > Mutate {1}{R/W}{R/W} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)
 > Whenever this creature mutates, other creatures you control get +2/+1 until end of turn.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["1", "R/W", "R/W"]))])) }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Rescue from the Underworld
 face: Rescue from the Underworld

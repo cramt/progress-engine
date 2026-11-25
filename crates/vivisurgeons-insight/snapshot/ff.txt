@@ -457,7 +457,7 @@ cost: {3}{B}
 > Whenever this creature mutates, each opponent loses X life and you gain X life, where X is the number of times this creature has mutated.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["2", "B"]))])) }])
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= BROKE at "mutated" after: whenever this creature mutates , each opponent loses x life and you gain x life , where x is the number of times this creature has
 
 ## Ironclaw Buzzardiers
 face: Ironclaw Buzzardiers

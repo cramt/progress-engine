@@ -1026,6 +1026,7 @@ fn lesser_than_the_trigger(effect: &mut [Effect]) {
 fn trigger_object(e: &Event) -> Option<Objects> {
     let what = match e {
         Event::Enters { what, .. }
+        | Event::PermanentActs { what, .. }
         | Event::Dies(what)
         | Event::Leaves { what, .. }
         | Event::Attacks(what)

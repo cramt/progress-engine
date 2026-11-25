@@ -1104,7 +1104,7 @@ cost: {1}{G}{U}
 > Mutate {3}{G/U}{G/U} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)
 > Whenever this creature mutates, create a 3/3 green Beast creature token.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["3", "G/U", "G/U"]))])) }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green], types: ["beast", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Unpredictable Cyclone
 face: Unpredictable Cyclone

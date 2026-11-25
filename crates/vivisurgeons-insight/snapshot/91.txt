@@ -866,7 +866,7 @@ cost: {1}{R}{W}{B}
 > Whenever this creature mutates, it deals 4 damage to target creature or planeswalker an opponent controls and you gain 4 life.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["2", "B/R", "W", "W"]))])) }])
 = Keywords([Keyword { name: "double strike", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(AnOpponent)], or: None } })] }, GainLife { who: You, n: N(4) }], limits: [] }
 
 ## Soaring Sandwing
 face: Soaring Sandwing

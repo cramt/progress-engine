@@ -582,7 +582,7 @@ cost: {2}{B}
 > Flying
 > Whenever a creature you control connives, put a +1/+1 counter on each Villain you control.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: whenever a creature you control connives
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, action: Connives }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Subtype("villain")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Jaded Analyst
 face: Jaded Analyst

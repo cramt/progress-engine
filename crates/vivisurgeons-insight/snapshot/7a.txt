@@ -120,7 +120,7 @@ cost: {2}{B}{G}
 > Mutate {2}{B/G}{B/G} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)
 > Whenever this creature mutates, return target permanent card from your graveyard to your hand.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["2", "B/G", "B/G"]))])) }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Borborygmos Enraged
 face: Borborygmos Enraged

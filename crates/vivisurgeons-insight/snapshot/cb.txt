@@ -23,7 +23,7 @@ cost: {5}{U}{U}
 > Mutate {5}{U} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)
 > Whenever this creature mutates, tap up to X target creatures, where X is the number of times this creature has mutated. Those creatures don't untap during their controller's next untap step.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["5", "U"]))])) }])
-= BROKE at "," after: whenever this creature mutates
+= BROKE at "mutated" after: whenever this creature mutates , tap up to x target creatures , where x is the number of times this creature has
 
 ## Auriok Survivors
 face: Auriok Survivors

@@ -722,7 +722,7 @@ type: Artifact — Vehicle
 cost: {2}
 > Whenever a creature you control explores, put a +1/+1 counter on this Vehicle.
 > Crew 2 (Tap any number of creatures you control with total power 2 or more: This Vehicle becomes an artifact creature until end of turn.)
-= BROKE at "," after: whenever a creature you control explores
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, action: Explores }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 
 ## Shard Volley

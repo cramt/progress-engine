@@ -903,7 +903,7 @@ cost: {4}{U}
 > Whenever this creature mutates, gain control of target noncreature artifact.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["5", "U"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [], or: None } }, dur: Permanent }], limits: [] }
 
 ## Specter's Shroud
 face: Specter's Shroud

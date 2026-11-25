@@ -635,6 +635,7 @@ fn event(e: &Event, out: &mut Vec<(*const Objects, To)>) {
         Event::FirstTimeEachTurn(e) | Event::CausedBy { event: e, .. } => event(e, out),
         Event::ManaSpent(_)
         | Event::Attacks(_)
+        | Event::PermanentActs { .. }
         | Event::Blocks(_)
         | Event::AttacksOrBlocks(_)
         | Event::BecomesBlocked(_)

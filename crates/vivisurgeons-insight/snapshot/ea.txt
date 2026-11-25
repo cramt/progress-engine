@@ -409,7 +409,7 @@ cost: {3}{G}
 > Whenever this creature mutates, destroy target artifact or enchantment an opponent controls.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["1", "G", "G"]))])) }])
 = Keywords([Keyword { name: "reach", param: None }, Keyword { name: "trample", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, no_regen: false }], limits: [] }
 
 ## Generous Stray
 face: Generous Stray

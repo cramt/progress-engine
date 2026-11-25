@@ -269,7 +269,7 @@ cost: {2}{R}{R}
 > Whenever this creature mutates, create a red artifact token named Feather with "{1}, Sacrifice this token: Return target Phoenix card from your graveyard to the battlefield tapped."
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["3", "R"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [Red], types: ["artifact"], keywords: [], abilities: [Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("phoenix")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }], limits: [] }], named: None, attacking: None }, name: "feather" }], limits: [] }
 
 ## Exalted Dragon
 face: Exalted Dragon

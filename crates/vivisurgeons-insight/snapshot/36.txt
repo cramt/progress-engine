@@ -486,7 +486,7 @@ cost: {4}{W}
 > Whenever this creature mutates, you gain 4 life.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["3", "W"]))])) }])
 = Keywords([Keyword { name: "vigilance", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [GainLife { who: You, n: N(4) }], limits: [] }
 
 ## Marhault Elsdragon
 face: Marhault Elsdragon

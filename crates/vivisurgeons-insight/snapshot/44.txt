@@ -194,7 +194,7 @@ cost: {3}{W}
 > Whenever this creature mutates, create two 1/1 white Cat creature tokens with lifelink.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["2", "W", "W"]))])) }])
 = Keywords([Keyword { name: "lifelink", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["cat", "creature"], keywords: [Keyword { name: "lifelink", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Ebony Rhino
 face: Ebony Rhino

@@ -742,7 +742,7 @@ cost: {4}{U}
 > Whenever this creature mutates, you may return target creature an opponent controls to its owner's hand.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["3", "U"]))])) }])
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [May { who: You, then: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Ravenous Slime
 face: Ravenous Slime

@@ -386,6 +386,14 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
         |p| p.verb("attack or block").map(|_| Event::AttacksOrBlocks(what.clone())),
         |p| p.verb("attack").map(|_| Event::Attacks(what.clone())),
         |p| p.verb("block").map(|_| Event::Blocks(what.clone())),
+        |p| {
+            let action = alt!(p;
+                |p| p.verb("explore").map(|_| PermanentAction::Explores),
+                |p| p.verb("connive").map(|_| PermanentAction::Connives),
+                |p| p.verb("mutate").map(|_| PermanentAction::Mutates),
+            )?;
+            Some(Event::PermanentActs { what: what.clone(), action })
+        },
         |p| p.one_of(&["becomes blocked", "become blocked"]).map(|_| Event::BecomesBlocked(what.clone())),
         |p| {
             p.verb("deal")?;

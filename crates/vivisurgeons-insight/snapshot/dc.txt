@@ -255,7 +255,7 @@ cost: {4}{U}
 > Whenever this creature mutates, draw a card.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["3", "U"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Dress Down
 face: Dress Down

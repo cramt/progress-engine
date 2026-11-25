@@ -11643,6 +11643,15 @@ fn event(o: &mut Out, e: &Event) {
         }
         Event::Attacks(x) => obj_subj(o, x, "attack"),
         Event::Blocks(x) => obj_subj(o, x, "block"),
+        Event::PermanentActs { what, action } => obj_subj(
+            o,
+            what,
+            match action {
+                PermanentAction::Explores => "explore",
+                PermanentAction::Connives => "connive",
+                PermanentAction::Mutates => "mutate",
+            },
+        ),
         Event::AttacksOrBlocks(x) => obj_subj(o, x, "attack or block"),
         Event::BecomesBlocked(x) => {
             obj_subj(o, x, "become");

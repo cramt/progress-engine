@@ -3398,6 +3398,14 @@ pub enum Unlocked {
     Fully(Objects),
 }
 
+/// What a permanent does in an [`Event::PermanentActs`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PermanentAction {
+    Explores,
+    Connives,
+    Mutates,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Event {
     /// "When you spend this mana to cast …", "When that mana is spent": the
@@ -3714,6 +3722,14 @@ pub enum Event {
     Performs {
         who: Player,
         action: String,
+    },
+    /// "Whenever a creature you control explores", "whenever this creature
+    /// connives": a permanent did what an effect told it to (CR 701.44b,
+    /// 701.50a); "Whenever this creature mutates": a mutating spell merged
+    /// with it (CR 702.140d).
+    PermanentActs {
+        what: Objects,
+        action: PermanentAction,
     },
     /// "Whenever you commit a crime": `who` casts a spell, activates an
     /// ability or puts a triggered ability on the stack that targets an

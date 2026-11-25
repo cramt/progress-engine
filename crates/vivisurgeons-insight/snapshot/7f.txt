@@ -689,7 +689,7 @@ cost: {1}{W}{U}{B}
 > When this creature enters, it connives. When it connives this way, return up to one target spell to its owner's hand. (To have a creature connive, draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on that creature.)
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "lifelink", param: None }])
-= BROKE at "connives" after: when this creature enters , it connives . when it
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Action { by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), name: "connive", n: None }, WhenThisWay { event: PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Connives }, then: [Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Omenspeaker
 face: Omenspeaker

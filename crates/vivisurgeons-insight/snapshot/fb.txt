@@ -243,7 +243,7 @@ face: Essence Symbiote
 type: Creature — Beast
 cost: {1}{G}
 > Whenever a creature you control mutates, put a +1/+1 counter on that creature and you gain 2 life.
-= BROKE at "," after: whenever a creature you control mutates
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }], ability: Triggered { trigger: When(PermanentActs { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, GainLife { who: You, n: N(2) }], limits: [] } }
 
 ## Everbark Shaman
 face: Everbark Shaman

@@ -733,7 +733,7 @@ cost: {1}{W}{B}
 > Mutate {2}{W/B}{W/B} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)
 > Whenever this creature mutates, return target creature card with mana value 3 or less from your graveyard to the battlefield.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["2", "W/B", "W/B"]))])) }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## No Admittance
 face: No Admittance

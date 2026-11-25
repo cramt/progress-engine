@@ -179,7 +179,7 @@ cost: {4}{B}
 > Whenever this creature mutates, each opponent discards a card.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["3", "B"]))])) }])
 = Keywords([Keyword { name: "menace", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Discard { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Celestial Dawn
 face: Celestial Dawn

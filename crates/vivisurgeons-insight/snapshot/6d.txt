@@ -387,7 +387,7 @@ face: Lurking Chupacabra
 type: Creature — Beast Horror
 cost: {3}{B}
 > Whenever a creature you control explores, target creature an opponent controls gets -2/-2 until end of turn.
-= BROKE at "," after: whenever a creature you control explores
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, action: Explores }), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Mages' Contest
 face: Mages' Contest

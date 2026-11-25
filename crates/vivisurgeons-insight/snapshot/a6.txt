@@ -1030,7 +1030,7 @@ cost: {3}{W}
 > Whenever this creature mutates, put a +1/+1 counter on it.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["2", "W"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Vulture, Feathered Fiend
 face: Vulture, Feathered Fiend

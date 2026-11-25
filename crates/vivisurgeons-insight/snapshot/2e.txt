@@ -548,7 +548,7 @@ cost: {2}{G}{U}{R}
 > Whenever this creature mutates, exile cards from the top of your library until you exile a nonland permanent card. Put that card onto the battlefield or into your hand.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["3", "R/G", "U", "U"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= BROKE at "into" after: whenever this creature mutates , exile cards from the top of your library until you exile a nonland permanent card . put that card onto the battlefield or
 
 ## Incendiary Command
 face: Incendiary Command
@@ -1083,7 +1083,7 @@ cost: {1}{U}{B}
 > Whenever a creature you control connives, you may pay {1}. If you do, create a 2/2 colorless Robot Villain artifact creature token.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Action { by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), name: "connive", n: None }], limits: [] }
-= BROKE at "," after: whenever a creature you control connives
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, action: Connives }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1"]))] }] }, IfYouDo([Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Colorless], types: ["robot", "villain", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }])], limits: [] }
 
 ## Umbra Stalker
 face: Umbra Stalker

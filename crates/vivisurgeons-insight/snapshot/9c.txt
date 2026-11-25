@@ -152,7 +152,7 @@ cost: {5}{B}
 > Mutate {4}{B} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)
 > Whenever this creature mutates, each opponent sacrifices a creature of their choice.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["4", "B"]))])) }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }], limits: [] }
 
 ## Cinder Wall
 face: Cinder Wall

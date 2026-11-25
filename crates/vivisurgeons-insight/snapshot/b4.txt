@@ -318,7 +318,7 @@ cost: {2}{G}
 > Whenever this creature mutates, put two +1/+1 counters on it.
 = Keywords([Keyword { name: "mutate", param: Some(Cost([Mana(Mana(["3", "G"]))])) }])
 = Keywords([Keyword { name: "reach", param: None }])
-= BROKE at "," after: whenever this creature mutates
+= Triggered { trigger: When(PermanentActs { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, action: Mutates }), effect: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Gnarlback Rhino
 face: Gnarlback Rhino
