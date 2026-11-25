@@ -1097,7 +1097,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-25 162 of the 500 replay to
-the end and 58.73% of their lines are followed** (18,592 of 31,659), 3
+the end and 58.86% of their lines are followed** (18,634 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 163 games have no card the engine refuses before any game (from 21). The
@@ -1369,7 +1369,11 @@ a creature it could equip, and "up to one target" permanent, left empty
 dealt no damage (CR 702.21a–b, 119.4, 701.3a–b, 301.5c, 115.6: Raubahn,
 Bull of Ala Mhigo, whose 17 games go on, one to the end and two each to
 Dragonfire Blade, Kellan, Planar Trailblazer and Heartless Act, and Zul
-Ashur, Lich Lord's one to the end). And
+Ashur, Lich Lord's one to the end); a trigger whose event says whose
+turn it happens in, "whenever you cast a spell during an opponent's
+turn", checked as it happens and never again (CR 603.2: Brineborn
+Cutthroat, whose 4 games go on, to Kozilek's cast trigger, Cascading
+Cataracts's mana and others, and River of Tears's "instead" in 3 more). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

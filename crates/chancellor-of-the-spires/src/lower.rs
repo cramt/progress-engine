@@ -2330,6 +2330,22 @@ pub struct Triggered {
     /// happens, the ability triggering only if it holds, and again as it
     /// resolves, doing nothing if it doesn't.
     pub condition: Option<Intervening>,
+    /// "Whenever you cast a spell during an opponent's turn": whose turn the
+    /// event must happen in. Part of the trigger event (CR 603.2), checked
+    /// as it happens and never again, unlike an intervening "if" (CR 603.4).
+    pub during: Option<During>,
+}
+
+/// Whose turn a trigger event says it happens in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum During {
+    /// "during your turn".
+    YourTurn,
+    /// "during an opponent's turn", "while it's not your turn": the active
+    /// player isn't you (CR 102.1). The engine plays no game between teams,
+    /// so every other player is an opponent (CR 102.2, and 102.3 once there
+    /// are teams, which would make the two different).
+    NotYourTurn,
 }
 
 impl Triggered {
@@ -2463,6 +2479,22 @@ pub fn triggered(
             _ => o.clone(),
         }
     };
+    // "Whenever you cast a spell during an opponent's turn".
+    let (trigger, during) = match trigger {
+        i::Trigger::When(e) => match &**e {
+            i::Event::While { event, cond } => {
+                let during = match &**cond {
+                    i::Condition::ItsYourTurn => During::YourTurn,
+                    i::Condition::OpponentsTurn | i::Condition::NotYourTurn => During::NotYourTurn,
+                    c => return Err(format!("Trigger::When(Event::While({}))", short(c))),
+                };
+                (i::Trigger::When(event.clone()), Some(during))
+            }
+            _ => (trigger.clone(), None),
+        },
+        t => (t.clone(), None),
+    };
+    let trigger = &trigger;
     let event = match trigger {
         i::Trigger::When(e) => when(e, &bound)?,
         i::Trigger::At(step) => {
@@ -2484,6 +2516,16 @@ pub fn triggered(
         }
         _ => return Err(trigger_node(trigger)),
     };
+    // A creature's own death and a card's own cycling trigger off the
+    // battlefield, where nothing reads whose turn it is yet.
+    if during.is_some()
+        && event
+            .parts()
+            .iter()
+            .any(|e| matches!(e, TriggerEvent::Dies(_) | TriggerEvent::CyclesItself))
+    {
+        return Err("Trigger::When(Event::While) of a trigger off the battlefield".into());
+    }
     let mut scope = Scope::new(bind);
     scope.amount = matches!(
         event,
@@ -2511,6 +2553,7 @@ pub fn triggered(
         event,
         program: scope.program,
         condition,
+        during,
     })
 }
 
@@ -2825,6 +2868,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 ],
             },
             condition: Some(Intervening::OnBattlefield),
+            during: None,
         });
     }
     if k.name.eq_ignore_ascii_case("echo") {
@@ -2848,6 +2892,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 }],
             },
             condition: Some(Intervening::ArrivedSinceLastUpkeep),
+            during: None,
         });
     }
     if k.param.is_some() {
@@ -2866,6 +2911,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 }],
             },
             condition: None,
+            during: None,
         }),
         // CR 702.39a: "Whenever this creature attacks, you may choose to
         // have target creature defending player controls block this
@@ -2889,6 +2935,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 )],
             },
             condition: None,
+            during: None,
         }),
         "training" => Some(Triggered {
             event: TriggerEvent::Trains,
@@ -2901,6 +2948,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 }],
             },
             condition: None,
+            during: None,
         }),
         "prowess" => Some(Triggered {
             event: TriggerEvent::Casts {
@@ -2918,6 +2966,7 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 }],
             },
             condition: None,
+            during: None,
         }),
         _ => None,
     }

@@ -1148,6 +1148,59 @@ fn prowess_triggers_on_a_noncreature_spell() {
     assert_eq!(game.player(THEM).life(), 17);
 }
 
+/// CR 603.2: Brineborn Cutthroat's "Whenever you cast a spell during an
+/// opponent's turn" says whose turn as part of its event. A Lightning Bolt
+/// cast in my own main phase doesn't trigger it, one cast in their upkeep
+/// does, and the counter makes it 3/2.
+#[test]
+fn a_cast_trigger_during_an_opponents_turn() {
+    let mut game = deal(
+        &[
+            ("Island", 20),
+            ("Mountain", 20),
+            ("Brineborn Cutthroat", 10),
+            ("Lightning Bolt", 10),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Island", 1),
+            ("Mountain", 2),
+            ("Brineborn Cutthroat", 1),
+            ("Lightning Bolt", 2),
+        ],
+    );
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Brineborn Cutthroat", None);
+    resolve(&mut game);
+    let cutthroat = creature(&game, "Brineborn Cutthroat").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Player(THEM)]),
+    );
+    assert_eq!(game.stack().len(), 1, "my own turn: no trigger");
+    resolve(&mut game);
+    assert_eq!(pt_of(&game, cutthroat), pt(2, 1));
+    pass_until(&mut game, THEM, Step::Upkeep);
+    step(&mut game, Answer::Act(Action::Pass));
+    assert!(matches!(
+        game.decision(),
+        Decision::Priority { player: ME, .. }
+    ));
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Player(THEM)]),
+    );
+    assert_eq!(game.stack().len(), 2, "their turn: it triggers");
+    resolve(&mut game);
+    assert_eq!(pt_of(&game, cutthroat), pt(3, 2));
+}
+
 /// CR 508.3a, 113.7a: Scorch Spitter's "Whenever this creature attacks,
 /// it deals 1 damage to the player or planeswalker it's attacking".
 #[test]

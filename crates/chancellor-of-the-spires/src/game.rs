@@ -8849,11 +8849,18 @@ impl Game {
                     Event::BecameTarget { controller, .. } => Some(*controller),
                     _ => None,
                 };
+                // CR 603.2: whose turn the event happens in is part of it.
+                let in_turn = match t.during {
+                    None => true,
+                    Some(lower::During::YourTurn) => self.active() == chars.controller,
+                    Some(lower::During::NotYourTurn) => self.active() != chars.controller,
+                };
                 // CR 603.4: an intervening "if" checked as it triggers.
                 let objects = objects.into_iter().filter(|(triggering, _)| {
-                    t.condition
-                        .as_ref()
-                        .is_none_or(|c| self.intervening(c, *src, chars, *triggering, &all))
+                    in_turn
+                        && t.condition
+                            .as_ref()
+                            .is_none_or(|c| self.intervening(c, *src, chars, *triggering, &all))
                 });
                 for (triggering, amount) in objects {
                     triggered.push(Pending {
@@ -8946,7 +8953,12 @@ impl Game {
                             lower::Whose::Each => true,
                             lower::Whose::Opponents => !mine,
                         };
-                        if t.from_graveyard() && s == step && holds && t.condition.is_none() {
+                        if t.from_graveyard()
+                            && s == step
+                            && holds
+                            && t.condition.is_none()
+                            && t.during.is_none()
+                        {
                             triggered.push(Pending {
                                 source: *c,
                                 object: None,
