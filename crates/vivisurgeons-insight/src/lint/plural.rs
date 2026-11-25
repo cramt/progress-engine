@@ -40,6 +40,7 @@ fn find(a: &mut Ability, fix: bool) -> usize {
         those: false,
         fix,
         inside: 0,
+        counters_on: None,
         effects: Vec::new(),
         n: 0,
     };
@@ -61,6 +62,10 @@ struct Find<'a> {
     /// How many objects the walk is inside: a property said in one's
     /// filter is no object an effect acts on.
     inside: usize,
+    /// The depth of the object counters are counted on: "the number of
+    /// counters on that creature" (Nils, Discipline Enforcer) reads that
+    /// creature's counters, a property of one object said as a filter.
+    counters_on: Option<usize>,
     /// Per effect walked into: whether it acts on each object of a set in
     /// turn.
     effects: Vec<bool>,
@@ -93,7 +98,14 @@ impl Visitor for Find<'_> {
     fn enter(&mut self, o: &mut Objects) -> bool {
         let d = self.decl;
         self.decl += 1;
-        if std::mem::take(&mut self.property) {
+        let on = self.counters_on.take() == Some(self.inside);
+        if matches!(o.filter.kind, Some(Noun::Counter(_)))
+            && matches!(o.filter.posts.as_slice(), [Post::On(_)])
+            && o.filter.alts.is_empty()
+        {
+            self.counters_on = Some(self.inside + 1);
+        }
+        if std::mem::take(&mut self.property) || on {
             if let Some([Some(k)]) = self.b.refs.get(&d).map(Vec::as_slice) {
                 let info = &self.b.binders[*k];
                 if info.site != SiteKind::Each && plural(&info.what.quant) {
@@ -106,7 +118,8 @@ impl Visitor for Find<'_> {
                     // controller controls"), and a `GainLife` or a
                     // `Performed` has no object to take in turn (Seeds of
                     // Innocence, Trial of a Time Lord).
-                    if self.fix && self.inside == 0 && self.effects.last() != Some(&false) {
+                    let outermost = self.inside == usize::from(on);
+                    if self.fix && outermost && self.effects.last() != Some(&false) {
                         o.quant = Quant::Itself;
                     }
                 }

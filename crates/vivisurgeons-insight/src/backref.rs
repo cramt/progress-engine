@@ -2043,6 +2043,40 @@ fn resolve_one(
         }
     }
     // "Sacrifice a creature. When you do, ~ deals X damage to any target,
+    // "this enchantment deals X damage divided as you choose among any number
+    // of target creatures, where X is the number of age counters on it"
+    // (Magmatic Core): a bare "it" counted counters on is one object, so
+    // not a set chosen or moved together while the card is there to be
+    // meant ([counters-on-it]). A static's or a loop's subject is each object
+    // in turn and stays (Spark Rupture's "loyalty counters on it").
+    let counted_on = e.anc.last().is_some_and(|&a| {
+        ld.c.evs[a]
+            .obj
+            .as_ref()
+            .is_some_and(|o| matches!(o.filter.kind, Some(Noun::Counter(_))))
+    });
+    if cands.len() > 1
+        && counted_on
+        && r.filter == Filter::default()
+        && cands.contains(&Target::SelfCard)
+    {
+        let set = |t: &Target| {
+            matches!(t, Target::Intro(l, i) if get((*l, *i)).obj.as_ref().is_some_and(|o| {
+                match &o.quant {
+                    Quant::All
+                    | Quant::AnyNumber
+                    | Quant::AnyNumberOfTarget
+                    | Quant::AnyNumberOfOtherTarget => true,
+                    Quant::Target { n, .. } | Quant::OtherTarget { n, .. } => *n != Amount::N(1),
+                    _ => false,
+                }
+            }))
+        };
+        if cands.iter().any(set) {
+            cands.retain(|t| !set(t));
+            note = "one object counters are on, not a set".into();
+        }
+    }
     // "Whenever an Archer you control deals damage to a creature, that
     // Archer deals that much damage …" (Greatbow Doyen): a reference that
     // names a subtype is the object said with that subtype, not a nearer one
