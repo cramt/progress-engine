@@ -712,7 +712,7 @@ face: Open the Vaults
 type: Sorcery
 cost: {4}{W}{W}
 > Return all artifact and enchantment cards from all graveyards to the battlefield under their owners' control. (Auras with nothing to enchant remain in graveyards.)
-= Spell([With { bind: [/* moved */ Objects { quant: All, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } }], then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }] }])
+= Spell([With { bind: [/* moved */ Objects { quant: All, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } }], then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }] }])
 
 ## Oracle of Bones
 face: Oracle of Bones

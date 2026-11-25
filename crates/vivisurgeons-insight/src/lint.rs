@@ -1066,16 +1066,25 @@ mod tests {
 
     #[test]
     fn each_objects_own_property_read_off_the_whole_set_is_flagged() {
-        // The tree reads one owner for every card exiled with the land.
+        // Binding rewrites each card's owner, each card's flashback cost and
+        // each creature's controller to `Itself`, so none is left to flag.
+        let said_itself = |a: &Ability| format!("{a:?}").contains("quant: Itself");
         let haven = "{2}, {T}: Exile target creature you control.\nAt the beginning of your upkeep, you may sacrifice this land. If you do, return each card exiled with this land to the battlefield under its owner's control.";
-        assert_eq!(plural("Safe Haven", "Land", haven, 1), 1);
-        // One flashback cost for all of them: the set's mana cost.
+        assert_eq!(plural("Safe Haven", "Land", haven, 1), 0);
+        assert!(said_itself(&read("Safe Haven", "Land", haven, 1)));
         let flames = "Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.\nFlashback {4}{R}";
-        assert_eq!(plural("Past in Flames", "Sorcery", flames, 0), 1);
-        // A static's "their controller", said of every creature.
+        assert_eq!(plural("Past in Flames", "Sorcery", flames, 0), 0);
+        assert!(said_itself(&read("Past in Flames", "Sorcery", flames, 0)));
         let propaganda = "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you.";
-        assert_eq!(plural("Propaganda", "Enchantment", propaganda, 0), 1);
-        // The controller and the mana value of each destroyed artifact.
+        assert_eq!(plural("Propaganda", "Enchantment", propaganda, 0), 0);
+        assert!(said_itself(&read(
+            "Propaganda",
+            "Enchantment",
+            propaganda,
+            0
+        )));
+        // The controller and the mana value of each destroyed artifact: a
+        // `GainLife` takes no object in turn, so binding leaves them.
         let seeds = "Destroy all artifacts. They can't be regenerated. The controller of each of those artifacts gains life equal to its mana value.";
         assert_eq!(plural("Seeds of Innocence", "Sorcery", seeds, 0), 2);
     }

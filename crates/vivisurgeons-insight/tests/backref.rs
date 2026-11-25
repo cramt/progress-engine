@@ -245,8 +245,11 @@ fn said(a: &Ability) -> String {
     struct S;
     impl Visitor for S {
         fn enter(&mut self, o: &mut Objects) -> bool {
+            // `Itself` too: binding makes a property read off a plural binder
+            // each object's own after the references are bound ([each-itself]).
             match o.quant {
                 Quant::BackRef { .. }
+                | Quant::Itself
                 | Quant::LinkedBackRef { .. }
                 | Quant::Bound(_)
                 | Quant::Introduced(_)

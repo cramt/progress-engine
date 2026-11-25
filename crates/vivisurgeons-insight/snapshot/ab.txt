@@ -815,7 +815,7 @@ face: Opalescence
 type: Enchantment
 cost: {2}{W}{W}
 > Each other non-Aura enchantment is a creature in addition to its other types and has base power and base toughness each equal to its mana value.
-= Let { bind: [/* it */ Objects { quant: Each, filter: Filter { alts: [[State(Other), Non("aura"), Type("enchantment")]], kind: None, posts: [], or: None } }], ability: Static([AlsoIs { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Non("aura"), Type("enchantment")]], kind: None, posts: [], or: None } }, types: Listed([Type("creature")]) }, BasePtEqual { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }]) }
+= Let { bind: [/* it */ Objects { quant: Each, filter: Filter { alts: [[State(Other), Non("aura"), Type("enchantment")]], kind: None, posts: [], or: None } }], ability: Static([AlsoIs { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Non("aura"), Type("enchantment")]], kind: None, posts: [], or: None } }, types: Listed([Type("creature")]) }, BasePtEqual { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: ManaValueOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }]) }
 
 ## Organ Grinder
 face: Organ Grinder

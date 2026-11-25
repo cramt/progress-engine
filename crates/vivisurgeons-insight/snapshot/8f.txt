@@ -448,7 +448,7 @@ cost: {3}{U}{U}
 > Spells can't be countered.
 > Each instant and sorcery card in your graveyard has flashback. The flashback cost is equal to that card's mana cost.
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered }])
-= Let { bind: [/* it */ Objects { quant: Each, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }], ability: Static([Modify { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flashback", param: None }], per: None }, KeywordCost { keyword: "flashback", cost: [ManaCostOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }]) }
+= Let { bind: [/* it */ Objects { quant: Each, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }], ability: Static([Modify { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flashback", param: None }], per: None }, KeywordCost { keyword: "flashback", cost: [ManaCostOf(Objects { quant: Itself, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }]) }
 
 ## Loot, the Anomaly
 face: Loot, the Anomaly

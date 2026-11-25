@@ -250,7 +250,7 @@ cost: {1}{W}
 > As long as you have an enduring story, creatures can't attack you unless their controller pays {1} for each of those creatures.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Keywords([Keyword { name: "storied", param: None }])
-= Let { bind: [/* it */ Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([AsLongAs { order: Leading, cond: EnduringStory(You), then: [Restrict { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackPlayer(You), who: ControllerOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["1"]))], per: Some(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) } }] }]) }
+= Let { bind: [/* it */ Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([AsLongAs { order: Leading, cond: EnduringStory(You), then: [Restrict { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackPlayer(You), who: ControllerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["1"]))], per: Some(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) } }] }]) }
 
 ## Echoes of Eternity
 face: Echoes of Eternity

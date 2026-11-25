@@ -1187,7 +1187,7 @@ face: War Cadence
 type: Enchantment
 cost: {2}{R}
 > {X}{R}: This turn, creatures can't block unless their controller pays {X} for each blocking creature they control.
-= Activated { cost: [Mana(Mana(["X", "R"]))], effect: [With { bind: [/* it */ Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [Restrict { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantBlock, who: ControllerOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["X"]))], per: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Blocking), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }) }, dur: ThisTurn }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["X", "R"]))], effect: [With { bind: [/* it */ Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [Restrict { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantBlock, who: ControllerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["X"]))], per: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Blocking), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }) }, dur: ThisTurn }] }], limits: [] }
 
 ## Warren Torchmaster
 face: Warren Torchmaster

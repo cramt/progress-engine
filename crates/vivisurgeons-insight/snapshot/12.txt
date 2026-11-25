@@ -462,7 +462,7 @@ face: Hide on the Ceiling
 type: Instant
 cost: {X}{U}
 > Exile X target artifacts and/or creatures. Return the exiled cards to the battlefield under their owners' control at the beginning of the next end step.
-= Let { bind: [/* target */ Objects { quant: Target { n: X, up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Exile(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Delayed { step: EndStep(Next), then: [Move { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }] }]) }
+= Let { bind: [/* target */ Objects { quant: Target { n: X, up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Exile(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Delayed { step: EndStep(Next), then: [Move { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }] }]) }
 
 ## Honor the Fallen
 face: Honor the Fallen
@@ -706,7 +706,7 @@ type: Artifact
 cost: {3}{W/P}{W/P}
 > ({W/P} can be paid with either {W} or 2 life.)
 > Creatures can't attack you or planeswalkers you control unless their controller pays {W/P} for each of those creatures.
-= Let { bind: [/* it */ Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([Restrict { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackAnyOf([Player(You), Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })]), who: ControllerOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["W/P"]))], per: Some(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) } }]) }
+= Let { bind: [/* it */ Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([Restrict { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackAnyOf([Player(You), Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })]), who: ControllerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["W/P"]))], per: Some(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) } }]) }
 
 ## Off Balance
 face: Off Balance

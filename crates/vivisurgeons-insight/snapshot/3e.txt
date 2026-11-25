@@ -1139,7 +1139,7 @@ cost: {1}{W}{W}
 > When this creature leaves the battlefield, return all cards exiled with it to the battlefield under their owners' control.
 = Keywords([Keyword { name: "defender", param: None }])
 = BROKE at "this" after: at end of combat , exile all creatures blocked by
-= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [With { bind: [/* moved */ Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }] }], limits: [] }
+= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [With { bind: [/* moved */ Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }] }], limits: [] }
 
 ## Wanderwine Hub
 face: Wanderwine Hub

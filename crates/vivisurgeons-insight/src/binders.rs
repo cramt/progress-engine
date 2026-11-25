@@ -194,6 +194,15 @@ pub fn bind(lines: &mut [crate::Line], type_line: &str) {
     if lines.iter().any(|l| l.said.is_some()) {
         run(lines, type_line, true);
     }
+    // Only once bound can a reference tell it names a set.
+    for line in lines.iter_mut() {
+        if let Ok(a) = line.parsed.as_mut() {
+            crate::lint::plural::each_itself(a);
+        }
+        if let Some(a) = line.said.as_mut() {
+            crate::lint::plural::each_itself(a);
+        }
+    }
 }
 
 fn run(lines: &mut [crate::Line], type_line: &str, said: bool) {

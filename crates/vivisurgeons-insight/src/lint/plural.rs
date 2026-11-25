@@ -17,6 +17,18 @@ use crate::walk::{Visitor, Walk};
 /// How many properties of one object a bound tree reads off a plural
 /// binder.
 pub fn count(a: &Ability) -> usize {
+    find(&mut a.clone(), false)
+}
+
+/// Makes each property of one object read off a plural binder the
+/// object's own, `Itself` ([each-itself]): what `count` finds, fixed where
+/// the binders are made, so the lint counts only what this pass cannot
+/// reach.
+pub fn each_itself(a: &mut Ability) {
+    find(a, true);
+}
+
+fn find(a: &mut Ability, fix: bool) -> usize {
     let b = bindings(a);
     if b.binders.is_empty() {
         return 0;
@@ -26,9 +38,12 @@ pub fn count(a: &Ability) -> usize {
         decl: 0,
         property: false,
         those: false,
+        fix,
+        inside: 0,
+        effects: Vec::new(),
         n: 0,
     };
-    a.clone().walk(&mut v);
+    a.walk(&mut v);
     v.n
 }
 
@@ -41,6 +56,14 @@ struct Find<'a> {
     /// The next player is inside `Player::Those`: "those players", the
     /// controllers of a set, which are several ([those-players]).
     those: bool,
+    /// Rewrite each property found to `Itself`.
+    fix: bool,
+    /// How many objects the walk is inside: a property said in one's
+    /// filter is no object an effect acts on.
+    inside: usize,
+    /// Per effect walked into: whether it acts on each object of a set in
+    /// turn.
+    effects: Vec<bool>,
     n: usize,
 }
 
@@ -67,7 +90,7 @@ fn plural(q: &Quant) -> bool {
 }
 
 impl Visitor for Find<'_> {
-    fn enter(&mut self, _: &mut Objects) -> bool {
+    fn enter(&mut self, o: &mut Objects) -> bool {
         let d = self.decl;
         self.decl += 1;
         if std::mem::take(&mut self.property) {
@@ -75,10 +98,38 @@ impl Visitor for Find<'_> {
                 let info = &self.b.binders[*k];
                 if info.site != SiteKind::Each && plural(&info.what.quant) {
                     self.n += 1;
+                    // `Itself` is each object an effect acts on in turn, so
+                    // only where one does: a `Move`'s "under their owner's
+                    // control", a plural source's damage, or a static's
+                    // or a continuous effect's own subject. In a filter it would be the object
+                    // tested (Hum of the Radix's "each artifact its
+                    // controller controls"), and a `GainLife` or a
+                    // `Performed` has no object to take in turn (Seeds of
+                    // Innocence, Trial of a Time Lord).
+                    if self.fix && self.inside == 0 && self.effects.last() != Some(&false) {
+                        o.quant = Quant::Itself;
+                    }
                 }
             }
         }
+        self.inside += 1;
         true
+    }
+    fn leave(&mut self, _: &mut Objects) {
+        self.inside -= 1;
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        self.effects.push(matches!(
+            e,
+            Effect::Move { .. }
+                | Effect::Damage { .. }
+                | Effect::Modify { .. }
+                | Effect::Restrict { .. }
+                | Effect::KeywordCostIs { .. }
+        ));
+    }
+    fn effect_done(&mut self, _: &mut Effect) {
+        self.effects.pop();
     }
     fn ability(&mut self, _: &mut Ability) -> bool {
         true

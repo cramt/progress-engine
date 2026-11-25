@@ -573,7 +573,7 @@ type: Sorcery
 cost: {3}{R}
 > Each instant and sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.
 > Flashback {4}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([With { bind: [/* it */ Objects { quant: Each, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }], then: [Modify { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flashback", param: None }], dur: UntilEndOfTurn }, KeywordCostIs { keyword: "flashback", cost: [ManaCostOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
+= Spell([With { bind: [/* it */ Objects { quant: Each, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }], then: [Modify { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flashback", param: None }], dur: UntilEndOfTurn }, KeywordCostIs { keyword: "flashback", cost: [ManaCostOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["4", "R"]))])) }])
 
 ## Pillar Tombs of Aku

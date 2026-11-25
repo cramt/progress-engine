@@ -49,19 +49,7 @@ fn pinned_trees_have_no_lint() {
 /// controller or mana cost off the whole set ([each-itself]), or test a
 /// card against itself.
 const PINNED_FAULTS: &[(&str, &str)] = &[
-    ("plural-bound-property", "Eerie Interlude"),
-    ("plural-bound-property", "Ghostly Prison"),
-    ("plural-bound-property", "Golden Argosy"),
-    ("plural-bound-property", "Mechtitan Core"),
-    ("plural-bound-property", "Mysterious Limousine"),
-    ("plural-bound-property", "Past in Flames"),
-    ("plural-bound-property", "Propaganda"),
-    ("plural-bound-property", "Propaganda"),
-    ("plural-bound-property", "Sphere of Safety"),
-    ("plural-bound-property", "Summon: Yojimbo"),
     ("plural-bound-property", "Trial of a Time Lord"),
-    ("plural-bound-property", "Underworld Breach"),
-    ("plural-bound-property", "Windborn Muse"),
     ("self-comparison", "Unpredictable Cyclone"),
 ];
 

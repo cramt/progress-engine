@@ -792,7 +792,7 @@ face: Planar Birth
 type: Sorcery
 cost: {1}{W}
 > Return all basic land cards from all graveyards to the battlefield tapped under their owners' control.
-= Spell([With { bind: [/* moved */ Objects { quant: All, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } }], then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: Some(OwnerOf(Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }] }])
+= Spell([With { bind: [/* moved */ Objects { quant: All, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } }], then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: Some(OwnerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }] }])
 
 ## Pollen-Shield Hare // Hare Raising
 face: Pollen-Shield Hare

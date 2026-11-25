@@ -1021,7 +1021,7 @@ fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbilit
             carried = true;
             continue;
         }
-        let (what, part_ops) = static_part(part, scope)?;
+        let (what, part_ops) = static_part(part)?;
         let f = objects(resolve(what, scope)?)?;
         if filter.as_ref().is_some_and(|g| *g != f) {
             return Err("parts over different objects".into());
@@ -1045,10 +1045,7 @@ fn static_ability(parts: &[i::Static], scope: &[Objects]) -> Result<StaticAbilit
     })
 }
 
-fn static_part<'a>(
-    part: &'a i::Static,
-    scope: &[Objects],
-) -> Result<(&'a Objects, Vec<Op>), String> {
+fn static_part(part: &i::Static) -> Result<(&Objects, Vec<Op>), String> {
     let unlowered = || short(part);
     Ok(match part {
         i::Static::Modify {
@@ -1159,14 +1156,12 @@ fn static_part<'a>(
                 [CardType::Artifact, CardType::Creature].into(),
             )],
         ),
-        // "each equal to its mana value": the object's own, when "its"
-        // names the binder `what` is.
+        // "each equal to its mana value": the object's own, `Itself` each in
+        // turn ([each-itself]).
         i::Static::BasePtEqual {
             what,
             each_equal_to: i::Amount::ManaValueOf(of),
-        } if binder(of, scope).is_some() && binder(of, scope) == binder(what, scope) => {
-            (what, vec![Op::SetBasePt(PtValue::ManaValue)])
-        }
+        } if of.quant == i::Quant::Itself => (what, vec![Op::SetBasePt(PtValue::ManaValue)]),
         _ => return Err(unlowered()),
     })
 }
