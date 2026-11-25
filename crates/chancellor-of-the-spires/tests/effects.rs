@@ -5939,6 +5939,30 @@ fn a_hidden_card_in_a_graveyard_presumed_inert_goes_on() {
     }
 }
 
+/// Once its owner has shown Anger, whose haste works from a graveyard
+/// unseen by the log (CR 113.6b), a hidden card in that graveyard may be
+/// another Anger: the presumption doesn't hold, and the game refuses.
+#[test]
+fn a_hidden_card_isnt_presumed_inert_beside_a_shown_graveyard_static() {
+    let mut game = planned(
+        &[
+            ("Forest", 5),
+            ("Island", 5),
+            ("Anger", 5),
+            ("Strategic Planning", 5),
+        ],
+        true,
+    );
+    match game.step(Answer::Act(Action::Pass)) {
+        Err(Rejected::Refused { card, refusal }) => {
+            assert_eq!(card, "a hidden card");
+            assert_eq!(refusal.node, "a hidden card in a graveyard");
+            assert!(refusal.why.contains("113.6b"), "{}", refusal.why);
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
 /// CR 702.14c: Goblin King gives my Raging Goblin mountainwalk, so while
 /// they control a Mountain their Raging Goblin can't block it.
 #[test]

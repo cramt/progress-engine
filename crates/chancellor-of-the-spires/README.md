@@ -1096,7 +1096,7 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-24 162 of the 500 replay to
+Worked card by card from there, **on 2026-11-25 162 of the 500 replay to
 the end and 58.73% of their lines are followed** (18,592 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (1 to the end),
@@ -1131,7 +1131,9 @@ battlefield, what it exiled returning as it leaves (CR 610.3: Sheltered
 by Ghosts, Glass Casket, Banisher Priest); a card no one named in a
 graveyard presumed by the replay to have no ability that works there,
 named when a line exiles or casts it from there, and refused when a
-count by name, a target or that naming would read what it is (CR 404.2,
+count by name, a target or that naming would read what it is, or once
+its owner has shown a card whose ability works from a graveyard unseen
+by the log, as Anger's haste does (CR 404.2,
 113.6b: Strategic Planning's milled cards, Fact or Fiction's pile, a
 countered face-down spell, whose 8 games go on, one to the end); the beginning of combat (Luminarch
 Aspirant); becoming tapped

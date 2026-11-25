@@ -2539,6 +2539,19 @@ impl Game {
             ),
         })
     }
+    /// Whether `owner` has shown a card with an ability that says it works
+    /// while the card is in a graveyard (CR 113.6b: Anger's haste, Wonder's
+    /// flying). Such a static changes what a creature can do without the
+    /// log ever printing it, so a missing haste or trample never conflicts
+    /// with a later line, and a hidden card of that player's in a graveyard
+    /// may be another copy: the presumption that it has no such ability
+    /// doesn't hold.
+    fn shows_graveyard_static(&self, owner: PlayerId) -> bool {
+        (0..self.cards.len()).any(|i| {
+            let c = CardId(i as u32);
+            self.owner(c) == owner && self.known(c).is_some_and(|k| k.in_graveyard)
+        })
+    }
     fn presume(&mut self) {
         if !self.presume_inert {
             return;
@@ -2934,7 +2947,18 @@ impl Game {
             .find_map(|c| {
                 let Some(k) = self.known(*c) else {
                     if self.presume_inert {
-                        return None;
+                        if !self.shows_graveyard_static(self.owner(*c)) {
+                            return None;
+                        }
+                        return Some(Rejected::Refused {
+                            card: "a hidden card".into(),
+                            refusal: Unrunnable::new(
+                                "a hidden card in a graveyard",
+                                "a card no one has named is in a graveyard, and its owner has \
+                                 shown a card whose ability works there unseen by the log \
+                                 (CR 113.6b), so it isn't presumed to have none",
+                            ),
+                        });
                     }
                     return Some(Rejected::Refused {
                         card: "a hidden card".into(),
