@@ -1089,8 +1089,10 @@ fn branch_moves(bind: &[Objects], then: &[Effect]) -> Vec<BranchMove> {
     // Where binders `ks` go together, if anywhere: a token the list around
     // the branch makes exists before it, and what a "may" or an "if" says
     // it made ("If you do, you may put a creature card … from among them",
-    // Call to the Kindred) may be what the list before it looked at: only a
-    // mode, which nothing outside it can have made, takes a made binder.
+    // Call to the Kindred) may be what the list before it looked at: a made
+    // binder moves only where nothing outside its branch makes anything
+    // ("If a card is put into exile this way, look at the top three cards
+    // …", Corpse Appraiser).
     // A reflexive trigger's target is chosen as the trigger is put on the
     // stack (CR 603.12, 601.2c), before any "may" in it is answered
     // (Halo Forager), so it never moves into a branch.
@@ -1101,12 +1103,11 @@ fn branch_moves(bind: &[Objects], then: &[Effect]) -> Vec<BranchMove> {
         }
         let made = members.iter().any(|o| o.quant == Quant::Made);
         let (path, first) = path_of(&bind_ids(&members), made)?;
-        let only_mode = matches!(then[path[0].0], Effect::Modal { .. })
-            && !then
-                .iter()
-                .enumerate()
-                .any(|(i, e)| i != path[0].0 && crate::backref::made(e).is_some());
-        (!made || only_mode).then_some((path, first))
+        let only_maker = !then
+            .iter()
+            .enumerate()
+            .any(|(i, e)| i != path[0].0 && crate::backref::made(e).is_some());
+        (!made || only_maker).then_some((path, first))
     };
     // A group that one branch alone says moves whole; otherwise each
     // binder no other binder's words say may still move on its own.

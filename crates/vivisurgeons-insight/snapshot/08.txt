@@ -500,7 +500,7 @@ face: Mirri's Guile
 type: Enchantment
 cost: {G}
 > At the beginning of your upkeep, you may look at the top three cards of your library, then put them back in any order.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [May { who: You, then: [LookAtTop { who: You, whose: You, n: N(3) }, Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: Some(Any) }] }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [LookAtTop { who: You, whose: You, n: N(3) }, Move { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: Some(Any) }] }] }], limits: [] }
 
 ## Mister Immortal
 face: Mister Immortal
