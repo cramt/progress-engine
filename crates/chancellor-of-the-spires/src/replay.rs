@@ -6772,12 +6772,19 @@ impl Driver<'_> {
         // be the source of a trigger itself, not a permanent already
         // there that saw something else enter (Soul Warden's).
         let mut by_trigger: BTreeSet<String> = BTreeSet::new();
+        // The cards of each name the lines show: as many as trigger, or as
+        // a line shows more of than its player can account for. Choices
+        // taking no more are tried first, so a hand of hidden cards isn't
+        // all taken for the one name a line shows (Tempting Wurm's
+        // opponent) while fewer will do.
+        let mut most: BTreeMap<String, usize> = BTreeMap::new();
         for e in self.entries.iter().skip(self.at) {
             match &e.event {
                 Event::Chat { .. } | Event::Watching { .. } => {}
                 Event::Trigger(t) if self.seat(t.player) == p => {
                     if let Some(n) = source_name(t) {
                         *logged.entry(n.to_string()).or_default() += 1;
+                        *most.entry(n.to_string()).or_default() += 1;
                         if !candidates.iter().any(|c| c == n) {
                             candidates.push(n.to_string());
                             by_trigger.insert(n.to_string());
@@ -6853,6 +6860,8 @@ impl Driver<'_> {
                 let shown = named.iter().filter(|m| *m == n).count();
                 let had = on_battlefield(n) + explained.get(n).copied().unwrap_or(0);
                 if shown > had {
+                    let more = most.entry(n.clone()).or_default();
+                    *more = (*more).max(shown - had);
                     by_trigger.remove(n);
                     if in_window {
                         soon.insert(n.clone());
@@ -6867,11 +6876,22 @@ impl Driver<'_> {
         // Each choice of names, the most cards first, a name taken twice
         // only for two cards of it.
         let mut choices: Vec<Vec<usize>> = Vec::new();
+        let at_most = |k: usize| most[&candidates[k]];
+        // Those within what the lines show first, then those beyond it:
+        // a line shows at least so many of a name, never at most, since
+        // copies may show on lines of their own.
+        let mut beyond: Vec<Vec<usize>> = Vec::new();
         if !candidates.is_empty() {
             for k in (1..=up_to as usize).rev() {
                 let mut pick = vec![0; k];
                 'next: loop {
-                    choices.push(pick.clone());
+                    if (0..candidates.len())
+                        .all(|c| pick.iter().filter(|x| **x == c).count() <= at_most(c))
+                    {
+                        choices.push(pick.clone());
+                    } else {
+                        beyond.push(pick.clone());
+                    }
                     for j in (0..k).rev() {
                         if pick[j] + 1 < candidates.len() {
                             pick[j] += 1;
@@ -6885,6 +6905,7 @@ impl Driver<'_> {
                 }
             }
         }
+        choices.extend(beyond);
         // None put leaves a card a line soon after shows on the
         // battlefield with nothing to explain it (Tempting Wurm's opponent
         // attacking with a Phyrexian Negator no line casts in their next

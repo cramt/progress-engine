@@ -1403,7 +1403,10 @@ source itself, then a card a later line shows on the battlefield more
 times than its player has, as for Goblin Lackey; only choices whose
 triggers are the lines', stopping when none is, and none put when no
 line shows any, nor tried when one by the end of its player's next turn
-does; Tempting Wurm's opponent's cards from their hand the same way),
+does, and choices taking no more of a name than the lines show tried
+before those taking more, so a hand of hidden cards isn't all taken for
+the one name a line shows; Tempting Wurm's opponent's cards from their
+hand the same way),
 the creature sneak returns, another gone back to,
 a trigger that draws nothing (Outcaster Trailblazer's mana) resolved
 before a play though a later line shows its source drawing, a winner line resolving what ended the game, and

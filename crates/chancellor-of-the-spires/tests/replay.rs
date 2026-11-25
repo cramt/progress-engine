@@ -190,6 +190,8 @@ const INDEXED: &[&str] = &[
     "Elephant Grass",
     "Eternal Dragon",
     "Wasteland",
+    "Tempting Wurm",
+    "Phyrexian Negator",
 ];
 
 fn index() -> &'static IndexFile {
@@ -942,6 +944,91 @@ fn goblin_lackey_s_may_is_read_from_the_lines_after_it() {
         .collect();
     assert_eq!(on.iter().filter(|n| *n == "Raging Goblin").count(), 1);
     assert_eq!(game.player(BOB).life(), 17);
+}
+
+/// Tempting Wurm's opponent's cards from their hand (CR 107.1c): no line
+/// says which bob put onto the battlefield, so the replay names them from
+/// the lines after it, the Grizzly Bears attacking in bob's next turn that
+/// no line casts.
+fn tempting_wurm(bob_attacks_with: &str, turns_later: bool) -> String {
+    let later = if turns_later {
+        "Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        Turn 3: bob"
+    } else {
+        "Turn 2: bob"
+    };
+    let wurm = "alice puts triggered ability from [Tempting Wurm] onto the stack (When Tempting Wurm enters the battlefield, each opponent may put any number of artifact, creature,...).";
+    format!(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Tempting Wurm].
+        {wurm}
+        {later}
+        bob draws a card.
+        alice is being attacked by [{bob_attacks_with}]
+        alice has conceded from the game.
+    "
+    )
+}
+
+#[test]
+fn tempting_wurm_s_cards_are_read_from_the_lines_after_it() {
+    let (_, r) = run(&tempting_wurm("Grizzly Bears", false));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.unwrap();
+    let bears = game
+        .permanents()
+        .values()
+        .filter(|p| game.card(p.card).is_some_and(|t| t.name == "Grizzly Bears"))
+        .count();
+    assert_eq!(bears, 1);
+}
+
+/// A card bob attacks with in his next turn that the engine refuses is
+/// refused where the Wurm's trigger puts it, never taken for none put:
+/// that way would leave the attack unexplained and report it a divergence.
+#[test]
+fn tempting_wurm_s_refused_card_stops_at_the_trigger() {
+    let (_, r) = run(&tempting_wurm("Phyrexian Negator", false));
+    let End::Stopped { stop, .. } = &r.end else {
+        panic!("{:?}", r.end)
+    };
+    assert!(
+        matches!(stop, Stop::Refused { card, .. } if card == "Phyrexian Negator"),
+        "{stop:?}"
+    );
+}
+
+/// A card only a line after bob's next turn shows may have come some
+/// other way, so none put is still tried, last: the replay follows the
+/// trigger line and the turns after it, and stops only at the attack.
+#[test]
+fn tempting_wurm_tries_none_for_a_card_shown_turns_later() {
+    let (g, r) = run(&tempting_wurm("Phyrexian Negator", true));
+    let End::Stopped { entry, .. } = &r.end else {
+        panic!("{:?}", r.end)
+    };
+    let attack = g
+        .entries
+        .iter()
+        .position(|e| format!("{:?}", e.event).contains("Attacked"))
+        .expect("the attack line");
+    assert_eq!(*entry, attack, "{:?}", r.end);
 }
 
 /// Aether Vial's upkeep trigger (CR 503.1a): its "may" followed, the
