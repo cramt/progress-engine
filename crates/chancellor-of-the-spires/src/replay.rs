@@ -2700,6 +2700,33 @@ impl Driver<'_> {
                         order.push(k);
                     }
                 }
+                // A game conceded before the rest of them went on the
+                // stack never shows them: the opponent of two Valakut
+                // triggers conceding at the first. They go on after the
+                // ones shown, in an order nothing after can tell.
+                let ended = self
+                    .entries
+                    .iter()
+                    .skip(self.at)
+                    .find(|e| {
+                        !matches!(
+                            e.event,
+                            Event::Trigger(_) | Event::Chat { .. } | Event::Watching { .. }
+                        )
+                    })
+                    .is_some_and(|e| {
+                        matches!(
+                            e.event,
+                            Event::Concedes(_) | Event::LosesToInaction(_) | Event::OutOfTime(_)
+                        )
+                    });
+                if ended {
+                    order.extend(
+                        (0..names.len())
+                            .filter(|k| !order.contains(k))
+                            .collect::<Vec<_>>(),
+                    );
+                }
                 if order.len() != names.len() {
                     return Err(Stop::Diverged(Divergence::Unlogged {
                         what: "the order triggered abilities go on the stack".into(),
@@ -5263,6 +5290,55 @@ impl Driver<'_> {
         Ok(Some(*c))
     }
 
+    /// The card of `p`'s named `name` played or cast from exile with a
+    /// permission to (Escape to the Wilds's, CR 611.2a) or from their
+    /// hand: the log never says which. A known card of the name is taken,
+    /// from exile first; otherwise a hidden exiled card is named, its
+    /// player playing what they would otherwise lose first, and a hidden
+    /// card of their hand named instead is a way back. With a known one in
+    /// hand, a hidden exiled card named is the way back. Each way back
+    /// names a card that is taken by name when the line is followed again.
+    fn exiled_or_in_hand(&mut self, p: PlayerId, name: &str) -> Result<Option<CardId>, Stop> {
+        let text = self.text(name)?;
+        let game = self.game.as_ref().expect("set up");
+        let exiled: Vec<CardId> = game.may_play(p).collect();
+        let hand: Vec<CardId> = game.player(p).hand().iter().copied().collect();
+        let called = |c: &CardId| game.card(*c).is_some_and(|t| t.name == text.name);
+        let hidden = |c: &CardId| game.card(*c).is_none();
+        if let Some(c) = exiled.iter().find(|c| called(c)) {
+            return Ok(Some(*c));
+        }
+        let (taken, other) = match (
+            hand.iter().find(|c| called(c)),
+            exiled.iter().find(|c| hidden(c)),
+            hand.iter().find(|c| hidden(c)),
+        ) {
+            (Some(h), e, _) => (*h, e.map(|e| (*e, "exile"))),
+            (None, Some(e), h) => (*e, h.map(|h| (*h, "their hand"))),
+            (None, None, Some(h)) => (*h, None),
+            (None, None, None) => return Ok(None),
+        };
+        if let Some((c, from)) = other {
+            let mut game = self.game().clone();
+            if name_hidden(&mut game, c, text.clone()).is_ok() {
+                self.checkpoints.push(Checkpoint {
+                    game,
+                    entry: self.at,
+                    trace: self.trace.len(),
+                    resume: self.at,
+                    others: vec![Retry::Take(format!("took {name} from {from}"))],
+                    knew: self.knew(),
+                    // Which it was changes only what is left in the hand.
+                    back: Back::Cards,
+                });
+            }
+        }
+        if self.game().card(taken).is_none() {
+            name_hidden(self.game(), taken, text)?;
+        }
+        Ok(Some(taken))
+    }
+
     /// Whether a later line this turn shows the top of the stack resolving:
     /// a draw or a reveal "with" its card. A play before that line was made
     /// in response to it.
@@ -5583,6 +5659,11 @@ impl Driver<'_> {
                     return Ok(Some(c));
                 }
             }
+        }
+        if matches!(kind, Kind::Land | Kind::Cast(Route::ManaCost))
+            && self.game().may_play(p).next().is_some()
+        {
+            return self.exiled_or_in_hand(p, name);
         }
         if kind != Kind::Cast(Route::Alternative(CastFrom::Graveyard)) {
             return self.in_hand(p, name);

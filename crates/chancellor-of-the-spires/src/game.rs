@@ -2115,6 +2115,15 @@ pub struct Game {
     /// Plotted cards, in exile, and the turn each became plotted (CR
     /// 702.170a, 702.170d).
     plotted: OrdMap<CardId, u32>,
+    /// Cards in exile a player may play until the end of their next
+    /// turn, and the turn that permission was given in (Escape to the
+    /// Wilds; CR 611.2a). It ends in that turn's cleanup (CR 514.2), or
+    /// once the card leaves exile (CR 400.7).
+    may_play: OrdMap<CardId, (PlayerId, u32)>,
+    /// The additional lands each player may play this turn, from a spell
+    /// or ability, not a static's (CR 305.2), ending in cleanup (CR
+    /// 514.2).
+    extra_lands_this_turn: OrdMap<PlayerId, u32>,
     /// Creature spells cast by suspend, which have haste as permanents
     /// (CR 702.62a).
     hasty: OrdSet<CardId>,
@@ -2315,6 +2324,8 @@ impl Game {
             adventuring: OrdMap::new(),
             suspended: OrdMap::new(),
             plotted: OrdMap::new(),
+            may_play: OrdMap::new(),
+            extra_lands_this_turn: OrdMap::new(),
             hasty: OrdSet::new(),
             command,
             commander_casts: OrdMap::new(),
@@ -2628,6 +2639,14 @@ impl Game {
             .iter()
             .filter(|(c, _)| self.exile.contains(c))
             .map(|(c, t)| (*c, *t))
+    }
+    /// The cards in exile `p` may play until the end of their next turn
+    /// (CR 611.2a). One that left exile is no longer one (CR 400.7).
+    pub fn may_play(&self, p: PlayerId) -> impl Iterator<Item = CardId> + '_ {
+        self.may_play
+            .iter()
+            .filter(move |(c, (q, _))| *q == p && self.exile.contains(c))
+            .map(|(c, _)| *c)
     }
     /// Whether the card has suspend (CR 702.62a).
     pub fn has_suspend(&self, c: CardId) -> bool {
@@ -4688,8 +4707,10 @@ impl Game {
                 player
                     .hand
                     .iter()
-                    .filter(|c| self.card(**c).is_some_and(|t| is_land(&t.type_line)))
-                    .map(|c| Action::PlayLand(*c)),
+                    .copied()
+                    .chain(self.may_play(p))
+                    .filter(|c| self.card(*c).is_some_and(|t| is_land(&t.type_line)))
+                    .map(Action::PlayLand),
             );
             // CR 712.12: a modal double-faced card played by its land face.
             actions.extend(
@@ -4796,6 +4817,13 @@ impl Game {
                 {
                     actions.push(Action::CastPlotted(c));
                 }
+            }
+        }
+        // CR 601.3: a card exiled with an effect allowing it to be
+        // played, cast as its type allows (CR 117.1a).
+        for c in self.may_play(p) {
+            if self.known(c).is_some_and(castable) {
+                actions.push(Action::Cast(c));
             }
         }
         // CR 715.3d: an adventurer card cast from exile, though not as an
@@ -4909,25 +4937,29 @@ impl Game {
 
     /// How many more lands than one `p` may play this turn (CR 305.2a).
     fn extra_lands(&self, p: PlayerId) -> u32 {
-        self.characteristics()
-            .iter()
-            .filter(|(_, c)| c.controller == p)
-            .map(|(id, c)| {
-                let Some(runs) = self
-                    .known(self.permanents[id].card)
-                    .and_then(|k| k.runs.as_ref().ok())
-                else {
-                    return 0;
-                };
-                c.abilities
-                    .iter()
-                    .filter_map(|a| match a {
-                        Ability::Unread(n) => runs.extra_lands.get(n).copied(),
-                        _ => None,
-                    })
-                    .sum::<u32>()
-            })
-            .sum()
+        // zero: no spell or ability gave `p` another land this turn.
+        let this_turn = self.extra_lands_this_turn.get(&p).copied().unwrap_or(0);
+        this_turn
+            + self
+                .characteristics()
+                .iter()
+                .filter(|(_, c)| c.controller == p)
+                .map(|(id, c)| {
+                    let Some(runs) = self
+                        .known(self.permanents[id].card)
+                        .and_then(|k| k.runs.as_ref().ok())
+                    else {
+                        return 0;
+                    };
+                    c.abilities
+                        .iter()
+                        .filter_map(|a| match a {
+                            Ability::Unread(n) => runs.extra_lands.get(n).copied(),
+                            _ => None,
+                        })
+                        .sum::<u32>()
+                })
+                .sum::<u32>()
     }
 
     /// Every activated ability other than a mana ability `p` can activate
@@ -5760,6 +5792,9 @@ impl Game {
             refusal: r.clone(),
         })?;
         self.turn_up(card, side);
+        if self.may_play.remove(&card).is_some() {
+            self.exile.retain(|c| *c != card);
+        }
         let player = &mut self.players[p.0 as usize];
         player.hand.retain(|c| *c != card);
         player.lands_played += 1;
@@ -5858,6 +5893,7 @@ impl Game {
         if self.adventuring.remove(&card).is_some()
             || via == Via::Suspend
             || self.plotted.remove(&card).is_some()
+            || self.may_play.remove(&card).is_some()
         {
             self.exile.retain(|c| *c != card);
         }
@@ -7443,6 +7479,35 @@ impl Game {
                             return;
                         }
                     }
+                }
+                // CR 406.3: exiled face up. A card the engine doesn't
+                // know stays hidden to it until a line names it.
+                Effect::ExileTop { whose, n, into } => {
+                    let Some(q) = who(whose) else { continue };
+                    let cards: Vec<CardId> = self
+                        .player(q)
+                        .library
+                        .iter()
+                        .take(n as usize)
+                        .copied()
+                        .collect();
+                    for c in &cards {
+                        self.players[q.0 as usize].library.retain(|x| x != c);
+                        self.put_in_exile(*c);
+                    }
+                    at.found.insert(into, cards);
+                }
+                Effect::MayPlayExiled { cards } => {
+                    let turn = self.turn;
+                    // zero: no exile ran, so no card was exiled this way.
+                    for c in at.found.get(&cards).cloned().unwrap_or_default() {
+                        if self.exile.contains(&c) {
+                            self.may_play.insert(c, (p, turn));
+                        }
+                    }
+                }
+                Effect::ExtraLandsThisTurn(n) => {
+                    *self.extra_lands_this_turn.entry(p).or_default() += n;
                 }
                 Effect::ToGraveyard { cards, from } => {
                     for c in self.still_found(&at, cards, from) {
@@ -10252,6 +10317,16 @@ impl Game {
                     }
                     // CR 514.2.
                     let ended = std::mem::take(&mut self.until_end_of_turn);
+                    self.extra_lands_this_turn.clear();
+                    // "Until the end of your next turn": through a turn
+                    // of theirs after the one it was given in.
+                    let (active, turn) = (self.active, self.turn);
+                    self.may_play = self
+                        .may_play
+                        .iter()
+                        .filter(|(_, (q, given))| !(*q == active && *given < turn))
+                        .map(|(c, v)| (*c, *v))
+                        .collect();
                     self.battlefield.end(&ended);
                     self.damage_multipliers.clear();
                     self.unpreventable = false;

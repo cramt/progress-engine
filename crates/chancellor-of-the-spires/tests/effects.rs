@@ -272,6 +272,11 @@ fn cast(game: &mut Game, name: &str, targets: Option<Vec<Target>>) {
 
 fn cast_as(game: &mut Game, p: PlayerId, name: &str, targets: Option<Vec<Target>>) {
     let c = in_hand(game, p, name).expect("in hand");
+    cast_card(game, c, targets)
+}
+
+/// Cast this card, wherever it is, as `cast_as` does.
+fn cast_card(game: &mut Game, c: CardId, targets: Option<Vec<Target>>) {
     let mut d = step(game, Answer::Act(Action::Cast(c)));
     if let Some(t) = targets {
         assert!(matches!(d, Decision::Targets { .. }), "{d:?}");
@@ -7907,4 +7912,80 @@ fn raubahn_attacking_attaches_an_equipment_to_an_attacker() {
     );
     resolve(&mut game);
     assert_eq!(game.characteristics()[&raubahn].pt, Some(pt(4, 2)));
+}
+
+/// CR 406.3, 611.2a, 305.2a, 514.2: Escape to the Wilds exiles the top
+/// five cards of its caster's library, which they may play until the end
+/// of their next turn, and gives them one more land this turn. A land of
+/// those five is played as the turn's extra land, a second isn't; a spell
+/// of them is cast from exile; and none is offered after their next turn.
+#[test]
+fn escape_to_the_wilds_lets_its_caster_play_the_exiled_cards_until_their_next_turn_ends() {
+    let mut game = deal_both(
+        &[
+            ("Mountain", 20),
+            ("Forest", 20),
+            ("Escape to the Wilds", 4),
+            ("Grizzly Bears", 16),
+        ],
+        &[("Forest", 30), ("Craw Wurm", 30)],
+        &[("Mountain", 3), ("Forest", 2), ("Escape to the Wilds", 1)],
+        &[],
+    );
+    for land in ["Mountain", "Forest", "Mountain", "Forest"] {
+        play(&mut game, land);
+        my_next_main(&mut game);
+    }
+    play(&mut game, "Mountain");
+    let top: Vec<CardId> = game.player(ME).library().iter().take(5).copied().collect();
+    cast(&mut game, "Escape to the Wilds", None);
+    resolve(&mut game);
+    assert!(top.iter().all(|c| game.exile().contains(c)));
+    let mut playable: Vec<CardId> = game.may_play(ME).collect();
+    playable.sort();
+    let mut exiled = top.clone();
+    exiled.sort();
+    assert_eq!(playable, exiled);
+    let is = |game: &Game, c: &CardId, name: &str| game.card(*c).is_some_and(|t| t.name == name);
+    let lands: Vec<CardId> = top
+        .iter()
+        .copied()
+        .filter(|c| is(&game, c, "Mountain") || is(&game, c, "Forest"))
+        .collect();
+    assert!(lands.len() >= 2, "the seed exiles two lands: {lands:?}");
+    let offered = |game: &Game| {
+        let Decision::Priority { actions, .. } = game.decision() else {
+            panic!("{:?}", game.decision())
+        };
+        actions
+    };
+    assert!(offered(&game).contains(&Action::PlayLand(lands[0])));
+    step(&mut game, Answer::Act(Action::PlayLand(lands[0])));
+    assert!(!game.exile().contains(&lands[0]));
+    assert!(
+        !offered(&game).contains(&Action::PlayLand(lands[1])),
+        "two lands this turn are all"
+    );
+    // Its next turn, the permission still holds, and a land is played
+    // from exile as that turn's land.
+    my_next_main(&mut game);
+    assert!(offered(&game).contains(&Action::PlayLand(lands[1])));
+    let bears = *top
+        .iter()
+        .find(|c| is(&game, c, "Grizzly Bears"))
+        .expect("the seed exiles a Grizzly Bears");
+    assert!(offered(&game).contains(&Action::Cast(bears)));
+    step(&mut game, Answer::Act(Action::PlayLand(lands[1])));
+    assert!(
+        !offered(&game)
+            .iter()
+            .any(|a| matches!(a, Action::PlayLand(_))),
+        "one land this turn, the extra one ended"
+    );
+    cast_card(&mut game, bears, None);
+    assert!(!game.exile().contains(&bears));
+    assert!(!game.may_play(ME).any(|c| c == bears));
+    // After it, none is.
+    my_next_main(&mut game);
+    assert_eq!(game.may_play(ME).count(), 0);
 }

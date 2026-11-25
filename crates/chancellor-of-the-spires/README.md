@@ -1096,11 +1096,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-25 168 of the 500 replay to
-the end and 59.40% of their lines are followed** (18,804 of 31,659), 3
+Worked card by card from there, **on 2026-11-25 171 of the 500 replay to
+the end and 59.70% of their lines are followed** (18,900 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (1 to the end),
-and 167 games have no card the engine refuses before any game (from 21). The
+and 172 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1386,8 +1386,18 @@ games go on, four to the end, one to Phyrexian Negator and one to
 Anger), and "each player may put a … card", up to one each (CR 608.2d:
 Show and Tell, whose game replays to the end), with a card chosen whose
 characteristics the layers can't read refused by name, never taken for
-one the filter doesn't match. And
-the replay's inferences: which of a card's abilities a
+one the filter doesn't match; and cards exiled from the top of a library
+that their caster may play until the end of their next turn, a land as a
+land play and a spell as its type allows, with another land this turn
+(CR 406.3, 611.2a, 305.2a, 514.2: Escape to the Wilds, whose 5 games go
+on, three to the end, one to Titania's Command and one to Valakut's
+triggers off a Nature's Lore and a Fabled Passage whose finds it gives
+up going back before trying, and replays to the end with them forced).
+And
+the replay's inferences: a card played or cast while its player may
+play cards from exile taken from there before the hand, the hand the
+way back when what is left in it says so, and triggers a concession
+leaves unshown put on the stack after those it shows; which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles
 from the line before its cast, whoever that line names exiling, with

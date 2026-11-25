@@ -1630,6 +1630,26 @@ pub enum Effect {
     Destroy(On),
     /// "Exile target creature" (CR 701.13a).
     Exile(On),
+    /// "Exile the top five cards of your library": the top `n` of
+    /// `whose` library go to exile, face up (CR 406.3), bound to `into`,
+    /// which "cards exiled this way" reads.
+    ExileTop {
+        whose: Who,
+        n: u32,
+        into: Slot,
+    },
+    /// "You may play cards exiled this way until the end of your next
+    /// turn": the controller may play the cards bound to `cards` while
+    /// they stay in exile (CR 400.7), a land as a land play (CR 305.2a)
+    /// and a spell as its type allows (CR 117.1a), until the cleanup of
+    /// their next turn (CR 514.2, 611.2a).
+    MayPlayExiled {
+        cards: Slot,
+    },
+    /// "You may play an additional land this turn": the controller's
+    /// lands this turn go up by `n` (CR 305.2), ending in cleanup (CR
+    /// 514.2).
+    ExtraLandsThisTurn(u32),
     /// "Exile target nonland permanent an opponent controls until this
     /// Aura leaves the battlefield": exiled only while the ability's
     /// source is still on the battlefield, and returned under its owner's
@@ -3068,6 +3088,9 @@ struct Scope<'a> {
     /// The slot the cards an instruction before discarded are bound to,
     /// "discarded this way".
     discarded: Option<Slot>,
+    /// The slot the cards an instruction before exiled from the top of a
+    /// library are bound to, "exiled this way".
+    exiled: Option<Slot>,
     /// The cards an instruction before separated into two piles, and the
     /// slot of the first pile, which "one pile" chooses between.
     piles: Option<(Slot, Slot)>,
@@ -3100,6 +3123,7 @@ impl<'a> Scope<'a> {
             named: false,
             x: None,
             discarded: None,
+            exiled: None,
             piles: None,
             cost_x: false,
         }
@@ -3560,6 +3584,24 @@ impl<'a> Scope<'a> {
                 }
                 _ => Effect::Untap(self.on(what)?),
             },
+            i::Effect::Exile(Objects {
+                quant: Quant::N(k),
+                filter,
+            }) if *filter
+                == (i::Filter {
+                    kind: Some(i::Noun::Card),
+                    posts: vec![Post::In(i::Zone::TopOfLibrary(i::Player::You))],
+                    ..i::Filter::default()
+                }) =>
+            {
+                let into = self.new_slot();
+                self.exiled = Some(into);
+                Effect::ExileTop {
+                    whose: Who::You,
+                    n: n(k)?,
+                    into,
+                }
+            }
             i::Effect::Exile(what) => Effect::Exile(self.on(what)?),
             i::Effect::DamageCantBePrevented(i::Duration::ThisTurn) => {
                 Effect::DamageCantBePreventedThisTurn
@@ -4147,6 +4189,51 @@ impl<'a> Scope<'a> {
                 }
                 _ => return Err(format!("a \"may\" of Player::{}", short(by))),
             },
+            // "You may play cards exiled this way until the end of your
+            // next turn": a permission given as it resolves, the "may"
+            // answered each time a card is played, not now.
+            i::Effect::May {
+                who: i::Player::You,
+                then,
+            } if matches!(
+                then.as_slice(),
+                [i::Effect::Cast {
+                    verb: i::CastVerb::Play,
+                    payment: i::Payment::ManaCost,
+                    dur: i::Duration::UntilEndOfYourNextTurn,
+                    what,
+                }] if what.quant == Quant::Plural
+                    && what.filter
+                        == i::Filter {
+                            kind: Some(i::Noun::Card),
+                            posts: vec![Post::Marked(i::Marked::Exiled)],
+                            ..i::Filter::default()
+                        }
+            ) =>
+            {
+                let cards = self
+                    .exiled
+                    .ok_or("cards exiled by nothing the engine binds")?;
+                Effect::MayPlayExiled { cards }
+            }
+            // "You may play an additional land this turn": a permission,
+            // used or not as lands are played (CR 305.2).
+            i::Effect::May {
+                who: i::Player::You,
+                then,
+            } if matches!(
+                then.as_slice(),
+                [i::Effect::ExtraLandPlays {
+                    dur: i::Duration::ThisTurn,
+                    ..
+                }]
+            ) =>
+            {
+                let [i::Effect::ExtraLandPlays { n: k, .. }] = then.as_slice() else {
+                    unreachable!("matched in the guard")
+                };
+                Effect::ExtraLandsThisTurn(n(k)?)
+            }
             i::Effect::May { who, then } => {
                 let who = self.who(who)?;
                 Effect::May(who, self.effects(then)?)

@@ -195,6 +195,7 @@ const INDEXED: &[&str] = &[
     "Show and Tell",
     "Elvish Visionary",
     "Liliana of the Veil",
+    "Escape to the Wilds",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1152,6 +1153,79 @@ fn tempting_wurm_tries_none_when_the_name_shown_soon_could_have_come_another_way
     assert_eq!(*entry, liliana, "{:?}", r.end);
 }
 
+/// Escape to the Wilds (CR 611.2a, 305.2): alice plays a second land the
+/// turn she casts it, from exile or from her hand, which the log never
+/// says. Bob's Duress then shows her hand: `kept` lands of it.
+fn escape_to_the_wilds(kept: usize) -> String {
+    let hand = vec!["[Mountain]"; kept].join(", ");
+    format!(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Mountain].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 4: alice
+        alice draws a card.
+        alice plays [Forest].
+        Turn 4: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 5: alice
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Escape to the Wilds].
+        alice plays [Forest].
+        Turn 5: bob
+        bob draws a card.
+        bob casts [Duress] targeting alice.
+        alice reveals {kept} cards with [Duress]: {hand}.
+        alice has conceded from the game.
+    "
+    )
+}
+
+/// The second land comes from exile first: five cards are left in her
+/// hand, as Duress shows.
+#[test]
+fn escape_to_the_wilds_s_exiled_land_is_played_first() {
+    let (_, r) = run(&escape_to_the_wilds(5));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    assert_eq!(r.game.unwrap().exile().len(), 4);
+}
+
+/// Duress shows four cards, one fewer than the exiled land leaves: the
+/// replay goes back and takes the land from her hand.
+#[test]
+fn escape_to_the_wilds_s_land_from_hand_is_the_way_back() {
+    let (_, r) = run(&escape_to_the_wilds(4));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    assert!(
+        r.trace
+            .iter()
+            .any(|t| t.did == "took Forest from their hand"),
+        "{:?}",
+        r.trace
+    );
+    assert_eq!(r.game.unwrap().exile().len(), 5);
+}
+
 /// Aether Vial's upkeep trigger (CR 503.1a): its "may" followed, the
 /// counter line checked against the Vial's counters, then declined by its
 /// own line the next upkeep.
@@ -1195,6 +1269,55 @@ fn aether_vial_s_upkeep_trigger_counts_up_or_is_declined() {
         .unwrap();
     let charge = chancellor_of_the_spires::model::Counter::Named("charge".into());
     assert_eq!(game.counters_on(*id, &charge), 1);
+}
+
+/// Two Aether Vials trigger at alice's upkeep, and the log shows the
+/// first go on the stack: bob conceding then leaves the second unshown,
+/// put on after it, while a game going on would have shown it.
+fn two_vials(then: &str) -> String {
+    let vial = "alice puts triggered ability from [Aether Vial] onto the stack (At the beginning of your upkeep, you may put a charge counter on Aether Vial.).";
+    format!(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        alice casts [Aether Vial].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        {vial}
+        alice chooses not to use [Aether Vial]'s ability.
+        alice draws a card.
+        alice plays [Mountain].
+        alice casts [Aether Vial].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 3: alice
+        {vial}
+        {then}
+    "
+    )
+}
+
+#[test]
+fn triggers_a_concession_leaves_unshown_go_on_the_stack_after_those_shown() {
+    let (_, r) = run(&two_vials("bob has conceded from the game."));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let (_, r) = run(&two_vials(
+        "alice draws a card.\n        bob has conceded from the game.",
+    ));
+    let End::Stopped { stop, .. } = &r.end else {
+        panic!("{:?}", r.end)
+    };
+    assert!(
+        matches!(stop, Stop::Diverged(Divergence::Unlogged { what }) if what.contains("order")),
+        "{stop:?}"
+    );
 }
 
 /// CR 103.6a: the Leyline the log puts onto the battlefield before the
