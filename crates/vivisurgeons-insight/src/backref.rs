@@ -2001,17 +2001,55 @@ fn resolve_one(
     if cands.len() > 1 && names_permanent(r) {
         // Its recipient, not "equal to its power": outside the amount.
         let recipient = !e.subject && !e.frames.iter().any(|&f| ld.c.frames[f].kind == Fk::Amount);
+        // The source may itself be a reference: "then each of those
+        // creatures deals damage equal to its power to that creature" (Alpha
+        // Brawl) is dealt by the set a reference picked, so that set is the
+        // source too.
+        let source_by_reference = |t: &Target| {
+            recipient
+                && mentions.iter().any(|((l, i), m)| {
+                    m == t
+                        && *l == li
+                        && ld.c.evs[*i].subject
+                        && ld.c.evs[*i].effect_frame == e.effect_frame
+                })
+        };
         let keep = |t: &Target| match t {
             Target::Intro(l, i) => {
                 let x = get((*l, *i));
                 !(card_off_battlefield(x)
-                    || recipient && x.subject && *l == li && x.effect_frame == e.effect_frame)
+                    || recipient && x.subject && *l == li && x.effect_frame == e.effect_frame
+                    || source_by_reference(t))
             }
             _ => true,
         };
         if cands.iter().any(keep) && !cands.iter().all(keep) {
             cands.retain(keep);
             note = "a permanent, not a card off the battlefield or the damage's source".into();
+        }
+    }
+    // "Sacrifice a creature. When you do, ~ deals X damage to any target,
+    // "Whenever an Archer you control deals damage to a creature, that
+    // Archer deals that much damage …" (Greatbow Doyen): a reference that
+    // names a subtype is the object said with that subtype, not a nearer one
+    // that only might have it ([named-subtype]).
+    let (_, rs) = type_words(&r.filter);
+    if cands.len() > 1 && !rs.is_empty() {
+        let says = |t: &Target| match t {
+            Target::Intro(l, i) => {
+                let x = get((*l, *i));
+                let s = match (&x.token, &x.obj) {
+                    (Some(tk), _) => token_words(tk).1,
+                    (None, Some(o)) => type_words(&o.filter).1,
+                    _ => BTreeSet::new(),
+                };
+                !s.is_disjoint(&rs)
+            }
+            _ => false,
+        };
+        if cands.iter().any(says) && !cands.iter().all(says) {
+            cands.retain(says);
+            note = "said with its subtype".into();
         }
     }
     // "Sacrifice a creature. When you do, ~ deals X damage to any target,

@@ -11,6 +11,6 @@ bare-other 0
 unbound-x 1
 fight-one-object 0
 types-without-card-type 0
-sort-mismatch 2
+sort-mismatch 1
 branch-binder-outside 0
 plural-bound-property 5
