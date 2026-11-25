@@ -1151,7 +1151,7 @@ type: Sorcery
 cost: {8}{R}
 > Volley of Boulders deals 6 damage divided as you choose among any number of targets.
 > Flashback {R}{R}{R}{R}{R}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= BROKE at "." after: ~ deals 6 damage divided as you choose among any number of targets
+= Spell([DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(6), among: Objects { quant: AnyTarget { n: AnyAmount }, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["R", "R", "R", "R", "R", "R"]))])) }])
 
 ## Warden of Evos Isle

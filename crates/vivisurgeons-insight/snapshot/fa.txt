@@ -114,7 +114,7 @@ face: Aurelia's Fury
 type: Instant
 cost: {X}{R}{W}
 > Aurelia's Fury deals X damage divided as you choose among any number of targets. Tap each creature dealt damage this way. Players dealt damage this way can't cast noncreature spells this turn.
-= BROKE at "." after: ~ deals x damage divided as you choose among any number of targets
+= BROKE at "cast" after: ~ deals x damage divided as you choose among any number of targets . tap each creature dealt damage this way . players dealt damage this way can't
 
 ## Avatar of Might
 face: Avatar of Might

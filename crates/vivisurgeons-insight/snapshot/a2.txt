@@ -687,7 +687,7 @@ face: Pyrotechnics
 type: Sorcery
 cost: {4}{R}
 > Pyrotechnics deals 4 damage divided as you choose among any number of targets.
-= BROKE at "." after: ~ deals 4 damage divided as you choose among any number of targets
+= Spell([DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), among: Objects { quant: AnyTarget { n: AnyAmount }, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
 
 ## Raging Kronch
 face: Raging Kronch

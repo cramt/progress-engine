@@ -503,7 +503,7 @@ face: Kuldotha Flamefiend
 type: Creature — Elemental
 cost: {4}{R}{R}
 > When this creature enters, you may sacrifice an artifact. If you do, this creature deals 4 damage divided as you choose among any number of targets.
-= BROKE at "." after: when this creature enters , you may sacrifice an artifact . if you do , this creature deals 4 damage divided as you choose among any number of targets
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }] }, IfYouDo([DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), among: Objects { quant: AnyTarget { n: AnyAmount }, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 
 ## Kwain, Itinerant Meddler
 face: Kwain, Itinerant Meddler

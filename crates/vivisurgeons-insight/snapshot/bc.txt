@@ -813,7 +813,7 @@ face: Rolling Thunder
 type: Sorcery
 cost: {X}{R}{R}
 > Rolling Thunder deals X damage divided as you choose among any number of targets.
-= BROKE at "." after: ~ deals x damage divided as you choose among any number of targets
+= Spell([DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, among: Objects { quant: AnyTarget { n: AnyAmount }, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
 
 ## Rusted Slasher
 face: Rusted Slasher

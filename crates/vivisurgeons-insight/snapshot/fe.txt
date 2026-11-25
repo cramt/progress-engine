@@ -550,7 +550,7 @@ face: Jaws of Stone
 type: Sorcery
 cost: {5}{R}
 > Jaws of Stone deals X damage divided as you choose among any number of targets, where X is the number of Mountains you control as you cast this spell.
-= BROKE at "," after: ~ deals x damage divided as you choose among any number of targets
+= BROKE at "as" after: ~ deals x damage divided as you choose among any number of targets , where x is the number of mountains you control
 
 ## Jaya, Venerated Firemage
 face: Jaya, Venerated Firemage

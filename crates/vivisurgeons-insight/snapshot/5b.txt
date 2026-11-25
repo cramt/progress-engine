@@ -298,7 +298,7 @@ face: Fiery Justice
 type: Sorcery
 cost: {R}{G}{W}
 > Fiery Justice deals 5 damage divided as you choose among any number of targets. Target opponent gains 5 life.
-= BROKE at "." after: ~ deals 5 damage divided as you choose among any number of targets
+= Spell([DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), among: Objects { quant: AnyTarget { n: AnyAmount }, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, GainLife { who: TargetOpponent, n: N(5) }])
 
 ## Flame Fusillade
 face: Flame Fusillade

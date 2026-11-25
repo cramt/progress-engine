@@ -70,7 +70,7 @@ face: Boulderfall
 type: Instant
 cost: {6}{R}{R}
 > Boulderfall deals 5 damage divided as you choose among any number of targets.
-= BROKE at "." after: ~ deals 5 damage divided as you choose among any number of targets
+= Spell([DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), among: Objects { quant: AnyTarget { n: AnyAmount }, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
 
 ## Breya's Apprentice
 face: Breya's Apprentice

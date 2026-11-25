@@ -2054,6 +2054,8 @@ fn objects_read(p: &mut P) -> Option<Objects> {
         // "divided as you choose among one or two targets".
         |p| p.words("one or two targets").map(|_| Objects { quant: Quant::AnyTarget { n: Amount::Between(1, 2) }, filter: Filter::default() }),
         |p| p.words("one , two , or three targets").map(|_| Objects { quant: Quant::AnyTarget { n: Amount::Between(1, 3) }, filter: Filter::default() }),
+        // "divided as you choose among any number of targets" (Magma Opus).
+        |p| p.words("any number of targets").map(|_| Objects { quant: Quant::AnyTarget { n: Amount::AnyAmount }, filter: Filter::default() }),
         // "any other target": other than the object the sentence names
         // before it.
         |p| p.words("any other target").map(|_| Objects { quant: Quant::AnyOtherTarget, filter: Filter::default() }),

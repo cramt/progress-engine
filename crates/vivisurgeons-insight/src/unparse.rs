@@ -4518,6 +4518,9 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             filter(o, f, n);
         }
         Quant::AnyTarget { n: Amount::N(1) } => o.w("any target"),
+        Quant::AnyTarget {
+            n: Amount::AnyAmount,
+        } => o.w("any number of targets"),
         Quant::AnyOtherTarget => o.w("any other target"),
         Quant::AnyTarget {
             n: k @ Amount::Between(..),

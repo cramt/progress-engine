@@ -726,6 +726,9 @@ impl Visitor for Collect {
             Effect::Damage {
                 source: Some(_),
                 ..
+            } | Effect::DamageDivided {
+                source: Some(_),
+                ..
             }
         )
         .then(|| self.here());
@@ -1461,7 +1464,17 @@ fn replaced_subject(
         Item::Fr(f) if frame[*f].kind == Fk::Effect => Some(*f),
         _ => None,
     })?;
-    if frame[replaced].verb != frame[d].verb {
+    // "~ deals 5 damage to target creature. If this spell was kicked, it
+    // deals 10 damage divided as you choose among any number of targets
+    // instead" (Fight with Fire): dividing it is still dealing damage.
+    fn deals(v: &str) -> &str {
+        if v == "DamageDivided" {
+            "Damage"
+        } else {
+            v
+        }
+    }
+    if deals(&frame[replaced].verb) != deals(&frame[d].verb) {
         return None;
     }
     mentions.iter().find_map(|((l, i), t)| {

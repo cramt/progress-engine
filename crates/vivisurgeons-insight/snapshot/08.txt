@@ -33,7 +33,7 @@ face: Explosive Crystal
 type: Sorcery — Adventure
 cost: {4}{R}
 > Explosive Crystal deals 4 damage divided as you choose among any number of targets. (Then exile this card. You may cast the creature later from exile.)
-= BROKE at "." after: ~ deals 4 damage divided as you choose among any number of targets
+= Spell([DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), among: Objects { quant: AnyTarget { n: AnyAmount }, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
 
 ## Angrath's Fury
 face: Angrath's Fury

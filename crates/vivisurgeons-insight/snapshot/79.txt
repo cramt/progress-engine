@@ -707,7 +707,7 @@ face: Meteor Shower
 type: Sorcery
 cost: {X}{X}{R}
 > Meteor Shower deals X plus 1 damage divided as you choose among any number of targets.
-= BROKE at "." after: ~ deals x plus 1 damage divided as you choose among any number of targets
+= Spell([DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: Plus(X, 1), among: Objects { quant: AnyTarget { n: AnyAmount }, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
 
 ## Militia Rallier
 face: Militia Rallier
