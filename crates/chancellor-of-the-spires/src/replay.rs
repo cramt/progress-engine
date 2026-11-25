@@ -6745,7 +6745,7 @@ impl Driver<'_> {
     /// name shown and no trigger, none is put: a card no line ever shows
     /// is nothing the log can tell, as for Goblin Lackey's declined "may".
     /// With a name a line shows by the end of `p`'s next turn, none is
-    /// never tried: it would leave that line unexplained.
+    /// tried last, and not at all if a refused choice explains it.
     /// The cards chosen among may be `p`'s hand: Tempting Wurm's "each
     /// opponent may put any number of … cards from their hand", whose
     /// enters triggers are the lines after it.
@@ -6766,6 +6766,10 @@ impl Driver<'_> {
         };
         // The triggers of `p`'s the lines from this one on show, by
         // source: the line being followed is the first after the spell.
+        // Another player's trigger lines among them are skipped: an
+        // earlier chooser of Show and Tell's, whose cards entered with
+        // these (CR 101.4) and whose triggers went on the stack first (CR
+        // 603.3b).
         let mut logged: BTreeMap<String, usize> = BTreeMap::new();
         let mut candidates: Vec<String> = Vec::new();
         // Names only the trigger lines show: a card taken for one has to
@@ -6791,6 +6795,7 @@ impl Driver<'_> {
                         }
                     }
                 }
+                Event::Trigger(_) => {}
                 _ => break,
             }
         }
@@ -6909,15 +6914,12 @@ impl Driver<'_> {
         // None put leaves a card a line soon after shows on the
         // battlefield with nothing to explain it (Tempting Wurm's opponent
         // attacking with a Phyrexian Negator no line casts in their next
-        // turn), so it is no way then. A name only a line further on
-        // shows may have come some other way (stolen, reanimated), and
-        // none stays the last way tried.
-        if !candidates
+        // turn), but it may have come some other way (Aether Vial,
+        // reanimation, a later Show and Tell): none is still tried, last.
+        let none_last = candidates
             .iter()
-            .any(|c| soon.contains(c) && !by_trigger.contains(c))
-        {
-            choices.push(Vec::new());
-        }
+            .any(|c| soon.contains(c) && !by_trigger.contains(c));
+        choices.push(Vec::new());
         let before = self.game().clone();
         let mut answers: Vec<(Answer, String, Option<Game>)> = Vec::new();
         let mut refused: Vec<(Answer, String, Option<Game>)> = Vec::new();
@@ -6968,6 +6970,13 @@ impl Driver<'_> {
             // the lines show; a refused one is, and stops if it is taken.
             match tried.step(answer.clone()) {
                 Err(Rejected::Illegal(_)) => continue,
+                // Another player chooses next, and nothing has entered
+                // yet (CR 101.4): what this one chose is read from the
+                // lines after, and gone back to when one can't be
+                // followed.
+                Ok(Decision::ChooseMatching { player, .. }) if player != p => {
+                    answers.push((answer, said, Some(tried)));
+                }
                 Ok(_) => {
                     let (counted, sources) = triggered_since(&before, &tried, p);
                     let unseen = choice
@@ -6982,8 +6991,17 @@ impl Driver<'_> {
             }
         }
         // A refused choice may be what happened, but one whose triggers
-        // the lines show comes first.
-        answers.extend(refused);
+        // the lines show comes first. None is no way when a refused one
+        // explains a card a line soon after shows that none leaves
+        // unexplained: the engine can't follow what may be the game's,
+        // and that refusal stops it, not a divergence further on that
+        // none would run into (Tempting Wurm's opponent attacking with
+        // Phyrexian Negator). Only the first refused is kept: going back
+        // to another would be refused again.
+        if none_last && !refused.is_empty() {
+            answers.retain(|(a, ..)| !matches!(a, Answer::Finds(f) if f.is_empty()));
+        }
+        answers.extend(refused.into_iter().take(1));
         if answers.is_empty() {
             return Err(Stop::Unfollowed {
                 event: format!("a card put onto the battlefield {among} that no line names"),

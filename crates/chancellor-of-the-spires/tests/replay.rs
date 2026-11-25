@@ -192,6 +192,9 @@ const INDEXED: &[&str] = &[
     "Wasteland",
     "Tempting Wurm",
     "Phyrexian Negator",
+    "Show and Tell",
+    "Elvish Visionary",
+    "Liliana of the Veil",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1029,6 +1032,124 @@ fn tempting_wurm_tries_none_for_a_card_shown_turns_later() {
         .position(|e| format!("{:?}", e.event).contains("Attacked"))
         .expect("the attack line");
     assert_eq!(*entry, attack, "{:?}", r.end);
+}
+
+/// Show and Tell's two choosers (CR 101.4): alice chooses first, then
+/// bob, and what both chose enters at once, so alice's choice is read
+/// from the trigger lines only once bob has chosen too. Each `put` names
+/// whose Elvish Visionary goes in; its trigger and draw are the lines.
+fn show_and_tell(put: &[&str]) -> String {
+    let lines: String = put
+        .iter()
+        .map(|who| {
+            format!(
+                "{who} puts triggered ability from [Elvish Visionary] onto the stack (When Elvish Visionary enters, draw a card.).
+                "
+            )
+        })
+        // Put on the stack in APNAP order, bob's resolves first (CR 603.3b).
+        .chain(
+            put.iter()
+                .rev()
+                .map(|who| format!("{who} draws a card with [Elvish Visionary]'s ability.\n")),
+        )
+        .collect();
+    format!(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Island].
+        alice casts [Show and Tell].
+        {lines}
+        alice has conceded from the game.
+    "
+    )
+}
+
+fn visionaries(r: &Replay) -> Vec<String> {
+    let game = r.game.as_ref().unwrap();
+    let chars = game.characteristics();
+    let mut whose: Vec<String> = game
+        .permanents()
+        .iter()
+        .filter(|(_, p)| {
+            game.card(p.card)
+                .is_some_and(|t| t.name == "Elvish Visionary")
+        })
+        .map(|(id, _)| {
+            if chars[id].controller == ALICE {
+                "alice".to_string()
+            } else {
+                "bob".to_string()
+            }
+        })
+        .collect();
+    whose.sort();
+    whose
+}
+
+#[test]
+fn show_and_tell_s_first_chooser_is_read_from_the_triggers_after_both_chose() {
+    for put in [&["alice"][..], &["bob"], &["alice", "bob"]] {
+        let (_, r) = run(&show_and_tell(put));
+        assert_eq!(r.end, End::Finished, "{put:?}: {:?}", r.trace);
+        assert_eq!(visionaries(&r), put, "{put:?}");
+    }
+}
+
+/// None put stays a way when a name shown in bob's next turn is one the
+/// Wurm can't have put (a planeswalker; Aether Vial, reanimation or a
+/// later Show and Tell would be the same): the replay follows the trigger
+/// and stops where the line shows it, not at the Wurm.
+#[test]
+fn tempting_wurm_tries_none_when_the_name_shown_soon_could_have_come_another_way() {
+    let wurm = "alice puts triggered ability from [Tempting Wurm] onto the stack (When Tempting Wurm enters the battlefield, each opponent may put any number of artifact, creature,...).";
+    let (g, r) = run(&format!(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Tempting Wurm].
+        {wurm}
+        Turn 2: bob
+        bob draws a card.
+        bob activates an ability of [Liliana of the Veil] ( Each player discards a card.).
+        alice has conceded from the game.
+    "
+    ));
+    let End::Stopped { entry, .. } = &r.end else {
+        panic!("{:?}", r.end)
+    };
+    let liliana = g
+        .entries
+        .iter()
+        .position(|e| format!("{:?}", e.event).contains("Liliana"))
+        .expect("the Liliana line");
+    assert_eq!(*entry, liliana, "{:?}", r.end);
 }
 
 /// Aether Vial's upkeep trigger (CR 503.1a): its "may" followed, the
