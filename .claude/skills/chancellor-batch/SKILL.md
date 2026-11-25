@@ -124,7 +124,14 @@ Forty-five threads in a row then found the tree dirty and stopped.
      kind of stop, or drop a candidate without stopping by name: a fixed cap
      (`CHOSEN_NAMES`, `BLOCK_READINGS`, `BACKTRACKS`) or options deduplicated
      by card name. Batch 12's `refused_at` hid a divergence that way, and no
-     review saw it. Fix what it finds before you push. If you leave something, put it at the top of the handoff.
+     review saw it. It also asks of each choice a heuristic orders or prunes
+     from later lines: is the true answer still among the backtrack options
+     whenever another way could explain those lines (batch 23 stopped trying
+     "none" for a card shown in the chooser's next turn, which Sneak Attack
+     or a reanimation also explains), and does a replay test cover it with
+     every player who chooses (batch 23's Show and Tell judged the first of
+     two players before the second's card had entered, and stopped a
+     two-player game). Fix what it finds before you push. If you leave something, put it at the top of the handoff.
    - **Revert check.** Before you commit a rule, reverse its `src/` change
      (`git diff -- crates/chancellor-of-the-spires/src > r.patch && git apply -R r.patch`),
      run its new tests and watch each fail, then `git apply r.patch`. A branch
