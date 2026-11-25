@@ -1553,8 +1553,22 @@ fn resolve_one(
     let where_frame = e.frames.windows(2).rev().find_map(|w| {
         (ld.c.frames[w[0]].verb == "Where" && ld.c.frames[w[1]].kind == Fk::Amount).then_some(w[0])
     });
-    let made_by_where =
-        |x: &Ev| where_frame.is_some_and(|w| x.role == Role::Made && x.frames.contains(&w));
+    // Nor the targets X counts: "it deals X damage divided as you choose
+    // among up to X target creatures, where X is its power" (Ravenous
+    // Gigantotherium) chooses its targets by X, so "its" is the card
+    // ([x-not-what-it-counts]).
+    let counted_by_x = |x: &Ev| {
+        x.obj.as_ref().is_some_and(|o| {
+            matches!(
+                o.quant,
+                Quant::Target { n: Amount::X, .. } | Quant::OtherTarget { n: Amount::X, .. }
+            )
+        })
+    };
+    let made_by_where = |x: &Ev| {
+        where_frame
+            .is_some_and(|w| (x.role == Role::Made || counted_by_x(x)) && x.frames.contains(&w))
+    };
     let push_pool = |cands: &mut Vec<Target>, pred: &dyn Fn(&Ev) -> bool| {
         for &(l, i) in intros.iter().rev() {
             if pred(get((l, i))) && compat(r, get((l, i))) && !made_by_where(get((l, i))) {
