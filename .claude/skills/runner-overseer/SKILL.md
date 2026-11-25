@@ -63,6 +63,11 @@ with a note in the handoff or the queue.
 
 ## Each check-in
 
+0. **Take the tick:** `.claude/skills/runner-overseer/lock.sh take`. If it
+   says `busy`, another overseer tick is still running (a review outlasts the
+   30-minute schedule): end in one line. Run `lock.sh release` as your last
+   act. Build and replay in a `git worktree` of your own under `/pool/dev`,
+   never by moving the thread's worktree: ticks share that checkout.
 1. **Read** your latest notes, the gate log, `state.json`, the batch threads and
    any new `metrics.jsonl` line. If nothing moved since the last entry and
    nothing is wrong, end the tick in one line.
