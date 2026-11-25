@@ -403,6 +403,12 @@ pub struct ManaAbility {
     /// (CR 602.5): counted among its controller's permanents.
     pub only_if: Option<crate::model::YouControl>,
     pub adds: Adds,
+    /// River of Tears's "If you played a land this turn, add {B} instead":
+    /// what it adds in place of `adds` once its controller has played a
+    /// land this turn, by the special action and not an effect putting one
+    /// onto the battlefield (CR 305.1, 305.4): its own effect, replaced
+    /// (CR 614.15).
+    pub played_land_instead: Option<Adds>,
     /// "This land deals 1 damage to you."
     pub damage_to_you: u32,
     /// Wall of Roots's "Put a -0/-1 counter on this creature": a counter
@@ -436,9 +442,14 @@ impl ManaAbility {
     pub fn options(
         &self,
         identity: Option<&[Color]>,
+        played_land: bool,
         count: impl Fn(&Filter) -> u32,
     ) -> Vec<ManaPool> {
-        match &self.adds {
+        let adds = match &self.played_land_instead {
+            Some(instead) if played_land => instead,
+            _ => &self.adds,
+        };
+        match adds {
             Adds::Options(o) => o.clone(),
             Adds::ForEach { each, filter } => {
                 let n = count(filter);
@@ -513,6 +524,7 @@ fn lower_mana_ability(
         mana: None,
         only_if,
         adds: Adds::Options(Vec::new()),
+        played_land_instead: None,
         damage_to_you: 0,
         counter: None,
         once_per_turn,
@@ -592,7 +604,7 @@ fn lower_mana_ability(
         },
         other => return Err(format!("a mana ability that does {} first", short(other))),
     };
-    for e in rest {
+    for (k, e) in rest.iter().enumerate() {
         match e {
             // "If there are no mining counters on this land, sacrifice
             // it": of the counter its cost removes.
@@ -619,6 +631,17 @@ fn lower_mana_ability(
                 && matches!(to.as_slice(), [i::Recipient::Player(i::Player::You)]) =>
             {
                 ability.damage_to_you += n
+            }
+            // "If you played a land this turn, add {B} instead": the mana
+            // right before it, replaced.
+            i::Effect::Instead {
+                cond: i::Condition::DidThisTurn(e),
+                then,
+            } if k == 0 && matches!(&**e, i::Event::PlaysLand(i::Player::You)) => {
+                let [i::Effect::AddMana(add)] = then.as_slice() else {
+                    return Err("a mana ability doing more instead".into());
+                };
+                ability.played_land_instead = Some(adds(add)?);
             }
             other => return Err(format!("a mana ability that also does {}", short(other))),
         }

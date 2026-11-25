@@ -5124,7 +5124,7 @@ impl Game {
                             a.tap,
                             a.life,
                             a.mana.as_ref(),
-                            a.options(player.identity.as_deref(), |f| {
+                            a.options(player.identity.as_deref(), player.lands_played > 0, |f| {
                                 self.count(f, id, chars, &all)
                             }),
                             a.sacrifice.as_ref(),

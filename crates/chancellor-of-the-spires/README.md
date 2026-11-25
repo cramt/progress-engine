@@ -1372,8 +1372,11 @@ Dragonfire Blade, Kellan, Planar Trailblazer and Heartless Act, and Zul
 Ashur, Lich Lord's one to the end); a trigger whose event says whose
 turn it happens in, "whenever you cast a spell during an opponent's
 turn", checked as it happens and never again (CR 603.2: Brineborn
-Cutthroat, whose 4 games go on, to Kozilek's cast trigger, Cascading
-Cataracts's mana and others, and River of Tears's "instead" in 3 more). And
+Cutthroat, whose 4 games go on, to Cascading Cataracts's mana, Sword of
+Fire and Ice, Enduring Curiosity and a discard to Disfigure's line); a
+mana ability's own "instead" once its controller has played a land this
+turn (CR 305.4, 614.15: River of Tears, in no milestone game but 3 of
+the rest). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

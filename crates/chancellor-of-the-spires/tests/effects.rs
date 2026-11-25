@@ -2856,6 +2856,45 @@ fn a_mana_ability_limited_by_what_you_control_is_offered_only_then() {
     assert_eq!(adds(&game), vec!["{G}", "{G}{G}{G}{G}"]);
 }
 
+/// CR 305.1, 614.15: River of Tears adds {U}, or {B} instead once I've
+/// played a land this turn: itself, the turn it's played, and the Island
+/// played the turn after, but not before that Island.
+#[test]
+fn river_of_tears_adds_black_once_a_land_is_played() {
+    let mut game = deal(
+        &[("River of Tears", 30), ("Island", 30)],
+        &[("Mountain", 60)],
+        &[("River of Tears", 1), ("Island", 1)],
+    );
+    play(&mut game, "River of Tears");
+    let river = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| {
+            game.card(p.card)
+                .is_some_and(|t| t.name == "River of Tears")
+        })
+        .map(|(id, _)| *id)
+        .unwrap();
+    let adds = |game: &Game| -> Vec<String> {
+        let Decision::Priority { actions, .. } = game.decision() else {
+            panic!()
+        };
+        actions
+            .iter()
+            .filter_map(|a| match a {
+                Action::Mana(m) if m.source == river => Some(m.adds.to_string()),
+                _ => None,
+            })
+            .collect()
+    };
+    assert_eq!(adds(&game), vec!["{B}"]);
+    my_next_main(&mut game);
+    assert_eq!(adds(&game), vec!["{U}"]);
+    play(&mut game, "Island");
+    assert_eq!(adds(&game), vec!["{B}"]);
+}
+
 /// CR 508.3a, 603.3d: Hired Claw's "Whenever you attack with one or more
 /// Lizards" triggers once as it attacks, and deals the opponent it
 /// targets 1 damage.
