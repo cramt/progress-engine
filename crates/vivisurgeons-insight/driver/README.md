@@ -62,7 +62,11 @@ while another top-level thread in the project is live in `t3 thread list`
 A batch found in flight with no such thread lost its thread. The next
 `start` records it: at the write step its commits are parked on
 `insight/abandoned-<n>`, main goes to origin/main, and it counts as a failure; past `finish` it is
-recorded without findings.
+recorded without findings. If its last gate passed at the HEAD it died on, on
+a clean tree, the new batch adopts the branch: after its baseline is measured,
+`start` cherry-picks the commits origin doesn't already hold, and the brief
+says so, so the new batch's gates and reviewers judge them as its own. A
+conflict leaves main at origin and escalates the branch.
 
 ## The gates
 

@@ -341,3 +341,39 @@ async function freeBranchName(repo: string, name: string): Promise<string> {
   });
   return exists.code === 0 ? `${name}-${Date.now()}` : name;
 }
+
+/**
+ * Replays a parked batch's commits onto HEAD, skipping any whose change
+ * origin already holds (an overseer may have landed them by hand). A
+ * conflict puts HEAD back where it was and leaves the branch for a human.
+ */
+export async function adopt(
+  repo: string,
+  parked: string,
+): Promise<
+  { kind: "adopted"; commits: string[] } | { kind: "conflict"; detail: string }
+> {
+  const start = await head(repo);
+  const r = await must(
+    "git",
+    [
+      "rev-list",
+      "--reverse",
+      "--no-merges",
+      "--right-only",
+      "--cherry-pick",
+      `HEAD...${parked}`,
+    ],
+    { cwd: repo },
+  );
+  const commits = r.split("\n").filter(Boolean);
+  if (commits.length === 0) return { kind: "adopted", commits };
+  const pick = await run("git", ["cherry-pick", ...commits], { cwd: repo });
+  if (pick.code !== 0) {
+    await run("git", ["cherry-pick", "--abort"], { cwd: repo });
+    await must("git", ["reset", "--hard", start], { cwd: repo });
+    return { kind: "conflict", detail: (pick.stderr || pick.stdout).trim() };
+  }
+  log("git", `adopted ${commits.length} commits from ${parked}`);
+  return { kind: "adopted", commits };
+}

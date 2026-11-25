@@ -23,10 +23,12 @@ import {
   sha256,
 } from "./gates.ts";
 import {
+  adopt,
   branchName,
   commitsSince,
   dirty,
   branch as gitBranch,
+  head as gitHead,
   parkOnOrigin,
   preflight,
   pushRebasing,
@@ -328,6 +330,7 @@ async function brief(
   baseline: Measurement,
   s: Extract<MilestoneStatus, { kind: "working" }>,
   dir: string,
+  adopted: string,
 ): Promise<string> {
   const list = await failing(paths, s.milestone);
   const failingPath = join(dir, "failing.txt");
@@ -355,6 +358,7 @@ async function brief(
     milestone: s.milestone.name,
     milestoneRow: rowLine(s),
     baselineHead: baseline.head.slice(0, 7),
+    adopted,
     baseline: baselineLine(baseline),
     roundtripFailures: baseline.roundtrip.failures,
     abilitiesOk: row(baseline.coverage, "all cards").abilities.ok,
@@ -512,16 +516,28 @@ function record(
   };
 }
 
-/** A batch whose thread died: parked if it wrote anything, then recorded. */
-async function recover(state: State, f: InFlight): Promise<State> {
+/**
+ * A batch whose thread died: parked if it wrote anything, then recorded.
+ * Parked work whose gates passed at the HEAD it died on is handed back for
+ * the next batch to adopt: batch 45 died on a DNS blip after a green gate,
+ * and its five commits waited for an overseer to land them by hand.
+ */
+async function recover(
+  state: State,
+  f: InFlight,
+): Promise<{ state: State; adoptable: string | null }> {
   log("recover", `batch ${f.batch} was left at ${f.step} since ${f.startedAt}`);
   switch (f.step) {
     case "start":
-      return { ...state, inFlight: null };
+      return { state: { ...state, inFlight: null }, adoptable: null };
     case "finished":
-      return record(state, f, [], []);
+      return { state: record(state, f, [], []), adoptable: null };
     case "write": {
       const commits = (await commitsSince(REPO, f.baseline.head)).length;
+      const gatedHere =
+        f.lastGate?.kind === "pass" &&
+        f.lastGate.head === (await gitHead(REPO)) &&
+        !(await dirty(REPO));
       let branch: string | null = null;
       if (commits > 0) {
         const parked = await parkOnOrigin(REPO, `insight/abandoned-${f.batch}`);
@@ -534,12 +550,13 @@ async function recover(state: State, f: InFlight): Promise<State> {
           );
         branch = parked.branch;
       }
+      const adoptable = branch && gatedHere ? branch : null;
       escalate(
         f.batch,
         "recover",
-        `Batch ${f.batch}'s thread died at the write step${branch ? `; its ${commits} commits are on ${branch}` : ""}.`,
+        `Batch ${f.batch}'s thread died at the write step${branch ? `; its ${commits} commits are on ${branch}` : ""}${adoptable ? ", gated green, so the next batch adopts them" : ""}.`,
       );
-      return record(
+      const recorded = record(
         state,
         {
           step: "finished",
@@ -552,8 +569,28 @@ async function recover(state: State, f: InFlight): Promise<State> {
         [],
         [],
       );
+      return { state: recorded, adoptable };
     }
   }
+}
+
+/** The brief's line on a dead batch's gated work this batch takes over. */
+async function adoptParked(
+  batch: number,
+  parked: string,
+  base: string,
+): Promise<string> {
+  const a = await adopt(REPO, parked);
+  if (a.kind === "conflict") {
+    escalate(
+      batch,
+      "adopt",
+      `${parked} passed its gates but does not cherry-pick onto origin; land or drop it by hand:\n${a.detail}`,
+    );
+    return `None: ${parked} conflicts with origin and waits for a human.`;
+  }
+  if (a.commits.length === 0) return `None: origin already holds ${parked}.`;
+  return `${a.commits.length} commits from \`${parked}\`, a batch whose thread died after its gates passed, are on top of the baseline. They are this batch's now: its gates and reviewers judge them with yours. Read them first (\`git log ${base.slice(0, 7)}..${a.commits.at(-1)?.slice(0, 7)}\`).`;
 }
 
 // ---------- subcommands ----------
@@ -581,6 +618,7 @@ async function start(): Promise<number> {
       `stopped since ${state.stopped.at}: ${state.stopped.reason}\nA human clears it with \`${RESUME()}\`.`,
     );
   }
+  let adoptable: string | null = null;
   if (state.inFlight) {
     const live = await otherLiveThreads(REPO);
     if (live.length > 0) {
@@ -589,7 +627,9 @@ async function start(): Promise<number> {
         `batch ${state.inFlight.batch} is in flight (${state.inFlight.step}, since ${state.inFlight.startedAt}); thread ${live.join(", ")} still has it`,
       );
     }
-    state = await recover(state, state.inFlight);
+    const r = await recover(state, state.inFlight);
+    state = r.state;
+    adoptable = r.adoptable;
     saveState(state);
   }
   if (state.consecutiveFailures >= 2) {
@@ -632,7 +672,11 @@ async function start(): Promise<number> {
       `${s.milestone.name} is at 100% (${rowLine(s)}). Review it, then pin with \`insight pin ${s.milestone.target}\`; batches move on once golden/${s.milestone.name}.txt holds every card of it.`,
     );
   log("milestone", `${s.milestone.name}: ${rowLine(s)}`);
-  const text = await brief(batch, startedAt, baseline, s, dir);
+  // After the baseline, so this batch's gates and reviewers cover it.
+  const adopted = adoptable
+    ? await adoptParked(batch, adoptable, baseline.head)
+    : "None.";
+  const text = await brief(batch, startedAt, baseline, s, dir, adopted);
   writeFileSync(join(dir, "brief.md"), text);
   saveState({
     ...state,
@@ -1064,7 +1108,7 @@ async function dryRun(state: State): Promise<number> {
     );
     return OK;
   }
-  const text = await brief(state.nextBatch, now(), baseline, s, dir);
+  const text = await brief(state.nextBatch, now(), baseline, s, dir, "None.");
   writeFileSync(join(dir, "brief.md"), text);
   out(
     `Dry run: nothing pushed, state.json untouched. Brief at ${join(dir, "brief.md")}:\n`,

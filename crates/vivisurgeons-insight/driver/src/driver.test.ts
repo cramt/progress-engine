@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { pinnedCards, ratchets } from "./gates.ts";
 import {
+  adopt,
   batchCommitOnOrigin,
   commitsSince,
   parkOnOrigin,
@@ -542,4 +543,35 @@ test("network blips are told apart from refusals", () => {
     "fatal: couldn't find remote ref main",
   ])
     assert.ok(!transientNetwork(e), e);
+});
+
+test("adopt: a parked batch's commits go on top of origin, ones origin holds are skipped", async () => {
+  const r = repos();
+  commit(r.driver, "b.txt", "writer b\n", "insight: b");
+  commit(r.driver, "c.txt", "writer c\n", "insight: c");
+  // The human lands b by hand and adds their own commit.
+  git(r.human, "pull", "-q", "origin", "main");
+  git(r.human, "fetch", "-q", r.driver, "main");
+  git(r.human, "cherry-pick", git(r.driver, "rev-parse", "HEAD~1"));
+  git(r.human, "push", "-q", "origin", "main");
+  const human = humanPushes(r, "d.txt", "human\n");
+  const p = await parkOnOrigin(r.driver, "insight/abandoned-9");
+  assert.ok(p.kind === "parked");
+  const a = await adopt(r.driver, p.branch);
+  assert.ok(a.kind === "adopted");
+  assert.equal(a.commits.length, 1);
+  assert.equal(git(r.driver, "rev-parse", "HEAD~1"), human);
+  assert.equal(git(r.driver, "log", "-1", "--format=%s"), "insight: c");
+});
+
+test("adopt: a conflicting parked batch leaves HEAD where it was", async () => {
+  const r = repos();
+  commit(r.driver, "a.txt", "writer\n", "insight: a");
+  const human = humanPushes(r, "a.txt", "human\n");
+  const p = await parkOnOrigin(r.driver, "insight/abandoned-10");
+  assert.ok(p.kind === "parked");
+  const a = await adopt(r.driver, p.branch);
+  assert.equal(a.kind, "conflict");
+  assert.equal(git(r.driver, "rev-parse", "HEAD"), human);
+  assert.equal(git(r.driver, "status", "--porcelain"), "");
 });

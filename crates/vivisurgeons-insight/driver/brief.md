@@ -11,6 +11,7 @@ they read is the commits, `{{handoffPath}}` and `{{batchDir}}/report.json`.
 
 - Milestone: **{{milestone}}**. {{milestoneRow}}
 - Baseline at {{baselineHead}}: {{baseline}}
+- Adopted from a dead batch: {{adopted}}
 - Stop after about **{{commitCap}} commits** or **{{hours}} hours** (started
   {{startedAt}}), whichever comes first. `gate` prints where you stand.
 
