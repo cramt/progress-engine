@@ -1136,8 +1136,8 @@ fn branch_moves(bind: &[Objects], then: &[Effect]) -> Vec<BranchMove> {
 /// branch inside them says ([branch-binds]): the `With`s `into_branch`
 /// would still split. The tree is read back into temporary ids, each
 /// binder numbered in walk order, so the decision is `into_branch`'s own.
-/// Every `With` is asked, also those `into_branch` never visits (inside a
-/// trigger or a branch), so what that pass misses is found too.
+/// Every `With` is asked, also those inside a trigger, a loop or a branch,
+/// so what that pass misses is found too.
 pub fn branch_binders_outside(a: &Ability) -> usize {
     if !has_binders(a) {
         return 0;
@@ -1231,6 +1231,17 @@ impl Visitor for IntoLoops {
             into_branch(es);
         }
         true
+    }
+    /// A `With` inside a loop's body or a branch is split the same way:
+    /// "For each land destroyed this way, its controller may search …"
+    /// (From the Ashes) finds a card only on a pass where the "may" is taken.
+    fn effect(&mut self, e: &mut Effect) {
+        if let Effect::ForEach { then, .. } = e {
+            into_branch(then);
+        }
+        for list in branches(e) {
+            into_branch(list);
+        }
     }
 }
 
