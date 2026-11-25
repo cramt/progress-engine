@@ -1437,6 +1437,63 @@ fn tempting_wurm_lets_its_opponent_put_permanents_from_their_hand() {
     assert!(game.stack().is_empty());
 }
 
+/// CR 101.4, 110.2a, 608.2d: Show and Tell has each player, the active
+/// player first, choose up to one artifact, creature, enchantment or land
+/// card of their hand; two is too many and none is the "may" declined.
+/// What is chosen enters once both have chosen, under the control of the
+/// player who put it.
+#[test]
+fn show_and_tell_has_each_player_put_up_to_one_card_from_their_hand() {
+    let mut game = deal_both(
+        &[("Island", 30), ("Show and Tell", 15), ("Grizzly Bears", 15)],
+        &[("Forest", 30), ("Craw Wurm", 30)],
+        &[("Island", 3), ("Show and Tell", 1), ("Grizzly Bears", 2)],
+        &[("Craw Wurm", 1)],
+    );
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    cast(&mut game, "Show and Tell", None);
+    let d = resolve(&mut game);
+    let Decision::ChooseMatching { player, up_to, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!((player, up_to), (ME, 1));
+    let bears: Vec<CardId> = game
+        .player(ME)
+        .hand()
+        .iter()
+        .copied()
+        .filter(|c| game.card(*c).is_some_and(|t| t.name == "Grizzly Bears"))
+        .collect();
+    assert!(matches!(
+        game.step(Answer::Finds(
+            bears.iter().map(|c| Found::Card(*c)).collect()
+        )),
+        Err(Rejected::Illegal(_))
+    ));
+    let d = step(&mut game, Answer::Finds(vec![Found::Card(bears[0])]));
+    let Decision::ChooseMatching { player, up_to, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!((player, up_to), (THEM, 1));
+    assert!(
+        creature(&game, "Grizzly Bears").is_none(),
+        "not before both choose"
+    );
+    step(&mut game, Answer::Finds(vec![]));
+    let chars = game.characteristics();
+    assert_eq!(
+        chars[&creature(&game, "Grizzly Bears").unwrap()].controller,
+        ME
+    );
+    assert!(creature(&game, "Craw Wurm").is_none());
+    assert!(in_hand(&game, THEM, "Craw Wurm").is_some());
+    assert!(in_hand(&game, ME, "Grizzly Bears").is_some());
+}
+
 /// Pass until a "may" is asked, and say whose card's.
 fn to_may(game: &mut Game) -> CardId {
     for _ in 0..200 {

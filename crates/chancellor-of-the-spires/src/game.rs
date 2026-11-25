@@ -1194,7 +1194,8 @@ enum Waiting {
     /// bound to `into`; `enters` if an instruction after puts them onto
     /// the battlefield. `hands` are the players who choose from their own
     /// hand after `player`, in APNAP order, their cards bound beside
-    /// `player`'s (CR 101.4: Tempting Wurm's each opponent).
+    /// `player`'s (CR 101.4: Tempting Wurm's each opponent), each up to
+    /// `hands_up_to` of them, or any number.
     ChooseMatching {
         player: PlayerId,
         cards: Vec<CardId>,
@@ -1204,6 +1205,7 @@ enum Waiting {
         enters: bool,
         into: Slot,
         hands: Vec<PlayerId>,
+        hands_up_to: Option<u32>,
         resume: Resuming,
     },
     /// `player` orders `cards` to put on top or bottom of a library.
@@ -3950,6 +3952,7 @@ impl Game {
                     enters,
                     into,
                     hands,
+                    hands_up_to,
                     mut resume,
                     ..
                 },
@@ -4015,15 +4018,17 @@ impl Game {
                     .extend(chosen.into_iter().map(|(c, _)| c));
                 match hands.split_first() {
                     Some((q, rest)) => {
+                        let hand = self.player(*q).hand.len() as u32;
                         self.waiting = Waiting::ChooseMatching {
                             player: *q,
                             cards: self.player(*q).hand.iter().copied().collect(),
-                            up_to: self.player(*q).hand.len() as u32,
+                            up_to: hands_up_to.map_or(hand, |n| n.min(hand)),
                             filter,
                             total_mana_value,
                             enters,
                             into,
                             hands: rest.to_vec(),
+                            hands_up_to,
                             resume,
                         }
                     }
@@ -7354,6 +7359,7 @@ impl Game {
                         enters,
                         into,
                         hands: Vec::new(),
+                        hands_up_to: None,
                         resume: at,
                     };
                     return;
@@ -7361,6 +7367,7 @@ impl Game {
                 Effect::PutFromHands {
                     whose,
                     filter,
+                    up_to,
                     into,
                 } => {
                     // CR 101.4: in APNAP order. One with no card in hand
@@ -7377,15 +7384,17 @@ impl Game {
                         .filter(|q| !self.player(*q).left && !self.player(*q).hand.is_empty())
                         .collect();
                     if let Some((q, rest)) = choosers.split_first() {
+                        let hand = self.player(*q).hand.len() as u32;
                         self.waiting = Waiting::ChooseMatching {
                             player: *q,
                             cards: self.player(*q).hand.iter().copied().collect(),
-                            up_to: self.player(*q).hand.len() as u32,
+                            up_to: up_to.map_or(hand, |n| n.min(hand)),
                             filter,
                             total_mana_value: None,
                             enters: true,
                             into,
                             hands: rest.to_vec(),
+                            hands_up_to: up_to,
                             resume: at,
                         };
                         return;

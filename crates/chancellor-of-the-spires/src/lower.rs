@@ -1767,10 +1767,12 @@ pub enum Effect {
     /// enchantment, and/or land cards from their hand": each player
     /// `whose` names, relative to the controller, chooses any number of
     /// the cards of their own hand that `filter` matches, zero included
-    /// (CR 107.1c), in APNAP order (CR 101.4), all bound to `into`.
+    /// (CR 107.1c), or up to `up_to` ("each player may put a … card",
+    /// Show and Tell), in APNAP order (CR 101.4), all bound to `into`.
     PutFromHands {
         whose: Whose,
         filter: CardFilter,
+        up_to: Option<u32>,
         into: Slot,
     },
     /// "…onto the battlefield", after `PutFromHands`: each of the cards
@@ -4106,7 +4108,9 @@ impl<'a> Scope<'a> {
             // "Each opponent may put any number of artifact, creature,
             // enchantment, and/or land cards from their hand onto the
             // battlefield" (Tempting Wurm): no card is a choice "any
-            // number" offers (CR 107.1c), so the "may" is in the choice.
+            // number" offers (CR 107.1c), so the "may" is in the choice;
+            // "each player may put an artifact, creature, enchantment, or
+            // land card" (Show and Tell) is up to one, the "may" its none.
             i::Effect::May {
                 who: by @ (i::Player::EachOpponent | i::Player::Each),
                 then,
@@ -4119,7 +4123,7 @@ impl<'a> Scope<'a> {
                     transformed: false,
                     under: None,
                     order: None,
-                }] if what.quant == Quant::AnyNumber
+                }] if matches!(what.quant, Quant::AnyNumber | Quant::One)
                     && what.filter.posts == [Post::In(i::Zone::Hand(i::Player::That))] =>
                 {
                     let filter = hand_card(&Objects {
@@ -4137,6 +4141,7 @@ impl<'a> Scope<'a> {
                                 _ => Whose::Opponents,
                             },
                             filter,
+                            up_to: (what.quant == Quant::One).then_some(1),
                             into,
                         },
                         Effect::HandsToBattlefield {

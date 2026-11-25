@@ -1096,8 +1096,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-25 167 of the 500 replay to
-the end and 59.33% of their lines are followed** (18,783 of 31,659), 3
+Worked card by card from there, **on 2026-11-25 168 of the 500 replay to
+the end and 59.40% of their lines are followed** (18,804 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (1 to the end),
 and 167 games have no card the engine refuses before any game (from 21). The
@@ -1383,7 +1383,8 @@ the cards of their hand a filter matches onto the battlefield, chosen in
 APNAP order, none included, and entering at once under the control of the
 player who put each (CR 107.1c, 101.4, 110.2a: Tempting Wurm, whose 6
 games go on, four to the end, one to Phyrexian Negator and one to
-Anger). And
+Anger), and "each player may put a … card", up to one each (CR 608.2d:
+Show and Tell, whose game replays to the end). And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles
