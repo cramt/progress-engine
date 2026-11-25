@@ -23,7 +23,27 @@ fn index() -> &'static IndexFile {
 }
 
 fn card(name: &str) -> CardText {
+    if name == UNREADABLE {
+        return unreadable();
+    }
     two_faced(name).unwrap_or_else(|| deck::card(name, index()).unwrap_or_else(|e| panic!("{e}")))
+}
+
+/// A card of a type no rule names, whose characteristics the layers can't
+/// read: whether a filter matches it is unknown.
+const UNREADABLE: &str = "Unreadable Gizmo";
+
+fn unreadable() -> CardText {
+    CardText {
+        name: UNREADABLE.into(),
+        type_line: "Gizmo".into(),
+        mana_cost: "{1}".into(),
+        oracle: Oracle::OneFace(String::new()),
+        mana_value: 1,
+        colors: Vec::new(),
+        pt: None,
+        identity: Vec::new(),
+    }
 }
 
 /// Cards with two faces, whose faces' own text the committed index,
@@ -1435,6 +1455,35 @@ fn tempting_wurm_lets_its_opponent_put_permanents_from_their_hand() {
     resolve(&mut game);
     assert_eq!(game.player(THEM).life(), 21);
     assert!(game.stack().is_empty());
+}
+
+/// A card whose characteristics can't be read may or may not be a
+/// permanent card, so Tempting Wurm's opponent choosing it is refused by
+/// name, never rejected as one the filter doesn't match.
+#[test]
+fn a_card_the_layers_cant_read_is_refused_not_unmatched() {
+    let mut game = deal_both(
+        &[("Forest", 30), ("Tempting Wurm", 30)],
+        &[("Island", 30), (UNREADABLE, 30)],
+        &[("Forest", 2), ("Tempting Wurm", 1)],
+        &[(UNREADABLE, 1)],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Tempting Wurm", None);
+    resolve(&mut game);
+    let d = resolve(&mut game);
+    assert!(
+        matches!(d, Decision::ChooseMatching { player: THEM, .. }),
+        "{d:?}"
+    );
+    let gizmo = in_hand(&game, THEM, UNREADABLE).expect("in their hand");
+    let refused = game.step(Answer::Finds(vec![Found::Card(gizmo)]));
+    assert!(
+        matches!(&refused, Err(Rejected::Refused { card, .. }) if card == UNREADABLE),
+        "{refused:?}"
+    );
 }
 
 /// CR 101.4, 110.2a, 608.2d: Show and Tell has each player, the active

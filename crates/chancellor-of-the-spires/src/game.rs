@@ -308,9 +308,20 @@ impl Known {
     /// Whether a search for `filter` finds this card: Ok if it matches and,
     /// when it `enters` the battlefield, the engine can put it there; the
     /// refusal if it matches and the engine can't, and `Ok(false)` if it
-    /// doesn't match.
+    /// doesn't match. A card whose characteristics the layers can't read
+    /// may match or not, so it is refused, never taken for one that
+    /// doesn't.
     fn found_by(&self, filter: &CardFilter, enters: bool) -> Result<bool, Unrunnable> {
-        if !self.printed.as_ref().is_some_and(|c| filter.matches(c)) {
+        let Some(printed) = &self.printed else {
+            // `read` keeps the characteristics of every card it lowers.
+            return Err(self
+                .runs
+                .as_ref()
+                .err()
+                .cloned()
+                .expect("characteristics unread only for a card that doesn't run"));
+        };
+        if !filter.matches(printed) {
             return Ok(false);
         }
         if !enters {

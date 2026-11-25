@@ -1384,7 +1384,9 @@ APNAP order, none included, and entering at once under the control of the
 player who put each (CR 107.1c, 101.4, 110.2a: Tempting Wurm, whose 6
 games go on, four to the end, one to Phyrexian Negator and one to
 Anger), and "each player may put a … card", up to one each (CR 608.2d:
-Show and Tell, whose game replays to the end). And
+Show and Tell, whose game replays to the end), with a card chosen whose
+characteristics the layers can't read refused by name, never taken for
+one the filter doesn't match. And
 the replay's inferences: which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles
