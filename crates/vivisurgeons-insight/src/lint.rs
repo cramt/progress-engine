@@ -1083,10 +1083,15 @@ mod tests {
             propaganda,
             0
         )));
-        // The controller and the mana value of each destroyed artifact: a
-        // `GainLife` takes no object in turn, so binding leaves them.
+        // Each artifact a spell's cost counts, said in a filter: `Itself`
+        // there would be the artifact tested, so binding leaves it.
+        let hum =
+            "Each artifact spell costs {1} more to cast for each artifact its controller controls.";
+        assert_eq!(plural("Hum of the Radix", "Enchantment", hum, 0), 1);
+        // "The controller of each of those artifacts" is a loop over them
+        // ([owner-of-each]), so each artifact's own controller.
         let seeds = "Destroy all artifacts. They can't be regenerated. The controller of each of those artifacts gains life equal to its mana value.";
-        assert_eq!(plural("Seeds of Innocence", "Sorcery", seeds, 0), 2);
+        assert_eq!(plural("Seeds of Innocence", "Sorcery", seeds, 0), 0);
     }
 
     #[test]

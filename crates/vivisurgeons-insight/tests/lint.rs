@@ -48,10 +48,7 @@ fn pinned_trees_have_no_lint() {
 /// and the list only shrinks. The trees read each object's own owner,
 /// controller or mana cost off the whole set ([each-itself]), or test a
 /// card against itself.
-const PINNED_FAULTS: &[(&str, &str)] = &[
-    ("plural-bound-property", "Trial of a Time Lord"),
-    ("self-comparison", "Unpredictable Cyclone"),
-];
+const PINNED_FAULTS: &[(&str, &str)] = &[("self-comparison", "Unpredictable Cyclone")];
 
 const BASELINE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/lint-baseline.txt");
 

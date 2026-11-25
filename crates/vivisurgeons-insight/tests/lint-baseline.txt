@@ -13,4 +13,4 @@ fight-one-object 0
 types-without-card-type 0
 sort-mismatch 1
 branch-binder-outside 0
-plural-bound-property 4
+plural-bound-property 1

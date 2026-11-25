@@ -640,7 +640,7 @@ face: Seeds of Innocence
 type: Sorcery
 cost: {1}{G}{G}
 > Destroy all artifacts. They can't be regenerated. The controller of each of those artifacts gains life equal to its mana value.
-= Spell([With { bind: [/* destroyed */ Objects { quant: All, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }], then: [Destroy { what: Objects { quant: Introduced(0) /* destroyed */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: true }, GainLife { who: ControllerOf(Objects { quant: Bound(0) /* destroyed */, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Bound(0) /* destroyed */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }])
+= Spell([With { bind: [/* destroyed */ Objects { quant: All, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }], then: [Destroy { what: Objects { quant: Introduced(0) /* destroyed */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: true }, ForEach { order: Leading, each: Objects { quant: Bound(0) /* destroyed */, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, then: [GainLife { who: ControllerOf(Objects { quant: Bound(0) /* each */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Bound(0) /* each */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }] }])
 
 ## Seraph
 face: Seraph

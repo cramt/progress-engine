@@ -700,6 +700,26 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let then = clauses(p)?;
             Some(vec![Effect::ForEach { order: ClauseOrder::Leading, each, then }])
         },
+        // "the owner of each card exiled with this Saga puts that card on
+        // the bottom of their library" (Trial of a Time Lord), "The
+        // controller of each of those artifacts gains life equal to its
+        // mana value" (Seeds of Innocence): each object's own owner or
+        // controller in turn, the loop "for each …, its owner" says
+        // ([owner-of-each]).
+        |p| {
+            p.word("the")?;
+            let owner = p.one_of(&["owner", "controller"])? == "owner";
+            p.words("of each")?;
+            let each = alt!(p;
+                |p| { p.word("of")?; pronoun(p) },
+                objects,
+            )?;
+            let its = Box::new(Objects { quant: Quant::Unresolved(Hint::Antecedent), filter: Filter::default() });
+            let who = if owner { Player::OwnerOf(its) } else { Player::ControllerOf(its) };
+            let then = clause_as_all(p, Some(who.clone()))?;
+            (then.first().and_then(subject_of) == Some(who))
+                .then(|| vec![Effect::ForEach { order: ClauseOrder::Leading, each, then }])
+        },
         |p| {
             p.words("for each color among")?;
             let among = objects(p)?;

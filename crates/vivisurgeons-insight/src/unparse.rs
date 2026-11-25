@@ -2183,6 +2183,16 @@ mod syn {
         alt(o, vec![each, total]);
     }
 
+    /// Named rewrite [owner-of-each]: "the owner of each card exiled with
+    /// this Saga puts that card on the bottom of their library" (Trial of a
+    /// Time Lord) is "for each card exiled with this Saga, its owner puts
+    /// that card …": each object's own owner or controller does the verb,
+    /// one object at a time, as "for each" says (CR 608.2c, the
+    /// instructions as written; Aetherspouts, Curse of the Swine).
+    pub fn owner_of_each(o: &mut Out, for_each: Out, owner_of: Out) {
+        alt(o, vec![for_each, owner_of]);
+    }
+
     /// Named rewrite [when-is-whenever]: a printed "When this creature
     /// enters" (Oblivion Ring) is "whenever this creature enters". CR 603.1
     /// writes every trigger "[When/Whenever/At] [trigger condition or event],
@@ -9122,15 +9132,44 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                 o.w(",");
                 clauses(o, then, cx);
             });
-            if then.len() == 1 {
+            let normal = if then.len() == 1 {
                 let after = out(|o| {
                     clauses(o, then, cx);
                     o.w("for each");
                     each_objects(o, each);
                 });
-                syn::position(o, before, after);
+                out(|o| syn::position(o, before, after))
             } else {
-                o.add(before);
+                before
+            };
+            // [owner-of-each]: "the owner of each card exiled with this
+            // Saga puts that card …" (Trial of a Time Lord) is "for each
+            // card exiled with this Saga, its owner puts that card …". The
+            // other forms stay: Elvish Guidance's trailing "its controller
+            // adds … for each Elf" is the enchanted land's controller.
+            let loop_object = |x: &Objects| is_bare_antecedent(x);
+            let who = then.first().and_then(subject_of);
+            let whose = match &who {
+                Some(Player::OwnerOf(x)) if loop_object(x) => Some("owner"),
+                Some(Player::ControllerOf(x)) if loop_object(x) => Some("controller"),
+                _ => None,
+            };
+            match whose {
+                Some(whose) => {
+                    let said = out(|o| {
+                        o.w("the");
+                        o.w(whose);
+                        o.w("of each");
+                        each_objects(o, each);
+                        let cx = Cx {
+                            continues: who.clone(),
+                            ..cx.clone()
+                        };
+                        clauses(o, then, &cx);
+                    });
+                    syn::owner_of_each(o, normal, said);
+                }
+                None => o.add(normal),
             }
         }
         Effect::ForEachColor { among, then } => {
