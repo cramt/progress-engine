@@ -52,14 +52,16 @@ exits 70.
 
 Stops (exit 3, `stopped` set): two failed, unpushed, empty or abandoned
 batches in a row; a milestone at 100% waiting to be pinned; every milestone
-pinned; a preflight git refusal; git refusing to park or reset a batch. Also
+pinned; a preflight git refusal; git refusing to park a batch (only off main or with a
+dirty tree: parking resets main to origin/main wherever origin has moved,
+and drops nothing that isn't on the parked branch). Also
 exit 3 without touching state: `stopped` already set, or a batch in flight
 while another top-level thread in the project is live in `t3 thread list`
 (the caller's own, `T3CODE_THREAD_ID`, and sub-agents aside).
 
 A batch found in flight with no such thread lost its thread. The next
 `start` records it: at the write step its commits are parked on
-`insight/abandoned-<n>` and it counts as a failure; past `finish` it is
+`insight/abandoned-<n>`, main goes to origin/main, and it counts as a failure; past `finish` it is
 recorded without findings.
 
 ## The gates

@@ -144,7 +144,7 @@ export async function preflight(repo: string): Promise<Preflight> {
 /**
  * Merges origin/main into the branch (a fast-forward when main holds nothing
  * but the branch's own merged commits) and pushes it at once, so the baseline
- * is on origin as resetHazard expects. A conflict or a rejected push leaves the
+ * is on origin. A conflict or a rejected push leaves the
  * branch where it was.
  */
 async function takeInTrunk(repo: string, h: string): Promise<Preflight> {
@@ -179,47 +179,6 @@ async function takeInTrunk(repo: string, h: string): Promise<Preflight> {
   }
   log("git", `took in origin/${TRUNK}; ${BRANCH} at ${p.head.slice(0, 7)}`);
   return { kind: "ready", head: p.head };
-}
-
-/** Why the batch's commits may not be reset, or null when they may. */
-export async function resetHazard(
-  repo: string,
-  baseline: string,
-): Promise<string | null> {
-  const b = await branch(repo);
-  if (b !== BRANCH) return `on ${b}, not ${BRANCH}`;
-  const h = await head(repo);
-  if (!(await isAncestor(repo, baseline, h))) {
-    return `baseline ${baseline.slice(0, 7)} is not an ancestor of HEAD ${h.slice(0, 7)}`;
-  }
-  const o = await originMain(repo);
-  if (o !== baseline) {
-    return `origin/${BRANCH} moved from the baseline ${baseline.slice(0, 7)} to ${o.slice(0, 7)}`;
-  }
-  return null;
-}
-
-/**
- * Parks the batch's commits on a branch and puts main back on the baseline.
- * Refuses unless every commit it drops is one this batch made.
- */
-export async function parkAndReset(
-  repo: string,
-  baseline: string,
-  name: string,
-): Promise<
-  { kind: "parked"; branch: string } | { kind: "refused"; reason: string }
-> {
-  const hazard = await resetHazard(repo, baseline);
-  if (hazard) return { kind: "refused", reason: hazard };
-  const target = await freeBranchName(repo, name);
-  await must("git", ["branch", target, "HEAD"], { cwd: repo });
-  await must("git", ["reset", "--hard", baseline], { cwd: repo });
-  log(
-    "git",
-    `commits parked on ${target}; ${BRANCH} reset to ${baseline.slice(0, 7)}`,
-  );
-  return { kind: "parked", branch: target };
 }
 
 async function pushOnce(
@@ -343,11 +302,12 @@ export async function pushRebasing<P, F>(
 }
 
 /**
- * Parks main's commits on a branch and resets main to origin/main. Unlike
- * parkAndReset this drops nothing that isn't on the new branch, so it needs
- * only a clean main.
+ * Parks main's commits on a branch and resets main to origin/main. It drops
+ * nothing that isn't on the new branch, so it needs only a clean main: an
+ * origin that moved since the baseline (Chancellor pushes while Insight
+ * writes) is no reason to stop for a human, as it was for batch 45.
  */
-async function parkOnOrigin(
+export async function parkOnOrigin(
   repo: string,
   name: string,
 ): Promise<

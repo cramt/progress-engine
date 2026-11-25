@@ -8,6 +8,7 @@ import { pinnedCards, ratchets } from "./gates.ts";
 import {
   batchCommitOnOrigin,
   commitsSince,
+  parkOnOrigin,
   preflight,
   pushRebasing,
   rebasedOnto,
@@ -234,6 +235,21 @@ function humanPushes(r: { human: string }, f: string, text: string): string {
 
 const originHead = (r: { origin: string }) =>
   git(r.origin, "rev-parse", "main");
+
+test("park: origin moved since the baseline, so park and reset to origin, never refuse", async () => {
+  const r = repos();
+  commit(r.driver, "b.txt", "writer\n", "insight: b");
+  const mine = git(r.driver, "rev-parse", "HEAD");
+  const human = humanPushes(r, "c.txt", "human\n");
+  const p = await parkOnOrigin(r.driver, "insight/abandoned-7");
+  assert.deepEqual(p, {
+    kind: "parked",
+    branch: "insight/abandoned-7",
+    resetTo: human,
+  });
+  assert.equal(git(r.driver, "rev-parse", "insight/abandoned-7"), mine);
+  assert.equal(git(r.driver, "rev-parse", "HEAD"), human);
+});
 
 test("push: nothing moved, so no rebase and no re-gate", async () => {
   const r = repos();

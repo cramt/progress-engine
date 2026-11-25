@@ -27,7 +27,7 @@ import {
   commitsSince,
   dirty,
   branch as gitBranch,
-  parkAndReset,
+  parkOnOrigin,
   preflight,
   pushRebasing,
   rebasedOnto,
@@ -524,11 +524,7 @@ async function recover(state: State, f: InFlight): Promise<State> {
       const commits = (await commitsSince(REPO, f.baseline.head)).length;
       let branch: string | null = null;
       if (commits > 0) {
-        const parked = await parkAndReset(
-          REPO,
-          f.baseline.head,
-          `insight/abandoned-${f.batch}`,
-        );
+        const parked = await parkOnOrigin(REPO, `insight/abandoned-${f.batch}`);
         if (parked.kind === "refused")
           stopForHuman(
             state,
@@ -898,11 +894,7 @@ async function finish(): Promise<number> {
         }
       }
     } else {
-      const parked = await parkAndReset(
-        REPO,
-        f.baseline.head,
-        `insight/failed-${f.batch}`,
-      );
+      const parked = await parkOnOrigin(REPO, `insight/failed-${f.batch}`);
       if (parked.kind === "refused") {
         const reason = `batch ${f.batch} failed its gates, and resetting ${branchName()} was refused: ${parked.reason}. Nothing was reset.`;
         state = record(
