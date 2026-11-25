@@ -1116,10 +1116,17 @@ mod tests {
 
     #[test]
     fn a_filter_relating_an_object_to_itself_is_flagged() {
-        // "the same name as the exiled card", read as the card searched
-        // for: every card has its own name.
+        // "a card that shares a card type with the cycled card", read as the
+        // card exiled: every card shares a type with itself.
+        let cyclone = "If a cycling ability of another nonland card would cause you to draw a card, instead exile cards from the top of your library until you exile a card that shares a card type with the cycled card. You may cast that card without paying its mana cost. Then put the exiled cards that weren't cast this way on the bottom of your library in a random order.\nCycling {2} ({2}, Discard this card: Draw a card.)";
+        assert_eq!(
+            itself("Unpredictable Cyclone", "Enchantment", cyclone, 0),
+            1
+        );
+        // "the same name as the exiled card" is the card the first paragraph
+        // chose and exiled, not the card searched for.
         let brain = "Target opponent reveals their hand. You choose a nonland card from it and exile that card.\nDelirium — If there are four or more card types among cards in your graveyard, search that player's graveyard, hand, and library for any number of cards with the same name as the exiled card, exile those cards, then that player shuffles.";
-        assert_eq!(itself("Pick the Brain", "Sorcery", brain, 1), 1);
+        assert_eq!(itself("Pick the Brain", "Sorcery", brain, 1), 0);
         // Inside an amount `Itself` is the object the amount is worked out
         // for, so "each other creature with the same name as that creature"
         // and "each other creature that shares a creature type with it"

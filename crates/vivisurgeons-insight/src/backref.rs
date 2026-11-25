@@ -1296,15 +1296,20 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
     // Earlier paragraphs of the same spell (CR 608.2c).
     let mut prior: Vec<(usize, usize)> = Vec::new();
     let mut prior_self = false;
+    // What those paragraphs did to their objects: Pick the Brain's "the
+    // exiled card" is the card the first paragraph chose and exiled.
+    let mut prior_mentions: Vec<((usize, usize), Target)> = Vec::new();
     // A die's rows are alternatives: each continues the roll above them
     // (CR 706.3a), none the row before it.
     let mut roll: (Vec<(usize, usize)>, bool) = (Vec::new(), false);
     for (li, ld) in lds.iter().enumerate() {
         if ld.die_row {
             (prior, prior_self) = roll.clone();
+            prior_mentions.clear();
         } else if !ld.continues {
             prior.clear();
             prior_self = false;
+            prior_mentions.clear();
         }
         for (si, scope) in ld.scopes.iter().enumerate() {
             let mut intros: Vec<(usize, usize)> = if si == 0 { prior.clone() } else { Vec::new() };
@@ -1316,7 +1321,11 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
             // References said so far, at their position, with their pick.
             let mut earlier: Vec<(f64, Vec<Target>, Objects)> = Vec::new();
             // Every object said so far as what it settled on.
-            let mut mentions: Vec<((usize, usize), Target)> = Vec::new();
+            let mut mentions: Vec<((usize, usize), Target)> = if si == 0 {
+                prior_mentions.clone()
+            } else {
+                Vec::new()
+            };
             for &ei in scope {
                 let e = &ld.c.evs[ei];
                 // Between two introducers, the later of two mentions is the
@@ -1385,6 +1394,7 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
             }
             if si == 0 {
                 prior = intros.clone();
+                prior_mentions = mentions.clone();
                 prior_self |= self_at.is_some();
                 if !ld.die_row {
                     roll = (prior.clone(), prior_self);

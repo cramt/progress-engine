@@ -2,7 +2,7 @@
 # `insight lint <kind>` lists them. Lower with UPDATE_LINT=1 cargo test -p vivisurgeons-insight --test lint
 unresolved-reference 43
 dangling-that-player 2
-self-comparison 2
+self-comparison 1
 spell-in-zone 0
 permanent-state-off-battlefield 0
 state-of-triggering-spell 0
