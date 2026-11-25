@@ -23,6 +23,7 @@ import {
 import { triage } from "./queue.ts";
 import { sample } from "./review.ts";
 import { parseReport, parseReview } from "./schemas.ts";
+import { netRetry, run, transientNetwork } from "./sh.ts";
 import type { Queued } from "./types.ts";
 
 test("coverage rows, as insight prints them", () => {
@@ -475,4 +476,54 @@ test("preflight: a main with a commit origin lacks is refused and left alone", a
   const pf = await preflight(r.driver);
   assert.equal(pf.kind, "refused");
   assert.equal(git(r.driver, "rev-parse", "HEAD"), mine);
+});
+
+test("a fetch that fails on the network is retried, one origin refuses is not", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "net-"));
+  execFileSync("git", ["init", "-q", dir]);
+  const saved = netRetry.delaysMs;
+  netRetry.delaysMs = [1, 1];
+  try {
+    execFileSync("git", [
+      "-C",
+      dir,
+      "remote",
+      "add",
+      "origin",
+      "ssh://git@nowhere.invalid/x.git",
+    ]);
+    const t0 = Date.now();
+    const dns = await run("git", ["fetch", "origin", "main"], { cwd: dir });
+    assert.notEqual(dns.code, 0);
+    assert.ok(transientNetwork(dns.stderr), dns.stderr);
+    execFileSync("git", [
+      "-C",
+      dir,
+      "remote",
+      "set-url",
+      "origin",
+      join(dir, "missing"),
+    ]);
+    const refused = await run("git", ["fetch", "origin", "main"], { cwd: dir });
+    assert.notEqual(refused.code, 0);
+    assert.ok(!transientNetwork(refused.stderr), refused.stderr);
+    assert.ok(Date.now() - t0 < 60_000);
+  } finally {
+    netRetry.delaysMs = saved;
+  }
+});
+
+test("network blips are told apart from refusals", () => {
+  for (const e of [
+    "ssh: Could not resolve hostname github.com: Temporary failure in name resolution",
+    "ssh: connect to host github.com port 22: Connection timed out",
+    "kex_exchange_identification: Connection closed by remote host",
+  ])
+    assert.ok(transientNetwork(e), e);
+  for (const e of [
+    "! [rejected]        main -> main (fetch first)",
+    "ERROR: Permission to x denied to y.",
+    "fatal: couldn't find remote ref main",
+  ])
+    assert.ok(!transientNetwork(e), e);
 });

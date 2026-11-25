@@ -33,7 +33,9 @@ nix develop --command node crates/vivisurgeons-insight/driver/src/main.ts <subco
 `<state dir>` is the one your prompt names. `start`, `gate` and `finish` build
 and measure for longer than a Bash call may last: run them with
 `run_in_background` and wait for the completion notice. stdout is the
-result; stderr is the log. Exit 70 is a crash: report its stack and stop.
+result; stderr is the log. Exit 70 is a crash: report its stack and stop, unless the
+stack is a git fetch or push that failed on the network (the driver already
+retried it for ~8 minutes): then run the same subcommand once more first.
 
 ## Rules for the whole thread
 

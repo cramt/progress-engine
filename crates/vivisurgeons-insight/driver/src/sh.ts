@@ -23,7 +23,42 @@ export function log(step: string, message: string): void {
 
 export type Ran = { code: number; stdout: string; stderr: string; ms: number };
 
-export function run(
+/**
+ * A git fetch or push that failed because the network blinked, not because
+ * origin said no. b45's finish crashed on one (DNS EAI_AGAIN, 2026-11-25) with
+ * its gate passed, and the batch went unpushed until the overseer saw it.
+ */
+export const transientNetwork = (stderr: string): boolean =>
+  /Could not resolve host|Temporary failure in name resolution|EAI_AGAIN|Connection (timed out|reset|refused|closed by remote host)|Network is unreachable|Operation timed out|unexpected disconnect|early EOF|The remote end hung up unexpectedly|kex_exchange_identification/i.test(
+    stderr,
+  );
+
+/** Waits before each retry; about 8 minutes in all, a DNS outage's length. */
+export const netRetry = { delaysMs: [15_000, 45_000, 120_000, 300_000] };
+
+const isNetwork = (cmd: string, args: string[]): boolean =>
+  cmd === "git" && (args[0] === "fetch" || args[0] === "push");
+
+export async function run(
+  cmd: string,
+  args: string[],
+  opts: { cwd: string; env?: NodeJS.ProcessEnv },
+): Promise<Ran> {
+  let r = await runOnce(cmd, args, opts);
+  if (!isNetwork(cmd, args)) return r;
+  for (const ms of netRetry.delaysMs) {
+    if (r.code === 0 || !transientNetwork(r.stderr)) return r;
+    log(
+      "net",
+      `${cmd} ${args[0]} failed on the network, retrying in ${secs(ms)}: ${tail(r.stderr, 1)}`,
+    );
+    await new Promise((res) => setTimeout(res, ms));
+    r = await runOnce(cmd, args, opts);
+  }
+  return r;
+}
+
+function runOnce(
   cmd: string,
   args: string[],
   opts: { cwd: string; env?: NodeJS.ProcessEnv },

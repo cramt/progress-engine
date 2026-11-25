@@ -86,6 +86,11 @@ origin's baseline, so the human's commits are not counted as the batch's. A
 rebased and died before pushing) measures the baseline at the origin commit
 it sits on, for the same reason.
 
+Every `git fetch` and `git push` that fails on the network (a host that
+won't resolve, a dropped connection: `transientNetwork` in `src/sh.ts`) is
+retried after 15s, 45s, 2m and 5m before it counts as a failure. b45's
+`finish` crashed on a DNS blip with its gate passed and sat unpushed.
+
 The current milestone is the first in `milestones.json` not both at 100% and
 pinned, where pinned means `golden/<name>.txt` holds as many cards as the
 milestone has. A list that grows reopens its milestone. A list added
