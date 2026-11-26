@@ -41,11 +41,12 @@ import {
   bulkFingerprint,
   failing,
   measure,
+  oracleTexts,
   type Paths,
   pathsFor,
   row,
 } from "./insight.ts";
-import { failingCount, snapDiff } from "./parse.ts";
+import { failingCount, relexed, snapDiff } from "./parse.ts";
 import {
   readJsonl,
   resolve as resolveQueue,
@@ -67,6 +68,7 @@ import type {
   MilestoneStatus,
   NonEmpty,
   Queued,
+  Relexed,
   Report,
   State,
 } from "./types.ts";
@@ -274,6 +276,23 @@ function rowLine(s: MilestoneStatus): string {
 }
 
 /** A baseline measured at another commit, in a worktree, leaving HEAD alone. */
+/**
+ * Relexed lines between two snapshots, or none when either side has no
+ * `.unparsed` beside it (a binary from before it was written).
+ */
+function relexedAt(before: string, after: string): Relexed[] {
+  const read = (p: string) =>
+    existsSync(p) ? readFileSync(p, "utf8") : undefined;
+  const [bu, au] = [read(`${before}.unparsed`), read(`${after}.unparsed`)];
+  if (bu === undefined || au === undefined) return [];
+  return relexed(
+    readFileSync(before, "utf8"),
+    bu,
+    readFileSync(after, "utf8"),
+    au,
+  );
+}
+
 async function measureAt(sha: string, snapshot: string): Promise<Measurement> {
   const wt = file("rebaseline-wt");
   const target = file("rebaseline-target");
@@ -890,8 +909,14 @@ async function finish(): Promise<number> {
             readFileSync(now.baseline.snapshotPath, "utf8"),
             readFileSync(now.after.snapshotPath, "utf8"),
           );
+          const relexedCards = relexedAt(
+            now.baseline.snapshotPath,
+            now.after.snapshotPath,
+          );
           const review = buildInputs(
             diff,
+            relexedCards,
+            oracleTexts(new Set(relexedCards.map((r) => r.card))),
             join(dir, "review"),
             cfg.reviewChunk,
             cfg.reviewChangedCap,

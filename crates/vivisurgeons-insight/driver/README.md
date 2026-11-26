@@ -107,8 +107,14 @@ games from being read whole, so Chancellor's replay has those games to play
 
 ## Review and triage
 
-Review inputs are every new tree and an even sample of up to 300 changed
-trees, with their Oracle text, in files of about 90. The skill gives each to
+Review inputs are every new tree, an even sample of up to 300 changed
+trees, and every relexed card, in files of about 90. A relexed card has a
+line that still doesn't parse whose text as the lexer leaves it changed
+(`insight snapshot` writes those lines to `<snap>.unparsed`), shown beside its
+Oracle text from the bulk file: a rewrite before the parse, like a short name
+read as `~`, has no tree for the other two kinds to show. b47's first-name
+rule turned Dragon Cultist's "red Dragon creature token" into `~` that way,
+and no reviewer saw it. The skill gives each to
 a sub-agent, three at a time, told to read only `src/ast.rs`, `SEMANTICS.md`
 and its input, and to write `findings-<label>.json`. Triage sends regressions
 and game-changing findings to the head of `queue.jsonl`, minor ones to

@@ -9,7 +9,13 @@ Kind note for `new`: "These abilities did not parse before this batch, so
 `regression` is always false." For `changed`: "Each tree shows its old form
 (`-`) and its new one (`+`). Judge the whole new tree, not only the part that
 moved: a fault the old tree already had is still a finding, with `regression:
-false`. Say whether the old one was right."
+false`. Say whether the old one was right." For `relexed`: "These lines
+do not parse yet, so there is no tree. Each shows the line as the grammar
+reads it before (`-`) and after (`+`) this batch, with `~` for the card
+itself, and the card's Oracle text. Check every change against the Oracle
+text: each `~` must be the card itself, never a type, another card or a
+token's name. `node` is the wrong phrase as lexed, `should_be` the phrase it
+should be, and `regression` is true when the old line had it right."
 
 ---
 

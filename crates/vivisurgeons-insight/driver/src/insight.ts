@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { parseCoverage, parseLint, parseRoundtrip } from "./parse.ts";
 import { log, must, run, secs, tail } from "./sh.ts";
@@ -28,6 +28,31 @@ export function pathsFor(repo: string): Paths {
 /** The insight CLI reads its bulk files from here (corpus::cache). */
 function bulkFile(name: string): string {
   return join(process.env.HOME ?? "", ".cache/scryfall", name);
+}
+
+/**
+ * The Oracle text of each named card, from the bulk file the CLI reads, so a
+ * reviewer judges a lexed line against the card rather than against itself.
+ */
+export function oracleTexts(names: Set<string>): Map<string, string> {
+  const out = new Map<string, string>();
+  if (names.size === 0) return out;
+  const text = readFileSync(bulkFile("oracle-cards.jsonl"), "utf8");
+  for (const line of text.split("\n")) {
+    if (!line) continue;
+    const c = JSON.parse(line) as {
+      name?: string;
+      oracle_text?: string;
+      card_faces?: { oracle_text?: string }[];
+    };
+    if (!c.name || !names.has(c.name) || out.has(c.name)) continue;
+    out.set(
+      c.name,
+      c.oracle_text ??
+        (c.card_faces ?? []).map((f) => f.oracle_text ?? "").join("\n//\n"),
+    );
+  }
+  return out;
 }
 
 function fingerprint(path: string): string {

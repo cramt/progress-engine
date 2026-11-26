@@ -1,7 +1,13 @@
 // Readers for the insight CLI's plain-text output. Each refuses output it
 // does not recognise rather than guessing a number.
 
-import type { CoverageRow, LintCounts, Roundtrip, SnapDiff } from "./types.ts";
+import type {
+  CoverageRow,
+  LintCounts,
+  Relexed,
+  Roundtrip,
+  SnapDiff,
+} from "./types.ts";
 
 const COVERAGE_ROW =
   /^(.+?)\s+cards\s+(\d+)\/(\d+)\s+\S+\s+abilities\s+(\d+)\/(\d+)\s+\S+$/;
@@ -108,4 +114,52 @@ export function snapDiff(oldText: string, newText: string): SnapDiff {
   diff.added.sort((x, y) => x.key.localeCompare(y.key));
   diff.changed.sort((x, y) => x.key.localeCompare(y.key));
   return diff;
+}
+
+/** "card | text" rows, by card. */
+function textsByCard(rows: string): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  for (const line of rows.split("\n")) {
+    const a = line.indexOf(" | ");
+    if (a < 0) continue;
+    const card = line.slice(0, a);
+    const text = line.slice(a + 3);
+    const set = map.get(card);
+    if (set) set.add(text);
+    else map.set(card, new Set([text]));
+  }
+  return map;
+}
+
+/**
+ * Unparsed lines whose lexed text is new: not a line before the batch,
+ * parsed or not. The corpus is the same on both sides, so only a rewrite
+ * before the parse makes one (a parsed line turning unparsed is `lost`).
+ * Their old forms are the card's unparsed lines that are no line now.
+ */
+export function relexed(
+  oldSnap: string,
+  oldUnparsed: string,
+  newSnap: string,
+  newUnparsed: string,
+): Relexed[] {
+  const keys = (snap: string) => new Set(byKey(snap).keys());
+  const before = keys(oldSnap);
+  const after = keys(newSnap);
+  const oldU = textsByCard(oldUnparsed);
+  const newU = textsByCard(newUnparsed);
+  for (const [card, texts] of oldU)
+    for (const t of texts) before.add(`${card} | ${t}`);
+  for (const [card, texts] of newU)
+    for (const t of texts) after.add(`${card} | ${t}`);
+  const out: Relexed[] = [];
+  for (const [card, texts] of newU) {
+    const now = [...texts].filter((t) => !before.has(`${card} | ${t}`));
+    if (now.length === 0) continue;
+    const was = [...(oldU.get(card) ?? [])].filter(
+      (t) => !after.has(`${card} | ${t}`),
+    );
+    out.push({ card, was: was.sort(), now: now.sort() });
+  }
+  return out.sort((x, y) => x.card.localeCompare(y.card));
 }

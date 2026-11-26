@@ -20,6 +20,7 @@ import {
   parseCoverage,
   parseLint,
   parseRoundtrip,
+  relexed,
   snapDiff,
 } from "./parse.ts";
 import { triage } from "./queue.ts";
@@ -104,6 +105,29 @@ test("snapshot diff: lost, new and changed by card and text", () => {
   assert.deepEqual(d.changed, [
     { key: "C | z", card: "C", text: "z", old: ["T3"], new: ["T3b"] },
   ]);
+});
+
+test("relexed: an unparsed line the lexer now reads differently, not one that parsed or broke", () => {
+  const oldSnap = "Z | Zurgo can't block. | T1";
+  const newSnap = "Z | ~ can't block. | T1";
+  const oldU = [
+    "Dragon Cultist | create a 4/4 red Dragon creature token, if dealt",
+    "Q | still broken",
+    "R | parses now",
+  ].join("\n");
+  const newU = [
+    "Dragon Cultist | create a 4/4 red ~ creature token, if dealt",
+    "Q | still broken",
+  ].join("\n");
+  assert.deepEqual(relexed(oldSnap, oldU, newSnap, newU), [
+    {
+      card: "Dragon Cultist",
+      was: ["create a 4/4 red Dragon creature token, if dealt"],
+      now: ["create a 4/4 red ~ creature token, if dealt"],
+    },
+  ]);
+  // A parsed line that breaks is the snapshot's `lost`, not a relexing.
+  assert.deepEqual(relexed("P | x | T", "", "", "P | x"), []);
 });
 
 test("sampling is even and deterministic", () => {

@@ -105,13 +105,19 @@ export type SnapDiff = {
   }[];
 };
 
+/**
+ * A card whose unparsed lines read differently after the batch: what the
+ * lexer made of them before (`was`) and now, beside the card's Oracle text.
+ */
+export type Relexed = { card: string; was: string[]; now: string[] };
+
 export type GateReport =
   | { kind: "pass"; after: Measurement; diff: SnapDiff }
   | { kind: "fail"; failures: NonEmpty<GateFailure> };
 
 export type ReviewInput = {
   label: string;
-  kind: "new" | "changed";
+  kind: "new" | "changed" | "relexed";
   path: string;
   trees: number;
 };

@@ -478,7 +478,26 @@ fn snapshot(args: &[String]) -> Result<()> {
             .collect();
         rows.sort();
         fs::write(out, rows.join("\n") + "\n")?;
-        println!("{} parsed abilities written to {out}", rows.len());
+        // The lines that don't parse, as the lexer left them: a rewrite before
+        // the parse (a short name read as `~`) shows here before any tree does.
+        // Dragon Cultist's "red Dragon creature token" went to `~` unseen in b47.
+        let mut unparsed: Vec<String> = cards
+            .iter()
+            .flat_map(|c| {
+                c.lines
+                    .iter()
+                    .filter(|l| l.parsed.is_err())
+                    .map(move |l| format!("{} | {}", c.name, l.text.replace('\n', " / ")))
+            })
+            .collect();
+        unparsed.sort();
+        unparsed.dedup();
+        fs::write(format!("{out}.unparsed"), unparsed.join("\n") + "\n")?;
+        println!(
+            "{} parsed abilities written to {out}, {} unparsed lines beside it",
+            rows.len(),
+            unparsed.len()
+        );
         return Ok(());
     }
     let mut shards: BTreeMap<String, Vec<Entry>> = BTreeMap::new();
