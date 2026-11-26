@@ -131,7 +131,10 @@ Forty-five threads in a row then found the tree dirty and stopped.
      or a reanimation also explains), and does a replay test cover it with
      every player who chooses (batch 23's Show and Tell judged the first of
      two players before the second's card had entered, and stopped a
-     two-player game). Fix what it finds before you push. If you leave something, put it at the top of the handoff.
+     two-player game). And it checks refusals the other way: does one stop a
+     game where the CR says the instruction does what it can and skips the
+     rest (CR 608.2b's illegal target, CR 609.3)? Batch 25's "a sacrifice by
+     no player" did, for a targeted player who had left. Fix what it finds before you push. If you leave something, put it at the top of the handoff.
    - **Revert check.** Before you commit a rule, reverse its `src/` change
      (`git diff -- crates/chancellor-of-the-spires/src > r.patch && git apply -R r.patch`),
      run its new tests and watch each fail, then `git apply r.patch`. A branch
