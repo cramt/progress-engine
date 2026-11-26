@@ -197,6 +197,7 @@ const INDEXED: &[&str] = &[
     "Escape to the Wilds",
     "Diabolic Edict",
     "Ulamog's Crusher",
+    "Nulldrifter",
 ];
 
 fn index() -> &'static IndexFile {
@@ -3020,4 +3021,158 @@ fn an_edict_the_log_shows_no_sacrifice_for_stops() {
             what: "a sacrifice".into()
         })
     );
+}
+
+/// CR 702.74a, 113.6k: "casts [Nulldrifter] by paying {2U} with evoke." is
+/// cast for its evoke cost; its cast trigger draws two, and its evoke
+/// trigger sacrifices it as it enters.
+#[test]
+fn a_spell_cast_with_evoke_is_sacrificed_as_it_enters() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Island].
+        alice casts [Nulldrifter] by paying {2U} with evoke.
+        alice puts a triggered ability from [Nulldrifter] onto the stack (When you cast this spell, draw two cards.).
+        alice draws two cards with [Nulldrifter].
+        alice puts a triggered ability from [Nulldrifter] onto the stack (Evoke {2U}).
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Forest].
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Nulldrifter"), 0);
+    assert_eq!(
+        game.player(ALICE)
+            .graveyard()
+            .iter()
+            .filter(|c| game.card(**c).is_some_and(|t| t.name == "Nulldrifter"))
+            .count(),
+        1
+    );
+    // Seven, a draw on each of turns 2 and 3, two drawn, less three
+    // Islands and Nulldrifter.
+    assert_eq!(game.player(ALICE).hand().len(), 7 + 2 + 2 - 3 - 1);
+}
+
+/// The other seat evoking, and a cast line that says nothing of how: bob's
+/// evoked Nulldrifter is sacrificed, and alice's plain "casts
+/// [Nulldrifter]." off three Islands is its mana cost she can't pay, never
+/// taken for an evoke the log would have named (CR 702.74a).
+#[test]
+fn an_evoke_cast_is_only_one_the_log_names() {
+    let lines = |alice_casts: bool| {
+        let alice = if alice_casts {
+            "alice casts [Nulldrifter]."
+        } else {
+            ""
+        };
+        format!(
+            "
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Island].
+        {alice}
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Island].
+        bob casts [Nulldrifter] by paying {{2U}} with evoke.
+        bob puts a triggered ability from [Nulldrifter] onto the stack (When you cast this spell, draw two cards.).
+        bob draws two cards with [Nulldrifter].
+        bob puts a triggered ability from [Nulldrifter] onto the stack (Evoke {{2U}}).
+        bob discards [Island].
+        Turn 4: alice
+        alice draws a card.
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    "
+        )
+    };
+    let (_, r) = run(&lines(false));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Nulldrifter"), 0);
+    assert_eq!(
+        game.player(BOB).graveyard().len(),
+        2,
+        "Nulldrifter and the Island"
+    );
+    let (g, r) = run(&lines(true));
+    let End::Stopped { entry, stop } = &r.end else {
+        panic!("{:?}", r.trace)
+    };
+    assert_eq!(g.entries[*entry].text, "alice casts [Nulldrifter].");
+    assert_eq!(
+        *stop,
+        Stop::Diverged(Divergence::Unpayable {
+            card: "Nulldrifter".into()
+        })
+    );
+}
+
+/// CR 708.2: a card cast face down that no line ever names stays hidden,
+/// and the face-down spell has no abilities, so nothing reads its text
+/// for a trigger on its own casting.
+#[test]
+fn a_card_cast_face_down_and_never_named_stays_hidden() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Plains].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Mountain].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Plains].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Mountain].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Plains].
+        alice casts a card face down.
+        Turn 3: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    let down: Vec<_> = game.permanents().values().filter(|p| p.face_down).collect();
+    assert_eq!(down.len(), 1);
+    assert!(game.card(down[0].card).is_none(), "never named");
 }

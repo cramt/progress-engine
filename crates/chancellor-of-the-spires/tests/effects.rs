@@ -8209,3 +8209,146 @@ fn a_may_s_sacrifice_is_refused() {
     let refusal = game.refusal(druid).expect("refused");
     assert_eq!(refusal.node, "sacrificing permanents as a \"may\"");
 }
+
+/// CR 702.74a, 113.6k, 603.4: Nulldrifter cast for its evoke cost: its
+/// "When you cast this spell, draw two cards" triggers from the stack and
+/// resolves before it, and as it enters its evoke trigger sacrifices it.
+/// Cast for its mana cost, it draws the same and stays.
+#[test]
+fn nulldrifter_draws_as_it_is_cast_and_is_sacrificed_when_evoked() {
+    let mut game = deal_both(
+        &[("Island", 40), ("Nulldrifter", 20)],
+        &[("Mountain", 60)],
+        &[("Island", 3), ("Nulldrifter", 2)],
+        &[],
+    );
+    let islands = |game: &Game| {
+        game.permanents()
+            .values()
+            .filter(|p| game.card(p.card).unwrap().name == "Island")
+            .count()
+    };
+    let to_islands = |game: &mut Game, n: usize| {
+        for _ in 0..30 {
+            if islands(game) == n {
+                return;
+            }
+            my_next_main(game);
+            if in_hand(game, ME, "Island").is_some() {
+                play(game, "Island");
+            }
+        }
+        panic!("never {n} Islands");
+    };
+    play(&mut game, "Island");
+    to_islands(&mut game, 3);
+    let drifter = in_hand(&game, ME, "Nulldrifter").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let evoke = actions
+        .into_iter()
+        .find(|a| matches!(a, Action::CastAlternative(c, _) if *c == drifter))
+        .expect("its evoke cost is offered");
+    let hand = game.player(ME).hand().len();
+    let mut d = step(&mut game, Answer::Act(evoke));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    assert_eq!(islands(&game), 3);
+    assert_eq!(
+        game.pending().len() + game.stack().len(),
+        2,
+        "it and its cast trigger"
+    );
+    resolve(&mut game);
+    assert_eq!(game.player(ME).hand().len(), hand - 1 + 2);
+    assert_eq!(game.stack().len(), 1, "Nulldrifter still on the stack");
+    resolve(&mut game);
+    assert!(creature(&game, "Nulldrifter").is_some(), "it enters");
+    assert_eq!(
+        game.pending().len() + game.stack().len(),
+        1,
+        "evoke's trigger"
+    );
+    settle(&mut game);
+    assert!(creature(&game, "Nulldrifter").is_none());
+    assert!(game.player(ME).graveyard().contains(&drifter));
+
+    to_islands(&mut game, 7);
+    let hand = game.player(ME).hand().len();
+    cast(&mut game, "Nulldrifter", None);
+    resolve(&mut game);
+    assert_eq!(game.player(ME).hand().len(), hand - 1 + 2);
+    resolve(&mut game);
+    settle(&mut game);
+    assert!(
+        creature(&game, "Nulldrifter").is_some(),
+        "not evoked, it stays"
+    );
+}
+
+/// CR 400.7, 702.74a: the evoked Nulldrifter is sacrificed, and Reanimate
+/// returning it makes a new object, whose evoke cost no one paid: it stays.
+#[test]
+fn an_evoked_creature_reanimated_isnt_sacrificed_again() {
+    let mut game = deal_both(
+        &[
+            ("Island", 30),
+            ("Swamp", 10),
+            ("Nulldrifter", 10),
+            ("Reanimate", 10),
+        ],
+        &[("Mountain", 60)],
+        &[
+            ("Island", 3),
+            ("Swamp", 1),
+            ("Nulldrifter", 1),
+            ("Reanimate", 1),
+        ],
+        &[],
+    );
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    let drifter = in_hand(&game, ME, "Nulldrifter").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let evoke = actions
+        .into_iter()
+        .find(|a| matches!(a, Action::CastAlternative(c, _) if *c == drifter))
+        .expect("its evoke cost is offered");
+    let mut d = step(&mut game, Answer::Act(evoke));
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    settle(&mut game);
+    assert!(
+        game.player(ME).graveyard().contains(&drifter),
+        "evoked away"
+    );
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(&mut game, "Reanimate", Some(vec![Target::Card(drifter)]));
+    resolve(&mut game);
+    settle(&mut game);
+    assert!(
+        creature(&game, "Nulldrifter").is_some(),
+        "a new object stays"
+    );
+}

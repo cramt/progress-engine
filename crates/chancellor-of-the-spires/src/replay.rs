@@ -493,8 +493,8 @@ struct Driver<'a> {
     /// Every card name the match's log names.
     mentioned: HashSet<String>,
     /// The zones each card the log casts may be cast from by an
-    /// alternative cost, as read.
-    alternatives: HashMap<String, Vec<(CastFrom, CastWhen)>>,
+    /// alternative cost, as read, and whether it is evoke's.
+    alternatives: HashMap<String, Vec<(CastFrom, CastWhen, bool)>>,
     /// The lands the log never names that a search has found so far.
     unseen: Vec<String>,
     /// The game's `presumed` as the replay ended, on the way it reports.
@@ -1325,7 +1325,9 @@ impl Driver<'_> {
                     .clone();
                 // A line that says nothing of how is never sneak's, which
                 // the log names (CR 702.190a).
-                let unsaid_from_hand = zones.contains(&(CastFrom::Hand, CastWhen::AsItsType));
+                // Nor evoke's, which the log names too (CR 702.74a).
+                let unsaid_from_hand =
+                    zones.contains(&(CastFrom::Hand, CastWhen::AsItsType, false));
                 let routes = match via.as_deref() {
                     // Most logs print nothing for Gush's alternative cost,
                     // but a line beside the cast shows what it returned;
@@ -1351,6 +1353,10 @@ impl Driver<'_> {
                             || v.starts_with("by exiling ")
                             || returns_to_pay(v) =>
                     {
+                        vec![Route::Alternative(CastFrom::Hand)]
+                    }
+                    // "by paying {2U} with evoke" (CR 702.74a).
+                    Some(v) if v.starts_with("by paying ") && v.ends_with(" with evoke") => {
                         vec![Route::Alternative(CastFrom::Hand)]
                     }
                     // Other spells cast without paying a mana cost print
@@ -1406,7 +1412,7 @@ impl Driver<'_> {
                     .into_iter()
                     .filter(|r| match r {
                         Route::ManaCost | Route::Plotted => true,
-                        Route::Alternative(from) => zones.iter().any(|(z, _)| z == from),
+                        Route::Alternative(from) => zones.iter().any(|(z, _, _)| z == from),
                     })
                     .collect();
                 let Some((last, before)) = routes.split_last() else {

@@ -1096,11 +1096,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-26 173 of the 500 replay to
-the end and 59.90% of their lines are followed** (18,963 of 31,659), 3
+Worked card by card from there, **on 2026-11-26 174 of the 500 replay to
+the end and 60.31% of their lines are followed** (19,092 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
-and 173 games have no card the engine refuses before any game (from 21). The
+and 176 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1399,7 +1399,14 @@ they have (CR 701.21a, 101.3), a "may"'s sacrifice refused, since fewer
 than it says wouldn't pay for its "if you do", and annihilator's defending
 player the one it attacked, though it has left combat (CR 702.86a, 508.5:
 Phyrexian Negator, whose 3 games go on, two to the end and one to Basking
-Rootwalla's madness, Diabolic Edict, and Chain of Vapor refused by name).
+Rootwalla's madness, Diabolic Edict, and Chain of Vapor refused by name);
+and evoke, a card cast from a hand for its evoke cost and sacrificed as
+the permanent it became enters, which no later object of the card is,
+and "when you cast this spell", triggering from the stack, never for a
+spell cast face down (CR 702.74a, 113.6k, 400.7, 708.2: Nulldrifter,
+whose 6 games go on, one to the end, the rest to Devastating Onslaught,
+Combustible Gearhulk, Phyrexian Obliterator, Shark Typhoon and Forbid's
+buyback).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the
@@ -1407,6 +1414,8 @@ way back when what is left in it says so, and triggers a concession
 leaves unshown put on the stack after those it shows; the permanents an
 instruction has a player sacrifice, from the log's "sacrifices" lines,
 one each, every other choice of permanents of those names a way back;
+a cast "by paying {2U} with evoke" for that cost, and a cast line saying
+nothing of how never evoke's;
 which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

@@ -2133,6 +2133,9 @@ pub struct Game {
     /// Creature spells cast by suspend, which have haste as permanents
     /// (CR 702.62a).
     hasty: OrdSet<CardId>,
+    /// Spells cast for their evoke cost, and the permanents they became,
+    /// which evoke's trigger sacrifices (CR 702.74a).
+    evoked: OrdSet<CardId>,
     command: Vector<CardId>,
     /// How many times each commander has been cast from the command zone
     /// (CR 903.8).
@@ -2333,6 +2336,7 @@ impl Game {
             may_play: OrdMap::new(),
             extra_lands_this_turn: OrdMap::new(),
             hasty: OrdSet::new(),
+            evoked: OrdSet::new(),
             command,
             commander_casts: OrdMap::new(),
             commanders_moved: Vector::new(),
@@ -5092,10 +5096,15 @@ impl Game {
     }
 
     /// The zones a card may be cast from by its alternative costs (CR
-    /// 118.9), and when, before any game.
-    pub fn alternatives_of(text: &CardText) -> Vec<(lower::CastFrom, lower::CastWhen)> {
+    /// 118.9), when, and whether the cost is evoke's (CR 702.74a), before
+    /// any game.
+    pub fn alternatives_of(text: &CardText) -> Vec<(lower::CastFrom, lower::CastWhen, bool)> {
         match &known(text.clone()).runs {
-            Ok(r) => r.alternatives.values().map(|a| (a.from, a.when)).collect(),
+            Ok(r) => r
+                .alternatives
+                .values()
+                .map(|a| (a.from, a.when, a.evoked))
+                .collect(),
             Err(_) => Vec::new(),
         }
     }
@@ -5894,6 +5903,8 @@ impl Game {
         };
         let from_command = via == Via::ManaCost && self.command.contains(&card);
         let creature = runs.lowered.chars.is(CardType::Creature);
+        // CR 702.74a: cast for its evoke cost.
+        let evoked = matches!(via, Via::Alternative(n) if runs.alternatives[&n].evoked);
         let before = self.clone();
         self.turn_up(card, side);
         // CR 601.2a: from wherever it is.
@@ -5907,6 +5918,9 @@ impl Game {
         }
         if via == Via::Suspend && creature {
             self.hasty.insert(card);
+        }
+        if evoked {
+            self.evoked.insert(card);
         }
         let player = &mut self.players[p.0 as usize];
         player.hand.retain(|c| *c != card);
@@ -6270,6 +6284,7 @@ impl Game {
             return;
         }
         self.hasty.remove(&card);
+        self.evoked.remove(&card);
         let exiled = match via {
             Via::Alternative(n) => self.runs_of(card).alternatives[&n].exiled,
             // CR 708.9: revealed as it leaves the stack.
@@ -9124,6 +9139,36 @@ impl Game {
                 }
             }
         }
+        // CR 113.6k: "when you cast this spell" triggers from the stack,
+        // its controller the caster; a face-down spell has no abilities
+        // (CR 708.2).
+        let face_down = |c: CardId| {
+            self.stack.iter().any(
+                |o| matches!(o, StackObject::Spell { card, via: Via::FaceDown, .. } if *card == c),
+            )
+        };
+        if let Some((card, controller)) = match &event {
+            Event::Cast { card, controller } if !face_down(*card) => Some((card, controller)),
+            _ => None,
+        } {
+            let printed = self.printed_up(*card);
+            if let Ok(runs) = &self.printed(*card, printed).runs {
+                for (n, t) in &runs.triggered {
+                    if t.event.parts().contains(&&TriggerEvent::CastsItself) {
+                        triggered.push(Pending {
+                            source: *card,
+                            object: None,
+                            ability: TriggerOf::Printed(printed, *n),
+                            controller: *controller,
+                            triggering: None,
+                            amount: None,
+                            player: Some(*controller),
+                            ordered: false,
+                        });
+                    }
+                }
+            }
+        }
         // CR 702.62a: each suspended card of the active player's, at the
         // beginning of their upkeep.
         if let Event::Begins(TurnStep::Upkeep) = &event {
@@ -9226,6 +9271,12 @@ impl Game {
             }
             lower::Intervening::Tapped => {
                 return self.permanents.get(&source).is_some_and(|p| p.tapped)
+            }
+            lower::Intervening::Evoked => {
+                return self
+                    .permanents
+                    .get(&source)
+                    .is_some_and(|p| self.evoked.contains(&p.card))
             }
             lower::Intervening::ArrivedSinceLastUpkeep => {
                 let last = self.player(source_chars.controller).last_turn;
@@ -10744,6 +10795,7 @@ impl Game {
             return;
         };
         self.hasty.remove(&perm.card);
+        self.evoked.remove(&perm.card);
         let object = self.battlefield.objects.get(&id).cloned();
         let token = object.as_ref().is_some_and(|o| o.token);
         self.last_known.insert(
@@ -11141,6 +11193,16 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                         }
                     } else if let Some(t) = lower::keyword_trigger(k) {
                         runs.triggered.insert(n, t);
+                    } else if let Some(evoke) = lower::evoke(k) {
+                        // One the engine can't pay for is carried and
+                        // never offered: the card is still cast from hand.
+                        match evoke {
+                            Ok((alt, t)) => {
+                                runs.alternatives.insert(n, alt);
+                                runs.triggered.insert(n, t);
+                            }
+                            Err(node) => runs.dormant.push(format!("evoke: {node}")),
+                        }
                     } else if let Some(alt) = lower::flashback(k) {
                         // One the engine can't pay for is carried and
                         // never offered: the card is still cast from hand.

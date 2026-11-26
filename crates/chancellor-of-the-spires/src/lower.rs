@@ -2284,6 +2284,9 @@ pub enum TriggerEvent {
     /// "When you cycle this card": its owner cycles it (CR 702.29a), the
     /// ability triggering from wherever the card has gone.
     CyclesItself,
+    /// "When you cast this spell": its controller casts it, the ability
+    /// triggering from the stack (CR 113.6k, 601.2i).
+    CastsItself,
     /// "Whenever this land becomes tapped": a permanent the filter
     /// matches becomes tapped, for mana, a cost or anything else.
     BecomesTapped(Filter),
@@ -2439,6 +2442,9 @@ pub enum Intervening {
     /// "If this creature is tapped": its source is a permanent, tapped
     /// (CR 110.5).
     Tapped,
+    /// Evoke's "if its evoke cost was paid": the permanent was the spell
+    /// cast for it (CR 702.74a).
+    Evoked,
 }
 
 /// A spell's instructions, its paragraphs in order (CR 608.2c), with the
@@ -2572,12 +2578,24 @@ pub fn triggered(
     // A creature's own death and a card's own cycling trigger off the
     // battlefield, where nothing reads whose turn it is yet.
     if during.is_some()
+        && event.parts().iter().any(|e| {
+            matches!(
+                e,
+                TriggerEvent::Dies(_) | TriggerEvent::CyclesItself | TriggerEvent::CastsItself
+            )
+        })
+    {
+        return Err("Trigger::When(Event::While) of a trigger off the battlefield".into());
+    }
+    // A spell's own cast trigger is looked for apart from the
+    // battlefield's, where its intervening "if" isn't read.
+    if condition.is_some()
         && event
             .parts()
             .iter()
-            .any(|e| matches!(e, TriggerEvent::Dies(_) | TriggerEvent::CyclesItself))
+            .any(|e| matches!(e, TriggerEvent::CastsItself))
     {
-        return Err("Trigger::When(Event::While) of a trigger off the battlefield".into());
+        return Err("an intervening if of a trigger on casting this spell".into());
     }
     let mut scope = Scope::new(bind);
     scope.amount = matches!(
@@ -2746,8 +2764,10 @@ fn when(e: &i::Event, bound: &dyn Fn(&Objects) -> Objects) -> Result<TriggerEven
             combat: true,
             opponent: false,
         },
-        // A spell cast by itself triggers from the stack, where
-        // nothing looks for triggers yet.
+        i::Event::Casts {
+            who: i::Player::You,
+            what,
+        } if itself(what) => TriggerEvent::CastsItself,
         i::Event::Casts { who, what } if what.quant != Quant::SelfRef => TriggerEvent::Casts {
             by: match who {
                 i::Player::You => CastBy::You,
@@ -5726,6 +5746,9 @@ pub struct Alternative {
     /// spell" (CR 702.34a).
     pub instant_or_sorcery: bool,
     pub when: CastWhen,
+    /// Evoke's: the permanent the spell becomes is sacrificed as it enters
+    /// (CR 702.74a, `evoke`'s trigger).
+    pub evoked: bool,
 }
 
 /// A cost written as Insight reads it, of the kinds a spell's cost can be
@@ -5860,6 +5883,43 @@ pub fn flashback(k: &i::Keyword) -> Option<Result<Alternative, String>> {
         exiled: true,
         instant_or_sorcery: true,
         when: CastWhen::AsItsType,
+        evoked: false,
+    }))
+}
+
+/// "Evoke {2}{U}": "You may cast this card by paying [cost] rather than
+/// paying its mana cost" and "When this permanent enters, if its evoke
+/// cost was paid, its controller sacrifices it" (CR 702.74a). `None` if
+/// the keyword isn't evoke; the node it can't lower if its cost is one a
+/// spell's cost can't be paid with.
+pub fn evoke(k: &i::Keyword) -> Option<Result<(Alternative, Triggered), String>> {
+    if !k.name.eq_ignore_ascii_case("evoke") {
+        return None;
+    }
+    let Some(i::KeywordParam::Cost(cost)) = &k.param else {
+        return Some(Err("evoke without a cost".into()));
+    };
+    Some(spell_cost(cost).map(|(mana, other)| {
+        (
+            Alternative {
+                from: CastFrom::Hand,
+                mana,
+                other,
+                exiled: false,
+                instant_or_sorcery: false,
+                when: CastWhen::AsItsType,
+                evoked: true,
+            },
+            Triggered {
+                event: TriggerEvent::Enters(Filter(vec![Pred::Itself])),
+                program: Program {
+                    targets: Vec::new(),
+                    effects: vec![Effect::Sacrifice(Obj::Itself)],
+                },
+                condition: Some(Intervening::Evoked),
+                during: None,
+            },
+        )
     }))
 }
 
@@ -5890,6 +5950,7 @@ pub fn sneak(k: &i::Keyword) -> Option<Result<Alternative, String>> {
         exiled: false,
         instant_or_sorcery: false,
         when: CastWhen::YourDeclareBlockers,
+        evoked: false,
     }))
 }
 
@@ -5980,6 +6041,7 @@ pub fn alternative_cost(parts: &[i::Static]) -> Option<Result<Alternative, Strin
         exiled: false,
         instant_or_sorcery: false,
         when: CastWhen::AsItsType,
+        evoked: false,
     }))
 }
 
