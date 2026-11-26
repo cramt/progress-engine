@@ -290,7 +290,7 @@ face: Dwarven Thaumaturgist
 type: Creature — Dwarf Shaman
 cost: {2}{R}
 > {T}: Switch target creature's power and toughness until end of turn.
-= BROKE at "target" after: {T} : switch
+= Activated { cost: [Tap], effect: [SwitchPt { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Echo Circlet
 face: Echo Circlet

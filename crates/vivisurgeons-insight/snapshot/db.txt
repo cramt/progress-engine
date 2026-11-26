@@ -1024,7 +1024,7 @@ type: Land
 > {2}{U}{R}: Until end of turn, this land becomes a 1/4 blue and red Elemental creature with "{0}: Switch this creature's power and toughness until end of turn." It's still a land.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["U"]), Mana(["R"])]))], limits: [] }
-= BROKE at "this" after: {2} {U} {R} : until end of turn , this land becomes a <pt> blue and red elemental creature with " {0} : switch
+= Activated { cost: [Mana(Mana(["2", "U", "R"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(4), signed: false }), types: [Color(Blue), Color(Red), Subtype("elemental"), Type("creature")], gains: [], keeps: Listed([Type("land")]), dur: Permanent }, GrantAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Activated { cost: [Mana(Mana(["0"]))], effect: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }, dur: Permanent }] }], limits: [] }
 
 ## Willow Geist
 face: Willow Geist

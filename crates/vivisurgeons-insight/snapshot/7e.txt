@@ -666,7 +666,7 @@ cost: {3}{B}
 > {B}: This creature gets +1/-1 until end of turn.
 > {1}{U}: Switch this creature's power and toughness until end of turn.
 = Activated { cost: [Mana(Mana(["B"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(-1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
-= BROKE at "this" after: {1} {U} : switch
+= Activated { cost: [Mana(Mana(["1", "U"]))], effect: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Platinum Emperion
 face: Platinum Emperion

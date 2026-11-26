@@ -365,7 +365,7 @@ cost: {2}{U}{R}
 > Flying
 > Whenever you cast an instant or sorcery spell, you may switch this creature's power and toughness until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "this" after: whenever you cast an instant or sorcery spell , you may switch
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Fuss // Bother
 face: Fuss

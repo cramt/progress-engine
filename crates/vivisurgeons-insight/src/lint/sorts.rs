@@ -463,6 +463,7 @@ fn effect(e: &Effect) -> Says<'_> {
         | Effect::PutCounters { .. }
         | Effect::RemoveCounters { .. }
         | Effect::Modify { .. }
+        | Effect::SwitchPt { .. }
         | Effect::GainLife { .. }
         | Effect::LoseLife { .. }
         | Effect::AddMana(_)

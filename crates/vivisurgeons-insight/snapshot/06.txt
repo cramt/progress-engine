@@ -32,7 +32,7 @@ cost: {3}{U}
 > Flying
 > Discard a card: Switch this creature's power and toughness until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "this" after: discard a card : switch
+= Activated { cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Anowon, the Ruin Thief
 face: Anowon, the Ruin Thief

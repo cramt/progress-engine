@@ -992,7 +992,7 @@ cost: {1}{U}
 > • Target creature gets -6/-0 until end of turn.
 > • Switch target creature's power and toughness until end of turn.
 > Entwine {B} (Choose both if you pay the entwine cost.)
-= BROKE at "'s" after: choose one — • target creature gets <pt> until end of turn . • switch target creature
+= Spell([Modal { choose: One, modes: [[Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-6), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], [SwitchPt { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }]] }])
 = Keywords([Keyword { name: "entwine", param: Some(Cost([Mana(Mana(["B"]))])) }])
 
 ## Vein Drinker

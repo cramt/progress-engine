@@ -406,7 +406,7 @@ face: Flatman
 type: Legendary Creature — Mutant Hero
 cost: {3}{G}
 > Origami-Fu — {2}{G}: Switch Flatman's power and toughness until end of turn.
-= BROKE at "~" after: origami-fu — {2} {G} : switch
+= Labelled { label: "origami-fu", ability: Activated { cost: [Mana(Mana(["2", "G"]))], effect: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] } }
 
 ## Flowstone Shambler
 face: Flowstone Shambler

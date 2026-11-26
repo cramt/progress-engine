@@ -626,7 +626,7 @@ face: Merfolk Thaumaturgist
 type: Creature — Merfolk Wizard
 cost: {2}{U}
 > {T}: Switch target creature's power and toughness until end of turn.
-= BROKE at "target" after: {T} : switch
+= Activated { cost: [Tap], effect: [SwitchPt { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Mindbender Spores
 face: Mindbender Spores

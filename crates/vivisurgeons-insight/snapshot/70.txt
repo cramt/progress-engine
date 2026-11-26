@@ -510,7 +510,7 @@ face: Inversion Behemoth
 type: Creature — Eldrazi
 cost: {2}{C}{C}
 > At the beginning of combat on your turn, switch the power and toughness of each of any number of target creatures until end of turn.
-= BROKE at "the" after: at the beginning of combat on your turn , switch
+= Triggered { trigger: At(Combat(Yours)), effect: [SwitchPt { what: Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Ipnu Rivulet
 face: Ipnu Rivulet

@@ -578,7 +578,7 @@ face: Mannichi, the Fevered Dream
 type: Legendary Creature — Spirit
 cost: {2}{R}
 > {1}{R}: Switch each creature's power and toughness until end of turn.
-= BROKE at "each" after: {1} {R} : switch
+= Activated { cost: [Mana(Mana(["1", "R"]))], effect: [SwitchPt { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Matca Rioters
 face: Matca Rioters

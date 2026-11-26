@@ -254,7 +254,7 @@ face: Crag Puca
 type: Creature — Shapeshifter
 cost: {U/R}{U/R}{U/R}
 > {U/R}: Switch this creature's power and toughness until end of turn.
-= BROKE at "this" after: {U/R} : switch
+= Activated { cost: [Mana(Mana(["U/R"]))], effect: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Cry of the Carnarium
 face: Cry of the Carnarium

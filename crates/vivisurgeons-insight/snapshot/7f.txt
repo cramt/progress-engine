@@ -524,7 +524,7 @@ face: Invert
 type: Instant
 cost: {U/R}
 > Switch the power and toughness of each of up to two target creatures until end of turn.
-= BROKE at "of" after: switch the power and toughness of each
+= Spell([SwitchPt { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }])
 
 ## Invert // Invent
 face: Invent

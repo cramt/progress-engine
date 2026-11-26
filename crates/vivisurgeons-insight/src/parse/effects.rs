@@ -1408,6 +1408,19 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let unless = p.attempt(|p| { p.word("unless")?; let who = player(p)?; p.verb("pay")?; let c = costs(p)?; Some((who, per_costs(p, c))) });
             Some(Effect::Counter { what, unless })
         },
+        // "switch target creature's power and toughness until end of turn",
+        // "switch the power and toughness of each of up to two target
+        // creatures until end of turn" ([switch-pt]).
+        |p| {
+            p.word("switch")?;
+            let what = alt!(p;
+                |p| { p.words("the power and toughness of")?; objects(p) },
+                |p| { p.word("its")?; p.words("power and toughness")?; Some(antecedent()) },
+                |p| { let o = objects(p)?; p.tok(&Tok::Possessive)?; p.words("power and toughness")?; Some(o) },
+            )?;
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            Some(Effect::SwitchPt { what, dur })
+        },
         // "turn a face-down creature you control face up".
         |p| {
             p.word("turn")?;

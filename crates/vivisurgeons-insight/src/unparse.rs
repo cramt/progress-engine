@@ -8467,6 +8467,17 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
             objects(o, x);
             o.w("face up");
         }
+        Effect::SwitchPt { what, dur: d } => {
+            o.w("switch");
+            if !matches!(obj_num(what), Num::Pl) {
+                possessive_of(o, what);
+                o.w("power and toughness");
+            } else {
+                o.w("the power and toughness of");
+                objects(o, what);
+            }
+            dur(o, d);
+        }
         Effect::ChooseNewTargets(x) => {
             o.w("choose new targets for");
             objects(o, x);

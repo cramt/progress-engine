@@ -47,7 +47,7 @@ face: Aquamoeba
 type: Creature — Elemental Beast
 cost: {1}{U}
 > Discard a card: Switch this creature's power and toughness until end of turn.
-= BROKE at "this" after: discard a card : switch
+= Activated { cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Aquatic Incursion
 face: Aquatic Incursion

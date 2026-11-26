@@ -657,7 +657,7 @@ face: Myr Quadropod
 type: Artifact Creature — Myr
 cost: {4}
 > {3}: Switch this creature's power and toughness until end of turn.
-= BROKE at "this" after: {3} : switch
+= Activated { cost: [Mana(Mana(["3"]))], effect: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Nantuko Tracer
 face: Nantuko Tracer

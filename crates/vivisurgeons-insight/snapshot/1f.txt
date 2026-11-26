@@ -243,7 +243,7 @@ cost: {3}{U}
 > When this creature enters, switch target creature's power and toughness until end of turn.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "target" after: when this creature enters , switch
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [SwitchPt { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Curse of Bloodletting
 face: Curse of Bloodletting

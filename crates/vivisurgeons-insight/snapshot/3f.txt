@@ -149,7 +149,7 @@ cost: {1}{U}{U}
 > Shroud (This creature can't be the target of spells or abilities.)
 > Landfall — Whenever a land you control enters, you may switch this creature's power and toughness until end of turn.
 = Keywords([Keyword { name: "shroud", param: None }])
-= BROKE at "this" after: landfall — whenever a land you control enters , you may switch
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }] }], limits: [] } }
 
 ## Captain Ripley Vance
 face: Captain Ripley Vance

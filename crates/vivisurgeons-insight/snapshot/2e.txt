@@ -861,7 +861,7 @@ cost: {1}{U}{U}
 > • Counter all other spells.
 > • Switch each creature's power and toughness until end of turn.
 > • Creatures can't be blocked this turn.
-= BROKE at "'s" after: choose one — • counter all other spells . • switch each creature
+= Spell([Modal { choose: One, modes: [[Counter { what: Objects { quant: All, filter: Filter { alts: [[State(Other)]], kind: Some(Spell), posts: [], or: None } }, unless: None }], [SwitchPt { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }]] }])
 
 ## Ring of Immortals
 face: Ring of Immortals

@@ -811,7 +811,7 @@ cost: {3}{U}
 > Changeling (This card is every creature type.)
 > {1}{U}: Switch this creature's power and toughness until end of turn.
 = Keywords([Keyword { name: "changeling", param: None }])
-= BROKE at "this" after: {1} {U} : switch
+= Activated { cost: [Mana(Mana(["1", "U"]))], effect: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Two-Headed Hunter // Twice the Rage
 face: Two-Headed Hunter

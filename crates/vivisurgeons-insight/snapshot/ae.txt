@@ -1095,7 +1095,7 @@ face: Transmutation
 type: Instant
 cost: {1}{B}
 > Switch target creature's power and toughness until end of turn.
-= BROKE at "end" after: switch target creature 's power and toughness until
+= Spell([SwitchPt { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }])
 
 ## Trumpeting Gnarr
 face: Trumpeting Gnarr

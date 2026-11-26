@@ -94,7 +94,7 @@ reports every one. The lists in `milestones/` say where they came from, and
 | All of Standard | 4378/5157 (84.9%) | 9579/10421 (91.9%) | |
 | EDHREC top 2000 | 1838/1987 (92.5%) | 3671/3847 (95.4%) | |
 | EDHREC top 5000 | 4232/4977 (85.0%) | 9264/10112 (91.6%) | |
-| Commander precons | 4855/6151 (78.9%) | 10802/12228 (88.3%) | |
+| Commander precons | 4858/6151 (79.0%) | 10805/12228 (88.4%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -161,7 +161,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | My decks (pinned) | 2136/2136 (100%) |
 | EDHREC top 2000 | 3668/3669 (99.97%) |
-| All parsed abilities | 52269/52294 (99.95%) |
+| All parsed abilities | 52294/52319 (99.95%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading

@@ -926,6 +926,10 @@ impl Walk for Effect {
             Effect::TurnFaceUp(f0) => {
                 Walk::walk(f0, v);
             }
+            Effect::SwitchPt { what, dur } => {
+                Walk::walk(what, v);
+                Walk::walk(dur, v);
+            }
             Effect::ChooseNewTargets(f0) => {
                 Walk::walk(f0, v);
             }

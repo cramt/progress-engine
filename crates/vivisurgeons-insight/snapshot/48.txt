@@ -1207,7 +1207,7 @@ type: Instant
 cost: {U}
 > Switch target creature's power and toughness until end of turn.
 > Draw a card.
-= BROKE at "end" after: switch target creature 's power and toughness until
+= Spell([SwitchPt { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Vastwood Zendikon

@@ -1748,6 +1748,13 @@ pub enum Effect {
     /// "turn a face-down creature you control face up" (Ugin's Mastery): its
     /// copiable values revert to its normal ones (CR 708.8).
     TurnFaceUp(Objects),
+    /// "switch target creature's power and toughness until end of turn"
+    /// (Twisted Image): each object's power and toughness trade places in
+    /// layer 7d (CR 613.4d) for the duration ([switch-pt]).
+    SwitchPt {
+        what: Objects,
+        dur: Duration,
+    },
     ChooseNewTargets(Objects),
     ClassLevel(u32),
     May {

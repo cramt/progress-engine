@@ -1047,7 +1047,7 @@ face: Valakut Fireboar
 type: Creature — Elemental Boar
 cost: {4}{R}
 > Whenever this creature attacks, switch its power and toughness until end of turn.
-= BROKE at "its" after: whenever this creature attacks , switch
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [SwitchPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Vampire Soulcaller
 face: Vampire Soulcaller
