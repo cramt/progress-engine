@@ -1328,6 +1328,23 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         let deals = p.peek_word() == Some("deals");
         let they = p.peek_word() == Some("they");
         let mover = who.clone().filter(|w| continues && *w != Player::You);
+        // "They put that card onto the battlefield and the rest on the
+        // bottom of their library" (Wild Magic Surge, Proteus Staff): the
+        // verb said once for both objects is said by the same player, so a
+        // second object with no verb of its own is moved by them too
+        // ([continued-subject]).
+        let elided = matches!(
+            p.peek_word(),
+            Some("the" | "that" | "those" | "it" | "them" | "all" | "each")
+        );
+        let mover = mover.or_else(|| match v.last() {
+            Some(Effect::Performed { by, effect })
+                if elided && matches!(**effect, Effect::Move { .. }) =>
+            {
+                Some(by.clone())
+            }
+            _ => None,
+        });
         let mut c = clause_as(p, who)?;
         // "they reveal cards …, put that card onto the battlefield, then
         // shuffle" (Reweave): a `Move` has no player of its own, so the

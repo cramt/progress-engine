@@ -7231,12 +7231,19 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                 syn::subject(o, subject, alone, pred);
             }
             // "They put that card onto the battlefield and the rest on the
-            // bottom of their library" (Wild Magic Surge, Proteus Staff).
-            (Some(Effect::Performed { effect: pm, .. }), Effect::Move { what: rest, .. })
-                if matches!(**pm, Effect::Move { .. })
-                    && matches!(rest.quant, Quant::Rest { .. }) =>
+            // bottom of their library" (Wild Magic Surge, Proteus Staff): the
+            // same player puts both, the verb said once ([continued-subject]).
+            (
+                Some(Effect::Performed { by: b1, effect: pm }),
+                Effect::Performed {
+                    by: b2,
+                    effect: second,
+                },
+            ) if b1 == b2
+                && matches!(**pm, Effect::Move { .. })
+                && matches!(&**second, Effect::Move { what: rest, .. } if matches!(rest.quant, Quant::Rest { .. })) =>
             {
-                let without = out(|o| move_put_rest(o, e, false));
+                let without = out(|o| move_put_rest(o, second, false));
                 syn::gapped(o, full, without);
             }
             // "put two into your hand and the rest on the bottom".
