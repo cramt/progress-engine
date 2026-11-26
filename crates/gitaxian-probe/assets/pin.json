@@ -1,68 +1,68 @@
 {
-  "version": "1.90.beta",
+  "version": "1.97.beta",
   "engine": [
     {
       "name": "version.txt",
-      "sha256": "0b197c29cab5fb6b9706021423f538d22ac5c30c5e465355e2ddd7438d113758"
+      "sha256": "8cdc932374d35bf45129b2109a3a094ba3fc67e00291c37dfeb81ed3eb7ce85e"
     },
     {
       "name": "core.js",
-      "sha256": "b7df7f20309c1b01ed969ee0e33848e2f8675c7a6244aae4fa7db70c8ed1acec"
+      "sha256": "40dc36317ba40f2f86fa2bf6f72d8a7862a1681a52e9fca7f418e8aef6fb3f33"
     },
     {
       "name": "core.wasm",
-      "sha256": "db596f260fdce390368bed5b85dd79b754ba7551b577095a4d6f930e98b72b77"
+      "sha256": "596af8b49961164059060d6451398b3d9bb0e3e9dc6ca51324be1780d3516fb1"
     },
     {
       "name": "data.7z",
-      "sha256": "eade56b59341a0d9c7b2c7ede51e4f38e5f3a6824dde9b7d15a6aa89ed9ee563"
+      "sha256": "de82a97323357b9fdd3221eacd58c642455bcc30b5cec20a2316b48a004dfc01"
     },
     {
       "name": "data.md5",
-      "sha256": "963239a66b078d74fed6dc6e669918983006e5d8814368c553dd0c9f50bc5ca3"
+      "sha256": "43d783e552d9227b698311c5f57b501bcfb9e692d0880e3142424ead26b0630b"
     },
     {
       "name": "data.size",
-      "sha256": "b28c4a1a9b92aba747d6c01f4cbb8407e2b443b46824af7e9968eb690171a292"
+      "sha256": "b659345355a455274ca10ef2a04b953d8539c671d3c8572a8c5b55c810af4fe3"
     }
   ],
   "tiers": {
     "alpha": {
-      "tag": "delver-1.90.beta-alpha-aba617be6a6b",
+      "tag": "delver-1.97.beta-alpha-9a8b611101d1",
       "model": [
         {
           "name": "model-alpha.7z",
-          "sha256": "6b5e0c7e5dec27895ec7d9a46ae091fd0fe980c6ab5cfd60e2f4971fcead5f61"
+          "sha256": "f014e06a1e5ad7826c402663231ddd1321ef900b9667850393608c83091b675f"
         },
         {
           "name": "model-alpha.size",
-          "sha256": "5b481ee45fba44edcef9ef587048bafc4a623ac73479f8cb6330e0a3eb5b86ea"
+          "sha256": "0a3ca1ba6f4238fc00e9df26fd127eb9be14369bd6d90f566392414899e12eea"
         }
       ]
     },
     "lambda": {
-      "tag": "delver-1.90.beta-lambda-1017bbb1e563",
+      "tag": "delver-1.97.beta-lambda-bf3c536f667e",
       "model": [
         {
           "name": "model-lambda.7z",
-          "sha256": "dd871df861fca2337265523a77f6a2cd033cf519ac682bef73213cfe75606bd1"
+          "sha256": "fa5a6d0413a8e88a3bf2d8d840629e04e48302b469180e9103a72bb6d347228a"
         },
         {
           "name": "model-lambda.size",
-          "sha256": "7f8f4533022360491b6ce354af9688f80ac68ccb41270ffcd8dd758ab1327c7a"
+          "sha256": "9f48473b6d176778d3f789108f95d47a37635633732af2392f7af15371e4c856"
         }
       ]
     },
     "gamma": {
-      "tag": "delver-1.90.beta-gamma-2f539de2567f",
+      "tag": "delver-1.97.beta-gamma-17c94ecccca9",
       "model": [
         {
           "name": "model-gamma.7z",
-          "sha256": "9bc3a100f32c822306ee55e276548f7a981f6e7c17779848686ebe0163a17d63"
+          "sha256": "b8f31f658ec8394eb59b7854d6f5efe0bc41eb45b39f380030d5906b6526c2d6"
         },
         {
           "name": "model-gamma.size",
-          "sha256": "736b143fc5a6dab0c935a9c71bb86e9c209f2f208fc1f47d46a18dd09829a7f5"
+          "sha256": "cc51abb6b247f05bf8f70f7814314eb194097ba8148e44f95e02549d66816bc7"
         }
       ]
     }
