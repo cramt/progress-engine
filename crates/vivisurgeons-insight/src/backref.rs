@@ -1299,6 +1299,9 @@ fn resolve_face(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
     out
 }
 
+/// Objects said, each as the event it was said at and what it settled on.
+type Mentions = Vec<((usize, usize), Target)>;
+
 fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
     let mut out = Vec::new();
     let intros_per_line: Vec<Vec<usize>> = lds.iter().map(line_intros).collect();
@@ -1320,8 +1323,23 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
             prior_self = false;
             prior_mentions.clear();
         }
+        // What the line's own scope introduced and said, by event, which a
+        // quoted ability inside it may name ([quoted-sees-out]).
+        let mut outer: (Vec<(usize, usize)>, Mentions) = (Vec::new(), Vec::new());
         for (si, scope) in ld.scopes.iter().enumerate() {
-            let mut intros: Vec<(usize, usize)> = if si == 0 { prior.clone() } else { Vec::new() };
+            // The outer objects said before this quoted ability: only a
+            // reference nothing in the quote fits reads them.
+            let start = scope.iter().min().copied().unwrap_or(0);
+            let before = |&(l, i): &(usize, usize)| l != li || i < start;
+            let (mut intros, mut mentions): (Vec<(usize, usize)>, Mentions) = if si == 0 {
+                (prior.clone(), prior_mentions.clone())
+            } else {
+                (
+                    outer.0.iter().copied().filter(before).collect(),
+                    outer.1.iter().filter(|(m, _)| before(m)).cloned().collect(),
+                )
+            };
+            let out_n = (intros.len(), mentions.len());
             let mut self_at: Option<f64> = if si == 0 && prior_self {
                 Some(-0.5)
             } else {
@@ -1329,12 +1347,8 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
             };
             // References said so far, at their position, with their pick.
             let mut earlier: Vec<(f64, Vec<Target>, Objects)> = Vec::new();
-            // Every object said so far as what it settled on.
-            let mut mentions: Vec<((usize, usize), Target)> = if si == 0 {
-                prior_mentions.clone()
-            } else {
-                Vec::new()
-            };
+            // Every object said so far as what it settled on: `mentions`.
+            let out_n = if si == 0 { (0, 0) } else { out_n };
             for &ei in scope {
                 let e = &ld.c.evs[ei];
                 // Between two introducers, the later of two mentions is the
@@ -1364,6 +1378,7 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                             self_at,
                             &earlier,
                             &mentions,
+                            out_n,
                             &intros_per_line,
                             type_line,
                         );
@@ -1402,6 +1417,7 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                 }
             }
             if si == 0 {
+                outer = (intros.clone(), mentions.clone());
                 prior = intros.clone();
                 prior_mentions = mentions.clone();
                 prior_self |= self_at.is_some();
@@ -1545,9 +1561,14 @@ fn resolve_one(
     self_at: Option<f64>,
     earlier: &[(f64, Vec<Target>, Objects)],
     mentions: &[((usize, usize), Target)],
+    out_n: (usize, usize),
     intros_per_line: &[Vec<usize>],
     type_line: &str,
 ) -> (Option<Target>, Class, Vec<Target>, String) {
+    // A quoted ability's own objects; the outer ones before them are read
+    // only where nothing of its own fits ([quoted-sees-out]).
+    let (all_intros, all_mentions) = (intros, mentions);
+    let (intros, mentions) = (&intros[out_n.0..], &mentions[out_n.1..]);
     let ld = &lds[li];
     let e = &ld.c.evs[ei];
     let get = |(l, i): (usize, usize)| &lds[l].c.evs[i];
@@ -1599,7 +1620,7 @@ fn resolve_one(
     let named_so = |t: (usize, usize)| {
         marked_how(&r.filter).is_some_and(|how| {
             compat(&unmarked, get(t))
-                && mentions.iter().any(|((l, i), m)| {
+                && all_mentions.iter().any(|((l, i), m)| {
                     *m == Target::Intro(t.0, t.1) && verb_matches(how, &get((*l, *i)).verb)
                 })
         })
@@ -1608,11 +1629,14 @@ fn resolve_one(
     // introducer its words fit.
     let back = |b: u8, cands: &mut Vec<Target>, note: &mut String, check: bool| {
         let b = usize::from(b);
-        if b == 0 || b > intros.len() {
-            *note = format!("back {b} out of range ({} introduced before)", intros.len());
+        if b == 0 || b > all_intros.len() {
+            *note = format!(
+                "back {b} out of range ({} introduced before)",
+                all_intros.len()
+            );
             return;
         }
-        let t = intros[intros.len() - b];
+        let t = all_intros[all_intros.len() - b];
         if check && !compat(r, get(t)) && !named_so(t) {
             *note = format!("back {b} lands on an object its words do not fit");
         }
@@ -1916,7 +1940,9 @@ fn resolve_one(
             Kind::Text(Hint::Antecedent | Hint::Pile | Hint::ClauseObject | Hint::Linked)
                 if marked_how(&r.filter).is_some() =>
             {
-                for &(l, i) in intros.iter().rev() {
+                // A quoted ability's "the exiled card" is the card the
+                // ability that gave it exiled (Timothar, Baron of Bats).
+                for &(l, i) in all_intros.iter().rev() {
                     if named_so((l, i)) {
                         cands.push(Target::Intro(l, i));
                     }
@@ -2407,7 +2433,7 @@ fn resolve_one(
                     chained
                 };
                 let own = match t {
-                    Target::Intro(l, i) => intros
+                    Target::Intro(l, i) => all_intros
                         .iter()
                         .position(|x| *x == (*l, *i))
                         .map_or(f64::MIN, |p| p as f64),
