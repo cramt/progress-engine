@@ -7989,3 +7989,223 @@ fn escape_to_the_wilds_lets_its_caster_play_the_exiled_cards_until_their_next_tu
     my_next_main(&mut game);
     assert_eq!(game.may_play(ME).count(), 0);
 }
+
+/// Pass while a spell or ability is on the stack, or a trigger waits to
+/// go on it, stopping at any other decision.
+fn settle(game: &mut Game) -> Decision {
+    loop {
+        match game.decision() {
+            Decision::Priority { .. } if !game.stack().is_empty() || !game.pending().is_empty() => {
+                step(game, Answer::Act(Action::Pass));
+            }
+            d => return d,
+        }
+    }
+}
+
+/// CR 701.21a, 101.3: Phyrexian Negator's "Whenever this creature is dealt
+/// damage, sacrifice that many permanents". Two Lightning Bolts: the first
+/// has its controller choose three of their permanents as it resolves;
+/// the second kills it, and they sacrifice as many as they have left, the
+/// one Swamp they kept or none.
+#[test]
+fn phyrexian_negator_has_its_controller_sacrifice_that_many_permanents() {
+    for swamps in [3, 4] {
+        let mut game = deal_both(
+            &[("Swamp", 40), ("Phyrexian Negator", 20)],
+            &[("Mountain", 40), ("Lightning Bolt", 20)],
+            &[("Swamp", swamps), ("Phyrexian Negator", 1)],
+            &[("Mountain", 2), ("Lightning Bolt", 2)],
+        );
+        play(&mut game, "Swamp");
+        for _ in 1..swamps {
+            pass_until(&mut game, THEM, Step::PrecombatMain);
+            play_as(&mut game, THEM, "Mountain");
+            my_next_main(&mut game);
+            play(&mut game, "Swamp");
+        }
+        cast(&mut game, "Phyrexian Negator", None);
+        resolve(&mut game);
+        let negator = creature(&game, "Phyrexian Negator").unwrap();
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        cast_as(
+            &mut game,
+            THEM,
+            "Lightning Bolt",
+            Some(vec![Target::Object(negator)]),
+        );
+        cast_as(
+            &mut game,
+            THEM,
+            "Lightning Bolt",
+            Some(vec![Target::Object(negator)]),
+        );
+        resolve(&mut game);
+        let d = settle(&mut game);
+        let Decision::Sacrifice {
+            player,
+            count,
+            legal,
+            cost,
+            ..
+        } = d
+        else {
+            panic!("the first trigger's sacrifice: {d:?}")
+        };
+        assert_eq!((player, count, cost), (ME, 3, false));
+        assert_eq!(legal.len(), swamps + 1, "my Swamps and the Negator");
+        assert_eq!(
+            game.resolving(),
+            Some(game.permanents()[&negator].card),
+            "its trigger is resolving"
+        );
+        let lands: Vec<_> = legal.iter().copied().filter(|o| *o != negator).collect();
+        assert!(
+            game.clone()
+                .step(Answer::Sacrifice(lands[..2].to_vec()))
+                .is_err(),
+            "exactly three"
+        );
+        step(&mut game, Answer::Sacrifice(lands[..3].to_vec()));
+        let d = settle(&mut game);
+        assert!(!game.permanents().contains_key(&negator), "six damage");
+        if swamps == 3 {
+            assert!(
+                matches!(d, Decision::Priority { .. }),
+                "nothing left: {d:?}"
+            );
+        } else {
+            let Decision::Sacrifice {
+                player,
+                count,
+                legal,
+                ..
+            } = d
+            else {
+                panic!("the second trigger's sacrifice: {d:?}")
+            };
+            assert_eq!((player, count), (ME, 1), "three asked, one left");
+            assert_eq!(legal, vec![lands[3]]);
+            step(&mut game, Answer::Sacrifice(legal));
+        }
+        assert!(game
+            .permanents()
+            .values()
+            .all(|p| game.owner(p.card) == THEM));
+    }
+}
+
+/// CR 702.86a, 508.5: Eldrazi Ravager's annihilator 1 has the player it
+/// attacks sacrifice a permanent of their choice, and still the player it
+/// attacked once two Lightning Bolts kill it in response.
+#[test]
+fn annihilator_has_the_defending_player_sacrifice_a_permanent() {
+    let mut game = deal_both(
+        &[("Wastes", 40), ("Eldrazi Ravager", 20)],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[("Wastes", 2), ("Eldrazi Ravager", 1)],
+        &[("Mountain", 2), ("Lightning Bolt", 2)],
+    );
+    let wastes = |game: &Game| {
+        game.permanents()
+            .values()
+            .filter(|p| game.card(p.card).unwrap().name == "Wastes")
+            .count()
+    };
+    play(&mut game, "Wastes");
+    for _ in 0..30 {
+        if wastes(&game) == 6 {
+            break;
+        }
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        if in_hand(&game, THEM, "Mountain").is_some() {
+            play_as(&mut game, THEM, "Mountain");
+        }
+        my_next_main(&mut game);
+        if in_hand(&game, ME, "Wastes").is_some() {
+            play(&mut game, "Wastes");
+        }
+    }
+    assert_eq!(wastes(&game), 6);
+    cast(&mut game, "Eldrazi Ravager", None);
+    resolve(&mut game);
+    let ravager = creature(&game, "Eldrazi Ravager").unwrap();
+    my_next_main(&mut game);
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(ravager, THEM)]));
+    let d = settle(&mut game);
+    let Decision::Sacrifice {
+        player,
+        count,
+        legal,
+        cost,
+        ..
+    } = d
+    else {
+        panic!("annihilator's sacrifice: {d:?}")
+    };
+    assert_eq!((player, count, cost), (THEM, 1, false));
+    let theirs = |game: &Game| {
+        game.permanents()
+            .iter()
+            .filter(|(_, p)| game.owner(p.card) == THEM)
+            .map(|(id, _)| *id)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(legal, theirs(&game), "any permanent of theirs");
+    let before = legal.len();
+    step(&mut game, Answer::Sacrifice(vec![legal[0]]));
+    assert_eq!(theirs(&game).len(), before - 1);
+    through_combat(&mut game);
+    my_next_main(&mut game);
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(ravager, THEM)]));
+    // The trigger on the stack, they kill it in response.
+    loop {
+        match game.decision() {
+            Decision::Priority { player: THEM, .. } if !game.stack().is_empty() => break,
+            _ => {
+                step(&mut game, Answer::Act(Action::Pass));
+            }
+        }
+    }
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(ravager)]),
+    );
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(ravager)]),
+    );
+    resolve(&mut game);
+    resolve(&mut game);
+    assert!(!game.permanents().contains_key(&ravager));
+    let before = theirs(&game).len();
+    let d = settle(&mut game);
+    let Decision::Sacrifice { player, legal, .. } = d else {
+        panic!("annihilator's sacrifice, its creature gone: {d:?}")
+    };
+    assert_eq!(player, THEM, "the player it attacked");
+    step(&mut game, Answer::Sacrifice(vec![legal[0]]));
+    assert_eq!(theirs(&game).len(), before - 1);
+}
+
+/// CR 701.21a: Springbloom Druid's "you may sacrifice a land. If you do,
+/// search …" is refused by name: a "may"'s sacrifice pays for what
+/// follows, and as many lands as there are, none, would not.
+#[test]
+fn a_may_s_sacrifice_is_refused() {
+    let game = deal_both(
+        &[("Forest", 40), ("Springbloom Druid", 20)],
+        &[("Forest", 60)],
+        &[("Springbloom Druid", 1)],
+        &[],
+    );
+    let druid = in_hand(&game, ME, "Springbloom Druid").unwrap();
+    let refusal = game.refusal(druid).expect("refused");
+    assert_eq!(refusal.node, "sacrificing permanents as a \"may\"");
+}

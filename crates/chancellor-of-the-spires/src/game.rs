@@ -873,12 +873,15 @@ struct Resuming {
 }
 
 /// What paying a sacrifice is part of.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum AfterSacrifice {
     /// A spell's cost, its cards and returns still to pay (CR 601.2h).
     SpellRest,
     /// An activated ability's cost, the last of it (CR 602.2b).
     Ability,
+    /// An instruction the spell or ability is following, which goes on
+    /// after it (CR 608.2c, 701.21a).
+    Resolving(Resuming),
 }
 
 /// What comes after the cards a cost names are paid.
@@ -1689,12 +1692,15 @@ pub enum Decision {
     },
     /// CR 601.2h, 701.21a: sacrifice exactly `count` of `legal`, the
     /// permanents `player` controls that the cost names, to pay for
-    /// `spell`, answered `Answer::Sacrifice`.
+    /// `spell`, answered `Answer::Sacrifice`. Not `cost`, an instruction
+    /// of `spell`'s, or of its ability's, has them sacrifice as it
+    /// resolves.
     Sacrifice {
         player: PlayerId,
         spell: CardId,
         count: u32,
         legal: Vec<ObjectId>,
+        cost: bool,
     },
     /// CR 602.2b, 601.2h: discard (or exile from the graveyard, as `how`
     /// says) exactly `count` of `legal`, the cards of `player`'s the cost
@@ -3391,12 +3397,13 @@ impl Game {
                 spell,
                 count,
                 filter,
-                ..
+                then,
             } => Decision::Sacrifice {
                 player: *player,
                 spell: *spell,
                 count: *count,
                 legal: self.sacrificable(*player, filter),
+                cost: !matches!(then, AfterSacrifice::Resolving(_)),
             },
             Waiting::ReturnToHand {
                 player,
@@ -4503,6 +4510,7 @@ impl Game {
                 match then {
                     AfterSacrifice::SpellRest => self.cards_or_return(player, spell),
                     AfterSacrifice::Ability => self.ability_activated(player),
+                    AfterSacrifice::Resolving(resume) => self.follow(resume),
                 }
             }
             (
@@ -7012,6 +7020,43 @@ impl Game {
                         }
                     }
                 }
+                // CR 701.21a: the player sacrifices their own.
+                Effect::SacrificeChosen { who: w, n, filter } => {
+                    let Some(q) = who(w) else {
+                        // CR 508.5: the player it attacked, even once
+                        // removed from combat, which the engine doesn't
+                        // remember.
+                        self.unknowable.borrow_mut().get_or_insert_with(|| {
+                            Rejected::Refused {
+                            card: self
+                                .face_name(at.what.card())
+                                .unwrap_or("an instruction")
+                                .to_string(),
+                            refusal: Unrunnable::new(
+                                "a sacrifice by no player",
+                                "names a player to sacrifice the engine can't find: a target gone, \
+                                 or the defending player of a creature no longer attacking",
+                            ),
+                        }
+                        });
+                        continue;
+                    };
+                    // Asked even when every one of them goes, as many
+                    // as they can (CR 101.3), so who chose is the player's.
+                    let legal = self.sacrificable(q, &filter);
+                    let count = self.amount(&at, n).min(legal.len() as u32);
+                    if count == 0 {
+                        continue;
+                    }
+                    self.waiting = Waiting::Sacrifice {
+                        player: q,
+                        spell: at.what.card(),
+                        count,
+                        filter,
+                        then: AfterSacrifice::Resolving(resume),
+                    };
+                    return;
+                }
                 // CR 111.2: its creator owns and controls it.
                 Effect::Create {
                     n,
@@ -8761,7 +8806,11 @@ impl Game {
             | Waiting::DiscardUnless { at, .. }
             | Waiting::SacrificeUnless { at, .. }
             | Waiting::PayLifeOr { at, .. }
-            | Waiting::ChooseName { resume: at, .. } => at,
+            | Waiting::ChooseName { resume: at, .. }
+            | Waiting::Sacrifice {
+                then: AfterSacrifice::Resolving(at),
+                ..
+            } => at,
             _ => return None,
         };
         Some(at.what.card())

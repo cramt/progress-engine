@@ -1691,6 +1691,15 @@ pub enum Effect {
     /// "Sacrifice this creature" (CR 701.21a): only a permanent its
     /// controller controls.
     Sacrifice(Obj),
+    /// "Sacrifice that many permanents", annihilator's "defending player
+    /// sacrifices a permanent of their choice" (CR 701.21a, 702.86a): `n`
+    /// of the permanents `who` controls that `filter` matches, `n` counted
+    /// as it is followed, chosen by that player as it resolves.
+    SacrificeChosen {
+        who: Who,
+        n: Amount,
+        filter: Filter,
+    },
     /// "Counter target spell", "counter target activated or triggered
     /// ability" (CR 701.6a): the spell or ability in this target slot.
     Counter(usize),
@@ -2877,7 +2886,8 @@ fn intervening(cond: &i::Condition, bind: &[Objects]) -> Result<Intervening, Str
 
 /// The keywords that are triggered abilities and that the engine runs,
 /// written out as their rules define them: exalted (CR 702.83a), prowess
-/// (CR 702.108a), training (CR 702.149a), provoke (CR 702.39a), and echo and cumulative upkeep
+/// (CR 702.108a), training (CR 702.149a), provoke (CR 702.39a), annihilator
+/// (CR 702.86a), and echo and cumulative upkeep
 /// for mana (CR 702.30a, 702.24a). `None` for any other keyword.
 pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
     if k.name.eq_ignore_ascii_case("cumulative upkeep") {
@@ -2936,6 +2946,26 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                 }],
             },
             condition: Some(Intervening::ArrivedSinceLastUpkeep),
+            during: None,
+        });
+    }
+    // CR 702.86a: "Whenever this creature attacks, defending player
+    // sacrifices N permanents."
+    if k.name.eq_ignore_ascii_case("annihilator") {
+        let Some(i::KeywordParam::N(i::Amount::N(n))) = &k.param else {
+            return None;
+        };
+        return Some(Triggered {
+            event: TriggerEvent::Attacks(Filter(vec![Pred::Itself])),
+            program: Program {
+                targets: Vec::new(),
+                effects: vec![Effect::SacrificeChosen {
+                    who: Who::Defending,
+                    n: Amount::N(*n),
+                    filter: Filter(Vec::new()),
+                }],
+            },
+            condition: None,
             during: None,
         });
     }
@@ -3048,6 +3078,9 @@ struct Scope<'a> {
     player: Option<usize>,
     /// Whether the trigger event has an amount "that much" names.
     amount: bool,
+    /// Whether the instructions being lowered are a "may"'s, followed
+    /// only if its player chose to.
+    in_may: bool,
     /// Whether the trigger event names a player, a spell's caster, whom
     /// "that player" names.
     caster: bool,
@@ -3106,6 +3139,7 @@ impl<'a> Scope<'a> {
             bound: vec![None; bind.len()],
             player: None,
             amount: false,
+            in_may: false,
             caster: false,
             event_spell: None,
             program: Program::default(),
@@ -3613,6 +3647,34 @@ impl<'a> Scope<'a> {
                 who: i::Player::You,
                 what,
             } if what.quant == Quant::SelfRef => Effect::Sacrifice(self.obj(what)?),
+            // A "may"'s sacrifice is the price of what follows "if you
+            // do", which fewer permanents than it says don't pay; as many
+            // as there are is right only for one nothing hangs on.
+            i::Effect::Sacrifice { .. } if self.in_may => {
+                return Err("sacrificing permanents as a \"may\"".into())
+            }
+            i::Effect::Sacrifice { who, what } => {
+                let n = match &what.quant {
+                    Quant::One => Amount::N(1),
+                    Quant::N(k) => self.resolved_amount(k)?,
+                    q => return Err(format!("sacrificing {}", short(q))),
+                };
+                let who = match who {
+                    i::Player::DefendingPlayer => Who::Defending,
+                    w => self.who(w)?,
+                };
+                // "A creature of their choice": the player who sacrifices
+                // chooses, as they would unless it said otherwise.
+                let mut what = what.clone();
+                what.filter
+                    .posts
+                    .retain(|p| !matches!(p, Post::ChosenBy(i::Player::That)));
+                Effect::SacrificeChosen {
+                    who,
+                    n,
+                    filter: sacrificed(&what)?,
+                }
+            }
             i::Effect::Move {
                 what,
                 from: None,
@@ -4236,7 +4298,10 @@ impl<'a> Scope<'a> {
             }
             i::Effect::May { who, then } => {
                 let who = self.who(who)?;
-                Effect::May(who, self.effects(then)?)
+                let outer = std::mem::replace(&mut self.in_may, true);
+                let then = self.effects(then);
+                self.in_may = outer;
+                Effect::May(who, then?)
             }
             i::Effect::RevealTop { who, whose, n: k } => {
                 let whose = self.library_of(who, whose)?;
@@ -5743,6 +5808,39 @@ fn permanents_paid(o: &Objects) -> Result<(u32, Filter), String> {
         f.0.push(Pred::YouControl);
     }
     Ok((n, f))
+}
+
+/// What an instruction has a player sacrifice: the permanents of theirs
+/// a filter matches, read without a source, so only what a permanent is
+/// on its own (CR 701.21a: they can sacrifice only their own).
+fn sacrificed(o: &Objects) -> Result<Filter, String> {
+    // "Permanents": any of them, by whatever else the filter says.
+    let filter = match o.filter.kind {
+        None => o.filter.clone(),
+        Some(i::Noun::Permanent) => i::Filter {
+            kind: None,
+            alts: if o.filter.alts.is_empty() {
+                vec![vec![]]
+            } else {
+                o.filter.alts.clone()
+            },
+            ..o.filter.clone()
+        },
+        _ => return Err("sacrificing a kind of object".into()),
+    };
+    let f = objects(&Objects {
+        quant: Quant::All,
+        filter,
+    })?;
+    if let Some(p) = f.0.iter().find(|p| {
+        !matches!(
+            p,
+            Pred::Is(_) | Pred::IsNot(_) | Pred::IsAny(_) | Pred::Nontoken | Pred::ManaValue(..)
+        )
+    }) {
+        return Err(format!("sacrificing permanents {p:?}"));
+    }
+    Ok(f)
 }
 
 /// "Flashback {1}{U}, Pay 3 life", "Flashback—Sacrifice a creature": `None`

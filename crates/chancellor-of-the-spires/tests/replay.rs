@@ -191,11 +191,12 @@ const INDEXED: &[&str] = &[
     "Eternal Dragon",
     "Wasteland",
     "Tempting Wurm",
-    "Phyrexian Negator",
     "Show and Tell",
     "Elvish Visionary",
     "Liliana of the Veil",
     "Escape to the Wilds",
+    "Diabolic Edict",
+    "Ulamog's Crusher",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1008,12 +1009,12 @@ fn tempting_wurm_s_cards_are_read_from_the_lines_after_it() {
 /// that way would leave the attack unexplained and report it a divergence.
 #[test]
 fn tempting_wurm_s_refused_card_stops_at_the_trigger() {
-    let (_, r) = run(&tempting_wurm("Phyrexian Negator", false));
+    let (_, r) = run(&tempting_wurm("Ulamog's Crusher", false));
     let End::Stopped { stop, .. } = &r.end else {
         panic!("{:?}", r.end)
     };
     assert!(
-        matches!(stop, Stop::Refused { card, .. } if card == "Phyrexian Negator"),
+        matches!(stop, Stop::Refused { card, .. } if card == "Ulamog's Crusher"),
         "{stop:?}"
     );
 }
@@ -1023,7 +1024,7 @@ fn tempting_wurm_s_refused_card_stops_at_the_trigger() {
 /// trigger line and the turns after it, and stops only at the attack.
 #[test]
 fn tempting_wurm_tries_none_for_a_card_shown_turns_later() {
-    let (g, r) = run(&tempting_wurm("Phyrexian Negator", true));
+    let (g, r) = run(&tempting_wurm("Ulamog's Crusher", true));
     let End::Stopped { entry, .. } = &r.end else {
         panic!("{:?}", r.end)
     };
@@ -2855,5 +2856,168 @@ fn a_divergence_every_way_past_a_refusal_met_is_reported_beside_it() {
     assert_eq!(
         diverged.divergence,
         Divergence::Discards { log: 1, engine: 3 }
+    );
+}
+
+/// CR 701.21a: Diabolic Edict's "Target player sacrifices a creature of
+/// their choice" is answered by the log's "sacrifices" line, and one
+/// naming a permanent the player can't sacrifice to it stops there.
+#[test]
+fn an_edict_sacrifices_what_the_log_says() {
+    let log = |sacrificed: &str| {
+        format!(
+            "
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Grizzly Bears].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        bob casts [Diabolic Edict] targeting alice.
+        alice sacrifices [{sacrificed}].
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    "
+        )
+    };
+    let (_, r) = run(&log("Grizzly Bears"));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Grizzly Bears"), 0);
+    assert_eq!(on_battlefield(&game, "Forest"), 2);
+    // A land isn't a creature.
+    let (g, r) = run(&log("Forest"));
+    let End::Stopped { entry, stop } = &r.end else {
+        panic!("{:?}", r.trace)
+    };
+    assert_eq!(g.entries[*entry].text, "alice sacrifices [Forest].");
+    assert_eq!(
+        *stop,
+        Stop::Diverged(Divergence::Sacrificed {
+            card: "Forest".into()
+        })
+    );
+}
+
+/// CR 701.21a, 302.6: of three Llanowar Elves the log can't say which
+/// one Diabolic Edict took, and the one a later spell needs for mana, the
+/// only one not cast this turn, is kept.
+#[test]
+fn sacrifices_of_one_name_go_back_to_another() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Llanowar Elves].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Llanowar Elves].
+        alice casts [Llanowar Elves].
+        bob casts [Diabolic Edict] targeting alice.
+        alice sacrifices [Llanowar Elves].
+        alice casts [Grizzly Bears].
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Llanowar Elves"), 2);
+    assert!(r
+        .trace
+        .iter()
+        .any(|t| t.did.contains("sacrificed others of the same names")));
+    assert_eq!(
+        game.stack().len(),
+        1,
+        "the Bears, paid for with the older Elves"
+    );
+}
+
+/// CR 701.21a: the other seat sacrificing: alice's Diabolic Edict has bob
+/// sacrifice the Grizzly Bears the log names.
+#[test]
+fn an_edict_has_the_opponent_of_its_caster_sacrifice_too() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Swamp].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Swamp].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        bob casts [Grizzly Bears].
+        Turn 3: alice
+        alice draws a card.
+        alice casts [Diabolic Edict] targeting bob.
+        bob sacrifices [Grizzly Bears].
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Grizzly Bears"), 0);
+    assert_eq!(on_battlefield(&game, "Forest"), 2);
+}
+
+/// An instruction's sacrifice the log never shows is a stop, never
+/// answered as a cost's would be, by the replay's own ranking.
+#[test]
+fn an_edict_the_log_shows_no_sacrifice_for_stops() {
+    let (g, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Grizzly Bears].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        bob casts [Diabolic Edict] targeting alice.
+        Turn 3: alice
+        alice draws a card.
+    ");
+    let End::Stopped { entry, stop } = &r.end else {
+        panic!("{:?}", r.trace)
+    };
+    assert_eq!(g.entries[*entry].text, "Turn 3: alice");
+    assert_eq!(
+        *stop,
+        Stop::Diverged(Divergence::Unlogged {
+            what: "a sacrifice".into()
+        })
     );
 }

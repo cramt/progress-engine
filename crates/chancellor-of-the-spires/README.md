@@ -1096,11 +1096,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-25 171 of the 500 replay to
-the end and 59.70% of their lines are followed** (18,900 of 31,659), 3
+Worked card by card from there, **on 2026-11-26 173 of the 500 replay to
+the end and 59.90% of their lines are followed** (18,963 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
-card no one named in a graveyard having no ability there (1 to the end),
-and 172 games have no card the engine refuses before any game (from 21). The
+card no one named in a graveyard having no ability there (2 to the end),
+and 173 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1392,12 +1392,22 @@ land play and a spell as its type allows, with another land this turn
 (CR 406.3, 611.2a, 305.2a, 514.2: Escape to the Wilds, whose 5 games go
 on, three to the end, one to Titania's Command and one to Valakut's
 triggers off a Nature's Lore and a Fabled Passage whose finds it gives
-up going back before trying, and replays to the end with them forced).
+up going back before trying, and replays to the end with them forced);
+and a player sacrificing that many permanents of their choice as an
+instruction resolves, asked even when every one of them goes, as many as
+they have (CR 701.21a, 101.3), a "may"'s sacrifice refused, since fewer
+than it says wouldn't pay for its "if you do", and annihilator's defending
+player the one it attacked, though it has left combat (CR 702.86a, 508.5:
+Phyrexian Negator, whose 3 games go on, two to the end and one to Basking
+Rootwalla's madness, Diabolic Edict, and Chain of Vapor refused by name).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the
 way back when what is left in it says so, and triggers a concession
-leaves unshown put on the stack after those it shows; which of a card's abilities a
+leaves unshown put on the stack after those it shows; the permanents an
+instruction has a player sacrifice, from the log's "sacrifices" lines,
+one each, every other choice of permanents of those names a way back;
+which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles
 from the line before its cast, whoever that line names exiling, with

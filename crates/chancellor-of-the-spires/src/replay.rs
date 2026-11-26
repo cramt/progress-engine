@@ -227,6 +227,12 @@ pub enum Divergence {
     /// The log puts a permanent on the bottom of a library with a spell
     /// the engine resolved without putting it there.
     Bottomed { card: String },
+    /// The log sacrifices a permanent the player has none of to sacrifice
+    /// to the instruction the engine is following.
+    Sacrificed { card: String },
+    /// The log sacrifices a different number of permanents than the
+    /// instruction has the player sacrifice.
+    Sacrifices { log: usize, engine: usize },
 }
 
 impl Stop {
@@ -264,7 +270,8 @@ impl Divergence {
             | Divergence::Targets { card }
             | Divergence::UnloggedTrigger { card }
             | Divergence::Untriggered { card }
-            | Divergence::Countered { card } => Some(card),
+            | Divergence::Countered { card }
+            | Divergence::Sacrificed { card } => Some(card),
             _ => None,
         }
     }
@@ -2554,6 +2561,7 @@ impl Driver<'_> {
                 self.did(i, "put into the hand by the instruction");
             }
             // Followed with the cast before it (`mode_said`).
+            Sacrifices { player, card } => return self.sacrificed(i, *player, card),
             ChosenMode(_) if self.consumed.contains(&i) => {}
             other => {
                 let card = other.cards().first().map(|c| c.name().to_string());
@@ -4257,11 +4265,19 @@ impl Driver<'_> {
             player,
             count,
             legal,
+            cost,
             ..
         } = game.decision()
         else {
             unreachable!("waiting on a sacrifice")
         };
+        // An instruction's sacrifice the log prints line by line
+        // (`sacrificed`); one reached anywhere else is one it doesn't show.
+        if !cost {
+            return Err(Stop::Diverged(Divergence::Unlogged {
+                what: "a sacrifice".into(),
+            }));
+        }
         let name = |o: &ObjectId| {
             game.card(game.permanents()[o].card)
                 .map(|t| t.name.clone())
@@ -4338,6 +4354,121 @@ impl Driver<'_> {
             format!("sacrificed {} to pay (CR 701.21a)", described[0]),
         );
         Ok(())
+    }
+
+    /// "sacrifices [Swamp]." and the lines of the same player's after it,
+    /// one a permanent: what an instruction resolving had them sacrifice
+    /// (CR 701.21a), as many lines as it asks. Of permanents of one name,
+    /// which ones the log can't tell, so each other set of them is a way
+    /// back.
+    fn sacrificed(
+        &mut self,
+        i: usize,
+        player: log::Player,
+        card: &log::Card,
+    ) -> Result<Next, Stop> {
+        let p = self.seat(player);
+        let (count, legal) = match self.until_choice()? {
+            Decision::Sacrifice {
+                player: q,
+                count,
+                legal,
+                cost: false,
+                ..
+            } if q == p => (count as usize, legal),
+            _ => {
+                return Err(Stop::Unfollowed {
+                    event: short(&self.entries[i].event),
+                    card: Some(card.name().to_string()),
+                })
+            }
+        };
+        let mut lines: Vec<(usize, log::Card)> = Vec::new();
+        for (j, e) in self.entries.iter().enumerate().skip(i) {
+            match &e.event {
+                Event::Chat { .. } | Event::Watching { .. } => {}
+                Event::Sacrifices { player: q, card } if *q == player => {
+                    lines.push((j, card.clone()));
+                }
+                _ => break,
+            }
+            if lines.len() == count {
+                break;
+            }
+        }
+        let names = lines
+            .iter()
+            .map(|(_, c)| self.called(&Object::Card(c.clone())))
+            .collect::<Result<Vec<Called>, Stop>>()?;
+        let lines: Vec<usize> = lines.into_iter().map(|(j, _)| j).collect();
+        if lines.len() != count {
+            return Err(Stop::Diverged(Divergence::Sacrifices {
+                log: lines.len(),
+                engine: count,
+            }));
+        }
+        // Each name's permanents, and how many of them the lines take.
+        let game = self.game();
+        let mut wanted: Vec<(Called, usize)> = Vec::new();
+        for n in names {
+            match wanted.iter_mut().find(|(w, _)| *w == n) {
+                Some((_, k)) => *k += 1,
+                None => wanted.push((n, 1)),
+            }
+        }
+        let mut per_name: Vec<Vec<Vec<ObjectId>>> = Vec::new();
+        for (n, k) in &wanted {
+            let of: Vec<ObjectId> = legal
+                .iter()
+                .filter(|o| is_called(game, o, n))
+                .copied()
+                .collect();
+            if of.len() < *k {
+                return Err(Stop::Diverged(Divergence::Sacrificed {
+                    card: n.to_string(),
+                }));
+            }
+            per_name.push(combinations(&of, *k));
+        }
+        let mut choices: Vec<Vec<ObjectId>> = vec![Vec::new()];
+        for sets in &per_name {
+            choices = choices
+                .iter()
+                .flat_map(|c| {
+                    sets.iter().map(move |s| {
+                        let mut c = c.clone();
+                        c.extend(s);
+                        c
+                    })
+                })
+                .collect();
+        }
+        let last = *lines.last().expect("count is at least one");
+        if choices.len() > 1 {
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: i,
+                trace: self.trace.len(),
+                resume: last + 1,
+                others: choices[1..]
+                    .iter()
+                    .map(|c| {
+                        Retry::Answer(
+                            Answer::Sacrifice(c.clone()),
+                            "sacrificed others of the same names (CR 701.21a)".into(),
+                        )
+                    })
+                    .collect(),
+                knew: self.knew(),
+                back: Back::Any,
+            });
+        }
+        self.act(Answer::Sacrifice(choices[0].clone()))?;
+        for j in lines {
+            self.did(j, "sacrificed to the instruction resolving (CR 701.21a)");
+        }
+        Ok(Next::Line(last + 1))
     }
 
     /// The mana an instruction adds, which the log never says: the colour
@@ -7440,6 +7571,25 @@ impl fmt::Display for Called {
             Called::FaceDown(_) => f.write_str("a face-down creature"),
         }
     }
+}
+
+/// Every way to take `k` of `of`, in order.
+fn combinations(of: &[ObjectId], k: usize) -> Vec<Vec<ObjectId>> {
+    if k == 0 {
+        return vec![Vec::new()];
+    }
+    if of.len() < k {
+        return Vec::new();
+    }
+    let mut out: Vec<Vec<ObjectId>> = combinations(&of[1..], k - 1)
+        .into_iter()
+        .map(|mut rest| {
+            rest.insert(0, of[0]);
+            rest
+        })
+        .collect();
+    out.extend(combinations(&of[1..], k));
+    out
 }
 
 /// Whether the permanent is the one a line calls so.
