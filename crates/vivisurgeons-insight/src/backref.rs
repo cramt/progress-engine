@@ -267,6 +267,9 @@ struct Ev {
     /// It is said in one option of a trigger event's `Or`: the `Or`'s number
     /// and the option's ([or-either-object]).
     trigger_option: Option<(usize, usize)>,
+    /// It is the cards a draw or a mill of more than one card made
+    /// ([property-of-one]).
+    many: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -555,6 +558,7 @@ impl Collect {
             attached: false,
             attack: None,
             trigger_option: self.trigger_option(decl),
+            many: false,
         });
         id
     }
@@ -766,6 +770,8 @@ impl Visitor for Collect {
             self.evs[ev].verb = made(e).expect("introduces");
             self.evs[ev].token = token_of(e);
             self.evs[ev].top_effect = top;
+            self.evs[ev].many =
+                matches!(e, Effect::Draw { n, .. } | Effect::Mill { n, .. } if *n != Amount::N(1));
             let parent = self.here();
             self.frames[parent].items.push(Item::Ev(ev));
         }
@@ -777,8 +783,8 @@ impl Visitor for Collect {
     fn condition_done(&mut self, _c: &mut Condition) {
         self.pop_frame();
     }
-    fn amount(&mut self, _a: &mut Amount) {
-        self.push_frame(Fk::Amount, String::new());
+    fn amount(&mut self, a: &mut Amount) {
+        self.push_frame(Fk::Amount, head(a));
     }
     fn amount_done(&mut self, _a: &mut Amount) {
         self.pop_frame();
@@ -2077,6 +2083,29 @@ fn resolve_one(
             note = "one object counters are on, not a set".into();
         }
     }
+    // "reveal the top card of your library. If it's a creature card, you
+    // draw cards equal to its power and you gain life equal to its
+    // toughness" (Nissa's Revelation): a power, toughness or mana value is
+    // one object's, so never the several cards a draw or a mill made
+    // ([property-of-one]).
+    let of_one = e
+        .frames
+        .iter()
+        .rev()
+        .find(|&&f| ld.c.frames[f].kind == Fk::Amount)
+        .is_some_and(|&f| {
+            matches!(
+                ld.c.frames[f].verb.as_str(),
+                "PowerOf" | "ToughnessOf" | "ManaValueOf"
+            )
+        });
+    if cands.len() > 1 && of_one {
+        let many = |t: &Target| matches!(t, Target::Intro(l, i) if get((*l, *i)).many);
+        if cands.iter().any(many) && !cands.iter().all(many) {
+            cands.retain(|t| !many(t));
+            note = "one object's property, not the cards a draw made".into();
+        }
+    }
     // "Whenever an Archer you control deals damage to a creature, that
     // Archer deals that much damage …" (Greatbow Doyen): a reference that
     // names a subtype is the object said with that subtype, not a nearer one
@@ -2857,6 +2886,7 @@ pub fn fits(r: &Objects, b: &Objects) -> bool {
         attached: false,
         attack: None,
         trigger_option: None,
+        many: false,
     };
     // "cast target nonland permanent card …, and mana … to cast that
     // spell": a card cast is the spell.

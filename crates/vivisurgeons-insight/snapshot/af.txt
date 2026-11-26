@@ -565,7 +565,7 @@ cost: {2}{G}{G}
 > As an additional cost to cast this spell, sacrifice a creature.
 > You draw cards equal to the sacrificed creature's power, then you gain life equal to its toughness.
 = Let { bind: [/* sacrificed */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Static([AdditionalCost([Sacrifice(Objects { quant: Introduced(0) /* sacrificed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })])]) }
-= Spell([With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [Draw { who: You, n: PowerOf(Objects { quant: LinkedBound { line: 0, binder: 0 }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) }, GainLife { who: You, n: ToughnessOf(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }])
+= Spell([Draw { who: You, n: PowerOf(Objects { quant: LinkedBound { line: 0, binder: 0 }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) }, GainLife { who: You, n: ToughnessOf(Objects { quant: LinkedBound { line: 0, binder: 0 }, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }])
 
 ## Momentum
 face: Momentum
