@@ -79,7 +79,28 @@ pub fn read_face_unresolved(face: &Face, card_name: &str) -> Vec<Line> {
             let subtypes = face.type_line.split_once('—')?.1;
             (first != face.name && subtypes.split_whitespace().any(|s| s == first)).then_some(first)
         })
-        .flatten();
+        .flatten()
+        // "Zurgo can't block creatures with power 2 or greater" (Zurgo
+        // Bellstriker): a legendary card is called by its first name, a
+        // word that names no type on its type line (CR 201.5c); a
+        // planeswalker only by the rule above. Not where
+        // it starts another name: Marit Lage's Slumber creates "Marit Lage".
+        .or_else(|| {
+            let first = face.name.split(' ').next()?;
+            let starts_other = marked.match_indices(first).any(|(i, _)| {
+                let mut rest = marked[i + first.len()..].chars();
+                rest.next() == Some(' ') && rest.next().is_some_and(char::is_uppercase)
+            });
+            (legendary
+                && !face.type_line.contains("Planeswalker")
+                && !face.name.contains(',')
+                && first != face.name
+                && first.chars().next().is_some_and(char::is_uppercase)
+                && !["The", "A", "An"].contains(&first)
+                && !face.type_line.split_whitespace().any(|w| w == first)
+                && !starts_other)
+                .then_some(first)
+        });
     let marked = match short {
         Some(first) => lex::mark_short_name(&marked, first),
         None => marked,

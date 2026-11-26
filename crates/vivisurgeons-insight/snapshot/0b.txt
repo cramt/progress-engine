@@ -26,7 +26,7 @@ cost: {R}{W}{B}
 > First strike
 > Whenever Altaïr attacks, exile up to one target Assassin creature card from your graveyard with a memory counter on it. Then for each creature card you own in exile with a memory counter on it, create a tapped and attacking token that's a copy of it. Exile those tokens at end of combat.
 = Keywords([Keyword { name: "first strike", param: None }])
-= BROKE at "," after: whenever altaïr attacks
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Subtype("assassin"), Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You)), WithCounter(Some("memory"))], or: None } }), With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Owner(You), In(Exile), WithCounter(Some("memory"))], or: None } }, then: [CreateCopy { n: N(1), tapped: true, attacking: Some(ControllerChooses), of: Objects { quant: Bound(0) /* each */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }, Delayed { step: EndOfCombat(The), then: [Exile(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })] }] }], limits: [] }
 
 ## Amorphous Axe
 face: Amorphous Axe

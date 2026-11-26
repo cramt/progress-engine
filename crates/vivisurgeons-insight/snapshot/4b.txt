@@ -617,9 +617,9 @@ cost: {2}{G}
 > Whenever another legendary creature you control enters, put a +1/+1 counter on Legolas.
 > Whenever Legolas deals combat damage to a player, draw a card.
 = Keywords([Keyword { name: "reach", param: None }])
-= BROKE at "power" after: legolas can't be blocked by creatures with
-= BROKE at "." after: whenever another legendary creature you control enters , put a <pt> counter on legolas
-= BROKE at "player" after: whenever legolas deals combat damage to a
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(2) })], or: None }) }])
+= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Leonin Iconoclast
 face: Leonin Iconoclast

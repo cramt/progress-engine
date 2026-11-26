@@ -491,8 +491,8 @@ cost: {6}{B}{R}
 > When Imskir enters, you draw X cards and you lose X life, where X is half the number of artifacts you control, rounded down.
 > {3}{R}, Sacrifice an artifact: Imskir deals damage equal to the sacrificed artifact's mana value to any target.
 = Keywords([Keyword { name: "affinity", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "," after: when imskir enters
-= BROKE at "deals" after: {3} {R} , sacrifice an artifact : imskir
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Where { then: [Draw { who: You, n: X }, LoseLife { who: You, n: X }], x: Half { of: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }), round_up: false } }], limits: [] }
+= Let { bind: [/* sacrificed */ Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Mana(Mana(["3", "R"])), Sacrifice(Objects { quant: Introduced(0) /* sacrificed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Bound(0) /* sacrificed */, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Marked(Sacrificed)], or: None } }), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }
 
 ## Karumonix, the Rat King
 face: Karumonix, the Rat King

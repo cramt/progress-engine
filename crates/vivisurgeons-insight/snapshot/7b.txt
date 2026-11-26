@@ -1050,9 +1050,9 @@ cost: {2}{R}{W}{B}
 > During your turn, Zurgo has indestructible.
 > Whenever a creature dealt damage by Zurgo this turn dies, put a +1/+1 counter on Zurgo.
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "." after: zurgo attacks each combat if able
-= BROKE at "has" after: during your turn , zurgo
-= BROKE at "this" after: whenever a creature dealt damage by zurgo
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: AttacksEachCombat }])
+= Static([AsLongAs { order: Leading, cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "indestructible", param: None }], per: None }] }])
+= Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WasDealtDamageThisTurn { by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), combat: false }], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Éowyn, Lady of Rohan
 face: Éowyn, Lady of Rohan

@@ -363,7 +363,7 @@ cost: {1}{B}
 > Whenever Ezio deals combat damage to a player, you may pay {W}{U}{B}{R}{G} if that player has 10 or less life. When you do, that player loses the game.
 = Keywords([Keyword { name: "menace", param: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("assassin")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, pt: None, has: [Keyword { name: "freerunning", param: Some(Cost([Mana(Mana(["B", "B"]))])) }], per: None }])
-= BROKE at "player" after: whenever ezio deals combat damage to a
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [If { order: Trailing, cond: PlayerHasAtMost { who: That, at_most: 10, what: Life }, then: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["W", "U", "B", "R", "G"]))] }] }] }, WhenYouDo([LoseGame(That)])], limits: [] }
 
 ## Fateful Absence
 face: Fateful Absence

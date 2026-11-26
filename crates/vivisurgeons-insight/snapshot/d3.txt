@@ -877,8 +877,8 @@ cost: {1}{W}{U}
 > Whenever you draw a card, put a +1/+1 counter on Shang-Chi.
 > When the tenth +1/+1 counter is put on Shang-Chi, you draw five cards and gain 5 life.
 = Keywords([Keyword { name: "first strike", param: None }])
-= BROKE at "." after: whenever you draw a card , put a <pt> counter on shang-chi
-= BROKE at "," after: when the tenth <pt> counter is put on shang-chi
+= Triggered { trigger: When(Draws(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(NthCounterPutOn { n: 10, kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Draw { who: You, n: N(5) }, GainLife { who: You, n: N(5) }], limits: [] }
 
 ## Sigil of the Nayan Gods
 face: Sigil of the Nayan Gods

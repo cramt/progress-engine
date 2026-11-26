@@ -832,11 +832,11 @@ cost: {4}{W}{U}
 > Remove a dream counter from Rasputin: Prevent the next 1 damage that would be dealt to Rasputin this turn.
 > At the beginning of your upkeep, if Rasputin started the turn untapped, put a dream counter on it.
 > Rasputin can't have more than seven dream counters on it.
-= BROKE at "it" after: rasputin enters with seven dream counters on
-= BROKE at ":" after: remove a dream counter from rasputin
-= BROKE at ":" after: remove a dream counter from rasputin
-= BROKE at "started" after: at the beginning of your upkeep , if rasputin
-= BROKE at "counters" after: rasputin can't have more than seven dream
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(7), kind: "dream" }])
+= Activated { cost: [RemoveCounters { n: N(1), kind: "dream", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
+= Activated { cost: [RemoveCounters { n: N(1), kind: "dream", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= BROKE at "started" after: at the beginning of your upkeep , if ~
+= BROKE at "counters" after: ~ can't have more than seven dream
 
 ## Rite of the Raging Storm
 face: Rite of the Raging Storm

@@ -568,7 +568,7 @@ cost: {2}{B}
 > When Lobelia enters, exile target creature card from an opponent's graveyard that was put there from the battlefield this turn, then create X Treasure tokens, where X is the exiled card's power.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "menace", param: None }])
-= BROKE at "," after: when lobelia enters
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(AnOpponent)), PutThereFromBattlefieldThisTurn], or: None } }], ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Where { then: [Exile(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Create { who: You, n: X, token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], x: PowerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }) }], limits: [] } }
 
 ## Longshot, Rebel Bowman
 face: Longshot, Rebel Bowman

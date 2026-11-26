@@ -584,7 +584,7 @@ cost: {1}{R}
 > {1}, {T}: When you next cast an instant or sorcery spell with mana value less than or equal to Loki's power this turn, copy that spell. You may choose new targets for the copy.
 > Power-up — {4}{R}: Put two +1/+1 counters on Loki. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)
 = BROKE at "'s" after: {1} , {T} : when you next cast an instant or sorcery spell with mana value less than or equal to loki
-= BROKE at "." after: power-up — {4} {R} : put two <pt> counters on loki
+= KeywordOn { keyword: PowerUp, ability: Activated { cost: [Mana(Mana(["4", "R"]))], effect: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
 
 ## Maja, Bretagard Protector
 face: Maja, Bretagard Protector

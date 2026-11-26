@@ -488,7 +488,7 @@ type: Legendary Creature — Bear
 cost: {2}{G}
 > Whenever Hurska attacks, create a Food token. (It's an artifact with "{2}, {T}, Sacrifice this token: You gain 3 life.")
 > Whenever you gain life, you may pay {G/W}. When you do, target creature gets +X/+X until end of turn, where X is the amount of life you gained.
-= BROKE at "," after: whenever hurska attacks
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }], limits: [] }
 = BROKE at "." after: whenever you gain life , you may pay {G/W} . when you do , target creature gets <pt> until end of turn , where x is the amount of life you gained
 
 ## Hushwing Gryff

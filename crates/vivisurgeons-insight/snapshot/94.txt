@@ -1025,7 +1025,7 @@ cost: {3}{G}{W}
 > When Trostani enters, create two 1/1 white Soldier creature tokens with lifelink.
 > At the beginning of your end step, each player gains control of all creatures they own.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
-= BROKE at "," after: when trostani enters
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [Keyword { name: "lifelink", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
 = Triggered { trigger: At(EndStep(Yours)), effect: [Performed { by: Each, effect: GainControl { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Owner(That)], or: None } }, dur: Permanent } }], limits: [] }
 
 ## Twiddle

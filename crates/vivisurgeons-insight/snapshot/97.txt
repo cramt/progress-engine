@@ -1034,7 +1034,7 @@ type: Legendary Creature — Orc Warrior
 cost: {R}
 > Zurgo can't block creatures with power 2 or greater.
 > Dash {1}{R} (You may cast this spell for its dash cost. If you do, it gains haste, and it's returned from the battlefield to its owner's hand at the beginning of the next end step.)
-= BROKE at "2" after: zurgo can't block creatures with power
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlockAny(Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(2) })], or: None }) }])
 = Keywords([Keyword { name: "dash", param: Some(Cost([Mana(Mana(["1", "R"]))])) }])
 
 ## Éomer, Marshal of Rohan

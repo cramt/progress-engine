@@ -5408,7 +5408,12 @@ fn posts(o: &mut Out, ps: &[Post], n: Num) {
         .position(|p| matches!(p, Post::In(_)))
         .is_some_and(|k| k + 1 < ps.len());
     let said_in = ps.iter().any(|p| match p {
-        Post::PutThereFromBattlefieldThisTurn => true,
+        // "exile target creature card from an opponent's graveyard that
+        // was put there from the battlefield this turn" (Lobelia
+        // Sackville-Baggins): an opponent's graveyard follows the verb.
+        Post::PutThereFromBattlefieldThisTurn => {
+            !ps.contains(&Post::In(Zone::Graveyard(Player::AnOpponent)))
+        }
         // "return all cards in your graveyard destroyed this way"
         // (Cleansing Meditation), but "the chosen card from your graveyard".
         Post::Marked(_) => more_after_zone,

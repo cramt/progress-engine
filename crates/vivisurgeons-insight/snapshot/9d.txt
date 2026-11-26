@@ -897,8 +897,8 @@ cost: {1}{U}{B}
 > When Runo enters, put up to one target creature card from your graveyard on top of your library.
 > At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If a creature card with mana value 6 or greater is revealed this way, transform Runo.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: when runo enters
-= BROKE at "." after: at the beginning of your upkeep , look at the top card of your library . you may reveal that card . if a creature card with mana value 6 or greater is revealed this way , transform runo
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [LookAtTop { who: You, whose: You, n: N(1) }, May { who: You, then: [Reveal { who: You, what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(6) })], or: None } }, how: Revealed }, then: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }], limits: [] }
 
 ## Runo Stromkirk // Krothuss, Lord of the Deep
 face: Krothuss, Lord of the Deep
