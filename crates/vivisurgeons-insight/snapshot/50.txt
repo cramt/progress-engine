@@ -628,7 +628,7 @@ type: Legendary Artifact
 cost: {2}{R}
 > When Loki's Scepter enters, gain control of target creature until end of turn. Untap that creature. Until end of turn, it becomes a Villain in addition to its other types and gains haste.
 > {T}: Add one mana of any color.
-= BROKE at "haste" after: when ~ enters , gain control of target creature until end of turn . untap that creature . until end of turn , it becomes a villain in addition to its other types and gains
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [GainControl { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: UntilEndOfTurn }, Untap(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Becomes { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Subtype("villain")], gains: [Keyword { name: "haste", param: None }], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] } }
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 
 ## Lord Xander, the Collector

@@ -1708,6 +1708,13 @@ mod syn {
         alt(o, vec![with, and_gains]);
     }
 
+    /// Named rewrite [gains-after-keeps]: "becomes a Dragon in addition to
+    /// his other types and gains flying" (Sarkhan, Dragon Ascendant) says
+    /// the same keywords after what the becomes keeps.
+    pub fn gains_after_keeps(o: &mut Out, before: Out, after: Out) {
+        alt(o, vec![before, after]);
+    }
+
     /// "+1: Add {R}." on a planeswalker and "[+1]: Add {R}." inside a
     /// quoted ability: Oracle text brackets a loyalty cost inside quotes,
     /// the same cost (CR 107.7 writes the loyalty symbol "[+N]").
@@ -11208,19 +11215,37 @@ fn becomes_rest(
         }
         _ => o.add(inline),
     }
-    if !gains.is_empty() {
-        let with = out(|o| {
-            o.w("with");
-            keyword_list(o, gains);
-        });
-        let and_gains = out(|o| {
-            o.w("and");
-            o.verb("gain", n);
-            keyword_list(o, gains);
-        });
-        syn::becomes_with(o, with, and_gains);
+    let gains_then_keeps = out(|o| {
+        if !gains.is_empty() {
+            let with = out(|o| {
+                o.w("with");
+                keyword_list(o, gains);
+            });
+            let and_gains = out(|o| {
+                o.w("and");
+                o.verb("gain", n);
+                keyword_list(o, gains);
+            });
+            syn::becomes_with(o, with, and_gains);
+        }
+        keeps_then_dur(o, k, types, d);
+    });
+    let keeps_said = matches!(
+        k,
+        Keeps::OtherTypes | Keeps::OtherColorsAndTypes | Keeps::OtherCreatureTypes
+    );
+    if gains.is_empty() || !keeps_said {
+        o.add(gains_then_keeps);
+        return;
     }
-    keeps_then_dur(o, k, types, d);
+    let keeps_then_gains = out(|o| {
+        keeps(o, k);
+        o.w("and");
+        o.verb("gain", n);
+        keyword_list(o, gains);
+        dur(o, d);
+    });
+    syn::gains_after_keeps(o, gains_then_keeps, keeps_then_gains);
 }
 
 fn keeps_then_dur(o: &mut Out, k: &Keeps, types: &[Adj], d: &Duration) {

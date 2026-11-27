@@ -1011,7 +1011,7 @@ cost: {1}{W}
 > Choose one —
 > • Destroy target creature with power 4 or greater.
 > • Until end of turn, target creature becomes an artifact in addition to its other types and gains indestructible. (Damage and effects that say "destroy" don't destroy it.)
-= BROKE at "indestructible" after: choose one — • destroy target creature with power 4 or greater . • until end of turn , target creature becomes an artifact in addition to its other types and gains
+= Spell([Modal { choose: One, modes: [[Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }, no_regen: false }], [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, types: [Type("artifact")], gains: [Keyword { name: "indestructible", param: None }], keeps: OtherTypes, dur: UntilEndOfTurn }]] }])
 
 ## Summon: Primal Odin
 face: Summon: Primal Odin

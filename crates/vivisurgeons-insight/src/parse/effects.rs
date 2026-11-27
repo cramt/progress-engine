@@ -45,6 +45,9 @@ pub(super) fn becomes_types(p: &mut P) -> Vec<Adj> {
 /// "becomes a 2/2 blue Bird with flying until end of turn", from the verb
 /// on, for a subject already read.
 pub(super) fn becomes(p: &mut P, what: Objects) -> Option<Effect> {
+    // "they become Warriors …": a plural pronoun, whose number a reference
+    // does not carry, so the renderer would say "it".
+    let they = matches!(p.t[..p.i].last(), Some(Tok::Word(w)) if w == "they");
     p.verb("become")?;
     p.attempt(|p| p.one_of(&["a", "an"]));
     let pt = p.attempt(|p| match p.peek()? {
@@ -86,6 +89,21 @@ pub(super) fn becomes(p: &mut P, what: Objects) -> Option<Effect> {
         })
         .unwrap_or_default();
     let keeps = p.attempt(keeps);
+    // "… in addition to its other types and gains flying": the same
+    // keywords said after what it keeps ([gains-after-keeps]).
+    let gains = match (&keeps, gains.is_empty() && !they) {
+        (
+            Some(Keeps::OtherTypes | Keeps::OtherColorsAndTypes | Keeps::OtherCreatureTypes),
+            true,
+        ) => p
+            .attempt(|p| {
+                p.word("and")?;
+                p.verb("gain")?;
+                keyword_list(p)
+            })
+            .unwrap_or_default(),
+        _ => gains,
+    };
     let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
     // ". It's still a land." after the duration.
     let keeps = match keeps {
@@ -146,9 +164,9 @@ pub(super) fn per_costs(p: &mut P, mut c: Vec<Cost>) -> Vec<Cost> {
 
 pub(super) fn keeps(p: &mut P) -> Option<Keeps> {
     alt!(p;
-        |p| p.one_of(&["in addition to its other colors and types", "in addition to their other colors and types"]).map(|_| Keeps::OtherColorsAndTypes),
-        |p| p.one_of(&["in addition to its other types", "in addition to their other types"]).map(|_| Keeps::OtherTypes),
-        |p| p.one_of(&["in addition to its other creature types", "in addition to their other creature types"]).map(|_| Keeps::OtherCreatureTypes),
+        |p| p.one_of(&["in addition to its other colors and types", "in addition to their other colors and types", "in addition to his other colors and types", "in addition to her other colors and types"]).map(|_| Keeps::OtherColorsAndTypes),
+        |p| p.one_of(&["in addition to its other types", "in addition to their other types", "in addition to his other types", "in addition to her other types"]).map(|_| Keeps::OtherTypes),
+        |p| p.one_of(&["in addition to its other creature types", "in addition to their other creature types", "in addition to his other creature types", "in addition to her other creature types"]).map(|_| Keeps::OtherCreatureTypes),
         |p| { p.one_of(&["that's still a", "that's still an", "that are still"])?; group(p).map(Keeps::Listed) },
     )
 }

@@ -242,7 +242,7 @@ face: Enter the Avatar State
 type: Instant — Lesson
 cost: {W}
 > Until end of turn, target creature you control becomes an Avatar in addition to its other types and gains flying, first strike, lifelink, and hexproof. (A creature with hexproof can't be the target of spells or abilities your opponents control.)
-= BROKE at "flying" after: until end of turn , target creature you control becomes an avatar in addition to its other types and gains
+= Spell([Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, types: [Subtype("avatar")], gains: [Keyword { name: "flying", param: None }, Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }, Keyword { name: "hexproof", param: None }], keeps: OtherTypes, dur: UntilEndOfTurn }])
 
 ## Fatal Attraction
 face: Fatal Attraction

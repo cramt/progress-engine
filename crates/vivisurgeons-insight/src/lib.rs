@@ -2814,4 +2814,36 @@ mod round_nine_d {
         );
         assert!(!s.contains("CastSpending"), "{s}");
     }
+
+    #[test]
+    fn gains_said_after_what_the_becomes_keeps() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Creature — Human Dragon",
+                "Whenever a Dragon you control enters, put a +1/+1 counter on this creature. Until end of turn, this creature becomes a Dragon in addition to his other types and gains flying."
+            )
+        );
+        assert!(
+            s.contains("keeps: OtherTypes") && s.contains("gains: [Keyword { name: \"flying\""),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn they_become_and_gain_after_the_keeps_is_not_read() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Sorcery",
+            text: "Gain control of up to two target creatures until end of turn. Untap those creatures. Until end of turn, they become Warriors in addition to their other types and gain haste.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("name: \"haste\""), "{s}");
+    }
 }

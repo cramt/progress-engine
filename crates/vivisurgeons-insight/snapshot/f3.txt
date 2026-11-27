@@ -56,7 +56,7 @@ cost: {2}{W}{W}
 > −2: Put two +1/+1 counters on target creature. It becomes an Angel in addition to its other types and gains flying.
 > −6: Return all nonland permanent cards with mana value 3 or less from your graveyard to the battlefield.
 = Loyalty { change: N(1), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [Keyword { name: "lifelink", param: None }], abilities: [], named: None, attacking: None } }] }
-= BROKE at "flying" after: N(-2) : put two <pt> counters on target creature . it becomes an angel in addition to its other types and gains
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Loyalty { change: N(-2), effect: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Becomes { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Subtype("angel")], gains: [Keyword { name: "flying", param: None }], keeps: OtherTypes, dur: Permanent }] } }
 = Loyalty { change: N(-6), effect: [Move { what: Objects { quant: All, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }
 
 ## Artillery Blast

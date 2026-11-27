@@ -727,7 +727,7 @@ cost: {1}{G/U}{G/U}
 > When this creature enters, put a +1/+1 counter on another target creature you control. Until end of turn, that creature becomes a blue Crab in addition to its other types and gains hexproof. (It can't be the target of spells or abilities your opponents control.)
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "vigilance", param: None }])
-= BROKE at "hexproof" after: when this creature enters , put a <pt> counter on another target creature you control . until end of turn , that creature becomes a blue crab in addition to its other types and gains
+= Let { bind: [/* target */ Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }], ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Becomes { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, types: [Color(Blue), Subtype("crab")], gains: [Keyword { name: "hexproof", param: None }], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] } }
 
 ## Search the Premises
 face: Search the Premises
