@@ -140,7 +140,11 @@ Forty-five threads in a row then found the tree dirty and stopped.
      run its new tests and watch each fail, then `git apply r.patch`. A branch
      that no test fails without is untested, however it reads: test it or drop
      it. Batch 22's "in your graveyard" fallback and batch 21's empty up-to slot
-     shipped that way.
+     shipped that way. A rule that reads a phrase for every card that prints it
+     also gets a negative test, where that phrase's filter refuses something
+     (batch 27's "this or another" was tested on Ayara only, never on
+     Arahbo, the First Fang's "nontoken Cat" seeing a token Cat enter). Reverting the rule
+     can't show a filter that matches too much.
    - A gate you can't pass: drop or revert the commit that broke it and say so
      in the handoff.
 4. **Commit and push.** One commit per rule, its subject a lowercase claim
