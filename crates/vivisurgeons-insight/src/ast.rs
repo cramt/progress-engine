@@ -429,6 +429,16 @@ pub enum Limit {
     AnyPlayerMayActivate,
 }
 
+/// Which mana may be spent to cast a spell ([cast-spending]).
+#[derive(Clone, Debug, PartialEq)]
+pub enum CastMana {
+    /// "You can't spend mana to cast this spell": none; the cost is paid
+    /// some other way (convoke, delve).
+    None,
+    /// "Spend only mana produced by basic lands to cast this spell".
+    ProducedBy(Objects),
+}
+
 /// A bound on a chosen X (CR 107.3a).
 #[derive(Clone, Debug, PartialEq)]
 pub enum XLimit {
@@ -4226,6 +4236,10 @@ pub enum Static {
         who: Player,
         what: Objects,
     },
+    /// "Spend only mana produced by creatures to cast this spell" (Myr
+    /// Superion), "You can't spend mana to cast this spell" (Hogaak): the
+    /// mana that may pay this spell's total cost (CR 601.2h).
+    CastSpending(CastMana),
     /// "You may spend mana as though it were mana of any color to activate
     /// abilities of creatures you control."
     SpendAsAnyColor(Vec<SpendUse>),

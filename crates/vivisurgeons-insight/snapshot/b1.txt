@@ -429,7 +429,7 @@ face: Imperiosaur
 type: Creature — Dinosaur
 cost: {2}{G}{G}
 > Spend only mana produced by basic lands to cast this spell.
-= BROKE at "to" after: spend only mana produced by basic lands
+= Static([CastSpending(ProducedBy(Objects { quant: Plural, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: None, posts: [], or: None } }))])
 
 ## Iron Tusk Elephant
 face: Iron Tusk Elephant

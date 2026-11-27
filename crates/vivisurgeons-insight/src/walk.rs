@@ -337,6 +337,18 @@ impl Walk for AnchoredAbility {
     }
 }
 
+impl Walk for CastMana {
+    #[allow(clippy::all)]
+    fn walk(&mut self, v: &mut dyn Visitor) {
+        match self {
+            CastMana::ProducedBy(f0) => {
+                Walk::walk(f0, v);
+            }
+            _ => {}
+        }
+    }
+}
+
 impl Walk for Choice {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
@@ -3015,6 +3027,9 @@ impl Walk for Static {
             Static::CastOnlyAsSorcery { who, what } => {
                 Walk::walk(who, v);
                 Walk::walk(what, v);
+            }
+            Static::CastSpending(f0) => {
+                Walk::walk(f0, v);
             }
             Static::SpendAsAnyColor(f0) => {
                 for x0 in (f0).iter_mut() {

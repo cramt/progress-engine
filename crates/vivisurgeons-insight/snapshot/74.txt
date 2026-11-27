@@ -529,7 +529,7 @@ cost: {5}{B/G}{B/G}
 > Convoke, delve (Each creature you tap while casting this spell pays for {1} or one mana of that creature's color. Each card you exile from your graveyard pays for {1}.)
 > You may cast this card from your graveyard.
 > Trample
-= BROKE at "spell" after: you can't spend mana to cast this
+= Static([CastSpending(None)])
 = Keywords([Keyword { name: "convoke", param: None }, Keyword { name: "delve", param: None }])
 = Static([PlayFrom { verb: Cast, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }])
 = Keywords([Keyword { name: "trample", param: None }])

@@ -1088,6 +1088,17 @@ fn static_body_more(p: &mut P) -> Option<Vec<Static>> {
             p.words("only any time they could cast a sorcery")?;
             Some(vec![Static::CastOnlyAsSorcery { who, what }])
         },
+        // "Spend only mana produced by creatures to cast this spell", "You
+        // can't spend mana to cast this spell" ([cast-spending]). This
+        // spell only: a rule on other spells is not this.
+        |p| {
+            let mana = alt!(p;
+                |p| { p.words("spend only mana produced by")?; objects(p).map(CastMana::ProducedBy) },
+                |p| p.words("you can't spend mana").map(|_| CastMana::None),
+            )?;
+            p.words("to cast this spell")?;
+            Some(vec![Static::CastSpending(mana)])
+        },
         |p| {
             p.words("you may spend mana as though it were mana of any color")?;
             spend_uses(p).map(|u| vec![Static::SpendAsAnyColor(u)])

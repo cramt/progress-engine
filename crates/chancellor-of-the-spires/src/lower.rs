@@ -494,6 +494,7 @@ fn listed_not_characteristics(s: &i::Static) -> bool {
             | CastAsThoughFlash { .. }
             | CastAsThoughFlashFor { .. }
             | CastOnlyAsSorcery { .. }
+            | CastSpending { .. }
             | ActivateAsThoughHaste { .. }
             | ActivationsPerTurn { .. }
             | AssignAsThoughUnblocked { .. }

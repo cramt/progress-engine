@@ -791,7 +791,7 @@ face: Security Rhox
 type: Creature — Rhino Warrior
 cost: {2}{R}{G}
 > You may pay {R}{G} rather than pay this spell's mana cost. Spend only mana produced by Treasures to cast it this way.
-= BROKE at "only" after: you may pay {R} {G} rather than pay this spell 's mana cost . spend
+= BROKE at "it" after: you may pay {R} {G} rather than pay this spell 's mana cost . spend only mana produced by treasures to cast
 
 ## Seize the Day
 face: Seize the Day

@@ -15435,6 +15435,16 @@ fn static_other(o: &mut Out, s: &Static) {
             objects(o, what);
             o.w("only any time they could cast a sorcery");
         }
+        Static::CastSpending(mana) => {
+            match mana {
+                CastMana::None => o.w("you can't spend mana"),
+                CastMana::ProducedBy(by) => {
+                    o.w("spend only mana produced by");
+                    objects(o, by);
+                }
+            }
+            o.w("to cast this spell");
+        }
         Static::SpendAsAnyColor(uses) => {
             o.w("you may spend mana as though it were mana of any color");
             spend_uses(o, uses);

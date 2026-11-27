@@ -2777,4 +2777,41 @@ mod round_nine_d {
             assert!(s.contains("quant: NFromEach(N(1))"), "{s}");
         }
     }
+
+    #[test]
+    fn spend_only_mana_produced_by_creatures_to_cast_this_spell() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Artifact Creature — Myr",
+                "Spend only mana produced by creatures to cast this spell."
+            )
+        );
+        assert!(s.contains("CastSpending(ProducedBy("), "{s}");
+        let s = format!(
+            "{:?}",
+            read(
+                "Creature — Zombie Avatar",
+                "You can't spend mana to cast this spell."
+            )
+        );
+        assert!(s.contains("CastSpending(None)"), "{s}");
+    }
+
+    #[test]
+    fn spend_only_mana_produced_by_creatures_on_other_spells_is_not_this_spell() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Enchantment",
+            text: "Spend only mana produced by creatures to cast creature spells.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("CastSpending"), "{s}");
+    }
 }

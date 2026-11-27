@@ -628,7 +628,7 @@ face: Myr Superion
 type: Artifact Creature — Myr
 cost: {2}
 > Spend only mana produced by creatures to cast this spell.
-= BROKE at "cast" after: spend only mana produced by creatures to
+= Static([CastSpending(ProducedBy(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }))])
 
 ## Myr Welder
 face: Myr Welder
