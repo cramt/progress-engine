@@ -591,6 +591,58 @@ fn ayara_triggers_as_it_or_another_black_creature_enters() {
     assert_eq!((game.player(ME).life(), game.player(THEM).life()), (22, 18));
 }
 
+/// CR 603.2: Ayara's "black creature you control" doesn't see a black
+/// creature an opponent controls enter.
+#[test]
+fn ayara_doesnt_trigger_on_an_opponents_black_creature() {
+    let mut game = deal_both(
+        &[("Swamp", 30), ("Ayara, First of Locthwain", 30)],
+        &[("Swamp", 30), ("Child of Night", 30)],
+        &[("Swamp", 3), ("Ayara, First of Locthwain", 1)],
+        &[("Swamp", 2), ("Child of Night", 1)],
+    );
+    for _ in 0..2 {
+        play(&mut game, "Swamp");
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, "Swamp");
+        pass_until(&mut game, ME, Step::PrecombatMain);
+    }
+    play(&mut game, "Swamp");
+    cast(&mut game, "Ayara, First of Locthwain", None);
+    resolve(&mut game);
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 19);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    cast_as(&mut game, THEM, "Child of Night", None);
+    resolve(&mut game);
+    assert!(creature(&game, "Child of Night").is_some());
+    assert!(game.stack().is_empty(), "their black creature: no trigger");
+    assert_eq!(game.player(THEM).life(), 19);
+}
+
+/// CR 603.2, 111.1: Arahbo's "Whenever Arahbo or another nontoken Cat you
+/// control enters" triggers as it enters, and not as the Cat token it
+/// makes enters, though that token is another Cat I control.
+#[test]
+fn arahbo_doesnt_trigger_on_its_own_cat_token() {
+    let mut game = deal(
+        &[("Plains", 30), ("Arahbo, the First Fang", 30)],
+        &[("Island", 60)],
+        &[("Plains", 3), ("Arahbo, the First Fang", 1)],
+    );
+    play(&mut game, "Plains");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Arahbo, the First Fang", None);
+    resolve(&mut game);
+    assert_eq!(game.stack().len(), 1, "it sees itself enter");
+    resolve(&mut game);
+    assert_eq!(game.permanents().len(), 5, "three Plains, Arahbo, a Cat");
+    assert!(game.stack().is_empty(), "a token Cat: no trigger");
+}
+
 /// CR 800.4a, 104.3c: in a game of three, the player who drew from an
 /// empty library has left it, and Ayara's "each opponent loses 1 life"
 /// is the one opponent left's alone.
