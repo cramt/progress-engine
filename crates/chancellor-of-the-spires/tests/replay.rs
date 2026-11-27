@@ -204,6 +204,8 @@ const INDEXED: &[&str] = &[
     "Commune with Dinosaurs",
     "Quirion Dryad",
     "Accumulated Knowledge",
+    "Plague Belcher",
+    "Dread Wanderer",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1923,6 +1925,43 @@ fn a_trigger_ordered_beside_one_the_log_shows_but_never_shown_is_paid_otherwise(
     assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
     let game = r.game.unwrap();
     assert_eq!(game.player(ALICE).life(), 20, "City of Brass never tapped");
+}
+
+/// CR 704.5f, 608.2h: Plague Belcher's two -1/-1 counters leave Dread
+/// Wanderer dead before anyone has priority; it had them as it last
+/// existed, so the counters line is followed there, and Belcher's trigger
+/// on its dying is the next line's.
+#[test]
+fn counters_that_kill_the_creature_are_on_it_as_it_last_existed() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Swamp].
+        alice casts [Dread Wanderer].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Swamp].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Swamp].
+        alice casts [Plague Belcher].
+        alice puts a triggered ability from [Plague Belcher] onto the stack (When this creature enters, put two -1/-1 counters on target creature you control.) targeting [Dread Wanderer].
+        alice puts two -1/-1 counters on [Dread Wanderer].
+        alice puts a triggered ability from [Plague Belcher] onto the stack (Whenever another Zombie you control dies, each opponent loses 1 life.).
+        Turn 3: bob
+        bob draws a card.
+        alice has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    let game = r.game.unwrap();
+    assert_eq!(game.player(BOB).life(), 19);
 }
 
 /// CR 601.2b, 702.33d: "casts [Burst Lightning] with kicker" pays its

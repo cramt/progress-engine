@@ -2250,12 +2250,23 @@ impl Driver<'_> {
                 // -0/-1), which the log prints as it is activated: the
                 // mana floats until what it pays for is cast.
                 let mut activated = self.counter_mana(p, counters)?;
+                let mut named = Vec::new();
                 if activated.is_none() {
                     // What resolves on the stack this turn until the
                     // counters are there, and no further: a second trigger
                     // waiting is the next line's.
+                    named = self.named_permanents(counters)?;
                     let turn = self.game().turn();
                     while self.counters_missing(counters)?.is_some() {
+                        // The counters can leave what they went on dead
+                        // to state-based actions before anyone has
+                        // priority (CR 704.5f): it had them as it last
+                        // existed, and a trigger of its dying is the
+                        // next line's.
+                        if self.died_with(counters, &named)? {
+                            break;
+                        }
+                        named = self.named_permanents(counters)?;
                         let game = self.game();
                         let passing = game.turn() == turn
                             && match game.decision() {
@@ -2287,7 +2298,8 @@ impl Driver<'_> {
                 // its source itself, and its last -0/-1 can leave that dead
                 // to state-based actions (CR 704.5f) before it is looked
                 // for, as a fifth leaves Wall of Roots 0/0.
-                let gone = activated.is_some_and(|o| !self.game().permanents().contains_key(&o));
+                let gone = activated.is_some_and(|o| !self.game().permanents().contains_key(&o))
+                    || self.died_with(counters, &named)?;
                 if let (false, Some(what)) = (gone, self.counters_missing(counters)?) {
                     return Err(Stop::Diverged(Divergence::NeverOffered { what }));
                 }
@@ -6061,6 +6073,52 @@ impl Driver<'_> {
                 let shown = self.counted.get(key).copied().unwrap_or(0);
                 game.counters_on(key.0, &key.1) >= shown + counted.count
             }))
+    }
+
+    /// The permanents a counters line names, for `died_with`.
+    fn named_permanents(&mut self, counters: &[log::Counted]) -> Result<Vec<ObjectId>, Stop> {
+        let mut out = Vec::new();
+        for counted in counters {
+            let log::Target::Object(Object::Card(c)) = &counted.on else {
+                continue;
+            };
+            let name = self.permanent_name(c)?;
+            let game = self.game();
+            out.extend(
+                game.permanents()
+                    .iter()
+                    .filter(|(_, p)| game.card(p.card).is_some_and(|t| t.is_called(&name)))
+                    .map(|(id, _)| *id),
+            );
+        }
+        Ok(out)
+    }
+
+    /// Whether each of the line's counters is on one of the `named`
+    /// permanents that has since left the battlefield, as it last existed
+    /// (CR 608.2h).
+    fn died_with(&mut self, counters: &[log::Counted], named: &[ObjectId]) -> Result<bool, Stop> {
+        let game = self.game();
+        let gone: Vec<ObjectId> = named
+            .iter()
+            .copied()
+            .filter(|o| !game.permanents().contains_key(o))
+            .collect();
+        if gone.is_empty() {
+            return Ok(false);
+        }
+        for counted in counters {
+            let kind = counter_kind(&counted.kind);
+            let had = gone.iter().any(|o| {
+                // zero: no line has shown counters of this kind on it yet.
+                let shown = self.counted.get(&(*o, kind.clone())).copied().unwrap_or(0);
+                self.game().counters_on(*o, &kind) >= shown + counted.count
+            });
+            if !had {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     /// What of a counters line isn't on the battlefield yet, if anything.

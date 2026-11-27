@@ -1098,7 +1098,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-27 178 of the 500 replay to
-the end and 61.26% of their lines are followed** (19,393 of 31,659), 3
+the end and 61.47% of their lines are followed** (19,461 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
 and 181 games have no card the engine refuses before any game (from 21). The
@@ -1431,7 +1431,13 @@ counterspell's controller's graveyard as it resolves, hidden cards
 counted too (CR 608.2h, 118.12a: Circular Logic); and "a spell that's
 white, blue, black, or red", the colours said after the noun as they
 would be before it (CR 105.2, 601.2i: Quirion Dryad, whose 3 games go on,
-two to the end and one to Snuff Out).
+two to the end and one to Snuff Out); "whenever this or another black
+creature you control enters", one ability triggering on either, once for
+an event that is both, and "each opponent loses 1 life", each opponent
+still in the game (CR 603.2c, 119.3, 800.4a: Ayara, First of Locthwain,
+whose 4 games go on to Reactor Raid, Phyrexian Obliterator's damage
+trigger, Arahbo and a choice the replay doesn't follow; Plague Belcher,
+whose game goes on to Wight of the Reliquary).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the
@@ -1450,6 +1456,8 @@ card of its name the way back;
 a trigger to be ordered beside others that no line of the turn shows
 stopped as one the log doesn't have, as a lone one is, so a City of
 Brass tapped to pay beside another trigger is paid for otherwise;
+counters that leave the creature dead to state-based actions on it as it
+last existed, the trigger of its dying the next line's;
 which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

@@ -547,6 +547,91 @@ fn champion_of_the_parish_grows_when_another_human_enters() {
     assert_eq!(game.characteristics()[&champion].pt, Some(pt(2, 2)));
 }
 
+/// CR 603.2, 603.6a: Ayara's "Whenever this or another black creature you
+/// control enters" is one ability that triggers as it enters itself and as
+/// a black Child of Night enters, and not as a green Grizzly Bears does.
+#[test]
+fn ayara_triggers_as_it_or_another_black_creature_enters() {
+    let mut game = deal(
+        &[
+            ("Swamp", 20),
+            ("Forest", 15),
+            ("Ayara, First of Locthwain", 10),
+            ("Grizzly Bears", 5),
+            ("Child of Night", 10),
+        ],
+        &[("Island", 60)],
+        &[
+            ("Swamp", 3),
+            ("Forest", 1),
+            ("Ayara, First of Locthwain", 1),
+            ("Grizzly Bears", 1),
+            ("Child of Night", 1),
+        ],
+    );
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(&mut game, "Ayara, First of Locthwain", None);
+    resolve(&mut game);
+    assert_eq!(game.stack().len(), 1, "it sees itself enter");
+    resolve(&mut game);
+    assert_eq!((game.player(ME).life(), game.player(THEM).life()), (21, 19));
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    resolve(&mut game);
+    assert!(game.stack().is_empty(), "a green creature: no trigger");
+    cast(&mut game, "Child of Night", None);
+    resolve(&mut game);
+    assert_eq!(game.stack().len(), 1, "another black creature");
+    resolve(&mut game);
+    assert_eq!((game.player(ME).life(), game.player(THEM).life()), (22, 18));
+}
+
+/// CR 800.4a, 104.3c: in a game of three, the player who drew from an
+/// empty library has left it, and Ayara's "each opponent loses 1 life"
+/// is the one opponent left's alone.
+#[test]
+fn each_opponent_is_each_one_still_in_the_game() {
+    const GONE: PlayerId = PlayerId(2);
+    let mut game = (0..500)
+        .map(|seed| {
+            Game::start(Setup {
+                format: Format::Constructed,
+                decks: vec![
+                    deck(&[("Swamp", 30), ("Ayara, First of Locthwain", 30)]),
+                    deck(&[("Island", 60)]),
+                    deck(&[("Island", 7)]),
+                ],
+                mulligans: false,
+                seed,
+            })
+            .unwrap()
+        })
+        .find(|g| {
+            named(g, g.player(ME).hand(), "Swamp") >= 3
+                && named(g, g.player(ME).hand(), "Ayara, First of Locthwain") >= 1
+        })
+        .expect("a seed deals three Swamps and Ayara");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    assert!(game.player(GONE).has_left(), "drew from an empty library");
+    cast(&mut game, "Ayara, First of Locthwain", None);
+    resolve(&mut game);
+    resolve(&mut game);
+    assert_eq!(
+        [ME, THEM, GONE].map(|q| game.player(q).life()),
+        [21, 19, 20]
+    );
+}
+
 /// CR 603.6a, 701.22a: Temple of Deceit's "When this land enters, scry
 /// 1" triggers as it is played and asks me to scry.
 #[test]

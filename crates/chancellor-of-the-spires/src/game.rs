@@ -6965,6 +6965,21 @@ impl Game {
                         self.lose_life(q, n);
                     }
                 }
+                Effect::EachLosesLife { whose, n } => {
+                    let n = self.amount(&at, n);
+                    let losing: Vec<PlayerId> = (0..self.players.len())
+                        .map(|q| PlayerId(q as u8))
+                        .filter(|q| match whose {
+                            lower::Whose::Yours => *q == p,
+                            lower::Whose::Opponents => *q != p,
+                            lower::Whose::Each => true,
+                        })
+                        .filter(|q| !self.player(*q).left)
+                        .collect();
+                    for q in losing {
+                        self.lose_life(q, n);
+                    }
+                }
                 Effect::GainLife { who: w, n } => {
                     let n = self.amount(&at, n);
                     if let Some(q) = who(w) {

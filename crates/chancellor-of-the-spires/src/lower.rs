@@ -1629,6 +1629,13 @@ pub enum Effect {
         who: Who,
         n: Amount,
     },
+    /// "Each opponent loses 1 life": each of those players still in the
+    /// game, relative to the instruction's controller, the amount worked
+    /// out once (CR 119.3, 608.2h, 800.4a).
+    EachLosesLife {
+        whose: Whose,
+        n: Amount,
+    },
     GainLife {
         who: Who,
         n: Amount,
@@ -2665,6 +2672,26 @@ fn when(e: &i::Event, bound: &dyn Fn(&Objects) -> Objects) -> Result<TriggerEven
                 .map(|e| when(e, bound))
                 .collect::<Result<_, _>>()?,
         ),
+        // Ayara's "Whenever this or another black creature you control
+        // enters": one ability that triggers on either, once for an event
+        // that is one of them (CR 603.2, 603.2c).
+        i::Event::Enters {
+            what:
+                what @ Objects {
+                    quant: Quant::SelfOrAnother(this),
+                    ..
+                },
+            under: None,
+            state: None,
+        } if this.quant == Quant::SelfRef && this.filter == i::Filter::default() => {
+            TriggerEvent::Or(vec![
+                TriggerEvent::Enters(Filter(vec![Pred::Itself])),
+                TriggerEvent::Enters(entering(&Objects {
+                    quant: Quant::Another,
+                    filter: what.filter.clone(),
+                })?),
+            ])
+        }
         i::Event::Enters {
             what,
             under: None,
@@ -3552,6 +3579,13 @@ impl<'a> Scope<'a> {
                 }
             }
             i::Effect::ExileZone(i::Zone::Graveyard(who)) => Effect::ExileGraveyard(self.who(who)?),
+            i::Effect::LoseLife {
+                who: i::Player::EachOpponent,
+                n: k,
+            } => Effect::EachLosesLife {
+                whose: Whose::Opponents,
+                n: Amount::N(n(k)?),
+            },
             i::Effect::LoseLife { who, n: k } => Effect::LoseLife {
                 who: self.who(who)?,
                 n: match k {
